@@ -10,7 +10,7 @@ Objetivo permanente: un lenguaje que tome lo mejor de los demás (ver roadmap §
   decide la siguiente fase, verifica commits y estado remoto. Su rol es que todo fluya.
 - **Codex (modelo Astra):** diseña arquitectura/ADR cuando algo no está en el roadmap.
 - **Codex (modelo GPT 6 Luna):** implementa (opción barata).
-- **Subagente Sonnet 5.5:** valida. Nunca implementa ni rebaja requisitos para aprobar.
+- **Subagente Sonnet 5.5 (esfuerzo medium):** valida, vía `.claude/agents/nexo-validator.md`. Nunca implementa ni rebaja requisitos para aprobar.
 
 ## Flujo A — Fases o mecánicas no planteadas en el roadmap
 

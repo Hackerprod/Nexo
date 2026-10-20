@@ -21,8 +21,13 @@
 - Recursos simulados, copia profunda física y límite explícito de trabajo.
 - No hay IR bajada, préstamos, efectos, closures ni generadores ejecutables.
 
+## Diseño F0-D11/D12/D13
+- ADR D11 (closures), D12 (async), D13 (expresiones/módulos) y catálogo F0-CODIGOS: PASS de diseño en
+  iteración 7 (docs/validation/F0-D11-D13-design-review.md). Sin ejecutar; NB1-NB8 abiertos.
+- Siguiente: Flujo B para implementar el corte; después, Flujo A para IR/efectos/D09 si falta diseño.
+
 ## Decisiones y puertas aún pendientes
-- D11 closures; D12 async; D13 expresiones/visibilidad/paquetes.
+- D11–D13: ADR redactados y con PASS de diseño (no ejecutados, no aprobados por el propietario).
 - Protocolo explícito de la propuesta H-PY 10×/3×; no resultado medido.
 - D01–D10 completos, estados D09, coherencia de traits, gramática completa e IR/backend.
 - Protocolos T01–T28/H-*/T26, plataformas y herramientas de referencia.
