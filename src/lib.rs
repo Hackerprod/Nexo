@@ -1,6 +1,7 @@
 //! F0 slice 1: deliberately bounded, sequential value/ownership experiment.
 //! No native backend, CoW, reference counting, tasks or performance claims.
 pub mod check;
+pub mod diagnostic;
 pub mod runtime;
 pub mod syntax;
 

@@ -73,3 +73,7 @@ El `move` del prototipo es sintaxis provisional del corte; la base utiliza
 `consume` en sus interfaces. Al ampliar la gramática, resolver y registrar esa
 correspondencia. No afirmar que los terminadores opcionales, Result, efectos,
 closures o generadores ya existen: se rechazan en el frontend actual.
+
+## I01
+
+I01 implementa localmente el esquema de diagnósticos, su presentación JSON/texto, `nexo explain` y lectura acotada. Está pendiente de revisión independiente. I02–I11 no han iniciado. El addendum F0-CODIGOS-ADDENDUM-0002 queda pendiente de fusionar en F0-CODIGOS.md. D11–D13 y F0-0002 tienen PASS de diseño, no aprobación de fase. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores. Las lagunas conocidas de I01 constan en docs/validation/F0-0002-I01-implementation-notes.md. F0 sigue pendiente de dos revisores sin discrepancias, T01–T28, plataformas y las demás puertas de Pending.md.

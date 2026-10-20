@@ -25,3 +25,9 @@ ni dependencias externas. Los artefactos de `target/` no se respaldan y no son
 prueba de que el código actual haya pasado. Recompilar antes de repetir repros.
 La revisión independiente y hashes están en `docs/validation/F0-0001-review.md`.
 No ocultar los tres defectos originales encontrados durante la revisión.
+
+## Recuperación del corte I01
+
+Leer primero README.md, Pending.md y docs/F0_ACUERDOS.md. Comprobar los hashes de la base contra el blob de Git mediante `git show HEAD:<ruta> | sha256sum`; inspeccionar `git status` y el último commit remoto antes de continuar. Continuar solo el siguiente corte pendiente. Mantener separados implementador y validador, respaldar cada paso con commit descriptivo y verificar HEAD remoto sin force push. Los tres defectos originales del primer corte (altura compuesta del AST, orden de límites negativos y truncamiento UTF-8) permanecen documentados y no deben ocultarse.
+
+I01 está implementada localmente y pendiente de revisión independiente; I02–I11 no iniciadas. El addendum de códigos sigue pendiente de fusionar. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores.

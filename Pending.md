@@ -8,8 +8,8 @@
 
 ## Siguiente corte
 1. Leer HANDOFF.md; comprobar respaldo remoto de F0-0001 y reproducir pruebas.
-2. Registrar D11–D13 con reglas y contraejemplos concretos sin alterar la base.
-3. Extender prototipo por cortes: llamadas/IR/efectos y flujos reducidos de F0.
+2. Revisar independientemente el corte I01 contra F0-0002 §§10–13.
+3. Corregir hallazgos y dejar regresiones antes de iniciar I02; continuar únicamente el siguiente corte de I02–I11 tras revisión.
 4. Revisión independiente, regresiones y respaldo verificado en cada corte.
 
 ## Evidencia del primer corte
@@ -37,3 +37,11 @@
 - EX01/EX04 completos, generadores y biblioteca real corresponden a F2.
 
 No ocultar pendientes al cambiar de workspace. No publicar secretos ni usar force push.
+
+## Corte I01
+- Estado por subtarea: I01 implementada localmente y pendiente de revisión independiente; I02–I11 no iniciadas.
+- El addendum F0-CODIGOS-ADDENDUM-0002 sigue pendiente de fusionar en F0-CODIGOS.md.
+- Diseño D11–D13 y F0-0002 con PASS de diseño; no equivale a aprobación del propietario.
+- I01 abarca esquema, validación, JSON/texto, explain y lectura acotada. La revisión independiente y las puertas de F0 siguen pendientes.
+- Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores.
+- Límites conocidos de I01: las reglas de emisión y las inserciones vacías del mismo punto se comprueban en los emisores; los valores de cuota del perfil normal y la relación de `observed` como obligación del emisor constan como límites del esquema.
