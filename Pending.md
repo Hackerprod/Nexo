@@ -24,7 +24,8 @@
 ## Diseño F0-D11/D12/D13
 - ADR D11 (closures), D12 (async), D13 (expresiones/módulos) y catálogo F0-CODIGOS: PASS de diseño en
   iteración 7 (docs/validation/F0-D11-D13-design-review.md). Sin ejecutar; NB1-NB8 abiertos.
-- Siguiente: Flujo B para implementar el corte; después, Flujo A para IR/efectos/D09 si falta diseño.
+- ADR F0-0002 (llamadas, IR, préstamos, efectos, Result/?): PASS de diseño en iteración 6 (docs/validation/F0-0002-design-review.md). Addendum de códigos pendiente de fusionar en F0-CODIGOS.md.
+- Siguiente: Flujo B, sub-tareas I01-I11 de F0-0002 §17 (Codex Luna implementa; Sonnet valida).
 
 ## Decisiones y puertas aún pendientes
 - D11–D13: ADR redactados y con PASS de diseño (no ejecutados, no aprobados por el propietario).
