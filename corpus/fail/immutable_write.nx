@@ -1,0 +1,2 @@
+// expect: E0105
+fn main() { let value = [[1]]; value[0][0] = 2; }

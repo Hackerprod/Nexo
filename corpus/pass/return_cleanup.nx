@@ -1,0 +1,8 @@
+fn main() {
+    let outer = mock_open(1);
+    {
+        let inner = mock_open(2);
+        return;
+    }
+    print(999);
+}

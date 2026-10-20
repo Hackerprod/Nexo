@@ -1,0 +1,14 @@
+fn main() {
+    var value = [1, 2];
+    {
+        var value = value;
+        value[0] = 8;
+        assert_eq(value[0], 8);
+    }
+    assert_eq(value[0], 1);
+    let r = mock_open(7);
+    {
+        let r = move r;
+        inspect(r);
+    }
+}

@@ -1,0 +1,2 @@
+// expect: E0101
+fn main() { { let r = mock_open(1); } inspect(r); }

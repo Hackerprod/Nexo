@@ -1,0 +1,2 @@
+// expect: E0107
+fn main() { let value = 9223372036854775808; }

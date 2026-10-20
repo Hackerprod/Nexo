@@ -1,0 +1,10 @@
+fn main() {
+    let source = mock_open(10);
+    let owner = move source;
+    inspect(owner);
+    {
+        let inner = mock_open(20);
+        inspect(inner);
+    }
+    drop(owner);
+}

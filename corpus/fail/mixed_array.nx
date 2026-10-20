@@ -1,0 +1,2 @@
+// expect: E0102
+fn main() { let invalid = [1, true]; }

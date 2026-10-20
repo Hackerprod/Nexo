@@ -16,3 +16,12 @@ basándose solo en resúmenes de chat.
 
 Al primer respaldo documental no se publica ni se afirma validado el código parcial
 que pueda existir en un workspace. Su publicación requiere alcance y pruebas propios.
+
+## Reproducir el primer corte
+
+Usar la cadena de `rust-toolchain.toml` con rustfmt/clippy. Ejecutar
+`scripts/validate.sh` desde la raíz del repositorio; los tests no necesitan red
+ni dependencias externas. Los artefactos de `target/` no se respaldan y no son
+prueba de que el código actual haya pasado. Recompilar antes de repetir repros.
+La revisión independiente y hashes están en `docs/validation/F0-0001-review.md`.
+No ocultar los tres defectos originales encontrados durante la revisión.

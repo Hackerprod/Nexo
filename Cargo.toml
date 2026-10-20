@@ -1,0 +1,9 @@
+[package]
+name = "nexo"
+version = "0.0.1"
+edition = "2024"
+rust-version = "1.99"
+license = "Apache-2.0"
+description = "Nexo F0 semantic exploration: not a production compiler"
+
+[dependencies]
