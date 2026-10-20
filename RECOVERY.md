@@ -30,4 +30,8 @@ No ocultar los tres defectos originales encontrados durante la revisión.
 
 Leer primero README.md, Pending.md y docs/F0_ACUERDOS.md. Comprobar los hashes de la base contra el blob de Git mediante `git show HEAD:<ruta> | sha256sum`; inspeccionar `git status` y el último commit remoto antes de continuar. Continuar solo el siguiente corte pendiente. Mantener separados implementador y validador, respaldar cada paso con commit descriptivo y verificar HEAD remoto sin force push. Los tres defectos originales del primer corte (altura compuesta del AST, orden de límites negativos y truncamiento UTF-8) permanecen documentados y no deben ocultarse.
 
-I01 está implementada localmente y pendiente de revisión independiente; I02–I11 no iniciadas. El addendum de códigos sigue pendiente de fusionar. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores.
+I01 está validada tras revisión independiente y publicada en `d4836cf`; I02a está validada tras revisión independiente y publicada en main; I02b–I11 no iniciadas. El addendum de códigos sigue pendiente de fusionar. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores.
+
+## Recuperación de I02a
+
+I02a está validada tras revisión independiente y publicada en main. El lexer nuevo está aislado en `src/frontend/lex.rs` y se exporta bajo `frontend::lex`; no se ha conectado a `compile`, `check` o `run`. Consultar `docs/validation/F0-0002-I02a-implementation-notes.md` para alcance, lagunas y suites. Siguiente paso: revisión independiente de I02a y después continuar con I02b; no completar parser/AST (I02b) dentro de esta recuperación.

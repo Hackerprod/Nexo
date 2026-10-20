@@ -47,3 +47,26 @@ Objetivo permanente: un lenguaje que tome lo mejor de los demás (ver roadmap §
 - Verificación de hashes de la base: contra el blob de git
   (`git show HEAD:<ruta> | sha256sum`); en Windows `core.autocrlf` altera el fichero de
   trabajo.
+
+## Lecciones operativas (aplicar a todo corte nuevo)
+
+- El brief del implementador incluye desde el principio el estándar que el validador exigirá:
+  negativo aislado por regla (rompe un solo atributo y comprueba código, subcausa, span, token y
+  campos exactos), mutación inversa verificada por regla con restauración por SHA-256, resultados
+  esperados transcritos del ADR y no generados por el código bajo prueba, casos válidos contra
+  falsos positivos, fuzz sin panics, y nombres de test sin recuentos de pasadas. Esto redujo un
+  corte de siete rondas de validación a tres.
+- Nunca terminar con el árbol roto: si falta presupuesto, revertir a un estado verde y listar lo
+  pendiente nominalmente.
+- Los documentos versionables (HANDOFF.md, Pending.md, RECOVERY.md, notas) se ACTUALIZAN, no se
+  reescriben: comparar con `git diff HEAD` para no perder contenido útil. No citan .scratch, el
+  brief ni etiquetas de proceso, y no afirman PASS ni commit antes de tiempo.
+- El validador compara siempre `check`/`run` contra HEAD con su propia batería (`git archive HEAD`),
+  no solo con la del implementador. Criterio acotado de mutaciones: re-ejecutar las supervivientes
+  de la ronda previa más un máximo de mutaciones nuevas, bloqueantes solo si caen en una regla que
+  el ADR enuncia de forma explícita.
+- Las lagunas reales del ADR se registran y se fijan con tests de comportamiento actual; no se
+  inventa contenido. Las obligaciones de emisión de pasos posteriores se registran como límite.
+- Entorno Windows: el sandbox de Codex falla (`setup refresh had errors`); el implementador se
+  lanza con `codex exec --dangerously-bypass-approvals-and-sandbox` limitado al repo por el brief
+  y con git de solo lectura. Autorizado por el propietario solo para este repositorio.

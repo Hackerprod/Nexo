@@ -2,6 +2,7 @@
 //! No native backend, CoW, reference counting, tasks or performance claims.
 pub mod check;
 pub mod diagnostic;
+pub mod frontend;
 pub mod runtime;
 pub mod syntax;
 

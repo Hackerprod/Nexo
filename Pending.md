@@ -8,9 +8,8 @@
 
 ## Siguiente corte
 1. Leer HANDOFF.md; comprobar respaldo remoto de F0-0001 y reproducir pruebas.
-2. Revisar independientemente el corte I01 contra F0-0002 §§10–13.
-3. Corregir hallazgos y dejar regresiones antes de iniciar I02; continuar únicamente el siguiente corte de I02–I11 tras revisión.
-4. Revisión independiente, regresiones y respaldo verificado en cada corte.
+2. Continuar con I02b (parser, terminadores sintácticos, AST, recuperación e impresor) según F0-0002 §17.
+3. Revisión independiente, regresiones y respaldo verificado en cada corte.
 
 ## Evidencia del primer corte
 - Parser, checker de tipos/propiedad, intérprete de AST y CLI check/run.
@@ -39,9 +38,17 @@
 No ocultar pendientes al cambiar de workspace. No publicar secretos ni usar force push.
 
 ## Corte I01
-- Estado por subtarea: I01 implementada localmente y pendiente de revisión independiente; I02–I11 no iniciadas.
+- Estado por subtarea: I01 validada tras revisión independiente y publicada en `d4836cf`; I02a validada tras revisión independiente y publicada en main; I02b–I11 no iniciadas.
 - El addendum F0-CODIGOS-ADDENDUM-0002 sigue pendiente de fusionar en F0-CODIGOS.md.
 - Diseño D11–D13 y F0-0002 con PASS de diseño; no equivale a aprobación del propietario.
-- I01 abarca esquema, validación, JSON/texto, explain y lectura acotada. La revisión independiente y las puertas de F0 siguen pendientes.
+- I01 abarca esquema, validación, JSON/texto, explain y lectura acotada; está validada tras revisión independiente y publicada en `d4836cf`. Las puertas de F0 siguen pendientes.
 - Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores.
 - Límites conocidos de I01: las reglas de emisión y las inserciones vacías del mismo punto se comprueban en los emisores; los valores de cuota del perfil normal y la relación de `observed` como obligación del emisor constan como límites del esquema.
+
+## Corte I02a
+- Estado: léxico, tokens y spans implementados localmente; pendiente de revisión independiente.
+- El lexer propuesto vive en `src/frontend/lex.rs`; el frontend de `syntax.rs` y la salida actual de `check`/`run` siguen separados.
+- Incluye símbolos, identificadores/reservadas, enteros, decimal reducido, cadenas reconocidas, comentarios `//`, saltos LF/CR/CRLF y NX-E0001 léxico. LX01–LX05 tienen negativos y positivos pareados en la suite unitaria.
+- I02b (parser, terminadores sintácticos, AST, recuperación e impresor) sigue pendiente. L01–L07 y el resto de §14 no se cierran en I02a.
+- Ambigüedades de literales entre comillas y diagnóstico de lexema incompleto quedan registradas en `docs/validation/F0-0002-I02a-implementation-notes.md`; no se implementa decodificación semántica de cadenas.
+- Siguiente paso: I02b.
