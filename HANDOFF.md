@@ -1,8 +1,7 @@
 # Continuación de Nexo
 
-Estado al entregar: 20 de octubre de 2026 (UTC). El propietario pidió publicar el
-trabajo actual para que otro agente continúe. No iniciar un nuevo corte desde la
-sesión que prepara esta entrega.
+Estado local: I02b validada tras revisión independiente y publicada en main.
+El propietario decide el inicio de cada fase.
 
 ## Leer primero
 
@@ -60,10 +59,8 @@ renderizado de diagnósticos UTF-8 y se probó limpieza al agotar presupuesto.
 
 ## Próximo trabajo concreto
 
-1. Redactar y revisar ADR D11 (capturas), D12 (async), D13 (expresiones/módulos).
-   Todavía no están redactados ni decididos: no reconstruir decisiones de un chat.
-2. Definir el siguiente corte antes de implementarlo: llamadas y representación
-   intermedia, efectos y/o préstamos reducidos, con pruebas positivas/negativas.
+1. Solicitar revisión independiente de I02b y conservar sus defectos y regresiones.
+2. Continuar I03–I11 según §17 del ADR F0-0002 cuando se autorice el corte.
 3. Extender los tres flujos reducidos exigidos por F0: herramienta, actualización
    de datos y petición simulada. EX01/EX04 completos no están implementados.
 4. Completar los modelos y protocolos de F0, incluidos estados D09, plataformas,
@@ -76,8 +73,12 @@ closures o generadores ya existen: se rechazan en el frontend actual.
 
 ## I01
 
-I01 implementa el esquema de diagnósticos, su presentación JSON/texto, `nexo explain` y lectura acotada; fue validada tras revisión independiente y publicada en `d4836cf`. I02a está validada tras revisión independiente y publicada en main; I02b–I11 no iniciadas. El addendum F0-CODIGOS-ADDENDUM-0002 queda pendiente de fusionar en F0-CODIGOS.md. D11–D13 y F0-0002 tienen PASS de diseño, no aprobación de fase. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores. Las lagunas conocidas de I01 constan en docs/validation/F0-0002-I01-implementation-notes.md. F0 sigue pendiente de dos revisores sin discrepancias, T01–T28, plataformas y las demás puertas de Pending.md.
+I01 implementa el esquema de diagnósticos, su presentación JSON/texto, `nexo explain` y lectura acotada; fue validada tras revisión independiente y publicada en `d4836cf`. I02a fue validada y publicada en `f073275`; I02b está validada tras revisión independiente y publicada en main; I03–I11 no iniciadas. El addendum F0-CODIGOS-ADDENDUM-0002 queda pendiente de fusionar en F0-CODIGOS.md. D11–D13 y F0-0002 tienen PASS de diseño, no aprobación de fase. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores. Las lagunas conocidas de I01 constan en docs/validation/F0-0002-I01-implementation-notes.md. F0 sigue pendiente de dos revisores sin discrepancias, T01–T28, plataformas y las demás puertas de Pending.md.
 
 ## I02a
 
-I02a implementa un `src/frontend/lex.rs` separado con tokens y spans de bytes para el perfil léxico F0-0002, usando la API de diagnósticos estructurados de I01 para NX-E0001. No sustituye el lexer actual de `syntax.rs`; `check` y `run` conservan su ruta anterior. LX01–LX05 tienen negativo y positivo pareado con `+`. El alcance, la reproducción y las ambigüedades del ADR constan en `docs/validation/F0-0002-I02a-implementation-notes.md`. I02a está validada tras revisión independiente y publicada en main; I02b–I11 no iniciadas. Siguiente paso: revisión independiente de I02a y, después, continuar con I02b.
+I02a implementa un `src/frontend/lex.rs` separado con tokens y spans de bytes para el perfil léxico F0-0002, usando la API de diagnósticos estructurados de I01 para NX-E0001. No sustituye el lexer actual de `syntax.rs`; `check` y `run` conservan su ruta anterior. LX01–LX05 tienen negativo y positivo pareado con `+`. El alcance, la reproducción y las ambigüedades del ADR constan en `docs/validation/F0-0002-I02a-implementation-notes.md`. I02a está validada tras revisión independiente y publicada en `f073275`.
+
+## I02b
+
+I02b está validada tras revisión independiente y publicada en main. `frontend::parse` y `frontend::print` modelan sintaxis, diagnósticos y texto canónico; `compile`, `check` y `run` siguen la ruta anterior. Las regresiones locales incluyen `OperationList` vacío ante tokens erróneos, reparación tras trivia, prefijos de sentencias tras saltos y entradas anidadas desde pilas pequeñas. El parser usa un hilo ancho reutilizable y devuelve un diagnóstico si no puede crearlo. La cobertura, los límites y la reproducción constan en `docs/validation/F0-0002-I02b-implementation-notes.md`.
