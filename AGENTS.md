@@ -70,3 +70,17 @@ Objetivo permanente: un lenguaje que tome lo mejor de los demás (ver roadmap §
 - Entorno Windows: el sandbox de Codex falla (`setup refresh had errors`); el implementador se
   lanza con `codex exec --dangerously-bypass-approvals-and-sandbox` limitado al repo por el brief
   y con git de solo lectura. Autorizado por el propietario solo para este repositorio.
+
+## Autoridad delegada (2026-10-20)
+
+El propietario delegó en el coordinador la toma de decisiones del proyecto sin consulta previa.
+El coordinador decide diseño, alcance, orden y proceso, y registra cada decisión por escrito (ADR o
+`docs/F0_ACUERDOS.md`) para que el propietario pueda revisarla o revertirla. La independencia
+implementador/validador y los requisitos de evidencia no se relajan.
+
+Límites que NO se cruzan sin autorización expresa: hacer público el repositorio (es privado); force
+push o reescritura del historial; secretos y credenciales; gasto de dinero o infraestructura de pago;
+conceder a agentes más acceso del autorizado (Codex sin sandbox solo para este repositorio); modificar
+`docs/baseline/`; actuar fuera del proyecto; y declarar aprobada una fase (la aprobación de F0..F7 es
+del propietario). Las directivas de visión del propietario (`docs/F0_ACUERDOS.md` §9) son el marco de
+las decisiones.
