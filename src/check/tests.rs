@@ -523,11 +523,12 @@ fn adr_gap_try_result_type_is_deferred_until_result_semantics() {
 }
 
 #[test]
-fn adr_gap_same_site_errors_and_dependent_binding_are_not_cascaded() {
+fn independent_call_arguments_are_reported_without_dependent_binding_cascades() {
     let source = "fn f(x:i64,y:i64){} fn main(){f(true,true);}";
     let errors = check_proposed(FILE, source, false).unwrap_err();
-    assert_eq!(errors.len(), 1);
+    assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].code, "NX-E0102");
+    assert_eq!(errors[1].code, "NX-E0102");
     let source = "fn main(){zz(yy);}";
     let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 1);

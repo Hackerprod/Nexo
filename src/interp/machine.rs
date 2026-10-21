@@ -16,6 +16,8 @@ pub struct Execution {
     pub observations: Log,
     pub diagnostics: Vec<Box<Diagnostic>>,
     pub work_consumed: u64,
+    #[cfg(test)]
+    pub(crate) disposals: u64,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Value {
@@ -84,12 +86,13 @@ enum TempValue {
     Own(Value),
     Borrow(crate::ir::model::LocalId),
     BorrowIndex(crate::ir::model::LocalId, Vec<i64>),
+    Exclusive(crate::ir::model::LocalId, Vec<i64>),
 }
 impl TempValue {
     fn owned_cells(&self) -> u64 {
         match self {
             Self::Own(v) => v.cells(),
-            Self::Borrow(_) | Self::BorrowIndex(_, _) => 0,
+            Self::Borrow(_) | Self::BorrowIndex(_, _) | Self::Exclusive(_, _) => 0,
         }
     }
     fn as_value<'a>(&'a self, locals: &'a [Option<Value>]) -> Result<&'a Value, &'static str> {
@@ -111,14 +114,21 @@ impl TempValue {
                 }
                 Ok(value)
             }
+            Self::Exclusive(_, _) => Err("exclusive loan used as value"),
         }
     }
     fn into_owned(self) -> Result<Value, &'static str> {
         match self {
             Self::Own(v) => Ok(v),
-            Self::Borrow(_) | Self::BorrowIndex(_, _) => Err("borrowed value used as owner"),
+            Self::Borrow(_) | Self::BorrowIndex(_, _) | Self::Exclusive(_, _) => {
+                Err("borrowed value used as owner")
+            }
         }
     }
+}
+struct FrameReturn {
+    value: Option<Value>,
+    inout: Vec<Option<Value>>,
 }
 
 pub fn run_scalar(program: &Program) -> Execution {
@@ -140,6 +150,8 @@ fn internal_execution(reason: &'static str) -> Execution {
         observations: Log::default(),
         diagnostics: vec![],
         work_consumed: 0,
+        #[cfg(test)]
+        disposals: 0,
     }
 }
 fn run_verified(program: &Program) -> Execution {
@@ -150,6 +162,8 @@ fn run_verified(program: &Program) -> Execution {
         fault: None,
         frames: 0,
         next_resource: 0,
+        #[cfg(test)]
+        disposals: 0,
     };
     let result = crate::ir::verify::verify_program(program)
         .and_then(|()| program.functions.function("main").ok_or("missing main"));
@@ -159,6 +173,8 @@ fn run_verified(program: &Program) -> Execution {
             observations: state.log,
             diagnostics: vec![],
             work_consumed: 0,
+            #[cfg(test)]
+            disposals: state.disposals,
         };
     };
     let outcome = match state.run_frame(
@@ -167,12 +183,17 @@ fn run_verified(program: &Program) -> Execution {
         vec![],
         &function.block.terminator_span(),
     ) {
-        Ok(Some(Value::Unit)) => {
+        Ok(FrameReturn {
+            value: Some(Value::Unit),
+            ..
+        }) => {
             state.cells = state.cells.saturating_sub(1);
             Outcome::Unit
         }
-        Ok(None) => Outcome::Unit,
-        Ok(Some(other)) => {
+        Ok(FrameReturn { value: None, .. }) => Outcome::Unit,
+        Ok(FrameReturn {
+            value: Some(other), ..
+        }) => {
             state.dispose(other).ok();
             Outcome::InternalError("non-unit main result")
         }
@@ -188,6 +209,8 @@ fn run_verified(program: &Program) -> Execution {
         observations: state.log,
         diagnostics: state.fault.into_iter().collect(),
         work_consumed: state.work,
+        #[cfg(test)]
+        disposals: state.disposals,
     }
 }
 struct Machine {
@@ -197,9 +220,15 @@ struct Machine {
     fault: Option<Box<Diagnostic>>,
     frames: u64,
     next_resource: u64,
+    #[cfg(test)]
+    disposals: u64,
 }
 impl Machine {
     fn dispose(&mut self, value: Value) -> Result<(), &'static str> {
+        #[cfg(test)]
+        {
+            self.disposals += 1;
+        }
         self.cells = self.cells.saturating_sub(value.cells());
         if let Value::Resource { id, label, .. } = value {
             self.log
@@ -320,7 +349,7 @@ impl Machine {
     #[cfg(test)]
     fn run(&mut self, function: &Function) -> Result<(), &'static str> {
         let result = self.run_frame(function, None, vec![], &function.block.terminator_span())?;
-        if let Some(v) = result {
+        if let Some(v) = result.value {
             self.dispose(v)?;
         }
         Ok(())
@@ -331,14 +360,17 @@ impl Machine {
         program: Option<&Program>,
         args: Vec<(Value, bool)>,
         call_span: &diagnostic::Span,
-    ) -> Result<Option<Value>, &'static str> {
+    ) -> Result<FrameReturn, &'static str> {
         if !self.tick(1, call_span) {
-            for (v, borrowed) in args.into_iter().rev() {
-                if !borrowed {
+            let mut inout = (0..args.len()).map(|_| None).collect::<Vec<_>>();
+            for (slot, (v, borrowed)) in args.into_iter().enumerate().rev() {
+                if function.parameters[slot].mode == ParameterMode::Inout {
+                    inout[slot] = Some(v);
+                } else if !borrowed {
                     self.dispose(v)?;
                 }
             }
-            return Ok(None);
+            return Ok(FrameReturn { value: None, inout });
         }
         if self.frames >= 256 {
             self.fault(
@@ -353,12 +385,15 @@ impl Machine {
                     ("observed", DataValue::UInt(257)),
                 ],
             );
-            for (v, borrowed) in args.into_iter().rev() {
-                if !borrowed {
+            let mut inout = (0..args.len()).map(|_| None).collect::<Vec<_>>();
+            for (slot, (v, borrowed)) in args.into_iter().enumerate().rev() {
+                if function.parameters[slot].mode == ParameterMode::Inout {
+                    inout[slot] = Some(v);
+                } else if !borrowed {
                     self.dispose(v)?;
                 }
             }
-            return Ok(None);
+            return Ok(FrameReturn { value: None, inout });
         }
         self.frames += 1;
         let mut locals: Vec<Option<Value>> = vec![None; function.locals.len()];
@@ -367,7 +402,7 @@ impl Machine {
             return Err("frame argument count");
         }
         for (p, (v, borrowed)) in function.parameters.iter().zip(args) {
-            if borrowed != (p.mode == ParameterMode::Read) {
+            if borrowed != (p.mode != ParameterMode::Consume) {
                 return Err("frame argument mode");
             }
             borrowed_locals[p.local.0] = borrowed;
@@ -383,6 +418,51 @@ impl Machine {
                     return Err("borrow output identity");
                 }
                 temps.push(Some(TempValue::Borrow(*id)));
+                continue;
+            }
+            if let Op::BeginLoan {
+                root,
+                indexes,
+                permission,
+                ..
+            } = &ins.op
+            {
+                let mut path = Vec::with_capacity(indexes.len());
+                for id in indexes {
+                    let Value::Int(index) = Self::take(&mut temps, *id)?.into_owned()? else {
+                        return Err("loan index type");
+                    };
+                    self.cells = self.cells.saturating_sub(1);
+                    path.push(index);
+                }
+                let mut selected = locals
+                    .get(root.0)
+                    .ok_or("loan root")?
+                    .as_ref()
+                    .ok_or("loan unavailable root")?;
+                let mut valid = true;
+                for index in &path {
+                    if let Some(next) = selected.element(*index) {
+                        selected = next;
+                    } else {
+                        valid = false;
+                        break;
+                    }
+                }
+                if !valid {
+                    self.fault("R0102", &ins.span, vec![]);
+                    break;
+                }
+                if ins.output != Some(TempId(temps.len())) {
+                    return Err("loan output identity");
+                }
+                temps.push(Some(match permission {
+                    crate::ir::model::LoanPermission::Read if path.is_empty() => {
+                        TempValue::Borrow(*root)
+                    }
+                    crate::ir::model::LoanPermission::Read => TempValue::BorrowIndex(*root, path),
+                    crate::ir::model::LoanPermission::Inout => TempValue::Exclusive(*root, path),
+                }));
                 continue;
             }
             if let Op::BorrowIndex { local, indexes } = &ins.op {
@@ -421,6 +501,8 @@ impl Machine {
             let value = match &ins.op {
                 Op::BorrowValue(_) => return Err("borrow dispatch"),
                 Op::BorrowIndex { .. } => return Err("borrow index dispatch"),
+                Op::BeginLoan { .. } => return Err("loan dispatch"),
+                Op::EndLoan(_) => None,
                 Op::ConstI64(n) => {
                     if !self.tick(1, &ins.span) || !self.cell(&ins.span) {
                         break;
@@ -784,6 +866,7 @@ impl Machine {
                         .ok_or("unknown callee")?;
                     let mut passed: Vec<Option<(Value, bool)>> = vec![None; signature.len()];
                     let mut retained = Vec::new();
+                    let mut targets = vec![None; signature.len()];
                     for (slot, id) in args {
                         let temp = Self::take(&mut temps, *id)?;
                         let item = match signature[*slot].1 {
@@ -795,6 +878,33 @@ impl Machine {
                                 (borrowed, true)
                             }
                             ParameterMode::Consume => (temp.into_owned()?, false),
+                            ParameterMode::Inout => {
+                                let TempValue::Exclusive(root, path) = temp else {
+                                    return Err("inout argument loan");
+                                };
+                                let value = if path.is_empty() {
+                                    locals
+                                        .get_mut(root.0)
+                                        .ok_or("inout root")?
+                                        .take()
+                                        .ok_or("inout unavailable root")?
+                                } else {
+                                    let root_value = locals
+                                        .get_mut(root.0)
+                                        .ok_or("inout root")?
+                                        .as_mut()
+                                        .ok_or("inout unavailable root")?;
+                                    // Move the selected owner into the callee. The unit is an
+                                    // inaccessible structural placeholder, not a live Nexo cell.
+                                    let selected = get_mut_path(root_value, &path)
+                                        .ok_or("inout index path")?;
+                                    let value = std::mem::replace(selected, Value::Unit);
+                                    adjust_size(root_value, &path, value.cells(), 1);
+                                    value
+                                };
+                                targets[*slot] = Some((root, path));
+                                (value, true)
+                            }
                         };
                         passed[*slot] = Some(item);
                     }
@@ -802,14 +912,38 @@ impl Machine {
                         .into_iter()
                         .map(|v| v.ok_or("missing call slot"))
                         .collect::<Result<Vec<_>, _>>()?;
+                    if self.fault.is_some() {
+                        break;
+                    }
                     let result = self.run_frame(target, Some(program), prepared, &ins.span)?;
+                    for (slot, returned) in result.inout.into_iter().enumerate() {
+                        if let Some(value) = returned {
+                            let (root, path) = targets[slot].take().ok_or("inout return target")?;
+                            if path.is_empty() {
+                                if locals[root.0].replace(value).is_some() {
+                                    return Err("inout occupied root");
+                                }
+                            } else {
+                                let root_value =
+                                    locals[root.0].as_mut().ok_or("inout missing root")?;
+                                let node =
+                                    get_mut_path(root_value, &path).ok_or("inout return path")?;
+                                let previous = std::mem::replace(node, value);
+                                if previous != Value::Unit {
+                                    return Err("inout placeholder replaced");
+                                }
+                                let new_size = node.cells();
+                                adjust_size(root_value, &path, 1, new_size);
+                            }
+                        }
+                    }
                     for value in retained.into_iter().rev() {
                         self.dispose(value)?;
                     }
                     if self.fault.is_some() {
                         break;
                     }
-                    result
+                    result.value
                 }
                 Op::DropValue(id) => {
                     let v = Self::take(&mut temps, *id)?;
@@ -863,6 +997,14 @@ impl Machine {
                 self.dispose(value)?;
             }
         }
+        let mut inout = (0..function.parameters.len())
+            .map(|_| None)
+            .collect::<Vec<_>>();
+        for (slot, p) in function.parameters.iter().enumerate() {
+            if p.mode == ParameterMode::Inout {
+                inout[slot] = locals[p.local.0].take();
+            }
+        }
         for id in &function.cleanup {
             if let Some(old) = locals.get_mut(id.0).ok_or("cleanup index")?.take()
                 && !borrowed_locals[id.0]
@@ -871,7 +1013,10 @@ impl Machine {
             }
         }
         self.frames -= 1;
-        Ok(returned)
+        Ok(FrameReturn {
+            value: returned,
+            inout,
+        })
     }
 }
 fn get_mut_path<'a>(mut node: &'a mut Value, path: &[i64]) -> Option<&'a mut Value> {
@@ -960,6 +1105,7 @@ mod tests {
             fault: None,
             frames: 0,
             next_resource: 0,
+            disposals: 0,
         }
     }
     #[test]
@@ -992,6 +1138,7 @@ mod tests {
                 &span()
             )
             .unwrap()
+            .value
             .is_none()
         );
         assert_eq!(own.log.events(), ["close:1:2", "close:0:1"]);
@@ -1015,6 +1162,7 @@ mod tests {
                 &span()
             )
             .unwrap()
+            .value
             .is_none()
         );
         assert_eq!(read.log.events(), ["close:1:2"]);
@@ -1064,6 +1212,54 @@ mod tests {
         assert_eq!(d.data.get("limit"), Some(&DataValue::UInt(65_536)));
         assert_eq!(d.data.get("observed"), Some(&DataValue::UInt(65_537)));
         d.validate("limits.nx", "abc").unwrap();
+    }
+    #[test]
+    fn indexed_inout_and_read_have_same_exact_cell_boundary() {
+        for source in [
+            "fn f(inout x:Array<i64>){} fn main(){var a=[[1]];f(inout a[0]);}",
+            "fn f(x:Array<i64>){} fn main(){var a=[[1]];f(a[0]);}",
+        ] {
+            let p = crate::ir::compile_scalar("limits.nx", source).unwrap();
+            for (preload, accepted) in [(65_531, true), (65_532, true), (65_533, false)] {
+                let mut m = machine();
+                m.cells = preload;
+                let returned = m
+                    .run_frame(
+                        p.functions().function("main").unwrap(),
+                        Some(&p),
+                        vec![],
+                        &span(),
+                    )
+                    .unwrap();
+                if let Some(value) = returned.value {
+                    m.dispose(value).unwrap();
+                }
+                assert_eq!(m.fault.is_none(), accepted, "{source}: {preload}");
+                if let Some(fault) = m.fault.as_ref() {
+                    assert_eq!(fault.code, "R0002");
+                    assert_eq!(fault.data["observed"], DataValue::UInt(65_537));
+                    fault.validate("limits.nx", source).unwrap();
+                }
+                assert_eq!(m.cells, preload, "{source}: {preload}");
+            }
+        }
+    }
+    #[test]
+    fn indexed_array_growth_uses_exact_cached_cell_count() {
+        let source = "fn main(){var a=[[0]];a[0]=[1,2];let b=a;}";
+        let p = crate::ir::compile_scalar("growth.nx", source).unwrap();
+        for (preload, accepted) in [(65_526, true), (65_527, true), (65_528, false)] {
+            let mut m = machine();
+            m.cells = preload;
+            m.run(p.functions().function("main").unwrap()).unwrap();
+            assert_eq!(m.fault.is_none(), accepted, "{preload}");
+            if let Some(fault) = m.fault.as_ref() {
+                assert_eq!(fault.code, "R0002");
+                assert_eq!(fault.data["observed"], DataValue::UInt(65_537));
+                fault.validate("growth.nx", source).unwrap();
+            }
+            assert_eq!(m.cells, preload);
+        }
     }
     #[test]
     fn rejected_print_releases_prepared_result_cell_before_cleanup() {

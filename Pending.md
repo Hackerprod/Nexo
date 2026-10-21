@@ -8,7 +8,7 @@
 
 ## Siguiente corte
 1. Leer HANDOFF.md; comprobar respaldo remoto de F0-0001 y reproducir pruebas.
-2. Implementar I06 (préstamos) según F0-0002 §17; I05 fue validada y publicada.
+2. Implementar I07 (CFG y control) según F0-0002 §17; I06 fue validada y publicada.
 3. Mantener el registro de regresiones de cada revisión antes del respaldo verificado del corte.
 
 ## Evidencia del primer corte
@@ -38,7 +38,7 @@
 No ocultar pendientes al cambiar de workspace. No publicar secretos ni usar force push.
 
 ## Corte I01
-- Estado por subtarea: I01 validada tras revisión independiente y publicada en `d4836cf`; I02a validada tras revisión independiente y publicada en `f073275`; I02b validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada en `f808a0c`; I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada; I06–I11 no iniciadas.
+- Estado por subtarea: I01 validada tras revisión independiente y publicada en `d4836cf`; I02a validada tras revisión independiente y publicada en `f073275`; I02b validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada en `f808a0c`; I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada en `a203e51`; I06 validada tras revisión independiente y publicada; I07–I11 no iniciadas.
 - El addendum F0-CODIGOS-ADDENDUM-0002 sigue pendiente de fusionar en F0-CODIGOS.md.
 - Diseño D11–D13 y F0-0002 con PASS de diseño; no equivale a aprobación del propietario.
 - I01 abarca esquema, validación, JSON/texto, explain y lectura acotada; está validada tras revisión independiente y publicada en `d4836cf`. Las puertas de F0 siguen pendientes.
@@ -55,7 +55,7 @@ No ocultar pendientes al cambiar de workspace. No publicar secretos ni usar forc
 
 ## Corte I02b
 
-I02b está validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada en `f808a0c`; I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada; I06–I11 no iniciadas. El frontend propuesto sigue separado de `compile`, `check` y `run`. Los límites estructurales de análisis y las regresiones de robustez se describen en `docs/validation/F0-0002-I02b-implementation-notes.md`.
+I02b está validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada en `f808a0c`; I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada en `a203e51`; I06 validada tras revisión independiente y publicada; I07–I11 no iniciadas. El frontend propuesto sigue separado de `compile`, `check` y `run`. Los límites estructurales de análisis y las regresiones de robustez se describen en `docs/validation/F0-0002-I02b-implementation-notes.md`.
 
 Pendientes nominales: enumerar todas las posiciones recursivas de `PlaceRoot`, listas/mapas/restricciones de `WithClause` y alternativas inválidas de `Statement` y `Program` más allá de los 55 prefijos comprobados; completar negativos aislados para cada continuación y contexto de terminador, incluida no inserción estructural en LF/CRLF/CR/EOF. Conservar las lagunas `adr_gap_*` enumeradas en las notas de I02b. El fallo de creación del hilo ancho tiene camino diagnóstico sin panic; su alcance excepcional está documentado en las notas. Las obligaciones semánticas y de emisión posteriores a I03 siguen abiertas. Las puertas generales de F0, en particular dos revisores sin discrepancias y aprobación del propietario, permanecen pendientes.
 
@@ -71,7 +71,7 @@ La duración actual de la suite completa y las razones de escalado de 256 KiB a 
 
 I04a validada tras revisión independiente y publicada. IR escalar verificada, identidades y hash de funciones, tabla sustituible en desarrollo, bindings, reasignación completa, aritmética comprobada, comparaciones, `print`, `assert_eq`, `drop` de datos, `fail` y registro ordenado de salida están aislados de los comandos actuales. Las pruebas locales de IR y ejecución se enumeran en `docs/validation/F0-0002-I04a-implementation-notes.md`; `cargo test --locked --offline --lib -- --list` enumera 257 pruebas, incluida una medición de escalado de lowering de ejecución explícita. Los resultados locales no son revisión independiente.
 
-Pendientes nominales: I05 debe introducir frames, llamadas de usuario, recursos, retorno y limpieza secuencial. I06–I09 conservan préstamos, CFG, Result y efectos; I10 debe cerrar cuotas y contabilidad completa; I11 integra CLI y flujos. Los positivos de §14 que requieren esas capacidades no se atribuyen a I04a. Permanecen los requisitos generales de F0, incluidos dos revisores sin discrepancias y aprobación del propietario.
+Pendientes nominales tras I04a: I05 introdujo frames, llamadas de usuario, recursos, retorno y limpieza secuencial; I06 implementa préstamos localmente y espera revisión independiente. I07–I09 conservan CFG, Result y efectos; I10 debe cerrar cuotas y contabilidad completa; I11 integra CLI y flujos. Los positivos de §14 que requieren esas capacidades no se atribuyen a I04a. Permanecen los requisitos generales de F0, incluidos dos revisores sin discrepancias y aprobación del propietario.
 
 ## Corte I04b
 
@@ -83,6 +83,10 @@ Límites nominales conservados de I04b: ticks de `work_consumed` frente a §11.6
 
 I05 validada tras revisión independiente y publicada. `ir::compile_scalar` y `interp::run_scalar` siguen aislados de los comandos actuales. La IR incorpora parámetros ordinarios y `consume`, llamadas directas por `FunctionId`, recursos mock y planes de limpieza; la ejecución conserva el orden escrito de argumentos nombrados y cierra cada recurso una vez. El verificador coteja las firmas referenciadas con la tabla de funciones, modos, propietarios, scopes, orígenes y spans. Los diagnósticos de copia prohibida, uso tras consumo o destrucción y elevación de permiso de lectura se comprueban en ownership. La revisión separada debe contrastar con sus propios oráculos todos los pares de F0-0002 §17.2.
 
-`docs/validation/F0-0002-I05-implementation-notes.md` registra evidencia local, decisiones de hash, lagunas y reproducción. Los límites nominales `work_consumed` (§11.6), `ir_items` (I10a), span de R0002 para unidad implícita y precisión de R0102 siguen visibles. I06–I11 mantienen préstamos exclusivos, CFG, `Result`, efectos transitivos, cuotas completas, interfaz mock ampliada e integración. F0 sigue pendiente de dos revisores sin discrepancias y aprobación del propietario.
+`docs/validation/F0-0002-I05-implementation-notes.md` registra evidencia local, decisiones de hash, lagunas y reproducción. Los límites nominales `work_consumed` (§11.6), `ir_items` (I10a), span de R0002 para unidad implícita y precisión de R0102 siguen visibles. I06 incorpora préstamos exclusivos; I07–I11 mantienen CFG, `Result`, efectos transitivos, cuotas completas, interfaz mock ampliada e integración. F0 sigue pendiente de dos revisores sin discrepancias y aprobación del propietario.
 
-La corrección local de I05 añade regresiones para ids de entidades, orden inverso de temporales tras fallo de argumento, dependencias de `let` fallido, escala de firmas y funciones, y restauración barata del código inalcanzable con búsqueda de declaraciones sombreadas. La lectura indexada de una raíz consumida o destruida devuelve NX-E0202 con el sitio causal. Pendientes nominales: en un mismo enunciado solo se emite uno de dos errores independientes (`f(nada,nada2)`, `f(true,false)`, `t(r,s)` con dos NX-E0201); los enunciados distintos sí acumulan errores. El conflicto `f(r,consume r)` entre préstamo y transferencia aún produce `InvalidIr("transfer while borrowed")` y corresponde a I06. I10b conserva el span R0001 de unidad implícita `[9,len)` en vez de `}` y el tick ausente de `{}`. La revisión independiente de I05 permanece pendiente.
+La corrección de I05 añade regresiones para ids de entidades, orden inverso de temporales tras fallo de argumento, dependencias de `let` fallido, escala de firmas y funciones, y restauración barata del código inalcanzable con búsqueda de declaraciones sombreadas. La lectura indexada de una raíz consumida o destruida devuelve NX-E0202 con el sitio causal. I06 acumula dos errores independientes de propiedad en los argumentos de una llamada y convierte `f(r,consume r)` en NX-E1105/`active_borrow_conflict`; los casos de nombres y tipos siguen sujetos a la cardinalidad de §13.9. I10b conserva el span R0001 de unidad implícita `[9,len)` en vez de `}` y el tick ausente de `{}`. I05 fue validada tras revisión independiente y publicada.
+
+## Corte I06
+
+I06 validada tras revisión independiente y publicada. La IR y el intérprete aislados cubren préstamos de lectura y `inout`, exclusividad conservadora por raíz, représtamos, retorno de copias independientes, modificación por llamada y restauración de propietarios tras fallos. El préstamo `inout` indexado no añade celdas; P07 señala el lugar completo del ADR. S06, S08, S30, P05–P07 con `data` exacta y PP02 tienen pruebas locales. Ver `docs/validation/F0-0002-I06-implementation-notes.md` para evidencia y límites. I07–I11 siguen pendientes; la fase F0 conserva dos revisores sin discrepancias y aprobación del propietario.

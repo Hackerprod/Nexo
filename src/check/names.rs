@@ -560,7 +560,17 @@ impl Resolver {
             Expr::Call { target, args, span } => {
                 self.expr(target, true)?;
                 if self.phase == Stage::Names {
-                    return args.iter().try_for_each(|a| self.expr(&a.value, false));
+                    let mut first = None;
+                    for arg in args {
+                        if let Err(error) = self.expr(&arg.value, false) {
+                            if first.is_none() {
+                                first = Some(error);
+                            } else {
+                                self.errors.push(error);
+                            }
+                        }
+                    }
+                    return first.map_or(Ok(()), Err);
                 }
                 let mut unwrapped = &**target;
                 while let Expr::Group(inner, _) = unwrapped {

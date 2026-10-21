@@ -1,5 +1,6 @@
 use super::model::{
-    Access, Binary, Function, Intrinsic, Op, ParameterMode, Program, TempId, Terminator, Ty,
+    Access, Binary, Function, Intrinsic, LoanPermission, Op, ParameterMode, Program, TempId,
+    Terminator, Ty,
 };
 
 pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
@@ -82,7 +83,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
         if p.local.0 != index
             || function.locals.get(index).and_then(|l| l.parameter_mode) != Some(p.mode)
             || function.locals[index].scope.0 != 0
-            || function.locals[index].mutable
+            || function.locals[index].mutable != (p.mode == ParameterMode::Inout)
         {
             return Err("parameter layout");
         }
@@ -113,6 +114,11 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     let mut borrowed = Vec::<bool>::new();
     let mut borrow_sources = Vec::<Option<super::model::LocalId>>::new();
     let mut active_borrows = vec![0usize; function.locals.len()];
+    let mut active_exclusive = vec![0usize; function.locals.len()];
+    let mut loan_permission = Vec::<Option<LoanPermission>>::new();
+    let mut loan_ids = std::collections::HashSet::new();
+    let mut loan_id_by_temp = Vec::<Option<super::model::LoanId>>::new();
+    let mut pending_end = Vec::new();
     let mut initialized = vec![false; function.locals.len()];
     for p in &function.parameters {
         initialized[p.local.0] = true;
@@ -145,6 +151,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 .is_some_and(|end| function.source_text.is_char_boundary(end))
     };
     for (position, ins) in function.block.instructions.iter().enumerate() {
+        if !pending_end.is_empty() && !matches!(ins.op, Op::EndLoan(_)) {
+            return Err("loan end missing");
+        }
         if !valid_span(&ins.span) {
             return Err("source origin");
         }
@@ -160,6 +169,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             Op::ConstUnit => Some(Ty::Unit),
             Op::CopyValue(id) => {
                 let local = function.locals.get(id.0).ok_or("local reference")?;
+                if active_exclusive[id.0] != 0 {
+                    return Err("read during exclusive loan");
+                }
                 if !initialized[id.0] {
                     return Err("uninitialized local");
                 }
@@ -173,7 +185,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 if !initialized[id.0] {
                     return Err("transfer consumed local");
                 }
-                if local.parameter_mode == Some(ParameterMode::Read) {
+                if matches!(
+                    local.parameter_mode,
+                    Some(ParameterMode::Read | ParameterMode::Inout)
+                ) {
                     return Err("transfer read parameter");
                 }
                 if active_borrows[id.0] != 0 {
@@ -187,7 +202,64 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 if !initialized[id.0] {
                     return Err("uninitialized local");
                 }
+                if active_exclusive[id.0] != 0 {
+                    return Err("read during exclusive loan");
+                }
                 Some(local.ty.clone())
+            }
+            Op::BeginLoan {
+                root,
+                indexes,
+                loan,
+                origin_span,
+                permission,
+                parent,
+            } => {
+                let local = function.locals.get(root.0).ok_or("loan root")?;
+                if !initialized[root.0] {
+                    return Err("loan unavailable root");
+                }
+                if !valid_span(origin_span)
+                    || origin_span.start as usize != loan.0
+                    || origin_span.start > ins.span.start
+                    || origin_span.end < ins.span.end
+                    || !loan_ids.insert(loan.0)
+                {
+                    return Err("loan identity");
+                }
+                if *parent != (local.parameter_mode == Some(ParameterMode::Inout)).then_some(*root)
+                {
+                    return Err("loan parent");
+                }
+                if *permission == LoanPermission::Inout {
+                    if !local.mutable || local.parameter_mode == Some(ParameterMode::Read) {
+                        return Err("exclusive loan permission");
+                    }
+                    if active_borrows[root.0] != 0 {
+                        return Err("overlapping loan");
+                    }
+                } else if active_exclusive[root.0] != 0 {
+                    return Err("read during exclusive loan");
+                }
+                let mut ty = local.ty.clone();
+                for id in indexes {
+                    if take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)?
+                        != Ty::I64
+                    {
+                        return Err("loan index type");
+                    }
+                    let Ty::Array(child) = ty else {
+                        return Err("loan index base");
+                    };
+                    ty = *child;
+                }
+                Some(ty)
+            }
+            Op::EndLoan(loan) => {
+                if pending_end.pop() != Some(loan.0) {
+                    return Err("unmatched loan end");
+                }
+                None
             }
             Op::BuildArray(items) => {
                 let Some(Ty::Array(element)) = &ins.ty else {
@@ -210,6 +282,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             }
             Op::ReadIndex { local, indexes } | Op::BorrowIndex { local, indexes } => {
                 let local = function.locals.get(local.0).ok_or("read index local")?;
+                if active_exclusive[local.id.0] != 0 {
+                    return Err("read during exclusive loan");
+                }
                 if !initialized[local.id.0] {
                     return Err("read index uninitialized local");
                 }
@@ -237,6 +312,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             }
             Op::CheckIndex { local, indexes } => {
                 let l = function.locals.get(local.0).ok_or("check index local")?;
+                if active_exclusive[local.0] != 0 {
+                    return Err("read during exclusive loan");
+                }
                 if !initialized[local.0] {
                     return Err("check index uninitialized local");
                 }
@@ -469,8 +547,33 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         return Err("duplicate call slot");
                     }
                     seen[*slot] = true;
-                    if *mode == ParameterMode::Consume && borrowed.get(id.0) == Some(&true) {
-                        return Err("consuming borrowed argument");
+                    match mode {
+                        ParameterMode::Consume if borrowed.get(id.0) == Some(&true) => {
+                            return Err("consuming borrowed argument");
+                        }
+                        ParameterMode::Inout
+                            if loan_permission.get(id.0) != Some(&Some(LoanPermission::Inout)) =>
+                        {
+                            return Err("inout argument permission");
+                        }
+                        ParameterMode::Read
+                            if loan_permission.get(id.0) == Some(&Some(LoanPermission::Inout)) =>
+                        {
+                            return Err("exclusive passed as read");
+                        }
+                        _ => {}
+                    }
+                    if *mode == ParameterMode::Inout {
+                        let root = borrow_sources
+                            .get(id.0)
+                            .and_then(|r| *r)
+                            .ok_or("exclusive loan root")?;
+                        active_exclusive[root.0] = active_exclusive[root.0]
+                            .checked_sub(1)
+                            .ok_or("exclusive loan count")?;
+                    }
+                    if let Some(Some(loan)) = loan_id_by_temp.get(id.0) {
+                        pending_end.push(loan.0);
                     }
                     if take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)? != *ty {
                         return Err("call argument type");
@@ -479,6 +582,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 ins.ty.clone()
             }
             Op::DropValue(id) => {
+                if loan_permission.get(id.0) == Some(&Some(LoanPermission::Inout)) {
+                    return Err("drop exclusive loan");
+                }
                 take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)?;
                 None
             }
@@ -490,7 +596,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 if active_borrows[id.0] != 0 {
                     return Err("drop while borrowed");
                 }
-                if function.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
+                if matches!(
+                    function.locals[id.0].parameter_mode,
+                    Some(ParameterMode::Read | ParameterMode::Inout)
+                ) {
                     return Err("drop read parameter");
                 }
                 initialized[id.0] = false;
@@ -528,13 +637,14 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
         let access = match ins.op {
             Op::CopyValue(_)
             | Op::BorrowValue(_)
+            | Op::BeginLoan { .. }
             | Op::ReadIndex { .. }
             | Op::BorrowIndex { .. }
             | Op::CheckIndex { .. } => Access::Read,
             Op::WritePlace { .. } | Op::WriteIndex { .. } => Access::Write,
             _ => Access::Own,
         };
-        if ins.access != access || !ins.tick {
+        if ins.access != access || ins.tick != !matches!(ins.op, Op::EndLoan(_)) {
             return Err("access or source tick");
         }
         if let Some(ty) = expected {
@@ -546,16 +656,34 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             live.push(true);
             borrowed.push(matches!(
                 ins.op,
-                Op::BorrowValue(_) | Op::BorrowIndex { .. }
+                Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BeginLoan { .. }
             ));
             let source = match ins.op {
                 Op::BorrowValue(id) => Some(id),
                 Op::BorrowIndex { local, .. } => Some(local),
+                Op::BeginLoan { root, .. } => Some(root),
                 _ => None,
             };
             if let Some(id) = source {
                 active_borrows[id.0] = active_borrows[id.0].checked_add(1).ok_or("borrow count")?;
             }
+            let permission = match ins.op {
+                Op::BeginLoan {
+                    permission, root, ..
+                } => {
+                    if permission == LoanPermission::Inout {
+                        active_exclusive[root.0] += 1;
+                    }
+                    Some(permission)
+                }
+                Op::BorrowValue(_) | Op::BorrowIndex { .. } => Some(LoanPermission::Read),
+                _ => None,
+            };
+            loan_permission.push(permission);
+            loan_id_by_temp.push(match ins.op {
+                Op::BeginLoan { loan, .. } => Some(loan),
+                _ => None,
+            });
             borrow_sources.push(source);
         } else if ins.output.is_some() {
             return Err("unexpected output");
@@ -587,6 +715,14 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     }
     if live.iter().any(|v| *v) {
         return Err("unconsumed temporary");
+    }
+    if !pending_end.is_empty() {
+        return Err("loan end missing");
+    }
+    if active_borrows.iter().any(|count| *count != 0)
+        || active_exclusive.iter().any(|count| *count != 0)
+    {
+        return Err("unreleased loan");
     }
     Ok(())
 }

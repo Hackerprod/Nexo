@@ -1,6 +1,6 @@
 # Continuación de Nexo
 
-Estado: I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`. I05 validada tras revisión independiente y publicada.
+Estado: I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`. I05 validada tras revisión independiente y publicada en `a203e51`. I06 validada tras revisión independiente y publicada.
 El propietario decide el inicio de cada fase.
 
 ## Leer primero
@@ -59,8 +59,8 @@ renderizado de diagnósticos UTF-8 y se probó limpieza al agotar presupuesto.
 
 ## Próximo trabajo concreto
 
-1. Revisar de forma independiente I05 (llamadas, recursos, transferencia y limpieza).
-2. Continuar I06–I11 según §17 del ADR F0-0002 después de cerrar la revisión del corte.
+1. Implementar I07 (tipos y lowering de `if`/`value:`, `while`, CFG y punto fijo de propiedad) según §17; I06 fue validada y publicada.
+2. Continuar I08–I11 según §17 del ADR F0-0002.
 3. Extender los tres flujos reducidos exigidos por F0: herramienta, actualización
    de datos y petición simulada. EX01/EX04 completos no están implementados.
 4. Completar los modelos y protocolos de F0, incluidos estados D09, plataformas,
@@ -73,7 +73,7 @@ closures o generadores ya existen: se rechazan en el frontend actual.
 
 ## I01
 
-I01 implementa el esquema de diagnósticos, su presentación JSON/texto, `nexo explain` y lectura acotada; fue validada tras revisión independiente y publicada en `d4836cf`. I02a fue validada y publicada en `f073275`; I02b está validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada en `f808a0c`; I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada; I06–I11 no iniciadas. El addendum F0-CODIGOS-ADDENDUM-0002 queda pendiente de fusionar en F0-CODIGOS.md. D11–D13 y F0-0002 tienen PASS de diseño, no aprobación de fase. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores. Las lagunas conocidas de I01 constan en docs/validation/F0-0002-I01-implementation-notes.md. F0 sigue pendiente de dos revisores sin discrepancias, T01–T28, plataformas y las demás puertas de Pending.md.
+I01 implementa el esquema de diagnósticos, su presentación JSON/texto, `nexo explain` y lectura acotada; fue validada tras revisión independiente y publicada en `d4836cf`. I02a fue validada y publicada en `f073275`; I02b está validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada en `f808a0c`; I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada en `a203e51`; I06 validada tras revisión independiente y publicada; I07–I11 no iniciadas. El addendum F0-CODIGOS-ADDENDUM-0002 queda pendiente de fusionar en F0-CODIGOS.md. D11–D13 y F0-0002 tienen PASS de diseño, no aprobación de fase. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores. Las lagunas conocidas de I01 constan en docs/validation/F0-0002-I01-implementation-notes.md. F0 sigue pendiente de dos revisores sin discrepancias, T01–T28, plataformas y las demás puertas de Pending.md.
 
 ## I02a
 
@@ -85,7 +85,7 @@ I02b está validada tras revisión independiente y publicada en `84d5f53`. `fron
 
 ## I03
 
-I03 está validada tras revisión independiente y publicada. `check::check_proposed` usa el AST de I02b, registra firmas y resuelve nombres por ámbito antes de asociar argumentos y comprobar tipos básicos y retornos escritos. Devuelve diagnósticos ordenados de sitios independientes y ejecuta las pasadas semánticas en un hilo acotado de 16 MiB. `src/check/names.rs` y `src/check/types.rs` siguen aislados de `compile`, `nexo check` y `nexo run`. Las notas de alcance, diagnósticos, pruebas y límites están en `docs/validation/F0-0002-I03-implementation-notes.md`. El cierre completo de las fixtures con ejecución, préstamos, control o Result sigue en los pasos que asigna F0-0002 §17.2. I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada; I06–I11 no están iniciadas; F0 conserva sus puertas pendientes.
+I03 está validada tras revisión independiente y publicada. `check::check_proposed` usa el AST de I02b, registra firmas y resuelve nombres por ámbito antes de asociar argumentos y comprobar tipos básicos y retornos escritos. Devuelve diagnósticos ordenados de sitios independientes y ejecuta las pasadas semánticas en un hilo acotado de 16 MiB. `src/check/names.rs` y `src/check/types.rs` siguen aislados de `compile`, `nexo check` y `nexo run`. Las notas de alcance, diagnósticos, pruebas y límites están en `docs/validation/F0-0002-I03-implementation-notes.md`. El cierre completo de las fixtures con ejecución, préstamos, control o Result sigue en los pasos que asigna F0-0002 §17.2. I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada en `a203e51`; I06 validada tras revisión independiente y publicada; I07–I11 no están iniciadas; F0 conserva sus puertas pendientes.
 
 La prueba de escalado de I03 usa 16 familias por defecto y 24 con `NEXO_FULL_SCALE`, de 256 KiB a 1 MiB. El tiempo de la suite completa y las razones medidas se consignan en las notas de I03; la prueba de escalado preexistente del parser domina la duración. Los límites y las lagunas observadas están en esas notas.
 
@@ -109,6 +109,12 @@ I05 validada tras revisión independiente y publicada. La IR verificada admite p
 
 El hash de una función incluye el nombre y la firma completa de cada callee referenciado, incluidos nombres de parámetros, modos, tipos y resultado; no incluye el cuerpo de otra función. La tabla sustituible comprueba de nuevo el programa y restaura el estado anterior si una sustitución falla. Las pruebas locales incluyen regresiones de propiedad y limpieza, un modelo independiente de 8.000 programas, 20.000 fuentes hostiles, sondas de pila, 27 mediciones de escala y mutaciones restauradas por SHA-256. Las cifras y los límites están en `docs/validation/F0-0002-I05-implementation-notes.md`.
 
-La corrección local de I05 usa ids `binding:<offset>` y `parameter:<offset>` en diagnósticos, limpia temporales en orden inverso antes de locales cuando falla una llamada, y conserva el diagnóstico original cuando falla el inicializador de un `let` con usos posteriores. El lexer se comparte entre funciones y los nombres de parámetros se buscan desde su offset. El código inalcanzable conserva diagnósticos sin copiar todo el estado del lowering por bloque; doce familias adicionales cubren retornos anidados y declaraciones densas. La lectura indexada de una raíz consumida o destruida devuelve NX-E0202 con el sitio causal. La revisión independiente de estas correcciones sigue pendiente.
+La corrección de I05 usa ids `binding:<offset>` y `parameter:<offset>` en diagnósticos, limpia temporales en orden inverso antes de locales cuando falla una llamada, y conserva el diagnóstico original cuando falla el inicializador de un `let` con usos posteriores. El lexer se comparte entre funciones y los nombres de parámetros se buscan desde su offset. El código inalcanzable conserva diagnósticos sin copiar todo el estado del lowering por bloque; doce familias adicionales cubren retornos anidados y declaraciones densas. La lectura indexada de una raíz consumida o destruida devuelve NX-E0202 con el sitio causal. Estas correcciones fueron revisadas de forma independiente antes de la publicación de I05.
 
-Los comandos `nexo check` y `nexo run` conservan la ruta heredada. La revisión independiente de I05 y las puertas de F0 permanecen pendientes. I06–I11 incorporan préstamos exclusivos, control por caminos, `Result`, efectos transitivos, cuotas completas, interfaz mock ampliada e integración.
+Los comandos `nexo check` y `nexo run` conservan la ruta heredada. I05 fue validada y publicada en `a203e51`; las puertas de F0 permanecen pendientes. I06 añade préstamos exclusivos; I07–I11 conservan control por caminos, `Result`, efectos transitivos, cuotas completas, interfaz mock ampliada e integración.
+
+## I06
+
+I06 validada tras revisión independiente y publicada. `BeginLoan` y `EndLoan` hacen explícitos los permisos de argumentos de llamada; el verificador comprueba procedencia, exclusividad, padre de représtamo, spans, modos y liberación inversa. El intérprete devuelve a su lugar los parámetros `inout` después de la llamada y también tras un fallo, sin perder el propietario del llamador. El préstamo de una proyección mueve temporalmente el elemento y no añade celdas. Las proyecciones de array se comprueban al prestar; una asignación indexada vuelve a comprobar la raíz después del RHS, que puede llamar a una función `inout` y modificarla.
+
+S06, S08, S30, P05–P07 y PP02 tienen pruebas locales; P07 usa el primario completo `[73,77)` fijado en el ADR. P05–P07 fijan las cinco claves de `data` y las identidades publicadas. El modelo independiente ejecuta 8.000 programas válidos; dos baterías hostiles recorren 30.000 y 20.000 fuentes. Doce familias densas entre 256 KiB y 1 MiB tienen medición explícita y contador determinista. Revisar `docs/validation/F0-0002-I06-implementation-notes.md` para cifras, reglas y límites. `compile`, `nexo check` y `nexo run` siguen la ruta heredada. F0 aún requiere dos revisores sin discrepancias y aprobación del propietario.

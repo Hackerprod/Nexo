@@ -79,6 +79,12 @@ pub enum Intrinsic {
 pub enum ParameterMode {
     Read,
     Consume,
+    Inout,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LoanPermission {
+    Read,
+    Inout,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Parameter {
@@ -93,6 +99,18 @@ pub enum Op {
     CopyValue(LocalId),
     TransferValue(LocalId),
     BorrowValue(LocalId),
+    /// A call argument loan. Its root remains stable even when indexes are evaluated.
+    BeginLoan {
+        root: LocalId,
+        indexes: Vec<TempId>,
+        loan: LoanId,
+        origin_span: Span,
+        permission: LoanPermission,
+        /// An inout parameter is the parent permission for a reborrow.
+        parent: Option<LocalId>,
+    },
+    /// Marks the end of the callee cleanup and release of a call argument loan.
+    EndLoan(LoanId),
     BuildArray(Vec<TempId>),
     ReadIndex {
         local: LocalId,
@@ -318,6 +336,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
         bytes.push(match p.mode {
             ParameterMode::Read => 1,
             ParameterMode::Consume => 2,
+            ParameterMode::Inout => 3,
         });
         ty(&mut bytes, &f.locals[p.local.0].ty);
     }
@@ -351,6 +370,34 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
             Op::BorrowValue(id) => {
                 bytes.push(14);
                 number(&mut bytes, id.0);
+            }
+            Op::BeginLoan {
+                root,
+                indexes,
+                permission,
+                parent,
+                ..
+            } => {
+                bytes.push(20);
+                number(&mut bytes, root.0);
+                number(&mut bytes, indexes.len());
+                for id in indexes {
+                    number(&mut bytes, id.0);
+                }
+                bytes.push(match permission {
+                    LoanPermission::Read => 1,
+                    LoanPermission::Inout => 2,
+                });
+                match parent {
+                    Some(id) => {
+                        bytes.push(1);
+                        number(&mut bytes, id.0);
+                    }
+                    None => bytes.push(0),
+                }
+            }
+            Op::EndLoan(_) => {
+                bytes.push(21);
             }
             Op::BuildArray(items) => {
                 bytes.push(10);
@@ -449,6 +496,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     bytes.push(match mode {
                         ParameterMode::Read => 1,
                         ParameterMode::Consume => 2,
+                        ParameterMode::Inout => 3,
                     });
                     ty(&mut bytes, ty_value);
                 }

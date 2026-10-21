@@ -9,4 +9,6 @@ pub use model::Program;
 #[cfg(test)]
 mod i05_tests;
 #[cfg(test)]
+mod i06_tests;
+#[cfg(test)]
 mod tests;

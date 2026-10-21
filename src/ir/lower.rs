@@ -3,12 +3,21 @@ use std::sync::Arc;
 
 use super::model::{
     self, Access, BasicBlock, Binary, BlockId, Function, FunctionId, FunctionTable, Instruction,
-    Intrinsic, Local, LocalId, Op, OriginId, Parameter, ParameterMode, Program, ScopeId, TempId,
-    Terminator, Ty,
+    Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId, Parameter, ParameterMode,
+    Program, ScopeId, TempId, Terminator, Ty,
 };
 use crate::diagnostic::{self, Diagnostic, PROFILE_ID, Span};
 use crate::frontend::lex;
 use crate::frontend::parse::{self, Ast, Expr, Mode, Statement, Type};
+
+#[cfg(test)]
+pub(super) static LOAN_WORK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg(test)]
+fn count_loan_work() {
+    LOAN_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+}
+#[cfg(not(test))]
+fn count_loan_work() {}
 
 #[derive(Debug)]
 pub enum CompileError {
@@ -46,7 +55,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
                 let mode = match p.mode {
                     Mode::Read => Ok(ParameterMode::Read),
                     Mode::Consume => Ok(ParameterMode::Consume),
-                    Mode::Inout => Err(CompileError::OutsideScalarSlice("exclusive parameters")),
+                    Mode::Inout => Ok(ParameterMode::Inout),
                 }?;
                 Ok((p.name.clone(), mode, lower_type(&p.ty)?))
             })
@@ -88,6 +97,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             dead_depth: 0,
             poisoned: HashSet::new(),
             tokens: Arc::clone(&tokens),
+            active_loans: HashMap::new(),
         };
         let mut parameters = Vec::new();
         for (p, (_, mode, ty)) in source.params.iter().zip(&user_functions[&source.name].0) {
@@ -96,7 +106,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
                 id,
                 name: p.name.clone(),
                 ty: ty.clone(),
-                mutable: false,
+                mutable: *mode == ParameterMode::Inout,
                 scope: ScopeId(0),
                 parameter_mode: Some(*mode),
             });
@@ -199,9 +209,105 @@ struct Lower<'a> {
     dead_depth: usize,
     poisoned: HashSet<LocalId>,
     tokens: Arc<Vec<lex::Token>>,
+    active_loans: HashMap<LocalId, Vec<ActiveLoan>>,
 }
 type FunctionSignature = (Vec<(String, ParameterMode, Ty)>, Ty);
+#[derive(Clone)]
+struct ActiveLoan {
+    permission: LoanPermission,
+    span: Span,
+    loan: LoanId,
+    parent: Option<LocalId>,
+}
 impl Lower<'_> {
+    fn conflict(&self, id: LocalId, primary: Span, requested: &str) -> Result<(), CompileError> {
+        count_loan_work();
+        let Some(active) = self.active_loans.get(&id).and_then(|v| v.first()) else {
+            return Ok(());
+        };
+        if active.permission == LoanPermission::Read && requested == "read" {
+            return Ok(());
+        }
+        let subcause = if active.permission == LoanPermission::Inout && requested == "borrow_inout"
+        {
+            "overlapping_mutable_borrows"
+        } else {
+            "active_borrow_conflict"
+        };
+        let CompileError::Rejected(mut errors) = self.ownership_error(
+            "NX-E1105",
+            Some(subcause),
+            diagnostic::Operation::OwnershipAccess,
+            primary,
+            id,
+            None,
+        ) else {
+            unreachable!()
+        };
+        let d = &mut errors[0];
+        d.related_spans.push(diagnostic::RelatedSpan {
+            role: diagnostic::RelatedRole::Origin,
+            span: active.span.clone(),
+        });
+        d.related_spans
+            .sort_by_key(|r| (r.span.start, r.span.end, r.role.as_str()));
+        let entity = self.local_entity(id);
+        let loan = diagnostic::Entity {
+            kind: diagnostic::EntityKind::Loan,
+            id: format!("loan:{}:0", active.loan.0),
+        };
+        let entity_value = |entity: &diagnostic::Entity| {
+            let mut object = std::collections::BTreeMap::new();
+            object.insert(
+                "kind".into(),
+                diagnostic::DataValue::String(entity.kind.as_str().into()),
+            );
+            object.insert(
+                "id".into(),
+                diagnostic::DataValue::String(entity.id.clone()),
+            );
+            diagnostic::DataValue::Object(object)
+        };
+        d.data.insert("origin".into(), entity_value(&entity));
+        d.data.insert("binding".into(), entity_value(&entity));
+        d.data.insert("loan".into(), entity_value(&loan));
+        d.data.insert(
+            "active_permission".into(),
+            diagnostic::DataValue::String(
+                if active.permission == LoanPermission::Read {
+                    "read"
+                } else {
+                    "inout"
+                }
+                .into(),
+            ),
+        );
+        d.data.insert(
+            "requested_access".into(),
+            diagnostic::DataValue::String(requested.into()),
+        );
+        d.cause_chain.push(diagnostic::Cause {
+            kind: diagnostic::CauseKind::Borrow,
+            operation: if active.permission == LoanPermission::Read {
+                diagnostic::CauseOperation::BorrowRead
+            } else {
+                diagnostic::CauseOperation::BorrowInout
+            },
+            span: Some(active.span.clone()),
+            entity: Some(loan),
+            evidence: diagnostic::Evidence::Verified,
+        });
+        if let Some(parent) = active.parent {
+            d.cause_chain.push(diagnostic::Cause {
+                kind: diagnostic::CauseKind::Reborrow,
+                operation: diagnostic::CauseOperation::BorrowReborrow,
+                span: Some(self.name_spans[parent.0].clone()),
+                entity: Some(self.local_entity(parent)),
+                evidence: diagnostic::Evidence::Verified,
+            });
+        }
+        Err(CompileError::Rejected(errors))
+    }
     fn mark_consumed(&mut self, id: LocalId, value: Option<(Span, bool)>) {
         if self.dead_depth != 0 {
             self.consumed_undo
@@ -326,7 +432,14 @@ impl Lower<'_> {
         d.data.insert("parameter".into(), entity_value(&entity));
         d.data.insert(
             "active_permission".into(),
-            diagnostic::DataValue::String("read".into()),
+            diagnostic::DataValue::String(
+                if self.locals[id.0].parameter_mode == Some(ParameterMode::Inout) {
+                    "inout"
+                } else {
+                    "read"
+                }
+                .into(),
+            ),
         );
         d.data.insert(
             "requested_access".into(),
@@ -334,7 +447,11 @@ impl Lower<'_> {
         );
         d.cause_chain.push(diagnostic::Cause {
             kind: diagnostic::CauseKind::Borrow,
-            operation: diagnostic::CauseOperation::BorrowRead,
+            operation: if self.locals[id.0].parameter_mode == Some(ParameterMode::Inout) {
+                diagnostic::CauseOperation::BorrowInout
+            } else {
+                diagnostic::CauseOperation::BorrowRead
+            },
             span: Some(self.name_spans[id.0].clone()),
             entity: Some(entity),
             evidence: diagnostic::Evidence::Verified,
@@ -406,6 +523,7 @@ impl Lower<'_> {
         CompileError::Rejected(vec![Box::new(d)])
     }
     fn emit(&mut self, op: Op, ty: Ty, span: Span, access: Access, effect_io: bool) -> TempId {
+        count_loan_work();
         let id = TempId(self.next_temp);
         let origin = OriginId(self.instructions.len());
         self.next_temp += 1;
@@ -423,6 +541,7 @@ impl Lower<'_> {
         id
     }
     fn statement_op(&mut self, op: Op, span: Span, access: Access, effect_io: bool) {
+        count_loan_work();
         let id = self.instructions.len();
         self.instructions.push(Instruction {
             op,
@@ -448,6 +567,109 @@ impl Lower<'_> {
         } else {
             Ok(id)
         }
+    }
+    fn call_argument(
+        &mut self,
+        arg: &parse::Argument,
+        mode: ParameterMode,
+        expected: &Ty,
+        depth: usize,
+    ) -> Result<(TempId, Ty, Option<LocalId>), CompileError> {
+        count_loan_work();
+        let place = if mode == ParameterMode::Inout {
+            match &arg.value {
+                Expr::Unary {
+                    mode: Mode::Inout,
+                    value,
+                    ..
+                } => Some(value.as_ref()),
+                _ => return Err(CompileError::InvalidIr("inout mode passed checker")),
+            }
+        } else if mode == ParameterMode::Read {
+            Some(&arg.value)
+        } else {
+            None
+        };
+        if let Some(place) = place
+            && let Ok((root, index_exprs)) = place_parts(place)
+            && let Some(name) = place_name(root)
+        {
+            let local = self.get(name)?;
+            self.check_available(local, root.span().clone())?;
+            if mode == ParameterMode::Inout {
+                if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
+                    return Err(self.permission_error(local, root.span().clone(), "borrow_inout"));
+                }
+                if !self.locals[local.0].mutable {
+                    return Err(self.immutable_write(root, local));
+                }
+            }
+            let requested = if mode == ParameterMode::Inout {
+                "borrow_inout"
+            } else {
+                "read"
+            };
+            // ADR §14.2 marks the complete selected place in P07 (`a[1]`).
+            self.conflict(local, place.span().clone(), requested)?;
+            let mut indexes = Vec::with_capacity(index_exprs.len());
+            let mut ty = self.locals[local.0].ty.clone();
+            for index_expr in index_exprs {
+                let (id, actual) = self.expr(index_expr, depth + 1, Some(&Ty::I64))?;
+                if actual != Ty::I64 {
+                    return Err(CompileError::InvalidIr("loan index type"));
+                }
+                let Ty::Array(child) = ty else {
+                    return Err(CompileError::InvalidIr("loan target type"));
+                };
+                ty = *child;
+                indexes.push(id);
+            }
+            let permission = if mode == ParameterMode::Inout {
+                LoanPermission::Inout
+            } else {
+                LoanPermission::Read
+            };
+            let loan = LoanId(arg.span.start as usize);
+            let parent = if self.locals[local.0].parameter_mode == Some(ParameterMode::Inout) {
+                Some(local)
+            } else {
+                None
+            };
+            let temp = self.emit(
+                Op::BeginLoan {
+                    root: local,
+                    indexes,
+                    loan,
+                    origin_span: arg.span.clone(),
+                    permission,
+                    parent,
+                },
+                ty.clone(),
+                arg.value.span().clone(),
+                Access::Read,
+                false,
+            );
+            self.active_loans
+                .entry(local)
+                .or_default()
+                .push(ActiveLoan {
+                    permission,
+                    span: arg.span.clone(),
+                    loan,
+                    parent,
+                });
+            return Ok((temp, ty, Some(local)));
+        }
+        if mode == ParameterMode::Inout {
+            return Err(CompileError::InvalidIr("inout place passed parser"));
+        }
+        let (temp, ty) = self.expr_mode(
+            &arg.value,
+            depth + 1,
+            Some(expected),
+            mode == ParameterMode::Read,
+        )?;
+        Ok((temp, ty, None))
     }
     fn block(
         &mut self,
@@ -609,6 +831,7 @@ impl Lower<'_> {
                     indexes.push(index);
                 }
                 let (temp, ty) = self.expr(value, 0, Some(&target_ty))?;
+                self.conflict(id, root.span().clone(), "write")?;
                 if !indexes.is_empty() {
                     self.check_available(id, root.span().clone())?;
                 }
@@ -749,6 +972,7 @@ impl Lower<'_> {
             Expr::Name(name, s) => {
                 let id = self.get(name)?;
                 self.check_available(id, s.clone())?;
+                self.conflict(id, s.clone(), "read")?;
                 let ty = self.locals[id.0].ty.clone();
                 if !borrow && !ty.copyable() {
                     return Err(self.copy_error(id, s.clone()));
@@ -811,56 +1035,96 @@ impl Lower<'_> {
                     if args.len() != params.len() {
                         return Err(CompileError::InvalidIr("call arity passed checker"));
                     }
-                    let mut used = vec![false; params.len()];
-                    let mut prepared = Vec::with_capacity(args.len());
-                    let mut next_positional = 0usize;
-                    for arg in args {
-                        let slot = if let Some(label) = &arg.label {
-                            params
-                                .iter()
-                                .position(|(p, _, _)| p == label)
-                                .ok_or(CompileError::InvalidIr("call label passed checker"))?
-                        } else {
-                            while used.get(next_positional) == Some(&true) {
-                                next_positional += 1;
+                    let mut acquired = Vec::new();
+                    let prepared_result = (|| {
+                        let mut used = vec![false; params.len()];
+                        let slot_by_name: HashMap<&str, usize> = params
+                            .iter()
+                            .enumerate()
+                            .map(|(index, (name, _, _))| (name.as_str(), index))
+                            .collect();
+                        let mut prepared = Vec::with_capacity(args.len());
+                        let mut argument_errors = Vec::new();
+                        let mut dependent = false;
+                        let mut next_positional = 0usize;
+                        for arg in args {
+                            count_loan_work();
+                            let slot = if let Some(label) = &arg.label {
+                                slot_by_name
+                                    .get(label.as_str())
+                                    .copied()
+                                    .ok_or(CompileError::InvalidIr("call label passed checker"))?
+                            } else {
+                                while used.get(next_positional) == Some(&true) {
+                                    next_positional += 1;
+                                }
+                                next_positional
+                            };
+                            let (_, mode, expected) = params
+                                .get(slot)
+                                .ok_or(CompileError::InvalidIr("call parameter slot"))?;
+                            if used[slot] {
+                                return Err(CompileError::InvalidIr("duplicate call argument"));
                             }
-                            next_positional
-                        };
-                        let (_, mode, expected) = params
-                            .get(slot)
-                            .ok_or(CompileError::InvalidIr("call parameter slot"))?;
-                        if used[slot] {
-                            return Err(CompileError::InvalidIr("duplicate call argument"));
+                            used[slot] = true;
+                            let (id, actual, loan_root) =
+                                match self.call_argument(arg, *mode, expected, depth) {
+                                    Ok(value) => value,
+                                    Err(CompileError::Rejected(errors)) => {
+                                        argument_errors.extend(errors);
+                                        continue;
+                                    }
+                                    Err(CompileError::Dependent) => {
+                                        dependent = true;
+                                        continue;
+                                    }
+                                    Err(other) => return Err(other),
+                                };
+                            if let Some(root) = loan_root {
+                                acquired.push((
+                                    root,
+                                    LoanId(arg.span.start as usize),
+                                    arg.span.clone(),
+                                ));
+                            }
+                            if actual != *expected {
+                                return Err(CompileError::InvalidIr(
+                                    "call argument type passed checker",
+                                ));
+                            }
+                            prepared.push((slot, id));
                         }
-                        used[slot] = true;
-                        let (id, actual) = self.expr_mode(
-                            &arg.value,
-                            depth + 1,
-                            Some(expected),
-                            *mode == ParameterMode::Read,
-                        )?;
-                        if actual != *expected {
-                            return Err(CompileError::InvalidIr(
-                                "call argument type passed checker",
-                            ));
+                        if !argument_errors.is_empty() {
+                            return Err(CompileError::Rejected(argument_errors));
                         }
-                        prepared.push((slot, id));
+                        if dependent {
+                            return Err(CompileError::Dependent);
+                        }
+                        Ok(prepared)
+                    })();
+                    for (root, _, _) in acquired.iter().rev() {
+                        if let Some(loans) = self.active_loans.get_mut(root) {
+                            loans.pop();
+                        }
                     }
+                    let prepared: Vec<(usize, TempId)> = prepared_result?;
                     let signature = params;
-                    return Ok((
-                        self.emit(
-                            Op::CallDirect {
-                                function: FunctionId(name.into()),
-                                args: prepared,
-                                signature,
-                            },
-                            result.clone(),
-                            span.clone(),
-                            Access::Own,
-                            false,
-                        ),
-                        result,
-                    ));
+                    let result_temp = self.emit(
+                        Op::CallDirect {
+                            function: FunctionId(name.into()),
+                            args: prepared,
+                            signature,
+                        },
+                        result.clone(),
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    );
+                    for (_, loan, origin) in acquired.into_iter().rev() {
+                        self.statement_op(Op::EndLoan(loan), origin, Access::Own, false);
+                        self.instructions.last_mut().unwrap().tick = false;
+                    }
+                    return Ok((result_temp, result));
                 }
                 let intrinsic = match name {
                     "print" => Intrinsic::Print,
@@ -879,13 +1143,17 @@ impl Lower<'_> {
                 {
                     let local = self.get(binding)?;
                     self.check_available(local, args[0].value.span().clone())?;
-                    if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
+                    if self.locals[local.0]
+                        .parameter_mode
+                        .is_some_and(|m| m != ParameterMode::Consume)
+                    {
                         return Err(self.permission_error(
                             local,
                             args[0].value.span().clone(),
                             "drop",
                         ));
                     }
+                    self.conflict(local, args[0].value.span().clone(), "drop")?;
                     self.mark_consumed(local, Some((span.clone(), true)));
                     return Ok((
                         self.emit(
@@ -999,6 +1267,7 @@ impl Lower<'_> {
                 {
                     let local = self.get(name)?;
                     self.check_available(local, root.span().clone())?;
+                    self.conflict(local, e.span().clone(), "read")?;
                     let mut ty = self.locals[local.0].ty.clone();
                     let mut ids = Vec::with_capacity(index_exprs.len());
                     for index_expr in index_exprs {
@@ -1072,9 +1341,13 @@ impl Lower<'_> {
                 };
                 let id = self.get(name)?;
                 self.check_available(id, value.span().clone())?;
-                if self.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
+                if self.locals[id.0]
+                    .parameter_mode
+                    .is_some_and(|m| m != ParameterMode::Consume)
+                {
                     return Err(self.permission_error(id, value.span().clone(), "consume"));
                 }
+                self.conflict(id, value.span().clone(), "consume")?;
                 self.mark_consumed(id, Some((span.clone(), false)));
                 let ty = self.locals[id.0].ty.clone();
                 Ok((
@@ -1176,6 +1449,63 @@ mod tests {
     use super::*;
 
     #[test]
+    fn pending_read_loan_rejects_assignment_with_write_access() {
+        let source = "fn main(){var x=1;x=2;}";
+        let ast = parse::parse("loan_write.nx", source).unwrap();
+        let signatures = HashMap::new();
+        let mut lower = Lower {
+            instructions: Vec::new(),
+            locals: Vec::new(),
+            visible: HashMap::new(),
+            scopes: vec![Vec::new()],
+            scope: ScopeId(0),
+            next_scope: 1,
+            scope_parents: vec![None],
+            next_temp: 0,
+            result: Ty::Unit,
+            terminated: None,
+            user_functions: &signatures,
+            name_spans: Vec::new(),
+            consumed_at: HashMap::new(),
+            consumed_undo: Vec::new(),
+            dead_depth: 0,
+            poisoned: HashSet::new(),
+            tokens: Arc::new(lex::lex("loan_write.nx", source).unwrap()),
+            active_loans: HashMap::new(),
+        };
+        let statements = &ast.functions[0].body.statements;
+        lower.statement(&statements[0], 0, &mut Vec::new()).unwrap();
+        lower.active_loans.insert(
+            LocalId(0),
+            vec![ActiveLoan {
+                permission: LoanPermission::Read,
+                span: Span {
+                    file: "loan_write.nx".into(),
+                    start: 18,
+                    end: 19,
+                },
+                loan: LoanId(18),
+                parent: None,
+            }],
+        );
+        let CompileError::Rejected(errors) = lower
+            .statement(&statements[1], 0, &mut Vec::new())
+            .unwrap_err()
+        else {
+            panic!("expected active read loan conflict")
+        };
+        assert_eq!(
+            errors[0].subcause.as_deref(),
+            Some("active_borrow_conflict")
+        );
+        assert_eq!(
+            errors[0].data["requested_access"],
+            diagnostic::DataValue::String("write".into())
+        );
+        errors[0].validate("loan_write.nx", source).unwrap();
+    }
+
+    #[test]
     fn dead_declaration_and_reinitialization_restore_all_lowering_state() {
         let source = "fn main(){var r=mock_open(1);drop(r);{return;let s=r;let x=1;r=mock_open(2);}inspect(r);}";
         let ast = parse::parse("dead_state.nx", source).unwrap();
@@ -1198,6 +1528,7 @@ mod tests {
             dead_depth: 0,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("dead_state.nx", source).unwrap()),
+            active_loans: HashMap::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -1247,6 +1578,7 @@ mod tests {
             dead_depth: 0,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+            active_loans: HashMap::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -1286,6 +1618,7 @@ mod tests {
             dead_depth: 0,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+            active_loans: HashMap::new(),
         };
         let mut diagnostics = Vec::new();
         lower

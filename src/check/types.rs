@@ -753,7 +753,20 @@ impl Checker<'_> {
                 }
                 for (arg, slot) in args.iter().zip(&binding.slots) {
                     let formal = &signature.params[*slot];
-                    self.expr(&arg.value, Some(&formal.ty), Some(&formal.type_span))?;
+                    let previous_taint = self.tainted;
+                    self.tainted = false;
+                    let outcome = self.expr(&arg.value, Some(&formal.ty), Some(&formal.type_span));
+                    let tainted = self.tainted;
+                    self.tainted = previous_taint || tainted;
+                    if let Err(error) = outcome {
+                        if error.operation == Operation::AnalysisLimit {
+                            return Err(error);
+                        }
+                        if !tainted {
+                            self.errors.push(error);
+                        }
+                        self.tainted = true;
+                    }
                 }
                 Ok(signature.result.clone())
             }
