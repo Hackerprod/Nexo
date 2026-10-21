@@ -102,3 +102,141 @@ plantilla de personal para comenzar a explorar.
 SHA-256:
 - Nexo_ROADMAP_rev0.2.md: 9a7ed7336a920f82bfcbd92030761320e4e7b334991a95acdc1ee5252144d62d
 - Nexo_CAMBIOS_rev0.2.md: 118c00274155f0a5a8534b6230ce2e8f079bd9829598aa28336cfa1ff3d38a8c
+
+## 9. Directivas del propietario posteriores a la base (2026-10-20)
+
+Estado de este apartado: **directivas del propietario, sin ADR ni validación**. Registran la
+intención de largo plazo del proyecto. No modifican `docs/baseline/` ni crean una revisión 0.3;
+cada una abre una decisión que debe tomarse con un ADR (Flujo A) antes de implementarse. Donde una
+directiva amplía o contradice el roadmap 0.2 se indica expresamente. Ninguna se ha medido ni
+validado.
+
+### 9.1. Independencia total y self-hosting
+
+**Directiva.** Nexo debe llegar a ser un lenguaje completamente independiente: su compilador debe
+poder escribirse en Nexo (self-hosting) y poder construirse a partir de una versión anterior
+(bootstrapping), sin depender de Rust en la cadena final.
+
+**Relación con el roadmap 0.2.** El roadmap no contiene este objetivo (ni como entregable ni como
+fase). D04 fija Rust y una IR propia como implementación inicial, con LLVM como backend nativo
+principal. Esta directiva es una ampliación de alcance.
+
+**Decisiones que abre.** (a) Cadena de arranque: qué versión del compilador en Rust se conserva como
+etapa 0 y cuándo se retira. (b) Qué capacidades del lenguaje son prerrequisito para escribir un
+compilador en Nexo (genéricos, traits, closures, colecciones, memoria y E/S estables). (c) La
+frontera con las dependencias que no son Nexo (ver 9.2 y 9.3). Debe decidirse **antes de F2**, porque
+condiciona el diseño del backend, de la ABI interna y de la biblioteca estándar.
+
+### 9.2. Backend propio en lugar de LLVM
+
+**Directiva.** Tras validar Nexo de extremo a extremo, la siguiente mejora es sustituir LLVM por un
+backend propio.
+
+**Relación con el roadmap 0.2.** D04 fija LLVM como backend de producción, con un adaptador
+experimental a Cranelift como contingencia de tiempos de compilación. Sustituir LLVM contradice
+D04 en el plano de producción y exige una decisión nueva.
+
+**Relación con 9.1.** Son objetivos distintos pero convergentes. El self-hosting no obliga a tener un
+backend propio, pero un lenguaje «completamente independiente» sí exige no depender de LLVM
+(escrito en C++). La IR propia de D04, que conserva procedencia de préstamos, efectos y limpieza, es la
+base natural de ese backend.
+
+**Decisiones que abre.** (a) Criterio exacto de «validado de extremo a extremo» que habilita el
+cambio (puertas de F2/F6 cumplidas). (b) Alcance por etapas: un backend propio sin optimización
+agresiva para arrancar (x86-64 y arm64, las plataformas de §4.2 del roadmap), con LLVM conservado
+como backend de optimización opcional mientras no se igualen las puertas de rendimiento (H-PY,
+H-RS, H-CS). (c) Riesgo declarado: un backend optimizador competitivo es un esfuerzo mayor que el
+resto del compilador, y las puertas de rendimiento del roadmap se formularon suponiendo la calidad
+de optimización de LLVM.
+
+### 9.3. Bibliotecas 100 % escritas en Nexo
+
+**Directiva.** Las bibliotecas deben estar escritas íntegramente en Nexo. Se tomarán como
+referencia las bibliotecas de código abierto de otros lenguajes (por ejemplo, red, archivos y demás
+de C#/.NET).
+
+**Relación con el roadmap 0.2.** Compatible con §6.7 (baterías esenciales: HTTP, JSON, CLI, logging,
+tests) y con P07 (las operaciones no verificables se confinan a módulos `unsafe` pequeños y
+auditados). Amplía el roadmap en que excluye depender de bibliotecas escritas en otros lenguajes y
+en que toma la biblioteca de otros ecosistemas como referencia de superficie.
+
+**Decisiones que abre.** (a) La capa irreductible: qué parte no puede escribirse en Nexo (las
+intrínsecas que genera el backend y las llamadas al sistema operativo). La vía coherente con la
+independencia es que Nexo declare y llame directamente a las interfaces del sistema (llamadas al
+sistema o API nativas de cada plataforma) en módulos `unsafe` mínimos, sin pasar por libc ni por
+bibliotecas en C. (b) Qué sucede con bibliotecas de terceros en C: los perfiles C de F4 siguen
+siendo la vía de interoperabilidad, pero no forman parte de la biblioteca estándar. (c) Licencias
+y procedencia al tomar referencias de código abierto: la referencia es de diseño y de API, no una
+copia de código sin respetar su licencia. (d) Criptografía y TLS, que el roadmap deja fuera de EX02.
+
+### 9.4. Dos capas: bajo nivel y alto nivel
+
+**Directiva.** Nexo tendrá dos capas, una de bajo nivel y una de alto nivel. La de alto nivel debe
+dar al programador lo más fácil posible. Analogía del propietario: un `array[]` frente a `List` en
+C#, donde `List` incorpora muchas funcionalidades implícitas que aceleran el desarrollo.
+
+**Relación con el roadmap 0.2.** Coincide con la propuesta de producto de §0.1 («empezar con datos
+sencillos y conservar el algoritmo cuando haga falta controlar memoria, representación y
+concurrencia») y con P01 (un solo lenguaje, una sola semántica). Se interpreta así: **no son dos
+lenguajes ni dos dialectos**, sino dos niveles de biblioteca y de contrato sobre la misma semántica.
+- Nivel bajo: arreglos y vistas, regiones, layouts (AoS/SoA), contratos `no_alloc`/`no_block`,
+  control de representación y de memoria.
+- Nivel alto: colecciones crecientes (la `List`), mapas, cadenas y flujos con operaciones ya
+  hechas, iteradores y consultas, que pueden reservar memoria y ocultar detalles.
+Las construcciones de alto nivel se escriben **con** las de bajo nivel (la `List` se construye sobre un
+arreglo y un asignador), y un contrato de bajo nivel puede rechazar una función que las use. Así el
+programador desciende de capa sin reescribir su lógica.
+
+**Decisiones que abre.** Frontera y nombres de las capas. Qué colecciones y operaciones entran en
+la capa alta. Cómo se declara en el código qué capa se está usando. Cómo interactúa con los contratos
+de costes (P06) para que la comodidad del alto nivel no oculte reservas.
+
+### 9.5. Biblioteca de interfaz de usuario basada en HTML/CSS
+
+**Directiva.** Existirá una biblioteca de UI basada en HTML/CSS, similar al proyecto del propietario
+AetherUI (https://github.com/Hackerprod/AetherUI) pero más optimizada, escrita en Nexo, con salida
+multiplataforma (Windows, Android, Linux, etc.).
+
+**Relación con el roadmap 0.2.** Fuera del alcance de 1.0: no figura entre los compromisos de §11.1 y
+requiere capacidades que el roadmap sitúa más tarde (tareas y concurrencia en F5, Wasm y puentes en
+F4, plataformas móviles no incluidas en las cuatro de §4.2). Se registra como objetivo de ecosistema
+posterior al núcleo.
+
+**Decisiones que abre.** Subconjunto de HTML/CSS y modelo de composición. Motor de maquetación y
+de dibujo. Accesibilidad. Destinos (escritorio nativo, Android, navegador vía Wasm). Dependencia de
+9.3 (biblioteca íntegramente en Nexo) y de un backend con las plataformas objetivo. Antes de diseñar
+conviene estudiar AetherUI y fijar qué se conserva y qué se rediseña.
+
+### 9.6. Sintaxis no arraigada a ningún lenguaje
+
+**Directiva.** La sintaxis no debe estar demasiado arraigada a ningún lenguaje existente, para evitar
+malentendidos. Los ejemplos del roadmap se parecen a C++ y Rust. El propietario considera que, si se
+construye bien, corregir o modificar la sintaxis más tarde no será un trabajo pesado; para validar,
+la sintaxis concreta no importa.
+
+**Relación con el roadmap 0.2.** D01 acepta llaves, `let`/`var`, `fn`, `struct`, patrones y
+terminadores opcionales: una superficie de la familia C/Rust. El roadmap prevé congelar la sintaxis
+en F0–F1 (los archivos utilizan provisionalmente `.nx`). Esta directiva mantiene abierta la
+decisión.
+
+**Estado del código y coste real de cambiar.** La arquitectura ya separa la superficie de la
+semántica: el lexer (`frontend/lex.rs`), el parser (`frontend/parse.rs`) y el impresor canónico
+(`frontend/print.rs`) producen y consumen un AST normalizado, y la comprobación de nombres, tipos
+y las etapas posteriores operan sobre el AST, no sobre el texto. Cambiar la sintaxis supone
+reescribir lexer, parser e impresor y migrar las fuentes de prueba. **Lo que más pesa hoy son los
+fixtures**: cientos de fuentes con spans, tokens y conjuntos esperados transcritos del ADR están
+ligados a la sintaxis actual. Esa deuda crece con cada corte.
+
+**Decisiones que abre y recomendación de proceso.** (a) Fijar un punto de decisión de sintaxis
+(antes de cerrar F1) con un ADR de alternativas. (b) Mientras tanto, no multiplicar fixtures
+dependientes del texto más de lo que cada corte necesite, y preferir esperados al nivel de AST o
+generados con el impresor canónico. (c) La IR, los efectos y la propiedad no dependen de la sintaxis y
+pueden continuar.
+
+### 9.7. Orden propuesto de las decisiones
+
+Orden sugerido para abrir ADR, sin implicar aprobación: 9.6 (sintaxis, punto de decisión) y 9.4
+(capas) antes de congelar F1; 9.1 y 9.3 (self-hosting y bibliotecas en Nexo) antes de F2; 9.2
+(backend propio) tras la validación de extremo a extremo; 9.5 (UI) después del núcleo y la
+concurrencia. Todo lo anterior queda registrado como intención del propietario hasta que exista
+una decisión revisada y registrada.
