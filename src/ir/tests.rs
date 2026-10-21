@@ -325,7 +325,7 @@ fn function_identity_and_hash_ignore_unrelated_order_and_track_body() {
     let one = compile_scalar("fixture.nx", "fn main(){print(1);}").unwrap();
     assert_eq!(
         one.functions().function("main").unwrap().content_hash,
-        0xdd16_3509_de47_393f
+        0x2429_2d7d_adf8_6fdf
     );
     let a = compile_scalar("fixture.nx", "fn helper(){print(1);} fn main(){print(2);}").unwrap();
     assert_eq!(a.functions().function("helper").unwrap().id.0, "helper");
@@ -532,13 +532,11 @@ fn deepest_admitted_scalar_families_compile_on_small_caller_stacks() {
     }
 }
 #[test]
-fn arrays_execute_only_after_verification_and_user_calls_remain_deferred() {
+fn arrays_and_user_calls_execute_only_after_verification() {
     let arrays = compile_scalar("fixture.nx", "fn main(){print(1);let a=[2];}").unwrap();
     assert_eq!(run_scalar(&arrays).observations.stdout(), &["1"]);
-    assert!(matches!(
-        compile_scalar("fixture.nx", "fn f(){} fn main(){f();}"),
-        Err(CompileError::OutsideScalarSlice("user call"))
-    ));
+    let called = compile_scalar("fixture.nx", "fn f(){} fn main(){f();}").unwrap();
+    assert_eq!(run_scalar(&called).outcome, Outcome::Unit);
     assert!(matches!(
         compile_scalar("fixture.nx", "fn main(){let x=1;x=2;}"),
         Err(CompileError::Rejected(_))
@@ -850,8 +848,890 @@ fn binary_instruction_hash_matches_fixed_canonical_fnv_encoding() {
     let p = compile_scalar("h.nx", "fn main(){print(1+2);}").unwrap();
     assert_eq!(
         p.functions().function("main").unwrap().content_hash,
-        0x281c_a30e_94fe_b180
+        0x20c7_71da_7f5d_f960
     );
+}
+#[test]
+fn ordinary_resource_parameter_borrows_across_frame_and_closes_once() {
+    let e = execute(
+        "fn leer(r:MockResource){inspect(r);inspect(r);} fn main(){let r=mock_open(1);leer(r);inspect(r);}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        [
+            "open:0:1",
+            "inspect:0:1",
+            "inspect:0:1",
+            "inspect:0:1",
+            "close:0:1"
+        ]
+    );
+    assert_eq!(e.observations.reserved_bytes(), 0);
+}
+#[test]
+fn consumed_resource_parameter_closes_at_callee_exit() {
+    let e = execute(
+        "fn take(consume r:MockResource){inspect(r);} fn main(){let r=mock_open(4);take(consume r);}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:4", "inspect:0:4", "close:0:4"]
+    );
+}
+#[test]
+fn resource_result_is_transferred_out_of_callee_before_cleanup() {
+    let e = execute(
+        "fn make()->MockResource{return mock_open(3);} fn main(){let r=make();inspect(r);}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:3", "inspect:0:3", "close:0:3"]
+    );
+}
+#[test]
+fn later_argument_fault_cleans_earlier_resource_without_entering_callee() {
+    let e = execute(
+        "fn f(consume r:MockResource,n:i64){print(n);} fn main(){f(mock_open(1),9223372036854775807+1);}",
+    );
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0101");
+    assert_eq!(e.observations.events(), ["open:0:1", "close:0:1"]);
+    assert!(e.observations.stdout().is_empty());
+}
+#[test]
+fn named_arguments_evaluate_in_written_order() {
+    let e = execute(
+        "fn mark(n:i64)->i64{print(n);return n;} fn f(a:i64,b:i64){} fn main(){f(b:mark(2),a:mark(1));}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.stdout(), ["2", "1"]);
+}
+#[test]
+fn resource_copy_is_rejected_and_explicit_transfer_runs() {
+    let negative = "fn main(){let r=mock_open(1);let s=r;}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("p.nx", negative) else {
+        panic!("expected ownership diagnostic")
+    };
+    assert_eq!(errors.len(), 1);
+    let d = &errors[0];
+    assert_eq!(
+        (
+            &*d.code,
+            d.subcause.as_deref(),
+            d.stage.as_str(),
+            d.operation.as_str()
+        ),
+        ("NX-E0201", None, "ownership", "value.copy")
+    );
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((35, 36))
+    );
+    d.validate("p.nx", negative).unwrap();
+    let e = execute("fn main(){let r=mock_open(1);let s=consume r;inspect(s);}");
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:1", "inspect:0:1", "close:0:1"]
+    );
+}
+#[test]
+fn use_after_consume_or_drop_reports_consumption_site() {
+    for (source, primary, consumption) in [
+        (
+            "fn main(){let r=mock_open(1);let s=consume r;inspect(r);}",
+            (53, 54),
+            (35, 44),
+        ),
+        ("fn main(){let x=1;drop(x);print(x);}", (32, 33), (18, 25)),
+    ] {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("p.nx", source) else {
+            panic!("expected ownership diagnostic")
+        };
+        assert_eq!(errors.len(), 1);
+        let d = &errors[0];
+        assert_eq!(
+            (
+                &*d.code,
+                d.subcause.as_deref(),
+                d.stage.as_str(),
+                d.operation.as_str()
+            ),
+            (
+                "NX-E0202",
+                Some("definitely_consumed"),
+                "ownership",
+                "ownership.use"
+            )
+        );
+        assert_eq!(
+            d.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some(primary)
+        );
+        assert!(
+            d.related_spans
+                .iter()
+                .any(|r| r.role == crate::diagnostic::RelatedRole::Consumption
+                    && (r.span.start, r.span.end) == consumption)
+        );
+        d.validate("p.nx", source).unwrap();
+    }
+}
+#[test]
+fn read_parameter_cannot_be_consumed() {
+    let source = "fn f(x:MockResource)->MockResource{return consume x;} fn main(){}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("p.nx", source) else {
+        panic!("expected permission diagnostic")
+    };
+    assert_eq!(errors.len(), 1);
+    let d = &errors[0];
+    assert_eq!(
+        (
+            &*d.code,
+            d.subcause.as_deref(),
+            d.stage.as_str(),
+            d.operation.as_str()
+        ),
+        (
+            "NX-E1105",
+            Some("permission_escalation"),
+            "ownership",
+            "ownership.access"
+        )
+    );
+    d.validate("p.nx", source).unwrap();
+    let e = execute(
+        "fn f(consume x:MockResource)->MockResource{return consume x;} fn main(){let r=f(mock_open(1));inspect(r);}",
+    );
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:1", "inspect:0:1", "close:0:1"]
+    );
+}
+#[test]
+fn adr_gap_call_frame_limit_primary_uses_rejected_call_span() {
+    let source = "fn down(){down();} fn main(){down();}";
+    let e = execute(source);
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    let d = &e.diagnostics[0];
+    assert_eq!(d.code, "R0002");
+    assert_eq!(
+        d.data.get("runtime_budget_kind"),
+        Some(&crate::diagnostic::DataValue::String("call_frames".into()))
+    );
+    assert_eq!(
+        d.data.get("limit"),
+        Some(&crate::diagnostic::DataValue::UInt(256))
+    );
+    assert_eq!(
+        d.data.get("observed"),
+        Some(&crate::diagnostic::DataValue::UInt(257))
+    );
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((10, 16))
+    );
+    d.validate("fixture.nx", source).unwrap();
+}
+#[test]
+fn unreachable_tail_is_checked_without_emitting_its_instructions() {
+    let source = "fn main(){return;let a=[1];a[0]=2;}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("dead.nx", source) else {
+        panic!("expected ownership diagnostic")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].code, "NX-E0105");
+    errors[0].validate("dead.nx", source).unwrap();
+    let e = execute("fn main(){return;print(9);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.observations.stdout().is_empty());
+}
+#[test]
+fn shadowed_resources_close_in_reverse_scope_order() {
+    let e = execute("fn main(){let r=mock_open(1);{let r=mock_open(2);inspect(r);}inspect(r);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        [
+            "open:0:1",
+            "open:1:2",
+            "inspect:1:2",
+            "close:1:2",
+            "inspect:0:1",
+            "close:0:1"
+        ]
+    );
+}
+#[test]
+fn dropped_var_can_be_reinitialized_without_closing_twice() {
+    let e = execute("fn main(){var r=mock_open(1);drop(r);r=mock_open(2);inspect(r);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        [
+            "open:0:1",
+            "close:0:1",
+            "open:1:2",
+            "inspect:1:2",
+            "close:1:2"
+        ]
+    );
+}
+#[test]
+fn ordinary_array_parameter_returns_deep_copy() {
+    let e = execute(
+        "fn copia(a:Array<i64>)->Array<i64>{return a;} fn main(){var a=[1];let b=copia(a);a[0]=2;assert_eq(b,[1]);}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.observations.observations().is_empty());
+}
+#[test]
+fn call_target_named_value_continues_across_lf() {
+    let source =
+        "fn value(x:i64)->i64{return x;}\nfn main(){let x=7;let y=value\n(x);assert_eq(y,7);}";
+    let ast = parse::parse("fixture.nx", source).unwrap();
+    let crate::frontend::parse::Statement::Let {
+        value: crate::frontend::parse::Expr::Call { span, .. },
+        ..
+    } = &ast
+        .functions
+        .iter()
+        .find(|f| f.name == "main")
+        .unwrap()
+        .body
+        .statements[1]
+    else {
+        panic!("L03 call")
+    };
+    assert_eq!((span.start, span.end), (56, 65));
+    let e = execute(source);
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.observations.observations().is_empty());
+}
+#[test]
+fn explicit_return_parenthesis_continues_across_lf() {
+    let source = "fn f()->i64{return (\n1);} fn main(){assert_eq(f(),1);}";
+    let e = execute(source);
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.observations.observations().is_empty());
+}
+#[test]
+fn drop_destroys_complete_binding_or_temporary_and_rejects_projection() {
+    let e = execute("fn main(){let a=[1];drop(a);drop([1][0]);drop(mock_open(9));}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.events(), ["open:0:9", "close:0:9"]);
+    let source = "fn main(){let a=[1];drop(a[0]);}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("drop.nx", source) else {
+        panic!("expected partial transfer rejection")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        (
+            &*errors[0].code,
+            errors[0].feature_id.as_deref(),
+            errors[0].stage.as_str()
+        ),
+        ("NX-E0006", Some("partial_transfer"), "arguments")
+    );
+    errors[0].validate("drop.nx", source).unwrap();
+}
+#[test]
+fn caller_hash_tracks_referenced_name_and_signature_but_not_unrelated_body() {
+    let hash = |source: &str| {
+        compile_scalar("hash.nx", source)
+            .unwrap()
+            .functions()
+            .function("main")
+            .unwrap()
+            .content_hash
+    };
+    let base = hash("fn f(x:i64)->i64{return x;} fn main(){f(1);}");
+    assert_eq!(base, hash("fn f(x:i64)->i64{return x+1;} fn main(){f(1);}"));
+    assert_ne!(base, hash("fn g(x:i64)->i64{return x;} fn main(){g(1);}"));
+    assert_ne!(base, hash("fn f(y:i64)->i64{return y;} fn main(){f(1);}"));
+    assert_ne!(
+        base,
+        hash("fn f(x:i64)->bool{return true;} fn main(){f(1);}")
+    );
+    assert_ne!(
+        base,
+        hash("fn f(consume x:i64)->i64{return x;} fn main(){f(1);}")
+    );
+}
+#[test]
+fn parameter_name_and_argument_slot_are_encoded_in_canonical_hash() {
+    let a = compile_scalar("hash.nx", "fn f(x:i64)->i64{return 1;} fn main(){f(2);}").unwrap();
+    let b = compile_scalar("hash.nx", "fn f(y:i64)->i64{return 1;} fn main(){f(2);}").unwrap();
+    assert_ne!(
+        a.functions().function("f").unwrap().content_hash,
+        b.functions().function("f").unwrap().content_hash
+    );
+    let p = compile_scalar("hash.nx", "fn f(a:i64,b:i64){} fn main(){f(a:1,b:2);}").unwrap();
+    let mut f = p.functions().function("main").unwrap().clone();
+    let original = super::model::content_hash(&f);
+    let call = f
+        .block
+        .instructions
+        .iter_mut()
+        .find(|i| matches!(i.op, super::model::Op::CallDirect { .. }))
+        .unwrap();
+    if let super::model::Op::CallDirect { args, .. } = &mut call.op {
+        args.swap(0, 1);
+    }
+    assert_ne!(original, super::model::content_hash(&f));
+    let mut f = p.functions().function("main").unwrap().clone();
+    let call = f
+        .block
+        .instructions
+        .iter_mut()
+        .find(|i| matches!(i.op, super::model::Op::CallDirect { .. }))
+        .unwrap();
+    if let super::model::Op::CallDirect { args, .. } = &mut call.op {
+        args[0].0 = 9;
+    }
+    assert_ne!(original, super::model::content_hash(&f));
+}
+#[test]
+fn canonical_hash_distinguishes_transfer_from_copy_on_same_slot() {
+    let p = compile_scalar("hash.nx", "fn main(){let x=1;let y=consume x;}").unwrap();
+    let mut f = p.functions().function("main").unwrap().clone();
+    let original = super::model::content_hash(&f);
+    let ins = f
+        .block
+        .instructions
+        .iter_mut()
+        .find(|i| matches!(i.op, super::model::Op::TransferValue(_)))
+        .unwrap();
+    ins.op = super::model::Op::CopyValue(super::model::LocalId(0));
+    assert_ne!(original, super::model::content_hash(&f));
+}
+#[test]
+fn direct_call_hash_has_fixed_canonical_vector() {
+    let p = compile_scalar("hash.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
+    assert_eq!(
+        p.functions().function("main").unwrap().content_hash,
+        0xdde0_95c7_2e5f_e0ca
+    );
+}
+#[test]
+fn failed_development_substitution_restores_previous_function() {
+    let mut receiver = compile_scalar("r.nx", "fn extra(){} fn main(){print(1);}").unwrap();
+    let donor = compile_scalar("d.nx", "fn helper(){} fn main(){helper();}").unwrap();
+    let before = receiver.functions().function("main").unwrap().content_hash;
+    assert_eq!(
+        receiver.substitute_for_development("main", &donor),
+        Err("unknown callee")
+    );
+    assert_eq!(
+        receiver.functions().function("main").unwrap().content_hash,
+        before
+    );
+    let e = run_scalar(&receiver);
+    assert_eq!(e.observations.stdout(), ["1"]);
+}
+#[test]
+fn independent_ownership_errors_accumulate_in_source_order() {
+    let source = "fn main(){let a=mock_open(1);let b=mock_open(2);let x=a;let y=b;}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("multi.nx", source) else {
+        panic!("expected two copies")
+    };
+    assert_eq!(errors.len(), 2);
+    assert_eq!(
+        errors.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(),
+        ["NX-E0201", "NX-E0201"]
+    );
+    assert_eq!(
+        errors
+            .iter()
+            .map(|d| d.primary_span.as_ref().unwrap().start)
+            .collect::<Vec<_>>(),
+        [54, 62]
+    );
+    for d in errors {
+        d.validate("multi.nx", source).unwrap();
+    }
+}
+#[test]
+fn user_function_named_drop_has_ordinary_read_semantics() {
+    let e = execute("fn drop(x:i64){} fn main(){let a=[1];drop(a[0]);assert_eq(a[0],1);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.observations.observations().is_empty());
+}
+#[test]
+fn consumed_temporary_borrowed_by_read_parameter_closes_after_call() {
+    let e = execute(
+        "fn read(r:MockResource){inspect(r);} fn main(){let r=mock_open(5);read(consume r);}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:5", "inspect:0:5", "close:0:5"]
+    );
+    let source =
+        "fn read(r:MockResource){} fn main(){let r=mock_open(5);read(consume r);inspect(r);}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("consume.nx", source) else {
+        panic!("expected consumed use")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        (&*errors[0].code, errors[0].subcause.as_deref()),
+        ("NX-E0202", Some("definitely_consumed"))
+    );
+    errors[0].validate("consume.nx", source).unwrap();
+}
+#[test]
+fn simulator_fault_cleans_callee_then_caller_resources() {
+    let e = execute(
+        "fn failer(consume r:MockResource){let s=mock_open(2);fail();} fn main(){let r=mock_open(1);failer(consume r);}",
+    );
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0301");
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:1", "open:1:2", "close:1:2", "close:0:1"]
+    );
+}
+#[test]
+fn blocking_resource_has_same_event_shapes_and_one_close() {
+    let e = execute("fn main(){let r=mock_blocking_open(7);inspect(r);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:7", "inspect:0:7", "close:0:7"]
+    );
+}
+#[test]
+fn frame_limit_unwinds_shared_resource_once() {
+    let source = "fn f(r:MockResource){f(r);} fn main(){let r=mock_open(1);f(r);}";
+    let e = execute(source);
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0002");
+    assert_eq!(
+        e.diagnostics[0].data.get("runtime_budget_kind"),
+        Some(&crate::diagnostic::DataValue::String("call_frames".into()))
+    );
+    assert_eq!(e.observations.events(), ["open:0:1", "close:0:1"]);
+}
+#[test]
+fn sequential_calls_release_frames_before_the_next_entry() {
+    let source = format!("fn f(){{}} fn main(){{{}}}", "f();".repeat(300));
+    let e = execute(&source);
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.diagnostics.is_empty());
+    assert!(e.observations.observations().is_empty());
+}
+#[test]
+fn frame_limit_denies_acquisition_in_frame_257() {
+    let e = execute("fn f(){let r=mock_open(1);f();} fn main(){f();}");
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0002");
+    assert_eq!(
+        e.observations
+            .events()
+            .iter()
+            .filter(|event| event.starts_with("open:"))
+            .count(),
+        255
+    );
+    assert_eq!(
+        e.observations
+            .events()
+            .iter()
+            .filter(|event| event.starts_with("close:"))
+            .count(),
+        255
+    );
+    assert_eq!(e.observations.events().first().copied(), Some("open:0:1"));
+    assert_eq!(e.observations.events().last().copied(), Some("close:0:1"));
+}
+#[test]
+fn complete_resource_reassignment_closes_old_before_scope_exit() {
+    let e = execute("fn main(){var r=mock_open(1);r=mock_open(2);inspect(r);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        [
+            "open:0:1",
+            "open:1:2",
+            "close:0:1",
+            "inspect:1:2",
+            "close:1:2"
+        ]
+    );
+}
+#[test]
+fn selected_array_copy_is_independent_of_mutable_root() {
+    let e = execute("fn main(){var a=[[1]];let b=a[0];a[0][0]=2;assert_eq(b,[1]);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.diagnostics.is_empty());
+}
+#[test]
+fn repeated_drop_reports_consumed_origin_without_second_close() {
+    let source = "fn main(){let r=mock_open(1);drop(r);drop(r);}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("drop.nx", source) else {
+        panic!("expected consumed use")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        (&*errors[0].code, errors[0].subcause.as_deref()),
+        ("NX-E0202", Some("definitely_consumed"))
+    );
+    errors[0].validate("drop.nx", source).unwrap();
+}
+#[test]
+fn read_parameter_rejects_write_and_drop_without_execution() {
+    for (source, access) in [
+        ("fn f(x:i64){x=2;} fn main(){}", "write"),
+        ("fn f(x:i64){drop(x);} fn main(){}", "drop"),
+    ] {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("permission.nx", source) else {
+            panic!("expected {access} rejection")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            (&*errors[0].code, errors[0].subcause.as_deref()),
+            ("NX-E1105", Some("permission_escalation"))
+        );
+        assert_eq!(
+            errors[0].data.get("requested_access"),
+            Some(&crate::diagnostic::DataValue::String(access.into()))
+        );
+        errors[0].validate("permission.nx", source).unwrap();
+    }
+}
+#[test]
+fn consumed_nested_local_does_not_receive_second_cleanup() {
+    let e = execute(
+        "fn take(consume r:MockResource){} fn main(){{let r=mock_open(1);take(consume r);}}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.events(), ["open:0:1", "close:0:1"]);
+}
+#[test]
+fn nested_drop_and_reinitialization_use_one_liveness_record() {
+    let e = execute("fn main(){{var r=mock_open(1);drop(r);r=mock_open(2);}}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(
+        e.observations.events(),
+        ["open:0:1", "close:0:1", "open:1:2", "close:1:2"]
+    );
+}
+#[test]
+fn i05_source_rows_have_isolated_rejections_and_executable_repairs() {
+    let rows: &[(&str, &str, &str, Option<&str>, &str)] = &[
+        (
+            "S01",
+            "fn f(x:i64){} fn main(){f();}",
+            "NX-E0111",
+            Some("missing_argument"),
+            "fn f(x:i64){} fn main(){f(1);}",
+        ),
+        (
+            "S02",
+            "fn f(x:i64){} fn main(){f(1,2);}",
+            "NX-E0111",
+            Some("excess_positional_argument"),
+            "fn f(x:i64){} fn main(){f(1);}",
+        ),
+        (
+            "S03",
+            "fn f(x:i64){} fn main(){f(y:1);}",
+            "NX-E0111",
+            Some("unknown_argument_label"),
+            "fn f(x:i64){} fn main(){f(x:1);}",
+        ),
+        (
+            "S04",
+            "fn f(x:i64){} fn main(){f(x:1,x:2);}",
+            "NX-E0111",
+            Some("duplicate_argument"),
+            "fn f(x:i64){} fn main(){f(x:1);}",
+        ),
+        (
+            "S05",
+            "fn f(x:i64,y:i64){} fn main(){f(x:1,2);}",
+            "NX-E0111",
+            Some("positional_after_named"),
+            "fn f(x:i64,y:i64){} fn main(){f(x:1,y:2);}",
+        ),
+        (
+            "S07",
+            "fn main(){let f=1;f();}",
+            "NX-E0111",
+            Some("non_callable_target"),
+            "fn f(){} fn main(){f();}",
+        ),
+        (
+            "S12",
+            "fn f()->i64{return true;} fn main(){}",
+            "NX-E0102",
+            Some("type_mismatch"),
+            "fn f()->i64{return 1;} fn main(){assert_eq(f(),1);}",
+        ),
+        (
+            "S13",
+            "fn f(){} fn f(){} fn main(){}",
+            "NX-E0104",
+            None,
+            "fn f(){} fn g(){} fn main(){}",
+        ),
+        (
+            "S14",
+            "fn f(x:i64,x:i64){} fn main(){}",
+            "NX-E0104",
+            None,
+            "fn f(x:i64,y:i64){} fn main(){f(1,2);}",
+        ),
+        (
+            "S15",
+            "fn main(){ausente();}",
+            "NX-E0101",
+            None,
+            "fn ausente(){} fn main(){ausente();}",
+        ),
+        (
+            "S19",
+            "fn main(){let r=mock_open(1);let b=r==r;}",
+            "NX-E0102",
+            Some("type_mismatch"),
+            "fn main(){let r=mock_open(1);inspect(r);}",
+        ),
+        (
+            "S24",
+            "fn f(x:i64){let x=1;} fn main(){}",
+            "NX-E0104",
+            None,
+            "fn f(x:i64){{let x=1;}} fn main(){f(1);}",
+        ),
+        (
+            "S26",
+            "fn main(){let x=1;inspect(x);}",
+            "NX-E0102",
+            Some("resource_required"),
+            "fn main(){let x=mock_open(1);inspect(x);}",
+        ),
+        (
+            "S29",
+            "fn main(){let a=[1];drop(a[0]);}",
+            "NX-E0006",
+            None,
+            "fn main(){let a=[1];drop(a);}",
+        ),
+        (
+            "B07",
+            "fn f()->i64{return 1 } fn main(){}",
+            "NX-E0005",
+            None,
+            "fn f()->i64{return 1;} fn main(){assert_eq(f(),1);}",
+        ),
+    ];
+    for (id, negative, code, subcause, positive) in rows {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("rows.nx", negative) else {
+            panic!("{id} negative accepted")
+        };
+        assert_eq!(errors.len(), 1, "{id}");
+        assert_eq!(
+            (&*errors[0].code, errors[0].subcause.as_deref()),
+            (*code, *subcause),
+            "{id}"
+        );
+        errors[0].validate("rows.nx", negative).unwrap();
+        let run = execute(positive);
+        assert_eq!(run.outcome, Outcome::Unit, "{id}");
+        assert!(run.diagnostics.is_empty(), "{id}");
+    }
+}
+#[test]
+fn i05_source_rows_keep_published_primary_byte_spans_and_stages() {
+    // Marked operands and stages are transcribed from F0-0002 §§14.1–14.3, 14.9.
+    let rows = [
+        (
+            "S01",
+            "fn f(x:i64){} fn main(){⟦f⟧();}",
+            "arguments",
+            "call.bind",
+        ),
+        (
+            "S02",
+            "fn f(x:i64){} fn main(){f(1,⟦2⟧);}",
+            "arguments",
+            "call.bind",
+        ),
+        (
+            "S03",
+            "fn f(x:i64){} fn main(){f(⟦y⟧:1);}",
+            "arguments",
+            "call.bind",
+        ),
+        (
+            "S04",
+            "fn f(x:i64){} fn main(){f(x:1,⟦x⟧:2);}",
+            "arguments",
+            "call.bind",
+        ),
+        (
+            "S05",
+            "fn f(x:i64,y:i64){} fn main(){f(x:1,⟦2⟧);}",
+            "arguments",
+            "call.bind",
+        ),
+        ("S07", "fn main(){let f=1;⟦f⟧();}", "arguments", "call.bind"),
+        (
+            "S12",
+            "fn f()->i64{return ⟦true⟧;} fn main(){}",
+            "types",
+            "types.check",
+        ),
+        (
+            "S13",
+            "fn f(){} fn ⟦f⟧(){} fn main(){}",
+            "names",
+            "names.declare",
+        ),
+        (
+            "S14",
+            "fn f(x:i64,⟦x⟧:i64){} fn main(){}",
+            "names",
+            "names.declare",
+        ),
+        ("S15", "fn main(){⟦ausente⟧();}", "names", "names.resolve"),
+        (
+            "S19",
+            "fn main(){let r=mock_open(1);let b=r⟦==⟧r;}",
+            "types",
+            "types.check",
+        ),
+        (
+            "S24",
+            "fn f(x:i64){let ⟦x⟧=1;} fn main(){}",
+            "names",
+            "names.declare",
+        ),
+        (
+            "S26",
+            "fn main(){let x=1;inspect(⟦x⟧);}",
+            "types",
+            "types.check",
+        ),
+        (
+            "S29",
+            "fn main(){let a=[1];drop(⟦a[0]⟧);}",
+            "arguments",
+            "call.bind",
+        ),
+        (
+            "B07",
+            "fn f()->i64{return 1 ⟦}⟧ fn main(){}",
+            "parse",
+            "syntax.parse",
+        ),
+    ];
+    for (id, marked, stage, operation) in rows {
+        let (before, rest) = marked.split_once('⟦').unwrap();
+        let (primary, after) = rest.split_once('⟧').unwrap();
+        let source = format!("{before}{primary}{after}");
+        let Err(CompileError::Rejected(errors)) = compile_scalar("rows.nx", &source) else {
+            panic!("{id} accepted")
+        };
+        assert_eq!(errors.len(), 1, "{id}");
+        let d = &errors[0];
+        assert_eq!(
+            d.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some((before.len() as u64, (before.len() + primary.len()) as u64)),
+            "{id}"
+        );
+        assert_eq!(
+            (d.stage.as_str(), d.operation.as_str()),
+            (stage, operation),
+            "{id}"
+        );
+        d.validate("rows.nx", &source).unwrap();
+    }
+}
+#[test]
+fn i05_feature_exclusions_have_executable_repairs() {
+    let rows: &[(&str, &str, &str, &str)] = &[
+        (
+            "F01",
+            "fn main(){let r=mock_open(1);let s=move r;}",
+            "legacy_move",
+            "fn main(){let r=mock_open(1);let s=consume r;}",
+        ),
+        (
+            "F02",
+            "fn f(){return 1;} fn main(){}",
+            "inferred_non_unit_result",
+            "fn f()->i64{return 1;} fn main(){assert_eq(f(),1);}",
+        ),
+        (
+            "F07",
+            "fn f(x:i64=1){} fn main(){f(1);}",
+            "default_argument",
+            "fn f(x:i64){} fn main(){f(1);}",
+        ),
+        (
+            "F09",
+            "fn f(){} fn main(){let g=f;}",
+            "function_value",
+            "fn f(){} fn main(){f();}",
+        ),
+        (
+            "F10",
+            "fn f(){} fn main(){consume f();}",
+            "receiver_mode",
+            "fn f(){} fn main(){f();}",
+        ),
+        (
+            "F11",
+            "fn main(){let a=[1];let x=consume a[0];}",
+            "partial_transfer",
+            "fn main(){let a=[1];let x=a[0];assert_eq(x,1);}",
+        ),
+        (
+            "F12",
+            "fn main(){let a=[mock_open(1)];}",
+            "resource_array",
+            "fn main(){let a=mock_open(1);inspect(a);}",
+        ),
+        (
+            "F20",
+            "fn f(x:i64)->i64 from(x){return x;} fn main(){}",
+            "provenance_clauses",
+            "fn f(x:i64)->i64{return x;} fn main(){assert_eq(f(1),1);}",
+        ),
+        (
+            "F29",
+            "fn f(x:u32){} fn main(){}",
+            "unsupported_type",
+            "fn f(x:i64){} fn main(){f(1);}",
+        ),
+        (
+            "F30",
+            "fn f(x:String){} fn main(){}",
+            "unsupported_type",
+            "fn f(x:Array<i64>){} fn main(){f([1]);}",
+        ),
+        (
+            "F31",
+            "fn f(x:app.Error){} fn main(){}",
+            "unsupported_type",
+            "fn f(x:i64){} fn main(){f(1);}",
+        ),
+    ];
+    for (id, negative, feature, positive) in rows {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("features.nx", negative) else {
+            panic!("{id} accepted")
+        };
+        assert_eq!(errors.len(), 1, "{id}");
+        assert_eq!(errors[0].code, "NX-E0006", "{id}");
+        assert_eq!(errors[0].feature_id.as_deref(), Some(*feature), "{id}");
+        errors[0].validate("features.nx", negative).unwrap();
+        let e = execute(positive);
+        assert_eq!(e.outcome, Outcome::Unit, "{id}");
+        assert!(e.diagnostics.is_empty(), "{id}");
+    }
 }
 #[test]
 fn hash_distinguishes_less_from_equal_with_same_operands() {
@@ -1239,6 +2119,7 @@ fn array_sources_with_mutated_syntax_never_panic_and_validate_rejections() {
             }
             Err(CompileError::OutsideScalarSlice(_)) => {}
             Err(CompileError::InvalidIr(e)) => panic!("invalid IR from source {source}: {e}"),
+            Err(CompileError::Dependent) => panic!("escaped dependent error: {source}"),
         }
     }
 }
@@ -1271,6 +2152,9 @@ fn nested_arrays_compile_and_run_from_small_calling_stacks() {
                             panic!("admitted depth {depth}: {reason}")
                         }
                         Err(CompileError::InvalidIr(e)) => panic!("depth {depth}: {e}"),
+                        Err(CompileError::Dependent) => {
+                            panic!("depth {depth}: escaped dependent error")
+                        }
                     }
                 }
             })
@@ -1407,6 +2291,7 @@ fn malformed_source_campaign_never_panics_and_all_diagnostics_validate() {
             }
             Err(CompileError::OutsideScalarSlice(_)) => {}
             Err(CompileError::InvalidIr(e)) => panic!("invalid generated IR: {e} for {source:?}"),
+            Err(CompileError::Dependent) => panic!("escaped dependent error: {source:?}"),
         }
     }
 }

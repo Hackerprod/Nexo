@@ -25,6 +25,31 @@ pub enum Ty {
     Bool,
     Unit,
     Array(Box<Ty>),
+    MockResource,
+    MockBlockingResource,
+}
+impl Ty {
+    pub fn copyable(&self) -> bool {
+        match self {
+            Self::MockResource | Self::MockBlockingResource => false,
+            Self::Array(inner) => inner.copyable(),
+            _ => true,
+        }
+    }
+    pub fn invalid_resource_array(&self) -> bool {
+        let mut node = self;
+        let mut within_array = false;
+        loop {
+            match node {
+                Self::Array(inner) => {
+                    within_array = true;
+                    node = inner;
+                }
+                Self::MockResource | Self::MockBlockingResource => return within_array,
+                _ => return false,
+            }
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Access {
@@ -46,6 +71,19 @@ pub enum Intrinsic {
     DropData,
     Fail,
     Len,
+    MockOpen,
+    MockBlockingOpen,
+    Inspect,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ParameterMode {
+    Read,
+    Consume,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Parameter {
+    pub local: LocalId,
+    pub mode: ParameterMode,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Op {
@@ -53,6 +91,7 @@ pub enum Op {
     ConstBool(bool),
     ConstUnit,
     CopyValue(LocalId),
+    TransferValue(LocalId),
     BorrowValue(LocalId),
     BuildArray(Vec<TempId>),
     ReadIndex {
@@ -89,6 +128,12 @@ pub enum Op {
         intrinsic: Intrinsic,
         args: Vec<TempId>,
     },
+    CallDirect {
+        function: FunctionId,
+        /// Written order. Each entry carries its declared parameter slot.
+        args: Vec<(usize, TempId)>,
+        signature: Vec<(String, ParameterMode, Ty)>,
+    },
     DropValue(TempId),
     DropBinding(LocalId),
     DropLocal(LocalId),
@@ -122,6 +167,7 @@ pub struct Local {
     pub ty: Ty,
     pub mutable: bool,
     pub scope: ScopeId,
+    pub parameter_mode: Option<ParameterMode>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Function {
@@ -134,6 +180,7 @@ pub struct Function {
     pub scope_parents: Vec<Option<ScopeId>>,
     pub content_hash: u64,
     pub locals: Vec<Local>,
+    pub parameters: Vec<Parameter>,
     pub block: BasicBlock,
     pub result: Ty,
     pub cleanup: Vec<LocalId>,
@@ -160,7 +207,18 @@ impl FunctionTable {
         if replacement.name != name || replacement.id != slot.id {
             return Err("identity mismatch");
         }
-        if replacement.result != slot.result {
+        if replacement.result != slot.result
+            || replacement.parameters.len() != slot.parameters.len()
+            || replacement
+                .parameters
+                .iter()
+                .zip(&slot.parameters)
+                .any(|(a, b)| {
+                    a.mode != b.mode
+                        || replacement.locals[a.local.0].ty != slot.locals[b.local.0].ty
+                        || replacement.locals[a.local.0].name != slot.locals[b.local.0].name
+                })
+        {
             return Err("signature mismatch");
         }
         let mut replacement = replacement;
@@ -197,8 +255,19 @@ impl Program {
             .function(name)
             .ok_or("unknown donor function")?
             .clone();
+        let previous = self
+            .functions
+            .function(name)
+            .ok_or("unknown function")?
+            .clone();
         self.functions.replace_for_development(name, replacement)?;
-        crate::ir::verify::verify_program(self)
+        if let Err(reason) = crate::ir::verify::verify_program(self) {
+            self.functions
+                .replace_for_development(name, previous)
+                .map_err(|_| "substitution rollback failed")?;
+            return Err(reason);
+        }
+        Ok(())
     }
 }
 
@@ -227,11 +296,31 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     bytes.push(4);
                     node = child;
                 }
+                Ty::MockResource => {
+                    bytes.push(5);
+                    break;
+                }
+                Ty::MockBlockingResource => {
+                    bytes.push(6);
+                    break;
+                }
             }
         }
     }
     let mut bytes = vec![1];
     ty(&mut bytes, &f.result);
+    number(&mut bytes, f.parameters.len());
+    for p in &f.parameters {
+        number(&mut bytes, p.local.0);
+        let name = &f.locals[p.local.0].name;
+        number(&mut bytes, name.len());
+        bytes.extend_from_slice(name.as_bytes());
+        bytes.push(match p.mode {
+            ParameterMode::Read => 1,
+            ParameterMode::Consume => 2,
+        });
+        ty(&mut bytes, &f.locals[p.local.0].ty);
+    }
     number(&mut bytes, f.locals.len());
     for local in &f.locals {
         number(&mut bytes, local.id.0);
@@ -254,6 +343,10 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
             Op::CopyValue(id) => {
                 bytes.push(4);
                 number(&mut bytes, id.0)
+            }
+            Op::TransferValue(id) => {
+                bytes.push(18);
+                number(&mut bytes, id.0);
             }
             Op::BorrowValue(id) => {
                 bytes.push(14);
@@ -332,10 +425,37 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     Intrinsic::DropData => 3,
                     Intrinsic::Fail => 4,
                     Intrinsic::Len => 5,
+                    Intrinsic::MockOpen => 6,
+                    Intrinsic::MockBlockingOpen => 7,
+                    Intrinsic::Inspect => 8,
                 });
                 number(&mut bytes, args.len());
                 for id in args {
                     number(&mut bytes, id.0)
+                }
+            }
+            Op::CallDirect {
+                function,
+                args,
+                signature,
+            } => {
+                bytes.push(19);
+                number(&mut bytes, function.0.len());
+                bytes.extend_from_slice(function.0.as_bytes());
+                number(&mut bytes, signature.len());
+                for (name, mode, ty_value) in signature {
+                    number(&mut bytes, name.len());
+                    bytes.extend_from_slice(name.as_bytes());
+                    bytes.push(match mode {
+                        ParameterMode::Read => 1,
+                        ParameterMode::Consume => 2,
+                    });
+                    ty(&mut bytes, ty_value);
+                }
+                number(&mut bytes, args.len());
+                for (slot, id) in args {
+                    number(&mut bytes, *slot);
+                    number(&mut bytes, id.0);
                 }
             }
             Op::DropValue(id) => {

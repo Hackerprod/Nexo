@@ -7,4 +7,6 @@ pub use lower::{CompileError, compile_scalar};
 pub use model::Program;
 
 #[cfg(test)]
+mod i05_tests;
+#[cfg(test)]
 mod tests;

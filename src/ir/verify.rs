@@ -1,4 +1,6 @@
-use super::model::{Access, Binary, Function, Intrinsic, Op, Program, TempId, Terminator, Ty};
+use super::model::{
+    Access, Binary, Function, Intrinsic, Op, ParameterMode, Program, TempId, Terminator, Ty,
+};
 
 pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
     if program.profile != crate::diagnostic::PROFILE_ID {
@@ -13,6 +15,34 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
             return Err("duplicate function");
         }
         verify_function(function)?;
+    }
+    for function in &program.functions.entries {
+        for ins in &function.block.instructions {
+            if let Op::CallDirect {
+                function: callee,
+                signature,
+                ..
+            } = &ins.op
+            {
+                let target = program
+                    .functions
+                    .function(&callee.0)
+                    .ok_or("unknown callee")?;
+                if signature.len() != target.parameters.len()
+                    || ins.ty.as_ref() != Some(&target.result)
+                {
+                    return Err("callee signature");
+                }
+                for ((name, mode, ty), param) in signature.iter().zip(&target.parameters) {
+                    if *mode != param.mode
+                        || *ty != target.locals[param.local.0].ty
+                        || *name != target.locals[param.local.0].name
+                    {
+                        return Err("callee signature");
+                    }
+                }
+            }
+        }
     }
     Ok(())
 }
@@ -34,9 +64,6 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     if function.block.id.0 != 0 {
         return Err("block identity");
     }
-    if super::model::content_hash(function) != function.content_hash {
-        return Err("content hash");
-    }
     for (i, local) in function.locals.iter().enumerate() {
         if local.id.0 != i {
             return Err("local identity");
@@ -44,6 +71,32 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
         if local.scope.0 >= function.scope_count {
             return Err("local scope");
         }
+        if local.ty.invalid_resource_array() {
+            return Err("resource array local");
+        }
+    }
+    if function.result.invalid_resource_array() {
+        return Err("resource array result");
+    }
+    for (index, p) in function.parameters.iter().enumerate() {
+        if p.local.0 != index
+            || function.locals.get(index).and_then(|l| l.parameter_mode) != Some(p.mode)
+            || function.locals[index].scope.0 != 0
+            || function.locals[index].mutable
+        {
+            return Err("parameter layout");
+        }
+    }
+    if function
+        .locals
+        .iter()
+        .skip(function.parameters.len())
+        .any(|l| l.parameter_mode.is_some())
+    {
+        return Err("parameter layout");
+    }
+    if super::model::content_hash(function) != function.content_hash {
+        return Err("content hash");
     }
     if function.cleanup
         != function
@@ -61,6 +114,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     let mut borrow_sources = Vec::<Option<super::model::LocalId>>::new();
     let mut active_borrows = vec![0usize; function.locals.len()];
     let mut initialized = vec![false; function.locals.len()];
+    for p in &function.parameters {
+        initialized[p.local.0] = true;
+    }
     let take = |id: TempId,
                 defined: &[Ty],
                 live: &mut [bool],
@@ -107,6 +163,23 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 if !initialized[id.0] {
                     return Err("uninitialized local");
                 }
+                if !local.ty.copyable() {
+                    return Err("copy noncopyable local");
+                }
+                Some(local.ty.clone())
+            }
+            Op::TransferValue(id) => {
+                let local = function.locals.get(id.0).ok_or("transfer local")?;
+                if !initialized[id.0] {
+                    return Err("transfer consumed local");
+                }
+                if local.parameter_mode == Some(ParameterMode::Read) {
+                    return Err("transfer read parameter");
+                }
+                if active_borrows[id.0] != 0 {
+                    return Err("transfer while borrowed");
+                }
+                initialized[id.0] = false;
                 Some(local.ty.clone())
             }
             Op::BorrowValue(id) => {
@@ -114,15 +187,15 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 if !initialized[id.0] {
                     return Err("uninitialized local");
                 }
-                if !matches!(local.ty, Ty::Array(_)) {
-                    return Err("borrow domain");
-                }
                 Some(local.ty.clone())
             }
             Op::BuildArray(items) => {
                 let Some(Ty::Array(element)) = &ins.ty else {
                     return Err("array result type");
                 };
+                if !element.copyable() {
+                    return Err("resource array");
+                }
                 for id in items {
                     if borrowed.get(id.0) == Some(&true) {
                         return Err("array borrowed element");
@@ -322,7 +395,12 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             }
             Op::CallIntrinsic { intrinsic, args } => {
                 let arity = match intrinsic {
-                    Intrinsic::Print | Intrinsic::DropData | Intrinsic::Len => 1,
+                    Intrinsic::Print
+                    | Intrinsic::DropData
+                    | Intrinsic::Len
+                    | Intrinsic::MockOpen
+                    | Intrinsic::MockBlockingOpen
+                    | Intrinsic::Inspect => 1,
                     Intrinsic::AssertEq => 2,
                     Intrinsic::Fail => 0,
                 };
@@ -344,6 +422,19 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     if *intrinsic == Intrinsic::Len && !matches!(first, Ty::Array(_)) {
                         return Err("len domain");
                     }
+                    if matches!(intrinsic, Intrinsic::MockOpen | Intrinsic::MockBlockingOpen)
+                        && first != Ty::I64
+                    {
+                        return Err("open argument type");
+                    }
+                    if *intrinsic == Intrinsic::Inspect
+                        && !matches!(first, Ty::MockResource | Ty::MockBlockingResource)
+                    {
+                        return Err("inspect argument type");
+                    }
+                    if *intrinsic == Intrinsic::Print && !first.copyable() {
+                        return Err("print resource");
+                    }
                     if *intrinsic == Intrinsic::AssertEq
                         && take(
                             args[1],
@@ -356,11 +447,36 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         return Err("assert type");
                     }
                 }
-                Some(if *intrinsic == Intrinsic::Len {
-                    Ty::I64
-                } else {
-                    Ty::Unit
+                Some(match intrinsic {
+                    Intrinsic::Len => Ty::I64,
+                    Intrinsic::MockOpen => Ty::MockResource,
+                    Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
+                    _ => Ty::Unit,
                 })
+            }
+            Op::CallDirect {
+                args, signature, ..
+            } => {
+                if args.len() != signature.len() {
+                    return Err("call arity");
+                }
+                let mut seen = vec![false; signature.len()];
+                for (slot, id) in args {
+                    let Some((_, mode, ty)) = signature.get(*slot) else {
+                        return Err("call slot");
+                    };
+                    if seen[*slot] {
+                        return Err("duplicate call slot");
+                    }
+                    seen[*slot] = true;
+                    if *mode == ParameterMode::Consume && borrowed.get(id.0) == Some(&true) {
+                        return Err("consuming borrowed argument");
+                    }
+                    if take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)? != *ty {
+                        return Err("call argument type");
+                    }
+                }
+                ins.ty.clone()
             }
             Op::DropValue(id) => {
                 take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)?;
@@ -373,6 +489,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 if active_borrows[id.0] != 0 {
                     return Err("drop while borrowed");
+                }
+                if function.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
+                    return Err("drop read parameter");
                 }
                 initialized[id.0] = false;
                 Some(Ty::Unit)
@@ -396,7 +515,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             != matches!(
                 ins.op,
                 Op::CallIntrinsic {
-                    intrinsic: Intrinsic::Print,
+                    intrinsic: Intrinsic::Print
+                        | Intrinsic::MockOpen
+                        | Intrinsic::MockBlockingOpen
+                        | Intrinsic::Inspect,
                     ..
                 }
             )
@@ -754,6 +876,13 @@ mod tests {
         f.content_hash = super::super::model::content_hash(&f);
         verify_function(&f)
     }
+    fn changed_main(source: &str, edit: impl FnOnce(&mut Function)) -> Result<(), &'static str> {
+        let p = compile_scalar("v.nx", source).unwrap();
+        let mut f = p.functions.function("main").unwrap().clone();
+        edit(&mut f);
+        f.content_hash = super::super::model::content_hash(&f);
+        verify_function(&f)
+    }
     #[test]
     fn verifier_rejects_array_element_type_mismatch() {
         let got = changed("fn main(){let a=[1,2];}", |f| {
@@ -871,17 +1000,17 @@ mod tests {
         assert_eq!(got, Err("index type"));
     }
     #[test]
-    fn verifier_rejects_borrow_of_scalar_local() {
-        let got = changed("fn main(){let a=1;print(a);}", |f| {
+    fn verifier_rejects_copy_of_resource_local() {
+        let got = changed("fn main(){let a=mock_open(1);inspect(a);}", |f| {
             let i = f
                 .block
                 .instructions
                 .iter_mut()
-                .find(|i| matches!(i.op, Op::CopyValue(_)))
+                .find(|i| matches!(i.op, Op::BorrowValue(_)))
                 .unwrap();
-            i.op = Op::BorrowValue(super::super::model::LocalId(0));
+            i.op = Op::CopyValue(super::super::model::LocalId(0));
         });
-        assert_eq!(got, Err("borrow domain"));
+        assert_eq!(got, Err("copy noncopyable local"));
     }
     #[test]
     fn verifier_rejects_destroying_root_while_read_argument_is_live() {
@@ -910,5 +1039,276 @@ mod tests {
             }
         });
         assert_eq!(got, Err("write index local"));
+    }
+    #[test]
+    fn verifier_rejects_direct_call_to_missing_function() {
+        let mut p = compile_scalar("v.nx", "fn f(){} fn main(){f();}").unwrap();
+        let f = p
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "main")
+            .unwrap();
+        let call = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::CallDirect { .. }))
+            .unwrap();
+        if let Op::CallDirect { function, .. } = &mut call.op {
+            function.0 = "absent".into();
+        }
+        f.content_hash = super::super::model::content_hash(f);
+        assert_eq!(verify_program(&p), Err("unknown callee"));
+    }
+    #[test]
+    fn verifier_rejects_direct_call_wrong_arity_and_duplicate_slot() {
+        let source = "fn f(a:i64,b:i64){} fn main(){f(1,2);}";
+        let got = changed_main(source, |f| {
+            if let Op::CallDirect { args, .. } = &mut f
+                .block
+                .instructions
+                .iter_mut()
+                .find(|i| matches!(i.op, Op::CallDirect { .. }))
+                .unwrap()
+                .op
+            {
+                args.pop();
+            }
+        });
+        assert_eq!(got, Err("call arity"));
+        let got = changed_main(source, |f| {
+            if let Op::CallDirect { args, .. } = &mut f
+                .block
+                .instructions
+                .iter_mut()
+                .find(|i| matches!(i.op, Op::CallDirect { .. }))
+                .unwrap()
+                .op
+            {
+                args[1].0 = args[0].0;
+            }
+        });
+        assert_eq!(got, Err("duplicate call slot"));
+    }
+    #[test]
+    fn verifier_rejects_direct_call_signature_mismatch() {
+        let mut p = compile_scalar("v.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
+        let f = p
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "main")
+            .unwrap();
+        let call = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::CallDirect { .. }))
+            .unwrap();
+        if let Op::CallDirect { signature, .. } = &mut call.op {
+            signature[0].0 = "renamed".into();
+        }
+        f.content_hash = super::super::model::content_hash(f);
+        assert_eq!(verify_program(&p), Err("callee signature"));
+    }
+    #[test]
+    fn verifier_rejects_consuming_a_borrowed_argument() {
+        let got = changed_main(
+            "fn f(consume x:i64){} fn main(){let x=1;f(consume x);}",
+            |f| {
+                let transfer = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::TransferValue(_)))
+                    .unwrap();
+                transfer.op = Op::BorrowValue(super::super::model::LocalId(0));
+                transfer.access = Access::Read;
+            },
+        );
+        assert_eq!(got, Err("consuming borrowed argument"));
+    }
+    #[test]
+    fn verifier_rejects_transfer_after_local_was_consumed() {
+        let got = changed("fn main(){var x=1;let y=consume x;x=2;}", |f| {
+            let write = f
+                .block
+                .instructions
+                .iter_mut()
+                .filter(|i| {
+                    matches!(
+                        i.op,
+                        Op::WritePlace {
+                            local: super::super::model::LocalId(0),
+                            ..
+                        }
+                    )
+                })
+                .nth(1)
+                .unwrap();
+            write.op = Op::TransferValue(super::super::model::LocalId(0));
+            write.output = Some(TempId(3));
+            write.ty = Some(Ty::I64);
+            write.access = Access::Own;
+        });
+        assert_eq!(got, Err("transfer consumed local"));
+    }
+    #[test]
+    fn verifier_rejects_drop_of_read_parameter() {
+        let p = compile_scalar("v.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
+        let mut f = p.functions.function("f").unwrap().clone();
+        let unit = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::ConstUnit))
+            .unwrap();
+        unit.op = Op::DropBinding(super::super::model::LocalId(0));
+        f.content_hash = super::super::model::content_hash(&f);
+        assert_eq!(verify_function(&f), Err("drop read parameter"));
+    }
+    #[test]
+    fn verifier_checks_call_scope_origin_and_source_span() {
+        let p = compile_scalar("v.nx", "fn f(){} fn main(){f();}").unwrap();
+        let original = p.functions.function("main").unwrap();
+        let mut f = original.clone();
+        let call = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::CallDirect { .. }))
+            .unwrap();
+        call.scope.0 = f.scope_count;
+        f.content_hash = super::super::model::content_hash(&f);
+        assert_eq!(verify_function(&f), Err("instruction scope"));
+        let mut f = original.clone();
+        let call = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::CallDirect { .. }))
+            .unwrap();
+        call.origin.0 = 1;
+        assert_eq!(verify_function(&f), Err("origin"));
+        let mut f = original.clone();
+        let call = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::CallDirect { .. }))
+            .unwrap();
+        call.span.end = 1000;
+        assert_eq!(verify_function(&f), Err("source origin"));
+    }
+    #[test]
+    fn verifier_rejects_call_when_callee_parameter_count_changed() {
+        let mut p = compile_scalar("v.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
+        let f = p
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "f")
+            .unwrap();
+        let id = super::super::model::LocalId(1);
+        f.locals.push(super::super::model::Local {
+            id,
+            name: "y".into(),
+            ty: Ty::I64,
+            mutable: false,
+            scope: super::super::model::ScopeId(0),
+            parameter_mode: Some(ParameterMode::Read),
+        });
+        f.parameters.push(super::super::model::Parameter {
+            local: id,
+            mode: ParameterMode::Read,
+        });
+        f.cleanup.insert(0, id);
+        f.content_hash = super::super::model::content_hash(f);
+        assert_eq!(verify_function(f), Ok(()));
+        assert_eq!(verify_program(&p), Err("callee signature"));
+    }
+    #[test]
+    fn verifier_rejects_call_when_callee_result_changed() {
+        let mut p = compile_scalar("v.nx", "fn f(){} fn main(){f();}").unwrap();
+        let donor = compile_scalar("v.nx", "fn f()->i64{return 1;} fn main(){f();}").unwrap();
+        p.functions.entries[0] = donor.functions.function("f").unwrap().clone();
+        assert_eq!(verify_program(&p), Err("callee signature"));
+    }
+    #[test]
+    fn verifier_rejects_transfer_from_read_parameter() {
+        let p = compile_scalar("v.nx", "fn f(x:()){} fn main(){f(());}").unwrap();
+        let mut f = p.functions.function("f").unwrap().clone();
+        let unit = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| matches!(i.op, Op::ConstUnit))
+            .unwrap();
+        unit.op = Op::TransferValue(super::super::model::LocalId(0));
+        f.content_hash = super::super::model::content_hash(&f);
+        assert_eq!(verify_function(&f), Err("transfer read parameter"));
+    }
+    #[test]
+    fn verifier_rejects_temporary_array_containing_resource() {
+        let p = compile_scalar("v.nx", "fn main(){drop(mock_open(1));}").unwrap();
+        let mut f = p.functions.function("main").unwrap().clone();
+        let drop = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| {
+                matches!(
+                    i.op,
+                    Op::CallIntrinsic {
+                        intrinsic: Intrinsic::DropData,
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        drop.op = Op::BuildArray(vec![TempId(1)]);
+        drop.ty = Some(Ty::Array(Box::new(Ty::MockResource)));
+        f.content_hash = super::super::model::content_hash(&f);
+        assert_eq!(verify_function(&f), Err("resource array"));
+    }
+    #[test]
+    fn verifier_rejects_resource_array_in_local_layout() {
+        let p = compile_scalar("v.nx", "fn main(){let x=1;}").unwrap();
+        let mut f = p.functions.function("main").unwrap().clone();
+        f.locals[0].ty = Ty::Array(Box::new(Ty::MockResource));
+        f.content_hash = super::super::model::content_hash(&f);
+        assert_eq!(verify_function(&f), Err("resource array local"));
+    }
+    #[test]
+    fn verifier_rejects_resource_array_in_result_layout() {
+        let p = compile_scalar("v.nx", "fn main(){}").unwrap();
+        let mut f = p.functions.function("main").unwrap().clone();
+        f.result = Ty::Array(Box::new(Ty::MockResource));
+        f.content_hash = super::super::model::content_hash(&f);
+        assert_eq!(verify_function(&f), Err("resource array result"));
+    }
+    #[test]
+    fn verifier_rejects_transfer_while_read_loan_remains_live() {
+        let p = compile_scalar("v.nx", "fn main(){let x=1;print(x);let y=consume x;}").unwrap();
+        let mut f = p.functions.function("main").unwrap().clone();
+        let call = f
+            .block
+            .instructions
+            .iter_mut()
+            .find(|i| {
+                matches!(
+                    i.op,
+                    Op::CallIntrinsic {
+                        intrinsic: Intrinsic::Print,
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        call.op = Op::ConstUnit;
+        call.effect_io = false;
+        f.content_hash = super::super::model::content_hash(&f);
+        assert_eq!(verify_function(&f), Err("transfer while borrowed"));
     }
 }

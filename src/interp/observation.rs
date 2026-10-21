@@ -71,6 +71,13 @@ impl Log {
         self.reserved += bytes;
         Ok(())
     }
+    pub fn release_reservation(&mut self, bytes: u64) -> Result<(), &'static str> {
+        self.reserved = self
+            .reserved
+            .checked_sub(bytes)
+            .ok_or("missing reservation")?;
+        Ok(())
+    }
     pub fn emit_reserved_event(&mut self, text: String, prefix: &str) -> Result<(), &'static str> {
         let n = u64::try_from(prefix.len() + text.len() + 1).map_err(|_| "event length")?;
         if self.reserved < n {
@@ -111,5 +118,18 @@ mod tests {
             .unwrap();
         assert_eq!((log.bytes(), log.reserved_bytes()), (47, 0));
         assert_eq!(log.events(), vec!["open:0:7", "close:0:7"]);
+    }
+    #[test]
+    fn rejected_acquisition_releases_its_close_reservation_exactly() {
+        let mut log = Log::default();
+        log.push_stdout("x".repeat(65_499)).unwrap();
+        log.reserve(24).unwrap();
+        assert_eq!(
+            log.push_event("open:0:1".into(), "mock-resource:"),
+            Err(65_547)
+        );
+        log.release_reservation(24).unwrap();
+        assert_eq!(log.reserved_bytes(), 0);
+        assert_eq!(log.bytes(), 65_500);
     }
 }

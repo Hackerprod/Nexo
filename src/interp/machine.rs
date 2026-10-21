@@ -1,6 +1,8 @@
+use std::sync::Arc;
+
 use super::observation::Log;
 use crate::diagnostic::{self, DataValue, Diagnostic, Namespace, Operation, Severity, Stage};
-use crate::ir::model::{Binary, Function, Intrinsic, Op, Program, TempId, Ty};
+use crate::ir::model::{Binary, Function, Intrinsic, Op, ParameterMode, Program, TempId, Ty};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
@@ -20,9 +22,19 @@ enum Value {
     Int(i64),
     Bool(bool),
     Unit,
-    Array(Vec<Value>, u64),
+    Array(Arc<Vec<Value>>, u64),
+    Resource { id: u64, label: i64, blocking: bool },
 }
 impl Value {
+    fn deep_copy(&self) -> Self {
+        match self {
+            Self::Array(items, cells) => Self::Array(
+                Arc::new(items.iter().map(Self::deep_copy).collect()),
+                *cells,
+            ),
+            _ => self.clone(),
+        }
+    }
     fn text(&self) -> String {
         match self {
             Self::Int(i) => i.to_string(),
@@ -32,12 +44,20 @@ impl Value {
                 "[{}]",
                 xs.iter().map(Self::text).collect::<Vec<_>>().join(", ")
             ),
+            Self::Resource { .. } => "<resource>".into(),
         }
     }
     fn has_ty(&self, ty: &Ty) -> bool {
         match (self, ty) {
             (Self::Int(_), Ty::I64) | (Self::Bool(_), Ty::Bool) | (Self::Unit, Ty::Unit) => true,
             (Self::Array(xs, _), Ty::Array(element)) => xs.iter().all(|x| x.has_ty(element)),
+            (
+                Self::Resource {
+                    blocking: false, ..
+                },
+                Ty::MockResource,
+            )
+            | (Self::Resource { blocking: true, .. }, Ty::MockBlockingResource) => true,
             _ => false,
         }
     }
@@ -57,7 +77,7 @@ impl Value {
         let Self::Array(xs, _) = self else {
             return None;
         };
-        xs.get_mut(usize::try_from(index).ok()?)
+        Arc::get_mut(xs)?.get_mut(usize::try_from(index).ok()?)
     }
 }
 enum TempValue {
@@ -128,6 +148,8 @@ fn run_verified(program: &Program) -> Execution {
         work: 0,
         cells: 0,
         fault: None,
+        frames: 0,
+        next_resource: 0,
     };
     let result = crate::ir::verify::verify_program(program)
         .and_then(|()| program.functions.function("main").ok_or("missing main"));
@@ -139,8 +161,21 @@ fn run_verified(program: &Program) -> Execution {
             work_consumed: 0,
         };
     };
-    let outcome = match state.run(function) {
-        Ok(()) => Outcome::Unit,
+    let outcome = match state.run_frame(
+        function,
+        Some(program),
+        vec![],
+        &function.block.terminator_span(),
+    ) {
+        Ok(Some(Value::Unit)) => {
+            state.cells = state.cells.saturating_sub(1);
+            Outcome::Unit
+        }
+        Ok(None) => Outcome::Unit,
+        Ok(Some(other)) => {
+            state.dispose(other).ok();
+            Outcome::InternalError("non-unit main result")
+        }
         Err(e) => Outcome::InternalError(e),
     };
     let outcome = if state.fault.is_some() {
@@ -160,8 +195,32 @@ struct Machine {
     work: u64,
     cells: u64,
     fault: Option<Box<Diagnostic>>,
+    frames: u64,
+    next_resource: u64,
 }
 impl Machine {
+    fn dispose(&mut self, value: Value) -> Result<(), &'static str> {
+        self.cells = self.cells.saturating_sub(value.cells());
+        if let Value::Resource { id, label, .. } = value {
+            self.log
+                .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
+        }
+        Ok(())
+    }
+    fn observation_fault(&mut self, span: &diagnostic::Span, observed: u64) {
+        self.fault(
+            "R0002",
+            span,
+            vec![
+                (
+                    "runtime_budget_kind",
+                    DataValue::String("observation_bytes".into()),
+                ),
+                ("limit", DataValue::UInt(65_536)),
+                ("observed", DataValue::UInt(observed)),
+            ],
+        );
+    }
     fn fault(&mut self, code: &str, span: &diagnostic::Span, data: Vec<(&str, DataValue)>) {
         if self.fault.is_some() {
             return;
@@ -258,11 +317,62 @@ impl Machine {
             .take()
             .ok_or("temporary already used")
     }
+    #[cfg(test)]
     fn run(&mut self, function: &Function) -> Result<(), &'static str> {
-        if !self.tick(1, &function.block.terminator_span()) {
-            return Ok(());
+        let result = self.run_frame(function, None, vec![], &function.block.terminator_span())?;
+        if let Some(v) = result {
+            self.dispose(v)?;
         }
+        Ok(())
+    }
+    fn run_frame(
+        &mut self,
+        function: &Function,
+        program: Option<&Program>,
+        args: Vec<(Value, bool)>,
+        call_span: &diagnostic::Span,
+    ) -> Result<Option<Value>, &'static str> {
+        if !self.tick(1, call_span) {
+            for (v, borrowed) in args.into_iter().rev() {
+                if !borrowed {
+                    self.dispose(v)?;
+                }
+            }
+            return Ok(None);
+        }
+        if self.frames >= 256 {
+            self.fault(
+                "R0002",
+                call_span,
+                vec![
+                    (
+                        "runtime_budget_kind",
+                        DataValue::String("call_frames".into()),
+                    ),
+                    ("limit", DataValue::UInt(256)),
+                    ("observed", DataValue::UInt(257)),
+                ],
+            );
+            for (v, borrowed) in args.into_iter().rev() {
+                if !borrowed {
+                    self.dispose(v)?;
+                }
+            }
+            return Ok(None);
+        }
+        self.frames += 1;
         let mut locals: Vec<Option<Value>> = vec![None; function.locals.len()];
+        let mut borrowed_locals = vec![false; function.locals.len()];
+        if args.len() != function.parameters.len() {
+            return Err("frame argument count");
+        }
+        for (p, (v, borrowed)) in function.parameters.iter().zip(args) {
+            if borrowed != (p.mode == ParameterMode::Read) {
+                return Err("frame argument mode");
+            }
+            borrowed_locals[p.local.0] = borrowed;
+            locals[p.local.0] = Some(v);
+        }
         let mut temps: Vec<Option<TempValue>> = Vec::new();
         for ins in &function.block.instructions {
             if !self.tick(u64::from(ins.tick), &ins.span) {
@@ -339,7 +449,15 @@ impl Machine {
                     {
                         break;
                     }
-                    Some(v.clone())
+                    Some(v.deep_copy())
+                }
+                Op::TransferValue(id) => {
+                    let v = locals
+                        .get_mut(id.0)
+                        .ok_or("transfer local index")?
+                        .take()
+                        .ok_or("transfer consumed local")?;
+                    Some(v)
                 }
                 Op::BuildArray(items) => {
                     let mut xs = Vec::with_capacity(items.len());
@@ -353,7 +471,7 @@ impl Machine {
                         self.cells = self.cells.saturating_sub(total - 1);
                         break;
                     }
-                    Some(Value::Array(xs, total))
+                    Some(Value::Array(Arc::new(xs), total))
                 }
                 Op::ReadIndex { local, indexes } => {
                     let mut path = Vec::with_capacity(indexes.len());
@@ -387,7 +505,7 @@ impl Machine {
                     {
                         break;
                     }
-                    Some(selected.clone())
+                    Some(selected.deep_copy())
                 }
                 Op::CheckIndex { local, indexes } => {
                     let mut selected = locals
@@ -474,7 +592,7 @@ impl Machine {
                     let v = Self::take(&mut temps, *value)?.into_owned()?;
                     let dest = locals.get_mut(local.0).ok_or("write index")?;
                     if let Some(old) = dest.replace(v) {
-                        self.cells = self.cells.saturating_sub(old.cells());
+                        self.dispose(old)?;
                     }
                     None
                 }
@@ -505,7 +623,7 @@ impl Machine {
                     let previous = std::mem::replace(node, replacement);
                     let old_size = previous.cells();
                     let new_size = node.cells();
-                    self.cells = self.cells.saturating_sub(old_size);
+                    self.dispose(previous)?;
                     if let Some(root) = locals[local.0].as_mut() {
                         adjust_size(root, &path, old_size, new_size);
                     }
@@ -518,10 +636,13 @@ impl Machine {
                     let mut values = Vec::with_capacity(args.len());
                     for id in args {
                         values.push(Self::take(&mut temps, *id)?);
-                        self.cells = self
-                            .cells
-                            .saturating_sub(values.last().map_or(0, TempValue::owned_cells));
+                        if !matches!(values.last(), Some(TempValue::Own(Value::Resource { .. }))) {
+                            self.cells = self
+                                .cells
+                                .saturating_sub(values.last().map_or(0, TempValue::owned_cells));
+                        }
                     }
+                    let mut pre_reserved_output = false;
                     let output = match intrinsic {
                         Intrinsic::Print => {
                             let value = values[0].as_value(&locals)?;
@@ -574,15 +695,127 @@ impl Machine {
                             let n = i64::try_from(xs.len()).map_err(|_| "array length overflow")?;
                             Value::Int(n)
                         }
+                        Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
+                            let Value::Int(label) = values[0].as_value(&locals)? else {
+                                return Err("open label type");
+                            };
+                            let label = *label;
+                            if !self.cell(&ins.span) {
+                                break;
+                            }
+                            pre_reserved_output = true;
+                            let id = self.next_resource;
+                            let close = format!("close:{id}:{label}");
+                            let close_bytes = ("mock-resource:".len() + close.len() + 1) as u64;
+                            if let Err(observed) = self.log.reserve(close_bytes) {
+                                self.cells -= 1;
+                                self.observation_fault(&ins.span, observed);
+                                break;
+                            }
+                            if let Err(observed) = self
+                                .log
+                                .push_event(format!("open:{id}:{label}"), "mock-resource:")
+                            {
+                                self.log.release_reservation(close_bytes)?;
+                                self.cells -= 1;
+                                self.observation_fault(&ins.span, observed);
+                                break;
+                            }
+                            self.next_resource += 1;
+                            Value::Resource {
+                                id,
+                                label,
+                                blocking: *intrinsic == Intrinsic::MockBlockingOpen,
+                            }
+                        }
+                        Intrinsic::Inspect => {
+                            let Value::Resource { id, label, .. } = values[0].as_value(&locals)?
+                            else {
+                                return Err("inspect type");
+                            };
+                            let text = format!("inspect:{id}:{label}");
+                            if !self.cell(&ins.span) {
+                                for v in values.drain(..).rev() {
+                                    if matches!(&v, TempValue::Own(Value::Resource { .. })) {
+                                        self.dispose(v.into_owned()?)?;
+                                    }
+                                }
+                                break;
+                            }
+                            pre_reserved_output = true;
+                            if let Err(observed) = self.log.push_event(text, "mock-resource:") {
+                                self.cells -= 1;
+                                self.observation_fault(&ins.span, observed);
+                                for v in values.drain(..).rev() {
+                                    if matches!(&v, TempValue::Own(Value::Resource { .. })) {
+                                        self.dispose(v.into_owned()?)?;
+                                    }
+                                }
+                                break;
+                            }
+                            Value::Unit
+                        }
                     };
-                    if *intrinsic != Intrinsic::Print && !self.cell(&ins.span) {
+                    for v in values.into_iter().rev() {
+                        if matches!(&v, TempValue::Own(Value::Resource { .. })) {
+                            self.dispose(v.into_owned()?)?;
+                        }
+                    }
+                    if *intrinsic != Intrinsic::Print
+                        && !pre_reserved_output
+                        && !self.cell(&ins.span)
+                    {
                         break;
                     }
                     Some(output)
                 }
+                Op::CallDirect {
+                    function: callee,
+                    args,
+                    signature,
+                } => {
+                    if !self.tick(1, &ins.span) {
+                        break;
+                    }
+                    let program = program.ok_or("call table unavailable")?;
+                    let target = program
+                        .functions
+                        .function(&callee.0)
+                        .ok_or("unknown callee")?;
+                    let mut passed: Vec<Option<(Value, bool)>> = vec![None; signature.len()];
+                    let mut retained = Vec::new();
+                    for (slot, id) in args {
+                        let temp = Self::take(&mut temps, *id)?;
+                        let item = match signature[*slot].1 {
+                            ParameterMode::Read => {
+                                let borrowed = temp.as_value(&locals)?.clone();
+                                if let TempValue::Own(owner) = temp {
+                                    retained.push(owner);
+                                }
+                                (borrowed, true)
+                            }
+                            ParameterMode::Consume => (temp.into_owned()?, false),
+                        };
+                        passed[*slot] = Some(item);
+                    }
+                    let prepared = passed
+                        .into_iter()
+                        .map(|v| v.ok_or("missing call slot"))
+                        .collect::<Result<Vec<_>, _>>()?;
+                    let result = self.run_frame(target, Some(program), prepared, &ins.span)?;
+                    for value in retained.into_iter().rev() {
+                        self.dispose(value)?;
+                    }
+                    if self.fault.is_some() {
+                        break;
+                    }
+                    result
+                }
                 Op::DropValue(id) => {
                     let v = Self::take(&mut temps, *id)?;
-                    self.cells = self.cells.saturating_sub(v.owned_cells());
+                    if let TempValue::Own(value) = v {
+                        self.dispose(value)?;
+                    }
                     None
                 }
                 Op::DropBinding(id) => {
@@ -591,15 +824,17 @@ impl Machine {
                         .ok_or("drop binding index")?
                         .take()
                         .ok_or("drop empty binding")?;
-                    self.cells = self.cells.saturating_sub(old.cells());
+                    self.dispose(old)?;
                     if !self.cell(&ins.span) {
                         break;
                     }
                     Some(Value::Unit)
                 }
                 Op::DropLocal(id) => {
-                    if let Some(old) = locals.get_mut(id.0).ok_or("drop local index")?.take() {
-                        self.cells = self.cells.saturating_sub(old.cells());
+                    if let Some(old) = locals.get_mut(id.0).ok_or("drop local index")?.take()
+                        && !borrowed_locals[id.0]
+                    {
+                        self.dispose(old)?;
                     }
                     None
                 }
@@ -612,6 +847,7 @@ impl Machine {
                 temps.push(Some(TempValue::Own(v)));
             }
         }
+        let mut returned = None;
         if self.fault.is_none() {
             let crate::ir::model::Terminator::Return {
                 value: Some(id), ..
@@ -620,20 +856,22 @@ impl Machine {
                 return Err("return terminator");
             };
             let v = Self::take(&mut temps, *id)?.into_owned()?;
-            self.cells = self.cells.saturating_sub(v.cells());
-            if v != Value::Unit {
-                return Err("non-unit main result");
+            returned = Some(v);
+        }
+        for v in temps.into_iter().rev().flatten() {
+            if let TempValue::Own(value) = v {
+                self.dispose(value)?;
             }
         }
         for id in &function.cleanup {
-            if let Some(old) = locals.get_mut(id.0).ok_or("cleanup index")?.take() {
-                self.cells = self.cells.saturating_sub(old.cells());
+            if let Some(old) = locals.get_mut(id.0).ok_or("cleanup index")?.take()
+                && !borrowed_locals[id.0]
+            {
+                self.dispose(old)?;
             }
         }
-        for v in temps.into_iter().flatten() {
-            self.cells = self.cells.saturating_sub(v.owned_cells());
-        }
-        Ok(())
+        self.frames -= 1;
+        Ok(returned)
     }
 }
 fn get_mut_path<'a>(mut node: &'a mut Value, path: &[i64]) -> Option<&'a mut Value> {
@@ -652,7 +890,7 @@ fn adjust_size(root: &mut Value, path: &[i64], old: u64, new: u64) {
         let Ok(index) = usize::try_from(index) else {
             return;
         };
-        let Some(next) = xs.get_mut(index) else {
+        let Some(next) = Arc::get_mut(xs).and_then(|items| items.get_mut(index)) else {
             return;
         };
         node = next;
@@ -720,7 +958,69 @@ mod tests {
             work: 0,
             cells: 0,
             fault: None,
+            frames: 0,
+            next_resource: 0,
         }
+    }
+    #[test]
+    fn denied_frame_tick_releases_prepared_owners_in_reverse_and_preserves_borrow() {
+        let program = crate::ir::compile_scalar(
+            "limits.nx",
+            "fn own(consume a:MockResource,consume b:MockResource){} fn read(a:MockResource,consume b:MockResource){} fn main(){}",
+        )
+        .unwrap();
+        let resource = |id| Value::Resource {
+            id,
+            label: id as i64 + 1,
+            blocking: false,
+        };
+        let mut own = machine();
+        own.work = 1_000_000;
+        own.cells = 2;
+        for id in 0..2 {
+            let close = format!("close:{id}:{}", id + 1);
+            own.log
+                .reserve(("mock-resource:".len() + close.len() + 1) as u64)
+                .unwrap();
+        }
+        let target = program.functions().function("own").unwrap();
+        assert!(
+            own.run_frame(
+                target,
+                Some(&program),
+                vec![(resource(0), false), (resource(1), false)],
+                &span()
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert_eq!(own.log.events(), ["close:1:2", "close:0:1"]);
+        assert_eq!(own.cells, 0);
+
+        let mut read = machine();
+        read.work = 1_000_000;
+        read.cells = 2;
+        for id in 0..2 {
+            let close = format!("close:{id}:{}", id + 1);
+            read.log
+                .reserve(("mock-resource:".len() + close.len() + 1) as u64)
+                .unwrap();
+        }
+        let target = program.functions().function("read").unwrap();
+        assert!(
+            read.run_frame(
+                target,
+                Some(&program),
+                vec![(resource(0), true), (resource(1), false)],
+                &span()
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert_eq!(read.log.events(), ["close:1:2"]);
+        read.dispose(resource(0)).unwrap();
+        assert_eq!(read.log.events(), ["close:1:2", "close:0:1"]);
+        assert_eq!(read.cells, 0);
     }
     #[test]
     fn work_boundary_grants_limit_and_rejects_next_unit_with_exact_fields() {
@@ -833,5 +1133,64 @@ mod tests {
         assert!(m.fault.is_none(), "{:?}", m.fault);
         assert_eq!(m.cells, 0);
         assert_eq!(m.work, 525_003);
+    }
+    #[test]
+    fn ordinary_array_read_shares_storage_but_owner_copy_is_deep() {
+        let original = Value::Array(Arc::new(vec![Value::Int(1)]), 2);
+        let borrowed = original.clone();
+        let owned = original.deep_copy();
+        let (Value::Array(a, _), Value::Array(b, _), Value::Array(c, _)) =
+            (&original, &borrowed, &owned)
+        else {
+            panic!("arrays")
+        };
+        assert!(Arc::ptr_eq(a, b));
+        assert!(!Arc::ptr_eq(a, c));
+        assert_eq!(original, owned);
+    }
+    #[test]
+    fn failed_inspection_of_temporary_resource_still_emits_reserved_close() {
+        let p =
+            crate::ir::compile_scalar("limits.nx", "fn main(){inspect(mock_open(1));}").unwrap();
+        let mut m = machine();
+        m.log.push_stdout("x".repeat(65_488)).unwrap();
+        m.run(p.functions().function("main").unwrap()).unwrap();
+        assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
+        assert_eq!(m.log.events(), ["open:0:1", "close:0:1"]);
+        assert_eq!(m.log.reserved_bytes(), 0);
+        assert_eq!(m.cells, 0);
+    }
+    #[test]
+    fn rejected_open_does_not_emit_acquisition_or_leave_cell() {
+        let p = crate::ir::compile_scalar("limits.nx", "fn main(){let r=mock_open(1);}").unwrap();
+        let mut m = machine();
+        m.log.push_stdout("x".repeat(65_490)).unwrap();
+        m.run(p.functions().function("main").unwrap()).unwrap();
+        assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
+        assert!(m.log.events().is_empty());
+        assert_eq!(m.log.reserved_bytes(), 0);
+        assert_eq!(m.cells, 0);
+    }
+    #[test]
+    fn rejected_open_event_releases_prepared_close_reservation() {
+        let p = crate::ir::compile_scalar("limits.nx", "fn main(){mock_open(1);}").unwrap();
+        let mut m = machine();
+        m.log.push_stdout("x".repeat(65_499)).unwrap();
+        m.run(p.functions().function("main").unwrap()).unwrap();
+        assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
+        assert!(m.log.events().is_empty());
+        assert_eq!(m.log.reserved_bytes(), 0);
+        assert_eq!(m.cells, 0);
+    }
+    #[test]
+    fn rejected_close_reservation_restores_new_resource_cell() {
+        let p = crate::ir::compile_scalar("limits.nx", "fn main(){mock_open(1);}").unwrap();
+        let mut m = machine();
+        m.log.push_stdout("x".repeat(65_529)).unwrap();
+        m.run(p.functions().function("main").unwrap()).unwrap();
+        assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
+        assert!(m.log.events().is_empty());
+        assert_eq!(m.log.reserved_bytes(), 0);
+        assert_eq!(m.cells, 0);
     }
 }

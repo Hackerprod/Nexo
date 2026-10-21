@@ -1,18 +1,21 @@
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use super::model::{
     self, Access, BasicBlock, Binary, BlockId, Function, FunctionId, FunctionTable, Instruction,
-    Intrinsic, Local, LocalId, Op, OriginId, Program, ScopeId, TempId, Terminator, Ty,
+    Intrinsic, Local, LocalId, Op, OriginId, Parameter, ParameterMode, Program, ScopeId, TempId,
+    Terminator, Ty,
 };
 use crate::diagnostic::{self, Diagnostic, PROFILE_ID, Span};
 use crate::frontend::lex;
-use crate::frontend::parse::{self, Ast, Expr, Statement, Type};
+use crate::frontend::parse::{self, Ast, Expr, Mode, Statement, Type};
 
 #[derive(Debug)]
 pub enum CompileError {
     Rejected(Vec<Box<Diagnostic>>),
     OutsideScalarSlice(&'static str),
     InvalidIr(&'static str),
+    Dependent,
 }
 
 /// Produces an opaque, verified artifact. No interpreter entry accepts an AST.
@@ -31,15 +34,36 @@ pub fn compile_scalar(file: &str, source: &str) -> Result<Program, CompileError>
 
 pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, CompileError> {
     let source_text: std::sync::Arc<str> = std::sync::Arc::from(source_text);
-    let user_functions: HashSet<&str> = ast.functions.iter().map(|f| f.name.as_str()).collect();
+    let tokens = Arc::new(
+        lex::lex(&ast.span.file, &source_text).map_err(|d| CompileError::Rejected(vec![d]))?,
+    );
+    let mut user_functions = HashMap::new();
+    for f in &ast.functions {
+        let params = f
+            .params
+            .iter()
+            .map(|p| {
+                let mode = match p.mode {
+                    Mode::Read => Ok(ParameterMode::Read),
+                    Mode::Consume => Ok(ParameterMode::Consume),
+                    Mode::Inout => Err(CompileError::OutsideScalarSlice("exclusive parameters")),
+                }?;
+                Ok((p.name.clone(), mode, lower_type(&p.ty)?))
+            })
+            .collect::<Result<Vec<_>, CompileError>>()?;
+        let result = f
+            .result
+            .as_ref()
+            .map(lower_type)
+            .transpose()?
+            .unwrap_or(Ty::Unit);
+        user_functions.insert(f.name.clone(), (params, result));
+    }
     let mut functions: Vec<_> = ast.functions.iter().collect();
     functions.sort_by(|a, b| a.name.cmp(&b.name));
     let mut entries = Vec::with_capacity(functions.len());
     let mut diagnostics = Vec::new();
     for (index, source) in functions.into_iter().enumerate() {
-        if !source.params.is_empty() {
-            return Err(CompileError::OutsideScalarSlice("function parameters"));
-        }
         let result = match source.result.as_ref() {
             None | Some(Type::Unit) => Ty::Unit,
             Some(Type::I64) => Ty::I64,
@@ -59,10 +83,42 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             terminated: None,
             user_functions: &user_functions,
             name_spans: Vec::new(),
-            dropped: HashSet::new(),
-            tokens: lex::lex(&ast.span.file, &source_text)
-                .map_err(|d| CompileError::Rejected(vec![d]))?,
+            consumed_at: HashMap::new(),
+            consumed_undo: Vec::new(),
+            dead_depth: 0,
+            poisoned: HashSet::new(),
+            tokens: Arc::clone(&tokens),
         };
+        let mut parameters = Vec::new();
+        for (p, (_, mode, ty)) in source.params.iter().zip(&user_functions[&source.name].0) {
+            let id = LocalId(lower.locals.len());
+            lower.locals.push(Local {
+                id,
+                name: p.name.clone(),
+                ty: ty.clone(),
+                mutable: false,
+                scope: ScopeId(0),
+                parameter_mode: Some(*mode),
+            });
+            let token_index = lower
+                .tokens
+                .partition_point(|t| t.span.start < p.span.start);
+            let name_span = lower.tokens[token_index..]
+                .iter()
+                .take_while(|t| t.span.start < p.span.end)
+                .find(|t| {
+                    t.span.start >= p.span.start && t.span.end <= p.span.end && t.text == p.name
+                })
+                .map(|t| t.span.clone())
+                .ok_or(CompileError::InvalidIr("parameter name token"))?;
+            lower.name_spans.push(name_span);
+            lower.visible.entry(p.name.clone()).or_default().push(id);
+            lower.scopes[0].push(p.name.clone());
+            parameters.push(Parameter {
+                local: id,
+                mode: *mode,
+            });
+        }
         lower.block(&source.body.statements, 0, &mut diagnostics)?;
         if !diagnostics.is_empty() {
             continue;
@@ -88,6 +144,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             scope_parents: lower.scope_parents,
             content_hash: 0,
             locals: lower.locals,
+            parameters,
             block: BasicBlock {
                 id: BlockId(0),
                 instructions: lower.instructions,
@@ -135,12 +192,178 @@ struct Lower<'a> {
     next_temp: usize,
     result: Ty,
     terminated: Option<TempId>,
-    user_functions: &'a HashSet<&'a str>,
+    user_functions: &'a HashMap<String, FunctionSignature>,
     name_spans: Vec<Span>,
-    dropped: HashSet<LocalId>,
-    tokens: Vec<lex::Token>,
+    consumed_at: HashMap<LocalId, (Span, bool)>,
+    consumed_undo: Vec<(LocalId, Option<(Span, bool)>)>,
+    dead_depth: usize,
+    poisoned: HashSet<LocalId>,
+    tokens: Arc<Vec<lex::Token>>,
 }
+type FunctionSignature = (Vec<(String, ParameterMode, Ty)>, Ty);
 impl Lower<'_> {
+    fn mark_consumed(&mut self, id: LocalId, value: Option<(Span, bool)>) {
+        if self.dead_depth != 0 {
+            self.consumed_undo
+                .push((id, self.consumed_at.get(&id).cloned()));
+        }
+        if let Some(value) = value {
+            self.consumed_at.insert(id, value);
+        } else {
+            self.consumed_at.remove(&id);
+        }
+    }
+    fn ownership_error(
+        &self,
+        code: &str,
+        subcause: Option<&str>,
+        operation: diagnostic::Operation,
+        primary: Span,
+        local: LocalId,
+        consumption: Option<(Span, bool)>,
+    ) -> CompileError {
+        let mut related = vec![diagnostic::RelatedSpan {
+            role: diagnostic::RelatedRole::Declaration,
+            span: self.name_spans[local.0].clone(),
+        }];
+        let mut cause_chain = Vec::new();
+        if let Some((site, is_drop)) = consumption {
+            related.push(diagnostic::RelatedSpan {
+                role: diagnostic::RelatedRole::Consumption,
+                span: site.clone(),
+            });
+            cause_chain.push(diagnostic::Cause {
+                kind: if is_drop {
+                    diagnostic::CauseKind::Drop
+                } else {
+                    diagnostic::CauseKind::Consume
+                },
+                operation: if is_drop {
+                    diagnostic::CauseOperation::ValueDrop
+                } else {
+                    diagnostic::CauseOperation::ValueConsume
+                },
+                span: Some(site),
+                entity: Some(self.local_entity(local)),
+                evidence: diagnostic::Evidence::Verified,
+            });
+        }
+        related.sort_by(|a, b| {
+            (a.span.start, a.span.end, a.role.as_str()).cmp(&(
+                b.span.start,
+                b.span.end,
+                b.role.as_str(),
+            ))
+        });
+        CompileError::Rejected(vec![Box::new(Diagnostic {
+            schema_version: diagnostic::SCHEMA_VERSION,
+            diagnostic_namespace: diagnostic::Namespace::NexoProposedV1,
+            profile_id: PROFILE_ID.into(),
+            code: code.into(),
+            subcause: subcause.map(str::to_owned),
+            rule: subcause.map_or_else(|| code.to_owned(), |sub| format!("{code}/{sub}")),
+            explanation_id: Some(
+                subcause.map_or_else(|| code.to_owned(), |sub| format!("{code}/{sub}")),
+            ),
+            severity: diagnostic::Severity::Error,
+            stage: diagnostic::Stage::Ownership,
+            message: "Acceso propietario inválido.".into(),
+            operation,
+            primary_span: Some(primary),
+            related_spans: related,
+            cause_chain,
+            feature_id: None,
+            unexpected_token: None,
+            expected_tokens: vec![],
+            expected_tokens_kind: None,
+            parser_context: None,
+            recognized_prefix: None,
+            repair: vec![],
+            data: Default::default(),
+        })])
+    }
+    fn local_entity(&self, id: LocalId) -> diagnostic::Entity {
+        let parameter = self.locals[id.0].parameter_mode.is_some();
+        diagnostic::Entity {
+            kind: if parameter {
+                diagnostic::EntityKind::Parameter
+            } else {
+                diagnostic::EntityKind::Binding
+            },
+            id: format!(
+                "{}:{}",
+                if parameter { "parameter" } else { "binding" },
+                self.name_spans[id.0].start
+            ),
+        }
+    }
+    fn permission_error(&self, id: LocalId, primary: Span, requested: &str) -> CompileError {
+        let entity = self.local_entity(id);
+        let entity_value = |entity: &diagnostic::Entity| {
+            let mut m = std::collections::BTreeMap::new();
+            m.insert(
+                "kind".into(),
+                diagnostic::DataValue::String(entity.kind.as_str().into()),
+            );
+            m.insert(
+                "id".into(),
+                diagnostic::DataValue::String(entity.id.clone()),
+            );
+            diagnostic::DataValue::Object(m)
+        };
+        let CompileError::Rejected(mut errors) = self.ownership_error(
+            "NX-E1105",
+            Some("permission_escalation"),
+            diagnostic::Operation::OwnershipAccess,
+            primary,
+            id,
+            None,
+        ) else {
+            unreachable!()
+        };
+        let d = &mut errors[0];
+        d.data.insert("origin".into(), entity_value(&entity));
+        d.data.insert("parameter".into(), entity_value(&entity));
+        d.data.insert(
+            "active_permission".into(),
+            diagnostic::DataValue::String("read".into()),
+        );
+        d.data.insert(
+            "requested_access".into(),
+            diagnostic::DataValue::String(requested.into()),
+        );
+        d.cause_chain.push(diagnostic::Cause {
+            kind: diagnostic::CauseKind::Borrow,
+            operation: diagnostic::CauseOperation::BorrowRead,
+            span: Some(self.name_spans[id.0].clone()),
+            entity: Some(entity),
+            evidence: diagnostic::Evidence::Verified,
+        });
+        CompileError::Rejected(errors)
+    }
+    fn check_available(&self, id: LocalId, span: Span) -> Result<(), CompileError> {
+        if let Some(site) = self.consumed_at.get(&id) {
+            return Err(self.ownership_error(
+                "NX-E0202",
+                Some("definitely_consumed"),
+                diagnostic::Operation::OwnershipUse,
+                span,
+                id,
+                Some(site.clone()),
+            ));
+        }
+        Ok(())
+    }
+    fn copy_error(&self, id: LocalId, span: Span) -> CompileError {
+        self.ownership_error(
+            "NX-E0201",
+            None,
+            diagnostic::Operation::ValueCopy,
+            span,
+            id,
+            None,
+        )
+    }
     fn name_span(&self, stmt: &Statement, name: &str, before: u64) -> Result<Span, CompileError> {
         let start = statement_span(stmt).start;
         let pos = self.tokens.partition_point(|t| t.span.start < start);
@@ -214,11 +437,17 @@ impl Lower<'_> {
         });
     }
     fn get(&self, name: &str) -> Result<LocalId, CompileError> {
-        self.visible
+        let id = self
+            .visible
             .get(name)
             .and_then(|v| v.last())
             .copied()
-            .ok_or(CompileError::InvalidIr("unresolved local"))
+            .ok_or(CompileError::InvalidIr("unresolved local"))?;
+        if self.poisoned.contains(&id) {
+            Err(CompileError::Dependent)
+        } else {
+            Ok(id)
+        }
     }
     fn block(
         &mut self,
@@ -229,19 +458,60 @@ impl Lower<'_> {
         if depth >= 128 {
             return Err(CompileError::OutsideScalarSlice("lowering depth"));
         }
+        let mut unreachable = None;
         for statement in statements {
-            if self.terminated.is_some() {
-                return Err(CompileError::OutsideScalarSlice(
-                    "unreachable tail after return",
+            if self.terminated.is_some() && unreachable.is_none() {
+                unreachable = Some((
+                    self.instructions.len(),
+                    self.locals.len(),
+                    self.scopes.last().unwrap().len(),
+                    self.next_scope,
+                    self.next_temp,
+                    self.terminated,
+                    self.consumed_undo.len(),
                 ));
+                self.dead_depth += 1;
+            }
+            if unreachable.is_some() {
+                self.terminated = None;
             }
             let result = self.statement(statement, depth, diagnostics);
             match result {
                 Err(CompileError::Rejected(errors)) => {
                     diagnostics.extend(errors.into_iter().map(|d| *d))
                 }
+                Err(CompileError::Dependent) => {}
                 Err(other) => return Err(other),
                 Ok(()) => {}
+            }
+        }
+        if let Some((instructions, locals, scope_len, next_scope, next_temp, terminated, undo)) =
+            unreachable
+        {
+            while self.consumed_undo.len() > undo {
+                let (id, old) = self.consumed_undo.pop().unwrap();
+                if let Some(old) = old {
+                    self.consumed_at.insert(id, old);
+                } else {
+                    self.consumed_at.remove(&id);
+                }
+            }
+            for name in self.scopes.last_mut().unwrap().drain(scope_len..).rev() {
+                self.visible.get_mut(&name).unwrap().pop();
+            }
+            for id in locals..self.locals.len() {
+                self.poisoned.remove(&LocalId(id));
+            }
+            self.locals.truncate(locals);
+            self.name_spans.truncate(locals);
+            self.instructions.truncate(instructions);
+            self.next_scope = next_scope;
+            self.scope_parents.truncate(next_scope);
+            self.next_temp = next_temp;
+            self.terminated = terminated;
+            self.dead_depth -= 1;
+            if self.dead_depth == 0 {
+                self.consumed_undo.clear();
             }
         }
         Ok(())
@@ -261,7 +531,33 @@ impl Lower<'_> {
                 ..
             } => {
                 let expected = annotation.as_ref().map(lower_type).transpose()?;
-                let (temp, ty) = self.expr(value, 0, expected.as_ref())?;
+                let (temp, ty) = match self.expr(value, 0, expected.as_ref()) {
+                    Ok(value) => value,
+                    Err(error @ (CompileError::Rejected(_) | CompileError::Dependent)) => {
+                        let id = LocalId(self.locals.len());
+                        self.name_spans.push(self.name_span(
+                            statement,
+                            name,
+                            value.span().start,
+                        )?);
+                        self.locals.push(Local {
+                            id,
+                            name: name.clone(),
+                            ty: expected.unwrap_or(Ty::Unit),
+                            mutable: *mutable,
+                            scope: self.scope,
+                            parameter_mode: None,
+                        });
+                        self.visible.entry(name.clone()).or_default().push(id);
+                        self.scopes
+                            .last_mut()
+                            .ok_or(CompileError::InvalidIr("scope stack"))?
+                            .push(name.clone());
+                        self.poisoned.insert(id);
+                        return Err(error);
+                    }
+                    Err(error) => return Err(error),
+                };
                 let id = LocalId(self.locals.len());
                 self.name_spans
                     .push(self.name_span(statement, name, value.span().start)?);
@@ -271,6 +567,7 @@ impl Lower<'_> {
                     ty,
                     mutable: *mutable,
                     scope: self.scope,
+                    parameter_mode: None,
                 });
                 self.visible.entry(name.clone()).or_default().push(id);
                 self.scopes
@@ -292,6 +589,9 @@ impl Lower<'_> {
                 let name =
                     place_name(root).ok_or(CompileError::OutsideScalarSlice("assignment root"))?;
                 let id = self.get(name)?;
+                if self.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
+                    return Err(self.permission_error(id, root.span().clone(), "write"));
+                }
                 if !self.locals[id.0].mutable {
                     return Err(self.immutable_write(root, id));
                 }
@@ -309,6 +609,12 @@ impl Lower<'_> {
                     indexes.push(index);
                 }
                 let (temp, ty) = self.expr(value, 0, Some(&target_ty))?;
+                if !indexes.is_empty() {
+                    self.check_available(id, root.span().clone())?;
+                }
+                if indexes.is_empty() {
+                    self.mark_consumed(id, None);
+                }
                 if ty != target_ty {
                     return Err(CompileError::InvalidIr("assignment type passed checker"));
                 }
@@ -368,8 +674,15 @@ impl Lower<'_> {
                     .ok_or(CompileError::InvalidIr("scope stack"))?
                     .clone();
                 for name in dropping.iter().rev() {
-                    let id = self.get(name)?;
-                    if !self.dropped.contains(&id) {
+                    let id = *self
+                        .visible
+                        .get(name)
+                        .and_then(|v| v.last())
+                        .ok_or(CompileError::InvalidIr("scope name"))?;
+                    if self.poisoned.contains(&id) {
+                        continue;
+                    }
+                    if !self.consumed_at.contains_key(&id) {
                         self.statement_op(
                             Op::DropLocal(id),
                             block.span.clone(),
@@ -435,8 +748,12 @@ impl Lower<'_> {
             )),
             Expr::Name(name, s) => {
                 let id = self.get(name)?;
+                self.check_available(id, s.clone())?;
                 let ty = self.locals[id.0].ty.clone();
-                let op = if borrow && matches!(ty, Ty::Array(_)) {
+                if !borrow && !ty.copyable() {
+                    return Err(self.copy_error(id, s.clone()));
+                }
+                let op = if borrow {
                     Op::BorrowValue(id)
                 } else {
                     Op::CopyValue(id)
@@ -484,8 +801,66 @@ impl Lower<'_> {
             Expr::Call { target, args, span } => {
                 let name =
                     place_name(target).ok_or(CompileError::OutsideScalarSlice("call target"))?;
-                if self.user_functions.contains(name) {
-                    return Err(CompileError::OutsideScalarSlice("user call"));
+                if self.visible.get(name).and_then(|v| v.last()).is_some() {
+                    self.get(name)?;
+                    return Err(CompileError::InvalidIr(
+                        "non-callable target passed checker",
+                    ));
+                }
+                if let Some((params, result)) = self.user_functions.get(name).cloned() {
+                    if args.len() != params.len() {
+                        return Err(CompileError::InvalidIr("call arity passed checker"));
+                    }
+                    let mut used = vec![false; params.len()];
+                    let mut prepared = Vec::with_capacity(args.len());
+                    let mut next_positional = 0usize;
+                    for arg in args {
+                        let slot = if let Some(label) = &arg.label {
+                            params
+                                .iter()
+                                .position(|(p, _, _)| p == label)
+                                .ok_or(CompileError::InvalidIr("call label passed checker"))?
+                        } else {
+                            while used.get(next_positional) == Some(&true) {
+                                next_positional += 1;
+                            }
+                            next_positional
+                        };
+                        let (_, mode, expected) = params
+                            .get(slot)
+                            .ok_or(CompileError::InvalidIr("call parameter slot"))?;
+                        if used[slot] {
+                            return Err(CompileError::InvalidIr("duplicate call argument"));
+                        }
+                        used[slot] = true;
+                        let (id, actual) = self.expr_mode(
+                            &arg.value,
+                            depth + 1,
+                            Some(expected),
+                            *mode == ParameterMode::Read,
+                        )?;
+                        if actual != *expected {
+                            return Err(CompileError::InvalidIr(
+                                "call argument type passed checker",
+                            ));
+                        }
+                        prepared.push((slot, id));
+                    }
+                    let signature = params;
+                    return Ok((
+                        self.emit(
+                            Op::CallDirect {
+                                function: FunctionId(name.into()),
+                                args: prepared,
+                                signature,
+                            },
+                            result.clone(),
+                            span.clone(),
+                            Access::Own,
+                            false,
+                        ),
+                        result,
+                    ));
                 }
                 let intrinsic = match name {
                     "print" => Intrinsic::Print,
@@ -493,6 +868,9 @@ impl Lower<'_> {
                     "drop" => Intrinsic::DropData,
                     "fail" => Intrinsic::Fail,
                     "len" => Intrinsic::Len,
+                    "mock_open" => Intrinsic::MockOpen,
+                    "mock_blocking_open" => Intrinsic::MockBlockingOpen,
+                    "inspect" => Intrinsic::Inspect,
                     _ => return Err(CompileError::OutsideScalarSlice("user or deferred call")),
                 };
                 if intrinsic == Intrinsic::DropData
@@ -500,7 +878,15 @@ impl Lower<'_> {
                     && let Some(binding) = place_name(&args[0].value)
                 {
                     let local = self.get(binding)?;
-                    self.dropped.insert(local);
+                    self.check_available(local, args[0].value.span().clone())?;
+                    if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
+                        return Err(self.permission_error(
+                            local,
+                            args[0].value.span().clone(),
+                            "drop",
+                        ));
+                    }
+                    self.mark_consumed(local, Some((span.clone(), true)));
                     return Ok((
                         self.emit(
                             Op::DropBinding(local),
@@ -520,13 +906,21 @@ impl Lower<'_> {
                         None,
                         matches!(
                             intrinsic,
-                            Intrinsic::Print | Intrinsic::AssertEq | Intrinsic::Len
+                            Intrinsic::Print
+                                | Intrinsic::AssertEq
+                                | Intrinsic::Len
+                                | Intrinsic::Inspect
                         ),
                     )?;
                     ids.push(id);
                 }
                 let arity = match intrinsic {
-                    Intrinsic::Print | Intrinsic::DropData | Intrinsic::Len => 1,
+                    Intrinsic::Print
+                    | Intrinsic::DropData
+                    | Intrinsic::Len
+                    | Intrinsic::MockOpen
+                    | Intrinsic::MockBlockingOpen
+                    | Intrinsic::Inspect => 1,
                     Intrinsic::AssertEq => 2,
                     Intrinsic::Fail => 0,
                 };
@@ -539,19 +933,27 @@ impl Lower<'_> {
                             intrinsic,
                             args: ids,
                         },
-                        if intrinsic == Intrinsic::Len {
-                            Ty::I64
-                        } else {
-                            Ty::Unit
+                        match intrinsic {
+                            Intrinsic::Len => Ty::I64,
+                            Intrinsic::MockOpen => Ty::MockResource,
+                            Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
+                            _ => Ty::Unit,
                         },
                         span.clone(),
                         Access::Own,
-                        intrinsic == Intrinsic::Print,
+                        matches!(
+                            intrinsic,
+                            Intrinsic::Print
+                                | Intrinsic::MockOpen
+                                | Intrinsic::MockBlockingOpen
+                                | Intrinsic::Inspect
+                        ),
                     ),
-                    if intrinsic == Intrinsic::Len {
-                        Ty::I64
-                    } else {
-                        Ty::Unit
+                    match intrinsic {
+                        Intrinsic::Len => Ty::I64,
+                        Intrinsic::MockOpen => Ty::MockResource,
+                        Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
+                        _ => Ty::Unit,
                     },
                 ))
             }
@@ -596,6 +998,7 @@ impl Lower<'_> {
                     && let Some(name) = place_name(root)
                 {
                     let local = self.get(name)?;
+                    self.check_available(local, root.span().clone())?;
                     let mut ty = self.locals[local.0].ty.clone();
                     let mut ids = Vec::with_capacity(index_exprs.len());
                     for index_expr in index_exprs {
@@ -659,8 +1062,34 @@ impl Lower<'_> {
                     ty,
                 ))
             }
+            Expr::Unary {
+                mode: Mode::Consume,
+                value,
+                span,
+            } => {
+                let Some(name) = place_name(value) else {
+                    return Err(CompileError::OutsideScalarSlice("partial transfer"));
+                };
+                let id = self.get(name)?;
+                self.check_available(id, value.span().clone())?;
+                if self.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
+                    return Err(self.permission_error(id, value.span().clone(), "consume"));
+                }
+                self.mark_consumed(id, Some((span.clone(), false)));
+                let ty = self.locals[id.0].ty.clone();
+                Ok((
+                    self.emit(
+                        Op::TransferValue(id),
+                        ty.clone(),
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    ),
+                    ty,
+                ))
+            }
             Expr::Unary { .. } => Err(CompileError::OutsideScalarSlice(
-                "consume, inout or result propagation",
+                "exclusive loans or result propagation",
             )),
             Expr::If { .. } => Err(CompileError::OutsideScalarSlice("expression control flow")),
         }
@@ -714,6 +1143,17 @@ fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
                 }
                 return Ok(result);
             }
+            Type::MockResource | Type::MockBlockingResource => {
+                let mut result = if matches!(node, Type::MockResource) {
+                    Ty::MockResource
+                } else {
+                    Ty::MockBlockingResource
+                };
+                for _ in 0..depth {
+                    result = Ty::Array(Box::new(result));
+                }
+                return Ok(result);
+            }
             _ => return Err(CompileError::OutsideScalarSlice("resource or result type")),
         }
     }
@@ -728,5 +1168,130 @@ fn statement_span(stmt: &Statement) -> Span {
         | Statement::While { span, .. }
         | Statement::Expr { span, .. } => span.clone(),
         Statement::Block(block) => block.span.clone(),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn dead_declaration_and_reinitialization_restore_all_lowering_state() {
+        let source = "fn main(){var r=mock_open(1);drop(r);{return;let s=r;let x=1;r=mock_open(2);}inspect(r);}";
+        let ast = parse::parse("dead_state.nx", source).unwrap();
+        let signatures = HashMap::new();
+        let mut lower = Lower {
+            instructions: Vec::new(),
+            locals: Vec::new(),
+            visible: HashMap::new(),
+            scopes: vec![Vec::new()],
+            scope: ScopeId(0),
+            next_scope: 1,
+            scope_parents: vec![None],
+            next_temp: 0,
+            result: Ty::Unit,
+            terminated: None,
+            user_functions: &signatures,
+            name_spans: Vec::new(),
+            consumed_at: HashMap::new(),
+            consumed_undo: Vec::new(),
+            dead_depth: 0,
+            poisoned: HashSet::new(),
+            tokens: Arc::new(lex::lex("dead_state.nx", source).unwrap()),
+        };
+        let mut diagnostics = Vec::new();
+        lower
+            .block(&ast.functions[0].body.statements, 0, &mut diagnostics)
+            .unwrap();
+        assert_eq!(
+            diagnostics
+                .iter()
+                .map(|d| d.code.as_str())
+                .collect::<Vec<_>>(),
+            ["NX-E0202", "NX-E0202"]
+        );
+        assert_eq!(lower.locals.len(), 1);
+        assert_eq!(lower.name_spans.len(), 1);
+        assert_eq!(lower.name_spans[0].start, 14);
+        assert_eq!(lower.visible.get("r").unwrap(), &vec![LocalId(0)]);
+        assert!(lower.visible.get("s").is_none_or(Vec::is_empty));
+        assert!(lower.visible.get("x").is_none_or(Vec::is_empty));
+        assert_eq!(lower.scopes[0], vec!["r"]);
+        assert!(lower.poisoned.is_empty());
+        assert!(lower.terminated.is_some());
+        assert_eq!(lower.consumed_at.get(&LocalId(0)).unwrap().0.start, 29);
+        assert_eq!(lower.dead_depth, 0);
+        assert!(lower.consumed_undo.is_empty());
+    }
+
+    #[test]
+    fn poisoned_binding_in_rejected_block_has_no_cleanup_instruction() {
+        let source = "fn main(){{let r=mock_open(1);let s=r;}}";
+        let ast = parse::parse("poison.nx", source).unwrap();
+        let signatures = HashMap::new();
+        let mut lower = Lower {
+            instructions: Vec::new(),
+            locals: Vec::new(),
+            visible: HashMap::new(),
+            scopes: vec![Vec::new()],
+            scope: ScopeId(0),
+            next_scope: 1,
+            scope_parents: vec![None],
+            next_temp: 0,
+            result: Ty::Unit,
+            terminated: None,
+            user_functions: &signatures,
+            name_spans: Vec::new(),
+            consumed_at: HashMap::new(),
+            consumed_undo: Vec::new(),
+            dead_depth: 0,
+            poisoned: HashSet::new(),
+            tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+        };
+        let mut diagnostics = Vec::new();
+        lower
+            .block(&ast.functions[0].body.statements, 0, &mut diagnostics)
+            .unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code, "NX-E0201");
+        assert!(lower.poisoned.contains(&LocalId(1)));
+        assert!(
+            !lower
+                .instructions
+                .iter()
+                .any(|ins| matches!(ins.op, Op::DropLocal(LocalId(1))))
+        );
+    }
+
+    #[test]
+    fn poisoned_call_target_preserves_original_lowering_diagnostic() {
+        let source = "fn main(){let r=mock_open(1);let s=r;s();}";
+        let ast = parse::parse("poison.nx", source).unwrap();
+        let signatures = HashMap::new();
+        let mut lower = Lower {
+            instructions: Vec::new(),
+            locals: Vec::new(),
+            visible: HashMap::new(),
+            scopes: vec![Vec::new()],
+            scope: ScopeId(0),
+            next_scope: 1,
+            scope_parents: vec![None],
+            next_temp: 0,
+            result: Ty::Unit,
+            terminated: None,
+            user_functions: &signatures,
+            name_spans: Vec::new(),
+            consumed_at: HashMap::new(),
+            consumed_undo: Vec::new(),
+            dead_depth: 0,
+            poisoned: HashSet::new(),
+            tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+        };
+        let mut diagnostics = Vec::new();
+        lower
+            .block(&ast.functions[0].body.statements, 0, &mut diagnostics)
+            .unwrap();
+        assert_eq!(diagnostics.len(), 1);
+        assert_eq!(diagnostics[0].code, "NX-E0201");
     }
 }
