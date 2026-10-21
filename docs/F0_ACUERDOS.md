@@ -233,6 +233,40 @@ dependientes del texto más de lo que cada corte necesite, y preferir esperados 
 generados con el impresor canónico. (c) La IR, los efectos y la propiedad no dependen de la sintaxis y
 pueden continuar.
 
+**Aclaración del propietario (2026-10-20, posterior a la directiva).** El criterio no es evitar toda
+influencia reconocible, sino que **ningún lenguaje domine** y que se tome **lo mejor de cada uno**,
+incluidas las mayúsculas de C# (PascalCase), que aportan identidad visual y belleza al código. La
+sintaxis no debe favorecer a quienes implementan en Rust o C++ ni incomodar al resto.
+
+**Criterios que se derivan** (a fijar en el ADR de sintaxis de superficie, antes de cerrar F1):
+1. **Mérito propio, no procedencia.** Cada construcción se justifica por legibilidad, regularidad de
+   parseo, utilidad para agentes y coste visual, nunca por «viene de» un lenguaje concreto. Una
+   influencia reconocible no es un defecto ni una virtud.
+2. **Sin ventaja sistemática para una cohorte.** El roadmap ya define cohortes de Python, Rust y C#
+   (§7). Cada construcción debe poder leerse y escribirse sin que una cohorte parta con ventaja
+   clara; se comprueba con una prueba de comprensión cruzada, no por opinión.
+3. **Coherencia del conjunto.** Tomar lo mejor de cada lenguaje exige reglas comunes: una sola forma
+   por idea, símbolos con un único trabajo y convenciones uniformes. El riesgo del collage no es la
+   variedad de orígenes sino las formas duplicadas y las reglas que se contradicen.
+4. **Mayúsculas como convención con identidad visual.** El PascalCase para tipos, funciones y
+   miembros públicos y el camelCase para variables se adoptan como convención de la superficie. No
+   cambian la semántica (el compilador no decide que algo es un tipo por empezar en mayúscula) y las
+   hace cumplir el formateador oficial.
+5. **Medición.** Cada candidata de sintaxis reescribe los mismos programas (EX01 a EX04 y otros) y se
+   evalúa con una prueba de agente (generación y reparación de programas, con recuento de errores) y
+   con la comprensión por cohortes. El objetivo de lenguaje amigable para agentes se mide, no se
+   afirma.
+
+**Estado de la propuesta externa recibida** (documento de sintaxis de 22 secciones, 2026-10-20):
+se toma como una candidata a evaluar, no como decisión. Ideas con mérito propio identificadas:
+vocabulario de modos `view`/`edit`/`take`/`move`/`copy` con marca visible, `if c then a else b`
+como expresión de un solo valor, operadores lógicos en palabras (`and`/`or`/`not`), rangos
+`0..<10` y `1..=10`, y la tabla de traducción de superficie a núcleo. Puntos a resolver antes de
+adoptarla: dos maneras de componer (método con punto y tubería `|>`) y la pérdida del modo en la
+tubería; `fails` frente a `Result` explícito; `prop` y `defer` (características nuevas); comas
+finales, rechazadas hoy por decisión del ADR; y choques con D01, D11 y D13 (`=> expr` sin `return`,
+`capture [...]`, `value:`).
+
 ### 9.7. Orden propuesto de las decisiones
 
 Orden sugerido para abrir ADR, sin implicar aprobación: 9.6 (sintaxis, punto de decisión) y 9.4
