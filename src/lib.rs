@@ -3,6 +3,8 @@
 pub mod check;
 pub mod diagnostic;
 pub mod frontend;
+pub mod interp;
+pub mod ir;
 pub mod runtime;
 pub mod syntax;
 
