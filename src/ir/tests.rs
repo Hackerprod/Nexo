@@ -532,21 +532,797 @@ fn deepest_admitted_scalar_families_compile_on_small_caller_stacks() {
     }
 }
 #[test]
-fn unsupported_arrays_and_user_calls_never_execute_partially() {
-    assert!(matches!(
-        compile_scalar("fixture.nx", "fn main(){print(1);let a=[2];}"),
-        Err(CompileError::OutsideScalarSlice("arrays and indexing"))
-    ));
+fn arrays_execute_only_after_verification_and_user_calls_remain_deferred() {
+    let arrays = compile_scalar("fixture.nx", "fn main(){print(1);let a=[2];}").unwrap();
+    assert_eq!(run_scalar(&arrays).observations.stdout(), &["1"]);
     assert!(matches!(
         compile_scalar("fixture.nx", "fn f(){} fn main(){f();}"),
         Err(CompileError::OutsideScalarSlice("user call"))
     ));
     assert!(matches!(
         compile_scalar("fixture.nx", "fn main(){let x=1;x=2;}"),
-        Err(CompileError::OutsideScalarSlice(
-            "immutable write awaits ownership checking"
-        ))
+        Err(CompileError::Rejected(_))
     ));
+}
+#[test]
+fn nested_copy_rebinds_physical_values_without_aliasing() {
+    let source = include_str!("../../corpus/pass/nested_copy.nx");
+    let e = execute(source);
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.stdout(), vec!["[[1, 9], [7, 8]]"]);
+    assert_eq!(e.observations.bytes(), 17);
+    assert!(e.diagnostics.is_empty());
+}
+#[test]
+fn immutable_index_root_has_ownership_diagnostic_and_declaration_span() {
+    let source = "fn main(){let value=[[1]];value[0][0]=2;}";
+    let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
+        panic!("ownership rejection")
+    };
+    assert_eq!(errors.len(), 1);
+    let d = &errors[0];
+    assert_eq!(
+        (
+            d.code.as_str(),
+            d.subcause.as_deref(),
+            d.stage.as_str(),
+            d.operation.as_str()
+        ),
+        ("NX-E0105", None, "ownership", "place.write")
+    );
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((26, 31))
+    );
+    assert_eq!(d.related_spans.len(), 1);
+    assert_eq!(
+        (
+            d.related_spans[0].role.as_str(),
+            d.related_spans[0].span.start,
+            d.related_spans[0].span.end
+        ),
+        ("declaration", 14, 19)
+    );
+    assert!(d.data.is_empty());
+    d.validate("fixture.nx", source).unwrap();
+    let e = execute("fn main(){var value=[[1]];value[0][0]=2;print(value);}");
+    assert_eq!(e.observations.stdout(), vec!["[[2]]"]);
+}
+#[test]
+fn independent_immutable_writes_report_each_site_in_source_order() {
+    for (source, primary, declaration) in [
+        (
+            "fn main(){let a=[1];let b=[2];a[0]=1;b[0]=2;}",
+            vec![(30, 31), (37, 38)],
+            vec![(14, 15), (24, 25)],
+        ),
+        (
+            "fn helper(){let q=[1];q[0]=2;} fn main(){let p=[1];p[0]=2;}",
+            vec![(22, 23), (51, 52)],
+            vec![(16, 17), (45, 46)],
+        ),
+    ] {
+        let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err()
+        else {
+            panic!("ownership rejection")
+        };
+        assert_eq!(errors.len(), 2);
+        for (index, error) in errors.iter().enumerate() {
+            assert_eq!(
+                (
+                    error.code.as_str(),
+                    error.stage.as_str(),
+                    error.operation.as_str()
+                ),
+                ("NX-E0105", "ownership", "place.write")
+            );
+            assert_eq!(
+                error.primary_span.as_ref().map(|s| (s.start, s.end)),
+                Some(primary[index])
+            );
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .map(|s| (s.span.start, s.span.end))
+                    .collect::<Vec<_>>(),
+                vec![declaration[index]]
+            );
+            assert!(error.data.is_empty());
+            error.validate("fixture.nx", source).unwrap();
+        }
+    }
+}
+
+#[test]
+fn immutable_write_does_not_emit_dependent_cascades() {
+    let source = "fn main(){let a=[1];a[0]=2;a[0]=3;let b=[4];b[0]=5;}";
+    let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
+        panic!("ownership rejection")
+    };
+    assert_eq!(errors.len(), 3);
+    assert_eq!(
+        errors
+            .iter()
+            .map(|d| d.primary_span.as_ref().unwrap().start)
+            .collect::<Vec<_>>(),
+        vec![20, 27, 44]
+    );
+    for error in errors {
+        assert_eq!(error.code, "NX-E0105");
+        error.validate("fixture.nx", source).unwrap();
+    }
+}
+#[test]
+fn ownership_diagnostics_sort_by_source_span_across_canonical_function_order() {
+    let source = "fn z(){let a=[1];a[0]=2;} fn main(){let b=[1];b[0]=2;}";
+    let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
+        panic!("ownership rejection")
+    };
+    assert_eq!(
+        errors
+            .iter()
+            .map(|d| d.primary_span.as_ref().unwrap().start)
+            .collect::<Vec<_>>(),
+        vec![17, 46]
+    );
+}
+#[test]
+fn ownership_errors_in_nonunit_function_precede_lowering_of_later_functions() {
+    let source = "fn z()->i64{let a=[1];a[0]=2;} fn main(){let b=[1];b[0]=2;}";
+    let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
+        panic!("ownership rejection")
+    };
+    assert_eq!(errors.len(), 2);
+    assert!(errors.iter().all(|d| d.code == "NX-E0105"));
+}
+
+fn zeros(count: usize) -> String {
+    std::iter::repeat_n("0", count)
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
+#[test]
+fn drop_binding_releases_cells_before_unit_and_next_array() {
+    let first = zeros(32_768);
+    let e = execute(&format!("fn main(){{let a=[{first}];drop(a);}}"));
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.diagnostics.is_empty());
+    let e = execute(&format!(
+        "fn main(){{let a=[{}];drop(a);let b=[{}];print(len(b));}}",
+        zeros(30_000),
+        zeros(40_000)
+    ));
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.stdout(), vec!["40000"]);
+}
+
+#[test]
+fn drop_releases_one_copy_without_invalidating_another_owner() {
+    let e = execute("fn main(){let a=[1,2];let b=a;drop(a);assert_eq(b,[1,2]);print(len(b));}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.stdout(), vec!["2"]);
+    let e = execute("fn main(){{let a=[1,2];drop(a);}print(3);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.stdout(), vec!["3"]);
+}
+#[test]
+fn live_cell_boundary_is_exact_with_and_without_explicit_drop() {
+    let data = zeros(65_535);
+    let dropped = execute(&format!("fn main(){{let a=[{data}];drop(a);}}"));
+    assert_eq!(dropped.outcome, Outcome::Unit);
+    let retained = execute(&format!("fn main(){{let a=[{data}];}}"));
+    assert_eq!(retained.outcome, Outcome::SimulatorFault);
+    assert_eq!(retained.diagnostics[0].code, "R0002");
+    assert_eq!(
+        retained.diagnostics[0].data.get("observed"),
+        Some(&crate::diagnostic::DataValue::UInt(65_537))
+    );
+}
+#[test]
+fn dropped_binding_result_unit_is_counted_before_implicit_return() {
+    let e = execute(&format!(
+        "fn main(){{let a=[{}];let b=[0];let u=drop(b);let c=0;}}",
+        zeros(65_533)
+    ));
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0002");
+    assert_eq!(
+        e.diagnostics[0].data.get("observed"),
+        Some(&crate::diagnostic::DataValue::UInt(65_537))
+    );
+}
+
+#[test]
+fn indexed_array_reads_borrow_selected_subtree_and_owner_context_copies() {
+    let large = zeros(40_000);
+    for tail in [
+        "print(len(a[0]));",
+        "assert_eq(a[0],a[0]);",
+        "assert_eq(a[0]==a[0],true);",
+    ] {
+        let e = execute(&format!("fn main(){{let a=[[{large}],[1]];{tail}}}"));
+        assert_eq!(e.outcome, Outcome::Unit, "{tail}");
+        assert!(e.diagnostics.is_empty());
+        if tail.starts_with("print") {
+            assert_eq!(e.observations.stdout(), vec!["40000"]);
+        }
+    }
+    let e = execute(&format!("fn main(){{let a=[[{large}],[1]];let b=a[0];}}"));
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0002");
+    assert_eq!(
+        e.diagnostics[0].data.get("observed"),
+        Some(&crate::diagnostic::DataValue::UInt(80_005))
+    );
+}
+#[test]
+fn borrowed_index_reports_invalid_path_before_reading_selected_value() {
+    let e = execute("fn main(){let a=[[1]];print(len(a[2]));}");
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0102");
+    assert_eq!(e.diagnostics[0].operation.as_str(), "value.index");
+    let mut p = compile_scalar("fixture.nx", "fn main(){let a=[[1]];print(len(a[2]));}").unwrap();
+    let f = &mut p.functions.entries[0];
+    f.block
+        .instructions
+        .retain(|i| !matches!(i.op, super::model::Op::CheckIndex { .. }));
+    for (index, ins) in f.block.instructions.iter_mut().enumerate() {
+        ins.origin.0 = index;
+    }
+    f.content_hash = super::model::content_hash(f);
+    super::verify::verify_program(&p).unwrap();
+    let e = run_scalar(&p);
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics[0].code, "R0102");
+}
+#[test]
+fn indexed_assignment_evaluates_rhs_before_checking_bounds() {
+    let overflow = execute("fn main(){var a=[0];a[-1]=9223372036854775807+1;}");
+    assert_eq!(overflow.outcome, Outcome::SimulatorFault);
+    assert_eq!(overflow.diagnostics[0].code, "R0101");
+    assert!(overflow.observations.stdout().is_empty());
+    let invalid = execute("fn main(){var a=[0];a[-1]=2;}");
+    assert_eq!(invalid.outcome, Outcome::SimulatorFault);
+    assert_eq!(invalid.diagnostics[0].code, "R0102");
+    assert_eq!(invalid.diagnostics[0].operation.as_str(), "value.index");
+    let valid = execute("fn main(){var a=[0];a[0]=2;print(a[0]);}");
+    assert_eq!(valid.outcome, Outcome::Unit);
+    assert_eq!(valid.observations.stdout(), vec!["2"]);
+    let nested = execute("fn main(){var a=[[0]];a[-1][0]=9223372036854775807+1;}");
+    assert_eq!(nested.diagnostics[0].code, "R0101");
+    for source in [
+        "fn main(){let a:Array<i64>=[];print(a[0]);}",
+        "fn main(){let a=[1];print(a[9223372036854775807]);}",
+        "fn main(){print([1][-1]);}",
+    ] {
+        let e = execute(source);
+        assert_eq!(e.outcome, Outcome::SimulatorFault, "{source}");
+        assert_eq!(
+            (
+                e.diagnostics[0].code.as_str(),
+                e.diagnostics[0].operation.as_str()
+            ),
+            ("R0102", "value.index"),
+            "{source}"
+        );
+        assert!(e.diagnostics[0].data.is_empty());
+        assert!(e.observations.stdout().is_empty());
+    }
+}
+#[test]
+fn nested_read_checks_first_index_before_evaluating_later_index() {
+    let invalid = execute("fn main(){let a=[[1]];print(a[-1][9223372036854775807+1]);}");
+    assert_eq!(invalid.outcome, Outcome::SimulatorFault);
+    assert_eq!(invalid.diagnostics[0].code, "R0102");
+    let valid = execute("fn main(){let a=[[1]];print(a[0][0]);}");
+    assert_eq!(valid.outcome, Outcome::Unit);
+    assert_eq!(valid.observations.stdout(), vec!["1"]);
+}
+#[test]
+fn array_literals_and_indices_change_function_hash() {
+    let hash = |s| {
+        compile_scalar("h.nx", s)
+            .unwrap()
+            .functions()
+            .function("main")
+            .unwrap()
+            .content_hash
+    };
+    assert_ne!(
+        hash("fn main(){let a=[1];print(a[0]);}"),
+        hash("fn main(){let a=[2];print(a[0]);}")
+    );
+    assert_ne!(
+        hash("fn main(){let a=[1,2];print(a[0]);}"),
+        hash("fn main(){let a=[1,2];print(a[1]);}")
+    );
+    assert_eq!(
+        hash("fn main(){let a=[1,2];print(a[0]);}"),
+        hash("fn main(){  let a = [1, 2]; print(a[0]); }")
+    );
+}
+#[test]
+fn binary_instruction_hash_matches_fixed_canonical_fnv_encoding() {
+    // Independently encoded: Unit result, zero locals, six instructions
+    // (1, 2, Add, Print, Drop, implicit Unit), empty cleanup, return temp 4.
+    let p = compile_scalar("h.nx", "fn main(){print(1+2);}").unwrap();
+    assert_eq!(
+        p.functions().function("main").unwrap().content_hash,
+        0x281c_a30e_94fe_b180
+    );
+}
+#[test]
+fn hash_distinguishes_less_from_equal_with_same_operands() {
+    let hash = |operator| {
+        let source = format!("fn main(){{print(1{operator}2);}}");
+        compile_scalar("h.nx", &source)
+            .unwrap()
+            .functions()
+            .function("main")
+            .unwrap()
+            .content_hash
+    };
+    assert_ne!(hash("<"), hash("=="));
+}
+#[test]
+fn function_hash_includes_local_mutability() {
+    let hash = |source| {
+        compile_scalar("h.nx", source)
+            .unwrap()
+            .functions()
+            .function("main")
+            .unwrap()
+            .content_hash
+    };
+    assert_ne!(
+        hash("fn main(){let x=1;print(x);}"),
+        hash("fn main(){var x=1;print(x);}")
+    );
+}
+
+#[test]
+fn hash_includes_write_index_root_and_read_index_path() {
+    let program = compile_scalar(
+        "h.nx",
+        "fn main(){var a=[1,2];var b=[3,4];a[0]=5;let c=a[1];}",
+    )
+    .unwrap();
+    let original = program.functions().function("main").unwrap().clone();
+    let baseline = super::model::content_hash(&original);
+    let mut changed = original.clone();
+    let write = changed
+        .block
+        .instructions
+        .iter_mut()
+        .find(|i| matches!(i.op, super::model::Op::WriteIndex { .. }))
+        .unwrap();
+    if let super::model::Op::WriteIndex { local, .. } = &mut write.op {
+        *local = super::model::LocalId(1);
+    }
+    assert_ne!(super::model::content_hash(&changed), baseline);
+    let mut changed = original;
+    let read = changed
+        .block
+        .instructions
+        .iter_mut()
+        .find(|i| matches!(i.op, super::model::Op::ReadIndex { .. }))
+        .unwrap();
+    if let super::model::Op::ReadIndex { indexes, .. } = &mut read.op {
+        indexes[0].0 += 1;
+    }
+    assert_ne!(super::model::content_hash(&changed), baseline);
+}
+#[test]
+fn read_index_without_optional_early_probe_still_checks_bounds() {
+    let mut p = compile_scalar("h.nx", "fn main(){let a=[0];print(a[2]);}").unwrap();
+    let f = &mut p.functions.entries[0];
+    f.block
+        .instructions
+        .retain(|i| !matches!(i.op, super::model::Op::CheckIndex { .. }));
+    for (i, ins) in f.block.instructions.iter_mut().enumerate() {
+        ins.origin = super::model::OriginId(i);
+    }
+    f.content_hash = super::model::content_hash(f);
+    super::verify::verify_program(&p).unwrap();
+    let e = run_scalar(&p);
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(
+        (
+            e.diagnostics[0].code.as_str(),
+            e.diagnostics[0].operation.as_str()
+        ),
+        ("R0102", "value.index")
+    );
+}
+#[test]
+fn true_array_equality_and_nonempty_length_are_observed() {
+    let e = execute("fn main(){assert_eq([1,2]==[1,2],true);assert_eq(len([1,2]),2);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.diagnostics.is_empty());
+}
+#[test]
+fn annotated_empty_array_len_and_array_comparison_are_executable() {
+    let source = "fn main(){let empty:Array<i64>=[];assert_eq(len(empty),0);let a=[1,2];assert_eq(a==[1,2],true);assert_eq(a<[1],false);}";
+    let valid = source.replace("assert_eq(a<[1],false);", "assert_eq(len(a),2);");
+    let e = execute(&valid);
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.diagnostics.is_empty());
+    assert!(matches!(
+        compile_scalar("fixture.nx", source),
+        Err(CompileError::Rejected(_))
+    ));
+}
+fn doubling_array_source(last: usize, tail: &str) -> String {
+    let mut source = String::from("fn main(){let a0=[0];");
+    for k in 1..=last {
+        source.push_str(&format!("let a{k}=[a{},a{}];", k - 1, k - 1));
+    }
+    source.push_str(tail);
+    source.push('}');
+    source
+}
+#[test]
+fn ordinary_array_arguments_and_equality_borrow_without_live_cell_growth() {
+    let source = doubling_array_source(
+        13,
+        "assert_eq(a13,a13);assert_eq(a13==a13,true);assert_eq(len(a13),2);print(a13);",
+    );
+    let e = execute(&source);
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.diagnostics.is_empty());
+    assert_eq!(e.observations.bytes(), 57_341);
+}
+#[test]
+fn indexed_read_copies_selected_subtree_without_copying_whole_root() {
+    let e = execute(&doubling_array_source(
+        13,
+        "let selected=a13[0];assert_eq(len(selected),2);",
+    ));
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert!(e.diagnostics.is_empty());
+}
+#[test]
+fn second_selected_subtree_copy_hits_live_cell_limit_without_partial_installation() {
+    let e = execute(&doubling_array_source(
+        13,
+        "let first=a13[0];let second=a13[0];",
+    ));
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    let d = &e.diagnostics[0];
+    assert_eq!(d.code, "R0002");
+    assert_eq!(
+        d.data.get("runtime_budget_kind"),
+        Some(&crate::diagnostic::DataValue::String(
+            "live_value_cells".into()
+        ))
+    );
+    assert_eq!(
+        d.data.get("observed"),
+        Some(&crate::diagnostic::DataValue::UInt(73_709))
+    );
+}
+#[test]
+fn annotated_empty_array_can_replace_indexed_array_element() {
+    let e = execute("fn main(){var a=[[1]];a[0]=[];assert_eq(len(a[0]),0);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+}
+#[test]
+fn nested_replacement_updates_cached_cell_sizes_and_preserves_copies() {
+    let e = execute(
+        "fn main(){var a=[[[1]]];a[0][0]=[2,3];let b=a;a[0]=[[4]];assert_eq(b,[[[2,3]]]);print(a);}",
+    );
+    assert_eq!(e.outcome, Outcome::Unit);
+    assert_eq!(e.observations.stdout(), vec!["[[[4]]]"]);
+}
+#[test]
+fn live_value_cells_count_nested_headers_and_elements_before_copying() {
+    let source = doubling_array_source(14, "");
+    let e = execute(&source);
+    assert_eq!(e.outcome, Outcome::SimulatorFault);
+    assert_eq!(e.diagnostics.len(), 1);
+    let d = &e.diagnostics[0];
+    assert_eq!(
+        (d.code.as_str(), d.stage.as_str(), d.operation.as_str()),
+        ("R0002", "runtime", "runtime.limit")
+    );
+    assert_eq!(
+        d.data.get("runtime_budget_kind"),
+        Some(&crate::diagnostic::DataValue::String(
+            "live_value_cells".into()
+        ))
+    );
+    assert_eq!(
+        d.data.get("limit"),
+        Some(&crate::diagnostic::DataValue::UInt(65_536))
+    );
+    assert_eq!(
+        d.data.get("observed"),
+        Some(&crate::diagnostic::DataValue::UInt(73_710))
+    );
+    assert!(e.observations.stdout().is_empty());
+}
+#[test]
+fn corpus_immutable_write_uses_current_worktree_byte_span() {
+    let source = include_str!("../../corpus/fail/immutable_write.nx");
+    let CompileError::Rejected(errors) = compile_scalar("immutable_write.nx", source).unwrap_err()
+    else {
+        panic!("ownership rejection")
+    };
+    assert_eq!(errors.len(), 1);
+    let d = &errors[0];
+    assert_eq!(
+        (
+            d.code.as_str(),
+            d.subcause.as_deref(),
+            d.stage.as_str(),
+            d.operation.as_str()
+        ),
+        ("NX-E0105", None, "ownership", "place.write")
+    );
+    assert_eq!(d.data.len(), 0);
+    assert_eq!(d.related_spans.len(), 1);
+    assert_eq!(d.related_spans[0].role.as_str(), "declaration");
+    let start = source.find("value[0][0]").unwrap() as u64;
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((start, start + 5))
+    );
+    d.validate("immutable_write.nx", source).unwrap();
+}
+#[test]
+fn heterogeneous_array_rejection_has_homogeneous_positive() {
+    let source = include_str!("../../corpus/fail/mixed_array.nx");
+    let CompileError::Rejected(errors) = compile_scalar("mixed_array.nx", source).unwrap_err()
+    else {
+        panic!("types rejection")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        (
+            errors[0].code.as_str(),
+            errors[0].subcause.as_deref(),
+            errors[0].stage.as_str()
+        ),
+        ("NX-E0102", Some("type_mismatch"), "types")
+    );
+    errors[0].validate("mixed_array.nx", source).unwrap();
+    let e = execute("fn main(){let a=[1,2];assert_eq(a,[1,2]);}");
+    assert_eq!(e.outcome, Outcome::Unit);
+}
+#[test]
+fn array_fixtures_for_empty_array_comparison_index_and_len_have_complete_positives() {
+    for source in [
+        "fn main(){let xs:Array<i64>=[];assert_eq(len(xs),0);}",
+        "fn main(){let b=[1]==[2];assert_eq(b,false);}",
+        "fn main(){let x=[1][0];assert_eq(x,1);}",
+        "fn main(){let a=[1];len(a);}",
+    ] {
+        let e = execute(source);
+        assert_eq!(e.outcome, Outcome::Unit, "{source}");
+        assert!(e.diagnostics.is_empty(), "{source}");
+        assert!(e.observations.stdout().is_empty());
+    }
+}
+#[test]
+fn lexical_operator_repair_pairs_execute_for_lx01_through_lx05() {
+    for symbol in ['/', '%', '!', '&', '|'] {
+        let negative = format!("fn main(){{let x=1{symbol}2;}}");
+        let CompileError::Rejected(errors) = compile_scalar("fixture.nx", &negative).unwrap_err()
+        else {
+            panic!("lexical rejection {symbol}")
+        };
+        assert_eq!(errors.len(), 1);
+        let d = &errors[0];
+        assert_eq!(
+            (
+                d.code.as_str(),
+                d.subcause.as_deref(),
+                d.stage.as_str(),
+                d.operation.as_str()
+            ),
+            ("NX-E0001", None, "lex", "syntax.lex")
+        );
+        assert_eq!(
+            d.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some((17, 18))
+        );
+        let token = d.unexpected_token.as_ref().unwrap();
+        let spelling = symbol.to_string();
+        assert_eq!(
+            (
+                token.kind.as_str(),
+                token.text.as_deref(),
+                token.span.start,
+                token.span.end
+            ),
+            ("invalid", Some(spelling.as_str()), 17, 18)
+        );
+        assert_eq!(d.parser_context.as_deref(), Some("lexical_token"));
+        assert_eq!(d.expected_tokens, ["valid_token"]);
+        assert_eq!(
+            d.expected_tokens_kind.map(|x| x.as_str()),
+            Some("lexical_category")
+        );
+        assert_eq!(
+            d.recognized_prefix.as_ref().map(|s| (s.start, s.end)),
+            Some((0, 17))
+        );
+        assert!(d.data.is_empty());
+        d.validate("fixture.nx", &negative).unwrap();
+        let e = execute("fn main(){let x=1+2;}");
+        assert_eq!(e.outcome, Outcome::Unit);
+        assert!(e.diagnostics.is_empty());
+        assert!(e.observations.observations().is_empty());
+    }
+    let value = execute("fn main(){let x=1+2;assert_eq(x,3);}");
+    assert_eq!(value.outcome, Outcome::Unit);
+}
+#[test]
+fn adr_gap_runtime_index_primary_tracks_whole_index_operation() {
+    let read = execute("fn main(){let a=[0];print(a[2]);}");
+    assert_eq!(read.diagnostics[0].code, "R0102");
+    assert_eq!(
+        read.diagnostics[0]
+            .primary_span
+            .as_ref()
+            .map(|s| (s.start, s.end)),
+        Some((26, 30))
+    );
+    let write = execute("fn main(){var a=[0];a[2]=1;}");
+    assert_eq!(write.diagnostics[0].code, "R0102");
+    assert_eq!(
+        write.diagnostics[0]
+            .primary_span
+            .as_ref()
+            .map(|s| (s.start, s.end)),
+        Some((20, 27))
+    );
+}
+#[test]
+fn generated_array_copies_and_writes_match_independent_matrix_model() {
+    let mut seed = 0x8c6f_3419_u64;
+    for _ in 0..8_000 {
+        let mut draw = || {
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            ((seed >> 32) % 17) as i64 - 8
+        };
+        let original = [[draw(), draw()], [draw(), draw()]];
+        let mut copy = original;
+        let row = (draw().unsigned_abs() % 2) as usize;
+        let col = (draw().unsigned_abs() % 2) as usize;
+        let replacement = draw();
+        copy[row][col] = replacement;
+        let source = format!(
+            "fn main(){{var a=[[{},{}],[{},{}]];var b=a;b[{row}][{col}]={replacement};print(a);print(b);}}",
+            original[0][0], original[0][1], original[1][0], original[1][1]
+        );
+        let expected =
+            |m: [[i64; 2]; 2]| format!("[[{}, {}], [{}, {}]]", m[0][0], m[0][1], m[1][0], m[1][1]);
+        let e = execute(&source);
+        assert_eq!(e.outcome, Outcome::Unit, "{source}");
+        assert_eq!(
+            e.observations.stdout(),
+            vec![expected(original), expected(copy)]
+        );
+    }
+}
+#[test]
+fn array_sources_with_mutated_syntax_never_panic_and_validate_rejections() {
+    let templates = [
+        "fn main(){var a=[[1,2],[3,4]];a[0][1]=9;print(a[0][1]);}",
+        "fn main(){let a:Array<Array<i64>>=[[1],[2]];print(len(a));}",
+        "fn main(){let a=[true,false];assert_eq(a,[true,false]);}",
+        "fn main(){var a=[0];a[-1]=9223372036854775807+1;}",
+    ];
+    for k in 0..20_000usize {
+        let base = templates[k % templates.len()];
+        let mut bytes = base.as_bytes().to_vec();
+        let pos = (k.wrapping_mul(7919) + k / 7) % bytes.len();
+        bytes[pos] = b"[](){};,+-=<>0123456789x"[k % 23];
+        let source = String::from_utf8(bytes).unwrap();
+        match compile_scalar("fuzz.nx", &source) {
+            Ok(program) => {
+                let e = run_scalar(&program);
+                assert!(!matches!(e.outcome, Outcome::InternalError(_)), "{source}");
+                for d in e.diagnostics {
+                    d.validate("fuzz.nx", &source).unwrap();
+                }
+            }
+            Err(CompileError::Rejected(ds)) => {
+                for d in ds {
+                    d.validate("fuzz.nx", &source).unwrap();
+                }
+            }
+            Err(CompileError::OutsideScalarSlice(_)) => {}
+            Err(CompileError::InvalidIr(e)) => panic!("invalid IR from source {source}: {e}"),
+        }
+    }
+}
+#[test]
+fn nested_arrays_compile_and_run_from_small_calling_stacks() {
+    for stack in [128usize, 256, 512] {
+        std::thread::Builder::new()
+            .stack_size(stack * 1024)
+            .spawn(move || {
+                for depth in [1usize, 32, 64, 96, 120, 128, 129] {
+                    let source = format!(
+                        "fn main(){{let a={}1{};print(len(a));}}",
+                        "[".repeat(depth),
+                        "]".repeat(depth)
+                    );
+                    match compile_scalar("stack.nx", &source) {
+                        Ok(p) => {
+                            let e = run_scalar(&p);
+                            assert_eq!(e.outcome, Outcome::Unit, "depth {depth}");
+                            assert_eq!(e.observations.stdout(), vec!["1"]);
+                        }
+                        Err(CompileError::Rejected(ds)) if depth > 120 => {
+                            for d in ds {
+                                d.validate("stack.nx", &source).unwrap();
+                            }
+                        }
+                        Err(CompileError::OutsideScalarSlice(_)) if depth > 120 => {}
+                        Err(CompileError::Rejected(ds)) => panic!("admitted depth {depth}: {ds:?}"),
+                        Err(CompileError::OutsideScalarSlice(reason)) => {
+                            panic!("admitted depth {depth}: {reason}")
+                        }
+                        Err(CompileError::InvalidIr(e)) => panic!("depth {depth}: {e}"),
+                    }
+                }
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+}
+#[test]
+#[ignore = "explicit array lowering scale measurement"]
+fn array_ir_lowering_scales_across_ten_source_families() {
+    use std::time::Instant;
+    let patterns = [
+        "a[0][0]=1;",
+        "a[1]=[3,4];",
+        "assert_eq(a[0],[1,2]);",
+        "assert_eq(a,a);",
+        "assert_eq(len(a),2);",
+        "print(a[0][1]);",
+        "[1,2,3];",
+        "a[0][1]=a[1][0];",
+        "{let b=a;}",
+        "print(len(a));",
+    ];
+    for (family, pattern) in patterns.iter().enumerate() {
+        let mut times = Vec::new();
+        for size in [262_144usize, 1_048_576] {
+            let mut source = String::from("fn main(){var a=[[1,2],[3,4]];");
+            while source.len() + pattern.len() + 3 <= size {
+                source.push_str(pattern);
+            }
+            source.push('}');
+            source.push_str("//");
+            source.push_str(&"a".repeat(size - source.len()));
+            let ast = parse::parse("array_scale.nx", &source).unwrap();
+            let start = Instant::now();
+            let p = super::lower::compile_ast(&ast, &source).unwrap();
+            let elapsed = start.elapsed().as_secs_f64();
+            assert_eq!(p.functions().functions().len(), 1);
+            times.push(elapsed);
+        }
+        let ratio = times[1] / times[0];
+        eprintln!(
+            "array family {:02} {} {:.6}s {:.6}s ratio {:.3}",
+            family + 1,
+            pattern,
+            times[0],
+            times[1],
+            ratio
+        );
+        assert!(ratio < 8.0, "array family {family}: {ratio}");
+    }
 }
 
 /// Independent decimal model: it does not call the IR evaluator, reuse IR types,

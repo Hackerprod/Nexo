@@ -4,7 +4,8 @@ use super::model::{
     self, Access, BasicBlock, Binary, BlockId, Function, FunctionId, FunctionTable, Instruction,
     Intrinsic, Local, LocalId, Op, OriginId, Program, ScopeId, TempId, Terminator, Ty,
 };
-use crate::diagnostic::{Diagnostic, PROFILE_ID, Span};
+use crate::diagnostic::{self, Diagnostic, PROFILE_ID, Span};
+use crate::frontend::lex;
 use crate::frontend::parse::{self, Ast, Expr, Statement, Type};
 
 #[derive(Debug)]
@@ -34,6 +35,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
     let mut functions: Vec<_> = ast.functions.iter().collect();
     functions.sort_by(|a, b| a.name.cmp(&b.name));
     let mut entries = Vec::with_capacity(functions.len());
+    let mut diagnostics = Vec::new();
     for (index, source) in functions.into_iter().enumerate() {
         if !source.params.is_empty() {
             return Err(CompileError::OutsideScalarSlice("function parameters"));
@@ -42,7 +44,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             None | Some(Type::Unit) => Ty::Unit,
             Some(Type::I64) => Ty::I64,
             Some(Type::Bool) => Ty::Bool,
-            _ => return Err(CompileError::OutsideScalarSlice("non-scalar result")),
+            Some(ty) => lower_type(ty)?,
         };
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -53,11 +55,18 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             next_scope: 1,
             scope_parents: vec![None],
             next_temp: 0,
-            result,
+            result: result.clone(),
             terminated: None,
             user_functions: &user_functions,
+            name_spans: Vec::new(),
+            dropped: HashSet::new(),
+            tokens: lex::lex(&ast.span.file, &source_text)
+                .map_err(|d| CompileError::Rejected(vec![d]))?,
         };
-        lower.block(&source.body.statements, 0)?;
+        lower.block(&source.body.statements, 0, &mut diagnostics)?;
+        if !diagnostics.is_empty() {
+            continue;
+        }
         let span = source.body.span.clone();
         let value = if let Some(value) = lower.terminated {
             Some(value)
@@ -92,6 +101,21 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
         super::verify::verify_function(&function).map_err(CompileError::InvalidIr)?;
         entries.push(function);
     }
+    if !diagnostics.is_empty() {
+        fn diagnostic_key(d: &Diagnostic) -> (&str, u64, u64, &str, &str) {
+            (
+                d.primary_span.as_ref().map_or("", |s| s.file.as_str()),
+                d.primary_span.as_ref().map_or(0, |s| s.start),
+                d.primary_span.as_ref().map_or(0, |s| s.end),
+                d.code.as_str(),
+                d.subcause.as_deref().unwrap_or(""),
+            )
+        }
+        diagnostics.sort_by(|a, b| diagnostic_key(a).cmp(&diagnostic_key(b)));
+        return Err(CompileError::Rejected(
+            diagnostics.into_iter().map(Box::new).collect(),
+        ));
+    }
     let program = Program {
         functions: FunctionTable { entries },
         profile: PROFILE_ID,
@@ -112,8 +136,52 @@ struct Lower<'a> {
     result: Ty,
     terminated: Option<TempId>,
     user_functions: &'a HashSet<&'a str>,
+    name_spans: Vec<Span>,
+    dropped: HashSet<LocalId>,
+    tokens: Vec<lex::Token>,
 }
 impl Lower<'_> {
+    fn name_span(&self, stmt: &Statement, name: &str, before: u64) -> Result<Span, CompileError> {
+        let start = statement_span(stmt).start;
+        let pos = self.tokens.partition_point(|t| t.span.start < start);
+        self.tokens[pos..]
+            .iter()
+            .take_while(|t| t.span.start < before)
+            .find(|t| t.kind == lex::Kind::Name && t.text == name)
+            .map(|t| t.span.clone())
+            .ok_or(CompileError::InvalidIr("declaration token"))
+    }
+    fn immutable_write(&self, root: &Expr, id: LocalId) -> CompileError {
+        let mut d = Diagnostic {
+            schema_version: diagnostic::SCHEMA_VERSION,
+            diagnostic_namespace: diagnostic::Namespace::NexoProposedV1,
+            profile_id: PROFILE_ID.into(),
+            code: "NX-E0105".into(),
+            subcause: None,
+            rule: "NX-E0105".into(),
+            explanation_id: Some("NX-E0105".into()),
+            severity: diagnostic::Severity::Error,
+            stage: diagnostic::Stage::Ownership,
+            message: "La raíz no admite escritura.".into(),
+            operation: diagnostic::Operation::PlaceWrite,
+            primary_span: Some(root.span().clone()),
+            related_spans: vec![diagnostic::RelatedSpan {
+                role: diagnostic::RelatedRole::Declaration,
+                span: self.name_spans[id.0].clone(),
+            }],
+            cause_chain: vec![],
+            feature_id: None,
+            unexpected_token: None,
+            expected_tokens: vec![],
+            expected_tokens_kind: None,
+            parser_context: None,
+            recognized_prefix: None,
+            repair: vec![],
+            data: Default::default(),
+        };
+        d.data.clear();
+        CompileError::Rejected(vec![Box::new(d)])
+    }
     fn emit(&mut self, op: Op, ty: Ty, span: Span, access: Access, effect_io: bool) -> TempId {
         let id = TempId(self.next_temp);
         let origin = OriginId(self.instructions.len());
@@ -152,7 +220,12 @@ impl Lower<'_> {
             .copied()
             .ok_or(CompileError::InvalidIr("unresolved local"))
     }
-    fn block(&mut self, statements: &[Statement], depth: usize) -> Result<(), CompileError> {
+    fn block(
+        &mut self,
+        statements: &[Statement],
+        depth: usize,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Result<(), CompileError> {
         if depth >= 128 {
             return Err(CompileError::OutsideScalarSlice("lowering depth"));
         }
@@ -162,99 +235,141 @@ impl Lower<'_> {
                     "unreachable tail after return",
                 ));
             }
-            match statement {
-                Statement::Let {
-                    mutable,
-                    name,
-                    value,
-                    ..
-                } => {
-                    let (temp, ty) = self.expr(value, 0)?;
-                    let id = LocalId(self.locals.len());
-                    self.locals.push(Local {
-                        id,
-                        name: name.clone(),
-                        ty,
-                        mutable: *mutable,
-                        scope: self.scope,
-                    });
-                    self.visible.entry(name.clone()).or_default().push(id);
-                    self.scopes
-                        .last_mut()
-                        .ok_or(CompileError::InvalidIr("scope stack"))?
-                        .push(name.clone());
-                    self.statement_op(
-                        Op::WritePlace {
-                            local: id,
-                            value: temp,
-                        },
-                        statement_span(statement),
-                        Access::Write,
-                        false,
-                    );
+            let result = self.statement(statement, depth, diagnostics);
+            match result {
+                Err(CompileError::Rejected(errors)) => {
+                    diagnostics.extend(errors.into_iter().map(|d| *d))
                 }
-                Statement::Assign { place, value, .. } => {
-                    let name = place_name(place)
-                        .ok_or(CompileError::OutsideScalarSlice("indexed assignment"))?;
-                    let id = self.get(name)?;
-                    if !self.locals[id.0].mutable {
-                        return Err(CompileError::OutsideScalarSlice(
-                            "immutable write awaits ownership checking",
-                        ));
+                Err(other) => return Err(other),
+                Ok(()) => {}
+            }
+        }
+        Ok(())
+    }
+    fn statement(
+        &mut self,
+        statement: &Statement,
+        depth: usize,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Result<(), CompileError> {
+        match statement {
+            Statement::Let {
+                mutable,
+                name,
+                annotation,
+                value,
+                ..
+            } => {
+                let expected = annotation.as_ref().map(lower_type).transpose()?;
+                let (temp, ty) = self.expr(value, 0, expected.as_ref())?;
+                let id = LocalId(self.locals.len());
+                self.name_spans
+                    .push(self.name_span(statement, name, value.span().start)?);
+                self.locals.push(Local {
+                    id,
+                    name: name.clone(),
+                    ty,
+                    mutable: *mutable,
+                    scope: self.scope,
+                });
+                self.visible.entry(name.clone()).or_default().push(id);
+                self.scopes
+                    .last_mut()
+                    .ok_or(CompileError::InvalidIr("scope stack"))?
+                    .push(name.clone());
+                self.statement_op(
+                    Op::WritePlace {
+                        local: id,
+                        value: temp,
+                    },
+                    statement_span(statement),
+                    Access::Write,
+                    false,
+                );
+            }
+            Statement::Assign { place, value, .. } => {
+                let (root, index_exprs) = place_parts(place)?;
+                let name =
+                    place_name(root).ok_or(CompileError::OutsideScalarSlice("assignment root"))?;
+                let id = self.get(name)?;
+                if !self.locals[id.0].mutable {
+                    return Err(self.immutable_write(root, id));
+                }
+                let mut indexes = Vec::with_capacity(index_exprs.len());
+                let mut target_ty = self.locals[id.0].ty.clone();
+                for e in index_exprs {
+                    let (index, index_ty) = self.expr(e, 0, Some(&Ty::I64))?;
+                    if index_ty != Ty::I64 {
+                        return Err(CompileError::InvalidIr("index type"));
                     }
-                    let (temp, ty) = self.expr(value, 0)?;
-                    if ty != self.locals[id.0].ty {
-                        return Err(CompileError::InvalidIr("assignment type passed checker"));
-                    }
-                    self.statement_op(
-                        Op::WritePlace {
-                            local: id,
-                            value: temp,
-                        },
-                        statement_span(statement),
-                        Access::Write,
-                        false,
-                    );
-                }
-                Statement::Expr { value, .. } => {
-                    let (temp, _) = self.expr(value, 0)?;
-                    self.statement_op(
-                        Op::DropValue(temp),
-                        statement_span(statement),
-                        Access::Own,
-                        false,
-                    );
-                }
-                Statement::Return { value, .. } => {
-                    let (temp, ty) = match value {
-                        Some(e) => self.expr(e, 0)?,
-                        None => {
-                            let span = statement_span(statement);
-                            (
-                                self.emit(Op::ConstUnit, Ty::Unit, span, Access::Own, false),
-                                Ty::Unit,
-                            )
-                        }
+                    let Ty::Array(child) = target_ty else {
+                        return Err(CompileError::InvalidIr("index target type"));
                     };
-                    if ty != self.result {
-                        return Err(CompileError::InvalidIr("return type passed checker"));
-                    }
-                    self.terminated = Some(temp);
+                    target_ty = *child;
+                    indexes.push(index);
                 }
-                Statement::Block(block) => {
-                    let saved = self.scope;
-                    self.scope = ScopeId(self.next_scope);
-                    self.next_scope += 1;
-                    self.scope_parents.push(Some(saved));
-                    self.scopes.push(Vec::new());
-                    self.block(&block.statements, depth + 1)?;
-                    let dropping = self
-                        .scopes
-                        .last()
-                        .ok_or(CompileError::InvalidIr("scope stack"))?
-                        .clone();
-                    for name in dropping.iter().rev() {
-                        let id = self.get(name)?;
+                let (temp, ty) = self.expr(value, 0, Some(&target_ty))?;
+                if ty != target_ty {
+                    return Err(CompileError::InvalidIr("assignment type passed checker"));
+                }
+                self.statement_op(
+                    if indexes.is_empty() {
+                        Op::WritePlace {
+                            local: id,
+                            value: temp,
+                        }
+                    } else {
+                        Op::WriteIndex {
+                            local: id,
+                            indexes,
+                            value: temp,
+                        }
+                    },
+                    statement_span(statement),
+                    Access::Write,
+                    false,
+                );
+            }
+            Statement::Expr { value, .. } => {
+                let (temp, _) = self.expr(value, 0, None)?;
+                self.statement_op(
+                    Op::DropValue(temp),
+                    statement_span(statement),
+                    Access::Own,
+                    false,
+                );
+            }
+            Statement::Return { value, .. } => {
+                let (temp, ty) = match value {
+                    Some(e) => self.expr(e, 0, Some(&self.result.clone()))?,
+                    None => {
+                        let span = statement_span(statement);
+                        (
+                            self.emit(Op::ConstUnit, Ty::Unit, span, Access::Own, false),
+                            Ty::Unit,
+                        )
+                    }
+                };
+                if ty != self.result {
+                    return Err(CompileError::InvalidIr("return type passed checker"));
+                }
+                self.terminated = Some(temp);
+            }
+            Statement::Block(block) => {
+                let saved = self.scope;
+                self.scope = ScopeId(self.next_scope);
+                self.next_scope += 1;
+                self.scope_parents.push(Some(saved));
+                self.scopes.push(Vec::new());
+                self.block(&block.statements, depth + 1, diagnostics)?;
+                let dropping = self
+                    .scopes
+                    .last()
+                    .ok_or(CompileError::InvalidIr("scope stack"))?
+                    .clone();
+                for name in dropping.iter().rev() {
+                    let id = self.get(name)?;
+                    if !self.dropped.contains(&id) {
                         self.statement_op(
                             Op::DropLocal(id),
                             block.span.clone(),
@@ -262,27 +377,41 @@ impl Lower<'_> {
                             false,
                         );
                     }
-                    for name in self
-                        .scopes
-                        .pop()
-                        .ok_or(CompileError::InvalidIr("scope stack"))?
-                    {
-                        let entries = self
-                            .visible
-                            .get_mut(&name)
-                            .ok_or(CompileError::InvalidIr("scope name"))?;
-                        entries.pop();
-                    }
-                    self.scope = saved;
                 }
-                Statement::If { .. } | Statement::While { .. } | Statement::Value { .. } => {
-                    return Err(CompileError::OutsideScalarSlice("control flow"));
+                for name in self
+                    .scopes
+                    .pop()
+                    .ok_or(CompileError::InvalidIr("scope stack"))?
+                {
+                    let entries = self
+                        .visible
+                        .get_mut(&name)
+                        .ok_or(CompileError::InvalidIr("scope name"))?;
+                    entries.pop();
                 }
+                self.scope = saved;
+            }
+            Statement::If { .. } | Statement::While { .. } | Statement::Value { .. } => {
+                return Err(CompileError::OutsideScalarSlice("control flow"));
             }
         }
         Ok(())
     }
-    fn expr(&mut self, e: &Expr, depth: usize) -> Result<(TempId, Ty), CompileError> {
+    fn expr(
+        &mut self,
+        e: &Expr,
+        depth: usize,
+        expected: Option<&Ty>,
+    ) -> Result<(TempId, Ty), CompileError> {
+        self.expr_mode(e, depth, expected, false)
+    }
+    fn expr_mode(
+        &mut self,
+        e: &Expr,
+        depth: usize,
+        expected: Option<&Ty>,
+        borrow: bool,
+    ) -> Result<(TempId, Ty), CompileError> {
         if depth >= 256 {
             return Err(CompileError::OutsideScalarSlice("expression depth"));
         }
@@ -306,21 +435,27 @@ impl Lower<'_> {
             )),
             Expr::Name(name, s) => {
                 let id = self.get(name)?;
-                let ty = self.locals[id.0].ty;
+                let ty = self.locals[id.0].ty.clone();
+                let op = if borrow && matches!(ty, Ty::Array(_)) {
+                    Op::BorrowValue(id)
+                } else {
+                    Op::CopyValue(id)
+                };
                 Ok((
-                    self.emit(Op::CopyValue(id), ty, s.clone(), Access::Read, false),
+                    self.emit(op, ty.clone(), s.clone(), Access::Read, false),
                     ty,
                 ))
             }
-            Expr::Group(inner, _) => self.expr(inner, depth + 1),
+            Expr::Group(inner, _) => self.expr_mode(inner, depth + 1, expected, borrow),
             Expr::Binary {
                 op,
                 left,
                 right,
                 span,
             } => {
-                let (l, lt) = self.expr(left, depth + 1)?;
-                let (r, rt) = self.expr(right, depth + 1)?;
+                let is_eq = op == "==";
+                let (l, lt) = self.expr_mode(left, depth + 1, None, is_eq)?;
+                let (r, rt) = self.expr_mode(right, depth + 1, Some(&lt), is_eq)?;
                 if lt != rt {
                     return Err(CompileError::InvalidIr("binary operand types"));
                 }
@@ -338,7 +473,7 @@ impl Lower<'_> {
                             left: l,
                             right: r,
                         },
-                        ty,
+                        ty.clone(),
                         span.clone(),
                         Access::Own,
                         false,
@@ -357,15 +492,41 @@ impl Lower<'_> {
                     "assert_eq" => Intrinsic::AssertEq,
                     "drop" => Intrinsic::DropData,
                     "fail" => Intrinsic::Fail,
+                    "len" => Intrinsic::Len,
                     _ => return Err(CompileError::OutsideScalarSlice("user or deferred call")),
                 };
+                if intrinsic == Intrinsic::DropData
+                    && args.len() == 1
+                    && let Some(binding) = place_name(&args[0].value)
+                {
+                    let local = self.get(binding)?;
+                    self.dropped.insert(local);
+                    return Ok((
+                        self.emit(
+                            Op::DropBinding(local),
+                            Ty::Unit,
+                            span.clone(),
+                            Access::Own,
+                            false,
+                        ),
+                        Ty::Unit,
+                    ));
+                }
                 let mut ids = Vec::with_capacity(args.len());
                 for arg in args {
-                    let (id, _) = self.expr(&arg.value, depth + 1)?;
+                    let (id, _) = self.expr_mode(
+                        &arg.value,
+                        depth + 1,
+                        None,
+                        matches!(
+                            intrinsic,
+                            Intrinsic::Print | Intrinsic::AssertEq | Intrinsic::Len
+                        ),
+                    )?;
                     ids.push(id);
                 }
                 let arity = match intrinsic {
-                    Intrinsic::Print | Intrinsic::DropData => 1,
+                    Intrinsic::Print | Intrinsic::DropData | Intrinsic::Len => 1,
                     Intrinsic::AssertEq => 2,
                     Intrinsic::Fail => 0,
                 };
@@ -378,16 +539,125 @@ impl Lower<'_> {
                             intrinsic,
                             args: ids,
                         },
-                        Ty::Unit,
+                        if intrinsic == Intrinsic::Len {
+                            Ty::I64
+                        } else {
+                            Ty::Unit
+                        },
                         span.clone(),
                         Access::Own,
                         intrinsic == Intrinsic::Print,
                     ),
-                    Ty::Unit,
+                    if intrinsic == Intrinsic::Len {
+                        Ty::I64
+                    } else {
+                        Ty::Unit
+                    },
                 ))
             }
-            Expr::Array(..) | Expr::Index { .. } => {
-                Err(CompileError::OutsideScalarSlice("arrays and indexing"))
+            Expr::Array(items, span) => {
+                let element_expected = expected.and_then(|ty| match ty {
+                    Ty::Array(t) => Some(t.as_ref()),
+                    _ => None,
+                });
+                let mut ids = Vec::with_capacity(items.len());
+                let mut element_ty = element_expected.cloned();
+                for item in items {
+                    let (id, ty) = self.expr(item, depth + 1, element_ty.as_ref())?;
+                    if let Some(old) = &element_ty {
+                        if old != &ty {
+                            return Err(CompileError::InvalidIr("array element type"));
+                        }
+                    } else {
+                        element_ty = Some(ty);
+                    }
+                    ids.push(id);
+                }
+                let ty = Ty::Array(Box::new(
+                    element_ty.ok_or(CompileError::InvalidIr("empty array type"))?,
+                ));
+                Ok((
+                    self.emit(
+                        Op::BuildArray(ids),
+                        ty.clone(),
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    ),
+                    ty,
+                ))
+            }
+            Expr::Index {
+                target,
+                index,
+                span,
+            } => {
+                if let Ok((root, index_exprs)) = place_parts(e)
+                    && let Some(name) = place_name(root)
+                {
+                    let local = self.get(name)?;
+                    let mut ty = self.locals[local.0].ty.clone();
+                    let mut ids = Vec::with_capacity(index_exprs.len());
+                    for index_expr in index_exprs {
+                        let (id, it) = self.expr(index_expr, depth + 1, Some(&Ty::I64))?;
+                        if it != Ty::I64 {
+                            return Err(CompileError::InvalidIr("index type"));
+                        }
+                        let Ty::Array(child) = ty else {
+                            return Err(CompileError::InvalidIr("index target type"));
+                        };
+                        ty = *child;
+                        ids.push(id);
+                        self.statement_op(
+                            Op::CheckIndex {
+                                local,
+                                indexes: ids.clone(),
+                            },
+                            span.clone(),
+                            Access::Read,
+                            false,
+                        );
+                    }
+                    return Ok((
+                        self.emit(
+                            if borrow {
+                                Op::BorrowIndex {
+                                    local,
+                                    indexes: ids,
+                                }
+                            } else {
+                                Op::ReadIndex {
+                                    local,
+                                    indexes: ids,
+                                }
+                            },
+                            ty.clone(),
+                            span.clone(),
+                            Access::Read,
+                            false,
+                        ),
+                        ty,
+                    ));
+                }
+                let (base, base_ty) = self.expr(target, depth + 1, None)?;
+                let (idx, idx_ty) = self.expr(index, depth + 1, Some(&Ty::I64))?;
+                if idx_ty != Ty::I64 {
+                    return Err(CompileError::InvalidIr("index type"));
+                }
+                let Ty::Array(child) = base_ty else {
+                    return Err(CompileError::InvalidIr("index target type"));
+                };
+                let ty = *child;
+                Ok((
+                    self.emit(
+                        Op::IndexValue { base, index: idx },
+                        ty.clone(),
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    ),
+                    ty,
+                ))
             }
             Expr::Unary { .. } => Err(CompileError::OutsideScalarSlice(
                 "consume, inout or result propagation",
@@ -401,6 +671,51 @@ fn place_name(expr: &Expr) -> Option<&str> {
         Expr::Name(n, _) => Some(n),
         Expr::Group(inner, _) => place_name(inner),
         _ => None,
+    }
+}
+fn place_parts(expr: &Expr) -> Result<(&Expr, Vec<&Expr>), CompileError> {
+    let mut node = expr;
+    let mut indexes = Vec::new();
+    loop {
+        match node {
+            Expr::Group(inner, _) => node = inner,
+            Expr::Index { target, index, .. } => {
+                indexes.push(index.as_ref());
+                node = target;
+            }
+            Expr::Name(..) => {
+                indexes.reverse();
+                return Ok((node, indexes));
+            }
+            _ => return Err(CompileError::OutsideScalarSlice("nonlocal place")),
+        }
+    }
+}
+fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
+    let mut node = ty;
+    let mut depth = 0;
+    loop {
+        match node {
+            Type::Array(child) => {
+                depth += 1;
+                if depth > 128 {
+                    return Err(CompileError::OutsideScalarSlice("array type depth"));
+                }
+                node = child;
+            }
+            Type::I64 | Type::Bool | Type::Unit => {
+                let mut result = match node {
+                    Type::I64 => Ty::I64,
+                    Type::Bool => Ty::Bool,
+                    _ => Ty::Unit,
+                };
+                for _ in 0..depth {
+                    result = Ty::Array(Box::new(result));
+                }
+                return Ok(result);
+            }
+            _ => return Err(CompileError::OutsideScalarSlice("resource or result type")),
+        }
     }
 }
 fn statement_span(stmt: &Statement) -> Span {

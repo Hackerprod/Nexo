@@ -19,11 +19,12 @@ pub struct ScopeId(pub usize);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct OriginId(pub usize);
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Ty {
     I64,
     Bool,
     Unit,
+    Array(Box<Ty>),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Access {
@@ -44,6 +45,7 @@ pub enum Intrinsic {
     AssertEq,
     DropData,
     Fail,
+    Len,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Op {
@@ -51,6 +53,24 @@ pub enum Op {
     ConstBool(bool),
     ConstUnit,
     CopyValue(LocalId),
+    BorrowValue(LocalId),
+    BuildArray(Vec<TempId>),
+    ReadIndex {
+        local: LocalId,
+        indexes: Vec<TempId>,
+    },
+    BorrowIndex {
+        local: LocalId,
+        indexes: Vec<TempId>,
+    },
+    CheckIndex {
+        local: LocalId,
+        indexes: Vec<TempId>,
+    },
+    IndexValue {
+        base: TempId,
+        index: TempId,
+    },
     Binary {
         op: Binary,
         left: TempId,
@@ -60,11 +80,17 @@ pub enum Op {
         local: LocalId,
         value: TempId,
     },
+    WriteIndex {
+        local: LocalId,
+        indexes: Vec<TempId>,
+        value: TempId,
+    },
     CallIntrinsic {
         intrinsic: Intrinsic,
         args: Vec<TempId>,
     },
     DropValue(TempId),
+    DropBinding(LocalId),
     DropLocal(LocalId),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -181,18 +207,35 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
     fn number(bytes: &mut Vec<u8>, n: usize) {
         bytes.extend_from_slice(&(n as u64).to_le_bytes())
     }
-    fn ty(t: Ty) -> u8 {
-        match t {
-            Ty::I64 => 1,
-            Ty::Bool => 2,
-            Ty::Unit => 3,
+    fn ty(bytes: &mut Vec<u8>, t: &Ty) {
+        let mut node = t;
+        loop {
+            match node {
+                Ty::I64 => {
+                    bytes.push(1);
+                    break;
+                }
+                Ty::Bool => {
+                    bytes.push(2);
+                    break;
+                }
+                Ty::Unit => {
+                    bytes.push(3);
+                    break;
+                }
+                Ty::Array(child) => {
+                    bytes.push(4);
+                    node = child;
+                }
+            }
         }
     }
-    let mut bytes = vec![1, ty(f.result)];
+    let mut bytes = vec![1];
+    ty(&mut bytes, &f.result);
     number(&mut bytes, f.locals.len());
     for local in &f.locals {
         number(&mut bytes, local.id.0);
-        bytes.push(ty(local.ty));
+        ty(&mut bytes, &local.ty);
         bytes.push(u8::from(local.mutable));
         number(&mut bytes, local.scope.0);
     }
@@ -212,6 +255,46 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                 bytes.push(4);
                 number(&mut bytes, id.0)
             }
+            Op::BorrowValue(id) => {
+                bytes.push(14);
+                number(&mut bytes, id.0);
+            }
+            Op::BuildArray(items) => {
+                bytes.push(10);
+                number(&mut bytes, items.len());
+                for id in items {
+                    number(&mut bytes, id.0);
+                }
+            }
+            Op::ReadIndex { local, indexes } => {
+                bytes.push(11);
+                number(&mut bytes, local.0);
+                number(&mut bytes, indexes.len());
+                for id in indexes {
+                    number(&mut bytes, id.0);
+                }
+            }
+            Op::BorrowIndex { local, indexes } => {
+                bytes.push(16);
+                number(&mut bytes, local.0);
+                number(&mut bytes, indexes.len());
+                for id in indexes {
+                    number(&mut bytes, id.0);
+                }
+            }
+            Op::CheckIndex { local, indexes } => {
+                bytes.push(15);
+                number(&mut bytes, local.0);
+                number(&mut bytes, indexes.len());
+                for id in indexes {
+                    number(&mut bytes, id.0);
+                }
+            }
+            Op::IndexValue { base, index } => {
+                bytes.push(12);
+                number(&mut bytes, base.0);
+                number(&mut bytes, index.0);
+            }
             Op::Binary { op, left, right } => {
                 bytes.push(5);
                 bytes.push(match op {
@@ -228,6 +311,19 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                 number(&mut bytes, local.0);
                 number(&mut bytes, value.0)
             }
+            Op::WriteIndex {
+                local,
+                indexes,
+                value,
+            } => {
+                bytes.push(13);
+                number(&mut bytes, local.0);
+                number(&mut bytes, indexes.len());
+                for id in indexes {
+                    number(&mut bytes, id.0);
+                }
+                number(&mut bytes, value.0);
+            }
             Op::CallIntrinsic { intrinsic, args } => {
                 bytes.push(7);
                 bytes.push(match intrinsic {
@@ -235,6 +331,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     Intrinsic::AssertEq => 2,
                     Intrinsic::DropData => 3,
                     Intrinsic::Fail => 4,
+                    Intrinsic::Len => 5,
                 });
                 number(&mut bytes, args.len());
                 for id in args {
@@ -243,6 +340,10 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
             }
             Op::DropValue(id) => {
                 bytes.push(8);
+                number(&mut bytes, id.0)
+            }
+            Op::DropBinding(id) => {
+                bytes.push(17);
                 number(&mut bytes, id.0)
             }
             Op::DropLocal(id) => {
@@ -257,7 +358,10 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
             }
             None => bytes.push(0),
         }
-        bytes.push(ins.ty.map_or(0, ty));
+        match &ins.ty {
+            Some(t) => ty(&mut bytes, t),
+            None => bytes.push(0),
+        }
         bytes.push(match ins.access {
             Access::Own => 1,
             Access::Read => 2,
