@@ -235,3 +235,55 @@ impl Checker {
 pub fn check(body: &[Stmt]) -> Result<(), Diagnostic> {
     Checker { scopes: Vec::new() }.block(body)
 }
+pub mod names;
+#[cfg(test)]
+mod tests;
+pub mod types;
+
+/// Proposed F0-0002 checker, intentionally separate from slice-1 `check`.
+pub fn check_proposed(
+    file: &str,
+    source: &str,
+    run_entry: bool,
+) -> Result<(), Vec<Box<crate::diagnostic::Diagnostic>>> {
+    let ast = crate::frontend::parse::parse(file, source).map_err(|d| vec![d])?;
+    std::thread::scope(|scope| {
+        let worker = std::thread::Builder::new()
+            .stack_size(16 * 1024 * 1024)
+            .spawn_scoped(scope, move || {
+                let resolved = names::resolve(file, source, &ast)?;
+                types::check(file, source, &ast, &resolved)?;
+                if run_entry {
+                    names::entry(file, source, &resolved, &ast).map_err(|d| vec![d])?;
+                }
+                Ok(())
+            });
+        match worker {
+            Ok(worker) => match worker.join() {
+                Ok(result) => result,
+                Err(payload) => std::panic::resume_unwind(payload),
+            },
+            Err(_) => {
+                use crate::diagnostic::{DataValue, Operation, Span, Stage};
+                let mut d = names::diagnostic(
+                    "NX-E0003",
+                    None,
+                    Stage::Types,
+                    Operation::AnalysisLimit,
+                    Span {
+                        file: file.into(),
+                        start: 0,
+                        end: 1,
+                    },
+                );
+                d.data.insert(
+                    "budget_kind".into(),
+                    DataValue::String("type_solver_steps".into()),
+                );
+                d.data.insert("limit".into(), DataValue::UInt(1_000_000));
+                d.data.insert("observed".into(), DataValue::UInt(1_000_001));
+                Err(vec![d])
+            }
+        }
+    })
+}

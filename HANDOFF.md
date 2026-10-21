@@ -1,6 +1,6 @@
 # Continuación de Nexo
 
-Estado local: I02b validada tras revisión independiente y publicada en main.
+Estado: I03 validada tras revisión independiente y publicada; I02b está publicada en `84d5f53`.
 El propietario decide el inicio de cada fase.
 
 ## Leer primero
@@ -59,8 +59,8 @@ renderizado de diagnósticos UTF-8 y se probó limpieza al agotar presupuesto.
 
 ## Próximo trabajo concreto
 
-1. Solicitar revisión independiente de I02b y conservar sus defectos y regresiones.
-2. Continuar I03–I11 según §17 del ADR F0-0002 cuando se autorice el corte.
+1. Implementar I04 (IR y intérprete escalar) con identidades de función estables y tabla de funciones sustituible.
+2. Continuar I04–I11 según §17 del ADR F0-0002 cuando se autorice cada corte.
 3. Extender los tres flujos reducidos exigidos por F0: herramienta, actualización
    de datos y petición simulada. EX01/EX04 completos no están implementados.
 4. Completar los modelos y protocolos de F0, incluidos estados D09, plataformas,
@@ -73,7 +73,7 @@ closures o generadores ya existen: se rechazan en el frontend actual.
 
 ## I01
 
-I01 implementa el esquema de diagnósticos, su presentación JSON/texto, `nexo explain` y lectura acotada; fue validada tras revisión independiente y publicada en `d4836cf`. I02a fue validada y publicada en `f073275`; I02b está validada tras revisión independiente y publicada en main; I03–I11 no iniciadas. El addendum F0-CODIGOS-ADDENDUM-0002 queda pendiente de fusionar en F0-CODIGOS.md. D11–D13 y F0-0002 tienen PASS de diseño, no aprobación de fase. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores. Las lagunas conocidas de I01 constan en docs/validation/F0-0002-I01-implementation-notes.md. F0 sigue pendiente de dos revisores sin discrepancias, T01–T28, plataformas y las demás puertas de Pending.md.
+I01 implementa el esquema de diagnósticos, su presentación JSON/texto, `nexo explain` y lectura acotada; fue validada tras revisión independiente y publicada en `d4836cf`. I02a fue validada y publicada en `f073275`; I02b está validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada; I04–I11 no iniciadas. El addendum F0-CODIGOS-ADDENDUM-0002 queda pendiente de fusionar en F0-CODIGOS.md. D11–D13 y F0-0002 tienen PASS de diseño, no aprobación de fase. Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores. Las lagunas conocidas de I01 constan en docs/validation/F0-0002-I01-implementation-notes.md. F0 sigue pendiente de dos revisores sin discrepancias, T01–T28, plataformas y las demás puertas de Pending.md.
 
 ## I02a
 
@@ -81,4 +81,10 @@ I02a implementa un `src/frontend/lex.rs` separado con tokens y spans de bytes pa
 
 ## I02b
 
-I02b está validada tras revisión independiente y publicada en main. `frontend::parse` y `frontend::print` modelan sintaxis, diagnósticos y texto canónico; `compile`, `check` y `run` siguen la ruta anterior. Las regresiones locales incluyen `OperationList` vacío ante tokens erróneos, reparación tras trivia, prefijos de sentencias tras saltos y entradas anidadas desde pilas pequeñas. El parser usa un hilo ancho reutilizable y devuelve un diagnóstico si no puede crearlo. La cobertura, los límites y la reproducción constan en `docs/validation/F0-0002-I02b-implementation-notes.md`.
+I02b está validada tras revisión independiente y publicada en `84d5f53`. `frontend::parse` y `frontend::print` modelan sintaxis, diagnósticos y texto canónico; `compile`, `check` y `run` siguen la ruta anterior. Las regresiones locales incluyen `OperationList` vacío ante tokens erróneos, reparación tras trivia, prefijos de sentencias tras saltos y entradas anidadas desde pilas pequeñas. El parser usa un hilo ancho reutilizable y devuelve un diagnóstico si no puede crearlo. La cobertura, los límites y la reproducción constan en `docs/validation/F0-0002-I02b-implementation-notes.md`.
+
+## I03
+
+I03 está validada tras revisión independiente y publicada. `check::check_proposed` usa el AST de I02b, registra firmas y resuelve nombres por ámbito antes de asociar argumentos y comprobar tipos básicos y retornos escritos. Devuelve diagnósticos ordenados de sitios independientes y ejecuta las pasadas semánticas en un hilo acotado de 16 MiB. `src/check/names.rs` y `src/check/types.rs` siguen aislados de `compile`, `nexo check` y `nexo run`. Las notas de alcance, diagnósticos, pruebas y límites están en `docs/validation/F0-0002-I03-implementation-notes.md`. El cierre completo de las fixtures con ejecución, préstamos, control o Result sigue en los pasos que asigna F0-0002 §17.2. I04–I11 no están iniciadas; F0 conserva sus puertas pendientes.
+
+La prueba de escalado de I03 usa 16 familias por defecto y 24 con `NEXO_FULL_SCALE`, de 256 KiB a 1 MiB. El tiempo de la suite completa y las razones medidas se consignan en las notas de I03; la prueba de escalado preexistente del parser domina la duración. Los límites y las lagunas observadas están en esas notas.
