@@ -233,10 +233,68 @@ dependientes del texto más de lo que cada corte necesite, y preferir esperados 
 generados con el impresor canónico. (c) La IR, los efectos y la propiedad no dependen de la sintaxis y
 pueden continuar.
 
+### 9.8. Recarga en caliente (hot reload)
+
+**Directiva.** Uno de los problemas de los desarrolladores es que cada cambio exige recompilar para
+verlo; C# tiene recarga en caliente. El propietario pide que Nexo la tenga y pregunta si puede
+hacerse de forma completamente nativa en Nexo.
+
+**Relación con el roadmap 0.2.** El roadmap ya contiene los cimientos: el REPL con declaraciones
+versionadas (D10: «no se modifica el layout de objetos vivos al redefinir un tipo»), la misma
+semántica en intérprete y en código nativo (P01, D04) y el servidor de compilación incremental
+compartido con el LSP (F2), con puertas de ciclo de edición (§4.3). También lo excluye expresamente:
+F2 declara fuera de alcance el «hot reload avanzado». Esta directiva amplía el alcance y fija la
+intención; no hay ADR ni medición.
+
+**Niveles propuestos** (la recarga en caliente no es una sola capacidad):
+- H0. Reconstrucción incremental rápida y reinicio. Ya cubierta por las puertas de F2.
+- H1. Sustitución del cuerpo de una función en un proceso en ejecución, con firma y efectos
+  compatibles. En el intérprete se reduce a cambiar una entrada de la tabla de funciones.
+- H2. Lo mismo en código nativo de desarrollo, mediante llamadas indirectas (con su coste, solo en
+  modo desarrollo) o carga de código nuevo en memoria ejecutable.
+- H3. Cambio de la forma de los datos (campos, layout) con objetos vivos. Es la parte difícil; requiere
+  una función de migración de estado o reiniciar. C# tampoco la admite (ediciones que fuerzan reinicio).
+
+**Reglas que se derivan de la semántica de Nexo (a decidir en un ADR).**
+1. Una edición se clasifica como «aplicable en caliente» o «requiere reiniciar», con un diagnóstico
+   estructurado de código estable que explica la causa. No hay modo silencioso.
+2. Una edición que cambie firma, efectos o contratos (`no_alloc`, `no_block`, `no_suspend`, `no_io`) de
+   una función revalida a todos sus llamadores con el compilador incremental; si alguno deja de cumplir
+   su contrato, la edición se rechaza como «requiere reiniciar».
+3. La sustitución se aplica solo en puntos seguros (por ejemplo, entre iteraciones del bucle de
+   eventos). Los marcos de llamada ya activos terminan con el código anterior.
+4. Los generadores y las tareas suspendidas conservan los locales del cuerpo que los creó: modificar ese
+   cuerpo es un cambio de layout, se rechaza o se reinicia esa tarea.
+5. Propiedad: no se sustituye código mientras existan préstamos o regiones activas que dependan de la
+   representación anterior; los recursos conservan su contrato de limpieza (P02).
+6. Separación entre estado y código: la recarga de código no modifica el estado; el estado solo cambia
+   con una migración explícita.
+7. Equivalencia (P01): la ejecución tras una recarga aplicable no puede observar nada que una ejecución
+   limpia con el mismo estado y el código nuevo no pudiera observar. Hace falta un arnés
+   diferencial para comprobarlo, en la línea de T23.
+
+**¿Es posible de forma completamente nativa?** Sí, con matices. La maquinaria vive en el runtime y
+necesita interfaces del sistema operativo (memoria con permiso de ejecución, carga de bibliotecas
+dinámicas) en módulos `unsafe` mínimos. Hoy ese runtime está en Rust. Podrá escribirse en Nexo
+cuando se cumplan 9.1 (self-hosting) y, para el código nativo propio, 9.2 (backend propio).
+
+**Ganchos de diseño que conviene fijar ahora** (baratos ahora, caros después): identidades de función
+estables y un hash por función en la IR (I04), de modo que la IR sea la unidad de recompilación
+incremental; llamadas del intérprete a través de una tabla de funciones sustituible en modo desarrollo;
+y clasificación de ediciones integrada en el servidor incremental. Con esos ganchos, H1 queda casi
+gratis en el intérprete y H2 queda abierto.
+
+**Relación con 9.5 (UI).** Es la función de mayor valor para una biblioteca de interfaz: si los
+componentes son funciones del estado, se recargan sin perder el estado.
+
+**Fases propuestas** (sin aprobar): H0 en F2 (ya planificado); H1 en el intérprete de desarrollo
+poco después de F2; H2 al cerrar el backend nativo de desarrollo; H3 solo con ADR propio.
+
 ### 9.7. Orden propuesto de las decisiones
 
 Orden sugerido para abrir ADR, sin implicar aprobación: 9.6 (sintaxis, punto de decisión) y 9.4
 (capas) antes de congelar F1; 9.1 y 9.3 (self-hosting y bibliotecas en Nexo) antes de F2; 9.2
 (backend propio) tras la validación de extremo a extremo; 9.5 (UI) después del núcleo y la
-concurrencia. Todo lo anterior queda registrado como intención del propietario hasta que exista
+concurrencia. Los ganchos de diseño de 9.8 (identidades de función estables y hash por función en la IR)
+se fijan al diseñar la IR, ya en I04; sus niveles H1 a H3 siguen a F2. Todo lo anterior queda registrado como intención del propietario hasta que exista
 una decisión revisada y registrada.
