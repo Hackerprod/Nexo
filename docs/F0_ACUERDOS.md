@@ -233,6 +233,15 @@ dependientes del texto más de lo que cada corte necesite, y preferir esperados 
 generados con el impresor canónico. (c) La IR, los efectos y la propiedad no dependen de la sintaxis y
 pueden continuar.
 
+### 9.7. Orden propuesto de las decisiones
+
+Orden sugerido para abrir ADR, sin implicar aprobación: 9.6 (sintaxis, punto de decisión) y 9.4
+(capas) antes de congelar F1; 9.1 y 9.3 (self-hosting y bibliotecas en Nexo) antes de F2; 9.2
+(backend propio) tras la validación de extremo a extremo; 9.5 (UI) después del núcleo y la
+concurrencia. Los ganchos de diseño de 9.8 (identidades de función estables y hash por función en la IR)
+se fijan al diseñar la IR, ya en I04; sus niveles H1 a H3 siguen a F2. Todo lo anterior queda registrado como intención del propietario hasta que exista
+una decisión revisada y registrada.
+
 ### 9.8. Recarga en caliente (hot reload)
 
 **Directiva.** Uno de los problemas de los desarrolladores es que cada cambio exige recompilar para
@@ -289,12 +298,3 @@ componentes son funciones del estado, se recargan sin perder el estado.
 
 **Fases propuestas** (sin aprobar): H0 en F2 (ya planificado); H1 en el intérprete de desarrollo
 poco después de F2; H2 al cerrar el backend nativo de desarrollo; H3 solo con ADR propio.
-
-### 9.7. Orden propuesto de las decisiones
-
-Orden sugerido para abrir ADR, sin implicar aprobación: 9.6 (sintaxis, punto de decisión) y 9.4
-(capas) antes de congelar F1; 9.1 y 9.3 (self-hosting y bibliotecas en Nexo) antes de F2; 9.2
-(backend propio) tras la validación de extremo a extremo; 9.5 (UI) después del núcleo y la
-concurrencia. Los ganchos de diseño de 9.8 (identidades de función estables y hash por función en la IR)
-se fijan al diseñar la IR, ya en I04; sus niveles H1 a H3 siguen a F2. Todo lo anterior queda registrado como intención del propietario hasta que exista
-una decisión revisada y registrada.
