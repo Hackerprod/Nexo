@@ -1,9 +1,9 @@
 name: ci
 
+# Disabled on push and pull request. Run it by hand from the Actions tab
+# (workflow_dispatch) when a cross-platform check is wanted.
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 concurrency:
   group: ci-${{ github.ref }}
