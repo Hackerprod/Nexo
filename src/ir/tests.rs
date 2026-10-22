@@ -96,6 +96,8 @@ fn adr_gap_unmigrated_corpus_comments_and_crlf_keep_worktree_byte_offsets() {
             38,
         ),
     ] {
+        let source = source.replace("\r\n", "\n").replace('\n', "\r\n");
+        let source = source.as_str();
         let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err()
         else {
             panic!("expected rejection")
