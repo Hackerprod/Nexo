@@ -8,6 +8,9 @@ pub mod ir;
 pub mod runtime;
 pub mod syntax;
 
+#[cfg(test)]
+pub(crate) mod test_alloc;
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Diagnostic {
     pub code: &'static str,

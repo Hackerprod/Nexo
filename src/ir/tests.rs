@@ -671,8 +671,629 @@ fn ownership_errors_in_nonunit_function_precede_lowering_of_later_functions() {
     let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
         panic!("ownership rejection")
     };
-    assert_eq!(errors.len(), 2);
-    assert!(errors.iter().all(|d| d.code == "NX-E0105"));
+    assert_eq!(
+        errors.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(),
+        ["NX-E0105", "NX-E1317", "NX-E0105"]
+    );
+}
+
+#[test]
+fn missing_return_at_normal_exit_uses_published_s11_and_l06_spans() {
+    // F0-0002 §14.1 S11 and §14.8 L06: the closing brace is the primary span.
+    for (source, primary) in [
+        ("fn f()->i64 { } fn main(){}", (14, 15)),
+        ("fn f()->i64{\n1\n}\nfn main(){}", (15, 16)),
+    ] {
+        let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err()
+        else {
+            panic!("expected missing return")
+        };
+        assert_eq!(errors.len(), 1, "{source}");
+        let d = &errors[0];
+        assert_eq!((d.code.as_str(), d.subcause.as_deref()), ("NX-E1317", None));
+        assert_eq!(
+            (d.stage.as_str(), d.operation.as_str()),
+            ("ownership", "flow.return")
+        );
+        assert_eq!(
+            d.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some(primary)
+        );
+        assert_eq!(d.related_spans.len(), 1);
+        assert_eq!(d.related_spans[0].role.as_str(), "expected_type");
+        assert_eq!(
+            (d.related_spans[0].span.start, d.related_spans[0].span.end),
+            (8, 11)
+        );
+        assert!(d.data.is_empty());
+        assert!(d.cause_chain.is_empty());
+        assert!(d.unexpected_token.is_none());
+        d.validate("fixture.nx", source).unwrap();
+    }
+    compile_scalar("fixture.nx", "fn f()->i64{return 1;} fn main(){}").unwrap();
+    compile_scalar("fixture.nx", "fn f()->i64{\nreturn 1\n}\nfn main(){}").unwrap();
+}
+
+#[test]
+fn cfg_statement_if_selects_one_branch() {
+    let source = "fn main(){var x=0;if true{x=1;}else{x=2;}assert_eq(x,1);}";
+    let program = compile_scalar("if.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_while_rechecks_condition_and_updates_local() {
+    let source = "fn main(){var x=0;while x<3{x=x+1;}assert_eq(x,3);}";
+    let program = compile_scalar("while.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_expression_if_delivers_explicit_unit() {
+    // F0-0002 §14.8 L05.
+    let source = "fn main(){\nlet x=if true{value: ();}else{value: ();};\nassert_eq(x,());\n}";
+    let program = compile_scalar("value.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_join_reports_maybe_consumed_resource() {
+    // F0-0002 §14.2 P08.
+    let source = "fn f(b:bool){let r=mock_open(1);if b{drop(r);}inspect(r);} fn main(){}";
+    let CompileError::Rejected(errors) = compile_scalar("p08.nx", source).unwrap_err() else {
+        panic!("expected maybe consumed resource")
+    };
+    assert_eq!(errors.len(), 1);
+    let d = &errors[0];
+    assert_eq!(
+        (d.code.as_str(), d.subcause.as_deref()),
+        ("NX-E0202", Some("maybe_consumed"))
+    );
+    assert_eq!(
+        (d.stage.as_str(), d.operation.as_str()),
+        ("ownership", "ownership.use")
+    );
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((54, 55))
+    );
+    assert_eq!(
+        d.related_spans
+            .iter()
+            .map(|r| (r.role.as_str(), r.span.start, r.span.end))
+            .collect::<Vec<_>>(),
+        [("declaration", 17, 18), ("consumption", 37, 44)]
+    );
+    assert_eq!(d.cause_chain.len(), 1);
+    assert_eq!(
+        d.cause_chain[0].span.as_ref().map(|s| (s.start, s.end)),
+        Some((37, 44))
+    );
+    assert_eq!(
+        d.cause_chain[0].entity.as_ref().map(|e| e.id.as_str()),
+        Some("binding:17")
+    );
+    assert!(d.data.is_empty());
+    d.validate("p08.nx", source).unwrap();
+}
+
+#[test]
+fn cfg_returning_branch_does_not_poison_join() {
+    let source = "fn f(b:bool){let r=mock_open(1);if b{drop(r);return;}inspect(r);} fn main(){f(true);f(false);}";
+    let program = compile_scalar("join.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_first_value_arm_continues_when_else_returns() {
+    let source = "fn f(b:bool)->i64{return if b{value:2;}else{return 3;};} fn main(){assert_eq(f(true),2);assert_eq(f(false),3);}";
+    let program = compile_scalar("first_arm.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_returning_loop_body_excludes_consumption_from_false_exit() {
+    let source = "fn f(b:bool){let r=mock_open(1);while b{drop(r);return;}inspect(r);} fn main(){f(false);f(true);}";
+    let program = compile_scalar("loop_return_owner.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+    assert_eq!(
+        execution.observations.events(),
+        [
+            "open:0:1",
+            "inspect:0:1",
+            "close:0:1",
+            "open:1:1",
+            "close:1:1"
+        ]
+    );
+}
+
+#[test]
+fn cfg_else_consumption_joins_as_maybe_consumed() {
+    // Inverse of P08: the false continuation consumes the binding.
+    let source = "fn f(b:bool){let r=mock_open(1);if b{}else{drop(r);}inspect(r);} fn main(){}";
+    let CompileError::Rejected(errors) = compile_scalar("else_consumed.nx", source).unwrap_err()
+    else {
+        panic!("expected maybe consumed binding")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].code, "NX-E0202");
+    assert_eq!(errors[0].subcause.as_deref(), Some("maybe_consumed"));
+}
+
+#[test]
+fn cfg_only_continuing_arm_determines_consumed_state_in_both_orders() {
+    // F0-0002 §6.2: returning arms do not contribute to an availability union.
+    for source in [
+        "fn f(b:bool){let r=mock_open(1);if b{drop(r);}else{return;}inspect(r);} fn main(){}",
+        "fn f(b:bool){let r=mock_open(1);if b{return;}else{drop(r);}inspect(r);} fn main(){}",
+    ] {
+        let CompileError::Rejected(errors) =
+            compile_scalar("single_owner_arm.nx", source).unwrap_err()
+        else {
+            panic!("expected consumed owner")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E0202");
+        assert_eq!(errors[0].subcause.as_deref(), Some("definitely_consumed"));
+    }
+}
+
+#[test]
+fn cfg_availability_merge_distinguishes_all_consumed_and_reinitialized() {
+    // F0-0002 §6.2: the union contains only continuing paths.
+    let all_consumed =
+        "fn f(b:bool){let r=mock_open(1);if b{drop(r);}else{drop(r);}inspect(r);} fn main(){}";
+    let CompileError::Rejected(errors) =
+        compile_scalar("all_consumed.nx", all_consumed).unwrap_err()
+    else {
+        panic!("expected consumed binding")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(errors[0].code, "NX-E0202");
+    assert_eq!(errors[0].subcause.as_deref(), Some("definitely_consumed"));
+
+    let restored = "fn f(b:bool){var r=mock_open(1);if b{drop(r);r=mock_open(2);}else{drop(r);r=mock_open(3);}inspect(r);} fn main(){f(true);f(false);}";
+    let program = compile_scalar("restored.nx", restored).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_published_branch_negative_rows_keep_their_rule() {
+    // F0-0002 §14.3 B01–B06 and B09 (B08 is a parser terminator case).
+    let rows = [
+        (
+            "B01",
+            "fn f(b:bool)->i64{return if b{value:1;};} fn main(){}",
+            "NX-E1302",
+            Some("missing_else"),
+            (25, 27),
+        ),
+        (
+            "B02",
+            "fn f()->i64{return if true{1;}else{value:2;};} fn main(){}",
+            "NX-E1302",
+            Some("missing_branch_value"),
+            (29, 30),
+        ),
+        (
+            "B03",
+            "fn f(){let n=if true{value:1;}else{value:true;};} fn main(){}",
+            "NX-E1303",
+            None,
+            (41, 45),
+        ),
+        (
+            "B04",
+            "fn main(){value:1;}",
+            "NX-E1302",
+            Some("invalid_value_target"),
+            (10, 16),
+        ),
+        (
+            "B05",
+            "fn f()->i64{return if true{value:}else{value:2;};} fn main(){}",
+            "NX-E1302",
+            Some("missing_value_operand"),
+            (27, 33),
+        ),
+        (
+            "B06",
+            "fn f()->i64{return if true{value:1;2;}else{value:2;};} fn main(){}",
+            "NX-E1302",
+            Some("non_final_branch_value"),
+            (27, 33),
+        ),
+        (
+            "B09",
+            "fn f()->i64{return if true{value:1;}else{value:true;};} fn main(){}",
+            "NX-E0102",
+            Some("type_mismatch"),
+            (47, 51),
+        ),
+    ];
+    for (row, source, code, subcause, primary) in rows {
+        let CompileError::Rejected(errors) = compile_scalar("branch.nx", source).unwrap_err()
+        else {
+            panic!("{row}: expected rejection")
+        };
+        assert_eq!(errors.len(), 1, "{row}: {errors:?}");
+        assert_eq!(
+            (errors[0].code.as_str(), errors[0].subcause.as_deref()),
+            (code, subcause),
+            "{row}: {errors:?}"
+        );
+        assert_eq!(
+            errors[0].primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some(primary),
+            "{row}: {errors:?}"
+        );
+        errors[0].validate("branch.nx", source).unwrap();
+    }
+}
+
+#[test]
+fn cfg_b08_missing_value_terminator_keeps_parser_fields() {
+    // F0-0002 §14.3 B08: the closing brace is the offending token.
+    let source = "fn f()->i64{return if true{value:1 }else{value:2;};} fn main(){}";
+    let CompileError::Rejected(errors) = compile_scalar("b08.nx", source).unwrap_err() else {
+        panic!("expected missing terminator")
+    };
+    assert_eq!(errors.len(), 1);
+    let d = &errors[0];
+    assert_eq!(d.code, "NX-E0005");
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((35, 36))
+    );
+    assert_eq!(
+        d.unexpected_token.as_ref().and_then(|t| t.text.as_deref()),
+        Some("}")
+    );
+    assert_eq!(d.expected_tokens, [";"]);
+    assert_eq!(
+        d.expected_tokens_kind,
+        Some(crate::diagnostic::ExpectedTokensKind::CanonicalInsertion)
+    );
+    d.validate("b08.nx", source).unwrap();
+}
+
+#[test]
+fn cfg_published_branch_repairs_execute() {
+    // F0-0002 §14.3 B01–B06, B08–B09 repairs; results are semantic observations.
+    for source in [
+        "fn f(b:bool)->i64{return if b{value:1;}else{value:2;};} fn main(){assert_eq(f(true),1);assert_eq(f(false),2);}",
+        "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){assert_eq(f(),1);}",
+        "fn f(){let n=if true{value:1;}else{value:2;};assert_eq(n,1);} fn main(){f();}",
+        "fn main(){let value=1;assert_eq(value,1);}",
+    ] {
+        let program = compile_scalar("branch_repair.nx", source).unwrap();
+        let execution = crate::interp::run_scalar(&program);
+        assert!(
+            matches!(execution.outcome, crate::interp::Outcome::Unit),
+            "{source}: {execution:?}"
+        );
+    }
+}
+
+#[test]
+fn cfg_hash_tracks_branch_contents_and_development_substitution() {
+    let original =
+        "fn f(b:bool)->i64{return if b{value:1;}else{value:2;};} fn main(){print(f(true));}";
+    let spaced = "fn f(b:bool)->i64 { return if b { value:1; } else { value:2; }; } fn main() { print(f(true)); }";
+    let changed =
+        "fn f(b:bool)->i64{return if b{value:3;}else{value:2;};} fn main(){print(f(true));}";
+    let mut program = compile_scalar("cfg_hash.nx", original).unwrap();
+    let same = compile_scalar("cfg_hash.nx", spaced).unwrap();
+    let donor = compile_scalar("cfg_hash.nx", changed).unwrap();
+    let hash = program.functions.function("f").unwrap().content_hash;
+    assert_eq!(hash, same.functions.function("f").unwrap().content_hash);
+    assert_ne!(hash, donor.functions.function("f").unwrap().content_hash);
+    assert_eq!(
+        crate::interp::run_scalar(&program).observations.stdout(),
+        ["1"]
+    );
+    program
+        .functions
+        .replace_for_development("f", donor.functions.function("f").unwrap().clone())
+        .unwrap();
+    assert_eq!(
+        crate::interp::run_scalar(&program).observations.stdout(),
+        ["3"]
+    );
+}
+
+#[test]
+fn cfg_loop_ownership_fixpoint_has_nominal_boundary() {
+    // F0-0002 §6.3 and §17.2 P09 require a fixed point on the backedge.
+    let source = "fn f(b:bool){let r=mock_open(1);while b{drop(r);}} fn main(){}";
+    assert!(matches!(
+        compile_scalar("loop.nx", source),
+        Err(CompileError::OutsideScalarSlice("ownership fixpoint"))
+    ));
+}
+
+#[test]
+fn cfg_missing_return_considers_every_normal_path() {
+    // F0-0002 §6.2, §6.3, §17.1 and S11.
+    for source in [
+        "fn f(b:bool)->i64{if b{return 1;}} fn main(){}",
+        "fn f(b:bool)->i64{while b{return 1;}} fn main(){}",
+    ] {
+        let CompileError::Rejected(errors) = compile_scalar("return.nx", source).unwrap_err()
+        else {
+            panic!("expected missing return: {source}")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E1317");
+    }
+    let source = "fn f(b:bool)->i64{if b{return 1;}else{return 2;}} fn main(){assert_eq(f(true),1);assert_eq(f(false),2);}";
+    let program = compile_scalar("return.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_expression_if_excludes_returning_continuations() {
+    let source = "fn f(b:bool)->i64{return if b{return 3;}else{value:2;};} fn main(){assert_eq(f(true),3);assert_eq(f(false),2);}";
+    let program = compile_scalar("value_return.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+    let source = "fn f(b:bool)->i64{return if b{return 3;}else{return 2;};} fn main(){assert_eq(f(true),3);assert_eq(f(false),2);}";
+    let program = compile_scalar("value_return.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_else_if_expression_selects_each_value() {
+    let source = "fn f(x:i64)->i64{return if x<0{value:1;}else if x<2{value:2;}else{value:3;};} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let program = compile_scalar("chain.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_else_if_statement_selects_each_arm() {
+    let source = "fn f(x:i64)->i64{var y=0;if x<0{y=1;}else if x<2{y=2;}else{y=3;}return y;} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let program = compile_scalar("chain.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_nested_while_recreates_and_cleans_body_local_each_iteration() {
+    // F0-0002 §6.3 and §6.4: each body entry owns a fresh resource instance.
+    let source = "fn main(){var x=0;while x<2{var y=0;while y<2{let r=mock_open(x+x+y);inspect(r);y=y+1;}x=x+1;}}";
+    let program = compile_scalar("nested.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+    assert_eq!(
+        execution.observations.events(),
+        [
+            "open:0:0",
+            "inspect:0:0",
+            "close:0:0",
+            "open:1:1",
+            "inspect:1:1",
+            "close:1:1",
+            "open:2:2",
+            "inspect:2:2",
+            "close:2:2",
+            "open:3:3",
+            "inspect:3:3",
+            "close:3:3",
+        ]
+    );
+}
+
+#[test]
+fn cfg_infinite_loop_uses_work_quota_and_cleans_resource() {
+    let program = compile_scalar("quota.nx", "fn main(){let r=mock_open(1);while true{}}").unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::SimulatorFault),
+        "{execution:?}"
+    );
+    assert_eq!(execution.diagnostics[0].code, "R0001");
+    assert_eq!(execution.observations.events(), ["open:0:1", "close:0:1"]);
+}
+
+#[test]
+fn cfg_l02_repaired_value_line_break_executes() {
+    // F0-0002 §14.8 L02: grouping begins before the LF.
+    let source = "fn f()->i64{\nreturn if true{\nvalue: (\n1);\n}else{value:2;};\n}\nfn main(){assert_eq(f(),1);}";
+    let program = compile_scalar("l02.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_deferred_forms_have_executable_repairs() {
+    // F0-0002 §14.6 F14, F25, F26.
+    for (source, feature) in [
+        ("fn main(){match true{true=>{},false=>{}}}", "match"),
+        ("fn main(){for n in [1]{}}", "for_iteration"),
+        ("fn main(){while false{break;}}", "loop_control"),
+    ] {
+        let CompileError::Rejected(errors) = compile_scalar("feature.nx", source).unwrap_err()
+        else {
+            panic!("expected deferred form")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E0006");
+        assert_eq!(errors[0].feature_id.as_deref(), Some(feature));
+    }
+    for source in ["fn main(){if true{}else{}}", "fn main(){while false{}}"] {
+        let program = compile_scalar("feature.nx", source).unwrap();
+        let execution = crate::interp::run_scalar(&program);
+        assert!(
+            matches!(execution.outcome, crate::interp::Outcome::Unit),
+            "{execution:?}"
+        );
+    }
+}
+
+#[test]
+fn cfg_else_if_all_returning_paths_need_no_tail_return() {
+    let source = "fn f(x:i64)->i64{if x<0{return 1;}else if x<2{return 2;}else{return 3;}} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let program = compile_scalar("chain_return.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_nested_expression_if_all_returning_paths_need_no_value_slot() {
+    let source = "fn f(x:i64)->i64{return if x<0{return 1;}else if x<2{return 2;}else{return 3;};} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let program = compile_scalar("chain_return.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_while_body_with_all_returning_arms_preserves_false_exit() {
+    let source = "fn f(b:bool)->i64{while b{if true{return 1;}else{return 2;}}return 3;} fn main(){assert_eq(f(true),1);assert_eq(f(false),3);}";
+    let program = compile_scalar("loop_return.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_unreachable_tail_still_checks_ownership_without_rejoining() {
+    // F0-0002 §6.3: later statements use a separate hypothetical state.
+    let source = "fn f()->i64{if true{return 1;}else{return 2;}let r=mock_open(1);drop(r);inspect(r);} fn main(){}";
+    let CompileError::Rejected(errors) = compile_scalar("dead.nx", source).unwrap_err() else {
+        panic!("expected dead-code ownership error")
+    };
+    assert_eq!(errors.len(), 1);
+    assert_eq!(
+        (errors[0].code.as_str(), errors[0].subcause.as_deref()),
+        ("NX-E0202", Some("definitely_consumed"))
+    );
+}
+
+#[test]
+fn cfg_value_union_transfers_resource_and_cleans_unselected_owner() {
+    let source = "fn f(b:bool)->MockResource{let a=mock_open(1);let c=mock_open(2);return if b{value:consume a;}else{value:consume c;};} fn main(){let x=f(true);inspect(x);}";
+    let program = compile_scalar("resource_union.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+    assert_eq!(
+        execution.observations.events(),
+        [
+            "open:0:1",
+            "open:1:2",
+            "close:1:2",
+            "inspect:0:1",
+            "close:0:1",
+        ]
+    );
+}
+
+#[test]
+fn cfg_branch_call_keeps_loan_permissions_and_writeback() {
+    let source = "fn bump(inout x:i64){x=x+1;} fn main(){var a=0;if true{bump(inout a);}else{}assert_eq(a,1);}";
+    let program = compile_scalar("branch_loan.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+}
+
+#[test]
+fn cfg_return_from_loop_cleans_other_live_owners_before_result_delivery() {
+    // F0-0002 §6.4: the result remains owned while callee locals close.
+    let source = "fn f()->MockResource{let r=mock_open(1);while true{let s=mock_open(2);return consume s;}return consume r;} fn main(){let x=f();inspect(x);}";
+    let program = compile_scalar("loop_return_resource.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
+    assert_eq!(
+        execution.observations.events(),
+        [
+            "open:0:1",
+            "open:1:2",
+            "close:0:1",
+            "inspect:1:2",
+            "close:1:2",
+        ]
+    );
+}
+
+#[test]
+fn cfg_loop_drops_array_cells_each_iteration() {
+    let source =
+        "fn main(){var x=0;while x<1000{let a=[1,2,3,4,5,6,7,8];assert_eq(len(a),8);x=x+1;}}";
+    let program = compile_scalar("loop_cells.nx", source).unwrap();
+    let execution = crate::interp::run_scalar(&program);
+    assert!(
+        matches!(execution.outcome, crate::interp::Outcome::Unit),
+        "{execution:?}"
+    );
 }
 
 fn zeros(count: usize) -> String {
@@ -2166,7 +2787,6 @@ fn nested_arrays_compile_and_run_from_small_calling_stacks() {
 #[test]
 #[ignore = "explicit array lowering scale measurement"]
 fn array_ir_lowering_scales_across_ten_source_families() {
-    use std::time::Instant;
     let patterns = [
         "a[0][0]=1;",
         "a[1]=[3,4];",
@@ -2180,7 +2800,7 @@ fn array_ir_lowering_scales_across_ten_source_families() {
         "print(len(a));",
     ];
     for (family, pattern) in patterns.iter().enumerate() {
-        let mut times = Vec::new();
+        let mut traffic = Vec::new();
         for size in [262_144usize, 1_048_576] {
             let mut source = String::from("fn main(){var a=[[1,2],[3,4]];");
             while source.len() + pattern.len() + 3 <= size {
@@ -2189,23 +2809,19 @@ fn array_ir_lowering_scales_across_ten_source_families() {
             source.push('}');
             source.push_str("//");
             source.push_str(&"a".repeat(size - source.len()));
-            let ast = parse::parse("array_scale.nx", &source).unwrap();
-            let start = Instant::now();
+            let ast = parse::parse("dead_scale_counter.nx", &source).unwrap();
+            crate::test_alloc::reset("dead_scale_counter.nx");
             let p = super::lower::compile_ast(&ast, &source).unwrap();
-            let elapsed = start.elapsed().as_secs_f64();
             assert_eq!(p.functions().functions().len(), 1);
-            times.push(elapsed);
+            traffic.push(crate::test_alloc::snapshot("dead_scale_counter.nx"));
         }
-        let ratio = times[1] / times[0];
-        eprintln!(
-            "array family {:02} {} {:.6}s {:.6}s ratio {:.3}",
-            family + 1,
-            pattern,
-            times[0],
-            times[1],
-            ratio
-        );
-        assert!(ratio < 8.0, "array family {family}: {ratio}");
+        eprintln!("array family {:02} {} {traffic:?}", family + 1, pattern);
+        for (small, large) in [(traffic[0].0, traffic[1].0), (traffic[0].1, traffic[1].1)] {
+            assert!(
+                large <= small.saturating_mul(8),
+                "array family {family}: {traffic:?}"
+            );
+        }
     }
 }
 
@@ -2318,7 +2934,6 @@ fn scalar_lowering_and_machine_run_on_a_512_kib_caller_stack() {
 #[test]
 #[ignore = "explicit scaling measurement; run separately with --ignored --nocapture"]
 fn scalar_ir_lowering_scales_across_fifteen_source_families() {
-    use std::time::Instant;
     let patterns = [
         "x=x+1;",
         "x=x-1;",
@@ -2347,22 +2962,21 @@ fn scalar_ir_lowering_scales_across_fifteen_source_families() {
             source.push_str("//");
             source.push_str(&"a".repeat(size - source.len()));
             assert_eq!(source.len(), size);
-            let ast = parse::parse("scale.nx", &source).unwrap();
-            let before = Instant::now();
+            let ast = parse::parse("dead_scale_counter.nx", &source).unwrap();
+            crate::test_alloc::reset("dead_scale_counter.nx");
             let program = super::lower::compile_ast(&ast, &source).unwrap();
-            let elapsed = before.elapsed();
             assert_eq!(program.functions().functions().len(), 1);
-            measurements.push(elapsed.as_secs_f64());
+            measurements.push(crate::test_alloc::snapshot("dead_scale_counter.nx"));
         }
-        let ratio = measurements[1] / measurements[0];
-        eprintln!(
-            "family {:02} {:<24} {:.6}s {:.6}s ratio {:.3}",
-            family + 1,
-            pattern,
-            measurements[0],
-            measurements[1],
-            ratio
-        );
-        assert!(ratio < 8.0, "family {family} grew superlinearly: {ratio}");
+        eprintln!("family {:02} {:<24} {measurements:?}", family + 1, pattern);
+        for (small, large) in [
+            (measurements[0].0, measurements[1].0),
+            (measurements[0].1, measurements[1].1),
+        ] {
+            assert!(
+                large <= small.saturating_mul(8),
+                "family {family}: {measurements:?}"
+            );
+        }
     }
 }

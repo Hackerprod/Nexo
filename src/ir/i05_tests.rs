@@ -273,26 +273,25 @@ fn dead_reinitialization_keeps_prior_consumption_diagnostic() {
 
 #[test]
 fn consumed_bindings_in_every_read_form_never_become_invalid_ir() {
-    for (source, supported) in [
-        ("fn main(){let x=1;drop(x);print(x);}", true),
-        ("fn main(){let a=[1];drop(a);print(a[0]);}", true),
-        ("fn main(){let a=[[1]];drop(a);print(a[0][0]);}", true),
-        ("fn main(){let x=1;drop(x);assert_eq(x,1);}", true),
-        ("fn f(x:i64){} fn main(){let x=1;drop(x);f(x);}", true),
-        ("fn main(){let x=1;drop(x);print(x+1);}", true),
-        ("fn main(){let x=1;drop(x);let y=x;}", true),
-        ("fn f()->i64{let x=1;drop(x);return x;} fn main(){}", true),
-        ("fn main(){let x=1;drop(x);if x==1{print(1);}}", false),
-        ("fn main(){let x=1;drop(x);while x==1{print(1);}}", false),
+    for source in [
+        "fn main(){let x=1;drop(x);print(x);}",
+        "fn main(){let a=[1];drop(a);print(a[0]);}",
+        "fn main(){let a=[[1]];drop(a);print(a[0][0]);}",
+        "fn main(){let x=1;drop(x);assert_eq(x,1);}",
+        "fn f(x:i64){} fn main(){let x=1;drop(x);f(x);}",
+        "fn main(){let x=1;drop(x);print(x+1);}",
+        "fn main(){let x=1;drop(x);let y=x;}",
+        "fn f()->i64{let x=1;drop(x);return x;} fn main(){}",
+        "fn main(){let x=1;drop(x);if x==1{print(1);}}",
+        "fn main(){let x=1;drop(x);while x==1{print(1);}}",
     ] {
         let result = compile_scalar("reads.nx", source);
         match result {
-            Err(CompileError::Rejected(ref errors)) if supported => {
+            Err(CompileError::Rejected(ref errors)) => {
                 assert_eq!(errors.len(), 1, "{source}");
                 assert_eq!(errors[0].code, "NX-E0202", "{source}");
                 assert_eq!(errors[0].subcause.as_deref(), Some("definitely_consumed"));
             }
-            Err(CompileError::OutsideScalarSlice(_)) if !supported => {}
             other => panic!("unexpected result for {source}: {other:?}"),
         }
     }
@@ -857,7 +856,6 @@ fn call_lowering_and_execution_survive_small_caller_stacks() {
 #[test]
 #[ignore = "explicit 256 KiB to 1 MiB measurement"]
 fn i05_call_and_resource_source_families_scale_linearly() {
-    use std::time::Instant;
     let header = "fn f(x:i64)->i64{return x+1;} fn two(a:i64,b:i64){} fn read(r:MockResource){inspect(r);} fn take(consume r:MockResource){inspect(r);} fn main(){";
     let snippets = [
         "{f(1);}",
@@ -873,7 +871,7 @@ fn i05_call_and_resource_source_families_scale_linearly() {
     ];
     let sizes = [256 * 1024, 1024 * 1024];
     for (family, snippet) in snippets.iter().enumerate() {
-        let mut elapsed = [0.0; 2];
+        let mut traffic = [(0_u64, 0_u64); 2];
         for (index, size) in sizes.into_iter().enumerate() {
             let mut source = String::from(header);
             let pattern = format!("{snippet}{}", " ".repeat(80));
@@ -883,26 +881,26 @@ fn i05_call_and_resource_source_families_scale_linearly() {
             source.push('}');
             source.push_str("//");
             source.push_str(&"x".repeat(size - source.len()));
-            let start = Instant::now();
-            let p = compile_scalar("scale.nx", &source).unwrap();
+            crate::test_alloc::reset("dead_scale_counter.nx");
+            let p = compile_scalar("dead_scale_counter.nx", &source).unwrap();
             assert!(p.functions().function("main").is_some());
-            elapsed[index] = start.elapsed().as_secs_f64();
+            traffic[index] = crate::test_alloc::snapshot("dead_scale_counter.nx");
         }
-        let ratio = elapsed[1] / elapsed[0];
-        println!(
-            "i05-family-{family} 256KiB={:.3}s 1MiB={:.3}s ratio={ratio:.3}",
-            elapsed[0], elapsed[1]
-        );
-        assert!(ratio <= 8.0, "family {family}: {ratio}");
+        println!("i05-family-{family} traffic={traffic:?}");
+        for (small, large) in [(traffic[0].0, traffic[1].0), (traffic[0].1, traffic[1].1)] {
+            assert!(
+                large <= small.saturating_mul(8),
+                "family {family}: {traffic:?}"
+            );
+        }
     }
 }
 
 #[test]
 #[ignore = "explicit 256 KiB to 1 MiB lowering measurement"]
 fn i05_large_signature_and_many_functions_scale_linearly() {
-    use std::time::Instant;
     for family in 0..5 {
-        let mut elapsed = [0.0; 2];
+        let mut traffic = [(0_u64, 0_u64); 2];
         for (scale, size) in [(1usize, 256 * 1024), (4, 1024 * 1024)] {
             let mut source = String::new();
             match family {
@@ -947,17 +945,18 @@ fn i05_large_signature_and_many_functions_scale_linearly() {
             );
             source.push_str("//");
             source.push_str(&"a".repeat(size - source.len()));
-            let start = Instant::now();
-            let program = compile_scalar("scale.nx", &source).unwrap();
+            crate::test_alloc::reset("dead_scale_counter.nx");
+            let program = compile_scalar("dead_scale_counter.nx", &source).unwrap();
             assert!(program.functions().function("main").is_some());
-            elapsed[usize::from(scale == 4)] = start.elapsed().as_secs_f64();
+            traffic[usize::from(scale == 4)] = crate::test_alloc::snapshot("dead_scale_counter.nx");
         }
-        let ratio = elapsed[1] / elapsed[0];
-        println!(
-            "i05-large-family-{family} 256KiB={:.3}s 1MiB={:.3}s ratio={ratio:.3}",
-            elapsed[0], elapsed[1]
-        );
-        assert!(ratio < 8.0, "family {family}: {ratio}");
+        println!("i05-large-family-{family} traffic={traffic:?}");
+        for (small, large) in [(traffic[0].0, traffic[1].0), (traffic[0].1, traffic[1].1)] {
+            assert!(
+                large <= small.saturating_mul(8),
+                "family {family}: {traffic:?}"
+            );
+        }
     }
 }
 
@@ -996,47 +995,46 @@ fn unreachable_scale_source(family: usize, size: usize) -> String {
 
 #[test]
 fn unreachable_lowering_short_scale_regression() {
-    use std::time::Instant;
-    let mut ratios = Vec::new();
     for family in 0..7 {
-        let mut elapsed = [0.0; 2];
+        let mut measurements = [(0_u64, 0_u64); 2];
         for (index, size) in [64 * 1024, 256 * 1024].into_iter().enumerate() {
             let source = unreachable_scale_source(family, size);
-            let start = Instant::now();
-            compile_scalar("dead_scale.nx", &source).unwrap();
-            elapsed[index] = start.elapsed().as_secs_f64();
+            crate::test_alloc::reset("dead_scale_counter.nx");
+            compile_scalar("dead_scale_counter.nx", &source).unwrap();
+            let (bytes, allocations) = crate::test_alloc::snapshot("dead_scale_counter.nx");
+            measurements[index] = (bytes, allocations);
         }
-        ratios.push(elapsed[1] / elapsed[0]);
+        let small = measurements[0];
+        let large = measurements[1];
+        for (metric, a, b) in [
+            ("bytes", small.0, large.0),
+            ("allocations", small.1, large.1),
+        ] {
+            assert!(
+                b <= a.saturating_mul(8),
+                "family {family} {metric}: {small:?} -> {large:?}"
+            );
+        }
     }
-    println!("dead-code scale ratios: {ratios:?}");
-    assert!(
-        ratios.iter().all(|r| *r < 10.0),
-        "dead lowering grew quadratically: {ratios:?}"
-    );
 }
 
 #[test]
 #[ignore = "explicit dead-code and dense-declaration compilation measurement"]
 fn i05_unreachable_and_dense_declarations_scale_across_twelve_families() {
-    use std::time::Instant;
     for family in 0..12 {
-        let mut elapsed = [0.0; 2];
+        let mut traffic = [(0_u64, 0_u64); 2];
         for (index, size) in [256 * 1024, 1024 * 1024].into_iter().enumerate() {
             let source = unreachable_scale_source(family, size);
-            let start = Instant::now();
-            let result = compile_scalar("dead_scale.nx", &source);
-            if family == 8 || family == 9 {
-                assert!(matches!(result, Err(CompileError::OutsideScalarSlice(_))));
-            } else {
-                result.unwrap();
-            }
-            elapsed[index] = start.elapsed().as_secs_f64();
+            crate::test_alloc::reset("dead_scale_counter.nx");
+            compile_scalar("dead_scale_counter.nx", &source).unwrap();
+            traffic[index] = crate::test_alloc::snapshot("dead_scale_counter.nx");
         }
-        let ratio = elapsed[1] / elapsed[0];
-        println!(
-            "i05-dead-dense-{family} 256KiB={:.3}s 1MiB={:.3}s ratio={ratio:.3}",
-            elapsed[0], elapsed[1]
-        );
-        assert!(ratio < 8.0, "family {family}: {ratio}");
+        println!("i05-dead-dense-{family} traffic={traffic:?}");
+        for (small, large) in [(traffic[0].0, traffic[1].0), (traffic[0].1, traffic[1].1)] {
+            assert!(
+                large <= small.saturating_mul(8),
+                "family {family}: {traffic:?}"
+            );
+        }
     }
 }

@@ -21,6 +21,8 @@ pub struct OriginId(pub usize);
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Ty {
+    /// Internal absence of a normal continuation; never appears in emitted IR.
+    Never,
     I64,
     Bool,
     Unit,
@@ -170,7 +172,20 @@ pub struct Instruction {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Terminator {
-    Return { value: Option<TempId>, span: Span },
+    Return {
+        value: Option<TempId>,
+        span: Span,
+    },
+    Jump {
+        target: BlockId,
+        span: Span,
+    },
+    BranchBool {
+        condition: TempId,
+        yes: BlockId,
+        no: BlockId,
+        span: Span,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BasicBlock {
@@ -200,6 +215,8 @@ pub struct Function {
     pub locals: Vec<Local>,
     pub parameters: Vec<Parameter>,
     pub block: BasicBlock,
+    /// Additional CFG blocks. The entry block remains `block` for linear artifacts.
+    pub blocks: Vec<BasicBlock>,
     pub result: Ty,
     pub cleanup: Vec<LocalId>,
 }
@@ -298,6 +315,10 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
         let mut node = t;
         loop {
             match node {
+                Ty::Never => {
+                    bytes.push(7);
+                    break;
+                }
                 Ty::I64 => {
                     bytes.push(1);
                     break;
@@ -347,216 +368,247 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
         bytes.push(u8::from(local.mutable));
         number(&mut bytes, local.scope.0);
     }
-    number(&mut bytes, f.block.instructions.len());
-    for ins in &f.block.instructions {
-        match &ins.op {
-            Op::ConstI64(n) => {
-                bytes.push(1);
-                bytes.extend_from_slice(&n.to_le_bytes())
-            }
-            Op::ConstBool(b) => {
-                bytes.push(2);
-                bytes.push(u8::from(*b))
-            }
-            Op::ConstUnit => bytes.push(3),
-            Op::CopyValue(id) => {
-                bytes.push(4);
-                number(&mut bytes, id.0)
-            }
-            Op::TransferValue(id) => {
-                bytes.push(18);
-                number(&mut bytes, id.0);
-            }
-            Op::BorrowValue(id) => {
-                bytes.push(14);
-                number(&mut bytes, id.0);
-            }
-            Op::BeginLoan {
-                root,
-                indexes,
-                permission,
-                parent,
-                ..
-            } => {
-                bytes.push(20);
-                number(&mut bytes, root.0);
-                number(&mut bytes, indexes.len());
-                for id in indexes {
+    if !f.blocks.is_empty() {
+        number(&mut bytes, f.blocks.len() + 1);
+    }
+    for block in std::iter::once(&f.block).chain(&f.blocks) {
+        if !f.blocks.is_empty() {
+            number(&mut bytes, block.id.0);
+        }
+        number(&mut bytes, block.instructions.len());
+        for ins in &block.instructions {
+            match &ins.op {
+                Op::ConstI64(n) => {
+                    bytes.push(1);
+                    bytes.extend_from_slice(&n.to_le_bytes())
+                }
+                Op::ConstBool(b) => {
+                    bytes.push(2);
+                    bytes.push(u8::from(*b))
+                }
+                Op::ConstUnit => bytes.push(3),
+                Op::CopyValue(id) => {
+                    bytes.push(4);
+                    number(&mut bytes, id.0)
+                }
+                Op::TransferValue(id) => {
+                    bytes.push(18);
                     number(&mut bytes, id.0);
                 }
-                bytes.push(match permission {
-                    LoanPermission::Read => 1,
-                    LoanPermission::Inout => 2,
-                });
-                match parent {
-                    Some(id) => {
-                        bytes.push(1);
+                Op::BorrowValue(id) => {
+                    bytes.push(14);
+                    number(&mut bytes, id.0);
+                }
+                Op::BeginLoan {
+                    root,
+                    indexes,
+                    permission,
+                    parent,
+                    ..
+                } => {
+                    bytes.push(20);
+                    number(&mut bytes, root.0);
+                    number(&mut bytes, indexes.len());
+                    for id in indexes {
                         number(&mut bytes, id.0);
                     }
-                    None => bytes.push(0),
+                    bytes.push(match permission {
+                        LoanPermission::Read => 1,
+                        LoanPermission::Inout => 2,
+                    });
+                    match parent {
+                        Some(id) => {
+                            bytes.push(1);
+                            number(&mut bytes, id.0);
+                        }
+                        None => bytes.push(0),
+                    }
                 }
-            }
-            Op::EndLoan(_) => {
-                bytes.push(21);
-            }
-            Op::BuildArray(items) => {
-                bytes.push(10);
-                number(&mut bytes, items.len());
-                for id in items {
-                    number(&mut bytes, id.0);
+                Op::EndLoan(_) => {
+                    bytes.push(21);
                 }
-            }
-            Op::ReadIndex { local, indexes } => {
-                bytes.push(11);
-                number(&mut bytes, local.0);
-                number(&mut bytes, indexes.len());
-                for id in indexes {
-                    number(&mut bytes, id.0);
+                Op::BuildArray(items) => {
+                    bytes.push(10);
+                    number(&mut bytes, items.len());
+                    for id in items {
+                        number(&mut bytes, id.0);
+                    }
                 }
-            }
-            Op::BorrowIndex { local, indexes } => {
-                bytes.push(16);
-                number(&mut bytes, local.0);
-                number(&mut bytes, indexes.len());
-                for id in indexes {
-                    number(&mut bytes, id.0);
+                Op::ReadIndex { local, indexes } => {
+                    bytes.push(11);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, indexes.len());
+                    for id in indexes {
+                        number(&mut bytes, id.0);
+                    }
                 }
-            }
-            Op::CheckIndex { local, indexes } => {
-                bytes.push(15);
-                number(&mut bytes, local.0);
-                number(&mut bytes, indexes.len());
-                for id in indexes {
-                    number(&mut bytes, id.0);
+                Op::BorrowIndex { local, indexes } => {
+                    bytes.push(16);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, indexes.len());
+                    for id in indexes {
+                        number(&mut bytes, id.0);
+                    }
                 }
-            }
-            Op::IndexValue { base, index } => {
-                bytes.push(12);
-                number(&mut bytes, base.0);
-                number(&mut bytes, index.0);
-            }
-            Op::Binary { op, left, right } => {
-                bytes.push(5);
-                bytes.push(match op {
-                    Binary::Add => 1,
-                    Binary::Sub => 2,
-                    Binary::Less => 3,
-                    Binary::Equal => 4,
-                });
-                number(&mut bytes, left.0);
-                number(&mut bytes, right.0)
-            }
-            Op::WritePlace { local, value } => {
-                bytes.push(6);
-                number(&mut bytes, local.0);
-                number(&mut bytes, value.0)
-            }
-            Op::WriteIndex {
-                local,
-                indexes,
-                value,
-            } => {
-                bytes.push(13);
-                number(&mut bytes, local.0);
-                number(&mut bytes, indexes.len());
-                for id in indexes {
-                    number(&mut bytes, id.0);
+                Op::CheckIndex { local, indexes } => {
+                    bytes.push(15);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, indexes.len());
+                    for id in indexes {
+                        number(&mut bytes, id.0);
+                    }
                 }
-                number(&mut bytes, value.0);
-            }
-            Op::CallIntrinsic { intrinsic, args } => {
-                bytes.push(7);
-                bytes.push(match intrinsic {
-                    Intrinsic::Print => 1,
-                    Intrinsic::AssertEq => 2,
-                    Intrinsic::DropData => 3,
-                    Intrinsic::Fail => 4,
-                    Intrinsic::Len => 5,
-                    Intrinsic::MockOpen => 6,
-                    Intrinsic::MockBlockingOpen => 7,
-                    Intrinsic::Inspect => 8,
-                });
-                number(&mut bytes, args.len());
-                for id in args {
+                Op::IndexValue { base, index } => {
+                    bytes.push(12);
+                    number(&mut bytes, base.0);
+                    number(&mut bytes, index.0);
+                }
+                Op::Binary { op, left, right } => {
+                    bytes.push(5);
+                    bytes.push(match op {
+                        Binary::Add => 1,
+                        Binary::Sub => 2,
+                        Binary::Less => 3,
+                        Binary::Equal => 4,
+                    });
+                    number(&mut bytes, left.0);
+                    number(&mut bytes, right.0)
+                }
+                Op::WritePlace { local, value } => {
+                    bytes.push(6);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, value.0)
+                }
+                Op::WriteIndex {
+                    local,
+                    indexes,
+                    value,
+                } => {
+                    bytes.push(13);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, indexes.len());
+                    for id in indexes {
+                        number(&mut bytes, id.0);
+                    }
+                    number(&mut bytes, value.0);
+                }
+                Op::CallIntrinsic { intrinsic, args } => {
+                    bytes.push(7);
+                    bytes.push(match intrinsic {
+                        Intrinsic::Print => 1,
+                        Intrinsic::AssertEq => 2,
+                        Intrinsic::DropData => 3,
+                        Intrinsic::Fail => 4,
+                        Intrinsic::Len => 5,
+                        Intrinsic::MockOpen => 6,
+                        Intrinsic::MockBlockingOpen => 7,
+                        Intrinsic::Inspect => 8,
+                    });
+                    number(&mut bytes, args.len());
+                    for id in args {
+                        number(&mut bytes, id.0)
+                    }
+                }
+                Op::CallDirect {
+                    function,
+                    args,
+                    signature,
+                } => {
+                    bytes.push(19);
+                    number(&mut bytes, function.0.len());
+                    bytes.extend_from_slice(function.0.as_bytes());
+                    number(&mut bytes, signature.len());
+                    for (name, mode, ty_value) in signature {
+                        number(&mut bytes, name.len());
+                        bytes.extend_from_slice(name.as_bytes());
+                        bytes.push(match mode {
+                            ParameterMode::Read => 1,
+                            ParameterMode::Consume => 2,
+                            ParameterMode::Inout => 3,
+                        });
+                        ty(&mut bytes, ty_value);
+                    }
+                    number(&mut bytes, args.len());
+                    for (slot, id) in args {
+                        number(&mut bytes, *slot);
+                        number(&mut bytes, id.0);
+                    }
+                }
+                Op::DropValue(id) => {
+                    bytes.push(8);
+                    number(&mut bytes, id.0)
+                }
+                Op::DropBinding(id) => {
+                    bytes.push(17);
+                    number(&mut bytes, id.0)
+                }
+                Op::DropLocal(id) => {
+                    bytes.push(9);
                     number(&mut bytes, id.0)
                 }
             }
-            Op::CallDirect {
-                function,
-                args,
-                signature,
-            } => {
-                bytes.push(19);
-                number(&mut bytes, function.0.len());
-                bytes.extend_from_slice(function.0.as_bytes());
-                number(&mut bytes, signature.len());
-                for (name, mode, ty_value) in signature {
-                    number(&mut bytes, name.len());
-                    bytes.extend_from_slice(name.as_bytes());
-                    bytes.push(match mode {
-                        ParameterMode::Read => 1,
-                        ParameterMode::Consume => 2,
-                        ParameterMode::Inout => 3,
-                    });
-                    ty(&mut bytes, ty_value);
+            match ins.output {
+                Some(id) => {
+                    bytes.push(1);
+                    number(&mut bytes, id.0)
                 }
-                number(&mut bytes, args.len());
-                for (slot, id) in args {
-                    number(&mut bytes, *slot);
-                    number(&mut bytes, id.0);
+                None => bytes.push(0),
+            }
+            match &ins.ty {
+                Some(t) => ty(&mut bytes, t),
+                None => bytes.push(0),
+            }
+            bytes.push(match ins.access {
+                Access::Own => 1,
+                Access::Read => 2,
+                Access::Write => 3,
+            });
+            bytes.push(u8::from(ins.effect_io));
+            bytes.push(u8::from(ins.tick));
+        }
+        if !f.blocks.is_empty() {
+            match &block.terminator {
+                Terminator::Return { value, .. } => {
+                    bytes.push(1);
+                    match value {
+                        Some(id) => {
+                            bytes.push(1);
+                            number(&mut bytes, id.0);
+                        }
+                        None => bytes.push(0),
+                    }
+                }
+                Terminator::Jump { target, .. } => {
+                    bytes.push(2);
+                    number(&mut bytes, target.0);
+                }
+                Terminator::BranchBool {
+                    condition, yes, no, ..
+                } => {
+                    bytes.push(3);
+                    number(&mut bytes, condition.0);
+                    number(&mut bytes, yes.0);
+                    number(&mut bytes, no.0);
                 }
             }
-            Op::DropValue(id) => {
-                bytes.push(8);
-                number(&mut bytes, id.0)
-            }
-            Op::DropBinding(id) => {
-                bytes.push(17);
-                number(&mut bytes, id.0)
-            }
-            Op::DropLocal(id) => {
-                bytes.push(9);
-                number(&mut bytes, id.0)
-            }
         }
-        match ins.output {
-            Some(id) => {
-                bytes.push(1);
-                number(&mut bytes, id.0)
-            }
-            None => bytes.push(0),
-        }
-        match &ins.ty {
-            Some(t) => ty(&mut bytes, t),
-            None => bytes.push(0),
-        }
-        bytes.push(match ins.access {
-            Access::Own => 1,
-            Access::Read => 2,
-            Access::Write => 3,
-        });
-        bytes.push(u8::from(ins.effect_io));
-        bytes.push(u8::from(ins.tick));
     }
     number(&mut bytes, f.cleanup.len());
     for id in &f.cleanup {
         number(&mut bytes, id.0)
     }
-    match f.block.terminator_value() {
-        Some(id) => {
-            bytes.push(1);
-            number(&mut bytes, id.0)
+    if f.blocks.is_empty() {
+        match &f.block.terminator {
+            Terminator::Return {
+                value: Some(id), ..
+            } => {
+                bytes.push(1);
+                number(&mut bytes, id.0);
+            }
+            _ => bytes.push(0),
         }
-        None => bytes.push(0),
     }
     bytes.into_iter().fold(0xcbf29ce484222325u64, |h, b| {
         (h ^ u64::from(b)).wrapping_mul(0x100000001b3)
     })
-}
-impl BasicBlock {
-    fn terminator_value(&self) -> Option<TempId> {
-        match &self.terminator {
-            Terminator::Return { value, .. } => *value,
-        }
-    }
 }

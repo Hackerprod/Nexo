@@ -251,6 +251,8 @@ pub fn check_proposed(
         let worker = std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
             .spawn_scoped(scope, move || {
+                #[cfg(test)]
+                let _allocation_capture = crate::test_alloc::capture_for(file);
                 let resolved = names::resolve(file, source, &ast)?;
                 types::check(file, source, &ast, &resolved)?;
                 if run_entry {

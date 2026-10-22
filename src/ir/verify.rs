@@ -18,7 +18,10 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
         verify_function(function)?;
     }
     for function in &program.functions.entries {
-        for ins in &function.block.instructions {
+        for ins in std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|b| &b.instructions)
+        {
             if let Op::CallDirect {
                 function: callee,
                 signature,
@@ -108,6 +111,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             .collect::<Vec<_>>()
     {
         return Err("cleanup plan");
+    }
+    if !function.blocks.is_empty() {
+        return verify_cfg(function);
     }
     let mut temps = Vec::<Ty>::new();
     let mut live = Vec::<bool>::new();
@@ -583,7 +589,13 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             }
             Op::DropValue(id) => {
                 if loan_permission.get(id.0) == Some(&Some(LoanPermission::Inout)) {
-                    return Err("drop exclusive loan");
+                    let root = borrow_sources
+                        .get(id.0)
+                        .and_then(|r| *r)
+                        .ok_or("exclusive loan root")?;
+                    active_exclusive[root.0] = active_exclusive[root.0]
+                        .checked_sub(1)
+                        .ok_or("exclusive loan count")?;
                 }
                 take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)?;
                 None
@@ -712,6 +724,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             }
         }
         Terminator::Return { value: None, .. } => return Err("missing return value"),
+        Terminator::Jump { .. } | Terminator::BranchBool { .. } => {
+            return Err("unexpected control terminator");
+        }
     }
     if live.iter().any(|v| *v) {
         return Err("unconsumed temporary");
@@ -727,10 +742,1132 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     Ok(())
 }
 
+/// Persistent definite-initialization bits: a branch changes only the paths
+/// for locals it writes, and shared subtrees make joins proportional to changes.
+enum InitNode {
+    Uniform(bool),
+    Branch(std::sync::Arc<Self>, std::sync::Arc<Self>),
+}
+struct InitTree {
+    size: usize,
+    yes_leaf: std::sync::Arc<InitNode>,
+    no_leaf: std::sync::Arc<InitNode>,
+}
+impl InitTree {
+    fn new(locals: usize) -> (Self, std::sync::Arc<InitNode>, std::sync::Arc<InitNode>) {
+        let size = locals.max(1).next_power_of_two();
+        let tree = Self {
+            size,
+            yes_leaf: std::sync::Arc::new(InitNode::Uniform(true)),
+            no_leaf: std::sync::Arc::new(InitNode::Uniform(false)),
+        };
+        let yes = tree.yes_leaf.clone();
+        let no = tree.no_leaf.clone();
+        (tree, yes, no)
+    }
+    fn get(&self, root: &InitNode, id: usize) -> bool {
+        let (mut node, mut lo, mut hi) = (root, 0, self.size);
+        loop {
+            super::count_cfg_work(1);
+            match node {
+                InitNode::Uniform(value) => return *value,
+                InitNode::Branch(left, right) => {
+                    let middle = (lo + hi) / 2;
+                    if id < middle {
+                        node = left;
+                        hi = middle;
+                    } else {
+                        node = right;
+                        lo = middle;
+                    }
+                }
+            }
+        }
+    }
+    fn set(
+        &self,
+        root: &std::sync::Arc<InitNode>,
+        id: usize,
+        value: bool,
+    ) -> std::sync::Arc<InitNode> {
+        self.set_at(root, 0, self.size, id, value)
+    }
+    fn set_at(
+        &self,
+        root: &std::sync::Arc<InitNode>,
+        lo: usize,
+        hi: usize,
+        id: usize,
+        value: bool,
+    ) -> std::sync::Arc<InitNode> {
+        super::count_cfg_work(1);
+        if hi - lo == 1 {
+            if self.get(root, id) == value {
+                return root.clone();
+            }
+            return if value {
+                self.yes_leaf.clone()
+            } else {
+                self.no_leaf.clone()
+            };
+        }
+        let (left, right) = match root.as_ref() {
+            InitNode::Uniform(_) => (root.clone(), root.clone()),
+            InitNode::Branch(left, right) => (left.clone(), right.clone()),
+        };
+        let middle = (lo + hi) / 2;
+        let (new_left, new_right) = if id < middle {
+            (self.set_at(&left, lo, middle, id, value), right.clone())
+        } else {
+            (left.clone(), self.set_at(&right, middle, hi, id, value))
+        };
+        if std::sync::Arc::ptr_eq(&new_left, &left) && std::sync::Arc::ptr_eq(&new_right, &right) {
+            root.clone()
+        } else if let (InitNode::Uniform(a), InitNode::Uniform(b)) =
+            (new_left.as_ref(), new_right.as_ref())
+            && a == b
+        {
+            if *a {
+                self.yes_leaf.clone()
+            } else {
+                self.no_leaf.clone()
+            }
+        } else {
+            std::sync::Arc::new(InitNode::Branch(new_left, new_right))
+        }
+    }
+    fn meet(
+        &self,
+        a: &std::sync::Arc<InitNode>,
+        b: &std::sync::Arc<InitNode>,
+    ) -> std::sync::Arc<InitNode> {
+        super::count_cfg_work(1);
+        if std::sync::Arc::ptr_eq(a, b) {
+            return a.clone();
+        }
+        match (a.as_ref(), b.as_ref()) {
+            (InitNode::Uniform(false), _) => a.clone(),
+            (_, InitNode::Uniform(false)) => b.clone(),
+            (InitNode::Uniform(true), _) => b.clone(),
+            (_, InitNode::Uniform(true)) => a.clone(),
+            (InitNode::Branch(al, ar), InitNode::Branch(bl, br)) => {
+                let left = self.meet(al, bl);
+                let right = self.meet(ar, br);
+                if std::sync::Arc::ptr_eq(&left, al) && std::sync::Arc::ptr_eq(&right, ar) {
+                    a.clone()
+                } else if std::sync::Arc::ptr_eq(&left, bl) && std::sync::Arc::ptr_eq(&right, br) {
+                    b.clone()
+                } else {
+                    std::sync::Arc::new(InitNode::Branch(left, right))
+                }
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
+struct CfgTemp {
+    ty: Ty,
+    live: bool,
+    borrowed_from: Option<usize>,
+    exclusive_root: Option<usize>,
+    permission: Option<LoanPermission>,
+    loan: Option<super::model::LoanId>,
+}
+
+fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
+    match op {
+        Op::BeginLoan { indexes, .. }
+        | Op::BuildArray(indexes)
+        | Op::ReadIndex { indexes, .. }
+        | Op::BorrowIndex { indexes, .. }
+        | Op::CheckIndex { indexes, .. }
+        | Op::CallIntrinsic { args: indexes, .. } => {
+            for &id in indexes {
+                visit(id);
+            }
+        }
+        Op::IndexValue { base, index } => {
+            visit(*base);
+            visit(*index);
+        }
+        Op::Binary { left, right, .. } => {
+            visit(*left);
+            visit(*right);
+        }
+        Op::WritePlace { value, .. } | Op::DropValue(value) => visit(*value),
+        Op::WriteIndex { indexes, value, .. } => {
+            for &id in indexes {
+                visit(id);
+            }
+            visit(*value);
+        }
+        Op::CallDirect { args, .. } => {
+            for &(_, id) in args {
+                visit(id);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn visit_terminator_temps(terminator: &Terminator, mut visit: impl FnMut(TempId)) {
+    match terminator {
+        Terminator::Return {
+            value: Some(id), ..
+        } => visit(*id),
+        Terminator::BranchBool { condition, .. } => visit(*condition),
+        _ => {}
+    }
+}
+struct CfgTemps {
+    data: std::collections::HashMap<usize, CfgTemp>,
+    reads: std::collections::HashMap<usize, usize>,
+    exclusive: std::collections::HashMap<usize, usize>,
+    pending_end: Vec<super::model::LoanId>,
+}
+impl CfgTemps {
+    fn new() -> Self {
+        Self {
+            data: std::collections::HashMap::new(),
+            reads: std::collections::HashMap::new(),
+            exclusive: std::collections::HashMap::new(),
+            pending_end: Vec::new(),
+        }
+    }
+    fn reads(&self, root: usize) -> usize {
+        self.reads.get(&root).copied().unwrap_or(0)
+    }
+    fn exclusive(&self, root: usize) -> usize {
+        self.exclusive.get(&root).copied().unwrap_or(0)
+    }
+    fn read(&mut self, id: TempId, consume: bool) -> Result<Ty, &'static str> {
+        let temp = self.data.get_mut(&id.0).ok_or("undefined temporary")?;
+        if !temp.live {
+            return Err("temporary used twice");
+        }
+        if consume {
+            temp.live = false;
+            if let Some(root) = temp.borrowed_from {
+                let remaining = self
+                    .reads
+                    .get(&root)
+                    .copied()
+                    .unwrap_or(0)
+                    .checked_sub(1)
+                    .ok_or("borrow count")?;
+                self.reads.insert(root, remaining);
+            }
+        }
+        Ok(temp.ty.clone())
+    }
+    fn info(&self, id: TempId) -> Result<&CfgTemp, &'static str> {
+        let temp = self.data.get(&id.0).ok_or("undefined temporary")?;
+        if !temp.live {
+            return Err("temporary used twice");
+        }
+        Ok(temp)
+    }
+}
+
+fn verify_cfg(function: &Function) -> Result<(), &'static str> {
+    use std::collections::{HashSet, VecDeque};
+    let blocks: Vec<_> = std::iter::once(&function.block)
+        .chain(&function.blocks)
+        .collect();
+    let mut successors = vec![Vec::new(); blocks.len()];
+    let mut predecessors = vec![Vec::new(); blocks.len()];
+    let valid_span = |span: &crate::diagnostic::Span| {
+        span.file == function.source_file
+            && span.start <= span.end
+            && usize::try_from(span.start)
+                .ok()
+                .is_some_and(|n| function.source_text.is_char_boundary(n))
+            && usize::try_from(span.end)
+                .ok()
+                .is_some_and(|n| function.source_text.is_char_boundary(n))
+    };
+    for (index, block) in blocks.iter().enumerate() {
+        super::count_cfg_work(1);
+        if block.id.0 != index {
+            return Err("block identity");
+        }
+        let (targets, span): (Vec<usize>, _) = match &block.terminator {
+            Terminator::Return {
+                value: Some(_),
+                span,
+            } => (vec![], span),
+            Terminator::Return { value: None, .. } => return Err("missing return value"),
+            Terminator::Jump { target, span } => (vec![target.0], span),
+            Terminator::BranchBool { yes, no, span, .. } => (vec![yes.0, no.0], span),
+        };
+        if !valid_span(span) {
+            return Err("terminator origin");
+        }
+        for target in targets {
+            super::count_cfg_work(1);
+            if target >= blocks.len() {
+                return Err("invalid jump target");
+            }
+            successors[index].push(target);
+            predecessors[target].push(index);
+        }
+    }
+    // Only a while lowering may introduce a backward CFG edge. Its body
+    // jumps to the first condition block, immediately after its preheader.
+    // Check this before either fixed-point walk: malformed cycles can make
+    // dominance and temporary liveness fail to converge.
+    for (source, edges) in successors.iter().enumerate() {
+        for &target in edges {
+            if target > source {
+                continue;
+            }
+            let Terminator::Jump { span: body, .. } = &blocks[source].terminator else {
+                return Err("invalid control-flow cycle");
+            };
+            super::count_cfg_work(1);
+            let preheader =
+                target
+                    .checked_sub(1)
+                    .and_then(|before| match &blocks[before].terminator {
+                        Terminator::Jump { target: dest, span } if dest.0 == target => Some(span),
+                        _ => None,
+                    });
+            if !preheader.is_some_and(|span| span.start < body.start && span.end >= body.end) {
+                return Err("invalid control-flow cycle");
+            }
+        }
+    }
+    let work_limit = blocks
+        .len()
+        .saturating_mul(blocks.len())
+        .saturating_mul(8)
+        .max(1024);
+    let mut reachable = vec![false; blocks.len()];
+    let mut pending = vec![0];
+    while let Some(block) = pending.pop() {
+        super::count_cfg_work(1);
+        if std::mem::replace(&mut reachable[block], true) {
+            continue;
+        }
+        pending.extend(successors[block].iter().copied());
+    }
+    if reachable.iter().any(|v| !v) {
+        return Err("unreachable block");
+    }
+    let (tree, top, bottom) = InitTree::new(function.locals.len());
+    let mut entry = bottom;
+    for p in &function.parameters {
+        entry = tree.set(&entry, p.local.0, true);
+    }
+    let mut incoming = vec![top.clone(); blocks.len()];
+    let mut outgoing = incoming.clone();
+    incoming[0] = entry;
+    let mut queue: VecDeque<usize> = (0..blocks.len()).collect();
+    let mut queued = vec![true; blocks.len()];
+    let mut work = 0usize;
+    while let Some(index) = queue.pop_front() {
+        work += 1;
+        if work > work_limit {
+            return Err("control-flow analysis limit");
+        }
+        super::count_cfg_work(1);
+        queued[index] = false;
+        let mut state = incoming[index].clone();
+        for ins in &blocks[index].instructions {
+            super::count_cfg_work(1);
+            match ins.op {
+                Op::WritePlace { local, .. } => {
+                    function.locals.get(local.0).ok_or("local reference")?;
+                    state = tree.set(&state, local.0, true);
+                }
+                Op::TransferValue(local) | Op::DropBinding(local) | Op::DropLocal(local) => {
+                    function.locals.get(local.0).ok_or("local reference")?;
+                    state = tree.set(&state, local.0, false);
+                }
+                _ => {}
+            }
+        }
+        if !std::sync::Arc::ptr_eq(&state, &outgoing[index]) {
+            outgoing[index] = state;
+            for &target in &successors[index] {
+                if target == 0 {
+                    continue;
+                }
+                let mut merged = top.clone();
+                for &pred in &predecessors[target] {
+                    merged = tree.meet(&merged, &outgoing[pred]);
+                }
+                if !std::sync::Arc::ptr_eq(&merged, &incoming[target]) {
+                    incoming[target] = merged;
+                    if !queued[target] {
+                        queue.push_back(target);
+                        queued[target] = true;
+                    }
+                }
+            }
+        }
+    }
+    // Temporary liveness is an edge property. An operand evaluated before an if
+    // can remain live through both arms and be consumed in their continuation.
+    let mut live_in = vec![HashSet::<usize>::new(); blocks.len()];
+    let mut live_out = live_in.clone();
+    let mut queue: VecDeque<usize> = (0..blocks.len()).rev().collect();
+    let mut queued = vec![true; blocks.len()];
+    let mut work = 0usize;
+    while let Some(index) = queue.pop_front() {
+        work += 1;
+        if work > work_limit {
+            return Err("control-flow analysis limit");
+        }
+        queued[index] = false;
+        let mut out = HashSet::new();
+        for &target in &successors[index] {
+            out.extend(live_in[target].iter().copied());
+        }
+        let mut needed = out.clone();
+        visit_terminator_temps(&blocks[index].terminator, |id| {
+            needed.insert(id.0);
+        });
+        for ins in blocks[index].instructions.iter().rev() {
+            super::count_cfg_work(1);
+            if let Some(id) = ins.output {
+                needed.remove(&id.0);
+            }
+            visit_op_temps(&ins.op, |id| {
+                needed.insert(id.0);
+            });
+        }
+        if needed != live_in[index] || out != live_out[index] {
+            live_in[index] = needed;
+            live_out[index] = out;
+            for &pred in &predecessors[index] {
+                if !queued[pred] {
+                    queue.push_back(pred);
+                    queued[pred] = true;
+                }
+            }
+        }
+    }
+    let mut definitions = std::collections::HashMap::<usize, (usize, CfgTemp)>::new();
+    for (block_index, block) in blocks.iter().enumerate() {
+        for ins in &block.instructions {
+            if let (Some(id), Some(ty)) = (ins.output, ins.ty.clone()) {
+                let borrowed_from = match ins.op {
+                    Op::BorrowValue(root) | Op::BorrowIndex { local: root, .. } => Some(root.0),
+                    Op::BeginLoan {
+                        root,
+                        permission: LoanPermission::Read,
+                        ..
+                    } => Some(root.0),
+                    _ => None,
+                };
+                let exclusive_root = match ins.op {
+                    Op::BeginLoan {
+                        root,
+                        permission: LoanPermission::Inout,
+                        ..
+                    } => Some(root.0),
+                    _ => None,
+                };
+                let (permission, loan) = match ins.op {
+                    Op::BeginLoan {
+                        permission, loan, ..
+                    } => (Some(permission), Some(loan)),
+                    _ => (None, None),
+                };
+                if definitions
+                    .insert(
+                        id.0,
+                        (
+                            block_index,
+                            CfgTemp {
+                                ty,
+                                live: true,
+                                borrowed_from,
+                                exclusive_root,
+                                permission,
+                                loan,
+                            },
+                        ),
+                    )
+                    .is_some()
+                {
+                    return Err("temporary identity");
+                }
+            }
+        }
+    }
+    // Compute dominance once. Rewalking the whole CFG for every temporary
+    // carried across an if made later operands quadratic in the source size.
+    let mut seen = vec![false; blocks.len()];
+    let mut postorder = Vec::with_capacity(blocks.len());
+    let mut dfs = vec![(0usize, 0usize)];
+    seen[0] = true;
+    while let Some((node, edge)) = dfs.last_mut() {
+        if *edge == successors[*node].len() {
+            postorder.push(*node);
+            dfs.pop();
+        } else {
+            let next = successors[*node][*edge];
+            *edge += 1;
+            if !seen[next] {
+                seen[next] = true;
+                dfs.push((next, 0));
+            }
+        }
+    }
+    postorder.reverse();
+    let mut rank = vec![0usize; blocks.len()];
+    for (at, &node) in postorder.iter().enumerate() {
+        rank[node] = at;
+    }
+    let mut idom = vec![None; blocks.len()];
+    idom[0] = Some(0);
+    let intersect =
+        |mut a: usize, mut b: usize, idom: &[Option<usize>]| -> Result<usize, &'static str> {
+            let mut steps = 0usize;
+            while a != b {
+                steps += 1;
+                if steps > idom.len().saturating_mul(2) {
+                    return Err("invalid control-flow cycle");
+                }
+                while rank[a] > rank[b] {
+                    let parent = idom[a].ok_or("invalid control-flow cycle")?;
+                    if rank[parent] >= rank[a] {
+                        return Err("invalid control-flow cycle");
+                    }
+                    a = parent;
+                }
+                while rank[b] > rank[a] {
+                    let parent = idom[b].ok_or("invalid control-flow cycle")?;
+                    if rank[parent] >= rank[b] {
+                        return Err("invalid control-flow cycle");
+                    }
+                    b = parent;
+                }
+            }
+            Ok(a)
+        };
+    let mut work = 0usize;
+    loop {
+        work += 1;
+        if work > work_limit {
+            return Err("control-flow analysis limit");
+        }
+        let mut changed = false;
+        for &node in postorder.iter().skip(1) {
+            let mut defined = predecessors[node]
+                .iter()
+                .copied()
+                .filter(|&p| idom[p].is_some());
+            let Some(mut next) = defined.next() else {
+                continue;
+            };
+            for predecessor in defined {
+                next = intersect(next, predecessor, &idom)?;
+            }
+            if idom[node] != Some(next) {
+                idom[node] = Some(next);
+                changed = true;
+            }
+            super::count_cfg_work(1);
+        }
+        if !changed {
+            break;
+        }
+    }
+    let mut children = vec![Vec::new(); blocks.len()];
+    for node in 1..blocks.len() {
+        children[idom[node].ok_or("unreachable block")?].push(node);
+    }
+    let mut entered = vec![0usize; blocks.len()];
+    let mut exited = vec![0usize; blocks.len()];
+    let mut clock = 0usize;
+    let mut walk = vec![(0usize, 0usize)];
+    entered[0] = clock;
+    clock += 1;
+    while let Some((node, child)) = walk.last_mut() {
+        if *child == children[*node].len() {
+            exited[*node] = clock;
+            clock += 1;
+            walk.pop();
+        } else {
+            let next = children[*node][*child];
+            *child += 1;
+            entered[next] = clock;
+            clock += 1;
+            walk.push((next, 0));
+        }
+    }
+    let return_temps: HashSet<usize> = blocks
+        .iter()
+        .filter_map(|block| {
+            if let Terminator::Return {
+                value: Some(id), ..
+            } = block.terminator
+            {
+                Some(id.0)
+            } else {
+                None
+            }
+        })
+        .collect();
+    let mut outputs = HashSet::new();
+    let mut loan_ids = HashSet::new();
+    for (index, block) in blocks.iter().enumerate() {
+        super::count_cfg_work(1);
+        let mut initialized = incoming[index].clone();
+        let mut temps = CfgTemps::new();
+        for &id in &live_in[index] {
+            super::count_cfg_work(1);
+            let missing = || match &block.terminator {
+                _ if return_temps.contains(&id) => "undefined return temporary",
+                Terminator::BranchBool { condition, .. } if condition.0 == id => {
+                    "branch condition type"
+                }
+                _ => "undefined temporary",
+            };
+            let (defined_in, metadata) = definitions.get(&id).ok_or_else(missing)?;
+            if *defined_in == index {
+                return Err(missing());
+            }
+            if !(entered[*defined_in] <= entered[index] && exited[index] <= exited[*defined_in]) {
+                return Err(missing());
+            }
+            if let Some(root) = metadata.borrowed_from {
+                *temps.reads.entry(root).or_default() += 1;
+            }
+            if let Some(root) = metadata.exclusive_root {
+                *temps.exclusive.entry(root).or_default() += 1;
+            }
+            temps.data.insert(id, metadata.clone());
+        }
+        for (position, ins) in block.instructions.iter().enumerate() {
+            super::count_cfg_work(1);
+            if !valid_span(&ins.span)
+                || ins.origin.0 != position
+                || ins.scope.0 >= function.scope_count
+            {
+                return Err("instruction origin");
+            }
+            let expected = match &ins.op {
+                Op::ConstI64(_) => Some(Ty::I64),
+                Op::ConstBool(_) => Some(Ty::Bool),
+                Op::ConstUnit => Some(Ty::Unit),
+                Op::CopyValue(id) | Op::BorrowValue(id) | Op::TransferValue(id) => {
+                    let local = function.locals.get(id.0).ok_or("local reference")?;
+                    if !tree.get(&initialized, id.0) {
+                        return Err("uninitialized local");
+                    }
+                    if matches!(ins.op, Op::CopyValue(_)) && !local.ty.copyable() {
+                        return Err("copy noncopyable local");
+                    }
+                    if matches!(ins.op, Op::CopyValue(_) | Op::BorrowValue(_))
+                        && temps.exclusive(id.0) != 0
+                    {
+                        return Err("read during exclusive loan");
+                    }
+                    if matches!(ins.op, Op::TransferValue(_)) {
+                        if matches!(
+                            local.parameter_mode,
+                            Some(ParameterMode::Read | ParameterMode::Inout)
+                        ) {
+                            return Err("transfer read parameter");
+                        }
+                        if temps.reads(id.0) != 0 || temps.exclusive(id.0) != 0 {
+                            return Err("transfer while borrowed");
+                        }
+                        initialized = tree.set(&initialized, id.0, false);
+                    }
+                    Some(local.ty.clone())
+                }
+                Op::BeginLoan {
+                    root,
+                    indexes,
+                    loan,
+                    origin_span,
+                    permission,
+                    parent,
+                } => {
+                    let local = function.locals.get(root.0).ok_or("loan root")?;
+                    if !tree.get(&initialized, root.0) {
+                        return Err("loan unavailable root");
+                    }
+                    if !valid_span(origin_span)
+                        || origin_span.start as usize != loan.0
+                        || origin_span.start > ins.span.start
+                        || origin_span.end < ins.span.end
+                        || !loan_ids.insert(loan.0)
+                    {
+                        return Err("loan identity");
+                    }
+                    if *parent
+                        != (local.parameter_mode == Some(ParameterMode::Inout)).then_some(*root)
+                    {
+                        return Err("loan parent");
+                    }
+                    if *permission == LoanPermission::Inout {
+                        if !local.mutable || local.parameter_mode == Some(ParameterMode::Read) {
+                            return Err("exclusive loan permission");
+                        }
+                        if temps.reads(root.0) != 0 || temps.exclusive(root.0) != 0 {
+                            return Err("overlapping loan");
+                        }
+                        *temps.exclusive.entry(root.0).or_default() += 1;
+                    } else {
+                        if temps.exclusive(root.0) != 0 {
+                            return Err("read during exclusive loan");
+                        }
+                        *temps.reads.entry(root.0).or_default() += 1;
+                    }
+                    let mut ty = local.ty.clone();
+                    for id in indexes {
+                        if temps.read(*id, true)? != Ty::I64 {
+                            return Err("index type");
+                        }
+                        let Ty::Array(child) = ty else {
+                            return Err("index base type");
+                        };
+                        ty = *child;
+                    }
+                    Some(ty)
+                }
+                Op::EndLoan(loan) => {
+                    if temps.pending_end.pop() != Some(*loan) {
+                        return Err("unmatched loan end");
+                    }
+                    None
+                }
+                Op::BuildArray(items) => {
+                    let Some(Ty::Array(element)) = &ins.ty else {
+                        return Err("array result type");
+                    };
+                    for id in items {
+                        if temps.read(*id, true)? != **element {
+                            return Err("array element type");
+                        }
+                    }
+                    ins.ty.clone()
+                }
+                Op::ReadIndex { local, indexes }
+                | Op::BorrowIndex { local, indexes }
+                | Op::CheckIndex { local, indexes } => {
+                    let local = function.locals.get(local.0).ok_or("read index local")?;
+                    if !tree.get(&initialized, local.id.0) {
+                        return Err("read index uninitialized local");
+                    }
+                    if temps.exclusive(local.id.0) != 0 {
+                        return Err("read during exclusive loan");
+                    }
+                    if indexes.is_empty() {
+                        return Err("empty index path");
+                    }
+                    let mut ty = local.ty.clone();
+                    for id in indexes {
+                        if temps.read(*id, !matches!(ins.op, Op::CheckIndex { .. }))? != Ty::I64 {
+                            return Err("index type");
+                        }
+                        let Ty::Array(child) = ty else {
+                            return Err("index base type");
+                        };
+                        ty = *child;
+                    }
+                    if matches!(ins.op, Op::CheckIndex { .. }) {
+                        None
+                    } else {
+                        Some(ty)
+                    }
+                }
+                Op::IndexValue { base, index } => {
+                    let base = temps.read(*base, true)?;
+                    if temps.read(*index, true)? != Ty::I64 {
+                        return Err("index type");
+                    }
+                    let Ty::Array(child) = base else {
+                        return Err("index base type");
+                    };
+                    Some(*child)
+                }
+                Op::Binary { op, left, right } => {
+                    let left = temps.read(*left, true)?;
+                    let right = temps.read(*right, true)?;
+                    if left != right {
+                        return Err("operand type");
+                    }
+                    Some(match op {
+                        Binary::Add | Binary::Sub if left == Ty::I64 => Ty::I64,
+                        Binary::Less if left == Ty::I64 => Ty::Bool,
+                        Binary::Equal => Ty::Bool,
+                        _ => return Err("binary domain"),
+                    })
+                }
+                Op::WritePlace { local, value } => {
+                    let local = function.locals.get(local.0).ok_or("write local")?;
+                    if temps.reads(local.id.0) != 0 || temps.exclusive(local.id.0) != 0 {
+                        return Err("write while borrowed");
+                    }
+                    if tree.get(&initialized, local.id.0) && !local.mutable {
+                        return Err("immutable rewrite");
+                    }
+                    if temps.info(*value)?.borrowed_from.is_some()
+                        || temps.info(*value)?.permission == Some(LoanPermission::Inout)
+                    {
+                        return Err("write borrowed value");
+                    }
+                    if temps.read(*value, true)? != local.ty {
+                        return Err("write type");
+                    }
+                    initialized = tree.set(&initialized, local.id.0, true);
+                    None
+                }
+                Op::WriteIndex {
+                    local,
+                    indexes,
+                    value,
+                } => {
+                    let local = function.locals.get(local.0).ok_or("write index local")?;
+                    if !tree.get(&initialized, local.id.0) || !local.mutable {
+                        return Err("write index root");
+                    }
+                    if temps.reads(local.id.0) != 0 || temps.exclusive(local.id.0) != 0 {
+                        return Err("write while borrowed");
+                    }
+                    if indexes.is_empty() {
+                        return Err("empty index path");
+                    }
+                    let mut ty = local.ty.clone();
+                    for id in indexes {
+                        if temps.read(*id, true)? != Ty::I64 {
+                            return Err("index type");
+                        }
+                        let Ty::Array(child) = ty else {
+                            return Err("index base type");
+                        };
+                        ty = *child;
+                    }
+                    if temps.info(*value)?.borrowed_from.is_some()
+                        || temps.info(*value)?.permission == Some(LoanPermission::Inout)
+                    {
+                        return Err("write borrowed value");
+                    }
+                    if temps.read(*value, true)? != ty {
+                        return Err("write index type");
+                    }
+                    None
+                }
+                Op::CallIntrinsic { intrinsic, args } => {
+                    let arity = match intrinsic {
+                        Intrinsic::Print
+                        | Intrinsic::DropData
+                        | Intrinsic::Len
+                        | Intrinsic::MockOpen
+                        | Intrinsic::MockBlockingOpen
+                        | Intrinsic::Inspect => 1,
+                        Intrinsic::AssertEq => 2,
+                        Intrinsic::Fail => 0,
+                    };
+                    if args.len() != arity {
+                        return Err("intrinsic arity");
+                    }
+                    let first = if let Some(id) = args.first() {
+                        if *intrinsic == Intrinsic::DropData
+                            && temps.info(*id)?.borrowed_from.is_some()
+                        {
+                            return Err("drop borrowed value");
+                        }
+                        Some(temps.read(*id, true)?)
+                    } else {
+                        None
+                    };
+                    if *intrinsic == Intrinsic::AssertEq
+                        && temps.read(args[1], true)? != first.clone().unwrap()
+                    {
+                        return Err("assert type");
+                    }
+                    if *intrinsic == Intrinsic::Len && !matches!(first.as_ref(), Some(Ty::Array(_)))
+                    {
+                        return Err("len domain");
+                    }
+                    if matches!(intrinsic, Intrinsic::MockOpen | Intrinsic::MockBlockingOpen)
+                        && first != Some(Ty::I64)
+                    {
+                        return Err("open argument type");
+                    }
+                    if *intrinsic == Intrinsic::Inspect
+                        && !matches!(
+                            first.as_ref(),
+                            Some(Ty::MockResource | Ty::MockBlockingResource)
+                        )
+                    {
+                        return Err("inspect argument type");
+                    }
+                    if *intrinsic == Intrinsic::Print
+                        && !first.as_ref().is_some_and(|ty| ty.copyable())
+                    {
+                        return Err("print resource");
+                    }
+                    Some(match intrinsic {
+                        Intrinsic::Len => Ty::I64,
+                        Intrinsic::MockOpen => Ty::MockResource,
+                        Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
+                        _ => Ty::Unit,
+                    })
+                }
+                Op::CallDirect {
+                    args, signature, ..
+                } => {
+                    if args.len() != signature.len() {
+                        return Err("call arity");
+                    }
+                    let mut seen = HashSet::new();
+                    for (slot, id) in args {
+                        if !seen.insert(*slot) {
+                            return Err("duplicate call slot");
+                        }
+                        let (_, mode, ty) = signature.get(*slot).ok_or("call slot")?;
+                        let info = temps.info(*id)?;
+                        if *mode == ParameterMode::Consume
+                            && (info.borrowed_from.is_some() || info.exclusive_root.is_some())
+                        {
+                            return Err("consuming borrowed argument");
+                        }
+                        if *mode == ParameterMode::Inout
+                            && info.permission != Some(LoanPermission::Inout)
+                        {
+                            return Err("inout argument permission");
+                        }
+                        if *mode == ParameterMode::Read
+                            && info.permission == Some(LoanPermission::Inout)
+                        {
+                            return Err("exclusive passed as read");
+                        }
+                        let exclusive_root = info.exclusive_root;
+                        let loan = info.loan;
+                        if let Some(root) = exclusive_root {
+                            let remaining = temps
+                                .exclusive(root)
+                                .checked_sub(1)
+                                .ok_or("exclusive loan count")?;
+                            temps.exclusive.insert(root, remaining);
+                        }
+                        if temps.read(*id, true)? != *ty {
+                            return Err("call argument type");
+                        }
+                        if let Some(loan) = loan {
+                            temps.pending_end.push(loan);
+                        }
+                    }
+                    ins.ty.clone()
+                }
+                Op::DropValue(id) => {
+                    if let Some(root) = temps.info(*id)?.exclusive_root {
+                        let remaining = temps
+                            .exclusive(root)
+                            .checked_sub(1)
+                            .ok_or("exclusive loan count")?;
+                        temps.exclusive.insert(root, remaining);
+                    }
+                    temps.read(*id, true)?;
+                    None
+                }
+                Op::DropBinding(id) => {
+                    let local = function.locals.get(id.0).ok_or("drop binding local")?;
+                    if !tree.get(&initialized, id.0) {
+                        return Err("drop uninitialized local");
+                    }
+                    if temps.reads(id.0) != 0 || temps.exclusive(id.0) != 0 {
+                        return Err("drop while borrowed");
+                    }
+                    if matches!(
+                        local.parameter_mode,
+                        Some(ParameterMode::Read | ParameterMode::Inout)
+                    ) {
+                        return Err("drop read parameter");
+                    }
+                    initialized = tree.set(&initialized, id.0, false);
+                    Some(Ty::Unit)
+                }
+                Op::DropLocal(id) => {
+                    function.locals.get(id.0).ok_or("drop local")?;
+                    if temps.reads(id.0) != 0 || temps.exclusive(id.0) != 0 {
+                        return Err("drop while borrowed");
+                    }
+                    initialized = tree.set(&initialized, id.0, false);
+                    None
+                }
+            };
+            if expected.as_ref() != ins.ty.as_ref() {
+                return Err("instruction result type");
+            }
+            let access = match ins.op {
+                Op::CopyValue(_)
+                | Op::BorrowValue(_)
+                | Op::BeginLoan { .. }
+                | Op::ReadIndex { .. }
+                | Op::BorrowIndex { .. }
+                | Op::CheckIndex { .. } => Access::Read,
+                Op::WritePlace { .. } | Op::WriteIndex { .. } => Access::Write,
+                _ => Access::Own,
+            };
+            if ins.access != access || ins.tick != !matches!(ins.op, Op::EndLoan(_)) {
+                return Err("access or source tick");
+            }
+            if ins.effect_io
+                != matches!(
+                    ins.op,
+                    Op::CallIntrinsic {
+                        intrinsic: Intrinsic::Print
+                            | Intrinsic::MockOpen
+                            | Intrinsic::MockBlockingOpen
+                            | Intrinsic::Inspect,
+                        ..
+                    }
+                )
+            {
+                return Err("effect summary");
+            }
+            match expected {
+                Some(ty) => {
+                    let id = ins.output.ok_or("missing output")?;
+                    if !outputs.insert(id.0) {
+                        return Err("temporary identity");
+                    }
+                    let borrowed_from = match ins.op {
+                        Op::BorrowValue(root) => Some(root.0),
+                        Op::BorrowIndex { local, .. } => Some(local.0),
+                        Op::BeginLoan {
+                            root,
+                            permission: LoanPermission::Read,
+                            ..
+                        } => Some(root.0),
+                        _ => None,
+                    };
+                    if matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
+                        && let Some(root) = borrowed_from
+                    {
+                        *temps.reads.entry(root).or_default() += 1;
+                    }
+                    let exclusive_root = match ins.op {
+                        Op::BeginLoan {
+                            root,
+                            permission: LoanPermission::Inout,
+                            ..
+                        } => Some(root.0),
+                        _ => None,
+                    };
+                    let (permission, loan) = match ins.op {
+                        Op::BeginLoan {
+                            permission, loan, ..
+                        } => (Some(permission), Some(loan)),
+                        _ => (None, None),
+                    };
+                    temps.data.insert(
+                        id.0,
+                        CfgTemp {
+                            ty,
+                            live: true,
+                            borrowed_from,
+                            exclusive_root,
+                            permission,
+                            loan,
+                        },
+                    );
+                }
+                None if ins.output.is_some() => return Err("unexpected output"),
+                None => {}
+            }
+        }
+        match &block.terminator {
+            Terminator::Return {
+                value: Some(id), ..
+            } => {
+                let info = temps.info(*id).map_err(|_| "undefined return temporary")?;
+                if info.borrowed_from.is_some() || info.exclusive_root.is_some() {
+                    return Err("borrowed return");
+                }
+                if info.ty != function.result {
+                    return Err("return type");
+                }
+                temps.read(*id, true)?;
+            }
+            Terminator::BranchBool { condition, .. } => {
+                if temps.read(*condition, true).ok() != Some(Ty::Bool) {
+                    return Err("branch condition type");
+                }
+            }
+            Terminator::Jump { .. } => {}
+            Terminator::Return { value: None, .. } => return Err("missing return value"),
+        }
+        if temps
+            .data
+            .iter()
+            .any(|(id, temp)| temp.live && !live_out[index].contains(id))
+        {
+            return Err("unconsumed temporary");
+        }
+        if live_out[index]
+            .iter()
+            .any(|id| !temps.data.get(id).is_some_and(|temp| temp.live))
+        {
+            return Err("temporary used twice");
+        }
+        if !temps.pending_end.is_empty() {
+            return Err("loan end missing");
+        }
+        let mut reads_out = std::collections::HashMap::<usize, usize>::new();
+        let mut exclusive_out = std::collections::HashMap::<usize, usize>::new();
+        for id in &live_out[index] {
+            let temp = temps.data.get(id).ok_or("undefined temporary")?;
+            if let Some(root) = temp.borrowed_from {
+                *reads_out.entry(root).or_default() += 1;
+            }
+            if let Some(root) = temp.exclusive_root {
+                *exclusive_out.entry(root).or_default() += 1;
+            }
+        }
+        if reads_out
+            .iter()
+            .any(|(root, count)| temps.reads(*root) != *count)
+            || exclusive_out
+                .iter()
+                .any(|(root, count)| temps.exclusive(*root) != *count)
+            || temps
+                .reads
+                .iter()
+                .any(|(root, count)| *count != reads_out.get(root).copied().unwrap_or(0))
+            || temps
+                .exclusive
+                .iter()
+                .any(|(root, count)| *count != exclusive_out.get(root).copied().unwrap_or(0))
+        {
+            return Err("unreleased loan");
+        }
+    }
+    // Every value carried out of a block must be accounted for on each edge.
+    // A consumer in one arm does not license silently losing it in the other.
+    for (index, targets) in successors.iter().enumerate() {
+        for &target in targets {
+            if live_out[index] != live_in[target] {
+                return Err("temporary leaked on edge");
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ir::compile_scalar;
+    #[test]
+    fn join_initialization_is_intersection_in_both_predecessor_orders() {
+        let (tree, _, bottom) = InitTree::new(3);
+        let one_arm = tree.set(&bottom, 1, true);
+        for merged in [tree.meet(&bottom, &one_arm), tree.meet(&one_arm, &bottom)] {
+            assert!(!tree.get(&merged, 1));
+        }
+    }
     #[test]
     fn verifier_rejects_index_write_while_reordered_read_loan_is_live() {
         let p = compile_scalar("v.nx", "fn main(){var a=[1];a[0]=2;}").unwrap();
@@ -914,7 +2051,9 @@ mod tests {
         f.content_hash = super::super::model::content_hash(&f);
         assert_eq!(verify_function(&f), Err("cleanup plan"));
         let mut f = original;
-        let Terminator::Return { value, .. } = &mut f.block.terminator;
+        let Terminator::Return { value, .. } = &mut f.block.terminator else {
+            panic!("return terminator")
+        };
         *value = None;
         f.content_hash = super::super::model::content_hash(&f);
         assert_eq!(verify_function(&f), Err("missing return value"));
@@ -978,7 +2117,9 @@ mod tests {
         f.block.instructions[0].span.end = (source.find('é').unwrap() + 1) as u64;
         assert_eq!(verify_function(&f), Err("source origin"));
         let mut f = original;
-        let Terminator::Return { span, .. } = &mut f.block.terminator;
+        let Terminator::Return { span, .. } = &mut f.block.terminator else {
+            panic!("return terminator")
+        };
         span.end = (source.len() + 1) as u64;
         assert_eq!(verify_function(&f), Err("terminator origin"));
     }
@@ -1370,6 +2511,26 @@ mod tests {
         let donor = compile_scalar("v.nx", "fn f()->i64{return 1;} fn main(){f();}").unwrap();
         p.functions.entries[0] = donor.functions.function("f").unwrap().clone();
         assert_eq!(verify_program(&p), Err("callee signature"));
+    }
+    #[test]
+    fn verifier_rejects_call_result_instruction_type_mutation() {
+        let mut program =
+            compile_scalar("v.nx", "fn f()->i64{return 1;} fn main(){print(f());}").unwrap();
+        let caller = program
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "main")
+            .unwrap();
+        let call = caller
+            .block
+            .instructions
+            .iter_mut()
+            .find(|ins| matches!(ins.op, Op::CallDirect { .. }))
+            .unwrap();
+        call.ty = Some(Ty::Bool);
+        caller.content_hash = super::super::model::content_hash(caller);
+        assert!(verify_program(&program).is_err());
     }
     #[test]
     fn verifier_rejects_transfer_from_read_parameter() {

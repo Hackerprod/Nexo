@@ -8,6 +8,10 @@ use crate::frontend::{
     parse::{Ast, Block, Else, Expr, Function, Mode, Statement, Type},
 };
 
+fn span_key(span: &Span) -> (u64, u64) {
+    (span.start, span.end)
+}
+
 fn pretty(ty: &Type) -> String {
     enum Part<'a> {
         Type(&'a Type),
@@ -161,12 +165,6 @@ struct Known {
     deferred: bool,
 }
 
-// Only the syntactic, unconditional returns needed to exclude a branch from
-// the value union are recognized here. General reachability belongs to I07.
-fn block_returns(block: &Block) -> bool {
-    block.statements.last().is_some_and(statement_returns)
-}
-
 fn branch_value_span(block: &Block) -> Option<Span> {
     block.statements.iter().find_map(|statement| {
         if let Statement::Value {
@@ -209,41 +207,6 @@ fn branch_mismatch(
     d
 }
 
-fn statement_returns(statement: &Statement) -> bool {
-    match statement {
-        Statement::Return { .. } => true,
-        Statement::Block(block) => block_returns(block),
-        Statement::If {
-            then_block,
-            otherwise: Some(other),
-            ..
-        } => block_returns(then_block) && statement_returns(other),
-        Statement::Expr { value, .. } => expr_returns(value),
-        Statement::Value {
-            value: Some(value), ..
-        } => expr_returns(value),
-        _ => false,
-    }
-}
-
-fn expr_returns(expr: &Expr) -> bool {
-    match expr {
-        Expr::Group(inner, _) => expr_returns(inner),
-        Expr::If {
-            then_block,
-            otherwise: Some(other),
-            ..
-        } => {
-            block_returns(then_block)
-                && match &**other {
-                    Else::Block(block) => block_returns(block),
-                    Else::If(expr) => expr_returns(expr),
-                }
-        }
-        _ => false,
-    }
-}
-
 #[allow(clippy::vec_box)] // Public semantic result keeps boxed diagnostics.
 struct Checker<'a> {
     file: &'a str,
@@ -251,7 +214,8 @@ struct Checker<'a> {
     resolved: &'a Resolved,
     locals: HashMap<u64, Known>,
     invalid: HashSet<u64>,
-    deferred_exprs: HashSet<u64>,
+    deferred_exprs: HashSet<(u64, u64)>,
+    divergent_exprs: HashSet<(u64, u64)>,
     tainted: bool,
     result: Type,
     result_span: Option<Span>,
@@ -442,15 +406,40 @@ impl Checker<'_> {
                 self.locals.insert(
                     ns.start,
                     Known {
-                        ty: got,
+                        // A diverging initializer coerces to the declared
+                        // type. The binding's later uses have that type.
+                        ty: annotation.clone().unwrap_or(got),
                         origin,
-                        deferred: self.deferred_exprs.contains(&value.span().start),
+                        deferred: annotation.is_none()
+                            && self.deferred_exprs.contains(&span_key(value.span())),
                     },
                 );
                 Ok(())
             }
             Statement::Assign { place, value, .. } => {
                 let lhs = self.expr(place, None, None)?;
+                let deferred_local = if let Expr::Name(_, span) = place {
+                    match self.resolved.uses.get(&span.start) {
+                        Some(ResolvedUse::Local(local)) => self
+                            .locals
+                            .get(&local.name_span.start)
+                            .filter(|known| known.deferred)
+                            .map(|_| local.name_span.start),
+                        _ => None,
+                    }
+                } else {
+                    None
+                };
+                if let Some(local) = deferred_local {
+                    let rhs = self.expr(value, None, None)?;
+                    if !self.deferred_exprs.contains(&span_key(value.span()))
+                        && let Some(known) = self.locals.get_mut(&local)
+                    {
+                        known.ty = rhs;
+                        known.deferred = false;
+                    }
+                    return Ok(());
+                }
                 let origin = if let Expr::Name(_, s) = place {
                     if let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&s.start) {
                         self.locals
@@ -550,7 +539,7 @@ impl Checker<'_> {
         self.depth -= 1;
         let got = result?;
         if let Some(expected) = expected
-            && !self.deferred_exprs.contains(&e.span().start)
+            && !self.deferred_exprs.contains(&span_key(e.span()))
             && &got != expected
         {
             return Err(mismatch(
@@ -592,7 +581,7 @@ impl Checker<'_> {
                     }
                     if let Some(known) = self.locals.get(&local.name_span.start) {
                         if known.deferred {
-                            self.deferred_exprs.insert(span.start);
+                            self.deferred_exprs.insert(span_key(span));
                         }
                         Ok(known.ty.clone())
                     } else {
@@ -603,8 +592,11 @@ impl Checker<'_> {
             },
             Expr::Group(inner, span) => {
                 let ty = self.expr(inner, expected, expected_span)?;
-                if self.deferred_exprs.contains(&inner.span().start) {
-                    self.deferred_exprs.insert(span.start);
+                if self.deferred_exprs.contains(&span_key(inner.span())) {
+                    self.deferred_exprs.insert(span_key(span));
+                }
+                if self.divergent_exprs.contains(&span_key(inner.span())) {
+                    self.divergent_exprs.insert(span_key(span));
                 }
                 Ok(ty)
             }
@@ -614,7 +606,7 @@ impl Checker<'_> {
                 span,
             } => {
                 self.expr(value, None, None)?;
-                self.deferred_exprs.insert(span.start);
+                self.deferred_exprs.insert(span_key(span));
                 Ok(Type::Unit) // `?` belongs to I08.
             }
             Expr::Unary { value, .. } => self.expr(value, expected, expected_span),
@@ -637,30 +629,107 @@ impl Checker<'_> {
                             )
                         });
                 };
-                let item = self.expr(first, element_expected, expected_span)?;
-                if self.deferred_exprs.contains(&first.span().start) {
-                    for later in &xs[1..] {
-                        self.expr(later, None, None)?;
+                let mut item_type = element_expected.cloned();
+                let mut diverges = false;
+                let mut first_error = None;
+                for (index, item) in xs.iter().enumerate() {
+                    let origin = if index == 0 {
+                        expected_span
+                    } else {
+                        Some(first.span())
+                    };
+                    let got = match self.expr(item, item_type.as_ref(), origin) {
+                        Ok(got) => got,
+                        Err(error) => {
+                            if first_error.is_none() {
+                                first_error = Some(error);
+                            } else {
+                                self.errors.push(error);
+                            }
+                            continue;
+                        }
+                    };
+                    diverges |= self.divergent_exprs.contains(&span_key(item.span()));
+                    if self.deferred_exprs.contains(&span_key(item.span())) {
+                        continue;
                     }
-                    self.deferred_exprs.insert(e.span().start);
-                    return Ok(Type::Array(Box::new(Type::Unit)));
+                    if item_type.is_none() {
+                        item_type = Some(got);
+                    }
                 }
-                if contains_resource(&item) {
-                    return Err(resource_array(span.clone()));
+                if let Some(error) = first_error {
+                    return Err(error);
                 }
-                for later in &xs[1..] {
-                    self.expr(later, Some(&item), Some(first.span()))?;
+                if let Some(item) = item_type {
+                    if contains_resource(&item) {
+                        return Err(resource_array(span.clone()));
+                    }
+                    Ok(Type::Array(Box::new(item)))
+                } else {
+                    self.deferred_exprs.insert(span_key(e.span()));
+                    if diverges {
+                        self.divergent_exprs.insert(span_key(e.span()));
+                    }
+                    Ok(Type::Array(Box::new(Type::Unit)))
                 }
-                Ok(Type::Array(Box::new(item)))
             }
             Expr::Binary {
                 op, left, right, ..
             } => {
-                let l = self.expr(left, None, None)?;
-                if self.deferred_exprs.contains(&left.span().start) {
-                    self.expr(right, None, None)?;
-                    self.deferred_exprs.insert(e.span().start);
-                    return Ok(l);
+                let l = match self.expr(left, None, None) {
+                    Ok(left_ty) => left_ty,
+                    Err(error) => {
+                        let left_tainted = self.tainted;
+                        self.tainted = false;
+                        if let Err(independent) = self.expr(right, None, None) {
+                            self.errors.push(independent);
+                        }
+                        let right_tainted = self.tainted;
+                        self.tainted |= left_tainted;
+                        if right_tainted {
+                            if !left_tainted {
+                                self.errors.push(error);
+                            }
+                            self.deferred_exprs.insert(span_key(e.span()));
+                            return Ok(if matches!(op.as_str(), "<" | "==") {
+                                Type::Bool
+                            } else {
+                                Type::I64
+                            });
+                        }
+                        return Err(error);
+                    }
+                };
+                if self.tainted {
+                    // A child already recorded its own error. Visit the
+                    // independent sibling, but suppress the operator error
+                    // that would depend on the invalid left value.
+                    self.tainted = false;
+                    if let Err(independent) = self.expr(right, None, None)
+                        && !self.tainted
+                    {
+                        self.errors.push(independent);
+                    }
+                    self.tainted = true;
+                    self.deferred_exprs.insert(span_key(e.span()));
+                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                        Type::Bool
+                    } else {
+                        Type::I64
+                    });
+                }
+                if self.deferred_exprs.contains(&span_key(left.span())) {
+                    let numeric = matches!(op.as_str(), "+" | "-" | "<");
+                    self.expr(
+                        right,
+                        numeric.then_some(&Type::I64),
+                        (op == "<").then_some(left.span()),
+                    )?;
+                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                        Type::Bool
+                    } else {
+                        Type::I64
+                    });
                 }
                 let op_span = self.operator_span(left.span(), right.span(), op);
                 match op.as_str() {
@@ -675,8 +744,7 @@ impl Checker<'_> {
                             ));
                         }
                         let r = self.expr(right, None, None)?;
-                        if self.deferred_exprs.contains(&right.span().start) {
-                            self.deferred_exprs.insert(e.span().start);
+                        if self.deferred_exprs.contains(&span_key(right.span())) {
                             return Ok(Type::I64);
                         }
                         if r != Type::I64 {
@@ -692,8 +760,25 @@ impl Checker<'_> {
                     }
                     "<" | "==" => {
                         let r = self.expr(right, None, None)?;
-                        if self.deferred_exprs.contains(&right.span().start) {
-                            self.deferred_exprs.insert(e.span().start);
+                        if self.deferred_exprs.contains(&span_key(right.span())) {
+                            if op == "<" && l != Type::I64 {
+                                return Err(mismatch(
+                                    op_span,
+                                    left.span().clone(),
+                                    None,
+                                    "i64",
+                                    &l,
+                                ));
+                            }
+                            if op == "==" && !copyable(&l) {
+                                return Err(mismatch(
+                                    op_span,
+                                    left.span().clone(),
+                                    None,
+                                    "domain:copyable_data",
+                                    &l,
+                                ));
+                            }
                             return Ok(Type::Bool);
                         }
                         if l != r {
@@ -784,8 +869,11 @@ impl Checker<'_> {
                     expected_span,
                     None,
                 )?;
-                if normal.is_none() && expr_returns(e) {
-                    self.deferred_exprs.insert(e.span().start);
+                // A missing branch value is resolved by ownership flow. Until
+                // then it cannot supply a concrete type to an outer operator.
+                if normal.is_none() {
+                    self.deferred_exprs.insert(span_key(e.span()));
+                    self.divergent_exprs.insert(span_key(e.span()));
                 }
                 Ok(normal.or_else(|| expected.cloned()).unwrap_or(Type::Unit))
             }
@@ -877,7 +965,9 @@ impl Checker<'_> {
                 let tainted = self.tainted;
                 self.tainted = previous_taint || tainted;
                 match outcome {
-                    Ok(ty) => result = (!expr_returns(e)).then_some(ty),
+                    Ok(ty) => {
+                        result = (!self.deferred_exprs.contains(&span_key(e.span()))).then_some(ty)
+                    }
                     Err(error) => {
                         if !tainted {
                             self.errors.push(error);
@@ -997,8 +1087,14 @@ impl Checker<'_> {
             }
             "assert_eq" => {
                 let mut values: [Option<Type>; 2] = [None, None];
+                let mut deferred = false;
                 for (arg, &slot) in args.iter().zip(slots) {
                     values[slot] = Some(self.expr(&arg.value, None, None)?);
+                    deferred |= self.deferred_exprs.contains(&span_key(arg.value.span()));
+                }
+                if deferred {
+                    self.deferred_exprs.insert(span_key(call_span));
+                    return Ok(declared.result);
                 }
                 let first = values[0].take().expect("complete binding");
                 let second = values[1].take().expect("complete binding");
@@ -1067,6 +1163,7 @@ pub fn check(
         locals: HashMap::new(),
         invalid: HashSet::new(),
         deferred_exprs: HashSet::new(),
+        divergent_exprs: HashSet::new(),
         tainted: false,
         result: Type::Unit,
         result_span: None,

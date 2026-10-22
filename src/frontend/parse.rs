@@ -390,6 +390,8 @@ pub fn parse(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
 }
 
 fn parse_inner(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
+    #[cfg(test)]
+    let _allocation_capture = crate::test_alloc::capture_for(file);
     let tokens = lex::lex(file, source)?;
     // Terminators belong to the active statement. Preserve source gaps and
     // decide at its descent boundary; a token-only pre-pass cannot distinguish
@@ -1630,6 +1632,10 @@ impl Parser<'_> {
             let then_block = self.block_with_target(value_target)?;
             branches.push((st, condition, then_block));
             if !self.eat("else") {
+                if value_target {
+                    let first = branches[0].0;
+                    return Err(self.branch_error("missing_else", self.span(first, first + 2)));
+                }
                 break None;
             }
             if self.eof() {

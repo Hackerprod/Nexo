@@ -3,6 +3,18 @@
 //! This module is intentionally not wired into the slice-1 compiler entry
 //! point: I02a adds the new token stream without changing current CLI output.
 
+#[cfg(test)]
+thread_local! {
+    static LEX_THREAD_WORK: std::cell::Cell<Option<u64>> = const { std::cell::Cell::new(None) };
+}
+#[cfg(test)]
+pub(crate) fn measure_lex_work<T>(work: impl FnOnce() -> T) -> (T, u64) {
+    LEX_THREAD_WORK.with(|cell| cell.set(Some(0)));
+    let result = work();
+    let steps = LEX_THREAD_WORK.with(|cell| cell.replace(None).unwrap());
+    (result, steps)
+}
+
 use std::collections::BTreeMap;
 
 use crate::diagnostic::{
@@ -189,6 +201,12 @@ impl Lexer<'_> {
         });
     }
     fn peek_char(&self) -> Option<char> {
+        #[cfg(test)]
+        LEX_THREAD_WORK.with(|cell| {
+            if let Some(current) = cell.get() {
+                cell.set(Some(current.saturating_add(1)));
+            }
+        });
         self.source[self.at..].chars().next()
     }
     fn bump(&mut self) {

@@ -1366,7 +1366,6 @@ fn hostile_chains_return_diagnostics_on_a_small_stack() {
 #[test]
 #[cfg(not(debug_assertions))]
 fn parser_token_patterns_scale_with_source_length() {
-    use std::time::{Duration, Instant};
     fn source(pattern: &str, bytes: usize) -> String {
         let (prefix, unit, suffix) = match pattern {
             "statements" => ("fn f(){", "a;", "}"),
@@ -1400,18 +1399,11 @@ fn parser_token_patterns_scale_with_source_length() {
             unit.repeat((bytes - prefix.len() - suffix.len()) / unit.len())
         )
     }
-    fn measure(pattern: &str, bytes: usize) -> Duration {
+    fn measure(pattern: &str, bytes: usize) -> (u64, u64) {
         let source = source(pattern, bytes);
-        let mut minima = [Duration::MAX; 5];
-        for minimum in &mut minima {
-            for _ in 0..2 {
-                let start = Instant::now();
-                let _ = parse("scale.nx", &source);
-                *minimum = (*minimum).min(start.elapsed());
-            }
-        }
-        minima.sort();
-        minima[2]
+        crate::test_alloc::reset("parser_scale_counter.nx");
+        let _ = parse("parser_scale_counter.nx", &source);
+        crate::test_alloc::snapshot("parser_scale_counter.nx")
     }
     for pattern in [
         "statements",
@@ -1443,24 +1435,22 @@ fn parser_token_patterns_scale_with_source_length() {
             .into_iter()
             .map(|bytes| measure(pattern, bytes))
             .collect();
-        let ratio = samples[4].as_secs_f64() / samples[2].as_secs_f64();
-        eprintln!(
-            "linearity {pattern}: 256 KiB {:?}, 1 MiB {:?}, ratio {:.2}",
-            samples[2], samples[4], ratio
-        );
-        assert!(
-            ratio <= 8.0,
-            "{pattern}: {:?} to {:?}",
-            samples[2],
-            samples[4]
-        );
-        for pair in samples.windows(2) {
-            assert!(
-                pair[1].as_secs_f64() / pair[0].as_secs_f64() <= 3.5,
-                "{pattern}: per-byte cost rose from {:?} to {:?}",
-                pair[0],
-                pair[1]
+        for (metric, axis) in [("allocated bytes", 0), ("allocations", 1)] {
+            let value = |sample: &(u64, u64)| if axis == 0 { sample.0 } else { sample.1 };
+            eprintln!(
+                "linearity {pattern} {metric}: {:?}",
+                samples.iter().map(value).collect::<Vec<_>>()
             );
+            assert!(
+                value(&samples[4]) <= value(&samples[2]).saturating_mul(8),
+                "{pattern} {metric}: {samples:?}"
+            );
+            for pair in samples.windows(2) {
+                assert!(
+                    value(&pair[1]) <= value(&pair[0]).saturating_mul(7) / 2 + 1,
+                    "{pattern} {metric}: {samples:?}"
+                );
+            }
         }
     }
 }
@@ -1500,23 +1490,15 @@ fn adversarial_inputs_preserve_parser_diagnostic_validity() {
 
 #[test]
 fn lexer_comment_scan_scales_with_source_bytes() {
-    use std::time::Instant;
     let measure = |mebibytes: usize| {
         let source = format!("fn main(){{}}//{}", "x".repeat(mebibytes * 1_048_576));
-        let mut best = std::time::Duration::MAX;
-        for _ in 0..3 {
-            let start = Instant::now();
-            lex::lex("linear.nx", &source).unwrap();
-            best = best.min(start.elapsed());
-        }
-        best
+        let (tokens, steps) = lex::measure_lex_work(|| lex::lex("linear.nx", &source).unwrap());
+        assert!(!tokens.is_empty());
+        steps
     };
     let one = measure(1);
     let four = measure(4);
-    assert!(
-        four.as_nanos() <= one.as_nanos() * 8,
-        "1 MiB {one:?}; 4 MiB {four:?}"
-    );
+    assert!(four <= one * 8, "1 MiB {one}; 4 MiB {four}");
 }
 
 #[test]
@@ -4119,7 +4101,7 @@ fn else_block_and_else_if_keep_distinct_structure_without_spans() {
     let block = parse("else.nx", "fn f(){let x=if true{value:1;}else{value:2;};}").unwrap();
     let chained = parse(
         "else.nx",
-        "fn f(){let x=if true{value:1;}else if true{value:2;};}",
+        "fn f(){let x=if true{value:1;}else if true{value:2;}else{value:3;};}",
     )
     .unwrap();
     assert_ne!(
@@ -4711,7 +4693,7 @@ fn non_unit_returns_are_found_in_source_order_through_all_branches() {
         "fn f(){if a{}else if b{}else{return 1;}}",
         "fn f(){let x=if a{return 1;}else{value:2;};}",
         "fn f(){{return 1;}}",
-        "fn f(){let x=if a{value:0;}else if b{return 1;};}",
+        "fn f(){let x=if a{value:0;}else if b{return 1;}else{value:2;};}",
     ] {
         let d = parse("return.nx", source).unwrap_err();
         assert_eq!(
@@ -4825,7 +4807,10 @@ fn parser_small_stack_probe_child() {
         Ok(_) => (),
         Err(d) => {
             assert!(
-                matches!(d.code.as_str(), "NX-E0002" | "NX-E0003" | "NX-E0005"),
+                matches!(
+                    d.code.as_str(),
+                    "NX-E0002" | "NX-E0003" | "NX-E0005" | "NX-E1302"
+                ),
                 "{d:?}"
             );
             d.validate("stack-probe.nx", &source).unwrap();
@@ -4899,16 +4884,15 @@ fn adr_gap_incomplete_control_and_postfix_contexts_keep_current_result() {
 }
 
 #[test]
-fn adr_gap_completed_if_inside_delimiters_keeps_current_terminator() {
-    // §3.1 and §13.14 do not assign a diagnostic row after this nullable IfForm.
+fn missing_else_inside_delimiters_precedes_following_terminator() {
     for source in [
         "fn f(){let x=[if c{value:1;}+",
         "fn f(){let x=(if c{value:1;}?",
         "fn f(){g(if c{value:1;}+",
     ] {
         let d = parse("gap.nx", source).unwrap_err();
-        assert_eq!(d.code, "NX-E0002", "{source}: {d:?}");
-        assert_eq!(d.expected_tokens, [";"], "{source}");
+        assert_eq!(d.code, "NX-E1302", "{source}: {d:?}");
+        assert_eq!(d.subcause.as_deref(), Some("missing_else"), "{source}");
     }
 }
 

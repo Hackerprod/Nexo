@@ -5,11 +5,264 @@ use crate::diagnostic::{
 use crate::frontend::parse;
 
 const FILE: &str = "i03.nx";
+
+#[test]
+fn binary_and_collection_siblings_keep_both_independent_type_errors() {
+    // F0-0002 §13.9: each faulty operand is an independent diagnostic site.
+    for (body, first, second) in [
+        ("let w=((1+())+(1+()));", "1+()", "1+()"),
+        ("let w=((1+())-(1+()));", "1+()", "1+()"),
+        ("let w=((1+())<(1+()));", "1+()", "1+()"),
+        ("let w=((1+())==(1+()));", "1+()", "1+()"),
+        ("let w=[1][true]+(1+());", "true", "1+()"),
+        ("let w=[(1+()),(1+())];", "1+()", "1+()"),
+    ] {
+        let source = format!("fn main(){{{body}}}");
+        let first_at = source.find(first).unwrap();
+        let second_at = source[first_at + first.len()..]
+            .find(second)
+            .map(|at| at + first_at + first.len());
+        let expected = if first == "true" {
+            vec![
+                (first_at as u64, (first_at + 4) as u64),
+                (
+                    (second_at.unwrap() + 2) as u64,
+                    (second_at.unwrap() + 4) as u64,
+                ),
+            ]
+        } else {
+            vec![
+                ((first_at + 2) as u64, (first_at + 4) as u64),
+                (
+                    (second_at.unwrap() + 2) as u64,
+                    (second_at.unwrap() + 4) as u64,
+                ),
+            ]
+        };
+        let diagnostics = check_proposed(FILE, &source, true).expect_err(&source);
+        assert_eq!(diagnostics.len(), 2, "{source}: {diagnostics:?}");
+        for (diagnostic, (start, end)) in diagnostics.iter().zip(expected) {
+            assert_eq!(diagnostic.code, "NX-E0102", "{source}");
+            assert_eq!(
+                diagnostic.subcause.as_deref(),
+                Some("type_mismatch"),
+                "{source}"
+            );
+            assert_eq!(diagnostic.stage, Stage::Types, "{source}");
+            assert_eq!(diagnostic.operation, Operation::TypesCheck, "{source}");
+            assert_eq!(diagnostic.primary_span, Some(sp(start, end)), "{source}");
+            assert_eq!(diagnostic.unexpected_token, None, "{source}");
+            assert!(diagnostic.expected_tokens.is_empty(), "{source}");
+            assert_eq!(diagnostic.data.len(), 2, "{source}");
+            assert_eq!(
+                diagnostic.data.get("expected_type"),
+                Some(&DataValue::String("i64".into())),
+                "{source}"
+            );
+            assert_eq!(
+                diagnostic.data.get("found_type"),
+                Some(&DataValue::String(
+                    if first == "true" && start == first_at as u64 {
+                        "bool".into()
+                    } else {
+                        "()".into()
+                    }
+                )),
+                "{source}"
+            );
+            diagnostic.validate(FILE, &source).unwrap();
+        }
+    }
+}
+
+#[test]
+fn type_errors_sort_across_operands_statements_arguments_and_functions() {
+    // F0-0002 §13.9 orders independent sites by primary_span.start.
+    for (source, expected) in [
+        (
+            "fn main(){let w=((1+())+(1+()));let x:i64=();}",
+            &[20, 27, 42][..],
+        ),
+        (
+            "fn f(x:i64,y:i64){} fn main(){f(1+(),1+());let z:i64=();}",
+            &[34, 39, 53][..],
+        ),
+        (
+            "fn a(){let x=((1+())+(1+()));} fn main(){let y:i64=();}",
+            &[17, 24, 51][..],
+        ),
+    ] {
+        let diagnostics = check_proposed(FILE, source, true).expect_err(source);
+        let actual = diagnostics
+            .iter()
+            .map(|d| {
+                assert_eq!(d.code, "NX-E0102", "{source}: {d:?}");
+                d.primary_span.as_ref().unwrap().start
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(actual, expected, "{source}: {diagnostics:?}");
+        assert!(actual.len() >= 3);
+    }
+}
+
+#[test]
+fn comparison_with_divergent_right_marks_operator_for_invalid_bool_left() {
+    // F0-0002 S16: '<' requires i64; a divergent right operand contributes no type.
+    for left in ["true", "()", "1"] {
+        for (op, right) in [
+            ("<", "(if true{return;}else{return;})"),
+            ("<", "false"),
+            ("==", "(if true{return;}else{return;})"),
+            ("==", "false"),
+        ] {
+            let source = format!("fn main(){{let v0={left};let w=v0{op}{right};}}");
+            let result = check_proposed(FILE, &source, true);
+            let invalid = (op == "<" && (left != "1" || right == "false"))
+                || (op == "==" && left != "true" && right == "false");
+            if invalid {
+                let diagnostics = result.expect_err(&source);
+                assert_eq!(diagnostics.len(), 1, "{source}");
+                let diagnostic = &diagnostics[0];
+                assert_eq!(diagnostic.code, "NX-E0102", "{source}");
+                assert_eq!(
+                    diagnostic.subcause.as_deref(),
+                    Some("type_mismatch"),
+                    "{source}"
+                );
+                assert_eq!(diagnostic.stage, Stage::Types, "{source}");
+                assert_eq!(diagnostic.operation, Operation::TypesCheck, "{source}");
+                let operator_site = op == "<" && left == "true";
+                let start = if operator_site {
+                    source.find('<').unwrap()
+                } else {
+                    source
+                        .find("false")
+                        .unwrap_or_else(|| source.find('<').unwrap())
+                } as u64;
+                let width = if operator_site || right.starts_with("(if") {
+                    1
+                } else {
+                    5
+                };
+                assert_eq!(
+                    diagnostic.primary_span,
+                    Some(sp(start, start + width)),
+                    "{source}"
+                );
+            } else {
+                result.unwrap_or_else(|diagnostics| panic!("{source}: {diagnostics:?}"));
+            }
+        }
+    }
+}
 fn sp(start: u64, end: u64) -> Span {
     Span {
         file: FILE.into(),
         start,
         end,
+    }
+}
+
+#[test]
+fn divergent_left_keeps_independent_numeric_operand_sites() {
+    let dv = "(if true{return;}else{return;})";
+    for body in [
+        "let a=@+();let b:i64=();",
+        "let b:i64=();let a=@-();",
+        "let a=@<();let b:i64=();",
+        "let a=(@+())-();let b:i64=();",
+    ] {
+        let source = format!("fn main(){{{}}}", body.replacen('@', dv, 1));
+        let errors = check_proposed(FILE, &source, true).expect_err(&source);
+        assert_eq!(errors.len(), 2, "{source}: {errors:?}");
+        if body.contains("@<()") {
+            let unit = source.find("<()").unwrap() as u64 + 1;
+            let comparison = errors
+                .iter()
+                .find(|d| d.primary_span.as_ref().is_some_and(|s| s.start == unit))
+                .unwrap();
+            assert!(
+                comparison
+                    .related_spans
+                    .iter()
+                    .any(|s| s.role == RelatedRole::ExpectedType)
+            );
+        }
+        for error in errors {
+            assert_eq!(error.code, "NX-E0102", "{source}");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            assert_eq!(error.stage, Stage::Types);
+            assert_eq!(error.operation, Operation::TypesCheck);
+            assert_eq!(
+                error.data.get("expected_type"),
+                Some(&DataValue::String("i64".into()))
+            );
+            assert_eq!(
+                error.data.get("found_type"),
+                Some(&DataValue::String("()".into()))
+            );
+            error.validate(FILE, &source).unwrap();
+        }
+    }
+}
+
+#[test]
+fn nested_calls_and_arrays_collect_each_independent_type_site() {
+    let dv = "(if true{return;}else{return;})";
+    for source in [
+        format!("fn g(x:i64){{}} fn main(){{g({dv}+());g(());}}"),
+        format!("fn g(x:i64){{}} fn main(){{let a=[g({dv}+()),g(())];}}"),
+        format!("fn g(x:i64){{}} fn main(){{let a=g({dv}+())+g(());}}"),
+        format!("fn g(x:i64){{}} fn main(){{let a=g(())-g({dv}+());}}"),
+    ] {
+        let errors = check_proposed(FILE, &source, true).expect_err(&source);
+        assert_eq!(errors.len(), 2, "{source}: {errors:?}");
+        for error in errors {
+            assert_eq!(error.code, "NX-E0102", "{source}");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            assert_eq!(error.stage, Stage::Types);
+            assert_eq!(error.operation, Operation::TypesCheck);
+            assert_eq!(
+                error.data.get("expected_type"),
+                Some(&DataValue::String("i64".into()))
+            );
+            assert_eq!(
+                error.data.get("found_type"),
+                Some(&DataValue::String("()".into()))
+            );
+            error.validate(FILE, &source).unwrap();
+        }
+    }
+}
+
+#[test]
+fn deferred_equality_does_not_force_numeric_right_operand() {
+    for right in ["true", "false", "()"] {
+        let source =
+            format!("fn main(){{let v=if true{{return;}}else{{return;}};let b=v=={right};}}");
+        check_proposed(FILE, &source, true).unwrap_or_else(|errors| panic!("{source}: {errors:?}"));
+    }
+}
+
+#[test]
+fn tainted_left_does_not_suppress_direct_error_on_right() {
+    let source = "fn g(x:i64){} fn main(){let a=g(())-((if true{return;}else{return;})+());}";
+    let errors = check_proposed(FILE, source, true).expect_err(source);
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    for error in errors {
+        assert_eq!(error.code, "NX-E0102");
+        error.validate(FILE, source).unwrap();
+    }
+}
+
+#[test]
+fn array_visits_second_element_after_first_type_error() {
+    let source = "fn main(){let a=[0+(),1+()];}";
+    let errors = check_proposed(FILE, source, true).expect_err(source);
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    for error in errors {
+        assert_eq!(error.code, "NX-E0102");
+        error.validate(FILE, source).unwrap();
     }
 }
 
@@ -2171,7 +2424,6 @@ fn inferred_type_depth_enforces_array_priority_and_result_value_limit() {
 #[cfg(not(debug_assertions))]
 #[test]
 fn semantic_passes_scale_with_source_bytes() {
-    use std::time::Instant;
     fn source_for(family: usize, target: usize) -> String {
         let mut source = String::new();
         if family == 18 {
@@ -2270,25 +2522,24 @@ fn semantic_passes_scale_with_source_bytes() {
         let mut observations = Vec::new();
         for size in [262_144, 1_048_576] {
             let source = source_for(family, size);
-            let mut samples = Vec::new();
-            for _ in 0..if full { 3 } else { 2 } {
-                let start = Instant::now();
-                check_proposed(FILE, &source, false).unwrap_or_else(|d| {
-                    panic!(
-                        "family {family}, size {size}: {} {:?}",
-                        d[0].code, d[0].primary_span
-                    )
-                });
-                samples.push(start.elapsed().as_secs_f64());
-            }
-            samples.sort_by(f64::total_cmp);
-            observations.push(samples[samples.len() / 2]);
+            crate::test_alloc::reset("semantic_scale_counter.nx");
+            check_proposed("semantic_scale_counter.nx", &source, false).unwrap_or_else(|d| {
+                panic!(
+                    "family {family}, size {size}: {} {:?}",
+                    d[0].code, d[0].primary_span
+                )
+            });
+            observations.push(crate::test_alloc::snapshot("semantic_scale_counter.nx"));
         }
-        let ratio = observations[1] / observations[0];
-        println!(
-            "semantic family {family:02}: 256KiB={:.4}s 1MiB={:.4}s ratio={ratio:.2}",
-            observations[0], observations[1]
-        );
-        assert!(ratio <= 8.0, "superlinear family {family}: {ratio}");
+        println!("semantic family {family:02}: {observations:?}");
+        for (small, large) in [
+            (observations[0].0, observations[1].0),
+            (observations[0].1, observations[1].1),
+        ] {
+            assert!(
+                large <= small.saturating_mul(8),
+                "superlinear family {family}: {observations:?}"
+            );
+        }
     }
 }

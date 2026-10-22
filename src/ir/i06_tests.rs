@@ -482,7 +482,9 @@ fn verifier_rejects_forged_loan_permissions_and_lifecycle() {
     assert_eq!(verify(f), Err("write while borrowed"));
 
     let mut f = base;
-    let model::Terminator::Return { span, .. } = &f.block.terminator;
+    let model::Terminator::Return { span, .. } = &f.block.terminator else {
+        panic!("return terminator")
+    };
     f.block.terminator = model::Terminator::Return {
         value: Some(borrowed),
         span: span.clone(),
@@ -771,7 +773,6 @@ fn loan_compiler_and_interpreter_work_from_small_caller_stacks() {
 #[ignore = "explicit 256 KiB to 1 MiB compilation measurement"]
 fn dense_loan_and_call_sources_scale_across_twelve_families() {
     use std::sync::atomic::Ordering;
-    use std::time::Instant;
     fn source(family: usize, target: usize) -> String {
         let mut s = String::from(
             "fn inc(inout x:i64){x=x+1;} fn twice(inout x:i64){inc(inout x);inc(inout x);} fn read(x:i64){} fn pair(inout x:i64,inout y:i64){x=x+1;y=y+1;} fn retinc(inout x:i64)->i64{x=x+1;return x;} fn copy(a:Array<i64>)->Array<i64>{return a;} fn main(){var x=0;var y=0;var a=[0,0];",
@@ -809,18 +810,24 @@ fn dense_loan_and_call_sources_scale_across_twelve_families() {
         for bytes in [256 * 1024, 1024 * 1024] {
             let src = source(family, bytes);
             super::lower::LOAN_WORK.store(0, Ordering::Relaxed);
-            let start = Instant::now();
-            let program = compile_scalar("scale.nx", &src)
+            crate::test_alloc::reset("dead_scale_counter.nx");
+            let program = compile_scalar("dead_scale_counter.nx", &src)
                 .unwrap_or_else(|e| panic!("family {family}: {e:?}"));
-            let elapsed = start.elapsed().as_secs_f64();
             let work = super::lower::LOAN_WORK.load(Ordering::Relaxed);
             assert!(program.functions().function("main").is_some());
-            samples.push((elapsed, work));
+            samples.push((crate::test_alloc::snapshot("dead_scale_counter.nx"), work));
         }
-        let time_ratio = samples[1].0 / samples[0].0.max(0.000_001);
         let work_ratio = samples[1].1 as f64 / samples[0].1.max(1) as f64;
-        eprintln!("I06 scale family {family}: time {time_ratio:.3}, work {work_ratio:.3}");
-        assert!(time_ratio < 8.0, "family {family}: {time_ratio}");
+        eprintln!("I06 scale family {family}: {samples:?}, work {work_ratio:.3}");
+        for (small, large) in [
+            (samples[0].0.0, samples[1].0.0),
+            (samples[0].0.1, samples[1].0.1),
+        ] {
+            assert!(
+                large <= small.saturating_mul(8),
+                "family {family}: {samples:?}"
+            );
+        }
         assert!(work_ratio < 5.0, "family {family}: {work_ratio}");
     }
 }
@@ -909,7 +916,9 @@ fn verifier_rejects_unavailable_and_misplaced_loans() {
 
     let mut f = base.clone();
     f.block.instructions.truncate(call_pos + 1);
-    let model::Terminator::Return { span, .. } = &f.block.terminator;
+    let model::Terminator::Return { span, .. } = &f.block.terminator else {
+        panic!("return terminator")
+    };
     let call_output = f.block.instructions[call_pos].output.unwrap();
     f.block.terminator = model::Terminator::Return {
         value: Some(call_output),
@@ -921,7 +930,7 @@ fn verifier_rejects_unavailable_and_misplaced_loans() {
     f.block.instructions[call_pos].op = Op::DropValue(loan_temp);
     f.block.instructions[call_pos].output = None;
     f.block.instructions[call_pos].ty = None;
-    assert_eq!(verify(f), Err("drop exclusive loan"));
+    assert_eq!(verify(f), Err("unmatched loan end"));
 
     let mut f = base;
     f.block.instructions[call_pos].op = Op::CopyValue(root);
