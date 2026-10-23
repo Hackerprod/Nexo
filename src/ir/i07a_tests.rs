@@ -880,12 +880,10 @@ fn while_condition_consuming_external_resource_needs_flow_fixpoint() {
         "fn main(){let r=mock_open(1);while drop(r)==(){} inspect(r);}",
         "fn main(){let r=mock_open(1);while drop(r)==(){inspect(r);}}",
     ] {
+        let result = compile_scalar("while_consume.nx", source);
         assert!(
-            matches!(
-                compile_scalar("while_consume.nx", source),
-                Err(CompileError::OutsideScalarSlice("ownership fixpoint"))
-            ),
-            "{source}"
+            matches!(&result, Err(CompileError::Rejected(errors)) if errors.iter().any(|d| d.code == "NX-E0202")),
+            "{source}: {result:?}"
         );
     }
     let borrowed = "fn main(){let r=mock_open(1);while inspect(r)==(){return;}inspect(r);}";

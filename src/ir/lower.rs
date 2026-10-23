@@ -174,6 +174,13 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::clone(&tokens),
+            defer_ownership: {
+                let first = tokens.partition_point(|t| t.span.start < source.span.start);
+                tokens[first..]
+                    .iter()
+                    .take_while(|t| t.span.start < source.span.end)
+                    .any(|t| t.text == "while")
+            },
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -286,7 +293,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
                 data: Default::default(),
             });
         }
-        if !diagnostics.is_empty() {
+        if diagnostics.len() > before_body {
             continue;
         }
         let span = source.body.span.clone();
@@ -349,6 +356,28 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
         };
         function.cleanup = function.locals.iter().rev().map(|l| l.id).collect();
         function.content_hash = model::content_hash(&function);
+        let flow_errors = if lower.defer_ownership {
+            let mut ownership_flow_steps = 0_u64;
+            match super::ownership_flow::analyze(
+                &function,
+                &lower.name_spans,
+                &tokens,
+                &mut ownership_flow_steps,
+            ) {
+                Ok(errors) => errors,
+                Err(CompileError::Rejected(errors)) => {
+                    diagnostics.extend(errors.into_iter().map(|d| *d));
+                    continue;
+                }
+                Err(other) => return Err(other),
+            }
+        } else {
+            Vec::new()
+        };
+        if !flow_errors.is_empty() {
+            diagnostics.extend(flow_errors);
+            continue;
+        }
         super::verify::verify_function(&function).map_err(CompileError::InvalidIr)?;
         entries.push(function);
     }
@@ -396,6 +425,7 @@ struct Lower<'a> {
     emission: EmissionMode,
     poisoned: HashSet<LocalId>,
     tokens: Arc<Vec<lex::Token>>,
+    defer_ownership: bool,
     active_loans: HashMap<LocalId, Vec<ActiveLoan>>,
     live_temps: HashSet<TempId>,
     temp_undo: Vec<(TempId, bool)>,
@@ -465,6 +495,58 @@ fn branch_error(error: CompileError, diagnostics: Vec<Diagnostic>) -> CompileErr
     let mut errors: Vec<Box<Diagnostic>> = diagnostics.into_iter().map(Box::new).collect();
     if let CompileError::Rejected(mut additional) = error {
         errors.append(&mut additional);
+    }
+    CompileError::Rejected(errors)
+}
+
+fn add_backedge_to_diagnostic(
+    d: &mut Diagnostic,
+    body: &Span,
+    affected_declarations: &HashSet<u64>,
+) {
+    let closing = Span {
+        file: body.file.clone(),
+        start: body.end.saturating_sub(1),
+        end: body.end,
+    };
+    if d.code == "NX-E0202"
+        && d.related_spans.iter().any(|r| {
+            r.role == diagnostic::RelatedRole::Declaration
+                && affected_declarations.contains(&r.span.start)
+        })
+    {
+        d.related_spans.push(diagnostic::RelatedSpan {
+            role: diagnostic::RelatedRole::Backedge,
+            span: closing.clone(),
+        });
+        crate::check::names::sort_related(d);
+        d.related_spans
+            .dedup_by(|a, b| a.role == b.role && a.span == b.span);
+        if let Some(entity) = d.cause_chain.last().and_then(|c| c.entity.clone()) {
+            d.cause_chain.insert(
+                0,
+                diagnostic::Cause {
+                    kind: diagnostic::CauseKind::Backedge,
+                    operation: diagnostic::CauseOperation::FlowBackedge,
+                    span: Some(closing.clone()),
+                    entity: Some(entity),
+                    evidence: diagnostic::Evidence::Verified,
+                },
+            );
+        }
+    }
+}
+
+fn add_backedge_to_error(
+    error: CompileError,
+    body: &Span,
+    affected_declarations: &HashSet<u64>,
+) -> CompileError {
+    let CompileError::Rejected(mut errors) = error else {
+        return error;
+    };
+    for d in &mut errors {
+        add_backedge_to_diagnostic(d, body, affected_declarations);
     }
     CompileError::Rejected(errors)
 }
@@ -836,9 +918,49 @@ impl Lower<'_> {
         if condition_diverges || entry_emission == EmissionMode::Analyze {
             self.terminated = None;
             self.emission = EmissionMode::Analyze;
+            let before_errors = diagnostics.len();
             self.scoped_block(body, depth, diagnostics)?;
-            self.restore_availability(checkpoint);
+            let body_continues = self.terminated.is_none() && !condition_diverges;
+            let body_state = self.restore_availability(checkpoint);
             self.restore_temps(temp_checkpoint);
+            if body_continues && diagnostics.len() == before_errors {
+                let affected: HashSet<u64> = body_state
+                    .iter()
+                    .filter(|(id, state)| id.0 < prior_locals && *state != &self.availability(**id))
+                    .map(|(id, _)| self.name_spans[id.0].start)
+                    .collect();
+                if !affected.is_empty() {
+                    self.merge_availability(body_state, HashMap::new(), true, true, prior_locals);
+                    let second_checkpoint = self.consumed_undo.len();
+                    let second_temps = self.temp_undo.len();
+                    let locals = self.locals.len();
+                    let scopes = self.next_scope;
+                    self.terminated = None;
+                    let before_second_errors = diagnostics.len();
+                    let second = self.expr(condition, 0, Some(&Ty::Bool)).and_then(|flow| {
+                        if flow.diverged() {
+                            Ok(())
+                        } else {
+                            self.terminated = None;
+                            self.scoped_block(body, depth, diagnostics)
+                        }
+                    });
+                    self.restore_availability(second_checkpoint);
+                    self.restore_temps(second_temps);
+                    self.locals.truncate(locals);
+                    self.name_spans.truncate(locals);
+                    self.next_scope = scopes;
+                    self.scope_parents.truncate(scopes);
+                    for d in &mut diagnostics[before_second_errors..] {
+                        add_backedge_to_diagnostic(d, &body.span, &affected);
+                    }
+                    if let Err(error) = second {
+                        self.dead_depth -= 1;
+                        self.terminated = condition_diverges.then_some(Termination::Diverged);
+                        return Err(add_backedge_to_error(error, &body.span, &affected));
+                    }
+                }
+            }
             self.dead_depth -= 1;
             self.terminated = condition_diverges.then_some(Termination::Diverged);
             return Ok(());
@@ -847,12 +969,6 @@ impl Lower<'_> {
             return Err(CompileError::InvalidIr("while condition type"));
         }
         let condition_state = self.restore_availability(checkpoint);
-        if condition_state
-            .iter()
-            .any(|(id, state)| id.0 < prior_locals && *state != self.availability(*id))
-        {
-            return Err(CompileError::OutsideScalarSlice("ownership fixpoint"));
-        }
         let test = test_flow
             .temp()
             .ok_or(CompileError::InvalidIr("while condition flow"))?;
@@ -862,7 +978,15 @@ impl Lower<'_> {
             no: BlockId(usize::MAX),
             span: condition.span().clone(),
         });
+        // The complete condition has one ownership state. Both outcomes
+        // inherit its joined effects, regardless of the values in its arms.
         self.restore_temps(temp_checkpoint);
+        // Both successors observe the effects of evaluating the condition.
+        // In particular, a complete write in an `if` expression can make an
+        // owner available before the first body instruction.
+        for (id, state) in &condition_state {
+            self.set_availability(*id, state.clone());
+        }
         self.scoped_block(body, depth, diagnostics)?;
         self.emission = entry_emission;
         let body_continues = self.terminated.is_none();
@@ -880,16 +1004,15 @@ impl Lower<'_> {
                 span: body.span.clone(),
             }))
         };
-        let body_state = self.restore_availability(checkpoint);
+        let _body_state = self.restore_availability(checkpoint);
         self.restore_temps(temp_checkpoint);
         self.dead_depth -= 1;
-        if body_continues
-            && body_state
-                .iter()
-                .any(|(id, state)| id.0 < prior_locals && *state != self.availability(*id))
-        {
-            return Err(CompileError::OutsideScalarSlice("ownership fixpoint"));
+        for (id, state) in condition_state {
+            if id.0 < prior_locals {
+                self.set_availability(id, state);
+            }
         }
+        let _ = (prior_locals, body_continues);
         let exit = BlockId(self.blocks.len());
         if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
             *no = exit;
@@ -1465,6 +1588,9 @@ impl Lower<'_> {
         CompileError::Rejected(errors)
     }
     fn check_available(&self, id: LocalId, span: Span) -> Result<(), CompileError> {
+        if self.defer_ownership && self.emission == EmissionMode::Live {
+            return Ok(());
+        }
         if let Some(site) = self.maybe_consumed_at.get(&id) {
             return Err(self.ownership_error(
                 "NX-E0202",
@@ -1918,6 +2044,7 @@ impl Lower<'_> {
             let prior_terminated = self.terminated;
             let prior_emission = self.emission;
             let temp_checkpoint = self.temp_undo.len();
+            let before_statement_errors = diagnostics.len();
             let result = self.statement(statement, depth, diagnostics);
             if result.is_err() {
                 self.dead_depth = prior_dead_depth;
@@ -1932,6 +2059,11 @@ impl Lower<'_> {
                 Err(CompileError::Dependent) => {}
                 Err(other) => return Err(other),
                 Ok(()) => {}
+            }
+            if diagnostics.len() > before_statement_errors {
+                // A rejected statement may have left an incomplete CFG. Keep
+                // checking subsequent source statements directly in that case.
+                self.defer_ownership = false;
             }
         }
         // An unreachable tail is already in Analyze mode. Only a return in
@@ -2131,12 +2263,9 @@ impl Lower<'_> {
                     self.terminated = Some(Termination::Diverged);
                     return Ok(());
                 }
-                if value_flow.diverged() || self.emission == EmissionMode::Analyze {
+                if value_flow.diverged() {
                     return Ok(());
                 }
-                let temp = value_flow
-                    .temp()
-                    .ok_or(CompileError::InvalidIr("assignment value flow"))?;
                 self.conflict(id, root.span().clone(), "write")?;
                 if !indexes.is_empty() {
                     self.check_available(id, root.span().clone())?;
@@ -2144,6 +2273,12 @@ impl Lower<'_> {
                 if indexes.is_empty() {
                     self.mark_consumed(id, None);
                 }
+                if self.emission == EmissionMode::Analyze {
+                    return Ok(());
+                }
+                let temp = value_flow
+                    .temp()
+                    .ok_or(CompileError::InvalidIr("assignment value flow"))?;
                 if value_flow.ty().is_some_and(|ty| {
                     *ty != target_ty && *ty != Ty::Never && target_ty != Ty::Never
                 }) {
@@ -3011,6 +3146,7 @@ mod tests {
             emission: EmissionMode::Analyze,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("flow_contract.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3118,6 +3254,7 @@ mod tests {
             emission: EmissionMode::Analyze,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("bottom_flow.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3177,6 +3314,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("orphan_call.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3237,6 +3375,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("scope_error.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3276,6 +3415,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("while_error_checkpoint.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3336,6 +3476,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("branch_scope.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3373,6 +3514,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("loan_write.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3435,6 +3577,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("dead_state.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3497,6 +3640,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
@@ -3542,6 +3686,7 @@ mod tests {
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+            defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),

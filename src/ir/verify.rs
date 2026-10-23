@@ -754,6 +754,19 @@ struct InitTree {
     no_leaf: std::sync::Arc<InitNode>,
 }
 impl InitTree {
+    fn same(a: &std::sync::Arc<InitNode>, b: &std::sync::Arc<InitNode>) -> bool {
+        if std::sync::Arc::ptr_eq(a, b) {
+            return true;
+        }
+        super::count_cfg_work(1);
+        match (a.as_ref(), b.as_ref()) {
+            (InitNode::Uniform(x), InitNode::Uniform(y)) => x == y,
+            (InitNode::Branch(al, ar), InitNode::Branch(bl, br)) => {
+                Self::same(al, bl) && Self::same(ar, br)
+            }
+            _ => false,
+        }
+    }
     fn new(locals: usize) -> (Self, std::sync::Arc<InitNode>, std::sync::Arc<InitNode>) {
         let size = locals.max(1).next_power_of_two();
         let tree = Self {
@@ -1098,7 +1111,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 for &pred in &predecessors[target] {
                     merged = tree.meet(&merged, &outgoing[pred]);
                 }
-                if !std::sync::Arc::ptr_eq(&merged, &incoming[target]) {
+                if !InitTree::same(&merged, &incoming[target]) {
                     incoming[target] = merged;
                     if !queued[target] {
                         queue.push_back(target);

@@ -96,6 +96,8 @@ fn adr_gap_unmigrated_corpus_comments_and_crlf_keep_worktree_byte_offsets() {
             38,
         ),
     ] {
+        // The offsets below are for CRLF line endings; normalize so the result
+        // does not depend on how the checkout converted the corpus files.
         let source = source.replace("\r\n", "\n").replace('\n', "\r\n");
         let source = source.as_str();
         let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err()
@@ -1034,13 +1036,60 @@ fn cfg_hash_tracks_branch_contents_and_development_substitution() {
 }
 
 #[test]
-fn cfg_loop_ownership_fixpoint_has_nominal_boundary() {
+fn cfg_loop_ownership_fixpoint_reports_p09() {
     // F0-0002 §6.3 and §17.2 P09 require a fixed point on the backedge.
     let source = "fn f(b:bool){let r=mock_open(1);while b{drop(r);}} fn main(){}";
-    assert!(matches!(
-        compile_scalar("loop.nx", source),
-        Err(CompileError::OutsideScalarSlice("ownership fixpoint"))
-    ));
+    let result = compile_scalar("loop.nx", source);
+    let Err(CompileError::Rejected(errors)) = result else {
+        panic!("{result:?}")
+    };
+    assert_eq!(errors.len(), 1);
+    let d = &errors[0];
+    assert_eq!(d.code, "NX-E0202");
+    assert_eq!(d.subcause.as_deref(), Some("maybe_consumed"));
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((45, 46))
+    );
+    assert_eq!(d.data.len(), 0);
+    assert_eq!(
+        d.related_spans
+            .iter()
+            .map(|r| (r.role, r.span.start, r.span.end))
+            .collect::<Vec<_>>(),
+        [
+            (crate::diagnostic::RelatedRole::Declaration, 17, 18),
+            (crate::diagnostic::RelatedRole::Consumption, 40, 47),
+            (crate::diagnostic::RelatedRole::Backedge, 48, 49),
+        ]
+    );
+    assert_eq!(
+        d.cause_chain[0].operation,
+        crate::diagnostic::CauseOperation::FlowBackedge
+    );
+    assert_eq!(
+        d.cause_chain[0].kind,
+        crate::diagnostic::CauseKind::Backedge
+    );
+    assert_eq!(
+        d.cause_chain[1].operation,
+        crate::diagnostic::CauseOperation::ValueDrop
+    );
+    assert_eq!(d.cause_chain[1].kind, crate::diagnostic::CauseKind::Drop);
+    assert_eq!(
+        d.cause_chain
+            .iter()
+            .map(|c| c.span.as_ref().map(|s| (s.start, s.end)))
+            .collect::<Vec<_>>(),
+        [Some((48, 49)), Some((40, 47))]
+    );
+    assert_eq!(
+        d.cause_chain
+            .iter()
+            .map(|c| c.entity.as_ref().unwrap().id.as_str())
+            .collect::<Vec<_>>(),
+        ["binding:17", "binding:17"]
+    );
 }
 
 #[test]

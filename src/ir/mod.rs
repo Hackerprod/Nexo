@@ -1,6 +1,7 @@
 //! Isolated F0-0002 IR and scalar lowering.
 mod lower;
 pub mod model;
+mod ownership_flow;
 pub(crate) mod verify;
 
 pub use lower::{CompileError, compile_scalar};
@@ -37,5 +38,7 @@ mod i05_tests;
 mod i06_tests;
 #[cfg(test)]
 mod i07a_tests;
+#[cfg(test)]
+mod i07b_tests;
 #[cfg(test)]
 mod tests;
