@@ -8,7 +8,7 @@
 
 ## Siguiente corte
 1. Leer HANDOFF.md; comprobar respaldo remoto de F0-0001 y reproducir pruebas.
-2. Sustituir el frontend de sintaxis por la sintaxis oficial (candidata B, especificada en docs/adr/F0-D15-sintaxis-oficial.md) en un solo corte, sin compatibilidad con la grafía anterior; I07b fue validada y publicada.
+2. Sustituir el frontend de sintaxis por la sintaxis oficial (candidata B, especificada en docs/adr/F0-D15-sintaxis-oficial.md, con PASS de diseño) en un solo corte, sin compatibilidad con la grafía anterior; I07b fue validada y publicada.
 3. Mantener el registro de regresiones de cada revisión antes del respaldo verificado del corte.
 
 ## Evidencia del primer corte
