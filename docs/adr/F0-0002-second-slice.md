@@ -1,10 +1,14 @@
 # F0-0002 — Llamadas, IR tipada, efectos y préstamos locales
 
-Estado: **propuesta de arquitectura; pendiente de revisión independiente**.  
+Estado: **decisiones de arquitectura enmendadas; pendiente de revisión independiente**.
 Responsable: Codex, rol arquitecto. Fecha: 2026-10-20.  
-Perfil propuesto: `f0-0002-v1`.
+Perfil normativo enmendado: `f0-0002-v2` (2026-10-22).
 
 Este documento no acredita implementación, ejecución de pruebas, PASS ni aprobación de F0. No modifica `docs/baseline/`, no crea una revisión 0.3 y no sustituye las puertas del roadmap.
+
+La enmienda fija una única semántica objetivo; las diferencias del código existente son obligaciones pendientes, no variantes aceptadas. `f0-0002-v1` es un antecedente histórico de cuotas, no un modo alternativo del lenguaje. El perfil nuevo identifica las unidades dispersas y el límite global de §11.1; conserva el namespace diagnóstico y el modelo de efectos.
+
+**Superficie: sujeto a F0-D15.** La única sintaxis oficial es la candidata B, especificada por F0-D15. Las grafías, EBNF, tokens, ediciones, offsets y tamaños en bytes de ejemplos conservados aquí son referencias documentales anteriores: todo esperado literal dependiente de esas grafías queda **sujeto a F0-D15**, sin autorizar una segunda sintaxis ni compatibilidad. Se conservan reglas semánticas, códigos y obligaciones; la migración recalcula los literales desde la fuente oficial, sin obtener esperados del compilador probado.
 
 ## 1. Autoridad, objetivo y división del trabajo
 
@@ -247,6 +251,24 @@ Los parámetros se anotan. Los resultados no unitarios se anotan. Se infieren bi
 
 `Result<T,E>` es copiable e independiente solo si ambas alternativas lo son. La propiedad es del tipo completo: conocer que una expresión concreta construye `Ok` no permite copiar un tipo cuyo `Err` pueda contener un recurso.
 
+### 4.1.1. Inferencia monomórfica diferida
+
+Cada binding sin tipo determinado recibe una variable de tipo monomórfica. Anotaciones, inicialización, asignaciones, argumentos, operadores y retornos añaden restricciones de igualdad y dominio; se unifican transitivamente, sin generalización ni un tipo nuevo por uso. En `var w=v`, la igualdad entre los tipos de `w` y `v` persiste tras resolver cualquiera de ellos. Sus valores siguen siendo copias independientes (§6.1): compartir restricciones no comparte almacenamiento ni propiedad.
+
+Se distinguen tres estados internos:
+
+| Estado | Significado y tratamiento |
+|---|---|
+| `Never` | La expresión no continúa normalmente; fondo del retículo. `join(Never,T)=T`; no añade restricciones concretas ni exige un valor/temporal de esa salida. |
+| Tipo por inferir | Variable monomórfica aún no resuelta; conserva sus restricciones y relaciones. No equivale a divergencia ni a `Never`. |
+| Resultado contaminado | Depende de un error previo. Conserva la causa y suprime solo diagnósticos derivados; no demuestra igualdad ni borra errores independientes. |
+
+Un inicializador divergente sin anotación no restringe el tipo del binding: el análisis hipotético posterior usa su variable de tipo, sin convertir cada lectura en otra divergencia. Una anotación sí restringe ese binding. `missing_branch_value` es una obligación estructural pendiente, no una variable libre que permita aceptar un valor inexistente. La aceptación se determina con todas las restricciones locales, también en código hipotético; no depende del orden interno del solucionador.
+
+Se conserva la procedencia de las restricciones. Para elegir un diagnóstico reproducible se considera su orden fuente: la primera restricción incompatible con las precedentes se denuncia en su operando, con el contexto esperado de esa restricción; los empates siguen el orden de hijos. Esta selección de evidencia no obliga a resolver internamente en ese orden. Los constructores no resueltos conservan NX-E0103/NX-E0113 (§13.17); no se inventa un tipo concreto. Una variable usada solo hipotéticamente puede quedar interna sin materializar un valor o slot ejecutable de tipo desconocido.
+
+Se formalizan `adr_gap_never_bottom` y `adr_gap_deferred_var_alias`: `(DV)==true` y `true==DV` son simétricos en aceptación y restricciones, siendo `DV` una expresión sin continuación; `var v=DV;var w=v;v=3;w=true;` se rechaza, igual que su equivalente vivo. §14.10 fija fuentes y esperados literales. `Never`, variables pendientes y contaminación nunca se serializan en `data`, `expected_type` ni `found_type`.
+
 ### 4.2. Asociación y orden de argumentos
 
 Primero se comprueba la asociación estructural, sin ejecutar nada:
@@ -319,7 +341,7 @@ Para `==`, los arrays comparan primero longitud y después elementos por índice
 
 No se admite `<` sobre `bool`, unidad, arrays ni `Result`. Tampoco se admite `==` sobre recursos ni sobre un `Result` cuyo tipo pueda contenerlos, aunque se conozca una variante concreta sin recurso. Un array con recursos ya queda excluido por `resource_array`.
 
-Si los tipos de los operandos difieren, corresponde `NX-E0102/type_mismatch` sobre el operando derecho. Si coinciden pero el operador no admite ese tipo, corresponde el mismo código/subcausa sobre el operador, con el dominio exigido y el tipo encontrado. No se intenta copiar el recurso para producir antes `NX-E0201`.
+Si ambos operandos aportan tipos concretos y estos difieren, corresponde `NX-E0102/type_mismatch` sobre el operando derecho. Si coinciden pero el operador no admite ese tipo, corresponde el mismo código/subcausa sobre el operador, con el dominio exigido y el tipo encontrado. No se intenta copiar el recurso para producir antes `NX-E0201`. Un operando `Never` no impone igualdad concreta: se comprueba el dominio del otro en cualquiera de las posiciones. Los operandos posteriores a divergencia se comprueban hipotéticamente y conservan errores independientes.
 
 `assert_eq` utiliza el mismo dominio y recorrido de igualdad de datos; una desigualdad de valores aceptados produce `R0201`.
 
@@ -421,7 +443,7 @@ Se aplica D13:
 
 La unión de disponibilidad contiene los estados de todos los caminos que continúan. Si alguno consumió un binding, un uso posterior da `NX-E0202/maybe_consumed`. Si todos lo consumieron, da `definitely_consumed`.
 
-Los caminos que retornan se excluyen de esa unión, pero conservan efectos y limpieza. No se deducen correlaciones entre condiciones de dos `if` distintos.
+Los caminos que retornan se excluyen de esa unión, pero conservan efectos y limpieza. Una expresión sin continuación tiene `Never`; se distingue de inferencia pendiente y error previo (§4.1.1). No se deducen correlaciones entre condiciones de dos `if` distintos. Un uso comprobado solo hipotéticamente no exige un valor ejecutable para una expresión `Never`: se suprime una NX-E0202 derivada únicamente de esa ausencia de valor/continuación, sin inventar un consumo. Esto no suprime un consumo explícito independiente ni los errores de tipos, nombres o permisos del código hipotético (§§4.1.1 y 13.9).
 
 ### 6.3. `while`
 
@@ -429,7 +451,9 @@ La condición es `bool` y se evalúa antes de cada iteración. La salida por con
 
 Los estados de propiedad se resuelven por punto fijo sobre el CFG. Un valor consumido durante una iteración debe haberse reinicializado antes de cualquier camino que vuelva a necesitarlo. No se supone que el bucle ejecutará cero o una iteración por observar una constante.
 
-Los locales del cuerpo tienen una instancia nueva por iteración y se limpian al terminarla. No hay `break` ni `continue` en este perfil.
+La condición completa pertenece a la cabecera: sus consumos y reinicializaciones alcanzan tanto el cuerpo como la salida falsa. No se correlaciona el valor booleano de un brazo con un estado de propiedad más preciso. La unión distingue consumo posible y definitivo, excluye retornos y conserva testigos (§13.15). El punto fijo es monótono sobre hechos y testigos finitos, con una ruta canónica por sitio de consumo y cada retroarista a lo sumo una vez por testigo. Termina por convergencia o por §11.1, nunca aceptando estados intermedios.
+
+Los locales de la condición y del cuerpo tienen una instancia nueva por iteración; los del cuerpo se limpian al terminarla. No hay `break` ni `continue` en este perfil.
 
 Las sentencias posteriores a una salida incondicional siguen comprobándose en un estado hipotético separado. Sus errores no se ocultan y sus estados no contaminan las continuaciones alcanzables. Se conserva así la intención conservadora de F0-0001.
 
@@ -680,7 +704,7 @@ Antes de producir un artefacto ejecutable se verifica:
 9. Terminadores completos y destinos existentes.
 10. Origen fuente o causa sintética identificada para toda operación añadida.
 
-Una IR inválida es un defecto interno. Las pruebas que la construyen deliberadamente se registran como pruebas del verificador, no como negativos fuente con un código `NX-E` inventado.
+Agotar análisis deja la verificación incompleta con NX-E0003; no produce un artefacto verificado ni un rechazo definitivo por tipos. Una IR inválida es un defecto interno. Las pruebas que la construyen deliberadamente se registran como pruebas del verificador, no como negativos fuente con un código `NX-E` inventado.
 
 ### 9.4. Frontera ejecutable
 
@@ -736,30 +760,49 @@ El arnés Python no recibe una entrada pública para ejecutar IR alterada. La se
 
 ### 11.1. Análisis
 
-| Presupuesto | Límite de `f0-0002-v1` | Contabilidad |
+Las cuotas limitan el consumo del compilador. Sus unidades pertenecen al algoritmo y se versionan con el perfil; no son costes de ejecución del programa ni una obligación de simular un análisis denso cuadrático. El perfil vigente es `f0-0002-v2`.
+
+| Presupuesto | Límite | Contabilidad y alcance |
 |---|---:|---|
-| `source_bytes` | 1.048.576 | Bytes antes de decodificar. |
-| `syntax_nesting` | 128 | Entradas recursivas activas de bloque, expresión y tipo. |
-| `expression_tree_depth` | 128 | Altura compuesta, comprobada antes de enlazar el nodo. |
-| `array_type_depth` | 128 | Máximo número de envoltorios Array en un camino del tipo. |
-| `value_type_depth` | 128 | Máximo número de envoltorios Array/Result en un camino. |
+| `source_bytes` | 1.048.576 | Bytes del archivo antes de decodificar. |
+| `syntax_nesting` | 128 | Activaciones lógicas de bloque, expresión y tipo (§13.13). |
+| `expression_tree_depth` | 128 | Altura compuesta del AST (§13.13), compartida por parser y lowering. |
+| `array_type_depth` | 128 | Envoltorios Array en un camino del tipo. |
+| `value_type_depth` | 128 | Envoltorios Array/Result en un camino del tipo. |
 | `function_count` | 1.024 | Declaraciones de función del archivo. |
-| `type_solver_steps` | 1.000.000 | Cada restricción procesada y cada par de nodos de tipo comparado. |
-| `ownership_flow_steps` | 1.000.000 | Cada instrucción transferida por el análisis y cada componente de estado unida. |
-| `effect_fixpoint_steps` | 1.000.000 | Cada visita a operación y cada propagación por arista de llamada. |
-| `ir_items` | 262.144 | Registros de función, bloque, slot, instrucción, operando, préstamo y limpieza insertados. |
+| `type_solver_steps` | 1.000.000 globales | Restricciones procesadas y pares lógicos de nodos comparados. |
+| `ownership_flow_steps` | 1.000.000 por función; 4.000.000 globales | Unidades dispersas definidas abajo; cada unidad carga ambos contadores. |
+| `effect_fixpoint_steps` | 1.000.000 globales | Visitas a operación y propagaciones por sitio de llamada (§11.8.C). |
+| `ir_items` | 262.144 globales | Registros lógicos de función, bloque, slot, instrucción, operando, préstamo y limpieza. |
 
-Un exceso da `NX-E0003` con `budget_kind`, `limit`, `observed` y `profile_id`. No se acepta un programa con tipos, propiedad o efectos pendientes al agotar un presupuesto.
+Los límites globales son de una compilación completa y no se reinician entre funciones ni al verificar tras lowering. Juntos acotan el trabajo de los análisis de la compilación; no hay un presupuesto global nuevo por cada función. El contador local de propiedad empieza en cero para cada identidad de función, acumula sus pasadas y recomprobaciones, y no se reinicia al entrar en un bloque, bucle o nueva pasada de esa función. Un nuevo `check` inicia otra compilación. Los otros tres contadores costosos conservan su alcance global. El global de propiedad permite hasta cuatro presupuestos locales de trabajo concedido, para continuar después de un fallo local sin permitir que 1.024 funciones multipliquen por 1.024 el consumo total autorizado.
 
-Los recorridos son deterministas: funciones y bloques por orden fuente, instrucciones por orden de programa, sucesores por orden de construcción y colas de trabajo FIFO sin entradas duplicadas simultáneas. Los componentes de estado se recorren por identidad creciente; los hijos de tipos, de izquierda a derecha. Una revisión del algoritmo que cambie la contabilidad exige revisar el perfil y sus expectativas.
+**Recorrido de propiedad.** Funciones en orden fuente; CFG estructurado con instrucciones en orden de evaluación. Se usa una cola de prioridad por índice de bloque, con extracción del menor índice pendiente, estabilizando localmente cada bucle antes de propagar su salida. La construcción cabecera/cuerpo/salida del CFG estructurado hace que esa prioridad sea equivalente al recorrido de postorden inverso requerido en esos CFG; no se afirma equivalencia con RPO para grafos arbitrarios. Sucesores y desempates siguen la construcción fuente, sin entradas pendientes duplicadas. Los estados son dispersos y persistentes: ausencia de hecho significa disponible, la inicialización y los permisos se verifican por sus coordenadas propias. Las uniones recorren diferencias; subárboles compartidos conservan sus transformaciones diferidas. Cada bucle indexa solo bindings leídos, consumidos, escritos o prestados por condición y cuerpo; elimina las generaciones locales al cruzar la retroarista.
 
-Si una operación excede simultáneamente `array_type_depth` y `value_type_depth`, tiene prioridad `array_type_depth`. Para aislar `value_type_depth` se usa un `Result` inicial y envoltorios Array sucesivos.
+**Unidad `ownership_flow_steps` de v2.** El CFG lógico previo a optimizaciones contiene construcción, instalación y limpieza de locales; no se eliminan bindings sin uso para esta cuenta. Se cobra una unidad por:
 
-Las guardas históricas `addition_chain_length` e `index_chain_length` conservan su registro histórico. Este perfil utiliza altura compuesta para esas cadenas y no promete emisiones independientes de ambas guardas.
+1. Instrucción examinada para construir el resumen de una retroarista, una vez por resumen; una instrucción puede pertenecer a varios resúmenes anidados.
+2. Instrucción transferida en cada visita del punto fijo y en la pasada diagnóstica sobre estados convergidos.
+3. Componente efectivamente unido: un subárbol presente frente a uno ausente, o compartido con sus transformaciones diferidas, cuesta una unidad sin recorrer sus hojas. Dos vacíos cuestan cero. En hojas distintas se cobra una por unir el hecho y una por cada sitio causal entrante examinado. En nodos distintos se desciende por diferencias, sin cobrar además todos los locales visibles.
+4. En cabecera, hecho presente del conjunto tocado que se une; si hay dos hechos se aplica la cuenta de hoja y sitios anterior. Dos ausencias cuestan cero. No se cobran bindings no tocados como si se hubieran recorrido.
+
+La selección de cola, referencias persistentes y desplazamientos diferidos no añaden cargos ficticios por componente visible. Cambiar unidades o secuencia de trabajo exige otro perfil; una mejora física que las conserva no. Los hijos de tipos se recorren de izquierda a derecha; efectos conserva §11.8.C. El análisis denso puede ser oráculo semántico, nunca oráculo del consumo disperso.
+
+**Agotamiento.** Se comprueba capacidad antes de conceder cada unidad. NX-E0003 lleva `budget_kind`, `budget_scope = function | compilation`, `limit`, `observed = limit+1`, `profile_id` e `incomplete_analysis` igual a su `stage`. Propiedad local añade `analysis_function` (Entity de la función); su primario no vacío está contenido en el intervalo fuente de esa función y corresponde al cargo rechazado, nunca a otra función ni al archivo completo. En límites globales y otras guardas se omite esa clave; `budget_kind`, `budget_scope` e `incomplete_analysis` identifican el análisis incompleto sin depender del bloque donde acabó el saldo global. Si ambos límites de propiedad se excederían en el mismo cargo, se emite uno con `budget_scope = compilation`. El cargo rechazado no aumenta los contadores concedidos.
+
+**Prefijo convergido al cortar el punto fijo.** Solo son estables los bloques alcanzables de un prefijo por índice cuyas entradas, salidas y testigos ya no pueden cambiar por ningún trabajo pendiente. Si el cargo se rechaza durante el punto fijo, se toma como frontera exclusiva `e` el mínimo entre el índice del bloque actual y los índices pendientes de la cola (si está vacía, el actual). Se retrocede `e` a la cabecera de toda retroarista con origen de índice `>= e` y destino `< e`, repitiendo hasta que ninguna la cruce. Solo los bloques de índice `< e` con estado de entrada alcanzable pertenecen al prefijo estable; haber visitado un bloque no basta. Se excluyen por completo los bucles cuya retroarista todavía puede cambiar su cabecera y los bloques posteriores dependientes de ellos. Si el punto fijo terminó, todos sus estados alcanzables están convergidos, aunque la cuota corte después durante la pasada diagnóstica. Esta definición delimita estados admisibles, no autoriza reconstruir diagnósticos mediante transferencias sin cobrar: se conservan únicamente los ya materializados desde esos estados dentro del presupuesto, con la regla siguiente.
+
+Al agotarse una función se detiene su análisis no convergido; se conservan los diagnósticos ya obtenidos de estados convergidos, una entrada por uso. Sus códigos, subcausas, spans y testigos constituyen un subconjunto exacto de la ejecución sin cuota. Se añade NX-E0003 y se ordena por `primary_span.start` con los desempates de §13.9. Nunca se emite un diagnóstico de cabecera inestable ni se sustituye `maybe_consumed` por un estado provisional definitivo. Si la pasada diagnóstica agota la cuota tras converger, conserva lo ya materializado; no reejecuta sin límite una pasada para recuperarlo. La evidencia almacenada puede serializarse sin repetir el análisis.
+
+Después de un límite local se analizan las funciones posteriores, en orden fuente y con cuota local nueva, dentro del saldo global. El límite global detiene el análisis restante de la compilación. Ninguno produce un artefacto aceptado como verificado ni habilita ejecución. La conservación y continuación también rigen con errores independientes en funciones anteriores. Perfiles, cuotas globales y continuación acotada se completan en I10a.
+
+Si coinciden `array_type_depth` y `value_type_depth`, prevalece el primero. `addition_chain_length` e `index_chain_length` permanecen históricos, sin emisiones independientes. El lowering debe admitir toda altura aceptada por el parser dentro del perfil; una guarda interna no documentada no puede escapar como `OutsideScalarSlice` ni respuesta definitiva. §13.13 fija las fronteras de 127/128 términos.
+
+`src/ir/ownership_flow.rs::Budget` y `src/ir/ownership_flow/sparse.rs` ya usan cuota local, estados persistentes, resumen por retroarista y prioridad por índice. El lowering actual (`src/ir/lower.rs`, selección de `defer_ownership`) solo invoca ese análisis para funciones que contienen `while`: 64 bindings planos no cobran hoy unidades de flujo. Aplicar la contabilidad también a funciones sin bucles, incluido el negativo `flow-32`, es obligación de I10a. Esto no acredita cuota global ni metadatos nuevos; la recuperación diagnóstica tras el límite debe cumplir la obligación acotada anterior. Las diferencias registradas en `docs/validation/F0-0002-I07b-implementation-notes.md` son obligaciones de adaptación, no conformidad retrospectiva.
 
 ### 11.2. Ejecución
 
-| Presupuesto | Límite de `f0-0002-v1` | Fallo |
+| Presupuesto | Límite de `f0-0002-v2` | Fallo |
 |---|---:|---|
 | Trabajo | 1.000.000 unidades | `R0001` |
 | Frames simultáneos de funciones Nexo, incluido `main` | 256 | `R0002`, `runtime_budget_kind = call_frames` |
@@ -811,17 +854,18 @@ La prueba histórica `work_budget_exhaustion_closes_resources`, basada en duplic
 
 ### 11.4. Perfiles reducidos publicados y alcanzabilidad de análisis
 
-Cada perfil siguiente hereda íntegramente `f0-0002-v1` y cambia **solo** la cuota indicada. No cambia gramática, efectos, contabilidad ni prioridades. Los IDs son literales y forman parte del contrato de CLI y arnés.
+Cada perfil siguiente hereda íntegramente `f0-0002-v2` y cambia **solo** la cuota indicada. No cambia gramática, efectos, contabilidad ni prioridades. Los IDs son literales y forman parte del contrato de CLI y arnés.
 
 | `profile_id` | Único cambio |
 |---|---|
-| `f0-0002-test-types-32-v1` | `type_solver_steps = 32`. |
-| `f0-0002-test-flow-32-v1` | `ownership_flow_steps = 32`. |
-| `f0-0002-test-effects-32-v1` | `effect_fixpoint_steps = 32`. |
-| `f0-0002-test-ir-32-v1` | `ir_items = 32`. |
-| `f0-0002-test-frames-8-v1` | `call_frames = 8`. |
-| `f0-0002-test-cells-64-v1` | `live_value_cells = 64`. |
-| `f0-0002-test-observations-64-v1` | `observation_bytes = 64`. |
+| `f0-0002-test-types-32-v2` | `type_solver_steps = 32`. |
+| `f0-0002-test-flow-32-v2` | Límite por función de `ownership_flow_steps = 32`; global 4.000.000. |
+| `f0-0002-test-flow-global-32-v2` | Límite global de `ownership_flow_steps = 32`; local 1.000.000. |
+| `f0-0002-test-effects-32-v2` | `effect_fixpoint_steps = 32`. |
+| `f0-0002-test-ir-32-v2` | `ir_items = 32`. |
+| `f0-0002-test-frames-8-v2` | `call_frames = 8`. |
+| `f0-0002-test-cells-64-v2` | `live_value_cells = 64`. |
+| `f0-0002-test-observations-64-v2` | `observation_bytes = 64`. |
 
 No se admite una opción pública para variar arbitrariamente cuotas sin un perfil publicado.
 
@@ -833,6 +877,8 @@ Para las cuatro guardas de análisis nuevas o costosas se exige esta cobertura f
 | `ownership_flow_steps` | El mismo generador de 64 bindings. Cada inicialización exige una transferencia de estado de una instrucción. | Mismo positivo; tipos y demás cuotas conservan sus límites normales. No se omiten bindings sin uso antes de esta medición. |
 | `effect_fixpoint_steps` | `fn hoja(){}` y un `main` con 64 sentencias `hoja();`. Cada llamada es una operación visitada, aunque su resumen sea vacío. | `fn main(){}` queda bajo 32. No se permite acreditar esta guarda contando únicamente aristas deduplicadas entre funciones y omitiendo las visitas a las 64 operaciones. |
 | `ir_items` | `fn main(){...}` con 64 bindings distintos `let xK=0;`. Cada binding requiere al menos un slot de IR. | `fn main(){}` queda bajo 32. Se cuenta la IR bajada antes de cualquier eliminación de código sin uso; tipos, flujo y efectos tienen sus presupuestos normales. |
+
+El generador de 64 bindings se ejecuta también con `f0-0002-test-flow-global-32-v2`: exige `budget_scope=compilation`, `limit=32`, `observed=33`; el perfil local exige `budget_scope=function`, los mismos números y `analysis_function` de `main`. Ambos llevan `incomplete_analysis=ownership`. Una segunda función con un error independiente debe analizarse tras el límite local si queda saldo global. Las otras tres guardas reducidas usan `budget_scope=compilation`.
 
 Estas fuentes son pequeñas y planas. Su implementación debe mostrar que las demás cuotas permanecen dentro de sus límites. El resultado exigido es `NX-E0003`, el `budget_kind` objetivo, el perfil publicado y `observed = 33`; no un fallo genérico.
 
@@ -1011,6 +1057,18 @@ Por ello no se promete conservar los totales de trabajo de F0-0001. Se conservan
 
 Los cálculos siguientes son expectativas del modelo, no resultados de ejecutar una implementación Nexo.
 
+#### Cargos elementales y unidad final
+
+Se conserva el modelo lógico de §11.6: no se cobran instrucciones administrativas añadidas por lowering. Construir la unidad final sí crea una celda; cada selector del destino sí es trabajo distinto del índice y del RHS.
+
+| Fuente u operación | Desglose normativo | Ticks |
+|---|---|---:|
+| `fn main(){}` completo | Entrada 1 + unidad final 1; cuerpo contenedor 0 | 2 |
+| `a[1]=5;`, con `a` ya preparado | Asignación 1 + selector 1 + índice literal 2 + RHS literal 2 | 6 |
+| `{}` como sentencia | Entrada al bloque independiente | 1 |
+
+Los 3 ticks de la función vacía frente a 2, los 5 de la asignación indexada frente a 6, los 67 del bucle finito de abajo frente a 56 y los 0 del bloque independiente `{}` frente a 1 son diferencias de la implementación a corregir en I10b, no nuevos esperados. `src/ir/lower.rs` emite la unidad de cierre como instrucción con tick; las notas I05/I06 registran el cargo indexado incompleto y el origen del cuerpo en lugar del cierre. La tabla anterior decide el modelo, independientemente de esos detalles internos. El span de R0001 o R0002 al construir unidad final es exclusivamente la última `}` del cuerpo de esa función; en `fn main(){}` es `[10,11)`. La limpieza conserva §6.4 sin cargos de trabajo. La familia exacta de abajo alcanza esa unidad final sin calibración contra el intérprete.
+
 #### Bucle finito
 
 ```nexo
@@ -1081,15 +1139,15 @@ En el último caso, el tick rechazado es la construcción de unidad implícita, 
 
 ### 11.8. Alcanzabilidad de los cuatro presupuestos de análisis en el perfil normal
 
-Los perfiles reducidos siguen siendo obligatorios, pero no sustituyen estas familias del perfil **normal** `f0-0002-v1`.
+Los perfiles reducidos siguen siendo obligatorios, pero no sustituyen estas familias del perfil **normal** `f0-0002-v2`.
 
 Para que sus cálculos sean reproducibles se fijan estas precisiones de contabilidad:
 
 1. Una comparación estructural de tipos cobra cada par lógico de nodos visitado, incluso cuando los tipos comparten identidad internada. Una caché puede ahorrar CPU, pero no el cargo lógico publicado. La comparación de dos tipos iguales `Array` de profundidad 64 sobre `i64` visita 65 pares.
-2. En una unión normal de flujo se cobra cada componente visible unido, aunque ambos estados tengan el mismo valor o compartan representación. Los bordes terminales de retorno o fallo no se convierten en uniones normales ficticias. Su limpieza usa planes y flags, sin expandir cuadráticamente una copia de todo el estado por salida.
+2. Propiedad utiliza las unidades dispersas de §11.1. No cobra componentes visibles no recorridos. Los bordes terminales no crean uniones normales ficticias; limpieza usa planes persistentes y flags.
 3. El punto fijo de efectos de una SCC utiliza rondas síncronas: la ronda lee los resúmenes de la ronda anterior y produce los siguientes. Los resúmenes iniciales contienen las contribuciones locales conocidas/desconocidas. Se recorren funciones y sitios de llamada en orden fuente; una cola FIFO por ronda no contiene duplicados. Se cobra cada visita local a operación y cada propagación por sitio de llamada de cada ronda, incluida la ronda que demuestra estabilidad. No se deduplican sitios distintos por tener el mismo callee.
 4. `ir_items` cuenta registros lógicos, no únicamente objetos asignados por Rust. Cada ocurrencia de operando cuenta, incluido destino y literal, aunque esté codificada como campo inline o comparta una constante internada. Un binding escalar directo necesita, como mínimo, slot, instrucción `Const`, operando literal y operando destino: cuatro ítems.
-5. Los contadores no se reinician entre funciones ni para la recomprobación posterior al lowering. Estas familias alcanzan su guarda en la primera etapa pertinente.
+5. Los contadores globales no se reinician entre funciones ni al recomprobar. El local de propiedad es por identidad de función (§11.1). Las familias distinguen aceptación, límite local y global; ninguna cuenta densa sustituye sus unidades.
 
 Los generadores siguientes producen ASCII, sin comentarios ni espacios adicionales y sin LF final. Los tamaños indicados se obtienen de esas cadenas exactas.
 
@@ -1117,7 +1175,9 @@ Los cargos de restricciones e inferencia inicial adelantan el fallo, no lo evita
 
 #### B. `ownership_flow_steps`
 
-Generar:
+Estas fuentes son para `check`, incluso si sus bucles no terminarían en ejecución. Son ASCII sin LF final; grafías y tamaños están sujetos a F0-D15. Los resultados no se calibran ejecutando el compilador probado.
+
+**B-A1, uniones sin diferencias.** Se conserva la fuente de 23.491 bytes:
 
 ```text
 "fn f(b:bool){"
@@ -1126,15 +1186,76 @@ Generar:
 + "}fn main(){}"
 ```
 
-Tamaño: **23.491 bytes**.
+Esperado: aceptación, `outcome.kind=checked`, salida 0, `diagnostics=[]`. Los estados sin consumos no unen 1.025 componentes por rama; se retira el agotamiento basado en `1024*1025`.
 
-En cada continuación unida hay al menos 1.025 componentes visibles: los 1.024 bindings y `b`. Sin contar las transferencias de instrucciones ni una segunda contribución de entrada:
+**Familia N(nombre,k), resúmenes de bucles anidados.**
 
 ```text
-1024 * 1025 = 1049600 > 1000000
+"fn " + nombre + "(b:bool){"
++ "while b{" repetido 96 veces
++ para j=0..k-1: "let x" + j + "=0;"
++ "}" repetido 97 veces
 ```
 
-La fuente no consume valores ni tiene errores de tipos. Los tipos son escalares; las restricciones iniciales y comprobaciones de condiciones quedan muy por debajo de 100.000 pasos. El rechazo debe ocurrir en propiedad, sin alcanzar previamente otra cuota.
+No hay consumos ni cambios de hechos en retroaristas; cada cabecera converge sin repropagar un estado cambiado. Cada binding interior tiene construcción, instalación y limpieza: al menos tres instrucciones de propiedad. Los 96 resúmenes examinan esas instrucciones. Para estas instancias escalares, el CFG lógico usa como máximo ocho instrucciones por binding y menos de 20.000 unidades de infraestructura de bucles, incluyendo resúmenes, transferencias y diagnóstico. Así, k=1.024 queda bajo `98*8*1024+20000=822816`, sin uniones de hechos presentes. Es una cota para este generador, no para cualquier fuente del mismo tamaño.
+
+| ID | Fuente generada | Bytes | Esperado literal |
+|---|---|---:|---|
+| B-A2 | `N("f",64)+"fn main(){}"` | 1.519 | `checked`, salida 0, `diagnostics=[]`. |
+| B-A3 | `N("f",256)+"fn main(){}"` | 3.595 | `checked`, salida 0, `diagnostics=[]`. |
+| B-A4 | `N("f",1024)+"fn main(){}"` | 12.067 | `checked`, salida 0, `diagnostics=[]`. |
+| B-L1 | `N("f",6000)+"fn main(){}"` | 71.779 | Una NX-E0003, `stage=ownership`, `operation=analysis.limit`, `budget_kind=ownership_flow_steps`, `budget_scope=function`, `limit=1000000`, `observed=1000001`, `incomplete_analysis=ownership`, `analysis_function={"kind":"function","id":"function:3"}`; `rejected`, salida 1. |
+| B-G1 | Concatenar `N("f"+j,1024)` para j=0..13, después `"fn main(){}"` | 168.813 | Una NX-E0003, `stage=ownership`, `operation=analysis.limit`, `budget_kind=ownership_flow_steps`, `budget_scope=compilation`, `limit=4000000`, `observed=4000001`, `incomplete_analysis=ownership`; `rejected`, salida 1. `analysis_function` ausente. |
+
+B-L1 excede la cuota local solo con `96*3*6000=1728000` visitas de resumen. B-G1 contiene 14 funciones N más `main`: excede la global solo con `14*96*3*1024=4128768 > 4000000`, aunque cada función queda bajo su cuota local. Con 13 funciones esa cota sería `3833856 < 4000000`. Tipos escalares, 96 bucles dentro de `syntax_nesting`, sin efectos transitivos ni errores de programa. El span del límite cumple §13.13, sin offset obligatorio.
+
+**Orden normativo del arnés de §11.8.B.** Primero se baja toda la IR construible de las funciones del archivo y se acumula `ir_items`, incluidos los registros parciales de una función rechazada durante su construcción. Solo después se ejecuta el análisis de propiedad sobre las funciones construidas, en orden fuente, con los contadores local y global de §11.1; no se intercala bajada y análisis función a función. Una función parcialmente construida conserva su diagnóstico independiente y no se presenta como IR completa ni verificada. El arnés debe informar el total acumulado de `ir_items` del archivo, no un máximo por función ni solo la IR de funciones aceptadas, además de los contadores de las otras etapas. Debe demostrar que ninguna otra cuota, incluida `ir_items`, impide alcanzar el límite de propiedad. Este orden físico de construcción para el arnés es distinto del orden de barreras semánticas de §13.9; no adelanta la verificación final ni permite ejecutar IR incompleta. La implementación actual intercala ambos trabajos y carece de cuota global de propiedad; esta obligación se cierra en I10a.
+
+**Convención reproducible de las mediciones de IR de B-G1/B-D1.** Se instrumentan los registros de `src/ir/model.rs` construidos por `src/ir/lower.rs` y los cargos de `src/ir/ownership_flow.rs::Budget::charge`, conservando el recorrido de `src/ir/ownership_flow/sparse.rs::analyze`. Se cuenta un registro por función, bloque, slot local (incluidos parámetros), instrucción, terminador, préstamo creado y entrada de limpieza. Cada `output=Some` suma un operando destino; `None` no suma. Los temporales no añaden un slot local aparte. Los operandos de entrada se cuentan por ocurrencia con la tabla siguiente; sus identidades internadas o campos inline no eliminan el cargo. Los tipos, spans, permisos y etiquetas de opcode/intrínseco son metadatos, no operandos adicionales. La lista de limpieza cuenta una entrada por local en estas mediciones; no vuelve a contar su LocalId como operando. Es la convención de medición de esta IR concreta conforme al punto 4 de §11.8, no un cambio de límite ni una garantía de representación física.
+
+| Operación presente en estas fuentes | Operandos de entrada; añadir el destino si existe |
+|---|---:|
+| `ConstI64`, `ConstBool`, `ConstUnit` | 1 literal, incluida la unidad. |
+| `CopyValue`, `BorrowValue`, `DropBinding`, `DropLocal`, `DropValue` | 1 local o temporal. |
+| `WritePlace` | 2: local y valor. |
+| `CallIntrinsic` | Un operando por argumento; el selector de intrínseco no suma. |
+| `Jump` | 1 destino de bloque. |
+| `BranchBool` | 3: condición y dos destinos de bloque. |
+| `Return` | 1 si lleva valor; 0 si no lo lleva. |
+
+Medición de B-G1 sobre una copia instrumentada del código actual, con toda la IR construida antes de propiedad: **168.813 bytes**, **11.593 ítems por función N** = 1 función + 289 bloques + 1.025 slots + 3.458 instrucciones/terminadores + 5.795 operandos + 0 préstamos + 1.025 entradas de limpieza; `main` añade **7** (1 función, 1 bloque, 2 instrucciones/terminadores y 3 operandos). Total: **162.309 ítems**, menor que **262.144**. Con las guardas de propiedad elevadas únicamente para medir el recorrido completo, cada N cobra **305.906 unidades**, `main` cobra **2** y el archivo **4.282.686**. Con 13 funciones N más `main` serían **3.976.780** unidades, por debajo de la global. Con límites normales en el arnés, las primeras 13 N conceden **3.976.778** unidades; `f13` concede **23.222** y rechaza el cargo global **4.000.001**, primario medido `[166193,166194)`. El rechazo es global de propiedad: ninguna función llega a 1.000.000 unidades locales y `ir_items` ya quedó en 162.309. No se analiza `main` tras ese rechazo. La instrumentación de la cuota global demuestra el aislamiento de la fuente; no acredita su implementación ni los metadatos v2 en el compilador actual.
+
+**B-D1, conservación y continuación.**
+
+```text
+"fn big(b:bool){var s=mock_open(1);drop(s);while b{inspect(s);s=mock_open(2);}"
++ "while b{" repetido 96 veces
++ para j=0..5999: "let x"+j+"=0;"
++ "}" repetido 97 veces
++ "fn main(){}"
+```
+
+Tamaño **71.843 bytes**. La función `big` termina en 71.832; el sufijo anidado conserva la familia N. Sus resúmenes bastan para exceder propiedad (`96*3*6000=1728000`) sin la IR de 13.000 bucles planos. La fuente anterior de 824.759 bytes (824.796 con `later`) queda sustituida: su tamaño era correcto, pero excedía `ir_items` antes de aislar propiedad.
+
+Medición sobre una copia del código actual con toda la IR construible bajada antes del análisis de propiedad y la convención anterior: `big` tiene **61.400 ítems** = 1 función + 292 bloques + 6.002 slots locales + 18.401 instrucciones (incluidos terminadores) + 30.702 ocurrencias de operandos + 0 préstamos + 6.002 entradas de limpieza. `main` añade 7: **61.407 ítems** construidos en la compilación, menor que 262.144. El primer cargo rechazado de propiedad es **1.000.001**, primario medido `[49737,49738)`. Con las guardas elevadas únicamente para medir el recorrido completo, `big` necesita **1.768.894 unidades** y `main` **2**, total **1.768.896**; no cambia el límite normativo. La variante `later` conserva esos 61.407 ítems completos y añade **14 ítems parciales medidos**: 1 función y 1 bloque reservados, 1 slot, 4 instrucciones y 7 operandos; total **61.421**, también bajo 262.144. Su error secuencial se descubre antes de finalizar su IR y crear su lista de limpieza; no se cuenta esa función como si no hubiera construido nada. En ambas variantes con cuota local normal, `big` recibe 1.000.000 unidades antes del rechazo y `main` añade 2, sin agotar el saldo global. La contabilidad global y metadatos v2 siguen pendientes de I10a; estos datos medidos no los acreditan.
+
+Esperado normativo, lista en este orden, `outcome.kind=rejected`, salida 1:
+
+1. NX-E0202/`maybe_consumed`, `stage=ownership`, `operation=ownership.use`, primario `[58,59)`, `data={}`. Relaciones `declaration=[19,20)` y `consumption=[34,41)`; cadena única `kind=drop`, `operation=value.drop`, span `[34,41)`, Entity `{"kind":"binding","id":"binding:19"}`, `evidence=verified`. El testigo llega del consumo previo al bucle; la retroarista reinicializa `s`, pero no integra esa cadena. Es idéntico al de la fuente corta que omite el sufijo anidado.
+2. NX-E0003, `subcause=null`, `stage=ownership`, `operation=analysis.limit`, `profile_id=f0-0002-v2`, `data={"budget_kind":"ownership_flow_steps","budget_scope":"function","limit":1000000,"observed":1000001,"incomplete_analysis":"ownership","analysis_function":{"kind":"function","id":"function:3"}}`. Relaciones y cadena `[]`. Conforme a §13.13, el primario medido `[49737,49738)` no es un offset portable exigido: debe ser no vacío, válido y estar dentro del sufijo anidado de `analysis_function`, después del uso `[58,59)` y antes del cierre de `big` en `[71831,71832)`. Esta propiedad adicional hace obligatorio el orden de la lista; un primario `[3,6)` no satisface B-D1.
+
+Añadir antes de `fn main(){}` la función `fn later(){let z=0;drop(z);print(z);}` produce **71.880 bytes** y exige una tercera entrada NX-E0202/`definitely_consumed`, `stage=ownership`, `operation=ownership.use`, `data={}`. El límite local no oculta la función posterior. La lista se compara ordenada, una entrada por uso, sin estados provisionales duplicados.
+
+| Dato del diagnóstico posterior | Literal |
+|---|---|
+| Primario | `[71865,71866)` (`z` de `print`). |
+| Relación `declaration` | `[71847,71848)`. |
+| Relación `consumption` | `[71851,71858)` (`drop(z)`). |
+| Cadena | Un paso `kind=drop`, `operation=value.drop`, span `[71851,71858)`, Entity `{"kind":"binding","id":"binding:71847"}`, `evidence=verified`. |
+
+Las entradas NX-E0202 tienen `profile_id=f0-0002-v2`; ambas reglas y explanation_id son código/subcausa. NX-E0003 usa regla y explanation_id `NX-E0003`. En las tres, `feature_id`, token, parser_context, recognized_prefix y expected_tokens_kind son null; expected_tokens y repair son `[]`, namespace `Nexo-proposed-v1`, severity error. La implementación actual conserva los errores y el límite medidos, pero aún omite budget_scope, incomplete_analysis y analysis_function; no se transcriben esas omisiones como expectativas.
+
+Los perfiles reducidos local/global y las fronteras de contador complementan estas familias. No se promete aceptar cualquier programa válido de 65 KiB: se exige aceptar B-A1–B-A4 y rechazar controladamente B-L1/B-G1/B-D1. Los bytes por sí solos no acotan resúmenes e iteraciones.
 
 #### C. `effect_fixpoint_steps`
 
@@ -1190,11 +1311,11 @@ Los planes terminales compartidos del punto 2 son necesarios para esa cota; no s
 
 #### Evidencia exigida
 
-Son familias constructivas de diseño, todavía NO EVALUADAS en el compilador. Cada implementación debe conservar:
+Estas familias son obligaciones normativas, no evidencia de una ejecución nueva. Cada implementación debe conservar:
 
 - Generador y tamaño real de sus bytes.
-- `NX-E0003`, `budget_kind` objetivo y perfil normal.
-- Primer cargo excedido, `observed = limit + 1`.
+- En negativos de cuota, NX-E0003, `budget_kind`, `budget_scope`, `incomplete_analysis`, límite y perfil normal; en positivos, aceptación sin diagnósticos.
+- Primer cargo excedido, `observed = limit + 1`; propiedad informa contadores local/global y continuación posterior dentro del saldo global.
 - `primary_span` no nulo, dentro del archivo y no vacío, comprobado mediante la propiedad de §13.13, sin exigir un offset igual al del modelo independiente.
 - Contadores de las etapas anteriores, mostrando que no agotaron otra cuota.
 
@@ -1304,7 +1425,7 @@ nexo check archivo.nx [--profile ID] [--format text|json]
 nexo run archivo.nx [--mock-env entorno.json] [--profile ID] [--format text|json]
 ```
 
-Los valores predeterminados son `--profile f0-0002-v1` y `--format text`. Solo se aceptan los perfiles publicados en §11. El entorno mock se admite únicamente en `run`.
+Los valores predeterminados son `--profile f0-0002-v2` y `--format text`. Solo se aceptan los perfiles publicados en §11. El entorno mock se admite únicamente en `run`.
 
 El orden es: validar opciones, leer y comprobar la fuente, comprobar la entrada de `run`, leer y validar el entorno mock, ejecutar. Un error previo impide las etapas siguientes. No se selecciona una respuesta por ruta del programa, nombre de fixture ni texto fuente.
 
@@ -1454,7 +1575,7 @@ fn main()->Result<(),i64>{
 con una respuesta `{"ok":null}` en `mock_write_i64`:
 
 ```json
-{"schema_version":1,"profile_id":"f0-0002-v1","outcome":{"kind":"ok"},"stdout":["25"],"events":["write_i64:25:ok"],"observations":[{"channel":"event","text":"write_i64:25:ok"},{"channel":"stdout","text":"25"}],"observation_bytes":27,"reserved_observation_bytes":0,"diagnostics":[]}
+{"schema_version":1,"profile_id":"f0-0002-v2","outcome":{"kind":"ok"},"stdout":["25"],"events":["write_i64:25:ok"],"observations":[{"channel":"event","text":"write_i64:25:ok"},{"channel":"stdout","text":"25"}],"observation_bytes":27,"reserved_observation_bytes":0,"diagnostics":[]}
 ```
 
 El evento ocupa 24 bytes y la salida tres. Una respuesta `{"err":"40"}` produce solo `write_i64:25:err:40`, `outcome = {"kind":"err","error":"40"}` y ninguna línea de salida.
@@ -1498,7 +1619,7 @@ El primer rechazo impide atribuir cobertura semántica al resto del archivo. Las
 
 ## 13. Diagnósticos y migración
 
-Se usa el catálogo único, ampliado con el addendum de este corte. Los estáticos emitidos usan los códigos canónicos `NX-E...`.
+Se usa el [catálogo único integrado](F0-CODIGOS.md), con trazabilidad por sección de este ADR. Los estáticos emitidos usan los códigos canónicos `NX-E...`.
 
 Campos mínimos adicionales:
 
@@ -1547,7 +1668,7 @@ No se reescriben ADR, corpus, resultados ni evidencias de F0-0001. La tabla desc
 | `E0107` | `NX-E0107` por literal no representable como `i64`. |
 | `E0201` | `NX-E0201` por copia lógica no admisible. |
 | `E0202` | `NX-E0202/definitely_consumed`; los caminos nuevos pueden exigir `maybe_consumed`. Una fuente que todavía contiene `move` falla antes por alcance. |
-| `E0203` | Retirado de las emisiones de `f0-0002-v1`; se conserva su significado histórico en el catálogo. Destinos de sus cuatro subcausas en §13.3. |
+| `E0203` | Retirado de las emisiones de `f0-0002-v2`; se conserva su significado histórico en el catálogo. Destinos de sus cuatro subcausas en §13.3. |
 
 No existe `E0106` en el inventario histórico; no se crea una correspondencia por completar la numeración.
 
@@ -1564,7 +1685,7 @@ NX-E0203 no se reutiliza para otra regla ni se elimina del registro histórico.
 
 ### 13.4. Migración archivo por archivo del corpus
 
-Las rutas son las del corpus de F0-0001. Las fuentes originales se preservan. Las versiones migradas se crean diferenciadas; sus comentarios de expectativas se actualizan únicamente en esas copias.
+Las rutas son las del corpus de F0-0001. Las fuentes originales se preservan únicamente como evidencia histórica. Las fixtures activas se sustituyen conjuntamente por su versión oficial al migrar; sus comentarios se actualizan con ellas. Los originales solo se conservan como evidencia histórica, sin otro camino de producción.
 
 | Archivo | Resultado histórico | Fuente sin editar bajo F0-0002 | Fixture migrada y expectativa |
 |---|---|---|---|
@@ -1743,6 +1864,9 @@ Las claves no pertinentes se omiten dentro de `data`; el objeto puede ser `{}`.
 | `input_path` | String; obligatorio para fuente ilegible. |
 | `invalid_bytes_hex` | String de pares hexadecimales minúsculos; obligatorio al representar bytes inválidos sin texto. |
 | `budget_kind` | String de la enumeración cerrada del catálogo; obligatorio para NX-E0003 y prohibido para R0002. |
+| `budget_scope` | `function` o `compilation`; obligatorio para NX-E0003. Solo `ownership_flow_steps` admite `function`; las guardas de tamaño/profundidad usan `compilation`. |
+| `incomplete_analysis` | Uno de `input`, `parse`, `types`, `ownership`, `effects`, `lower`, igual a `stage`; obligatorio para NX-E0003. |
+| `analysis_function` | Entity de función; obligatoria solo en NX-E0003 con `ownership_flow_steps` y `budget_scope=function`, ausente en los demás diagnósticos. |
 | `runtime_budget_kind` | `call_frames`, `live_value_cells` u `observation_bytes`; obligatorio para R0002. |
 | `limit`, `observed` | UInt; obligatorios para NX-E0003, R0001 y R0002. |
 | `work_consumed` | UInt; obligatorio para R0001 y equivalente al trabajo concedido, no al lote solicitado. |
@@ -1810,7 +1934,7 @@ fn main(){let x=1}
 {
   "schema_version": 1,
   "diagnostic_namespace": "Nexo-proposed-v1",
-  "profile_id": "f0-0002-v1",
+  "profile_id": "f0-0002-v2",
   "code": "NX-E0005",
   "subcause": null,
   "rule": "NX-E0005",
@@ -1864,7 +1988,7 @@ fn main(){let x=0.5;}
 {
   "schema_version": 1,
   "diagnostic_namespace": "Nexo-proposed-v1",
-  "profile_id": "f0-0002-v1",
+  "profile_id": "f0-0002-v2",
   "code": "NX-E0006",
   "subcause": null,
   "rule": "NX-E0006",
@@ -1899,7 +2023,7 @@ fn main(){print(9223372036854775807+1);}
 {
   "schema_version": 1,
   "diagnostic_namespace": "F0-0002-sim",
-  "profile_id": "f0-0002-v1",
+  "profile_id": "f0-0002-v2",
   "code": "R0101",
   "subcause": null,
   "rule": "R0101",
@@ -1989,12 +2113,12 @@ input
 → runtime
 ```
 
-Una etapa que produce errores impide las posteriores. Esto no altera la prioridad de causas más próximas del catálogo.
+Una etapa que produce errores impide las posteriores y la ejecución. El orden es de barreras semánticas, no obliga a abortar otras funciones independientes de la misma etapa. La prioridad causal se aplica antes de emitir consecuencias, aunque las comprobaciones internas estén distribuidas entre módulos.
 
 - Entrada, lexer y parser se detienen en su primer fallo, según el recorrido publicado.
 - En una etapa semántica se conservan errores de sitios independientes alcanzados sin utilizar una declaración o expresión inválida. Se evita analizar descendientes o consecuencias que solo dependen del error ya emitido.
 - Los resultados de una misma etapa se ordenan por `file`, `primary_span.start`, `primary_span.end`, `code` y `subcause`, tratando `null` como cadena vacía para el desempate. No se ordenan por el texto traducido.
-- Un presupuesto agotado interrumpe inmediatamente la etapa: se conservan los errores independientes ya obtenidos y se añade el del límite; no se afirma haber examinado lo restante.
+- Un presupuesto local agotado interrumpe el análisis de esa función; se conservan solo diagnósticos de estados convergidos y se continúa con las posteriores dentro del presupuesto global (§11.1). Un presupuesto global agotado detiene el resto. Cada uso tiene una entrada; la lista sin NX-E0003 es un subconjunto exacto de la ejecución sin cuota, también en subcausa y testigos. No se afirma haber examinado lo restante ni se entrega un artefacto verificado.
 - En runtime se conserva únicamente el primer fallo R. La limpieza obligatoria no añade diagnósticos R secundarios.
 
 En cada llamada, la asociación de argumentos tiene una regla adicional precisa:
@@ -2006,7 +2130,11 @@ En cada llamada, la asociación de argumentos tiene una regla adicional precisa:
 
 Por tanto, S03 produce una lista de longitud uno con `unknown_argument_label`; no añade `missing_argument`. S05 produce una lista de longitud uno con `positional_after_named`; no añade la ausencia derivada de `y`. Dos llamadas independientes con esos defectos sí pueden producir dos diagnósticos de la etapa `arguments`.
 
+La comprobación hipotética de §6.2 no emite NX-E0202 si su única causa es exigir disponibilidad a un valor inexistente por `Never`. Se conserva NX-E0202 cuando existe un consumo independiente que alcanza el uso en el estado hipotético; la supresión no se aplica a todo código inalcanzable ni oculta contradicciones de tipos.
+
 En `ownership` se comprueba disponibilidad antes de copia y permiso antes de cualquier consecuencia de escape. NX-E0201 y NX-E1105 no se adelantan de forma que oculten el NX-E0202 correspondiente al mismo acceso.
+
+NX-E0105 frente a NX-E0202 sigue prioridad **causal**, nunca numérica. Si la indisponibilidad impide el acceso requerido y hace derivado el diagnóstico de modificación, se emite NX-E0202 con su subcausa y testigo. Una escritura completa sobre `let` infringe mutabilidad incluso después de consumo: sustituir el valor no exige leer el anterior disponible, por lo que corresponde NX-E0105; la reinicialización completa sobre `var` sí se permite. Dos operaciones independientes que infringen disponibilidad y mutabilidad conservan ambos diagnósticos, ordenados por spans. §14.11 fija los casos; no se escoge siempre el menor código ni se borran errores de una sentencia por otro error independiente.
 
 ### 13.10. Formato de `nexo explain`
 
@@ -2016,7 +2144,7 @@ nexo explain NX-Edddd [--subcause nombre] [--format text|json]
 
 El formato predeterminado es `text`. Sin `--subcause`, se devuelve una entrada por subcausa registrada, o una entrada con `subcause = null` cuando la regla no tiene subcausas, salvo NX-E0006. Con la opción, solo se devuelve la entrada seleccionada. Las entradas se ordenan por subcausa, con `null` primero.
 
-Para NX-E0006, tanto en JSON como en texto, se devuelven exactamente **30 entradas**, una por `feature_id`, ordenadas por ese ID en bytes UTF-8. Cada entrada tiene `subcause = null`, `explanation_id = NX-E0006`, `feature_ids = [ID]`, `availability = in_profile` y `example_profile_id = f0-0002-v1`: lo incluido es el diagnóstico de exclusión, no la característica rechazada. `description` y `repair_consequences` son específicas de ese ID. `negative_source` es la fuente sin marcadores de la primera fila por número de F01–F33 con ese ID; `positive_source` es su positivo completo tras aplicar la edición publicada. Así, `unsupported_type` usa F29 y `methods` usa F23. Un `--subcause` para NX-E0006 devuelve `unknown_subcause`; un feature_id no se convierte en subcausa.
+Para NX-E0006, tanto en JSON como en texto, se devuelven exactamente **30 entradas**, una por `feature_id`, ordenadas por ese ID en bytes UTF-8. Cada entrada tiene `subcause = null`, `explanation_id = NX-E0006`, `feature_ids = [ID]`, `availability = in_profile` y `example_profile_id = f0-0002-v2`: lo incluido es el diagnóstico de exclusión, no la característica rechazada. `description` y `repair_consequences` son específicas de ese ID. `negative_source` es la fuente sin marcadores de la primera fila por número de F01–F33 con ese ID; `positive_source` es su positivo completo tras aplicar la edición publicada. Así, `unsupported_type` usa F29 y `methods` usa F23. Un `--subcause` para NX-E0006 devuelve `unknown_subcause`; un feature_id no se convierte en subcausa.
 
 Formato JSON: un objeto UTF-8 y LF en stdout, stderr vacío y salida 0:
 
@@ -2083,7 +2211,7 @@ Si un arnés conserva el comentario histórico sin `NX-`, debe restar tres bytes
 
 #### Tests de integración
 
-Los tests históricos se conservan como evidencia del primer corte; la suite migrada utiliza sus propias fuentes y expectativas. El helper de ejecución se adapta al artefacto de IR y a los canales de resultado publicados, sin interpretar todo `Err` como fallo R.
+Los tests históricos se conservan únicamente como evidencia documental del primer corte; la suite activa migra sus fuentes y expectativas en un único corte. El helper de ejecución se adapta al artefacto de IR y a los canales de resultado publicados, sin interpretar todo `Err` como fallo R.
 
 | Test o grupo actual | Migración exigida |
 |---|---|
@@ -2150,6 +2278,8 @@ Una fila agrupada aplica a todas sus subcausas emitibles, salvo las excepciones 
 | R0201 | `runtime` | `intrinsic.assert_eq` |
 | R0301 | `runtime` | `intrinsic.fail` |
 
+R0102 señala el selector `[indice]` concreto que falla, incluidos corchetes; en accesos anidados no abarca selectores que tuvieron éxito ni el prefijo `inout`. Es la misma regla para lectura, escritura y préstamo. §6.1 conserva índices y RHS antes de comprobar límites de escritura; §13.15 relaciona acceso, destino o argumento completo. R0001/R0002 por unidad final implícita señala la `}` del cuerpo. R0002/`call_frames` señala la llamada rechazada completa (§11.3).
+
 `non_callable_target` no necesita inferir el tipo completo de un binding: en este perfil ningún binding puede contener un valor invocable aceptado. La identidad resuelta permite rechazarlo en `arguments`.
 
 `missing_branch_value` requiere determinar continuaciones normales. Tipos conserva esa obligación de control pendiente, sin inventar un tipo para el valor ausente ni emitir NX-E0113 por él. La obligación se resuelve o diagnostica en `ownership`, antes de producir un artefacto aceptado. Esto no retrasa los defectos puramente sintácticos de `value:`.
@@ -2184,7 +2314,7 @@ Así, F01–F32 conservan sus etapas publicadas y F33 usa `parse` / `syntax.pars
 
 ### 13.13. Ubicaciones de presupuestos y excepción de comparación
 
-Los seis presupuestos estructurales de la tabla conservan un `primary_span` exacto. Para `type_solver_steps`, `effect_fixpoint_steps`, `ir_items` y `ownership_flow_steps`, el arnés independiente compara exactamente `code`, `stage`, `data.budget_kind`, `data.limit` y `data.observed`, pero **no compara por igualdad `primary_span`**. Para cada emisión comprueba como propiedad que el span no sea nulo, pertenezca al archivo de entrada y cumpla `0 <= start < end <= longitud_utf8`, con extremos en fronteras de caracteres. El compilador elige una ubicación fuente asociada al trabajo rechazado; el contrato no prescribe su offset ni una tabla de cargos internos por construcción. Esta excepción rige en perfiles normales y reducidos y en las comparaciones con debug y release. No altera etapas, cuotas, contadores, recorridos ni alcanzabilidad.
+Los seis presupuestos estructurales de la tabla conservan un `primary_span` exacto. Para `type_solver_steps`, `effect_fixpoint_steps`, `ir_items` y `ownership_flow_steps`, el arnés independiente compara exactamente `code`, `stage`, `data.budget_kind`, `data.limit`, `data.observed`, `data.budget_scope`, `data.incomplete_analysis` y, cuando corresponda, `data.analysis_function`, pero **no compara por igualdad `primary_span`**. Para cada emisión comprueba como propiedad que el span no sea nulo, pertenezca al archivo de entrada y cumpla `0 <= start < end <= longitud_utf8`, con extremos en fronteras de caracteres. El compilador elige una ubicación fuente asociada al trabajo rechazado; no se prescribe su offset. Esta libertad no exime de las unidades de §11.1 y la contabilidad de §11.8. Esta excepción rige en perfiles normales y reducidos y en las comparaciones con debug y release. No altera etapas, cuotas, contadores, recorridos ni alcanzabilidad.
 
 | `budget_kind` | Regla de `primary_span` |
 |---|---|
@@ -2214,6 +2344,15 @@ En la fuente exacta de `nesting_limit_is_diagnostic`, `"fn main(){let x=" + "["*
 La regresión equivalente sobre un RHS usa `"fn main(){var x=0;x=" + "["*200 + "1" + "]"*200 + ";}"`: prefijo de 20 bytes, activación 129 en el corchete 128, span `[147,148)`, con el mismo código, etapa, presupuesto, límite y observed. Añadir esta activación no cambia el caso del inicializador: `16 + 127 = 143`. El positivo sustituye el RHS completo por `0`: `fn main(){var x=0;x=0;}`.
 
 La altura de expresión cuenta un átomo como 1 y cada nodo compuesto como `1 + max(alturas de hijos)`; la agrupación no añade altura. Para una llamada se incluye el destino y sus argumentos; para `if` expresión, condición y expresiones de sus ramas. La guarda usa los spans originales del candidato, incluidos los paréntesis fuente que lo delimitan.
+
+Parser y lowering usan esa misma altura, sin añadir llamadas auxiliares, bloques contenedores ni paréntesis. Caso normativo ASCII sin LF final, con literales sujetos a F0-D15:
+
+```text
+T = "(if true{value:1;}else{value:1;})"
+fuente(n) = "fn main(){let x=" + unir n copias de T mediante "+" + ";}"
+```
+
+Cada T tiene altura 2. `fuente(127)` tiene 4.335 bytes y altura 128: aceptación, `diagnostics=[]`, y ejecución unidad sin observaciones. `fuente(128)` tiene 4.369 bytes y altura 129: una NX-E0003 en `parse`, `operation=analysis.limit`, `data={"budget_kind":"expression_tree_depth","budget_scope":"compilation","incomplete_analysis":"parse","limit":128,"observed":129}`, primario `[16,4367)`. Solo excede altura de expresión, no anidamiento sintáctico. El positivo no puede devolver `OutsideScalarSlice("lowering depth")`. Con términos atómicos `1`, 127 y 128 términos se aceptan; 129 exceden altura 128. La guarda interna `depth >= 128` registrada en I07a debe alinearse con esta medida en I10a.
 
 Ninguna de estas guardas se diagnostica como NX-E0001/NX-E0002; sus campos sintácticos permanecen nulos o vacíos.
 
@@ -2364,8 +2503,10 @@ Se emiten únicamente las ubicaciones que exige esta tabla; el resto de reglas t
 | NX-E0417/duplicate_operation o duplicate_restriction | `context`: primera ocurrencia del elemento repetido. |
 | NX-E0417/invalid_operation | `context`: nombre de la función cuyo contexto no admite esa operación. |
 | NX-E0412–NX-E0415 | `contract`: token exacto de la prohibición escrita. Para limpieza implícita, además `origin`: propietario, y `exit`: salida que exige esa limpieza. |
+| R0102 | `context`: acceso indexado completo en lectura, destino completo en escritura o argumento completo (incluidas etiqueta y `inout`) en préstamo. El primario es el selector concreto que falla. |
+| R0001/R0002 por unidad final implícita | `context`: cuerpo completo de la función. Primario: exclusivamente su `}` de cierre. |
 
-En NX-E0102, el origen de tipo esperado es, en este orden: anotación que impone ese contexto; tipo del parámetro o resultado escrito que lo impone; expresión previa cuyo tipo debe igualarse. Si solo se exige un dominio intrínseco, no se fabrica un span para ese dominio. Para una asignación sin anotación se usa el inicializador de la declaración destino. Para elementos heterogéneos de un array sin contexto se usa su primer elemento. Para igualdad o comparación entre tipos distintos se usa el operando izquierdo.
+En NX-E0102, el origen de tipo esperado es, en este orden: anotación que impone ese contexto; tipo del parámetro o resultado escrito que lo impone; expresión previa cuyo tipo debe igualarse. Si solo se exige un dominio intrínseco, no se fabrica un span para ese dominio. Para asignación, incluida la indexada, se relaciona la anotación de la raíz cuando establece el tipo esperado del elemento; si no existe, la expresión o restricción concreta que fijó ese tipo. Un inicializador divergente o indeterminado no es evidencia de un tipo concreto: se relaciona la restricción posterior que lo determinó (§4.1.1), sin inventar una anotación ni presentar el nombre del binding como anotación. Se sigue la procedencia de igualdades entre bindings hasta la restricción concreta que establece el tipo; copiar un nombre de tipo pendiente no crea una anotación. Para elementos heterogéneos de un array sin contexto se usa su primer elemento concreto; los elementos Never no lo fijan. Para igualdad o comparación entre tipos distintos se usa el operando izquierdo.
 
 Cuando el span primario es el operador por dominio inadmisible, `found_type` señala el operando izquierdo. Para `?` señala el operando Result o no Result; cuando el defecto es el resultado no Result de la función envolvente, señala su tipo escrito, o su nombre si el resultado unidad fue omitido.
 
@@ -2481,7 +2622,7 @@ Array<T>
 Result<T,E>
 ```
 
-`Never` puede aparecer únicamente como tipo interno de ausencia de continuación, no como tipo escribible por el usuario. No se serializan TypeId, variables como `?17` ni nombres dependientes de interning.
+`Never` es exclusivamente el fondo interno de ausencia de continuación (§4.1.1), distinto de variable por inferir y contaminación. Nunca aparece en `data`, `expected_type`, `found_type` ni como tipo escribible. Tampoco se serializan TypeId, variables como `?17` ni nombres dependientes de interning.
 
 Los únicos dominios adicionales permitidos en `expected_type` son:
 
@@ -2518,7 +2659,7 @@ En `?` se comprueba primero que el operando sea Result, después el resultado de
 S16 exige `i64`/`bool`; S17, `i64`/`Array<i64>`; S18, `i64`/`bool`; S19, `domain:copyable_data`/`MockResource`; S20, `i64`/`Result<i64,i64>`; S21, `domain:copyable_data`/`Result<MockResource,i64>`.
 ## 14. Corpus mínimo con causa y ubicación
 
-Todas las filas siguientes son **expectativas de diseño, NO EVALUADAS**. Las etiquetas locales de fixtures de este ADR, incluidas las copias migradas K01/K02, tienen identidad canónica `F2-` seguida de la etiqueta: por ejemplo, `F2-S03`, `F2-E01` y `F2-L01`. Dentro de F0-0002 se permite omitir ese prefijo; fuera del ADR y en el addendum es obligatorio al citar estas fixtures. Las referencias explícitas a ejemplos de la base u otros ADR, como EX01–EX04, conservan la identidad de su documento de origen.
+Todas las filas siguientes son **expectativas de diseño, NO EVALUADAS**. Las etiquetas locales de fixtures de este ADR, incluidas las copias migradas K01/K02, tienen identidad canónica `F2-` seguida de la etiqueta: por ejemplo, `F2-S03`, `F2-E01` y `F2-L01`. Dentro de F0-0002 se permite omitir ese prefijo; fuera del ADR es obligatorio al citar estas fixtures. Las referencias explícitas a ejemplos de la base u otros ADR, como EX01–EX04, conservan la identidad de su documento de origen.
 
 Convención: `⟦texto⟧` marca exactamente el span primario. El generador elimina únicamente los delimitadores antes de compilar; los offsets esperados son los bytes UTF-8 del texto marcado en la fuente resultante. No son tokens Nexo. En positivos independientes, el marcador identifica la operación que se quiere observar, sin esperar diagnóstico.
 
@@ -2971,6 +3112,52 @@ Comprueba que reconocer `>=` como operador excluido no rompe el cierre de tipo s
 Para S32–S34 se repite además la variante con LF inmediatamente antes del operador. Debe conservar NX-E0002 sobre ese operador, recalculando los offsets sobre la fuente materializada; no se permite convertirlo en NX-E0005 con una reparación de inserción.
 
 Las nuevas filas no añaden códigos ni `feature_id`, ni cambian los totales de trabajo ya publicados.
+### 14.10. Inferencia diferida y fondo del retículo
+
+Estas fuentes son ASCII sin LF final; offsets y grafías están sujetos a F0-D15. `DV` es únicamente una abreviatura documental de `(if true{return;}else{return;})`, que el generador sustituye literalmente; no es un nombre del programa. Las expectativas se transcriben de §4.1.1, no del solucionador probado.
+
+| ID | Fuente completa o expansión exacta | Esperado literal |
+|---|---|---|
+| TD01 | `fn main(){var v=DV;var w=v;v=3;w=true;}` | Una NX-E0102/type_mismatch, `stage=types`, `operation=types.check`, primario `[62,66)` (`true` final), `data={"expected_type":"i64","found_type":"bool"}`. Relaciones `expected_type` sobre `3` en `[58,59)` y `found_type` sobre `[62,66)`. |
+| TD02 | `fn main(){var v=3;var w=v;v=3;w=true;}` | Mismo código, subcausa, etapa, operación y `data` de TD01; primario y `found_type` `[32,36)`, `expected_type` `[16,17)` (el `3` que establece el tipo de `v`). |
+| TD03 | `fn main(){var v=DV;var w=true;w=v;v=3;}` | Una NX-E0102/type_mismatch, `types`, `types.check`, primario y `found_type` `[65,66)` (`3`), `expected_type` `[54,58)` (`true` de `w`), `data={"expected_type":"bool","found_type":"i64"}`. La igualdad de `w` con `v` no se pierde. |
+| TD04 | `fn main(){let x=(DV)==true;}` y `fn main(){let x=true==DV;}` | Ambos aceptados, `diagnostics=[]`; al ejecutar retornan unidad sin observaciones. La igualdad conserva resultado `bool` en comprobación hipotética; no emite `Never`. |
+| TD05 | `fn main(){let x=[DV,true];}` y `fn main(){let x=[true,DV];}` | Ambos aceptados, `diagnostics=[]`; el elemento concreto impone `bool`, no un `i64` provisional. Ejecución unidad sin observaciones. |
+| TD06 | `fn main(){var v=DV;var w=v;v=[1];w=[2];w[0]=9;}` | Aceptado; `v` y `w` comparten restricción `Array<i64>`, no datos. Gemelo vivo reemplazando DV por `[0]` y añadiendo `assert_eq(v,[1]);assert_eq(w,[9]);` antes del cierre: ejecución unidad, sin observaciones. |
+| TD07 | `fn main(){let x=missing;let y=x;let z=true+1;}` | NX-E0101 por `missing` en la barrera `names`; ningún error derivado por `y` ni tipo inventado para `x`. Con `missing` sustituido por `0`, NX-E0102/type_mismatch sobre `true`, `expected_type=i64`, `found_type=bool`; alcanza `types`. |
+
+Los pares de fondo tienen también negativos aislados: `fn main(){let x=DV+true;}` y `fn main(){let x=true+DV;}` exigen una NX-E0102/type_mismatch sobre el `true` no perteneciente a DV, `stage=types`, `operation=types.check`, `data={"expected_type":"i64","found_type":"bool"}`, `found_type` relacionado sobre ese mismo operando, sin `expected_type` fuente por ser dominio intrínseco. Sustituir ese `true` por `1` da el positivo. `[DV,1,true]` y `[1,DV,true]` dentro de un binding sin anotación exigen el mismo desajuste sobre el último `true`, relacionado con el primer `1` concreto; `Never` no oculta la contradicción.
+
+La contaminación se aísla dentro de una sola etapa con `fn main(){let x=true+1;let y=x;let z=false+1;}`: exactamente dos NX-E0102/type_mismatch, sobre `true` y `false` en orden fuente, `expected_type=i64`, `found_type=bool`, sin diagnóstico sobre `y`. Sus positivos sustituyen ambos booleanos por `0`; corregir solo uno conserva únicamente el otro error. Estas variantes pertenecen al cierre de TD04/TD05/TD07, con campos restantes de §13.6, y no permiten que un tipo provisional sea aceptado como solución.
+
+**Divergencias de implementación, dueño I07c.** TD01 y TD03 requieren la unificación diferida y la conservación de procedencias de §4.1.1. TD02 también diverge: el código actual relaciona `expected_type=[24,25)` (el nombre `v` de la asignación posterior), mientras que el esperado normativo es `[16,17)`, el literal `3` que fijó el tipo, conforme a §13.15. No se cambia ese esperado para coincidir con el código. Las tres obligaciones se cierran en I07c (§17.2).
+
+Los positivos pareados TD01/TD02 sustituyen solo el último `true` por `4`; TD03 sustituye el último `3` por `false`. Deben aceptarse, también con restricciones procesadas internamente en orden inverso, con otra elección de representante y con recompilación debug/release. TD01–TD03 rechazados no ejecutan primitivas; `outcome.kind=rejected`, salida 1. Sus cadenas son `[]`, reparación `[]`, campos sintácticos nulos/listas vacías y `feature_id=null`; `rule`/`explanation_id=NX-E0102/type_mismatch`. No se suprime una contradicción porque sea hipotética. TD06 vivo verifica además independencia de copias (§6.1).
+
+### 14.11. Ubicaciones y prioridad causal
+
+Fuentes ASCII sin LF final, literales sujetos a F0-D15. Los tres fallos de índice siguientes tienen `code=R0102`, `subcause=null`, namespace `F0-0002-sim`, `stage=runtime`, `operation=value.index`, `data={}`, `cause_chain=[]`, `repair=[]`; resultado `simulator_fault`, salida 1, sin observaciones. La única relación es `context` en el rango indicado. El positivo sustituye el índice marcado `2` por `0` y termina normalmente.
+
+| ID | Fuente | Primario | `context` |
+|---|---|---|---|
+| DG01 | `fn main(){let a=[[0]];print(a[0][2]);}` | `[32,35)`, segundo selector `[2]` | `[28,35)`, acceso completo. |
+| DG02 | `fn main(){var a=[[0]];a[0][2]=5;}` | `[26,29)`, segundo selector `[2]` | `[22,29)`, destino completo. |
+| DG03 | `fn f(inout x:i64){}fn main(){var a=[[0]];f(inout a[0][2]);}` | `[53,56)`, segundo selector `[2]` | `[43,56)`, argumento completo. |
+
+Se repiten DG01–DG03 con el primer índice `2` y el segundo `0`: falla el primer selector, nunca el externo por defecto. DG01 positivo imprime `0`; DG02/DG03 positivos no emiten salida. Esas observaciones positivas no se atribuyen a los negativos.
+
+| ID | Fuente | Esperado y positivo |
+|---|---|---|
+| DG04 | `fn main(){let a=[0];drop(a);a[0]=5;}` | Una NX-E0202/definitely_consumed sobre la raíz del destino `[28,29)`, `ownership.use`, `data={}`; NX-E0105 sería derivado del acceso indexado indisponible. Positivo: cambiar `let` a `var` y quitar `drop(a);`. |
+| DG05 | `fn main(){let a=[0];drop(a);a=[1];}` | Una NX-E0105 sobre `[28,29)`, `place.write`, `data={}`: la sustitución completa no exige leer el valor destruido, pero infringe mutabilidad. Positivo: cambiar `let` a `var`. |
+| DG06 | `fn main(){let a=[0];let b=0;drop(a);print(a);b=1;}` | Dos errores en `ownership`: NX-E0202/definitely_consumed sobre el `a` de `print` `[42,43)`, después NX-E0105 sobre el destino `b` `[45,46)`; `data={}` en ambos. Positivo: mover `print(a);` antes de `drop(a);` y declarar `var b`. |
+| DG07 | `fn main(){var a:Array<i64>=[0];a[0]=true;}` | NX-E0102/type_mismatch sobre `true` `[36,40)`, `data={"expected_type":"i64","found_type":"bool"}`; `found_type=[36,40)` y `expected_type=[16,26)` sobre la anotación `Array<i64>` escrita, que impone el elemento. Positivo: `true` por `1`. |
+| DG08 | `fn main(){var a=[0];a[0]=true;}` | Mismo código y `data`; primario y `found_type=[25,29)` sobre `true`; `expected_type=[16,19)` sobre el inicializador `[0]`, sin anotación inventada. Positivo: `true` por `1`. |
+
+DG06: NX-E0202 relaciona `declaration=[14,15)` y `consumption=[28,35)`; cadena única `kind=drop`, `operation=value.drop`, span `[28,35)`, Entity `{"kind":"binding","id":"binding:14"}`, `evidence=verified`. Su NX-E0105 tiene `subcause=null`, `operation=place.write`, `declaration=[24,25)`, cadena `[]`. DG07/DG08 tienen `stage=types`, `operation=types.check`, cadena y repair `[]`; las únicas relaciones son expected_type y found_type, ordenadas por span. DG04, DG07 y DG08 **divergen hoy del código**: DG04 prioriza indebidamente NX-E0105; DG07/DG08 relacionan el destino `a[0]` en `[31,35)`/`[20,24)` en lugar del origen de restricción exigido. Son obligaciones, no esperados alternativos.
+
+DG04/DG06 conservan declaración, consumo y testigo de §13.15; DG05/DG06 relacionan la declaración inmutable. La disponibilidad no prevalece por el número del código: prevalece cuando causa el otro defecto. Los spans de R0001/R0002 por unidad final y sus ticks quedan fijados en §§11.6–11.7; el agotamiento por construcción de esa unidad relaciona el cuerpo y señala únicamente su cierre.
+
 ## 15. Arnés diferencial y adversarial
 
 Se requieren arneses nuevos. Los existentes sirven como antecedente y fuente de regresiones, no como evidencia suficiente del corte ampliado. Se distinguen pruebas independientes desde fuente y pruebas internas de representación.
@@ -3005,7 +3192,7 @@ Semilla inicial registrada: `20261020`. Debe cubrir:
 - Comparaciones de arrays y `Result`, incluidas diferencias de longitud y variante.
 - Reservas de cierre que compiten con salida y eventos.
 
-Se comparan exactamente resultado, código de salida del proceso, salida de programa, eventos, registro intercalado, bytes emitidos, reservas finales y primer fallo entre modelo, debug y release. Los spans se comparan exactamente salvo `primary_span` de NX-E0003 para `type_solver_steps`, `effect_fixpoint_steps`, `ir_items` y `ownership_flow_steps`: se comparan `code`, `stage`, `data.budget_kind`, `data.limit` y `data.observed`, y se verifica por propiedad que cada span exista, identifique el archivo de entrada y cumpla `0 <= start < end <= longitud_utf8`, con extremos en fronteras de caracteres. No se compara ese span con un offset esperado del modelo ni entre builds. Los otros seis `budget_kind` conservan spans exactos. Solo se normaliza la ruta temporal asignada a una fixture; no se normalizan offsets, CRLF ni contenido.
+Se comparan exactamente resultado, código de salida del proceso, salida de programa, eventos, registro intercalado, bytes emitidos, reservas finales y primer fallo entre modelo, debug y release. Los spans se comparan exactamente salvo `primary_span` de NX-E0003 para `type_solver_steps`, `effect_fixpoint_steps`, `ir_items` y `ownership_flow_steps`: se comparan `code`, `stage`, `data.budget_kind`, `data.limit`, `data.observed`, `data.budget_scope`, `data.incomplete_analysis` y, cuando corresponda, `data.analysis_function`, y se verifica por propiedad que cada span exista, identifique el archivo de entrada y cumpla `0 <= start < end <= longitud_utf8`, con extremos en fronteras de caracteres. No se compara ese span con un offset esperado del modelo ni entre builds. Los otros seis `budget_kind` conservan spans exactos. Solo se normaliza la ruta temporal asignada a una fixture; no se normalizan offsets, CRLF ni contenido.
 
 Los casos de cuotas utilizan §§11.3–11.8, incluidos los perfiles normales y reducidos de análisis. Un fallo por una cuota distinta de la objetivo es discrepancia, aunque la ejecución termine de forma controlada.
 
@@ -3074,7 +3261,7 @@ T03–T06, T09 completo, T11–T13, T15–T20 completos, T22–T24 completos y T
 
 ## 17. Orden de implementación
 
-Cada subcorte entrega una capacidad y sus comprobaciones locales. Una prueba que necesita una capacidad posterior no cierra un paso anterior. Los subcortes preparatorios son pruebas internas del desarrollo; no anuncian conformidad completa con `f0-0002-v1` ni un PASS del corte.
+Cada subcorte entrega una capacidad y sus comprobaciones locales. Una prueba que necesita una capacidad posterior no cierra un paso anterior. Los subcortes preparatorios son pruebas internas del desarrollo; no anuncian conformidad completa con `f0-0002-v2` ni un PASS del corte.
 
 | Paso | Trabajo | Comprobación de salida |
 |---|---|---|
@@ -3084,15 +3271,17 @@ Cada subcorte entrega una capacidad y sus comprobaciones locales. Una prueba que
 | I04 | I04a: IR y verificador inicial, intérprete escalar, flujo lineal, bindings, asignación completa, primitivas de datos y registro de salida en `interp/observation.rs`. I04b: arrays, copias, índices y asignación indexada sobre raíces propietarias locales. | I04a cierra `integer_limits`, literal fuera de rango, basura final, RT01/R0103 y L04 por resultado y AST. I04b cierra `immutable_write.nx`, `nested_copy`, arrays heterogéneos, positivo L07 e índices/RHS. Solo se ejecuta la IR admitida por cada subpaso, con datos sin recursos ni llamadas de usuario; la contabilidad completa espera I10. |
 | I05 | Frames y llamadas Nexo, parámetros ordinarios de lectura sin accesos exclusivos, recursos, `consume`, retorno explícito y limpieza secuencial; eventos de recursos en `interp/observation.rs`. | Transferencia, sombreado, retorno, copia prohibida y usos posteriores a consumo/drop; fallos entre argumentos, orden escrito y errores secuenciales después de return. L03 completo; positivo L01 completo. `drop` completo o temporal y rechazo de destrucción parcial. Eventos de adquisición, inspección y cierre ordenados; sus cuotas y reservas se cierran en I10b. |
 | I06 | Préstamos explícitamente representados, `inout`, conflictos y représtamos. Extensión del Place ya existente a raíces prestadas y modificaciones mediante llamadas. | Exclusividad, permisos, copia independiente devuelta y ausencia de escape del subconjunto. Índices calculados antes del RHS y comprobados después cuando el RHS llama o modifica legítimamente la raíz. |
-| I07 | Tipos y lowering de `if`/`value:`, `while`, CFG y punto fijo de propiedad. | Uniones, retroaristas, reinicialización, continuaciones sin valor y retorno faltante. L05 y L06 completos; positivo semántico de L02. Mantiene comprobación de código inalcanzable. |
+| I07a | Ramas, valores de rama, divergencia y construcción de CFG de `if`/`value:` y `while`. | Comprobación y ejecución correctas en su alcance: uniones acíclicas, continuaciones sin valor, retorno faltante, limpieza y código hipotético. No cierra propiedad dependiente de retroaristas ni inferencia diferida monomórfica. |
+| I07b | Propiedad entre iteraciones de bucles: condición, cuerpo y retroaristas. | P09; consumo posible/definitivo, reinicialización, testigos, conservación de diagnósticos y terminación acotada (§6.3). Incluye flujo hipotético de bucles. |
+| I07c | Inferencia coherente de tipos diferidos (§4.1.1) y conservación de orígenes de tipo esperado DG07/DG08. | Variables monomórficas relacionadas, Never separado de incógnita/contaminación, orden del solucionador irrelevante; TD01–TD07. Cierra ambas lagunas de tipado antes de I08. |
 | I08 | `Result`, constructores, `?`, `try_add` y comprobación completa de entrada de `run` (NX-E0112). | Resultados y limpieza de payloads, copia prohibida del tipo completo, propagación entre frames y separación de Err frente a R; `missing_main`, `invalid_main_signature` y sus positivos de §14.1, incluidas las firmas Result admitidas. Los ejemplos de §11.7 se comprueban por resultado; sus totales todavía no cierran este paso. |
 | I09 | Manifiesto y análisis transitivo de efectos antes y después del lowering; metadatos y verificador de efectos. | Destructores, desconocidos, SCC, ramas no ejecutadas, helpers, cadenas canónicas y refinamientos de variante justificados. Los casos de este paso son finitos y no requieren todavía demostrar fronteras de cuotas. |
-| I10 | I10a: cuotas completas de análisis. I10b: trabajo, cuotas estructurales de ejecución, bytes de observación y reservas de cierre en `interp/observation.rs`. | I10a cierra perfiles reducidos, familias normales y contrato de spans de §13.13: seis presupuestos con igualdad exacta y cuatro con propiedad de validez y no vaciedad. I10b cierra tablas de ticks, totales 56/25/15, familia `999992+p`, celdas, frames, observaciones y reservas; también la igualdad de trabajo entre variantes de L04. |
+| I10 | I10a: cuotas completas de análisis, unidades dispersas, límite local/global, continuación y profundidad compartida por parser/lowering. I10b: trabajo, cuotas estructurales de ejecución, bytes de observación y reservas de cierre en `interp/observation.rs`. | I10a cierra perfiles reducidos local/global, B-A1–B-A4, B-L1/B-G1/B-D1, frontera 127/128 y contrato de spans de §13.13: seis presupuestos con igualdad exacta y cuatro con propiedad de validez y no vaciedad. I10b cierra ticks 2/6/1 de §11.7, spans DG01–DG03 y unidad final, totales 56/25/15, familia `999992+p`, celdas, frames, observaciones y reservas; también la igualdad de trabajo entre variantes de L04. |
 | I11 | I11a: interfaz mock completa y tres flujos. I11b: suite integrada y arneses independientes. | I11a cierra colas, JSON y eventos de las cuatro primitivas nuevas, usando el registro y las cuotas ya disponibles. I11b contrasta debug/release, suite migrada íntegra, reparaciones y matriz V01–V13; distingue las mutaciones internas de IR del arnés Python. Repite los cierres locales sin posponer hasta aquí su primera comprobación. |
 
 ### 17.1. Matriz de dependencias comprobada
 
-La columna central enumera capacidades necesarias, no solo números de pasos. Cada fila utiliza capacidades ya disponibles o introducidas por ella misma. I02, I04, I10 e I11 son grupos ordenados de dos subpasos: `a` solo requiere los grupos anteriores de la matriz; `b` requiere además el `a` de su grupo. Toda referencia posterior al grupo exige ambos subpasos. I10a no requiere las cuotas de ejecución de I10b; I11a no requiere el arnés independiente de I11b. Así, la partición conserva el orden y no introduce dependencias hacia delante ni ciclos.
+La columna central enumera capacidades necesarias, no solo números de pasos. Cada fila utiliza capacidades ya disponibles o introducidas por ella misma. I02, I04, I10 e I11 son grupos ordenados de dos subpasos: `a` solo requiere los grupos anteriores de la matriz; `b` requiere además el `a` de su grupo. Toda referencia posterior a esos grupos exige ambos subpasos. I07 tiene tres subcortes ordenados: I07a, I07b e I07c; «I07 terminado» exige los tres cerrados. I08 depende expresamente de I07c. I10a no requiere las cuotas de ejecución de I10b; I11a no requiere el arnés independiente de I11b. Así, la partición conserva el orden y no introduce dependencias hacia delante ni ciclos.
 
 | Paso | Capacidades anteriores requeridas | Dependencias anteriores |
 |---|---|---|
@@ -3102,8 +3291,10 @@ La columna central enumera capacidades necesarias, no solo números de pasos. Ca
 | I04 | Nombres y tipos básicos; AST de asignaciones e índices. | I01–I03 |
 | I05 | Valores, IR, primitivas, slots y flujo lineal; firmas y asociación. | I03–I04 |
 | I06 | Place local de I04; frames, propietarios y llamadas de I05. | I03–I05 |
-| I07 | Tipos básicos, IR, llamadas, propietarios y permisos. | I02–I06 |
-| I08 | Llamadas, limpieza, permisos y control por caminos. | I03, I05–I07 |
+| I07a | Tipos básicos, IR, llamadas, propietarios y permisos. | I02–I06 |
+| I07b | CFG y divergencia; propietarios y permisos. | I06, I07a |
+| I07c | Comprobación viva/hipotética y flujo de ramas/bucles. | I03, I07a–I07b |
+| I08 | Llamadas, limpieza, permisos, control por caminos e inferencia diferida coherente. | I03, I05–I06, I07a–I07c |
 | I09 | Operaciones, llamadas, control, Result y planes de limpieza. | I03–I08 |
 | I10 | Todos los recorridos y operaciones cuyo coste se mide. | I01–I09 |
 | I11 | Implementación de todas las capacidades y cuotas del corte. | I01–I10 |
@@ -3111,7 +3302,7 @@ La columna central enumera capacidades necesarias, no solo números de pasos. Ca
 No hay dependencia hacia un paso de número mayor. En particular:
 
 - La asignación por lugar lógico nace en I04 para raíces locales propietarias. I06 amplía sus permisos y sus interacciones con llamadas; no vuelve a introducir una capacidad necesaria para `nested_copy`.
-- I03 comprueba el tipo de un retorno escrito, pero no acredita ausencia de caídas por caminos. I07 cierra NX-E1317.
+- I03 comprueba el tipo de un retorno escrito, pero no acredita ausencia de caídas por caminos. I07a cierra NX-E1317 para sus filas; las variantes cuya disponibilidad depende de retroaristas requieren I07b.
 - I08 comprueba semántica de Result; I10 comprueba sus ticks.
 - I01 prueba el serializador y el catálogo con objetos y fuentes documentales, sin requerir emisores futuros ni ejecutar los ejemplos de `explain`.
 - Las garantías completas del verificador —incluidos préstamos, control y efectos— se incorporan con I06, I07 e I09. El artefacto público del perfil completo solo se acredita al completar I11.
@@ -3121,11 +3312,11 @@ No hay dependencia hacia un paso de número mayor. En particular:
 | Fixture | Aserción permitida en I02 | Primer cierre posterior de la obligación restante |
 |---|---|---|
 | L01 | AST con retorno vacío seguido de expresión descartada; spans y AST del positivo con agrupación abierta antes del LF. | Negativo NX-E0102 en I03; positivo completo con retorno explícito en I05. |
-| L02 | NX-E1302/missing_value_operand, campos y spans exactos; el positivo supera parseo. | Positivo completo del `if` expresión en I07. |
+| L02 | NX-E1302/missing_value_operand, campos y spans exactos; el positivo supera parseo. | Positivo completo del `if` expresión en I07a. |
 | L03 | Una llamada cuyo nombre `value` y `(` están en líneas distintas. | Comprobación y ejecución en I05. |
 | L04 | Mismo AST normalizado para ambas grafías y terminadores insertados. | Comprobación y resultado en I04; igualdad de trabajo en I10. |
-| L05 | ValueStmt con operando unidad y terminación correcta. | Comprobación y ejecución en I07. |
-| L06 | ExprStmt terminada por LF; ausencia de ReturnStmt. | NX-E1317 y positivo completo en I07. |
+| L05 | ValueStmt con operando unidad y terminación correcta. | Comprobación y ejecución en I07a. |
+| L06 | ExprStmt terminada por LF; ausencia de ReturnStmt. | NX-E1317 y positivo completo en I07a. |
 | L07 | Tokens, comentario Unicode y spans de las tres materializaciones. | Negativo NX-E0101 en I03; positivo completo de bindings en I04. |
 
 Una aserción parcial de parser no acredita el positivo pareado completo exigido en §14. El cierre íntegro se registra en el paso indicado, y la suite completa vuelve a contrastarse en I11.
@@ -3137,13 +3328,21 @@ El resto de filas se cierra localmente según esta distribución. Cerrar signifi
 | I04, en `a` o `b` según requieran arrays/índices | S10, S16–S18, S22–S23, S25, S27–S28, S31–S34; F03–F06, F08, F16–F19, F21–F24, F27–F28, F32–F33; LX01–LX05 y RT01. |
 | I05 | S01–S05, S07, S12–S15, S19, S24, S26, S29; P01–P04; PP01, PP03–PP04; B07; F01–F02, F07, F09–F12, F20, F29–F31. |
 | I06 | S06, S08, S30; P05–P07 y su `data` exacta; PP02. |
-| I07 | S11; P08–P09; B01–B06, B08–B09; F14, F25–F26. |
+| I07a | S11; P08; B01–B06, B08–B09; F14, F25–F26; positivo L02 y L05–L06. |
+| I07b | P09 y todas las variantes de propiedad cuya causa depende de condición, cuerpo o retroarista de bucle; incluye usos posteriores, reinicialización, código hipotético y conservación de diagnósticos convergidos. |
+| I07c | TD01–TD07; variantes diferidas de ramas, arrays, igualdad y asignaciones de §4.1.1. Incluye las divergencias TD01/TD03 y el origen de tipo de TD02: expected_type [16,17), frente a [24,25) del código actual (§14.10). |
 | I08 | S09, S20–S21; P10–P11; PP05; R01–R03; F15; negativos y positivos de entrada NX-E0112. |
 | I09 | E01–E06, W01–W07, F13 y PP06. |
+| I10a | B-A1–B-A4, B-L1/B-G1/B-D1 de §11.8; cuotas reducidas local/global y profundidad 127/128. B-G1 usa 14 funciones N más main: 168.813 bytes, 162.309 ítems y 4.282.686 unidades completas medidas; el arnés baja toda la IR antes de propiedad e informa ir_items acumulado (§11.8.B). |
+| I10b | DG01–DG03 y spans/ticks de unidad final; no es propietario de correcciones de prioridad o procedencia de tipos. |
+| I07b, corrección de propiedad | DG04: prioridad causal disponibilidad/mutabilidad; DG05: sustitución completa y mutabilidad; DG06: conservación de dos errores independientes y relaciones. Las tres requieren la misma frontera de diagnósticos de propiedad, ya disponible; deben cerrarse antes de I07c. |
+| I07c | DG07/DG08: origen real de expected_type anotado/inferido; comparten representación de restricciones y procedencias con TD01–TD07, antes de I08. |
 
-Esta tabla cubre S01–S34, P01–P11, PP01–PP06, R01–R03, B01–B09, E01–E06, W01–W07 y F01–F33 sin exigir implementar las características rechazadas por NX-E0006. La regla de spans de presupuestos se cierra en I10 y se contrasta de forma independiente en I11b.
+Esta tabla cubre S01–S34, P01–P11, PP01–PP06, R01–R03, B01–B09, E01–E06, W01–W07 y F01–F33 sin exigir implementar las características rechazadas por NX-E0006. Las nuevas TD01–TD07 se cierran en I07c; DG04–DG06 tienen propietario I07b y DG07/DG08 I07c, con las dependencias y razones de la tabla; I10b solo repite estas regresiones. La regla de spans de presupuestos se cierra en I10 y se contrasta de forma independiente en I11b.
 
 Las pruebas adversariales que requieren cuotas completas se ejecutan después de I10; los pasos anteriores usan fixtures finitas y acotadas. Las partes preliminares no se publican como garantías verificadas del perfil completo.
+
+Cada regla exige negativos aislados con código, subcausa, span, token y campos exactos; esperados transcritos de este ADR; positivos contra falsos rechazos; mutación inversa por regla y restauración SHA-256; fuzz sin pánicos y nombres de test sin recuentos de pasadas. Ninguna diferencia documentada se cierra ajustando el esperado al código.
 
 Al cerrar cada subcorte implementado, el responsable actualiza `Pending.md`, `HANDOFF.md` y `RECOVERY.md`, registra defectos y regresiones y sigue el flujo de commit, push sin force y comprobación de HEAD remoto de `AGENTS.md`. Esta entrega documental no realiza esas operaciones.
 ## 18. Criterios exactos para Flujo B
@@ -3157,12 +3356,12 @@ El informe utiliza por requisito **PASA / FALLA / NO EVALUADO / INCONCLUSO**, co
 | V01, alcance | Todas las construcciones aceptadas están declaradas; las diferidas se identifican sin ejecución parcial. |
 | V02, frontend | Terminadores y `value:` se deciden sin tipos; negativos alcanzan token/span previstos. |
 | V03, llamadas | Orden escrito, asociación correcta, recursión y firmas sin inferencia global accidental. |
-| V04, propiedad | Ninguna copia de recurso, uso inválido, doble propietario o limpieza doble; ramas y bucles conservan estados. |
+| V04, propiedad | Ninguna copia de recurso, uso inválido, doble propietario o limpieza doble; ramas/bucles conservan estados y testigos. I07 requiere I07a, I07b e I07c; TD01–TD07 prueban restricciones monomórficas sin compartir datos. |
 | V05, préstamos | Conflictos por origen, représtamos subordinados y ausencia de escape en todo valor aceptado. |
 | V06, `Result` | `?` extrae o retorna una sola vez, conserva error tipado y limpia; no captura R ni revierte efectos. |
 | V07, IR | Ejecución exclusiva de IR verificada; tipos, procedencia, efectos y limpieza inspeccionables. |
 | V08, efectos | Desconocido no vacío; cadenas completas; limpieza incluida; recomprobación tras lowering. |
-| V09, robustez | Cuotas aisladas y deterministas, limpieza tras agotamiento, entradas hostiles sin aborto por defectos del prototipo. |
+| V09, robustez | Cuotas locales/globales aisladas y deterministas; aceptación B-A y rechazo B-L/B-G/B-D; subconjunto exacto de diagnósticos convergidos, continuación posterior dentro del saldo global y ningún artefacto verificado con análisis incompleto. Profundidad 127/128 coherente, ticks 2/6/1 normativos y limpieza tras agotamiento. |
 | V10, diagnósticos | Código/subcausa, ubicación, explicación y reparación correctos; aplicabilidad solo tras recomprobar. V09/V10 aplican §13.13: para los cuatro presupuestos costosos, span válido y no vacío, sin igualdad de offsets. |
 | V11, flujos | Los tres programas reducidos ejecutan lógica general con entradas variables y fallos; no respuestas elegidas por fixture. |
 | V12, independencia | Modelo diferencial y adversarial separados, resultados íntegros y discrepancias reducidas a regresiones. |
@@ -3195,24 +3394,40 @@ Los puntos de menor confianza son:
 - La contabilidad, los márgenes de alcanzabilidad y el esquema observable todavía requieren contraste con una implementación.
 - Diferir closures, generadores, módulos y D09 deja puertas importantes de F0 abiertas.
 
-La versión anterior recibió FAIL de un validador Sonnet 5.5 independiente, según la devolución del coordinador. La primera corrección abordó cuotas alcanzables, contexto de B03, interfaz mock observable, nombres y comparaciones, conciliación histórica, fixtures, palabras reservadas, notación de alcance, destrucción de `Result` y separación de arneses. Los pendientes históricos de la revisión D11–D13 son únicamente NB1–NB8, enumerados en §16.
+Los pendientes históricos de D11–D13 son NB1–NB8 (§16). Las rondas síncronas de efectos, la contabilidad lógica pese al interning y la selección canónica de testigos requieren contraste con su implementación. Las mediciones explícitas de §11.8.B no acreditan la conformidad del perfil completo ni la aprobación de F0.
 
-No se ha ejecutado esta revisión ni se dispone de un nuevo dictamen sobre ella. La entrega contiene decisiones y expectativas comprobables; no acredita PASS, implementación ni aprobación de fase.
+## 20. Enmiendas
 
+Vigencia de las decisiones siguientes: **2026-10-22**, salvo fecha explícita. Sustituyen las reglas anteriores en sus secciones; no crean otro dialecto ni acreditan implementación o aprobación de fase.
 
-### Iteración 2 de Flujo A
-
-La iteración 1 recibió FAIL de un nuevo validador independiente, según la devolución del coordinador. El dictamen confirmó las cuotas estructurales, reservas, migración, códigos y prioridades ya documentados, pero encontró incompletos el esquema de diagnósticos y la contabilidad exacta de trabajo.
-
-Esta iteración concreta ambos contratos y añade las familias normales de análisis, migración de tests, spans pendientes, fixtures de LF, cobertura de nombres y corrección del orden de implementación. Las rondas síncronas de efectos y la contabilidad lógica que conserva cargos pese al interning son decisiones explícitas del prototipo; su coste práctico debe contrastarse al implementar.
-
-Los cálculos documentales y offsets no sustituyen la ejecución del compilador. Esta revisión sigue pendiente de un nuevo dictamen independiente y no acredita PASS ni aprobación de F0.
-
-
-### Iteración 3 de Flujo A
-
-Según la devolución del coordinador, la revisión anterior recibió FAIL por dependencias de implementación adelantadas, una relación ausente en el ejemplo NX-E0005 y campos diagnósticos todavía indeterminados.
-
-Iteración 4: FAIL según el coordinador. Iteración 5: corrige I04a→I04b y precisa diagnósticos; pendiente de dictamen.
-
-La selección canónica de testigos y su correspondencia con el lowering todavía requieren contraste en implementación. Los nuevos cálculos de offsets y la revisión de dependencias son evidencia documental, no ejecución de Nexo ni PASS independiente.
+| Decisión | Regla vigente y motivo |
+|---|---|
+| Partición de I07 | §§17–17.2 distinguen I07a (ramas/CFG), I07b (propiedad iterativa) e I07c (inferencia diferida). I07 exige las tres; I08 depende de I07c, para no construir Result sobre tipos incoherentes. |
+| Tipos diferidos y fondo | §§4.1.1, 6.2, 13.17 y 14.10 fijan unificación monomórfica, relación entre copias de bindings, independencia del solucionador y separación Never/incógnita/contaminación. Cierran `adr_gap_never_bottom` y `adr_gap_deferred_var_alias` sin cambiar la semántica de copia. |
+| Cuotas dispersas | §§11.1, 11.4, 11.8 y 13.9 adoptan unidades dispersas versionadas en `f0-0002-v2`, prioridad por índice con punto fijo local en CFG estructurados, límite por función y global, diagnósticos convergidos y continuación acotada. Sustituyen cobros densos artificiales y garantías basadas solo en bytes; implementación global completa en I10a. |
+| Índices y tipo esperado | §§13.12, 13.15 y 14.11 fijan selector fallido común a lectura/escritura/inout y relaciones con el contexto completo; el tipo esperado relaciona la anotación o restricción real, sin inventar fuente. Permite localizar y reparar la causa. |
+| Prioridad causal | §§13.9 y 14.11 distinguen NX-E0105 de NX-E0202 por dependencia causal, conservando errores independientes; el número del código no decide prioridad. |
+| Profundidad compartida | §§11.1 y 13.13 fijan la misma altura para parser y lowering y el caso 127/128 términos. Evita filtrar una guarda interna como exclusión o conclusión definitiva. |
+| Trabajo y unidad final | §§11.6–11.7 conservan 2 ticks para función vacía y 6 para asignación indexada; el modelo cobra operaciones del lenguaje, no instrucciones administrativas. R0001/R0002 por unidad final señala la llave de cierre. Las diferencias se corrigen en I10b. |
+| Catálogo integrado | §13 y F0-CODIGOS integran códigos, subcausas, perfiles, serialización y trazabilidad del addendum, que se elimina para mantener un solo registro. |
+| Superficie única | La nota inicial remite la grafía oficial a F0-D15; los literales dependientes de grafía quedan sujetos a ese ADR. Se conserva aquí la semántica sin inventar una superficie nueva ni mantener compatibilidad. |
+| Aislamiento de B-D1 | §11.8.B sustituye bucles planos por 96 bucles anidados y 6.000 bindings; 61.407 ítems (61.421 con later y su IR parcial) quedan bajo 262.144 y propiedad rechaza el cargo 1.000.001. Se conserva el testigo previo y la continuación a later. |
+| Ubicación del límite local | §§11.1 y 11.8.B exigen primario dentro de analysis_function; B-D1 lo restringe además al sufijo anidado, posterior al uso conservado. La lista ordenada deja de depender de un span arbitrario. |
+| Literales de procedencia y prioridad | §14.11 fija primarios, relaciones y cadena de DG06–DG08; declara las divergencias actuales DG04/DG07/DG08 para impedir su cierre por ajuste del esperado. |
+| Funciones sin bucles | §11.1 asigna a I10a el cobro de flujo de funciones planas y el negativo flow-32, hoy omitidos por defer_ownership. |
+| Orden exacto del punto fijo | §11.1 especifica cola de prioridad por índice, equivalente a RPO solo para la construcción de CFG estructurados descrita; no presupone esa equivalencia para cualquier grafo. |
+| Diferencias completas de ticks | §11.7 registra además 67 frente a 56 en el bucle finito y 0 frente a 1 para el bloque independiente; I10b conserva el modelo normativo. |
+| Propietarios de DG04–DG08 | §17.2 asigna DG04–DG06 a corrección de I07b y DG07/DG08 a I07c por sus dependencias de propiedad y procedencia de restricciones; I10b no absorbe esas correcciones. |
+| Retirada física y CLI única | F0-D15 §§1 y 7 elimina en el corte B syntax.rs, runtime.rs y las API/partes heredadas; check/run usan el núcleo nuevo verificado. No se pospone ningún frontend a I11. |
+| Corpus heredado literal | F0-D15 §7 reescribe manualmente los 15 archivos de F0-0001 y sus tests; la extracción AST se limita a fixtures que el frontend F0-0002 realmente admite. |
+| Rechazo de capacidad pendiente | F0-D15 §§3.6, 6.1 y 7.1 concreta NX-E0006 con implementation_limit, sustituyendo legacy_move en el conjunto B de 30 entradas; pending_scope identifica I08/I09/I10a/I10b/I11a. No reintroduce el prototipo para cubrir capacidades pendientes. |
+| Perfiles B derivados | F0-D15 §6.1 deriva el identificador del sufijo vigente de F0-0002, incluidos los ocho reducidos y flow-global-32; no congela una versión anterior. |
+| Corpus B de la enmienda | F0-D15 §§8.12–8.13 transcribe T01–T07/D01–D08, variantes y B-D1 con sus bytes y relaciones nuevos, conservando las reglas semánticas de §§14.10–14.11. |
+| Lookahead explícito | F0-D15 §3.1 fija LL(2) contextual en F0 y análisis especulativo sensible a espacios para GenericHead de B completa; no presenta ambos como LL(1). |
+| Frontera léxica de cadenas | F0-D15 §§2.4 y 3.6 separa la envoltura/escapes/llaves de F0 del análisis recursivo de interpolaciones de B completa; text se emite solo para un token léxico válido. |
+| Nombres retirados sin reserva | F0-D15 §2.2 deja inout/consume como Name sin modos ni prefijos; no reserva rastros de la gramática anterior. |
+| Offsets independientes | F0-D15 §§6.1 y 7 fija contexto R0102 completo, offsets conservados por main→Main y escaneo de bytes independiente en tests; las filas de ADR se transcriben a mano, nunca del mapa del impresor como único oráculo. |
+| Diagnóstico de lógica excluida | F0-D15 §§3.2 y 6.3 fija contextos, tokens, FIRST, prefijos y primarios literales para not/and/or en F0, sin ampliar operadores aceptados. |
+| Terminación explícita canónica | F0-D15 §§2.5, 3.2 y 8.1 distingue entradas con salto de salida fmt con punto y coma; advierte continuidad ante paréntesis, corchete y menos y fija la selección descartada agrupada. |
+| Sobrecargas mantenidas | F0-D15 §2.4 conserva las de D14 §6.2 como deuda aceptada por el coordinador frente a F0_ACUERDOS §9.6, criterio 3; se justifican por contextos y se miden sin atribuir cumplimiento perfecto. |
+| Aislamiento y orden del arnés de propiedad (2026-10-23) | §11.8.B reduce B-G1 a 14 funciones N más main y exige bajar toda la IR construible antes de analizar propiedad, informando ir_items acumulado, incluidos registros parciales. Evita que otra cuota haga inalcanzable el rechazo global; §17.2 lo asigna a I10a. |

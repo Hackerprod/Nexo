@@ -23,7 +23,7 @@
 ## Diseño F0-D11/D12/D13
 - ADR D11 (closures), D12 (async), D13 (expresiones/módulos) y catálogo F0-CODIGOS: PASS de diseño en
   iteración 7 (docs/validation/F0-D11-D13-design-review.md). Sin ejecutar; los límites diferidos sobre atributos, tuplas, módulos y activación local de `extend` siguen en el ADR §16.
-- ADR F0-0002 (llamadas, IR, préstamos, efectos, Result/?): PASS de diseño en iteración 6 (docs/validation/F0-0002-design-review.md). Addendum de códigos pendiente de fusionar en F0-CODIGOS.md.
+- ADR F0-0002 (llamadas, IR, préstamos, efectos, Result/?): PASS de diseño en iteración 6 (docs/validation/F0-0002-design-review.md). La enmienda posterior (partición I07a/b/c, cuotas `f0-0002-v2`, tipos diferidos y lagunas) y la fusión del catálogo de códigos en F0-CODIGOS.md pasaron revisión independiente de diseño.
 - Las subtareas I01–I11 de F0-0002 §17 siguen el orden y las puertas del ADR.
 
 ## Decisiones y puertas aún pendientes
@@ -39,7 +39,7 @@ No ocultar pendientes al cambiar de workspace. No publicar secretos ni usar forc
 
 ## Corte I01
 - Estado por subtarea: I01 validada tras revisión independiente y publicada en `d4836cf`; I02a validada tras revisión independiente y publicada en `f073275`; I02b validada tras revisión independiente y publicada en `84d5f53`; I03 validada tras revisión independiente y publicada en `f808a0c`; I04a validada tras revisión independiente y publicada en `0739795`; I04b validada tras revisión independiente y publicada en `f5016d7`; I05 validada tras revisión independiente y publicada en `a203e51`; I06 validada tras revisión independiente y publicada en `0eaf876`; I07a validada tras revisión independiente y publicada en `9f96780`; I07b validada tras revisión independiente y publicada; I08–I11 pendientes.
-- El addendum F0-CODIGOS-ADDENDUM-0002 sigue pendiente de fusionar en F0-CODIGOS.md.
+- El addendum de códigos quedó fusionado en F0-CODIGOS.md y eliminado; la enmienda de F0-0002 y F0-CODIGOS pasó revisión independiente de diseño.
 - Diseño D11–D13 y F0-0002 con PASS de diseño; no equivale a aprobación del propietario.
 - I01 abarca esquema, validación, JSON/texto, explain y lectura acotada; está validada tras revisión independiente y publicada en `d4836cf`. Las puertas de F0 siguen pendientes.
 - Las reglas de emisión y las inserciones vacías en el mismo punto no se validan por el esquema; se comprobarán en los emisores.
@@ -77,7 +77,7 @@ Pendientes nominales tras I04a: I05 introdujo frames, llamadas de usuario, recur
 
 I04b validada tras revisión independiente y publicada en `f5016d7`. La IR verificada y el intérprete aislado cubren arrays de datos, copias profundas, lectura y escritura indexadas, `len`, igualdad estructural y observación; las cuotas R0002 de celdas incluyen cabeceras y elementos. El negativo `immutable_write.nx` emite NX-E0105 en ownership con raíz y declaración relacionadas; los sitios independientes se acumulan en orden de fuente. `nested_copy` ejecuta copias sin alias. `drop(a)` libera el binding antes de crear la unidad; las lecturas indexadas prestan el elemento y las asignaciones o declaraciones propietarias copian. `docs/validation/F0-0002-I04b-implementation-notes.md` enumera las filas de §17.2, evidencia local y lagunas. La suite enumera 311 pruebas de biblioteca; la revisión separada y las puertas de F0 siguen pendientes.
 
-Límites nominales conservados de I04b: ticks de `work_consumed` frente a §11.6 e `ir_items` corresponden a I10. El span de R0002 de la unidad final implícita cubre el cuerpo, no la `}`; el ADR no fija span de R0102 ni `expected_type` relacionado para asignación indexada. I05 añade el rechazo NX-E0202 tras `drop` y comprueba el código posterior a `return`. I06–I11 conservan permisos exclusivos, CFG, Result, efectos, cuotas completas e integración. El addendum de códigos y la puerta de dos revisores sin discrepancias siguen abiertos.
+Límites nominales conservados de I04b: ticks de `work_consumed` frente a §11.6 e `ir_items` corresponden a I10. El span de R0002 de la unidad final implícita cubre el cuerpo, no la `}`; el ADR no fija span de R0102 ni `expected_type` relacionado para asignación indexada. I05 añade el rechazo NX-E0202 tras `drop` y comprueba el código posterior a `return`. I06–I11 conservan permisos exclusivos, CFG, Result, efectos, cuotas completas e integración. El la puerta de dos revisores sin discrepancias sigue abierta.
 
 ## Corte I05
 

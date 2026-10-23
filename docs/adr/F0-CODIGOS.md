@@ -1,9 +1,13 @@
-# F0-CODIGOS — Catálogo único de diagnósticos de D11–D13
+# F0-CODIGOS — Catálogo único de diagnósticos de Nexo
 
-Estado: propuesta de la iteración 6; pendiente de nueva validación.
+Estado: catálogo integrado con F0-0002, enmendado el 2026-10-22; pendiente de revisión independiente.
 Este archivo es el único registro de significado, propietario y subcausas.
 Las tablas de los ADRs referencian entradas; no crean catálogos paralelos.
 No modifica los diagnósticos emitidos por F0-0001 ni la base 0.2.
+
+El registro vigente contiene **70 códigos NX-E** y siete códigos experimentales de `F0-0002-sim`; los inventarios menores en las secciones históricas describen sus fechas, no el registro actual. Las inserciones de F0-0002 enlazan su sección normativa. Los detalles del perfil se definen una sola vez en ese ADR y se incorporan aquí por referencia.
+
+**Superficie: sujeto a F0-D15.** Grafías, tokens, ediciones y spans de ejemplos anteriores se conservan como referencias documentales sujetas a la sintaxis oficial única. No habilitan compatibilidad ni otra sintaxis activa.
 
 ## Esquema y estabilidad
 
@@ -44,13 +48,17 @@ No modifica los diagnósticos emitidos por F0-0001 ni la base 0.2.
 | NX-E0003 | F0-0001/frontend | Presupuesto explícito de análisis excedido; budget_kind usa exclusivamente la enumeración cerrada de este catálogo. Subcause = null. |
 | NX-E0004 | F0-0001/entrada | `source_unreadable`: fallo de apertura/lectura de fuente; `invalid_utf8`: bytes leídos y de tamaño permitido que no decodifican como UTF-8. |
 | NX-E0005 | D13 §2, sintaxis común | Falta terminador de sentencia, declaración simple o requisito sin cuerpo; MissingTerminator reconoce la recuperación rechazada (D13 G.2). Token/span exigidos, reparación explícita y prioridad sobre errores de flujo derivados. Subcause = null. |
-| NX-E0101 | F0-0001/tipos | Binding no declarado. |
+| NX-E0006 | F0-0002/alcance del prototipo | Construcción reconocida pero fuera del perfil experimental solicitado. Subcause = null. Exige profile_id y feature_id registrado para ese perfil; no acredita una prohibición del lenguaje completo ni una regla semántica todavía no implementada. Procedencia: [F0-0002 §§2.2, 3.4 y 14.6](F0-0002-second-slice.md). |
+| NX-E0101 | F0-0001/tipos; ampliación de resolución F0-0002 | Nombre de valor no declarado, incluido un binding usado como expresión o un destino de llamada no declarado. Subcause = null. En F0-0002, use_kind distingue value y call_target; un nombre resuelto a valor no invocable usa NX-E0111/non_callable_target. Procedencia: [F0-0002 §4.5](F0-0002-second-slice.md). |
 | NX-E0102 | F0-0001/tipos | `type_mismatch`: tipo incompatible; `not_indexable`: indexación no aplicable; `resource_required`: operación que requiere recurso; `field_requires_grouped_call`: miembro campo usado en forma de llamada de método x.m(); la invocación del campo se escribe (x.m)() (D13 G.1, C52d/C52c). |
 | NX-E0103 | F0-0001/tipos | Elemento de array vacío no inferible sin anotación. |
-| NX-E0104 | F0-0001/nombres | Binding duplicado en el mismo ámbito. |
+| NX-E0104 | F0-0001/nombres; ampliación de declaraciones F0-0002 | Declaración duplicada en el mismo ámbito: binding, función o parámetro. Subcause = null. En F0-0002 exige declaration_kind = binding, function o parameter, span de la segunda declaración y primera declaración relacionada. Procedencia: [F0-0002 §4.5](F0-0002-second-slice.md). |
 | NX-E0105 | F0-0001/acceso | Acceso de modificación solicitado sobre binding inmutable, incluida asignación, receptor inout y match inout. |
 | NX-E0107 | F0-0001/números | Literal fuera del rango i64 del corte. |
 | NX-E0110 | Propiedades selladas, mantenimiento D11 | Una impl o derivación de usuario intenta afirmar una propiedad/protocolo reservado al compilador (incluidos Call* y SuspendSafe). |
+| NX-E0111 | F0-0002/llamadas | Asociación o destino de llamada inválidos: `missing_argument`, `excess_positional_argument`, `unknown_argument_label`, `duplicate_argument`, `positional_after_named`, `argument_mode_mismatch`, `non_callable_target`. Una incompatibilidad de tipos con asociación válida conserva NX-E0102/type_mismatch; copiar un argumento no copiable conserva NX-E0201. Procedencia: [F0-0002 §§4.2 y 13.9](F0-0002-second-slice.md). |
+| NX-E0112 | F0-0002/entrada ejecutable | Entrada solicitada no disponible: `missing_main`, `invalid_main_signature`. No se emite por ausencia de main al comprobar un módulo de biblioteca. Procedencia: [F0-0002 §4.4](F0-0002-second-slice.md). |
+| NX-E0113 | F0-0002/inferencia local | No existe una determinación única de los tipos requeridos por un constructor de valor del subconjunto, después de aplicar el contexto local disponible. Subcause = null. No se inventa un tipo comodín. El array vacío conserva NX-E0103 y la firma de closure conserva NX-E1111. Procedencia: [F0-0002 §§4.1.1 y 13.17](F0-0002-second-slice.md). |
 | NX-E0201 | Propiedad común, mantenimiento D11 | Intento de copia lógica de valor no copiable, sea recurso, closure, futuro o agregado. |
 | NX-E0202 | Propiedad común, mantenimiento D11 | Uso que exige valor disponible tras consumo: `definitely_consumed` si se consumió en todos los caminos pertinentes; `maybe_consumed` si al menos una continuación lo consumió. Transferencia, drop y extracción consumidora son orígenes, no códigos diferentes. |
 | NX-E0203 | F0-0001/alcance | Limitación experimental: `unsupported_move_position`, `unsupported_resource_position`, `unsupported_resource_rebinding`, `unsupported_transfer_kind`. No acredita una prohibición del lenguaje completo. |
@@ -125,6 +133,113 @@ antes de intentar derivar sus campos o resolver métodos inexistentes.
 En módulos, path_collision compara rutas portables antes de alias físicos;
 duplicate_module_file precede a la duplicación de nombre que provoca la misma mod.
 
+### Precisiones de F0-0002
+
+Procedencia: [F0-0002 §§4–6, 13.1, 13.9 y 13.15](F0-0002-second-slice.md).
+
+Las subcausas de NX-E1105 se reutilizan para préstamos de argumentos y représtamos directos: active_borrow_conflict, permission_escalation y overlapping_mutable_borrows. No se crean códigos distintos por no intervenir una closure.
+
+NX-E0202 conserva definitely_consumed y maybe_consumed en ramas y retroaristas. El diagnóstico de bucle identifica el consumo y la retroarista causante; no supone una única iteración.
+
+Para una misma sentencia ValueStmt reconocida sin operando, la prioridad es invalid_value_target, missing_value_operand, non_final_branch_value y errores de flujo derivados. En `{ value: }`, el diagnóstico principal es NX-E1302/missing_value_operand sobre value:, y no se duplica NX-E0005 por el terminador ausente de esa misma sentencia vacía. En `{ value: 1 }` corresponde NX-E0005 sobre }. La prioridad no suprime errores sintácticos independientes ni permite aceptar una recuperación.
+
+Sin tipo esperado, la discrepancia entre tipos sintetizados de continuaciones de un if usa NX-E1303. Con un tipo esperado propagado desde retorno, anotación, asignación o parámetro, el valor incompatible usa NX-E0102/type_mismatch; no se duplica NX-E1303 por esa misma causa. Los defectos estructurales de ramas preceden a incompatibilidades derivadas de un valor inexistente.
+
+En NX-E0111, la asociación se comprueba antes de tipos y efectos. Se informa primero el defecto encontrado en el orden escrito de argumentos; los parámetros ausentes se informan después de recorrer los argumentos presentes. Missing_argument señala el callee y relaciona el parámetro ausente; excess_positional_argument señala el argumento excedente; unknown_argument_label y duplicate_argument señalan la etiqueta; positional_after_named señala el argumento posicional; argument_mode_mismatch señala el argumento; non_callable_target señala el destino. Un destino que no resuelve nombre usa NX-E0101.
+
+NX-E0112/missing_main usa el rango vacío de EOF y la entrada solicitada. Invalid_main_signature señala el nombre main y relaciona su firma.
+
+NX-E0113 señala el constructor cuyo tipo permanece indeterminado y enumera los componentes no resueltos. Una anotación candidata solo se anuncia aplicable después de recomprobar el archivo completo.
+
+Para comparaciones de F0-0002, tipos concretos de operandos distintos producen NX-E0102/type_mismatch sobre el operando derecho. Si los tipos coinciden pero el operador no los admite, el span es el operador. No se intenta copiar el operando para producir antes NX-E0201. El dominio exacto se fija en F0-0002 §4.6.
+
+DG06–DG08 fijan sus primarios, relaciones y cadenas literalmente en F0-0002 §14.11. DG04/DG07/DG08 divergen del código actual: disponibilidad causal y origen del tipo esperado deben corregirse, respectivamente, en I07b e I07c. DG05/DG06 se cierran con propiedad en I07b; no se pospone esta obligación a cuotas de ejecución.
+
+### Feature IDs de NX-E0006 para f0-0002-v2
+
+Esta tabla conserva los 30 identificadores documentales de F0-0002. En la superficie B única, F0-D15 §§3.6, 6.1 y 7.1 retira legacy_move y lo sustituye por implementation_limit: siguen siendo 30, sin añadir un código NX-E. Este último usa stage types, operation types.check y pending_scope I08/I09/I10a/I10b/I11a para las capacidades pendientes; sus demás campos y fuente de explain están fijados literalmente allí. Los 29 identificadores restantes conservan su significado. El esquema B admite esos cinco valores únicamente para implementation_limit; migration deja de emitirse.
+
+Procedencia: [F0-0002 §§2.2, 3.4, 6.6, 13.6 y 14.6](F0-0002-second-slice.md).
+
+Los feature_id siguientes son identificadores cerrados del perfil, no subcausas de NX-E0006. Los perfiles reducidos publicados en F0-0002 §11 heredan esta misma lista.
+
+| feature_id | Construcción diferida o migración |
+|---|---|
+| legacy_move | Operador provisional move de F0-0001; consume es la migración documental de este perfil, sujeta a la superficie oficial F0-D15 y a recomprobación. |
+| inferred_non_unit_result | Función sin anotación de resultado que requiere inferir un resultado distinto de unidad. |
+| float_literal | Literal decimal reconocido; semántica flotante no implementada. |
+| range | Rango reconocido mediante .., sin ejecución de rangos en el perfil. |
+| tuple | Tipo, expresión o patrón de producto distinto de unidad/agrupación. |
+| attributes | Atributos, incluido @derive. |
+| default_argument | Valor por defecto de parámetro. |
+| closure | Literal de closure y sus capturas. |
+| function_value | Uso almacenado, retornado o pasado de una función como valor. |
+| receiver_mode | Prefijo inout/consume aplicado al receptor de una llamada completa. |
+| partial_transfer | Transferencia o destrucción de una proyección de un propietario existente, en vez de un binding completo (§6.6). |
+| resource_array | Array cuyo elemento contiene transitivamente un recurso. |
+| no_heap_alloc | Contrato reconocido, fuera del conjunto implementado por este perfil. |
+| match | Selección por patrones; `pending_scope = F0-0003` identifica el diseño de la selección necesaria para `next`/`Option`, sin prometer toda la selección por patrones de la base en ese corte. |
+| option | Tipo o constructores intrínsecos de Option. |
+| user_types | Struct, enum o alias declarado por el usuario. |
+| traits_generics | Traits, impl, genéricos, where o despacho dinámico. |
+| modules_visibility | Mod, use, pub o rutas de módulos adicionales fuera del contexto de tipo descrito abajo. |
+| extensions | Extend, use extension o llamada cualificada de extensión. |
+| provenance_clauses | From, result_from o retains escritos. |
+| comptime | Evaluación o constantes de módulo mediante comptime. |
+| text | Cadenas e interpolación. |
+| methods | Selección o invocación de métodos/campos fuera de las proyecciones indexadas del perfil; `self` como expresión de receptor reconocida, con span de ese token y etapa `parse`. En posición que exige Name, `self` conserva NX-E0002. |
+| compound_assignment | Asignación compuesta, incluido +=. |
+| for_iteration | For y su protocolo de iteración. |
+| loop_control | Break o continue. |
+| generator | Gen fn, yield y operaciones de generador. |
+| async | Async, await y tipos u operaciones reconocidos de tareas/futuros. |
+| region | Regiones y su grupo de tareas. |
+| unsupported_type | Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye u32, u64, f32, String y app.Error. |
+
+`indirect_call` se retira de la lista emitible propuesta para este perfil. No existe un valor invocable aceptado que permita aislar esa causa: la introducción de ese valor falla antes por closure o function_value. Un valor aceptado no invocable usa NX-E0111/non_callable_target. No se exige una fixture imposible ni se acredita soporte indirecto.
+
+El span señala el introductor reconocido, con estas precisiones: inferred_non_unit_result señala el nombre de la función y relaciona el retorno no unitario; resource_array señala la construcción completa; partial_transfer señala la proyección; unsupported_type señala la ruta de tipo completa. En contexto de tipo, app.Error usa unsupported_type, no modules_visibility ni NX-E0101.
+
+La forma documental es `code = NX-E0006, subcause = null, feature_id = nombre`. No se escribe `NX-E0006/nombre`, pues la barra queda reservada a subcausas del catálogo. Explanation_id permanece NX-E0006; feature_id selecciona el detalle de alcance.
+
+Una fila de alcance necesita un positivo que elimine o sustituya explícitamente la característica. F0-0002 §14.6 publica esos pares con spans. Acreditan el diagnóstico de perfil, no la semántica de la característica diferida.
+
+### Destrucción estática de Result
+
+Procedencia: [F0-0002 §8.5](F0-0002-second-slice.md).
+
+El resumen estático de drop sobre Result<T,E> une los efectos de destrucción de ambas variantes, conocidos y desconocidos, salvo evidencia explícita de variante única. La ejecución destruye solo el payload activo. Esa evidencia no altera la copiabilidad del tipo completo.
+
+
+### Asociación y etapas de F0-0002
+
+Procedencia: [F0-0002 §§3.5–3.6 y 13.9](F0-0002-second-slice.md).
+
+En una llamada se emite únicamente el primer defecto de asociación encontrado al recorrer los argumentos escritos. Después de ese defecto no se emiten parámetros ausentes derivados ni errores de tipos de la misma llamada. Solo una asociación válida de todos los argumentos presentes permite buscar el primer parámetro ausente por orden de declaración.
+
+Por tanto, F2-S03 contiene únicamente unknown_argument_label y F2-S05 únicamente positional_after_named. Llamadas independientes pueden producir varios diagnósticos de la etapa arguments.
+
+La lista y el orden entre etapas se fijan en F0-0002 §13.9: una etapa con errores impide las posteriores; los errores independientes de una etapa semántica se conservan, evitando cascadas. Los formatos y nombres JSON exactos se fijan en §§13.6–13.8.
+
+Los tokens `*` y `!=` en posición de operador binario usan NX-E0002, no NX-E0006. Exigen parser_context = unsupported_binary_operator, span del operador y expected_tokens = ["+", "-", "<", "=="]. Esa causa precede al terminador ausente derivado. La lista de feature_id permanece en 30 entradas.
+
+
+### Operadores y proyecciones de F0-0002
+
+Procedencia: [F0-0002 §§3.6, 6.6 y 13.12](F0-0002-second-slice.md).
+
+La exclusión binaria mediante NX-E0002 incluye exactamente `*`, `!=`, `>`, `<=` y `>=`, con `parser_context = unsupported_binary_operator` y `expected_tokens = ["+","-","<","=="]`. Precede a NX-E0005 derivado y no emite una reparación de terminador. El cierre de tipos seguido de `=` conserva la separación contextual de `>=` descrita en F0-0002 §3.6.
+
+`partial_transfer` identifica transferencia o destrucción parcial según su entrada anterior. `consume a[0]` conserva etapa `parse`; `drop(a[0])`, una vez resuelto el intrínseco, usa etapa `arguments`. Ambos señalan la proyección y relacionan el prefijo o destino correspondiente. No se añade un feature_id.
+
+Un prefijo `consume` o `inout` cuyo operando no es Place usa NX-E0002 con `parser_context = consume_place` o `inout_place` y `expected_tokens = ["Place"]`. Los receptores prefijados de llamada conservan primero su exclusión `receiver_mode`.
+
+La tabla normativa de etapas para todos los códigos, subcausas y características emitibles es F0-0002 §13.12. Las demás entradas del catálogo no se convierten en emisiones del perfil.
+
+Reutiliza NX-E1105 para préstamos directos, NX-E0202 para disponibilidad por caminos, NX-E0412–NX-E0415 para contratos y NX-E1302/NX-E1317 para valores y retornos.
+
+La prioridad NX-E0105/NX-E0202 es causal: se suprime solo el diagnóstico derivado de indisponibilidad y se conservan fallos independientes. La reinicialización completa de `var` no lee el valor consumido. Se suprime NX-E0202 derivada únicamente de exigir un valor inexistente por Never en un uso hipotético; se conservan consumos y errores independientes (§§6.2 y 13.9). Las variables diferidas son monomórficas y conservan relaciones entre bindings copiados; Never, incógnita y contaminación son estados diferentes y nunca aparecen como tipos en `data`. Procedencia: [F0-0002 §§4.1.1, 13.9, 13.17 y 14.10–14.11](F0-0002-second-slice.md).
+
 ### Presupuestos cerrados de NX-E0003
 
 NX-E0003 tiene una sola regla: exceder un límite explícito de análisis.
@@ -146,14 +261,33 @@ ni una extensión tácita del catálogo. Son los únicos valores admitidos:
 | effect_fixpoint_steps | Pasos del punto fijo de resúmenes de efectos. | Propuesto para D12; perfil del solucionador. |
 | trait_solver_steps | Pasos de requisitos/coherencia de traits. | Propuesto para D08/D11/D13; perfil del solucionador. |
 | generic_instantiations | Instancias genéricas durante especialización. | Propuesto para D08; perfil de instanciación. |
+| value_type_depth | Máximo número de envoltorios Array/Result en un camino de tipo, incluidas inferencias a través de bindings y firmas. | F0-0002 v2: 128. Procedencia: F0-0002 §11.1. |
+| function_count | Declaraciones de función reconocidas en el archivo. | F0-0002 v2: 1.024. Procedencia: F0-0002 §11.1. |
+| ownership_flow_steps | Unidades dispersas de resumen, transferencia, diagnóstico y unión por diferencias. | F0-0002 v2: 1.000.000 por función y 4.000.000 globales; §§11.1 y 11.8.B. |
+| ir_items | Registros de función, bloque, slot, instrucción, operando, préstamo y limpieza insertados. | F0-0002 v2: 262.144. Procedencia: F0-0002 §11.1. |
 
 Limit, observed y profile_id son datos obligatorios; sus valores concretos
 no crean subcausas. Se debe publicar el perfil antes de ejecutar el caso.
-Los siete presupuestos propuestos no acreditan un evaluador/solver existente;
-su contabilidad reproducible sigue NO EVALUADA (fila K19). Registrar otro
+Los siete presupuestos de la fila histórica K19 no acreditaban un evaluador/solver existente en F0-0001. F0-0002 concreta type_solver_steps y effect_fixpoint_steps en §§11.1 y 11.8; los otros cinco conservan su pendiente. Registrar otro
 budget_kind requiere modificar este catálogo. El presupuesto de ejecución
 del simulador **no** se mezcla aquí: mantiene R0001. Los tipos desconocidos
 no se aceptan como seguros al agotar ningún presupuesto.
+
+### Perfil de análisis de F0-0002
+
+Procedencia normativa: [F0-0002 §§11.1, 11.4–11.5, 11.8 y 13.12–13.13](F0-0002-second-slice.md). El perfil vigente es `f0-0002-v2`. Sustituye la contabilidad densa de propiedad del antecedente v1; no crea un dialecto. Las unidades, recorrido por prioridad de índice con punto fijo local (equivalente a RPO solo en los CFG estructurados descritos), reinicios por identidad de función y acumulación global se definen exclusivamente en §11.1. Tipos y efectos conservan 1.000.000 unidades globales; IR, 262.144. Propiedad tiene 1.000.000 locales y 4.000.000 globales. Las guardas estructurales conservan los límites de esa tabla, con altura compartida por parser/lowering.
+
+NX-E0003 conserva `subcause=null`, `operation=analysis.limit`, `limit`, `observed` y `profile_id`. El perfil incorpora `budget_scope=function|compilation`, `incomplete_analysis` igual a `stage` y `analysis_function` exclusivamente en propiedad local. No se añade un budget_kind para cada ámbito. El intento excedido es `observed=limit+1`; si coinciden límites local y global prevalece el global. Se conservan diagnósticos de estados convergidos —el prefijo estable definido en F0-0002 §11.1 si se corta el punto fijo—, una entrada por uso, como subconjunto exacto de la ejecución sin cuota; se añade el límite y se ordena por span. El primario de un límite local es no vacío y está dentro de la función identificada por analysis_function, en el cargo rechazado; B-D1 exige además el sufijo anidado y la lista ordenada de F0-0002 §11.8.B. Tras límite local se analizan funciones posteriores dentro del saldo global. No se entrega artefacto verificado con análisis incompleto.
+
+Los perfiles reducidos y generadores de §11.4 son obligatorios: `f0-0002-test-types-32-v2`, `f0-0002-test-flow-32-v2`, `f0-0002-test-flow-global-32-v2`, `f0-0002-test-effects-32-v2` y `f0-0002-test-ir-32-v2`. El positivo mínimo es `fn main(){}`; los negativos aislantes usan 64 bindings anotados, 64 inicializaciones, 64 llamadas directas o 64 bindings con slots, según la guarda. El perfil flow local reduce solo su límite por función; flow-global reduce solo el global. Fronteras 31/32/33 del contador y alcanzabilidad desde fuente se informan separadas: un fallo por otra guarda no satisface la fila.
+
+Las familias normales son las de §11.8: A, 93.307 bytes, excede tipos; C, 18.240 bytes, excede efectos; D, 840.882 bytes, excede IR. La antigua fuente B de 23.491 bytes ahora debe aceptarse (B-A1); B-A2–B-A4 son positivos adicionales y B-L1/B-G1/B-D1 prueban límite local, global y conservación, con tamaños y esperados en §11.8.B. Se elimina la obligación de cobrar todos los componentes visibles y la garantía indiscriminada por tamaño de fuente. Las expectativas normativas se distinguen de las mediciones explícitas de B-D1 en §11.8.B: 71.843/71.880 bytes, 61.407 ítems (61.421 contando la IR parcial de later) y rechazo del cargo de propiedad 1.000.001; no acreditan implementación de los metadatos v2.
+
+B-G1 concatena 14 funciones N más main: 168.813 bytes, 162.309 ítems de IR y 4.282.686 unidades de propiedad en el recorrido completo medido. El arnés de F0-0002 §11.8.B baja toda la IR construible antes de propiedad, informa ir_items acumulado y usa la convención de operandos allí declarada, también para B-D1. El cargo global 4.000.001 se rechaza en f13 sin agotar la cuota local ni ir_items; la cuota global instrumentada no acredita su implementación en el compilador. El propietario de esa obligación es I10a (§17.2).
+
+Para `source_bytes`, `syntax_nesting`, `function_count`, `array_type_depth`, `value_type_depth` y `expression_tree_depth` se compara span exacto. Para los cuatro presupuestos costosos se comparan código, etapa y todos los datos de presupuesto, y se exige un primario del archivo, válido y no vacío, con fronteras UTF-8; no igualdad de offsets entre modelo y builds. Esa excepción no cambia unidades ni alcanzabilidad. Source_bytes usa `[limit,limit+1)` antes de decodificar; syntax_nesting cuenta Block/Expr/Type; expression_tree_depth usa la misma altura en parser/lowering y las fronteras 127/128 de §13.13.
+
+Si coinciden array_type_depth y value_type_depth prevalece Array. Para aislar profundidad de valor se parte de Result y se añaden 128 envoltorios Array mediante bindings. Addition_chain_length e index_chain_length siguen históricos sin emisiones independientes. La implementación completa de cuotas globales corresponde a I10a.
 
 ### Contrato de negativos léxicos y sintácticos
 
@@ -237,6 +371,73 @@ condiciones; así ningún código emitido queda fuera del mapa:
 | R0102 | Índice leído/asignado no convertible a usize o fuera de la longitud del array. | runtime.rs:126,130,217,223; corpus.rs:82–83,95. |
 | R0201 | assert_eq recibe dos datos comprobados del mismo tipo que difieren en ejecución. | runtime.rs:233; adversarial.py:30. |
 | R0301 | Se ejecuta la sentencia experimental fail(). | runtime.rs:259; corpus.rs:76. |
+
+### Runtime experimental de F0-0002
+
+Procedencia: [F0-0002 §§7.2, 11.2–11.7, 12.4 y 13.5](F0-0002-second-slice.md).
+
+No se modifican las condiciones ni los resultados históricos de F0-0001.
+
+Diagnostic_namespace = F0-0002-sim identifica los fallos experimentales del nuevo intérprete. Se conservan R0001, R0101, R0102, R0201 y R0301 con su regla: agotamiento de trabajo, desbordamiento de suma, índice inválido, aserción fallida y fail simulado. El perfil determina la nueva contabilidad de trabajo.
+
+Se añaden:
+
+| Código | Propietario | Condición exacta |
+|---|---|---|
+| R0002 | F0-0002/interp | Se excede una cuota estructural de ejecución. runtime_budget_kind pertenece exclusivamente a call_frames, live_value_cells u observation_bytes. Exige limit, observed, profile_id y span de la operación desencadenante. No utiliza budget_kind. |
+| R0103 | F0-0002/interp | La resta comprobada de dos i64 no es representable como i64. No se realiza wrapping. |
+
+Los límites de `f0-0002-v2` son 1.000.000 unidades de trabajo, 256 frames, 65.536 celdas vivas y 65.536 bytes de observaciones comprometidos. Se cuenta salida más eventos, incluidos prefijos y LF, mediante la codificación virtual de F0-0002 §12.4; no se cuenta el envoltorio JSON de transporte.
+
+La ocupación de observaciones suma bytes emitidos y reservas de cierre. Antes de adquirir un recurso se reserva el tamaño exacto de su cierre. La limpieza no se interrumpe por agotamiento de trabajo ni omite los eventos reservados.
+
+Observed es el cargo u ocupación propuestos que excederían el límite. Una reserva rechazada no modifica la ocupación comprometida. El primer cargo excedido de trabajo tiene observed = limit + 1; una reserva estructural agregada puede excederlo en más de uno.
+
+Se publican estos perfiles adicionales, que heredan todo lo demás de `f0-0002-v2`:
+
+| profile_id | Único cambio |
+|---|---|
+| f0-0002-test-frames-8-v2 | call_frames = 8. |
+| f0-0002-test-cells-64-v2 | live_value_cells = 64. |
+| f0-0002-test-observations-64-v2 | observation_bytes = 64. |
+
+F0-0002 §11 publica recetas aislantes para cada cuota normal y fronteras en los perfiles reducidos. La duplicación histórica de arrays migra a R0002 con runtime_budget_kind = live_value_cells. Una prueba separada de bucle sin crecimiento conserva el objetivo R0001 y limpieza del recurso.
+
+Un Err(E) producido o propagado por el programa no es un diagnóstico R ni NX-E. Main devolviendo Err(i64) termina con salida 1 y outcome.kind = err. Try_add devuelve Err(30) por desbordamiento y no R0101. El operador ? no captura fallos del simulador.
+
+Una IR inválida o transición imposible se informa como fallo interno de implementación, sin asignarle un NX-E o R de programa.
+
+### Limitaciones históricas que deja de emitir F0-0002
+
+Procedencia: [F0-0002 §§13.2–13.5](F0-0002-second-slice.md).
+
+NX-E0203 permanece en el catálogo con sus cuatro subcausas históricas, pero no se emite bajo los perfiles de F0-0002:
+
+| Subcausa histórica | Destino en F0-0002 |
+|---|---|
+| unsupported_move_position | La grafía move usa NX-E0006, feature_id = legacy_move. Tras migrar a consume, los bindings completos se transfieren en contextos propietarios; proyecciones y receptores prefijados conservan sus exclusiones específicas partial_transfer y receiver_mode. |
+| unsupported_resource_position | Temporales, argumentos, retornos y Result con recursos pasan a estar admitidos. Arrays que contienen recursos usan NX-E0006, feature_id = resource_array. |
+| unsupported_resource_rebinding | Retirada: se permite reasignación completa de var con limpieza. Un binding inmutable conserva NX-E0105. |
+| unsupported_transfer_kind | Retirada: consume y drop de datos propietarios están permitidos. Move continúa rechazado como grafía legada, independientemente del tipo. |
+
+La restricción E0002 «única fn main» también se retira del perfil nuevo. Varias funciones son válidas; check admite biblioteca sin main; run usa NX-E0112 para su entrada. La sintaxis inválida conserva NX-E0002, los terminadores reconocidos NX-E0005 y las características reconocidas diferidas NX-E0006.
+
+F0-0002 §13 conserva una tabla de los 13 E y cinco R y la migración de los 15 archivos del corpus, incluidos los pasivos con move, nested_resource.nx y use_after_move.nx. No se modifica retrospectivamente ninguna expectativa de F0-0001.
+
+
+### Trabajo y lotes de F0-0002
+
+Procedencia: [F0-0002 §§11.6–11.7](F0-0002-second-slice.md).
+
+La tabla normativa de ticks y sus orígenes está en F0-0002 §11.6. Leer un escalar existente en contexto de lectura no cobra copia; obtener propiedad desde un lugar sí cobra todas las celdas copiadas. `<` cobra dos visitas escalares y la construcción del booleano, además de nodos y operandos. `Ok`/`Err` cobran llamada y wrapper; `?` no cobra una llamada ni un retorno sintético.
+
+El cobro de trabajo es unitario. Una implementación puede agrupar k ticks del mismo origen, pero, si no caben todos, concede conceptualmente el prefijo hasta el límite y produce R0001 con observed = limit + 1 y work_consumed = limit. No materializa la copia ni compromete efectos parcialmente. No informa consumed + k como observed de R0001.
+
+Esto no modifica R0002: su observed sigue siendo la ocupación estructural propuesta completa, y una reserva rechazada no cambia la ocupación comprometida.
+
+F0-0002 §11.7 publica totales de 56, 25 y 15 ticks y una familia que solicita exactamente 999.999, 1.000.000 y 1.000.001. La contabilidad no se presenta como compatible con la copia incondicional de bindings de runtime.rs de F0-0001.
+
+R0102 señala el selector concreto que falla, incluidos corchetes, también en accesos anidados; relaciona el acceso, destino o argumento completo. R0001/R0002 por unidad final implícita señala solo la llave de cierre y relaciona el cuerpo. R0002/call_frames señala la llamada rechazada completa. Los ticks normativos son 2 para `fn main(){}` y 6 para `a[1]=5;`; las diferencias del intérprete se corrigen en I10b. Procedencia: [F0-0002 §§11.7, 13.12, 13.15 y 14.11](F0-0002-second-slice.md).
 
 Regresiones de conciliación previstas (no reejecutadas en esta entrega):
 
@@ -344,6 +545,84 @@ su positivo pareado, efectos, propiedad y observaciones. Cada defecto corregido
 debe dejar esa regresión al implementar. Un caso de diseño sin fixture o sin
 arnés queda NO EVALUADO y sigue pendiente, sin usarse para aprobar F0.
 
+### Explicaciones y perfil de F0-0002
+
+Procedencia: [F0-0002 §§12.4, 13.6–13.10 y 15](F0-0002-second-slice.md).
+
+Todo diagnóstico emitido por F0-0002 incorpora profile_id y stage.
+
+Las familias estáticas emitidas incorporan explanation_id, estable para el par code/subcause. La forma es `NX-Edddd` si subcause es null y `NX-Edddd/subcause` en caso contrario. El catálogo de explicaciones está versionado junto con diagnostic_namespace y se consulta sin red mediante:
+
+```text
+nexo explain NX-Edddd
+nexo explain NX-Edddd --subcause nombre
+```
+
+La explicación describe regla, causa, ejemplo negativo, positivo y consecuencias de las reparaciones. `nexo explain NX-E0006` devuelve 30 entradas, una por feature_id, con lista `feature_ids` unitaria, `subcause = null` y ejemplos propios de la primera fila F2-F01–F2-F33 correspondiente, según F0-0002 §13.10; no devuelve una única fuente para las 30 exclusiones. Una consulta con código o subcausa inexistentes devuelve un error de uso; no fabrica documentación. Las etiquetas locales de fixtures de F0-0002 se citan fuera de ese ADR con prefijo `F2-`, sin renombrar las fixtures de D11, D13 o del catálogo.
+
+Los diagnósticos de alcance incluyen feature_id. Los de efectos incluyen effect_model, contract_origin, operation, effect_evidence y cause_chain. NX-E1105 usa exclusivamente las claves y combinaciones de permiso/acceso de la tabla por subcausa de F0-0002 §13.6, incluidas las expectativas completas de F2-P04–F2-P07; `borrow_inout` identifica la solicitud de préstamo exclusivo y no crea un préstamo si se rechaza. `callee` no se emite en `data`; las otras identidades y permisos de esa tabla están ausentes en códigos distintos de NX-E1105. Las ubicaciones sintéticas de limpieza relacionan el binding propietario y la salida; no inventan un drop escrito.
+
+Repair distingue propuesta de edición y edición recomprobada. Una edición solo se anuncia aplicable después de comprobar de nuevo tipos, propiedad, flujo y efectos. No se introducen unsafe, debilitamiento de contratos ni cambios silenciosos de copia/transferencia.
+
+Las pruebas comparan código, subcausa, etapa, spans, token cuando proceda y cadena causal relevante, con la excepción de `primary_span` de los cuatro presupuestos costosos de NX-E0003 definida en «Perfil de análisis de F0-0002», con referencia a F0-0002 §13.13: se comprueba su validez y no vaciedad, no un offset exacto. Mensajes traducidos y números de línea de presentación no reemplazan offsets UTF-8 ni identidad de regla.
+
+
+Runtime_budget_kind es un campo independiente, cerrado a call_frames, live_value_cells y observation_bytes para R0002. No amplía ni reutiliza la enumeración budget_kind de NX-E0003.
+
+NX-E0104 incorpora declaration_kind = binding, function o parameter y relaciona la primera declaración. NX-E0101 incorpora use_kind = value o call_target. Son datos estructurados, no subcausas; ambos conservan subcause = null.
+
+Los perfiles de F0-0002 usan la interfaz mock y el registro ordenado de observaciones de F0-0002 §12.4. Las entradas JSON inválidas del entorno son errores de configuración del controlador con salida 2, no diagnósticos NX-E del programa. Un Err final de main tiene salida 1, outcome.kind = err y ningún diagnóstico R por ese hecho.
+
+La comparación de observaciones exige salida, eventos, intercalación, bytes virtuales y reservas finales. Prefijos y LF cuentan; la serialización JSON del informe no cuenta. Las pruebas de IR alterada pertenecen al arnés Rust del verificador y no se atribuyen al modelo Python independiente.
+
+
+### Serialización normativa de F0-0002
+
+Procedencia: [F0-0002 §§13.6–13.10](F0-0002-second-slice.md).
+
+Para schema_version = 1 de este perfil, se incorpora por referencia la definición completa de **F0-0002 §§13.6–13.10**: tipos literales de Diagnostic, Span, RelatedSpan, Cause, Token, Repair y Data; obligatoriedad; orden de listas; ejemplos completos; presentación textual; cardinalidad de diagnósticos y formato de explain.
+
+En particular:
+
+- Un span es `{"file":String,"start":UInt,"end":UInt}`, con offsets de bytes UTF-8 desde cero y rango `[start,end)`. No se serializa como array ni como línea/columna.
+- `related_spans` es una lista de `{"role":String,"span":Span}`.
+- `cause_chain` es una lista ordenada de pasos con kind, operation, span, entity y evidence.
+- `repair` es una lista de propuestas con id, status, description, edits, validation y consequences; cada edición incluye span, expected_text y replacement.
+- `stage`, `feature_id`, `unexpected_token`, `expected_tokens`, `expected_tokens_kind`, `parser_context` y `recognized_prefix` son claves del objeto diagnóstico, no campos implícitos del mensaje.
+- Los datos especializados, incluidos budget_kind, budget_scope, incomplete_analysis, analysis_function, runtime_budget_kind, limit, observed, declaration_kind y use_kind, se serializan dentro de `data`.
+- El orden de claves JSON no identifica el diagnóstico. La comparación utiliza objetos decodificados y respeta el orden normativo de arrays.
+- Los diagnósticos NX-E usan Nexo-proposed-v1; los fallos R usan F0-0002-sim. No se cambia el namespace histórico F0-0001.
+
+La primera línea textual es `CODE:LINE:COLUMN: MESSAGE`, con código canónico, línea y columna desde uno; las líneas estructuradas adicionales siguen §13.8. No se conservan prefijos E0101 o E0202 sin NX- en las expectativas migradas.
+
+El catálogo mantiene la autoridad de códigos y subcausas. Esta referencia normativa concreta su serialización para el perfil; no crea otro registro de significados.
+
+
+### Contrato observable de F0-0002
+
+Procedencia: [F0-0002 §§13.12–13.17](F0-0002-second-slice.md).
+
+Se incorpora por referencia como contrato del perfil F0-0002 §§13.12–13.17:
+
+- Tabla exhaustiva de `stage` y `operation` para las emisiones incluidas.
+- Spans exactos para seis presupuestos y propiedad de span válido y no vacío para los cuatro presupuestos costosos, según §13.13.
+- Campos literales de los negativos sintácticos existentes y derivación gramatical para los restantes.
+- Enumeraciones cerradas de `Diagnostic.operation`, `RelatedSpan.role`, `Cause.operation` y `Repair.id`, con sus reglas de emisión.
+- Selección, orden, spans, entidades y evidencia de los testigos causales.
+- Rutas de `unresolved_components` y dominios de `expected_type`/`found_type`.
+
+`expected_tokens_kind` admite además `lexical_category`, usado por NX-E0001 con `expected_tokens = ["valid_token"]`. Se conserva la distinción entre categoría léxica, conjunto admisible e inserción canónica.
+
+NX-E0005 incluye la expresión precedente con `role = preceding_expression`, conforme a D13 §2.3. En el primer ejemplo de F0-0002 §13.7, su span es `[16,17)`; el primario sigue siendo `[17,18)`. Los errores de salto tras return/value: incluyen también el salto y el tipo o destinatario requerido.
+
+Las llamadas denunciadas por efectos y los pasos causales con kind `call` señalan el nombre del destino, según F0-0002 §8.2. Para el intrínseco `drop(r)` explícito, el primario es el nombre `drop` y la hoja `value.drop`, de kind `drop`, abarca la llamada completa sin terminador. Una limpieza implícita identifica propietario, salida y cota escrita; el destructor del manifiesto se identifica sin inventar un span del archivo del usuario.
+
+El inventario integrado es de 70 códigos NX-E, siete R experimentales y 30 feature_id. Las reglas enmendadas son obligaciones de implementación y revisión, no evidencia de conformidad.
+
+TD01/TD03 y el origen de tipo esperado de TD02 son divergencias declaradas con dueño I07c: en TD02, expected_type debe relacionar [16,17), no [24,25) como hace el código actual. Procedencia: [F0-0002 §§13.15, 14.10 y 17.2](F0-0002-second-slice.md).
+
+`expected_type` relacionado identifica la anotación o restricción fuente que realmente impone el tipo, incluida la raíz anotada de una asignación indexada. Si es inferido, se relaciona la expresión que lo determina; no se inventa anotación. Never no se serializa. La cardinalidad y la selección causal incluyen el agotamiento local/global y la relación entre NX-E0105 y NX-E0202. Procedencia: [F0-0002 §§4.1.1, 13.9, 13.15, 13.17 y 14.10–14.11](F0-0002-second-slice.md).
+
 ## Trazabilidad de iteración 1
 
 Resuelve documentalmente motivos 1/2/3/10: subcausas nombradas, propiedad común,
@@ -430,7 +709,23 @@ N2 se concreta en G.1/C52–C52d y NX-E0102/field_requires_grouped_call.
 N3 añade tres subcausas de NX-E0417,
 con reconocimiento y filas C53–C56, y NX-E1213 con A40/A41; C56e/S56e,
 C57/S57 y C58 cubren los rechazos sintácticos y el sellado Call*.
-Hay 66 códigos canónicos vigentes, sin reutilizar identidades.
+En esa iteración histórica había 66 códigos canónicos, sin reutilizar identidades; el registro integrado actual contiene 70.
 N4 incluye S39/S33m en las ubicaciones y retira el duplicado E31c en D13.
 La revisión 5 recibió FAIL según el coordinador; la 6 sigue sin dictamen.
 No se atribuye aprobación ni ejecución a esta revisión documental.
+
+## Trazabilidad de F0-0002
+
+Integración vigente desde 2026-10-22. Se absorbe F0-CODIGOS-ADDENDUM-0002 y se elimina como fuente separada; las prescripciones sustituidas de contabilidad se reemplazan por la decisión de [F0-0002 §20](F0-0002-second-slice.md).
+
+| Contenido integrado | Ubicación única en este catálogo | Procedencia normativa |
+|---|---|---|
+| NX-E0006, NX-E0111–NX-E0113; ampliaciones NX-E0101/NX-E0104 | Registro canónico | F0-0002 §§2.2, 4.1–4.5 y 13.17. |
+| Préstamos, disponibilidad, value:, tipos, asociación y exclusiones; 30 feature_id | Precisiones, Feature IDs, asociación y operadores | F0-0002 §§3–6, 13.1, 13.9, 13.12 y 14.6. |
+| Destrucción estática de ambas variantes de Result | Destrucción estática de Result | F0-0002 §8.5. |
+| Cuatro budget_kind nuevos, perfiles y alcanzabilidad; unidades dispersas locales/globales | Presupuestos cerrados y Perfil de análisis | F0-0002 §§11.1, 11.4–11.5, 11.8, 13.12–13.13. |
+| R0002/R0103, cuotas runtime, trabajo unitario y migración E/R | Runtime experimental y Trabajo y lotes | F0-0002 §§7, 11.2–11.7, 12.4, 13.2–13.5. |
+| Explicaciones, serialización, campos, spans, reparación y testigos | Datos estructurados y sus subsecciones F0-0002 | F0-0002 §§13.6–13.17 y 15. |
+| NB1, NB2, NB5 y NB8 concretados; NB3, NB4, NB6 diferidos; NB7 exige positivos | Referencia a la matriz de obligaciones | F0-0002 §16, sin eliminar pendientes históricos. |
+
+El inventario conserva NX-E0203 como histórico, aunque no emitible en este perfil. Las cuatro adiciones elevan 66 a 70 entradas; no se cuentan subcausas ni feature_id como códigos. Los cinco R históricos más R0002/R0103 forman siete bajo F0-0002-sim, separados de NX-E. El historial de revisiones permanece como evidencia de su fecha; ninguna integración acredita aprobación de fase.
