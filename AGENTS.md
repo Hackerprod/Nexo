@@ -84,3 +84,12 @@ conceder a agentes más acceso del autorizado (Codex sin sandbox solo para este 
 `docs/baseline/`; actuar fuera del proyecto; y declarar aprobada una fase (la aprobación de F0..F7 es
 del propietario). Las directivas de visión del propietario (`docs/F0_ACUERDOS.md` §9) son el marco de
 las decisiones.
+
+## Principios de ingeniería (decisión del propietario, 2026-10-22)
+- Una sola superficie de sintaxis: la oficial es la candidata B de `docs/adr/F0-D14-sintaxis-superficie.md`,
+  especificada de forma normativa en `docs/adr/F0-D15-sintaxis-oficial.md`. No hay competencia entre
+  candidatas, ni modo de compatibilidad, ni dos sintaxis vivas en el repositorio.
+- Sin adaptadores permanentes, sin parches por patrón de fuente y sin flujos duplicados. Si una corrección
+  exige tocar la causa de raíz (representación, modelo de datos, diseño), se hace en la raíz.
+- Una migración se hace en un solo corte: el código y las fixtures nuevas sustituyen a las antiguas, sin
+  dejar rastro de la versión anterior salvo en documentos históricos.
