@@ -300,11 +300,11 @@ mod tests {
     fn published_reserved_words_are_keywords_and_modes_stay_contextual() {
         // F0-D15 §2.2: exact reserved inventory, including `then`.
         let reserved = "fn let var return if then else while true false with and or not match for break continue gen yield async await region struct enum type trait impl where dyn mod use pub extend extension comptime const self super package";
-        let tokens = lex("b.nx", reserved).unwrap();
+        let tokens = lex("b.n", reserved).unwrap();
         let words: Vec<_> = tokens.into_iter().filter(|t| t.kind != Kind::Eof).collect();
         assert_eq!(words.len(), 40);
         assert!(words.iter().all(|t| t.kind == Kind::Keyword));
-        let contextual = lex("b.nx", "view edit move value copy").unwrap();
+        let contextual = lex("b.n", "view edit move value copy").unwrap();
         assert!(
             contextual
                 .iter()
@@ -321,7 +321,7 @@ mod tests {
             "]", ",", ":", ";", "?", "+", "-", "<", ">", "=", "@", ".", "*", "/", "%",
         ];
         for symbol in symbols {
-            let tokens = lex("b.nx", symbol).unwrap();
+            let tokens = lex("b.n", symbol).unwrap();
             assert_eq!(tokens.len(), 2, "{symbol}");
             assert_eq!(tokens[0].kind, Kind::Symbol, "{symbol}");
             assert_eq!(tokens[0].text, symbol, "{symbol}");
@@ -331,7 +331,7 @@ mod tests {
     #[test]
     fn reserved_contextual_symbols_and_byte_spans() {
         let tokens = lex(
-            "b.nx",
+            "b.n",
             "fn Main(x: edit I64) { value: move x; }\r\n// 🙂\r1..<n 2..=n 3..n",
         )
         .unwrap();
@@ -352,11 +352,11 @@ mod tests {
     #[test]
     fn quoted_text_is_opaque_but_escapes_are_closed() {
         let source = "fn Main(){let s=\"…{x}\";}";
-        let tokens = lex("b.nx", source).unwrap();
+        let tokens = lex("b.n", source).unwrap();
         let string = tokens.iter().find(|t| t.kind == Kind::String).unwrap();
         assert_eq!((string.span.start, string.span.end), (16, 24));
         let invalid = "fn Main(){let s=\"\\q\";}";
-        let error = lex("b.nx", invalid).unwrap_err();
+        let error = lex("b.n", invalid).unwrap_err();
         assert_eq!(error.code, "NX-E0001");
         assert_eq!(
             (
@@ -377,20 +377,20 @@ mod tests {
             (0, 17)
         );
         assert_eq!(error.profile_id, diagnostic::PROFILE_ID);
-        assert!(error.validate("b.nx", invalid).is_ok());
-        assert!(lex("b.nx", "\"\\n\\r\\t\\\"\\\\\"").is_ok());
+        assert!(error.validate("b.n", invalid).is_ok());
+        assert!(lex("b.n", "\"\\n\\r\\t\\\"\\\\\"").is_ok());
     }
 
     #[test]
     fn only_published_horizontal_whitespace_is_trivia() {
-        assert!(lex("b.nx", "a\u{200a}b").is_ok());
-        let error = lex("b.nx", "a\u{200b}b").unwrap_err();
+        assert!(lex("b.n", "a\u{200a}b").is_ok());
+        let error = lex("b.n", "a\u{200b}b").unwrap_err();
         assert_eq!(error.primary_span.as_ref().unwrap().start, 1);
-        assert!(error.validate("b.nx", "a\u{200b}b").is_ok());
+        assert!(error.validate("b.n", "a\u{200b}b").is_ok());
     }
 
     fn exact_tokens(source: &str, expected: &[(Kind, &str, u64, u64)]) {
-        let tokens = lex("b.nx", source).unwrap();
+        let tokens = lex("b.n", source).unwrap();
         let actual = tokens
             .iter()
             .map(|token| {
@@ -406,7 +406,7 @@ mod tests {
     }
 
     fn exact_invalid(source: &str, expected: &str, start: u64, end: u64) {
-        let error = lex("b.nx", source).unwrap_err();
+        let error = lex("b.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0001");
         assert_eq!(error.stage, crate::diagnostic::Stage::Lex);
         let primary = error.primary_span.as_ref().unwrap();
@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(token.text.as_deref(), Some(expected));
         assert_eq!((token.span.start, token.span.end), (start, end));
         assert_eq!(error.profile_id, diagnostic::PROFILE_ID);
-        error.validate("b.nx", source).unwrap();
+        error.validate("b.n", source).unwrap();
     }
 
     #[test]
@@ -656,9 +656,9 @@ mod tests {
     }
 
     fn exact_published_lexical_error(source: &str, start: u64, end: u64, spelling: &str) {
-        let d = lex("b.nx", source).unwrap_err();
+        let d = lex("b.n", source).unwrap_err();
         let span = Span {
-            file: "b.nx".into(),
+            file: "b.n".into(),
             start,
             end,
         };
@@ -690,7 +690,7 @@ mod tests {
         assert_eq!(
             d.recognized_prefix,
             Some(Span {
-                file: "b.nx".into(),
+                file: "b.n".into(),
                 start: 0,
                 end: start
             })
@@ -701,7 +701,7 @@ mod tests {
                 && d.repair.is_empty()
                 && d.data.is_empty()
         );
-        d.validate("b.nx", source).unwrap();
+        d.validate("b.n", source).unwrap();
     }
 
     #[test]
@@ -726,7 +726,7 @@ mod tests {
             ('|', Stage::Lex, "lexical_token"),
         ] {
             let source = format!("fn Main(){{let x=1{bad}2;}}");
-            let d = parse("b.nx", &source).unwrap_err();
+            let d = parse("b.n", &source).unwrap_err();
             assert_eq!(d.stage, stage);
             assert_eq!(d.parser_context.as_deref(), Some(context));
             assert_eq!(
@@ -745,9 +745,9 @@ mod tests {
                     "NX-E0002"
                 }
             );
-            d.validate("b.nx", &source).unwrap();
+            d.validate("b.n", &source).unwrap();
             let good = "fn Main(){let x=1+2;}".to_string();
-            assert!(parse("b.nx", &good).is_ok());
+            assert!(parse("b.n", &good).is_ok());
         }
     }
 
@@ -795,9 +795,9 @@ mod tests {
                 bytes.extend_from_slice(&[0xf0, 0x9f, 0x99]);
             }
             if let Ok(source) = std::str::from_utf8(&bytes) {
-                match lex("b.nx", source) {
+                match lex("b.n", source) {
                     Ok(tokens) => assert_eq!(tokens.last().unwrap().kind, Kind::Eof),
-                    Err(d) => d.validate("b.nx", source).unwrap(),
+                    Err(d) => d.validate("b.n", source).unwrap(),
                 }
             }
         }
@@ -908,7 +908,7 @@ mod tests {
             if n % 13 == 0 {
                 source.push_str("\"open");
             }
-            match lex("generated.nx", &source) {
+            match lex("generated.n", &source) {
                 Ok(tokens) => {
                     assert_eq!(
                         tokens.iter().filter(|t| t.kind == Kind::Eof).count(),
@@ -945,7 +945,7 @@ mod tests {
                 }
                 Err(d) => {
                     assert_eq!(d.code, "NX-E0001");
-                    d.validate("generated.nx", &source).unwrap();
+                    d.validate("generated.n", &source).unwrap();
                     let span = d.primary_span.as_ref().unwrap();
                     let start = span.start as usize;
                     let end = span.end as usize;

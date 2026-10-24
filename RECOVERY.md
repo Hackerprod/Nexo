@@ -112,7 +112,7 @@ El listado de biblioteca contiene 673 pruebas en debug y 675 en release, con 19 
 
 ## Recuperación de la sintaxis B
 
-El árbol principal contiene el frontend B y sus pruebas. Repetir `cargo test --locked --offline` y `cargo test --locked --offline --release`; la suite actual contiene 767 unitarias en debug (736 activas, 31 ignoradas), 769 en release (738 activas, 31 ignoradas) y 78 integraciones por perfil. La enumeración de huecos aceptó 442.156 de 446.220 inserciones en release. La exclusión mutua de campañas protege los contadores globales.
+El árbol principal contiene el frontend B y sus pruebas. Repetir `cargo test --locked --offline` y `cargo test --locked --offline --release`; la suite actual contiene 767 unitarias en debug (736 activas, 31 ignoradas), 769 en release (738 activas, 31 ignoradas) y 80 integraciones por perfil. La enumeración de huecos aceptó 442.156 de 446.220 inserciones en release. La exclusión mutua de campañas protege los contadores globales.
 
 La CLI, el corpus y sus pruebas ya usan B; los módulos del prototipo se retiraron. La siguiente validación separada debe comparar las correcciones con una referencia de HEAD mediante casos y oráculos propios, clasificando las diferencias normativas de F0-D15. Permanecen pendientes esa revisión, los dos revisores sin discrepancias y la aprobación del propietario; la sustitución aún no tiene commit ni publicación remota.
 
@@ -120,3 +120,5 @@ El recorrido AST del impresor emite los tokens y el formato los asocia al CST po
 # Estado de recuperación registrado el 2026-10-23
 
 La sintaxis oficial B de F0-D15 está implementada en el único frontend, la CLI y el corpus. Reproducir el árbol actual con `sh scripts/validate.sh`, las regresiones B de `tests/cli.rs` y `tests/corpus.rs`, y las campañas ignoradas en debug y release. La validación separada de la sustitución sigue antes de I07c e I08–I11. Las secciones de cortes publicados conservan evidencia de sus commits: los comandos y rutas de comparación antiguos citados en ellas no son instrucciones vigentes. F0 sigue pendiente de dos revisores sin discrepancias y aprobación del propietario.
+
+La extensión oficial de fuente es `.n`. Verificar los 15 archivos de `corpus/`, la prueba de ausencia de extensiones residuales en `tests/corpus.rs` y la equivalencia de `check`/`run` con una ruta sin extensión en `tests/cli.rs`. La validación separada y la aprobación de fase siguen pendientes.

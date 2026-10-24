@@ -655,7 +655,7 @@ fn analyze_inner(
     #[cfg(test)]
     let original_used = *used;
     #[cfg(test)]
-    FLOW_STATE_COUNT_ENABLED.with(|enabled| enabled.set(function.source_file == "sparse_scale.nx"));
+    FLOW_STATE_COUNT_ENABLED.with(|enabled| enabled.set(function.source_file == "sparse_scale.n"));
     #[cfg(test)]
     let _state_count_guard = StateCountGuard;
     let blocks: Vec<_> = std::iter::once(&function.block)
@@ -776,7 +776,7 @@ fn analyze_inner(
     canonicalize(&mut errors);
     *used = budget.used;
     #[cfg(test)]
-    if function.source_file == "sparse_dense_oracle.nx" {
+    if function.source_file == "sparse_dense_oracle.n" {
         let mut dense_used = original_used;
         let dense = super::analyze_dense(function, name_spans, tokens, &mut dense_used).unwrap();
         assert_eq!(
@@ -793,7 +793,7 @@ mod tests {
 
     fn span(start: u64) -> Span {
         Span {
-            file: "sparse_witness.nx".into(),
+            file: "sparse_witness.n".into(),
             start,
             end: start + 1,
         }
@@ -960,9 +960,9 @@ mod tests {
             ));
         }
         source.push_str("}fn Main(){}");
-        let program = super::super::super::compile_scalar("quota_forged.nx", &source).unwrap();
+        let program = super::super::super::compile_scalar("quota_forged.n", &source).unwrap();
         let mut function = program.functions.function("F").unwrap().clone();
-        let tokens = crate::frontend::lex::lex("quota_forged.nx", &source).unwrap();
+        let tokens = crate::frontend::lex::lex("quota_forged.n", &source).unwrap();
         let s = function
             .locals
             .iter()
@@ -1088,7 +1088,7 @@ mod tests {
                     }
                 }
                 source.push_str("}fn Main(){}");
-                let file = "quota_forged.nx";
+                let file = "quota_forged.n";
                 let program = super::super::super::compile_scalar(file, &source).unwrap();
                 let mut function = program.functions.function("F").unwrap().clone();
                 let tokens = crate::frontend::lex::lex(file, &source).unwrap();
@@ -1167,7 +1167,7 @@ mod tests {
     fn same_source_use_prefers_joined_subcause_and_matching_cause() {
         let source = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    Drop(r);\n    while b {\n        Inspect(r);\n        r = MockOpen(2);\n    }\n}\nfn Main() {}\n";
         let Err(CompileError::Rejected(errors)) =
-            super::super::super::compile_scalar("same_use.nx", source)
+            super::super::super::compile_scalar("same_use.n", source)
         else {
             panic!("expected ownership diagnostic");
         };
@@ -1299,7 +1299,7 @@ mod tests {
     #[test]
     fn loop_summary_indexes_local_consumption_and_scope_kill() {
         let source = "fn F(b: view Bool) {\n    while b {\n        let r = MockOpen(1);\n        Drop(r);\n    }\n}\nfn Main() {}\n";
-        let program = super::super::super::compile_scalar("loop_summary.nx", source).unwrap();
+        let program = super::super::super::compile_scalar("loop_summary.n", source).unwrap();
         let function = program.functions.function("F").unwrap();
         let names: Vec<_> = function
             .locals
@@ -1311,7 +1311,7 @@ mod tests {
                     _ => 0,
                 } as u64;
                 Span {
-                    file: "loop_summary.nx".into(),
+                    file: "loop_summary.n".into(),
                     start,
                     end: start + local.name.len() as u64,
                 }

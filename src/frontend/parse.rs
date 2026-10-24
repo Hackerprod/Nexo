@@ -12,7 +12,7 @@ pub(crate) fn measure_parse_work(source: &str) -> (Result<Ast, Box<Diagnostic>>,
     use std::sync::atomic::Ordering;
     let _guard = PARSE_SCALE_MUTEX.lock().unwrap();
     PARSE_SCALE_WORK.store(0, Ordering::Relaxed);
-    let result = parse("b-scale.nx", source);
+    let result = parse("b-scale.n", source);
     (result, PARSE_SCALE_WORK.load(Ordering::Relaxed))
 }
 
@@ -500,14 +500,14 @@ mod tests {
         }
         fn measure(pattern: &str, bytes: usize) -> (u64, u64) {
             let source = source(pattern, bytes);
-            crate::test_alloc::reset("parser_scale_counter.nx");
-            if let Err(error) = parse("parser_scale_counter.nx", &source) {
+            crate::test_alloc::reset("parser_scale_counter.n");
+            if let Err(error) = parse("parser_scale_counter.n", &source) {
                 assert!(
                     error.code != "NX-E0001" && error.code != "NX-E0002",
                     "{pattern} is not a B source: {error:?}"
                 );
             }
-            crate::test_alloc::snapshot("parser_scale_counter.nx")
+            crate::test_alloc::snapshot("parser_scale_counter.n")
         }
         for pattern in [
             "statements",
@@ -564,7 +564,7 @@ mod tests {
         let measure = |mebibytes: usize| {
             let source = format!("fn Main(){{}}//{}", "x".repeat(mebibytes * 1_048_576));
             let (tokens, steps) = super::super::lex::measure_lex_work(|| {
-                super::super::lex::lex("linear.nx", &source).unwrap()
+                super::super::lex::lex("linear.n", &source).unwrap()
             });
             assert!(!tokens.is_empty());
             steps
@@ -599,9 +599,9 @@ mod tests {
                 _ => format!("fn Main(){{let x={};}}", next() % 100).into_bytes(),
             };
             if let Ok(source) = crate::diagnostic::decode_utf8(bytes)
-                && let Err(d) = parse("fuzz.nx", &source)
+                && let Err(d) = parse("fuzz.n", &source)
             {
-                d.validate("fuzz.nx", &source)
+                d.validate("fuzz.n", &source)
                     .unwrap_or_else(|e| panic!("invalid parser diagnostic for seed {seed}: {e}"));
             }
         }
@@ -624,13 +624,13 @@ mod tests {
         let source = "fn F(){let x=1;}";
         let start = Instant::now();
         for _ in 0..COUNT {
-            std::hint::black_box(parse_inner("cost.nx", source).unwrap());
+            std::hint::black_box(parse_inner("cost.n", source).unwrap());
         }
         let direct = start.elapsed();
         let before = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get);
         let start = Instant::now();
         for _ in 0..COUNT {
-            std::hint::black_box(parse("cost.nx", source).unwrap());
+            std::hint::black_box(parse("cost.n", source).unwrap());
         }
         let worker = start.elapsed();
         let spawns = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get) - before;
@@ -641,7 +641,7 @@ mod tests {
     #[test]
     fn unavailable_parser_worker_has_a_structural_budget_diagnostic() {
         let source = "fn F(){}";
-        let d = worker_unavailable("worker.nx", source);
+        let d = worker_unavailable("worker.n", source);
         assert_eq!(d.code, "NX-E0003");
         assert_eq!(d.stage, Stage::Parse);
         assert_eq!(
@@ -651,8 +651,8 @@ mod tests {
         assert_eq!(d.data.get("limit"), Some(&DataValue::UInt(128)));
         assert_eq!(d.data.get("observed"), Some(&DataValue::UInt(129)));
         let span = d.primary_span.as_ref().unwrap();
-        assert_eq!((&*span.file, span.start, span.end), ("worker.nx", 0, 1));
-        d.validate("worker.nx", source).unwrap();
+        assert_eq!((&*span.file, span.start, span.end), ("worker.n", 0, 1));
+        d.validate("worker.n", source).unwrap();
     }
 
     #[test]
@@ -668,7 +668,7 @@ mod tests {
             "fn F(){{return 1;}}",
             "fn F(){let x=if a then {value:0;}else (if b then {return 1;}else{value:2;});}",
         ] {
-            let d = parse("return.nx", source).unwrap_err();
+            let d = parse("return.n", source).unwrap_err();
             assert_eq!(d.code, "NX-E0006", "{source}: {d:?}");
             assert_eq!(
                 d.feature_id.as_deref(),
@@ -681,7 +681,7 @@ mod tests {
                 source.find("return 1").unwrap(),
                 "{source}"
             );
-            d.validate("return.nx", source).unwrap();
+            d.validate("return.n", source).unwrap();
         }
     }
 }
@@ -2450,7 +2450,7 @@ impl Parser<'_> {
     }
     fn peek(&self) -> &Token {
         #[cfg(test)]
-        if self.file == "b-scale.nx" {
+        if self.file == "b-scale.n" {
             PARSE_SCALE_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         &self.tokens[self.at.min(self.tokens.len() - 1)]
@@ -2629,14 +2629,14 @@ mod b_tests {
 
     #[test]
     fn type_close_ge_splits_only_inside_a_type() {
-        let ast = parse("split.nx", "fn Main(){let r:Result<I64,I64>=Ok(1);}").unwrap();
+        let ast = parse("split.n", "fn Main(){let r:Result<I64,I64>=Ok(1);}").unwrap();
         assert_eq!(ast.functions[0].body.statements.len(), 1);
         let source = "Result<I64,I64>=Ok(1)";
-        let tokens = lex::lex("split.nx", source).unwrap();
+        let tokens = lex::lex("split.n", source).unwrap();
         let at = tokens.iter().position(|token| token.text == ">=").unwrap();
         let start = tokens[at].span.start;
         let mut parser = Parser {
-            file: "split.nx",
+            file: "split.n",
             source,
             tokens,
             at,
@@ -2667,7 +2667,7 @@ mod b_tests {
     #[test]
     fn parses_shared_ast_and_prints_official_spelling() {
         let source = "fn F(x:view I64,y:edit Array<I64>)->I64{return if true then 1 else 2;} fn Main(){let r=MockOpen(1);let s=move r;}";
-        let ast = parse("b.nx", source).unwrap();
+        let ast = parse("b.n", source).unwrap();
         assert_eq!(ast.functions[0].params[0].mode, Mode::Read);
         assert_eq!(ast.functions[0].params[1].mode, Mode::Inout);
         assert!(matches!(
@@ -2691,7 +2691,7 @@ mod b_tests {
         assert!(printed.contains("x: view I64, y: edit Array<I64>"));
         assert!(printed.contains("if true then 1 else 2"));
         assert!(printed.ends_with("\n"));
-        let reparsed = parse("b.nx", &printed).unwrap();
+        let reparsed = parse("b.n", &printed).unwrap();
         assert_eq!(print_canonical(&reparsed).unwrap(), printed);
     }
 
@@ -2718,16 +2718,16 @@ mod b_tests {
                 (25, 28),
             ),
         ] {
-            let error = parse("b.nx", source).unwrap_err();
+            let error = parse("b.n", source).unwrap_err();
             assert_eq!(error.code, code, "{source}");
             assert_eq!(error.feature_id.as_deref(), feature, "{source}");
             let primary = error.primary_span.as_ref().unwrap();
             assert_eq!((primary.start, primary.end), span, "{source}");
             assert_eq!(error.profile_id, diagnostic::PROFILE_ID);
             assert!(
-                error.validate("b.nx", source).is_ok(),
+                error.validate("b.n", source).is_ok(),
                 "{source}: {:?}",
-                error.validate("b.nx", source)
+                error.validate("b.n", source)
             );
         }
     }
@@ -2743,13 +2743,13 @@ mod b_tests {
                 true,
             ),
         ] {
-            let tokens = lex::lex("scope.nx", source)
+            let tokens = lex::lex("scope.n", source)
                 .unwrap()
                 .into_iter()
                 .filter(|t| t.kind != Kind::Newline)
                 .collect();
             let mut parser = Parser {
-                file: "scope.nx",
+                file: "scope.n",
                 source,
                 tokens,
                 at: 0,

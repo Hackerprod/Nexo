@@ -35,6 +35,8 @@ Las secciones 2–5 bastan para escribir el frontend sin consultar una gramátic
 
 ### 2.1. Bytes, alfabeto y trivia
 
+La extensión oficial de los archivos fuente de Nexo es `.n` (por ejemplo, `main.n`). La CLI no exige ni infiere la extensión; el corpus, los ejemplos y las pruebas usan `.n`. No se admite ninguna otra extensión como alias.
+
 La entrada es UTF-8 válido. Un archivo ilegible o UTF-8 inválido sigue A2 §§11 y 13.6, antes del lexer. No se normalizan Unicode ni finales de línea antes de calcular spans. Los spans son intervalos semiabiertos de bytes originales, base cero. LF, CR y CRLF son cada uno un salto lógico; CRLF ocupa dos bytes. EOF tiene texto vacío y span `[bytes,bytes)`.
 
 Identificador: `[A-Za-z_][A-Za-z0-9_]*`, coincidencia máxima, sensible a caja. `_` es un nombre en F0 y comodín solo en posición de patrón en B completa. Unicode se admite en comentarios y cadenas, no en identificadores. El espacio horizontal es la lista cerrada U+0009, U+000B, U+000C, U+0020, U+0085, U+00A0, U+1680, U+2000…U+200A, U+2028, U+2029, U+202F, U+205F y U+3000; estos caracteres separan tokens, pero no insertan terminadores. Esto hace explícito el comportamiento `char::is_whitespace` de LEX sin depender de una futura versión de Unicode. Solo CR/LF son saltos de la gramática. U+FEFF no es trivia: el BOM de fuente se rechaza como NX-E0001. El presente ADR y la salida canónica son UTF-8 sin BOM, LF.

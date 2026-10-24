@@ -896,16 +896,16 @@ mod tests {
     #[test]
     fn function_scope_restores_preexisting_resolver_state() {
         let source = "fn Main() {}\n";
-        let ast = crate::frontend::parse::parse("scope.nx", source).unwrap();
-        let (resolved, errors) = register("scope.nx", source, &ast).unwrap();
+        let ast = crate::frontend::parse::parse("scope.n", source).unwrap();
+        let (resolved, errors) = register("scope.n", source, &ast).unwrap();
         assert!(errors.is_empty());
-        let tokens = lex::lex("scope.nx", source).unwrap();
+        let tokens = lex::lex("scope.n", source).unwrap();
         let mut outer = HashMap::new();
         outer.insert(
             "sentinel".into(),
             Local {
                 name_span: Span {
-                    file: "scope.nx".into(),
+                    file: "scope.n".into(),
                     start: 0,
                     end: 1,
                 },

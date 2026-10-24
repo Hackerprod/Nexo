@@ -16,15 +16,15 @@ fn unique_bytes(source: &str, needle: &str) -> (u64, u64) {
 #[test]
 fn b_branch_marker_and_scope_repairs_keep_current_boundaries() {
     let source = "fn Main(){let x=if true then {value:1} else {value:2;};}";
-    let d = parse("gap.nx", source).unwrap_err();
+    let d = parse("gap.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0005");
-    d.validate("gap.nx", source).unwrap();
-    parse("gap.nx", "fn Main(){while false{}}").unwrap();
+    d.validate("gap.n", source).unwrap();
+    parse("gap.n", "fn Main(){while false{}}").unwrap();
     let source = "fn Main(){while false{;}}";
-    let d = parse("gap.nx", source).unwrap_err();
+    let d = parse("gap.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0002");
-    d.validate("gap.nx", source).unwrap();
-    parse("gap.nx", "  \n fn Main(){ 1; }").unwrap();
+    d.validate("gap.n", source).unwrap();
+    parse("gap.n", "  \n fn Main(){ 1; }").unwrap();
 }
 
 #[test]
@@ -36,25 +36,25 @@ fn b_incomplete_control_and_postfix_contexts_keep_current_result() {
         "fn F(){a[",
         "fn F(){F(a:",
     ] {
-        let d = parse("gap.nx", source).unwrap_err();
+        let d = parse("gap.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0002", "{source}");
         assert_eq!(
             d.parser_context.as_deref(),
             Some("grammar.Primary"),
             "{source}"
         );
-        d.validate("gap.nx", source).unwrap();
+        d.validate("gap.n", source).unwrap();
     }
     // D15 §2.2.3 makes the bare contextual names ordinary Name expressions.
     for source in ["fn F(){let x=move", "fn F(){let x=edit"] {
-        let d = parse("gap.nx", source).unwrap_err();
+        let d = parse("gap.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0005", "{source}");
         assert_eq!(
             d.parser_context.as_deref(),
             Some("statement_terminator"),
             "{source}"
         );
-        d.validate("gap.nx", source).unwrap();
+        d.validate("gap.n", source).unwrap();
     }
 }
 
@@ -67,27 +67,27 @@ fn b_nonterminating_subexpression_follow_keeps_current_result() {
         ("fn F(){if a<1 <", "grammar.CompareExpr", &[";"][..]),
         ("fn F(){if a<1 ==", "grammar.CompareExpr", &[";"][..]),
     ] {
-        let d = parse("gap.nx", source).unwrap_err();
+        let d = parse("gap.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0002", "{source}");
         assert_eq!(d.parser_context.as_deref(), Some(context), "{source}");
         assert_eq!(d.expected_tokens, expected, "{source}");
-        d.validate("gap.nx", source).unwrap();
+        d.validate("gap.n", source).unwrap();
     }
 }
 
 #[test]
 fn b_nullable_continuations_and_else_if_depth_keep_current_results() {
-    parse("gap.nx", "fn Main(){F(x\n, 1);}").unwrap();
+    parse("gap.n", "fn Main(){F(x\n, 1);}").unwrap();
     for source in ["fn Main(){x\n, 1;}", "fn Main(){x\nelse{}}"] {
-        assert_eq!(parse("gap.nx", source).unwrap_err().code, "NX-E0002");
+        assert_eq!(parse("gap.n", source).unwrap_err().code, "NX-E0002");
     }
     let source = format!("fn Main(){{{}{{}}}}", "if true{}else ".repeat(128));
-    let d = parse("gap.nx", &source).unwrap_err();
+    let d = parse("gap.n", &source).unwrap_err();
     assert_eq!(
         d.data.get("budget_kind"),
         Some(&DataValue::String("expression_tree_depth".into()))
     );
-    d.validate("gap.nx", &source).unwrap();
+    d.validate("gap.n", &source).unwrap();
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn b_syntax_nesting_limit_has_published_fields() {
         "[".repeat(10_000),
         "]".repeat(10_000)
     );
-    let d = parse("deep.nx", &source).unwrap_err();
+    let d = parse("deep.n", &source).unwrap_err();
     assert_eq!(d.code, "NX-E0003");
     assert_eq!(d.stage, Stage::Parse);
     assert_eq!(d.operation, Operation::AnalysisLimit);
@@ -130,7 +130,7 @@ fn b_syntax_nesting_limit_has_published_fields() {
     );
     assert_eq!(d.data.get("limit"), Some(&DataValue::UInt(128)));
     assert_eq!(d.data.get("observed"), Some(&DataValue::UInt(129)));
-    d.validate("deep.nx", &source).unwrap();
+    d.validate("deep.n", &source).unwrap();
 }
 
 #[test]
@@ -154,7 +154,7 @@ fn b_terminator_repair_uses_expression_end_and_exact_inserted_text() {
         ("fn Main()->I64{return 1}", "1"),
         ("fn Main(){F()}", ")"),
     ] {
-        let d = parse("repair.nx", source).unwrap_err();
+        let d = parse("repair.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0005", "{source}");
         assert_eq!(d.parser_context.as_deref(), Some("statement_terminator"));
         assert_eq!(d.expected_tokens, [";"]);
@@ -167,7 +167,7 @@ fn b_terminator_repair_uses_expression_end_and_exact_inserted_text() {
         assert_eq!(edit.replacement, ";");
         assert_eq!(edit.expected_text, "");
         assert_eq!((edit.span.start, edit.span.end), (end, end), "{source}");
-        d.validate("repair.nx", source).unwrap();
+        d.validate("repair.n", source).unwrap();
     }
 }
 
@@ -181,13 +181,13 @@ fn b_nested_if_conditions_finish_on_a_small_debug_stack() {
                 "if ".repeat(128),
                 " then {} else 1".repeat(128)
             );
-            let d = parse("stack.nx", &source).unwrap_err();
+            let d = parse("stack.n", &source).unwrap_err();
             assert_eq!(d.code, "NX-E0003");
             assert_eq!(
                 d.data.get("budget_kind"),
                 Some(&DataValue::String("syntax_nesting".into()))
             );
-            d.validate("stack.nx", &source).unwrap();
+            d.validate("stack.n", &source).unwrap();
         })
         .unwrap()
         .join()
@@ -201,11 +201,11 @@ fn b_feature_recognition_follows_position_and_function_scope() {
         "fn Main(){let Option=1;}",
         "fn Main(){let a=[1];let x=a[MockOpen(1)];}",
     ] {
-        assert!(parse("scope.nx", source).is_ok(), "{source}");
+        assert!(parse("scope.n", source).is_ok(), "{source}");
     }
-    parse("scope.nx", "fn Main(){} fn G()->I64{return 1;}").unwrap();
+    parse("scope.n", "fn Main(){} fn G()->I64{return 1;}").unwrap();
     let source = "fn Main(){} fn G(){return 1;}";
-    let d = parse("scope.nx", source).unwrap_err();
+    let d = parse("scope.n", source).unwrap_err();
     assert_eq!(d.feature_id.as_deref(), Some("inferred_non_unit_result"));
     assert_eq!(
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
@@ -215,15 +215,15 @@ fn b_feature_recognition_follows_position_and_function_scope() {
         d.related_spans[0].span.start,
         source.find("return").unwrap() as u64
     );
-    d.validate("scope.nx", source).unwrap();
+    d.validate("scope.n", source).unwrap();
     let source = "fn Main(){let x=;} fn G(){for}";
-    let d = parse("scope.nx", source).unwrap_err();
+    let d = parse("scope.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0002");
     assert_eq!(
         d.unexpected_token.as_ref().and_then(|t| t.text.as_deref()),
         Some(";")
     );
-    d.validate("scope.nx", source).unwrap();
+    d.validate("scope.n", source).unwrap();
 }
 
 #[test]
@@ -235,7 +235,7 @@ fn b_prefix_place_reports_first_non_place_token() {
         ("fn Main(){let x=edit (a+b)[0];}", "+"),
         ("fn Main(){let x=move (1+2);}", "1"),
     ] {
-        let d = parse("place.nx", source).unwrap_err();
+        let d = parse("place.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0002", "{source}");
         assert_eq!(
             d.unexpected_token.as_ref().unwrap().text.as_deref(),
@@ -249,7 +249,7 @@ fn b_prefix_place_reports_first_non_place_token() {
             d.recognized_prefix.as_ref().unwrap().end,
             d.primary_span.as_ref().unwrap().start
         );
-        d.validate("place.nx", source).unwrap();
+        d.validate("place.n", source).unwrap();
     }
 }
 
@@ -284,7 +284,7 @@ fn b_excluded_operators_keep_diagnostic_across_line_breaks() {
         for newline in ["", "\n", "\r\n"] {
             let source = format!("fn Main(){{let x=1{newline}{operator}2;}}");
             let start = source.find(operator).unwrap() as u64;
-            let d = parse("operator.nx", &source).unwrap_err();
+            let d = parse("operator.n", &source).unwrap_err();
             assert_eq!(d.code, "NX-E0002", "{source}");
             assert_eq!(d.stage, Stage::Parse, "{source}");
             assert_eq!(
@@ -307,8 +307,8 @@ fn b_excluded_operators_keep_diagnostic_across_line_breaks() {
                 Some((10, start))
             );
             assert!(d.repair.is_empty());
-            d.validate("operator.nx", &source).unwrap();
-            parse("operator.nx", &source.replacen(operator, repaired, 1)).unwrap();
+            d.validate("operator.n", &source).unwrap();
+            parse("operator.n", &source.replacen(operator, repaired, 1)).unwrap();
         }
     }
 }
@@ -365,7 +365,7 @@ fn b_hostile_nesting_in_parens_blocks_arrays_and_types_is_bounded() {
         ),
     ];
     for (index, source) in sources.into_iter().enumerate() {
-        let d = parse("nesting.nx", &source).unwrap_err();
+        let d = parse("nesting.n", &source).unwrap_err();
         assert_eq!(d.code, "NX-E0003", "{}", &source[..source.len().min(20)]);
         assert_eq!(
             d.data.get("budget_kind"),
@@ -379,7 +379,7 @@ fn b_hostile_nesting_in_parens_blocks_arrays_and_types_is_bounded() {
                 ("fn F(x:view ".len() + 128 * "Array<".len()) as u64
             );
         }
-        d.validate("nesting.nx", &source).unwrap();
+        d.validate("nesting.n", &source).unwrap();
     }
 }
 
@@ -397,7 +397,7 @@ fn b_repeated_and_grouped_modes_classify_after_the_whole_postfix() {
         ("fn Main(){move (a[0]);}", "partial_transfer", "(a[0])"),
         ("fn Main(){move a[0][1];}", "partial_transfer", "a[0][1]"),
     ] {
-        let d = parse("mode.nx", source).unwrap_err();
+        let d = parse("mode.n", source).unwrap_err();
         assert_eq!(d.feature_id.as_deref(), Some(feature), "{source}");
         let marker = unique_bytes(source, needle);
         assert_eq!(
@@ -405,7 +405,7 @@ fn b_repeated_and_grouped_modes_classify_after_the_whole_postfix() {
             Some(marker),
             "{source}"
         );
-        d.validate("mode.nx", source).unwrap();
+        d.validate("mode.n", source).unwrap();
     }
 }
 
@@ -418,31 +418,31 @@ fn b_function_body_opening_and_structural_closure_follow_production() {
         "fn F(){if (if x then {value:1;} else {value:2;}) {}\n x;}",
         "fn F(){while a[if true then {value:0;}else{value:1;}]{}\n x;}",
     ] {
-        parse("structure.nx", source).unwrap_or_else(|d| panic!("{source}: {d:?}"));
+        parse("structure.n", source).unwrap_or_else(|d| panic!("{source}: {d:?}"));
     }
     let source = "fn F(){return }";
-    let d = parse("structure.nx", source).unwrap_err();
+    let d = parse("structure.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0005");
     assert_eq!(d.related_spans[0].role, RelatedRole::Context);
     assert_eq!(
         (d.related_spans[0].span.start, d.related_spans[0].span.end),
         unique_bytes(source, "return")
     );
-    d.validate("structure.nx", source).unwrap();
+    d.validate("structure.n", source).unwrap();
 }
 
 #[test]
 fn b_empty_operation_list_first_is_independent_of_bad_token() {
     const EXPECTED: &[&str] = &["call", "cancel", "copy", "create", "drop", "resume", "}"];
     let prefix = "fn F() with {";
-    let eof = parse("with-first.nx", prefix).unwrap_err();
+    let eof = parse("with-first.n", prefix).unwrap_err();
     for token in [
         ")", ";", "x", "1", "value", "(", "[", "]", ",", ":", "=", "->", "with", "else", "let",
         "return", "while", "if", "fn", "no_io", "Array", "I64", "true", "false", "?", "+", "-",
         "<", ">", "==", ".", "@",
     ] {
         let source = format!("{prefix}{token}");
-        let d = parse("with-first.nx", &source).unwrap_err();
+        let d = parse("with-first.n", &source).unwrap_err();
         assert_eq!(d.code, "NX-E0002", "{source}");
         assert_eq!(d.parser_context, eof.parser_context, "{source}");
         assert_eq!(d.expected_tokens, eof.expected_tokens, "{source}");
@@ -456,7 +456,7 @@ fn b_empty_operation_list_first_is_independent_of_bad_token() {
             d.primary_span.as_ref().unwrap().start as usize,
             prefix.len()
         );
-        d.validate("with-first.nx", &source).unwrap();
+        d.validate("with-first.n", &source).unwrap();
     }
 }
 
@@ -464,7 +464,7 @@ fn b_empty_operation_list_first_is_independent_of_bad_token() {
 fn b_structural_closures_and_commented_crlf_obey_terminator_boundaries() {
     for statement in ["{}", "while true{}", "if true{}else{}"] {
         let source = format!("fn Main(){{{statement}\r\nlet z=2;}}");
-        let ast = parse("structure.nx", &source).unwrap();
+        let ast = parse("structure.n", &source).unwrap();
         assert_eq!(ast.functions[0].body.statements.len(), 2, "{statement}");
         let start = source.find("let z").unwrap() as u64;
         assert!(
@@ -472,7 +472,7 @@ fn b_structural_closures_and_commented_crlf_obey_terminator_boundaries() {
         );
     }
     let comment = "fn Main(){let x=1//é\r\nlet y=2;}";
-    let ast = parse("structure.nx", comment).unwrap();
+    let ast = parse("structure.n", comment).unwrap();
     let first_end = comment.find("//").unwrap() as u64;
     let second_start = comment.find("let y").unwrap() as u64;
     assert!(
@@ -484,10 +484,10 @@ fn b_structural_closures_and_commented_crlf_obey_terminator_boundaries() {
     let explicit = "fn Main(){let x=1;//é\r\nlet y=2;}";
     assert_eq!(
         print_canonical(&ast).unwrap(),
-        print_canonical(&parse("structure.nx", explicit).unwrap()).unwrap()
+        print_canonical(&parse("structure.n", explicit).unwrap()).unwrap()
     );
     let missing = "fn Main(){let x=if true then {}else{}}";
-    let d = parse("structure.nx", missing).unwrap_err();
+    let d = parse("structure.n", missing).unwrap_err();
     assert_eq!(d.code, "NX-E0005");
     assert_eq!(d.parser_context.as_deref(), Some("statement_terminator"));
     assert_eq!(d.expected_tokens, [";"]);
@@ -495,10 +495,10 @@ fn b_structural_closures_and_commented_crlf_obey_terminator_boundaries() {
         d.unexpected_token.as_ref().unwrap().text.as_deref(),
         Some("}")
     );
-    d.validate("structure.nx", missing).unwrap();
-    parse("structure.nx", "fn Main(){let x=if true then {}else{};}").unwrap();
+    d.validate("structure.n", missing).unwrap();
+    parse("structure.n", "fn Main(){let x=if true then {}else{};}").unwrap();
     parse(
-        "structure.nx",
+        "structure.n",
         "fn Main(){let x=if true then {}else{}\r\nlet z=2;}",
     )
     .unwrap();
@@ -507,7 +507,7 @@ fn b_structural_closures_and_commented_crlf_obey_terminator_boundaries() {
 #[test]
 fn b_l01_l03_l04_keep_parse_trees_and_byte_spans() {
     let l01 = "fn F()->I64{\nreturn\n(1);\n}\nfn Main(){}";
-    let ast = parse("l.nx", l01).unwrap();
+    let ast = parse("l.n", l01).unwrap();
     assert_eq!(ast.functions.len(), 2);
     assert_eq!(ast.functions[0].body.statements.len(), 2);
     let ret = unique_bytes(l01, "return");
@@ -522,7 +522,7 @@ fn b_l01_l03_l04_keep_parse_trees_and_byte_spans() {
         }
     ));
     let positive = "fn F()->I64{\nreturn (\n1);\n}\nfn Main(){}";
-    let ast = parse("l.nx", positive).unwrap();
+    let ast = parse("l.n", positive).unwrap();
     assert_eq!(ast.functions[0].body.statements.len(), 1);
     assert!(matches!(
         &ast.functions[0].body.statements[0],
@@ -533,13 +533,13 @@ fn b_l01_l03_l04_keep_parse_trees_and_byte_spans() {
     ));
     let l03 =
         "fn value(x:view I64)->I64{return x;}\nfn Main(){let x=7;let y=value\n(x);AssertEq(y,7);}";
-    let ast = parse("l.nx", l03).unwrap();
+    let ast = parse("l.n", l03).unwrap();
     let call_start = l03.find("value\n(x)").unwrap() as u64;
     assert!(
         matches!(&ast.functions[1].body.statements[1], Statement::Let { value: Expr::Call { target, span, .. }, .. } if matches!(&**target, Expr::Name(name, _) if name == "value") && (span.start,span.end)==(call_start,call_start+"value\n(x)".len() as u64))
     );
     let l04 = "fn Main(){\nlet value=2\nlet a=value -1\nlet b=value - 1\nAssertEq(a,b)\n}";
-    let ast = parse("l.nx", l04).unwrap();
+    let ast = parse("l.n", l04).unwrap();
     assert_eq!(ast.functions[0].body.statements.len(), 4);
     let ends: Vec<_> = ast.functions[0]
         .body
@@ -565,7 +565,7 @@ fn b_l01_l03_l04_keep_parse_trees_and_byte_spans() {
         matches!(&ast.functions[0].body.statements[1], Statement::Let { value: Expr::Binary { op, span, .. }, .. } if op == "-" && (span.start,span.end)==binary)
     );
     let variant = l04.replacen("value -1", "value - 1", 1);
-    let other = parse("l.nx", &variant).unwrap();
+    let other = parse("l.n", &variant).unwrap();
     let binary_start = variant.find("value - 1").unwrap() as u64;
     let binary = (binary_start, binary_start + "value - 1".len() as u64);
     assert!(
@@ -581,21 +581,21 @@ fn b_l01_l03_l04_keep_parse_trees_and_byte_spans() {
 fn b_l05_l06_l07_keep_unit_discard_and_utf8_offsets() {
     use super::lex::{Kind, lex};
     let l05 = "fn Main(){\nlet x=if true then {value: ();}else{value: ();};\nAssertEq(x,());\n}";
-    let ast = parse("l.nx", l05).unwrap();
+    let ast = parse("l.n", l05).unwrap();
     let value_start = l05.find("value: ();").unwrap() as u64;
     let value = (value_start, value_start + "value: ();".len() as u64);
     assert!(
         matches!(&ast.functions[0].body.statements[0], Statement::Let { value: Expr::If { then_block, .. }, .. } if matches!(&then_block.statements[0], Statement::Value { value: Some(Expr::Unit(_)), span } if (span.start,span.end)==value))
     );
     let l06 = "fn F()->I64{\n1\n}\nfn Main(){}";
-    let ast = parse("l.nx", l06).unwrap();
+    let ast = parse("l.n", l06).unwrap();
     assert_eq!(ast.functions[0].body.statements.len(), 1);
     let one = unique_bytes(l06, "\n1\n");
     assert!(
         matches!(&ast.functions[0].body.statements[0], Statement::Expr { value: Expr::Integer(_, _), span } if (span.start,span.end)==(one.0+1,one.1-1))
     );
     let positive = "fn F()->I64{\nreturn 1\n}\nfn Main(){}";
-    let ast = parse("l.nx", positive).unwrap();
+    let ast = parse("l.n", positive).unwrap();
     assert!(matches!(
         &ast.functions[0].body.statements[0],
         Statement::Return {
@@ -605,7 +605,7 @@ fn b_l05_l06_l07_keep_unit_discard_and_utf8_offsets() {
     ));
     let lf = "// á🙂\nfn Main(){\nlet x=missing;\n}";
     for source in [lf.to_owned(), lf.replace('\n', "\r\n"), format!("{lf}\n")] {
-        let tokens = lex("l.nx", &source).unwrap();
+        let tokens = lex("l.n", &source).unwrap();
         let first = tokens.iter().find(|t| t.kind != Kind::Newline).unwrap();
         assert_eq!(first.text, "fn");
         assert_eq!(first.span.start, unique_bytes(&source, "fn Main").0);
@@ -616,12 +616,12 @@ fn b_l05_l06_l07_keep_unit_discard_and_utf8_offsets() {
                 .any(|t| t.text == "missing" && (t.span.start, t.span.end) == missing)
         );
         assert_eq!(tokens.last().unwrap().span.start, source.len() as u64);
-        let ast = parse("l.nx", &source).unwrap();
+        let ast = parse("l.n", &source).unwrap();
         assert!(
             matches!(&ast.functions[0].body.statements[0], Statement::Let { value: Expr::Name(name, span), .. } if name == "missing" && (span.start,span.end)==missing)
         );
         let positive = source.replace("let x=missing;", "let missing=1;let x=missing;");
-        let ast = parse("l.nx", &positive).unwrap();
+        let ast = parse("l.n", &positive).unwrap();
         assert_eq!(ast.functions[0].body.statements.len(), 2);
     }
 }
@@ -688,17 +688,17 @@ fn b_split_type_close_and_first_states_have_regressions() {
         "fn F(){let a:Array<I64>=x;}",
         "fn F(){let a:Result<Array<Array<I64>>,Bool>=x;}",
     ] {
-        parse("split.nx", source).unwrap();
+        parse("split.n", source).unwrap();
     }
     for token in [
         ")", "]", "{", ",", "=", ":", "->", "with", "else", "let", "return", "while", "*", ">",
         "+", "==",
     ] {
         let source = format!("fn F()->I64{{return {token}");
-        let d = parse("first.nx", &source).unwrap_err();
+        let d = parse("first.n", &source).unwrap_err();
         assert_eq!(d.code, "NX-E0005", "{source}");
         let source = format!("fn F(){{let g=if c then {{value: {token}");
-        let d = parse("first.nx", &source).unwrap_err();
+        let d = parse("first.n", &source).unwrap_err();
         assert_eq!(d.code, "NX-E1302", "{source}");
     }
     const WITH: &[&str] = &[
@@ -712,7 +712,7 @@ fn b_split_type_close_and_first_states_have_regressions() {
     ];
     for token in ["foo", "I64", "value", "Array", "1", ";", ")", "="] {
         let source = format!("fn F() with {token}");
-        let d = parse("first.nx", &source).unwrap_err();
+        let d = parse("first.n", &source).unwrap_err();
         assert_eq!(
             d.parser_context.as_deref(),
             Some("grammar.WithClause"),
@@ -739,7 +739,7 @@ fn b_split_type_close_and_first_states_have_regressions() {
         "}",
     ];
     let source = "fn F(){let x=1;fn G(){}";
-    let d = parse("first.nx", source).unwrap_err();
+    let d = parse("first.n", source).unwrap_err();
     // D15 §3.6 classifies fn in an expression position as deferred closure.
     assert_eq!(d.code, "NX-E0006");
     assert_eq!(d.feature_id.as_deref(), Some("closure"));
@@ -749,10 +749,10 @@ fn b_split_type_close_and_first_states_have_regressions() {
         Some((local_fn, local_fn + 2))
     );
     let source = "fn F(){let x=1;let y=2;";
-    let d = parse("first.nx", source).unwrap_err();
+    let d = parse("first.n", source).unwrap_err();
     assert_eq!(d.parser_context.as_deref(), Some("grammar.Block"));
     assert_eq!(d.expected_tokens, BLOCK);
-    d.validate("first.nx", source).unwrap();
+    d.validate("first.n", source).unwrap();
 }
 
 #[test]
@@ -787,7 +787,7 @@ fn b_branch_value_negatives_keep_codes_spans_and_related_locations() {
             1,
         ),
     ] {
-        let d = parse("branches.nx", source).unwrap_err();
+        let d = parse("branches.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E1302", "{source}");
         assert_eq!(d.subcause.as_deref(), Some(subcause), "{source}");
         assert_eq!(d.stage, Stage::Parse);
@@ -807,10 +807,10 @@ fn b_branch_value_negatives_keep_codes_spans_and_related_locations() {
                     && (r.span.start, r.span.end) == (related_at, related_at + related_len)),
             "{source}: {d:?}"
         );
-        d.validate("branches.nx", source).unwrap();
+        d.validate("branches.n", source).unwrap();
     }
     let l02 = "fn F()->I64{\nreturn if true then {\nvalue:\n(1);\n}else{value:2;};\n}\nfn Main(){}";
-    let d = parse("branches.nx", l02).unwrap_err();
+    let d = parse("branches.n", l02).unwrap_err();
     let newline = l02.find("value:\n").unwrap() as u64 + "value:".len() as u64;
     assert!(
         d.related_spans
@@ -820,7 +820,7 @@ fn b_branch_value_negatives_keep_codes_spans_and_related_locations() {
     );
     let positive =
         "fn F()->I64{\nreturn if true then {\nvalue: (\n1);\n}else{value:2;};\n}\nfn Main(){}";
-    let ast = parse("branches.nx", positive).unwrap();
+    let ast = parse("branches.n", positive).unwrap();
     assert!(
         matches!(&ast.functions[0].body.statements[0], Statement::Return { value: Some(Expr::If { then_block, .. }), .. } if matches!(&then_block.statements[0], Statement::Value { value: Some(Expr::Group(_, _)), .. }))
     );
@@ -828,7 +828,7 @@ fn b_branch_value_negatives_keep_codes_spans_and_related_locations() {
         "fn Main(){let value=1;}",
         "fn F()->I64{return if true then {value:1;}else{value:2;};} fn Main(){}",
     ] {
-        parse("branches.nx", source).unwrap();
+        parse("branches.n", source).unwrap();
     }
 }
 
@@ -874,7 +874,7 @@ fn b_with_clause_rows_and_accepted_forms_keep_exact_diagnostics() {
             true,
         ),
     ] {
-        let d = parse("with.nx", source).unwrap_err();
+        let d = parse("with.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0417", "{source}");
         assert_eq!(d.subcause.as_deref(), Some(cause), "{source}");
         assert_eq!(d.stage, Stage::Parse);
@@ -889,7 +889,7 @@ fn b_with_clause_rows_and_accepted_forms_keep_exact_diagnostics() {
             Some((start, start + marker.len() as u64)),
             "{source}"
         );
-        d.validate("with.nx", source).unwrap();
+        d.validate("with.n", source).unwrap();
     }
     for source in [
         "fn Main() with no_io{}",
@@ -897,20 +897,20 @@ fn b_with_clause_rows_and_accepted_forms_keep_exact_diagnostics() {
         "fn Main() with {call(unrestricted)}{}",
         "fn Main() with {call(no_alloc,no_io)}{}",
     ] {
-        let ast = parse("with.nx", source).unwrap();
+        let ast = parse("with.n", source).unwrap();
         let printed = print_canonical(&ast).unwrap();
         assert_eq!(
-            print_canonical(&parse("with.nx", &printed).unwrap()).unwrap(),
+            print_canonical(&parse("with.n", &printed).unwrap()).unwrap(),
             printed
         );
         assert!(ast.functions[0].with_clause.is_some());
     }
-    let simple = parse("with.nx", "fn Main() with no_io{}").unwrap();
+    let simple = parse("with.n", "fn Main() with no_io{}").unwrap();
     assert_eq!(
         simple.functions[0].with_clause,
         Some(WithClause::Simple(vec!["no_io".into()]))
     );
-    let map = parse("with.nx", "fn Main() with {call(no_alloc,no_io)}{}").unwrap();
+    let map = parse("with.n", "fn Main() with {call(no_alloc,no_io)}{}").unwrap();
     assert!(
         matches!(&map.functions[0].with_clause, Some(WithClause::Operations(ops)) if ops.len()==1 && ops[0].name=="call" && ops[0].restrictions==["no_alloc","no_io"] && (ops[0].span.start,ops[0].span.end)==unique_bytes("fn Main() with {call(no_alloc,no_io)}{}", "call(no_alloc,no_io)"))
     );
@@ -919,26 +919,26 @@ fn b_with_clause_rows_and_accepted_forms_keep_exact_diagnostics() {
         "fn Main() with no_io{}",
         "fn Main() with {call(unrestricted)}{}",
     ] {
-        parse("with.nx", source).unwrap();
+        parse("with.n", source).unwrap();
     }
     let source = "fn Main() with no_heap_alloc{}";
-    let excluded = parse("with.nx", source).unwrap_err();
+    let excluded = parse("with.n", source).unwrap_err();
     assert_eq!(excluded.code, "NX-E0006");
     assert_eq!(excluded.feature_id.as_deref(), Some("no_heap_alloc"));
-    excluded.validate("with.nx", source).unwrap();
+    excluded.validate("with.n", source).unwrap();
     let source = "fn Main() with create(no_io){}";
-    let d = parse("with.nx", source).unwrap_err();
+    let d = parse("with.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0002");
     assert_eq!(d.parser_context.as_deref(), Some("grammar.WithClause"));
-    d.validate("with.nx", source).unwrap();
+    d.validate("with.n", source).unwrap();
 }
 
 #[test]
 fn member_selection_keeps_its_feature_across_a_line_break() {
     for source in ["fn Main(){x.y;}", "fn Main(){x\n.y;}"] {
-        let d = parse("member.nx", source).unwrap_err();
+        let d = parse("member.n", source).unwrap_err();
         assert_eq!(d.feature_id.as_deref(), Some("methods"), "{source}");
-        d.validate("member.nx", source).unwrap();
+        d.validate("member.n", source).unwrap();
     }
 }
 
@@ -949,17 +949,17 @@ fn local_bindings_and_parameters_shadow_function_names_in_b() {
         "fn value(){} fn Main(value:view I64){let b=value;}",
         "fn value(){} fn Main(){{let value=1;let b=value;}value();}",
     ] {
-        parse("scope.nx", source).unwrap();
+        parse("scope.n", source).unwrap();
     }
     for source in [
         "fn F(){} fn Main(){let g=F;}",
         "fn F(){} fn Main(){let g=(F);}",
         "fn F(){} fn Main(){G(F);}",
     ] {
-        let d = parse("scope.nx", source).unwrap_err();
+        let d = parse("scope.n", source).unwrap_err();
         assert_eq!(d.feature_id.as_deref(), Some("function_value"), "{source}");
         assert_eq!(d.stage, Stage::Names);
-        d.validate("scope.nx", source).unwrap();
+        d.validate("scope.n", source).unwrap();
     }
 }
 
@@ -967,12 +967,12 @@ fn local_bindings_and_parameters_shadow_function_names_in_b() {
 fn expression_statement_has_no_extra_outer_depth_charge_in_b() {
     for n in [126, 127] {
         parse(
-            "nest.nx",
+            "nest.n",
             &format!("fn Main(){{{}1{};}}", "F(".repeat(n), ")".repeat(n)),
         )
         .unwrap();
         parse(
-            "nest.nx",
+            "nest.n",
             &format!("fn Main(){{{}1{};}}", "[".repeat(n), "]".repeat(n)),
         )
         .unwrap();
@@ -980,13 +980,13 @@ fn expression_statement_has_no_extra_outer_depth_charge_in_b() {
     for n in [128, 129] {
         for (open, close) in [("F(", ")"), ("[", "]")] {
             let source = format!("fn Main(){{{}1{};}}", open.repeat(n), close.repeat(n));
-            let d = parse("nest.nx", &source).unwrap_err();
+            let d = parse("nest.n", &source).unwrap_err();
             assert_eq!(
                 d.data.get("budget_kind"),
                 Some(&DataValue::String("syntax_nesting".into())),
                 "{source}"
             );
-            d.validate("nest.nx", &source).unwrap();
+            d.validate("nest.n", &source).unwrap();
         }
     }
 }
@@ -994,23 +994,23 @@ fn expression_statement_has_no_extra_outer_depth_charge_in_b() {
 #[test]
 fn grouping_does_not_increase_expression_tree_height_in_b() {
     let admitted = format!("fn Main(){{let x=(1{});}}", "+1".repeat(127));
-    parse("height.nx", &admitted).unwrap();
+    parse("height.n", &admitted).unwrap();
     let grouped_child = format!("fn Main(){{let x=(1{})+1;}}", "+1".repeat(126));
-    parse("height.nx", &grouped_child).unwrap();
+    parse("height.n", &grouped_child).unwrap();
     let excessive = format!("fn Main(){{let x=(1{});}}", "+1".repeat(128));
-    let d = parse("height.nx", &excessive).unwrap_err();
+    let d = parse("height.n", &excessive).unwrap_err();
     assert_eq!(
         d.data.get("budget_kind"),
         Some(&DataValue::String("expression_tree_depth".into()))
     );
-    d.validate("height.nx", &excessive).unwrap();
+    d.validate("height.n", &excessive).unwrap();
 }
 
 #[test]
 fn repeated_mode_prefix_reports_non_place_in_b() {
     for (mode, context) in [("move", "consume_place"), ("edit", "inout_place")] {
         let source = format!("fn Main(){{let x={mode} {mode} a;}}");
-        let d = parse("prefix.nx", &source).unwrap_err();
+        let d = parse("prefix.n", &source).unwrap_err();
         assert_eq!(d.code, "NX-E0002");
         assert_eq!(d.parser_context.as_deref(), Some(context));
         assert_eq!(d.expected_tokens, ["Place"]);
@@ -1022,31 +1022,31 @@ fn repeated_mode_prefix_reports_non_place_in_b() {
             d.primary_span.as_ref().unwrap().start as usize,
             source.rfind(mode).unwrap()
         );
-        d.validate("prefix.nx", &source).unwrap();
+        d.validate("prefix.n", &source).unwrap();
     }
 }
 
 #[test]
 fn try_after_access_has_no_postfix_continuation_in_b() {
     for source in ["fn Main(){let y=move x?;}", "fn Main(){F(edit a[0]);}"] {
-        parse("try.nx", source).unwrap_or_else(|d| panic!("{source}: {d:?}"));
+        parse("try.n", source).unwrap_or_else(|d| panic!("{source}: {d:?}"));
     }
     for source in ["fn Main(){let y=edit a[0]?;}", "fn Main(){F(edit x?);}"] {
-        let d = parse("try.nx", source).unwrap_err();
+        let d = parse("try.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0002");
         assert_eq!(d.parser_context.as_deref(), Some("inout_place"));
-        d.validate("try.nx", source).unwrap();
+        d.validate("try.n", source).unwrap();
     }
     for token in ["?", "(", "["] {
         let source = format!("fn Main(){{a?{token}1;}}");
-        let d = parse("try.nx", &source).unwrap_err();
+        let d = parse("try.n", &source).unwrap_err();
         assert_eq!(d.code, "NX-E0002");
         assert_eq!(d.parser_context.as_deref(), Some("grammar.TryExpr"));
         assert_eq!(
             d.unexpected_token.as_ref().unwrap().text.as_deref(),
             Some(token)
         );
-        d.validate("try.nx", &source).unwrap();
+        d.validate("try.n", &source).unwrap();
     }
 }
 
@@ -1066,14 +1066,14 @@ fn ordinary_names_stay_clear_of_deferred_feature_recognition_in_b() {
         let source = format!(
             "fn F({name}:view I64)->I64{{let option={name};let from=option;let class=from;let case{seed}=class;return case{seed};}} fn Main(){{let {name}=1;}}"
         );
-        parse("names.nx", &source).unwrap_or_else(|d| panic!("{seed}: {source}: {d:?}"));
+        parse("names.n", &source).unwrap_or_else(|d| panic!("{seed}: {source}: {d:?}"));
     }
 }
 
 #[test]
 fn signed_literals_and_operator_precedence_keep_their_ast_shape_in_b() {
     let source = "fn F(){let x=-42;let y=1+2<4;let z=(1<2)+3;let w=4-(2-1);}";
-    let ast = parse("precedence.nx", source).unwrap();
+    let ast = parse("precedence.n", source).unwrap();
     let ss = &ast.functions[0].body.statements;
     assert!(matches!(&ss[0], Statement::Let { value: Expr::Integer(n, _), .. } if n == "-42"));
     assert!(
@@ -1084,14 +1084,14 @@ fn signed_literals_and_operator_precedence_keep_their_ast_shape_in_b() {
     assert!(printed.contains("4 - (2 - 1)"));
     assert_eq!(
         ast_without_spans(ast),
-        ast_without_spans(parse("precedence.nx", &printed).unwrap())
+        ast_without_spans(parse("precedence.n", &printed).unwrap())
     );
-    let ast = parse("precedence.nx", "fn F(){let x=1<2+3;let y=1-2+3;}").unwrap();
+    let ast = parse("precedence.n", "fn F(){let x=1<2+3;let y=1-2+3;}").unwrap();
     assert!(
         matches!(&ast.functions[0].body.statements[0], Statement::Let { value: Expr::Binary { op, right, .. }, .. } if op == "<" && matches!(&**right, Expr::Binary { op, .. } if op == "+"))
     );
     assert!(print_canonical(&ast).unwrap().contains("1 - 2 + 3"));
-    let mut synthetic = parse("precedence.nx", "fn F(){let x=1+(2<3);}").unwrap();
+    let mut synthetic = parse("precedence.n", "fn F(){let x=1+(2<3);}").unwrap();
     if let Statement::Let {
         value: Expr::Binary { right, .. },
         ..
@@ -1111,12 +1111,12 @@ fn signed_literals_and_operator_precedence_keep_their_ast_shape_in_b() {
 #[test]
 fn else_block_and_else_if_keep_distinct_ast_and_printed_shapes_in_b() {
     let block = parse(
-        "else.nx",
+        "else.n",
         "fn F(){let x=if true then {value:1;}else{value:2;};}",
     )
     .unwrap();
     let chained = parse(
-        "else.nx",
+        "else.n",
         "fn F(){let x=if true then {value:1;}else(if true then {value:2;}else{value:3;});}",
     )
     .unwrap();
@@ -1139,25 +1139,25 @@ fn committed_rhs_keeps_the_inner_first_production_in_b() {
         ("fn Main(){let x=1+;}", "grammar.TryExpr"),
         ("fn Main(){let x=1<;}", "grammar.TryExpr"),
     ] {
-        let d = parse("gap.nx", source).unwrap_err();
+        let d = parse("gap.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0002", "{source}");
         assert_eq!(d.parser_context.as_deref(), Some(context), "{source}");
-        d.validate("gap.nx", source).unwrap();
+        d.validate("gap.n", source).unwrap();
     }
 }
 
 #[test]
 fn type_unit_terminal_and_lexical_priority_stay_explicit_in_b() {
     let source = "fn F(x:view (;";
-    let d = parse("gap.nx", source).unwrap_err();
+    let d = parse("gap.n", source).unwrap_err();
     assert_eq!(d.parser_context.as_deref(), Some("grammar.Type"));
     assert_eq!(d.expected_tokens, [")"]);
-    d.validate("gap.nx", source).unwrap();
+    d.validate("gap.n", source).unwrap();
     let source = "fn Main(){let x=0.5/1;}";
-    let d = parse("gap.nx", source).unwrap_err();
+    let d = parse("gap.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0006");
     assert_eq!(d.feature_id.as_deref(), Some("float_literal"));
-    d.validate("gap.nx", source).unwrap();
+    d.validate("gap.n", source).unwrap();
 }
 
 #[test]
@@ -1181,10 +1181,10 @@ fn function_value_and_later_syntax_error_priority_stays_explicit_in_b() {
         ),
         ("fn F(){} fn G(){G(F", "NX-E0006", None),
     ] {
-        let d = parse("priority.nx", source).unwrap_err();
+        let d = parse("priority.n", source).unwrap_err();
         assert_eq!(d.code, code, "{source}");
         assert_eq!(d.parser_context.as_deref(), context, "{source}");
-        d.validate("priority.nx", source).unwrap();
+        d.validate("priority.n", source).unwrap();
     }
 }
 
@@ -1195,7 +1195,7 @@ fn unsupported_operator_prefix_starts_at_the_active_b_statement() {
         ("fn Main(){ if x {}\n a*b;}", "a*b"),
         ("fn Main(){if x {} a*b;}", "a*b"),
     ] {
-        let d = parse("operator.nx", source).unwrap_err();
+        let d = parse("operator.n", source).unwrap_err();
         assert_eq!(
             d.parser_context.as_deref(),
             Some("unsupported_binary_operator")
@@ -1206,14 +1206,14 @@ fn unsupported_operator_prefix_starts_at_the_active_b_statement() {
             d.recognized_prefix.as_ref().map(|s| (s.start, s.end)),
             Some((start, end))
         );
-        d.validate("operator.nx", source).unwrap();
+        d.validate("operator.n", source).unwrap();
     }
 }
 
 #[test]
 fn nested_while_condition_uses_its_own_b_statement_start() {
     let source = "fn F(){let x=1;if ok{while ready * 2 {}}}";
-    let d = parse("while-prefix.nx", source).unwrap_err();
+    let d = parse("while-prefix.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0002");
     assert_eq!(
         d.parser_context.as_deref(),
@@ -1234,14 +1234,14 @@ fn nested_while_condition_uses_its_own_b_statement_start() {
         d.unexpected_token.as_ref().and_then(|t| t.text.as_deref()),
         Some("*")
     );
-    d.validate("while-prefix.nx", source).unwrap();
+    d.validate("while-prefix.n", source).unwrap();
 }
 
 #[test]
 fn nullable_return_and_complete_try_at_eof_need_b_terminators() {
     for source in ["fn Main(){return", "fn Main(){let x=1?"] {
         let end = source.len() as u64;
-        let d = parse("eof.nx", source).unwrap_err();
+        let d = parse("eof.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0005", "{source}");
         assert_eq!(d.parser_context.as_deref(), Some("statement_terminator"));
         assert_eq!(d.expected_tokens, [";"]);
@@ -1263,20 +1263,20 @@ fn nullable_return_and_complete_try_at_eof_need_b_terminators() {
             Some((10, end))
         );
         assert_eq!(d.repair[0].edits[0].replacement, ";");
-        d.validate("eof.nx", source).unwrap();
-        parse("eof.nx", &format!("{source};}}")).unwrap();
+        d.validate("eof.n", source).unwrap();
+        parse("eof.n", &format!("{source};}}")).unwrap();
     }
 }
 
 #[test]
 fn place_requires_a_name_root_through_grouping_and_indexing_in_b() {
-    let ast = parse("place.nx", "fn Main(){let a=[0];(a)[0]=1;}").unwrap();
+    let ast = parse("place.n", "fn Main(){let a=[0];(a)[0]=1;}").unwrap();
     assert!(matches!(
         ast.functions[0].body.statements[1],
         Statement::Assign { .. }
     ));
     let source = "fn Main(){1=2;}";
-    let d = parse("place.nx", source).unwrap_err();
+    let d = parse("place.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0005");
     assert_eq!(d.parser_context.as_deref(), Some("statement_terminator"));
     let eq = source.find('=').unwrap() as u64;
@@ -1284,9 +1284,9 @@ fn place_requires_a_name_root_through_grouping_and_indexing_in_b() {
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
         Some((eq, eq + 1))
     );
-    d.validate("place.nx", source).unwrap();
+    d.validate("place.n", source).unwrap();
     let source = "fn Main(){let a=1;move (1+2);}";
-    let d = parse("place.nx", source).unwrap_err();
+    let d = parse("place.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0002");
     assert_eq!(d.parser_context.as_deref(), Some("consume_place"));
     assert_eq!(d.expected_tokens, ["Place"]);
@@ -1308,13 +1308,13 @@ fn place_requires_a_name_root_through_grouping_and_indexing_in_b() {
         d.recognized_prefix.as_ref().map(|s| (s.start, s.end)),
         Some((prefix, integer))
     );
-    d.validate("place.nx", source).unwrap();
+    d.validate("place.n", source).unwrap();
 }
 
 #[test]
 fn value_colon_uses_one_token_lookahead_at_b_statement_start() {
     let source = "fn F(value:view I64){} fn Main(){let value:\nI64=2;F(value:value);}";
-    let ast = parse("value-context.nx", source).unwrap();
+    let ast = parse("value-context.n", source).unwrap();
     assert!(
         matches!(&ast.functions[1].body.statements[0], Statement::Let { name, annotation: Some(super::parse::Type::I64), .. } if name == "value")
     );
@@ -1322,12 +1322,12 @@ fn value_colon_uses_one_token_lookahead_at_b_statement_start() {
         matches!(&ast.functions[1].body.statements[1], Statement::Expr { value: Expr::Call { args, .. }, .. } if args[0].label.as_deref() == Some("value") && matches!(&args[0].value, Expr::Name(name, _) if name == "value"))
     );
     let source = "fn Main(){value\n:1;}";
-    let d = parse("value-context.nx", source).unwrap_err();
+    let d = parse("value-context.n", source).unwrap_err();
     assert_eq!(d.code, "NX-E0002");
     assert_ne!(d.subcause.as_deref(), Some("invalid_value_target"));
-    d.validate("value-context.nx", source).unwrap();
+    d.validate("value-context.n", source).unwrap();
     let source = "fn F()->I64{return if true then {value :1;}else{value:2;};} fn Main(){}";
-    let ast = parse("value-context.nx", source).unwrap();
+    let ast = parse("value-context.n", source).unwrap();
     assert!(
         matches!(&ast.functions[0].body.statements[0], Statement::Return { value: Some(Expr::If { then_block, .. }), .. } if matches!(&then_block.statements[0], Statement::Value { .. }))
     );
@@ -1340,10 +1340,10 @@ fn missing_else_inside_delimiters_precedes_a_later_b_terminator() {
         "fn F(){let x=(if c then {value:1;}?",
         "fn F(){G(if c then {value:1;}+",
     ] {
-        let d = parse("gap.nx", source).unwrap_err();
+        let d = parse("gap.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E1302", "{source}: {d:?}");
         assert_eq!(d.subcause.as_deref(), Some("missing_else"), "{source}");
-        d.validate("gap.nx", source).unwrap();
+        d.validate("gap.n", source).unwrap();
     }
 }
 
@@ -1357,32 +1357,32 @@ fn statement_local_newlines_do_not_invent_b_source_tokens() {
         "fn F()\nwith no_io{}",
         "fn Main(){let x\n: I64\n=1; let y=2\nlet z=3;}",
     ] {
-        parse("newline.nx", source).unwrap_or_else(|d| panic!("{source}: {d:?}"));
+        parse("newline.n", source).unwrap_or_else(|d| panic!("{source}: {d:?}"));
     }
     for source in [
         "fn Main(){x\n, 1;}",
         "fn Main(){x\nelse{}}",
         "fn Main(){F(x\ny);}",
     ] {
-        let d = parse("newline.nx", source).unwrap_err();
+        let d = parse("newline.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0002", "{source}");
         let token = d.unexpected_token.as_ref().unwrap();
         assert!(token.span.start < token.span.end, "{source}");
-        d.validate("newline.nx", source).unwrap();
+        d.validate("newline.n", source).unwrap();
     }
 }
 
 #[test]
 fn feature_scanner_respects_b_token_boundaries_and_comments() {
     let valid = "// move async class unsafe match for region self Option no_heap_alloc\nfn Main(){let moveCount=1;let asyncTask=2;let className=3;let unsafeFlag=4;let matchable=5;let noHeapAllocator=6;let optionValue=7;let regionName=8;let selfless=9;let noHeapAlloc=10;let result=moveCount+asyncTask+className+unsafeFlag+matchable+noHeapAllocator+optionValue+regionName+selfless+noHeapAlloc;}";
-    parse("scanner.nx", valid).unwrap();
+    parse("scanner.n", valid).unwrap();
     let comptime = "fn Main(){let x=comptime 1;}";
-    let d = parse("scanner.nx", comptime).unwrap_err();
+    let d = parse("scanner.n", comptime).unwrap_err();
     assert_eq!(d.code, "NX-E0006");
     assert_eq!(d.feature_id.as_deref(), Some("comptime"));
-    d.validate("scanner.nx", comptime).unwrap();
+    d.validate("scanner.n", comptime).unwrap();
     let source = "fn Main(){let x=\"move async class unsafe\";}";
-    let d = parse("scanner.nx", source).unwrap_err();
+    let d = parse("scanner.n", source).unwrap_err();
     assert_eq!(d.feature_id.as_deref(), Some("text"));
     let start = source.find('"').unwrap() as u64;
     let end = source.rfind('"').unwrap() as u64 + 1;
@@ -1390,5 +1390,5 @@ fn feature_scanner_respects_b_token_boundaries_and_comments() {
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
         Some((start, end))
     );
-    d.validate("scanner.nx", source).unwrap();
+    d.validate("scanner.n", source).unwrap();
 }

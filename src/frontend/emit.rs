@@ -78,7 +78,7 @@ impl Writer {
             source_tokens,
             comment_spans,
             #[cfg(test)]
-            track_comment_work: file == "comment_search_scale.nx",
+            track_comment_work: file == "comment_search_scale.n",
             ..Self::default()
         }
     }

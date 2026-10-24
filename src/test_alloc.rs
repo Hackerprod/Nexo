@@ -84,13 +84,13 @@ unsafe impl GlobalAlloc for Counting {
 pub(crate) struct Guard(u8);
 pub(crate) fn capture_for(file: &str) -> Guard {
     let id = match file {
-        "parser_scale_counter.nx" => 1,
-        "dead_scale_counter.nx" => 2,
-        "semantic_scale_counter.nx" => 3,
-        "cfg_scale_counter.nx" => 4,
-        "later_operand_scale_counter.nx" => 5,
-        "print_scale_counter.nx" => 6,
-        "format_scale_counter.nx" => 7,
+        "parser_scale_counter.n" => 1,
+        "dead_scale_counter.n" => 2,
+        "semantic_scale_counter.n" => 3,
+        "cfg_scale_counter.n" => 4,
+        "later_operand_scale_counter.n" => 5,
+        "print_scale_counter.n" => 6,
+        "format_scale_counter.n" => 7,
         _ => 0,
     };
     let old = CAPTURE.with(|cell| cell.replace(id));
@@ -112,13 +112,13 @@ pub(crate) fn reset(file: &str) {
         );
     });
     let (bytes, count) = match file {
-        "parser_scale_counter.nx" => (&PARSER_BYTES, &PARSER_ALLOCS),
-        "dead_scale_counter.nx" => (&DEAD_BYTES, &DEAD_ALLOCS),
-        "semantic_scale_counter.nx" => (&SEMANTIC_BYTES, &SEMANTIC_ALLOCS),
-        "cfg_scale_counter.nx" => (&CFG_BYTES, &CFG_ALLOCS),
-        "later_operand_scale_counter.nx" => (&LATER_BYTES, &LATER_ALLOCS),
-        "print_scale_counter.nx" => (&PRINT_BYTES, &PRINT_ALLOCS),
-        "format_scale_counter.nx" => (&FORMAT_BYTES, &FORMAT_ALLOCS),
+        "parser_scale_counter.n" => (&PARSER_BYTES, &PARSER_ALLOCS),
+        "dead_scale_counter.n" => (&DEAD_BYTES, &DEAD_ALLOCS),
+        "semantic_scale_counter.n" => (&SEMANTIC_BYTES, &SEMANTIC_ALLOCS),
+        "cfg_scale_counter.n" => (&CFG_BYTES, &CFG_ALLOCS),
+        "later_operand_scale_counter.n" => (&LATER_BYTES, &LATER_ALLOCS),
+        "print_scale_counter.n" => (&PRINT_BYTES, &PRINT_ALLOCS),
+        "format_scale_counter.n" => (&FORMAT_BYTES, &FORMAT_ALLOCS),
         _ => return,
     };
     bytes.store(0, Ordering::Relaxed);
@@ -126,13 +126,13 @@ pub(crate) fn reset(file: &str) {
 }
 pub(crate) fn snapshot(file: &str) -> (u64, u64) {
     let (bytes, count) = match file {
-        "parser_scale_counter.nx" => (&PARSER_BYTES, &PARSER_ALLOCS),
-        "dead_scale_counter.nx" => (&DEAD_BYTES, &DEAD_ALLOCS),
-        "semantic_scale_counter.nx" => (&SEMANTIC_BYTES, &SEMANTIC_ALLOCS),
-        "cfg_scale_counter.nx" => (&CFG_BYTES, &CFG_ALLOCS),
-        "later_operand_scale_counter.nx" => (&LATER_BYTES, &LATER_ALLOCS),
-        "print_scale_counter.nx" => (&PRINT_BYTES, &PRINT_ALLOCS),
-        "format_scale_counter.nx" => (&FORMAT_BYTES, &FORMAT_ALLOCS),
+        "parser_scale_counter.n" => (&PARSER_BYTES, &PARSER_ALLOCS),
+        "dead_scale_counter.n" => (&DEAD_BYTES, &DEAD_ALLOCS),
+        "semantic_scale_counter.n" => (&SEMANTIC_BYTES, &SEMANTIC_ALLOCS),
+        "cfg_scale_counter.n" => (&CFG_BYTES, &CFG_ALLOCS),
+        "later_operand_scale_counter.n" => (&LATER_BYTES, &LATER_ALLOCS),
+        "print_scale_counter.n" => (&PRINT_BYTES, &PRINT_ALLOCS),
+        "format_scale_counter.n" => (&FORMAT_BYTES, &FORMAT_ALLOCS),
         _ => return (0, 0),
     };
     let result = (bytes.load(Ordering::Relaxed), count.load(Ordering::Relaxed));

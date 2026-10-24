@@ -40,7 +40,7 @@ fn common(
         "{source}"
     );
     assert!(error.cause_chain.is_empty(), "{source}");
-    assert!(error.validate("rows.nx", source).is_ok(), "{source}");
+    assert!(error.validate("rows.n", source).is_ok(), "{source}");
 }
 
 #[test]
@@ -140,7 +140,7 @@ fn literal_branch_and_contract_rows_have_complete_parser_diagnostics() {
         ),
     ];
     for (id, source, code, sub, primary, context) in rows {
-        let error = parse("rows.nx", source).unwrap_err();
+        let error = parse("rows.n", source).unwrap_err();
         common(&error, source, code, Some(sub), primary);
         assert_eq!(error.feature_id, None, "{id}");
         assert_eq!(error.unexpected_token, None, "{id}");
@@ -163,7 +163,7 @@ fn literal_line_break_row_has_complete_parser_diagnostic() {
     // F2-L02 (§8.11): also checks the newline delimiter.
     let source =
         "fn F()->I64{\nreturn if true then {\nvalue:\n(1);\n}else{value:2;};\n}\nfn Main(){}";
-    let error = parse("rows.nx", source).unwrap_err();
+    let error = parse("rows.n", source).unwrap_err();
     common(
         &error,
         source,
@@ -208,7 +208,7 @@ fn literal_terminator_rows_and_supplements_have_complete_parser_diagnostics() {
         ),
     ];
     for (id, source, primary, prefix, preceding, insertion) in rows {
-        let error = parse("rows.nx", source).unwrap_err();
+        let error = parse("rows.n", source).unwrap_err();
         common(&error, source, "NX-E0005", None, primary);
         assert_eq!(error.feature_id, None, "{id}");
         assert_eq!(error.related_spans.len(), 1, "{id}");
@@ -337,7 +337,7 @@ fn later_stage_supplement_rows_keep_the_expected_ast_roots() {
     ];
     assert_eq!(sources.len(), 16);
     for (id, source, names) in sources {
-        let ast = parse("rows.nx", source).unwrap_or_else(|e| panic!("{id}: {e:?}"));
+        let ast = parse("rows.n", source).unwrap_or_else(|e| panic!("{id}: {e:?}"));
         assert_eq!(
             ast.functions
                 .iter()
@@ -355,7 +355,7 @@ fn partial_transfer_argument_row_has_indexed_ast_pending_cp3() {
     // with an indexed place; semantic analysis decides NX-E0006/partial_transfer.
     use crate::frontend::parse::{Expr, Statement};
     let source = "fn Main(){let a=[1];Drop(a[0]);}";
-    let ast = parse("rows.nx", source).unwrap();
+    let ast = parse("rows.n", source).unwrap();
     assert_eq!(ast.functions.len(), 1);
     assert_eq!(ast.functions[0].name, "Main");
     assert_eq!(ast.functions[0].body.statements.len(), 2);

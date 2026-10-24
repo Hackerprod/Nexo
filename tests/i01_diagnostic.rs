@@ -38,7 +38,7 @@ fn cli_preserves_b_utf8_errors_and_exact_source_limit() {
         .join("test-fixtures")
         .join("input");
     fs::create_dir_all(&root).unwrap();
-    let path = root.join(format!("i01-{}.nx", std::process::id()));
+    let path = root.join(format!("i01-{}.n", std::process::id()));
     for (name, bytes, start, hex) in [
         ("truncated", b"a\xf0\x9f".as_slice(), 1, "f09f"),
         ("middle", b"a\xffb".as_slice(), 1, "ff"),
@@ -169,9 +169,9 @@ fn pending_scope_matches_the_published_feature_partition() {
             );
         }
         assert!(
-            diagnostic.to_json("input.nx", " ").is_ok(),
+            diagnostic.to_json("input.n", " ").is_ok(),
             "{feature}: {:?}",
-            diagnostic.to_json("input.nx", " ")
+            diagnostic.to_json("input.n", " ")
         );
     }
 }
@@ -183,7 +183,7 @@ fn invalid_utf8_text_uses_zero_coordinates_from_source_view() {
     d.primary_span.as_mut().unwrap().end = 2;
     let rendered = d
         .render_text_view(
-            "input.nx",
+            "input.n",
             diagnostic::SourceView {
                 bytes_len: 2,
                 text: None,
@@ -195,11 +195,11 @@ fn invalid_utf8_text_uses_zero_coordinates_from_source_view() {
         concat!(
             "NX-E0004:0:0: fixture\n",
             "  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: input\n  operation: input.decode\n",
-            "  at: {\"end\":2,\"file\":\"input.nx\",\"start\":1}\n",
+            "  at: {\"end\":2,\"file\":\"input.n\",\"start\":1}\n",
             "  subcause: invalid_utf8\n  data: {\"invalid_bytes_hex\":\"ff\"}\n"
         )
     );
-    assert!(d.render_text("input.nx", "a").is_err());
+    assert!(d.render_text("input.n", "a").is_err());
 }
 
 #[test]
@@ -213,9 +213,9 @@ fn text_rendering_matches_unicode_crlf_and_l07_positions_completely() {
         let mut d = diagnostic_for_catalog("NX-E0101", None);
         d.primary_span.as_mut().unwrap().start = start;
         d.primary_span.as_mut().unwrap().end = end;
-        let text = d.render_text("input.nx", source).unwrap();
+        let text = d.render_text("input.n", source).unwrap();
         let expected = format!(
-            "NX-E0101:3:{column}: fixture\n  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: names\n  operation: names.resolve\n  at: {{\"end\":{end},\"file\":\"input.nx\",\"start\":{start}}}\n  data: {{\"use_kind\":\"value\"}}\n"
+            "NX-E0101:3:{column}: fixture\n  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: names\n  operation: names.resolve\n  at: {{\"end\":{end},\"file\":\"input.n\",\"start\":{start}}}\n  data: {{\"use_kind\":\"value\"}}\n"
         );
         assert_eq!(text, expected);
     }
@@ -913,7 +913,7 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
             data.insert("observed".into(), V::UInt(129));
         }
         "NX-E0004" if subcause == Some("source_unreadable") => {
-            data.insert("input_path".into(), V::String("input.nx".into()));
+            data.insert("input_path".into(), V::String("input.n".into()));
         }
         "NX-E0004" => {
             data.insert("invalid_bytes_hex".into(), V::String("ff".into()));
@@ -946,7 +946,7 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         "NX-E0412" | "NX-E0413" | "NX-E0414" | "NX-E0415" => {
             data.insert("effect_model".into(), V::String("f0-0002-sim-v1".into()));
             let mut origin = BTreeMap::new();
-            origin.insert("file".into(), V::String("input.nx".into()));
+            origin.insert("file".into(), V::String("input.n".into()));
             origin.insert("start".into(), V::UInt(0));
             origin.insert("end".into(), V::UInt(1));
             data.insert("contract_origin".into(), V::Object(origin));
@@ -989,12 +989,12 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         _ => {}
     }
     let span = Span {
-        file: "input.nx".into(),
+        file: "input.n".into(),
         start: 0,
         end: 1,
     };
     let empty = Span {
-        file: "input.nx".into(),
+        file: "input.n".into(),
         start: 0,
         end: 0,
     };
@@ -1127,7 +1127,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
                             diagnostic::DataValue::String("Future<i64>".into()),
                         );
                     }
-                    let json = d.to_json("input.nx", SOURCE);
+                    let json = d.to_json("input.n", SOURCE);
                     assert!(json.is_ok(), "{code}/{feature}: {json:?}");
                     accepted += 1;
                 }
@@ -1175,7 +1175,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
                 } else {
                     diagnostic_for_catalog(code, *subcause)
                 };
-                let json = d.to_json("input.nx", SOURCE);
+                let json = d.to_json("input.n", SOURCE);
                 assert!(json.is_ok(), "{code}/{subcause:?}: {json:?}");
                 accepted += 1;
             }
@@ -1220,7 +1220,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
                 "found_type".into(),
                 diagnostic::DataValue::String(found.into()),
             );
-            let json = d.to_json("input.nx", SOURCE);
+            let json = d.to_json("input.n", SOURCE);
             assert!(
                 json.is_ok(),
                 "§13.17 type fixture {expected} <- {found}: {json:?}"
@@ -1252,14 +1252,14 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
         if code == "NX-E0006" {
             d.feature_id = Some("float_literal".into());
         }
-        assert!(d.validate("input.nx", SOURCE).is_ok(), "§13.7 {code}");
+        assert!(d.validate("input.n", SOURCE).is_ok(), "§13.7 {code}");
     }
 }
 
 #[test]
 fn to_json_rejects_unknown_catalog_subcause_and_code() {
     let unknown_subcause = diagnostic_for_catalog("NX-E0112", Some("invented"))
-        .to_json("input.nx", "x")
+        .to_json("input.n", "x")
         .unwrap_err();
     assert_eq!(unknown_subcause.0, "unknown canonical subcause");
 
@@ -1267,7 +1267,7 @@ fn to_json_rejects_unknown_catalog_subcause_and_code() {
     unknown_code.code = "NX-E9999".into();
     unknown_code.rule = "NX-E9999/missing_main".into();
     unknown_code.explanation_id = unknown_code.rule.clone().into();
-    let error = unknown_code.to_json("input.nx", "x").unwrap_err();
+    let error = unknown_code.to_json("input.n", "x").unwrap_err();
     assert_eq!(error.0, "unknown canonical NX-E code");
 }
 
@@ -1701,11 +1701,11 @@ fn ordinary_explanations_match_literal_published_pairs_and_fixture_profile() {
             let errors = if *code == "NX-E0113" {
                 // I08 keeps the catalog's type rule, while compilation reports
                 // the temporary implementation limit at the same source site.
-                nexo::check::check_proposed("catalog_example.nx", negative, true)
+                nexo::check::check_proposed("catalog_example.n", negative, true)
                     .err()
                     .unwrap_or_else(|| panic!("catalog negative did not reject: {negative}"))
             } else {
-                match nexo::ir::compile_scalar("catalog_example.nx", negative) {
+                match nexo::ir::compile_scalar("catalog_example.n", negative) {
                     Err(nexo::ir::CompileError::Rejected(errors)) => errors,
                     other => {
                         panic!("catalog negative did not reject: {code}/{subcause:?}: {other:?}")
@@ -1718,7 +1718,7 @@ fn ordinary_explanations_match_literal_published_pairs_and_fixture_profile() {
                 *subcause,
                 "catalog negative: {negative}"
             );
-            let repaired = nexo::check::check_proposed("catalog_example.nx", positive, true);
+            let repaired = nexo::check::check_proposed("catalog_example.n", positive, true);
             assert!(
                 repaired.is_ok(),
                 "catalog positive: {code}/{subcause:?}: {positive}: {repaired:?}"
@@ -1786,7 +1786,7 @@ fn code_specific_schema_rules_reject_one_broken_attribute_each() {
     };
 
     fn rejects(d: diagnostic::Diagnostic, rule: &str) {
-        let error = d.to_json("input.nx", "x").unwrap_err();
+        let error = d.to_json("input.n", "x").unwrap_err();
         assert!(error.0.contains(rule), "expected {rule:?}, got {error}");
     }
     fn base_r0101() -> diagnostic::Diagnostic {
@@ -1916,7 +1916,7 @@ fn code_specific_schema_rules_reject_one_broken_attribute_each() {
 fn adr_code_contract_rejects_each_broken_coordinate_and_data_rule() {
     use diagnostic::{DataValue as V, Operation, Stage};
     fn reject(d: diagnostic::Diagnostic, rule: &str) {
-        let err = d.to_json("input.nx", "x").unwrap_err();
+        let err = d.to_json("input.n", "x").unwrap_err();
         assert!(err.0.contains(rule), "expected {rule:?}, got {err}");
     }
 
@@ -1996,7 +1996,7 @@ fn adr_code_contract_rejects_each_broken_coordinate_and_data_rule() {
 
     let mut d = diagnostic_for_catalog("NX-E0004", Some("source_unreadable"));
     d.primary_span = Some(diagnostic::Span {
-        file: "input.nx".into(),
+        file: "input.n".into(),
         start: 0,
         end: 1,
     });
@@ -2068,7 +2068,7 @@ fn nx_e1105_accepts_the_four_published_permission_fixtures() {
         d.data
             .insert("requested_access".into(), V::String(requested.into()));
         assert!(
-            d.validate("input.nx", "x").is_ok(),
+            d.validate("input.n", "x").is_ok(),
             "{cause}/{active}->{requested}"
         );
     }
@@ -2081,11 +2081,11 @@ fn diagnostic_schema_rejects_single_attribute_mutations() {
         TokenKind,
     };
     fn reject(d: diagnostic::Diagnostic, expected: &str) {
-        let err = d.to_json("input.nx", "x").unwrap_err();
+        let err = d.to_json("input.n", "x").unwrap_err();
         assert!(err.0.contains(expected), "expected {expected:?}, got {err}");
     }
     let mut d = diagnostic_for_catalog("NX-E0001", None);
-    d.primary_span.as_mut().unwrap().file = "other.nx".into();
+    d.primary_span.as_mut().unwrap().file = "other.n".into();
     reject(d, "span file differs");
     let mut d = diagnostic_for_catalog("NX-E0001", None);
     d.primary_span.as_mut().unwrap().start = 2;
@@ -2111,7 +2111,7 @@ fn diagnostic_schema_rejects_single_attribute_mutations() {
 
     let mut d = diagnostic_for_catalog("NX-E0005", None);
     let span = diagnostic::Span {
-        file: "input.nx".into(),
+        file: "input.n".into(),
         start: 0,
         end: 0,
     };
@@ -2135,7 +2135,7 @@ fn diagnostic_schema_rejects_single_attribute_mutations() {
         description: "insert".into(),
         edits: vec![Edit {
             span: diagnostic::Span {
-                file: "input.nx".into(),
+                file: "input.n".into(),
                 start: 0,
                 end: 0,
             },
@@ -2157,7 +2157,7 @@ fn diagnostic_schema_rejects_single_attribute_mutations() {
         description: "insert".into(),
         edits: vec![Edit {
             span: diagnostic::Span {
-                file: "input.nx".into(),
+                file: "input.n".into(),
                 start: 0,
                 end: 0,
             },
@@ -2263,14 +2263,14 @@ fn published_closed_vocabulary_literals_are_accepted() {
     d.stage = Stage::Input;
     d.operation = Operation::InputRead;
     d.primary_span = None;
-    assert!(d.to_json("input.nx", "x").is_ok());
+    assert!(d.to_json("input.n", "x").is_ok());
     let mut d = diagnostic_for_catalog("NX-E0006", None);
     d.unexpected_token = Some(Token {
         kind: TokenKind::Decimal,
         text: Some("0.5".into()),
         span: d.primary_span.clone().unwrap(),
     });
-    assert!(d.to_json("input.nx", "x").is_ok());
+    assert!(d.to_json("input.n", "x").is_ok());
     d.unexpected_token = None;
     d.cause_chain.push(Cause {
         kind: CauseKind::Borrow,
@@ -2279,7 +2279,7 @@ fn published_closed_vocabulary_literals_are_accepted() {
         entity: None,
         evidence: Evidence::Unknown,
     });
-    assert!(d.to_json("input.nx", "x").is_ok());
+    assert!(d.to_json("input.n", "x").is_ok());
     let mut r = diagnostic_for_catalog("NX-E0006", None);
     r.diagnostic_namespace = Namespace::F0002Sim;
     r.code = "R0103".into();
@@ -2289,14 +2289,14 @@ fn published_closed_vocabulary_literals_are_accepted() {
     r.data.clear();
     r.stage = Stage::Runtime;
     r.operation = Operation::ValueSub;
-    assert!(r.to_json("input.nx", "x").is_ok());
+    assert!(r.to_json("input.n", "x").is_ok());
 }
 
 #[test]
 fn code_validation_rejects_invalid_lexical_and_terminator_fields() {
     use diagnostic::{DataValue as V, Operation, Stage};
     fn reject(d: diagnostic::Diagnostic, source: &str, rule: &str) {
-        let error = d.to_json("input.nx", source).unwrap_err();
+        let error = d.to_json("input.n", source).unwrap_err();
         assert!(error.0.contains(rule), "expected {rule:?}; got {error}");
     }
 
@@ -2388,7 +2388,7 @@ fn code_validation_rejects_invalid_lexical_and_terminator_fields() {
     d.stage = Stage::Input;
     refresh_budget_metadata(&mut d);
     let long = "x".repeat(1_048_577);
-    assert!(d.validate("input.nx", &long).is_ok());
+    assert!(d.validate("input.n", &long).is_ok());
     for (field, value) in [("limit", 9), ("observed", 9)] {
         let mut broken = d.clone();
         broken.data.insert(field.into(), V::UInt(value));
@@ -2410,7 +2410,7 @@ fn code_validation_rejects_invalid_lexical_and_terminator_fields() {
             let V::Object(span) = d.data.get_mut("contract_origin").unwrap() else {
                 unreachable!()
             };
-            span.insert("file".into(), V::String("other.nx".into()));
+            span.insert("file".into(), V::String("other.n".into()));
         } else {
             let V::Object(span) = d.data.get_mut("contract_origin").unwrap() else {
                 unreachable!()
@@ -2441,7 +2441,7 @@ fn code_validation_rejects_invalid_lexical_and_terminator_fields() {
         d.data
             .insert("expected_type".into(), V::String(domain.into()));
         assert!(
-            d.validate("input.nx", "x").is_ok(),
+            d.validate("input.n", "x").is_ok(),
             "permitted domain {cause}/{domain}"
         );
     }
@@ -2570,7 +2570,7 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
     borrow
         .data
         .insert("requested_access".into(), V::String("read".into()));
-    assert!(borrow.validate("input.nx", "x").is_ok());
+    assert!(borrow.validate("input.n", "x").is_ok());
 
     // ComponentPath accepts only complete grammar productions and rejects adjacent misspellings.
     let mut path = diagnostic_for_catalog("NX-E0113", None);
@@ -2579,7 +2579,7 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
             "unresolved_components".into(),
             V::Array(vec![V::String(value.into())]),
         );
-        assert!(path.validate("input.nx", "x").is_ok(), "{value}");
+        assert!(path.validate("input.n", "x").is_ok(), "{value}");
     }
     for value in ["", ".ok", "$..ok", "$.okk", "$.elementx", "$.err.okk"] {
         path.data.insert(
@@ -2587,7 +2587,7 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
             V::Array(vec![V::String(value.into())]),
         );
         assert!(
-            path.validate("input.nx", "x")
+            path.validate("input.n", "x")
                 .unwrap_err()
                 .0
                 .contains("ComponentPath"),
@@ -2598,12 +2598,12 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
         "unresolved_components".into(),
         V::Array(vec![V::String("$.ok".into()), V::String("$.err".into())]),
     );
-    assert!(path.validate("input.nx", "x").is_ok());
+    assert!(path.validate("input.n", "x").is_ok());
     let mut duplicate = path.clone();
     if let Some(V::Array(paths)) = duplicate.data.get_mut("unresolved_components") {
         paths[1] = V::String("$.ok".into());
     }
-    let error = duplicate.validate("input.nx", "x").unwrap_err();
+    let error = duplicate.validate("input.n", "x").unwrap_err();
     assert!(
         error
             .0
@@ -2627,14 +2627,14 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
     );
     runtime.data.insert("limit".into(), V::UInt(65_536));
     runtime.data.insert("observed".into(), V::UInt(65_537));
-    assert!(runtime.validate("input.nx", "x").is_ok());
+    assert!(runtime.validate("input.n", "x").is_ok());
 
     // Effect diagnostics accept their published stage only with an allowed operation.
     let mut effect = diagnostic_for_catalog("NX-E0412", None);
     effect.operation = diagnostic::Operation::RuntimeLimit;
     assert!(
         effect
-            .validate("input.nx", "x")
+            .validate("input.n", "x")
             .unwrap_err()
             .0
             .contains("effect diagnostic coordinates")
@@ -2650,11 +2650,11 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
     budget.stage = diagnostic::Stage::Lower;
     budget.operation = diagnostic::Operation::AnalysisLimit;
     refresh_budget_metadata(&mut budget);
-    assert!(budget.validate("input.nx", "x").is_ok());
+    assert!(budget.validate("input.n", "x").is_ok());
     budget.stage = diagnostic::Stage::Ownership;
     assert!(
         budget
-            .validate("input.nx", "x")
+            .validate("input.n", "x")
             .unwrap_err()
             .0
             .contains("budget_kind/stage mismatch")
@@ -2674,7 +2674,7 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
     work.data
         .insert("work_consumed".into(), V::String("1".into()));
     assert!(
-        work.validate("input.nx", "x")
+        work.validate("input.n", "x")
             .unwrap_err()
             .0
             .contains("data.work_consumed must be a JSON-safe UInt")
@@ -2698,7 +2698,7 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
     });
     assert!(
         related
-            .validate("input.nx", "x")
+            .validate("input.n", "x")
             .unwrap_err()
             .0
             .contains("canonically ordered")
@@ -2737,7 +2737,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         d.data.insert("limit".into(), V::UInt(32));
         d.data.insert("observed".into(), V::UInt(33));
         refresh_budget_metadata(&mut d);
-        assert!(d.validate("input.nx", "x").is_ok(), "{profile}");
+        assert!(d.validate("input.n", "x").is_ok(), "{profile}");
         d.data
             .insert("budget_kind".into(), V::String("function_count".into()));
         d.stage = Stage::Parse;
@@ -2746,7 +2746,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         d.data.insert("observed".into(), V::UInt(1_025));
         refresh_budget_metadata(&mut d);
         assert!(
-            d.validate("input.nx", "x").is_ok(),
+            d.validate("input.n", "x").is_ok(),
             "{profile} inherits normal quota"
         );
     }
@@ -2759,7 +2759,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         .insert("budget_kind".into(), V::String("array_type_depth".into()));
     wrong_kind.data.insert("limit".into(), V::UInt(32));
     wrong_kind.data.insert("observed".into(), V::UInt(33));
-    assert!(wrong_kind.validate("input.nx", "x").is_err());
+    assert!(wrong_kind.validate("input.n", "x").is_err());
     for (kind, stage) in [
         ("source_bytes", Stage::Input),
         ("syntax_nesting", Stage::Parse),
@@ -2781,12 +2781,12 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             d.data.insert("limit".into(), V::UInt(1_048_576));
             d.data.insert("observed".into(), V::UInt(1_048_577));
             d.primary_span = Some(diagnostic::Span {
-                file: "input.nx".into(),
+                file: "input.n".into(),
                 start: 1_048_576,
                 end: 1_048_577,
             });
             let source = "x".repeat(1_048_577);
-            assert!(d.validate("input.nx", &source).is_ok(), "{kind}");
+            assert!(d.validate("input.n", &source).is_ok(), "{kind}");
         } else {
             let limit = match kind {
                 "syntax_nesting"
@@ -2801,7 +2801,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             d.data.insert("limit".into(), V::UInt(limit));
             d.data.insert("observed".into(), V::UInt(limit + 1));
             refresh_budget_metadata(&mut d);
-            assert!(d.validate("input.nx", "x").is_ok(), "{kind}");
+            assert!(d.validate("input.n", "x").is_ok(), "{kind}");
         }
     }
     for (subcause, pairs) in [
@@ -2841,7 +2841,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             d.data
                 .insert("requested_access".into(), V::String((*requested).into()));
             assert!(
-                d.validate("input.nx", "x").is_ok(),
+                d.validate("input.n", "x").is_ok(),
                 "{subcause}: {active}/{requested}"
             );
         }
@@ -2859,7 +2859,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             d.data
                 .insert("effect_evidence".into(), V::String(evidence.into()));
             assert!(
-                d.validate("input.nx", "x").is_ok(),
+                d.validate("input.n", "x").is_ok(),
                 "{code}/{value}/{evidence}"
             );
         }
@@ -2869,14 +2869,14 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         d.data
             .insert("declaration_kind".into(), V::String(value.into()));
         assert!(
-            d.validate("input.nx", "x").is_ok(),
+            d.validate("input.n", "x").is_ok(),
             "declaration_kind={value}"
         );
     }
     for value in ["value", "call_target"] {
         let mut d = diagnostic_for_catalog("NX-E0101", None);
         d.data.insert("use_kind".into(), V::String(value.into()));
-        assert!(d.validate("input.nx", "x").is_ok(), "use_kind={value}");
+        assert!(d.validate("input.n", "x").is_ok(), "use_kind={value}");
     }
     for (profile, kind, limit) in [
         ("f0-0002-b-test-frames-8-v2", "call_frames", 8),
@@ -2897,7 +2897,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             .insert("runtime_budget_kind".into(), V::String(kind.into()));
         d.data.insert("limit".into(), V::UInt(limit));
         d.data.insert("observed".into(), V::UInt(limit + 1));
-        assert!(d.validate("input.nx", "x").is_ok(), "{profile}");
+        assert!(d.validate("input.n", "x").is_ok(), "{profile}");
     }
     let mut wrong_runtime_kind = diagnostic_for_catalog("NX-E0006", None);
     wrong_runtime_kind.diagnostic_namespace = diagnostic::Namespace::F0002Sim;
@@ -2917,11 +2917,11 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
     wrong_runtime_kind
         .data
         .insert("observed".into(), V::UInt(9));
-    assert!(wrong_runtime_kind.validate("input.nx", "x").is_err());
+    assert!(wrong_runtime_kind.validate("input.n", "x").is_err());
 
     let mut structural = diagnostic_for_catalog("NX-E0003", None);
     structural.primary_span = None;
-    assert!(structural.validate("input.nx", "x").is_err());
+    assert!(structural.validate("input.n", "x").is_err());
     for kind in [
         "expression_tree_depth",
         "function_count",
@@ -2933,41 +2933,41 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             .data
             .insert("budget_kind".into(), V::String(kind.into()));
         empty.primary_span.as_mut().unwrap().end = 0;
-        assert!(empty.validate("input.nx", "x").is_err(), "{kind}");
+        assert!(empty.validate("input.n", "x").is_err(), "{kind}");
     }
     let mut syntax_eof = diagnostic_for_catalog("NX-E0003", None);
     syntax_eof
         .data
         .insert("budget_kind".into(), V::String("syntax_nesting".into()));
     syntax_eof.primary_span.as_mut().unwrap().end = 0;
-    assert!(syntax_eof.validate("input.nx", "").is_ok());
-    assert!(syntax_eof.validate("input.nx", "x").is_err());
+    assert!(syntax_eof.validate("input.n", "").is_ok());
+    assert!(syntax_eof.validate("input.n", "x").is_err());
 
     let mut terminator = diagnostic_for_catalog("NX-E0005", None);
     terminator.related_spans.clear();
     terminator.related_spans.push(diagnostic::RelatedSpan {
         role: RelatedRole::Context,
         span: diagnostic::Span {
-            file: "input.nx".into(),
+            file: "input.n".into(),
             start: 0,
             end: 1,
         },
     });
-    assert!(terminator.validate("input.nx", "x").is_ok());
+    assert!(terminator.validate("input.n", "x").is_ok());
     terminator.related_spans.push(diagnostic::RelatedSpan {
         role: RelatedRole::PrecedingExpression,
         span: diagnostic::Span {
-            file: "input.nx".into(),
+            file: "input.n".into(),
             start: 0,
             end: 1,
         },
     });
-    assert!(terminator.validate("input.nx", "x").is_err());
+    assert!(terminator.validate("input.n", "x").is_err());
 
     let mut no_expression = diagnostic_for_catalog("NX-E0005", None);
     let source = "fn Main(){return}";
     let primary = diagnostic::Span {
-        file: "input.nx".into(),
+        file: "input.n".into(),
         start: 16,
         end: 17,
     };
@@ -2978,7 +2978,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         span: primary,
     });
     no_expression.recognized_prefix = Some(diagnostic::Span {
-        file: "input.nx".into(),
+        file: "input.n".into(),
         start: 10,
         end: 16,
     });
@@ -2986,13 +2986,13 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
     no_expression.related_spans.push(diagnostic::RelatedSpan {
         role: RelatedRole::Context,
         span: diagnostic::Span {
-            file: "input.nx".into(),
+            file: "input.n".into(),
             start: 10,
             end: 16,
         },
     });
     no_expression
-        .validate("input.nx", source)
+        .validate("input.n", source)
         .unwrap_or_else(|error| panic!("{error}"));
 
     let mut work = diagnostic_for_catalog("NX-E0006", None);
@@ -3008,16 +3008,16 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         work.data.insert("limit".into(), V::UInt(1_000));
         work.data.insert("observed".into(), V::UInt(observed));
         work.data.insert("work_consumed".into(), V::UInt(1_000));
-        assert!(work.validate("input.nx", "x").is_err());
+        assert!(work.validate("input.n", "x").is_err());
     }
     work.data.insert("observed".into(), V::UInt(1_001));
-    assert!(work.validate("input.nx", "x").is_ok());
+    assert!(work.validate("input.n", "x").is_ok());
 
     let mut parameter = diagnostic_for_catalog("NX-E0104", None);
     parameter
         .data
         .insert("declaration_kind".into(), V::String("parameter".into()));
-    assert!(parameter.validate("input.nx", "x").is_ok());
+    assert!(parameter.validate("input.n", "x").is_ok());
     let mut escalation = diagnostic_for_catalog("NX-E1105", Some("permission_escalation"));
     escalation
         .data
@@ -3025,7 +3025,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
     escalation
         .data
         .insert("requested_access".into(), V::String("drop".into()));
-    assert!(escalation.validate("input.nx", "x").is_ok());
+    assert!(escalation.validate("input.n", "x").is_ok());
 
     let mut cause = diagnostic_for_catalog("NX-E0412", None);
     cause.cause_chain.push(Cause {
@@ -3035,7 +3035,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         entity: None,
         evidence: Evidence::Unknown,
     });
-    assert!(cause.validate("input.nx", "x").is_err());
+    assert!(cause.validate("input.n", "x").is_err());
     let mut function_count = diagnostic_for_catalog("NX-E0003", None);
     function_count
         .data
@@ -3045,14 +3045,14 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         .data
         .insert("observed".into(), V::UInt(1_025));
     function_count.stage = Stage::Parse;
-    assert!(function_count.validate("input.nx", "x").is_ok());
+    assert!(function_count.validate("input.n", "x").is_ok());
     function_count.stage = Stage::Types;
-    assert!(function_count.validate("input.nx", "x").is_err());
+    assert!(function_count.validate("input.n", "x").is_err());
     for key in ["limit", "observed"] {
         let mut required = diagnostic_for_catalog("NX-E0003", None);
         required.data.remove(key);
         assert!(
-            required.validate("input.nx", "x").is_err(),
+            required.validate("input.n", "x").is_err(),
             "NX-E0003 requires {key}"
         );
     }
@@ -3109,19 +3109,19 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
             };
             if kind == "source_bytes" {
                 d.primary_span = Some(diagnostic::Span {
-                    file: "input.nx".into(),
+                    file: "input.n".into(),
                     start: limit,
                     end: limit + 1,
                 });
             }
             assert!(
-                d.validate("input.nx", &source).is_ok(),
+                d.validate("input.n", &source).is_ok(),
                 "{profile}/{kind} at {limit}"
             );
             d.data.insert("limit".into(), V::UInt(limit - 1));
             d.data.insert("observed".into(), V::UInt(limit));
             assert!(
-                d.validate("input.nx", &source).is_err(),
+                d.validate("input.n", &source).is_err(),
                 "{profile}/{kind} wrong limit"
             );
         }
@@ -3160,12 +3160,12 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
             d.data.insert("limit".into(), V::UInt(limit));
             d.data.insert("observed".into(), V::UInt(limit + 1));
             assert!(
-                d.validate("input.nx", "x").is_ok(),
+                d.validate("input.n", "x").is_ok(),
                 "{profile}/{kind} at {limit}"
             );
             d.data.insert("limit".into(), V::UInt(limit - 1));
             assert!(
-                d.validate("input.nx", "x").is_err(),
+                d.validate("input.n", "x").is_err(),
                 "{profile}/{kind} wrong limit"
             );
         }
@@ -3196,12 +3196,12 @@ fn nx_e0003_costly_analysis_requires_a_nonempty_primary_span() {
             .insert("observed".into(), V::UInt(limit + 1));
         refresh_budget_metadata(&mut diagnostic);
         diagnostic.primary_span = Some(Span {
-            file: "input.nx".into(),
+            file: "input.n".into(),
             start: 0,
             end: 1,
         });
         assert!(
-            diagnostic.validate("input.nx", "0123456789").is_ok(),
+            diagnostic.validate("input.n", "0123456789").is_ok(),
             "{kind} positive span"
         );
 
@@ -3209,7 +3209,7 @@ fn nx_e0003_costly_analysis_requires_a_nonempty_primary_span() {
             let mut empty = diagnostic.clone();
             empty.primary_span.as_mut().unwrap().start = offset;
             empty.primary_span.as_mut().unwrap().end = offset;
-            let error = empty.validate("input.nx", "0123456789").unwrap_err();
+            let error = empty.validate("input.n", "0123456789").unwrap_err();
             assert!(
                 error.0.contains(
                     "§13.13 NX-E0003 requires primary_span; costly analysis spans are nonempty"
@@ -3243,11 +3243,11 @@ fn nx_e0003_structural_budgets_require_primary_spans() {
             .insert("observed".into(), V::UInt(limit + 1));
         refresh_budget_metadata(&mut diagnostic);
         assert!(
-            diagnostic.validate("input.nx", "x").is_ok(),
+            diagnostic.validate("input.n", "x").is_ok(),
             "{kind} positive"
         );
         diagnostic.primary_span = None;
-        let error = diagnostic.validate("input.nx", "x").unwrap_err();
+        let error = diagnostic.validate("input.n", "x").unwrap_err();
         assert!(
             error.0.contains("§13.13 NX-E0003 requires primary_span"),
             "{kind}: {error}"
@@ -3307,7 +3307,7 @@ fn cause_kind_operation_table_is_total() {
                 evidence: Evidence::Verified,
             });
             assert_eq!(
-                d.validate("input.nx", "x").is_ok(),
+                d.validate("input.n", "x").is_ok(),
                 allowed.contains(&(kind, operation)),
                 "{kind:?}/{operation:?}"
             );
@@ -3350,7 +3350,7 @@ fn nx_e1105_permission_tables_cover_every_pair() {
                     .insert("requested_access".into(), V::String(requested.into()));
                 let expected = permitted.contains(&(subcause, active, requested));
                 assert_eq!(
-                    d.validate("input.nx", "x").is_ok(),
+                    d.validate("input.n", "x").is_ok(),
                     expected,
                     "{subcause}/{active}/{requested}"
                 );
@@ -3365,14 +3365,14 @@ fn canonical_type_parser_stops_at_the_published_depth_bound() {
     let mut d = diagnostic_for_catalog("NX-E0102", Some("type_mismatch"));
     let at_limit = format!("{}I64{}", "Array<".repeat(128), ">".repeat(128));
     d.data.insert("expected_type".into(), V::String(at_limit));
-    assert!(d.validate("input.nx", "x").is_ok());
+    assert!(d.validate("input.n", "x").is_ok());
     let over_limit = format!("{}I64{}", "Array<".repeat(129), ">".repeat(129));
     d.data.insert("expected_type".into(), V::String(over_limit));
-    assert!(d.validate("input.nx", "x").is_err());
+    assert!(d.validate("input.n", "x").is_err());
     let deeply_nested = format!("{}I64{}", "Array<".repeat(10_000), ">".repeat(10_000));
     d.data
         .insert("expected_type".into(), V::String(deeply_nested));
-    let error = d.validate("input.nx", "x").unwrap_err();
+    let error = d.validate("input.n", "x").unwrap_err();
     assert!(
         error
             .0
@@ -3386,13 +3386,13 @@ fn source_span_rejects_inverted_offsets_that_are_both_valid_boundaries() {
     d.related_spans.push(diagnostic::RelatedSpan {
         role: diagnostic::RelatedRole::Origin,
         span: diagnostic::Span {
-            file: "input.nx".into(),
+            file: "input.n".into(),
             start: 2,
             end: 1,
         },
     });
     assert!(
-        d.validate("input.nx", "xy")
+        d.validate("input.n", "xy")
             .unwrap_err()
             .0
             .contains("span is outside source")
@@ -3423,7 +3423,7 @@ fn invalid_utf8_span_covers_truncated_prefix_through_eof() {
     d.primary_span.as_mut().unwrap().end = 3;
     assert!(
         d.validate_view(
-            "input.nx",
+            "input.n",
             diagnostic::SourceView {
                 bytes_len: 3,
                 text: None
@@ -3443,7 +3443,7 @@ fn cause_text_keeps_a_null_entity_and_multiple_explanations_are_separated_exactl
         entity: None,
         evidence: diagnostic::Evidence::Unknown,
     });
-    let text = d.render_text("input.nx", "x").unwrap();
+    let text = d.render_text("input.n", "x").unwrap();
     assert!(text.contains("  cause: {\"entity\":null,"), "{text}");
 
     let entries = diagnostic::explain("NX-E0111", None).unwrap();
@@ -3752,7 +3752,7 @@ fn terminal_controls_overlapping_edits_and_duplicate_repair_ids_are_rejected() {
     message.message = "bad\u{1b}[31m".into();
     assert!(
         message
-            .validate("input.nx", "x")
+            .validate("input.n", "x")
             .unwrap_err()
             .0
             .contains("terminal controls")
@@ -3766,7 +3766,7 @@ fn terminal_controls_overlapping_edits_and_duplicate_repair_ids_are_rejected() {
         edits: vec![
             diagnostic::Edit {
                 span: diagnostic::Span {
-                    file: "input.nx".into(),
+                    file: "input.n".into(),
                     start: 0,
                     end: 1,
                 },
@@ -3775,7 +3775,7 @@ fn terminal_controls_overlapping_edits_and_duplicate_repair_ids_are_rejected() {
             },
             diagnostic::Edit {
                 span: diagnostic::Span {
-                    file: "input.nx".into(),
+                    file: "input.n".into(),
                     start: 0,
                     end: 1,
                 },
@@ -3788,7 +3788,7 @@ fn terminal_controls_overlapping_edits_and_duplicate_repair_ids_are_rejected() {
     });
     assert!(
         overlap
-            .validate("input.nx", "x")
+            .validate("input.n", "x")
             .unwrap_err()
             .0
             .contains("ordered and non-overlapping")
@@ -3806,7 +3806,7 @@ fn terminal_controls_overlapping_edits_and_duplicate_repair_ids_are_rejected() {
     duplicate.repair = vec![repair.clone(), repair];
     assert!(
         duplicate
-            .validate("input.nx", "x")
+            .validate("input.n", "x")
             .unwrap_err()
             .0
             .contains("ordered by unique id")

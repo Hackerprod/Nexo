@@ -3188,7 +3188,7 @@ mod tests {
     ) -> Lower<'a> {
         let (name, ty) = binding;
         let span = Span {
-            file: "flow_contract.nx".into(),
+            file: "flow_contract.n".into(),
             start: source.find(name).unwrap_or(0) as u64,
             end: source.find(name).unwrap_or(0) as u64 + name.len() as u64,
         };
@@ -3219,7 +3219,7 @@ mod tests {
             dead_depth: 1,
             emission: EmissionMode::Analyze,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("flow_contract.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("flow_contract.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3230,7 +3230,7 @@ mod tests {
     #[test]
     fn analyzed_binding_loan_and_index_preserve_flow_type() {
         let source = "fn Main() {\n    h(v);\n    h(a[(if true then {\n        return;\n    } else {\n        return;\n    })]);\n}\n";
-        let ast = parse::parse("flow_contract.nx", source).unwrap();
+        let ast = parse::parse("flow_contract.n", source).unwrap();
         let signatures = HashMap::new();
         let statements = &ast.functions[0].body.statements;
         let Statement::Expr {
@@ -3270,7 +3270,7 @@ mod tests {
     #[test]
     fn analyzed_branch_retains_type_of_only_continuing_value() {
         let source = "fn Main() {\n    let w = if true then 1 else {\n        return;\n    };\n}\n";
-        let ast = parse::parse("flow_contract.nx", source).unwrap();
+        let ast = parse::parse("flow_contract.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = analyzed_lower(source, &signatures, ("unused", Ty::Never));
         let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
@@ -3289,14 +3289,14 @@ mod tests {
     #[test]
     fn hypothetical_bottom_read_preserves_rhs_flow_and_branch_join_type() {
         let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = v == (if true then {\n        return;\n    } else {\n        return;\n    });\n}\n";
-        let ast = parse::parse("bottom_flow.nx", source).unwrap();
+        let ast = parse::parse("bottom_flow.n", source).unwrap();
         let signatures = HashMap::new();
         let declaration = &ast.functions[0].body.statements[0];
         let Statement::Let { value, .. } = declaration else {
             panic!("first binding")
         };
         let name_span = Span {
-            file: "bottom_flow.nx".into(),
+            file: "bottom_flow.n".into(),
             start: statement_span(declaration).start + 4,
             end: statement_span(declaration).start + 5,
         };
@@ -3327,7 +3327,7 @@ mod tests {
             dead_depth: 1,
             emission: EmissionMode::Analyze,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("bottom_flow.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("bottom_flow.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3355,7 +3355,7 @@ mod tests {
     #[test]
     fn divergent_call_argument_does_not_leave_orphan_call_instruction() {
         let source = "fn H(a: view I64, b: view I64) {}\nfn Main() {\n    H(1, if true then {\n        return;\n    } else {\n        return;\n    });\n}\n";
-        let ast = parse::parse("orphan_call.nx", source).unwrap();
+        let ast = parse::parse("orphan_call.n", source).unwrap();
         let mut signatures = HashMap::new();
         signatures.insert(
             "H".into(),
@@ -3387,7 +3387,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("orphan_call.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("orphan_call.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3426,7 +3426,7 @@ mod tests {
     #[test]
     fn scoped_block_error_pops_scope_and_restores_parent() {
         let source = "fn Main() {\n    {\n        let x = TryAdd(1, 2)?;\n    }\n}\n";
-        let ast = parse::parse("scope_error.nx", source).unwrap();
+        let ast = parse::parse("scope_error.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3448,7 +3448,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("scope_error.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("scope_error.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3466,7 +3466,7 @@ mod tests {
     #[test]
     fn rejected_while_condition_restores_statement_checkpoint() {
         let source = "fn Main() {\n    while (if true then true else {}) {}\n    let x = 1;\n}\n";
-        let ast = parse::parse("while_error_checkpoint.nx", source).unwrap();
+        let ast = parse::parse("while_error_checkpoint.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3488,7 +3488,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("while_error_checkpoint.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("while_error_checkpoint.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3512,7 +3512,7 @@ mod tests {
     #[test]
     fn merged_consumption_sites_keep_both_sides_sorted_without_duplicates() {
         let at = |start| Span {
-            file: "merge.nx".into(),
+            file: "merge.n".into(),
             start,
             end: start + 1,
         };
@@ -3527,7 +3527,7 @@ mod tests {
     #[test]
     fn branch_local_consumption_does_not_escape_its_scope() {
         let source = "fn Main() {\n    if true {\n        let r = MockOpen(1);\n        Drop(r);\n    } else {}\n}\n";
-        let ast = parse::parse("branch_scope.nx", source).unwrap();
+        let ast = parse::parse("branch_scope.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3549,7 +3549,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("branch_scope.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("branch_scope.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3565,7 +3565,7 @@ mod tests {
     #[test]
     fn pending_read_loan_rejects_assignment_with_write_access() {
         let source = "fn Main() {\n    var x = 1;\n    x = 2;\n}\n";
-        let ast = parse::parse("loan_write.nx", source).unwrap();
+        let ast = parse::parse("loan_write.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3587,7 +3587,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("loan_write.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("loan_write.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3600,7 +3600,7 @@ mod tests {
             vec![ActiveLoan {
                 permission: LoanPermission::Read,
                 span: Span {
-                    file: "loan_write.nx".into(),
+                    file: "loan_write.n".into(),
                     start: 18,
                     end: 19,
                 },
@@ -3622,13 +3622,13 @@ mod tests {
             errors[0].data["requested_access"],
             diagnostic::DataValue::String("write".into())
         );
-        errors[0].validate("loan_write.nx", source).unwrap();
+        errors[0].validate("loan_write.n", source).unwrap();
     }
 
     #[test]
     fn dead_declaration_and_reinitialization_restore_all_lowering_state() {
         let source = "fn Main() {\n    var r = MockOpen(1);\n    Drop(r);\n    {\n        return;\n        let s = r;\n        let x = 1;\n        r = MockOpen(2);\n        return;\n    }\n    Inspect(r);\n}\n";
-        let ast = parse::parse("dead_state.nx", source).unwrap();
+        let ast = parse::parse("dead_state.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3650,7 +3650,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("dead_state.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("dead_state.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3698,7 +3698,7 @@ mod tests {
     fn poisoned_binding_in_rejected_block_has_no_cleanup_instruction() {
         let source =
             "fn Main() {\n    {\n        let r = MockOpen(1);\n        let s = r;\n    }\n}\n";
-        let ast = parse::parse("poison.nx", source).unwrap();
+        let ast = parse::parse("poison.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3720,7 +3720,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),
@@ -3744,7 +3744,7 @@ mod tests {
     #[test]
     fn poisoned_call_target_preserves_original_lowering_diagnostic() {
         let source = "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    s();\n}\n";
-        let ast = parse::parse("poison.nx", source).unwrap();
+        let ast = parse::parse("poison.n", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3766,7 +3766,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
-            tokens: Arc::new(lex::lex("poison.nx", source).unwrap()),
+            tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
             live_temps: HashSet::new(),

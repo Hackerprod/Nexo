@@ -1896,8 +1896,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_index_write_while_reordered_read_loan_is_live() {
-        let p =
-            compile_scalar("v.nx", "fn Main() {\n    var a = [1];\n    a[0] = 2;\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    var a = [1];\n    a[0] = 2;\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         let pos = f
             .block
@@ -1960,7 +1959,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_drop_binding_while_read_loan_is_live() {
-        let p = compile_scalar("v.nx", "fn Main() {\n    let a = [1];\n    Drop(a);\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    let a = [1];\n    Drop(a);\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         let pos = f
             .block
@@ -2026,7 +2025,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_undefined_temporary_and_changed_hash() {
-        let p = compile_scalar("v.nx", "fn Main() {\n    let x = 1;\n    Print(x);\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    let x = 1;\n    Print(x);\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         if let Op::WritePlace { value, .. } = &mut f.block.instructions[1].op {
             *value = TempId(999)
@@ -2039,7 +2038,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_uninitialized_local_and_wrong_type() {
-        let p = compile_scalar("v.nx", "fn Main() {\n    let x = 1;\n    Print(x);\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    let x = 1;\n    Print(x);\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         f.block.instructions.swap(0, 1);
         f.content_hash = super::super::model::content_hash(&f);
@@ -2052,7 +2051,7 @@ mod tests {
     #[test]
     fn verifier_rejects_effect_access_cleanup_and_terminator_mutations() {
         let p = compile_scalar(
-            "v.nx",
+            "v.n",
             "fn Main() {\n    var x = 1;\n    x = x + 1;\n    Print(x);\n}\n",
         )
         .unwrap();
@@ -2091,7 +2090,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_duplicate_temporary_consumption_and_orphans() {
-        let p = compile_scalar("v.nx", "fn Main() {\n    AssertEq(1, 2);\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    AssertEq(1, 2);\n}\n").unwrap();
         let original = p.functions.entries[0].clone();
         let mut f = original.clone();
         let call = f
@@ -2118,7 +2117,7 @@ mod tests {
     #[test]
     fn verifier_rejects_unknown_scope_duplicate_origin_and_invalid_source_spans() {
         let source = "// é\nfn Main() {\n    let x = 1;\n    Print(x);\n}\n";
-        let p = compile_scalar("v.nx", source).unwrap();
+        let p = compile_scalar("v.n", source).unwrap();
         let original = p.functions.entries[0].clone();
         let mut f = original.clone();
         f.block.instructions[0].scope = super::super::model::ScopeId(f.scope_count);
@@ -2138,7 +2137,7 @@ mod tests {
         f.block.instructions[0].span.end = 2;
         assert_eq!(verify_function(&f), Err("source origin"));
         let mut f = original.clone();
-        f.block.instructions[0].span.file = "other.nx".into();
+        f.block.instructions[0].span.file = "other.n".into();
         assert_eq!(verify_function(&f), Err("source origin"));
         let mut f = original.clone();
         f.block.instructions[0].span.start = (source.find('é').unwrap() + 1) as u64;
@@ -2156,7 +2155,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_changed_function_identity_position_and_scope_count() {
-        let p = compile_scalar("v.nx", "fn Helper() {}\nfn Main() {}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Helper() {}\nfn Main() {}\n").unwrap();
         let mut changed = p.clone();
         changed.functions.entries[1].table_index = 0;
         assert_eq!(verify_program(&changed), Err("function identity"));
@@ -2169,8 +2168,7 @@ mod tests {
         let mut f = p.functions.entries[1].clone();
         f.scope_count = 1000;
         assert_eq!(verify_function(&f), Err("scope table"));
-        let p =
-            compile_scalar("v.nx", "fn Main() {\n    {\n        Print(1);\n    }\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    {\n        Print(1);\n    }\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         f.scope_parents[1] = Some(super::super::model::ScopeId(1));
         assert_eq!(verify_function(&f), Err("scope table"));
@@ -2179,14 +2177,14 @@ mod tests {
         assert_eq!(verify_function(&f), Err("scope table"));
     }
     fn changed(source: &str, edit: impl FnOnce(&mut Function)) -> Result<(), &'static str> {
-        let p = compile_scalar("v.nx", source).unwrap();
+        let p = compile_scalar("v.n", source).unwrap();
         let mut f = p.functions.entries[0].clone();
         edit(&mut f);
         f.content_hash = super::super::model::content_hash(&f);
         verify_function(&f)
     }
     fn changed_main(source: &str, edit: impl FnOnce(&mut Function)) -> Result<(), &'static str> {
-        let p = compile_scalar("v.nx", source).unwrap();
+        let p = compile_scalar("v.n", source).unwrap();
         let mut f = p.functions.function("Main").unwrap().clone();
         edit(&mut f);
         f.content_hash = super::super::model::content_hash(&f);
@@ -2369,7 +2367,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_direct_call_to_missing_function() {
-        let mut p = compile_scalar("v.nx", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
+        let mut p = compile_scalar("v.n", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
         let f = p
             .functions
             .entries
@@ -2421,7 +2419,7 @@ mod tests {
     #[test]
     fn verifier_rejects_direct_call_signature_mismatch() {
         let mut p =
-            compile_scalar("v.nx", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
+            compile_scalar("v.n", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
         let f = p
             .functions
             .entries
@@ -2487,8 +2485,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_drop_of_read_parameter() {
-        let p =
-            compile_scalar("v.nx", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
         let mut f = p.functions.function("F").unwrap().clone();
         let unit = f
             .block
@@ -2502,7 +2499,7 @@ mod tests {
     }
     #[test]
     fn verifier_checks_call_scope_origin_and_source_span() {
-        let p = compile_scalar("v.nx", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
         let original = p.functions.function("Main").unwrap();
         let mut f = original.clone();
         let call = f
@@ -2536,7 +2533,7 @@ mod tests {
     #[test]
     fn verifier_rejects_call_when_callee_parameter_count_changed() {
         let mut p =
-            compile_scalar("v.nx", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
+            compile_scalar("v.n", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
         let f = p
             .functions
             .entries
@@ -2563,9 +2560,9 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_call_when_callee_result_changed() {
-        let mut p = compile_scalar("v.nx", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
+        let mut p = compile_scalar("v.n", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
         let donor = compile_scalar(
-            "v.nx",
+            "v.n",
             "fn F() -> I64 {\n    return 1;\n}\nfn Main() {\n    F();\n}\n",
         )
         .unwrap();
@@ -2575,7 +2572,7 @@ mod tests {
     #[test]
     fn verifier_rejects_call_result_instruction_type_mutation() {
         let mut program = compile_scalar(
-            "v.nx",
+            "v.n",
             "fn F() -> I64 {\n    return 1;\n}\nfn Main() {\n    Print(F());\n}\n",
         )
         .unwrap();
@@ -2597,8 +2594,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_transfer_from_read_parameter() {
-        let p =
-            compile_scalar("v.nx", "fn F(x: view ()) {}\nfn Main() {\n    F(());\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn F(x: view ()) {}\nfn Main() {\n    F(());\n}\n").unwrap();
         let mut f = p.functions.function("F").unwrap().clone();
         let unit = f
             .block
@@ -2612,7 +2608,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_temporary_array_containing_resource() {
-        let p = compile_scalar("v.nx", "fn Main() {\n    Drop(MockOpen(1));\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    Drop(MockOpen(1));\n}\n").unwrap();
         let mut f = p.functions.function("Main").unwrap().clone();
         let drop = f
             .block
@@ -2635,7 +2631,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_resource_array_in_local_layout() {
-        let p = compile_scalar("v.nx", "fn Main() {\n    let x = 1;\n}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {\n    let x = 1;\n}\n").unwrap();
         let mut f = p.functions.function("Main").unwrap().clone();
         f.locals[0].ty = Ty::Array(Box::new(Ty::MockResource));
         f.content_hash = super::super::model::content_hash(&f);
@@ -2643,7 +2639,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_resource_array_in_result_layout() {
-        let p = compile_scalar("v.nx", "fn Main() {}\n").unwrap();
+        let p = compile_scalar("v.n", "fn Main() {}\n").unwrap();
         let mut f = p.functions.function("Main").unwrap().clone();
         f.result = Ty::Array(Box::new(Ty::MockResource));
         f.content_hash = super::super::model::content_hash(&f);
@@ -2652,7 +2648,7 @@ mod tests {
     #[test]
     fn verifier_rejects_transfer_while_read_loan_remains_live() {
         let p = compile_scalar(
-            "v.nx",
+            "v.n",
             "fn Main() {\n    let x = 1;\n    Print(x);\n    let y = move x;\n}\n",
         )
         .unwrap();

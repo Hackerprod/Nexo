@@ -12,7 +12,7 @@ fn divergent_condition_operands_do_not_create_unreachable_cfg_blocks() {
         "fn Id(x: view I64) -> Bool {\n    return x < 1;\n}\nfn Main() {\n    if Id(if true then {\n        return;\n    } else {\n        return;\n    }) {\n        Print(1);\n    } else {\n        Print(2);\n    }\n}\n",
         "fn Id(x: view I64) -> Bool {\n    return x < 1;\n}\nfn Main() {\n    while Id(if true then {\n        return;\n    } else {\n        return;\n    }) {\n        Print(1);\n    }\n}\n",
     ] {
-        let program = compile_scalar("divergent_condition_operand.nx", source)
+        let program = compile_scalar("divergent_condition_operand.n", source)
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
         assert!(
             crate::interp::run_scalar(&program)
@@ -29,7 +29,7 @@ fn hypothetical_bottom_values_in_both_arms_need_no_ir_slot() {
         "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = (if true then v else v);\n}\n",
         "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = (if false then v + 1 else v + 2);\n}\n",
     ] {
-        let program = compile_scalar("bottom_branch_arms.nx", source).unwrap();
+        let program = compile_scalar("bottom_branch_arms.n", source).unwrap();
         assert!(
             crate::interp::run_scalar(&program)
                 .observations
@@ -42,7 +42,7 @@ fn hypothetical_bottom_values_in_both_arms_need_no_ir_slot() {
 #[test]
 fn nested_divergent_left_keeps_missing_branch_value() {
     let source = "fn Main() {\n    Print((1 + (if true then {\n        return;\n    } else {\n        return;\n    })) + (if true then {\n        Print(2);\n    } else 1));\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("nested_branch_value.nx", source)
+    let Err(CompileError::Rejected(errors)) = compile_scalar("nested_branch_value.n", source)
     else {
         panic!("expected missing branch value");
     };
@@ -76,7 +76,7 @@ fn deferred_binding_reads_preserve_bottom_type_across_uses() {
         "fn F() -> I64 {\n    let v = if true then {\n        return 1;\n    } else {\n        return 2;\n    };\n    return v;\n}\nfn Main() {\n    F();\n}\n".into(),
     ];
     for source in sources {
-        let program = compile_scalar("deferred_binding_uses.nx", &source)
+        let program = compile_scalar("deferred_binding_uses.n", &source)
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
         assert!(
             crate::interp::run_scalar(&program)
@@ -90,7 +90,7 @@ fn deferred_binding_reads_preserve_bottom_type_across_uses() {
 #[test]
 fn divergent_index_of_borrowed_argument_is_checked_without_ir_operand() {
     let source = "fn G(x: view I64) {}\nfn Main() {\n    let a = [1];\n    G(a[if true then {\n        return;\n    } else {\n        return;\n    }]);\n}\n";
-    let program = compile_scalar("loan_divergent_index.nx", source).unwrap();
+    let program = compile_scalar("loan_divergent_index.n", source).unwrap();
     assert!(
         crate::interp::run_scalar(&program)
             .observations
@@ -105,7 +105,7 @@ fn intrinsic_binary_type_is_independent_of_divergent_operand_position() {
     for (op, wrong_type) in [("+", "Bool"), ("-", "Bool"), ("<", "I64")] {
         for expression in [format!("({diverges}){op}1"), format!("1{op}({diverges})")] {
             let source = format!("fn Main(){{let v={expression};let w:{wrong_type}=v;}}");
-            let result = compile_scalar("binary_result_type.nx", &source);
+            let result = compile_scalar("binary_result_type.n", &source);
             assert!(
                 matches!(result, Err(CompileError::Rejected(ref errors)) if errors.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
                 "{source}: {result:?}"
@@ -113,7 +113,7 @@ fn intrinsic_binary_type_is_independent_of_divergent_operand_position() {
         }
     }
     let source = format!("fn Main(){{let v=({diverges})+({diverges});let w:Bool=v;}}");
-    let result = compile_scalar("binary_result_type.nx", &source);
+    let result = compile_scalar("binary_result_type.n", &source);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref errors)) if errors.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
         "{source}: {result:?}"
@@ -128,7 +128,7 @@ fn left_divergent_binary_keeps_result_type_in_lowered_local() {
         ("<", model::Ty::Bool),
     ] {
         let source = format!("fn Main(){{let v=(if true then {{return;}}else{{return;}}){op}1;}}");
-        let program = compile_scalar("left_binary_type.nx", &source).unwrap();
+        let program = compile_scalar("left_binary_type.n", &source).unwrap();
         assert_eq!(
             program.functions.function("Main").unwrap().locals[0].ty,
             expected,
@@ -140,7 +140,7 @@ fn left_divergent_binary_keeps_result_type_in_lowered_local() {
 #[test]
 fn direct_call_keeps_declared_result_type_after_divergent_argument() {
     let source = "fn G(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    let v = G(if true then {\n        return;\n    } else {\n        return;\n    });\n}\n";
-    let program = compile_scalar("call_result_type.nx", source).unwrap();
+    let program = compile_scalar("call_result_type.n", source).unwrap();
     assert_eq!(
         program.functions.function("Main").unwrap().locals[0].ty,
         model::Ty::I64
@@ -150,9 +150,9 @@ fn direct_call_keeps_declared_result_type_after_divergent_argument() {
 #[test]
 fn array_of_deferred_reads_infers_concrete_siblings_or_remains_bottom() {
     let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = (if true then {\n        return;\n    } else {\n        return;\n    }) + [v];\n}\n";
-    compile_scalar("bottom_array_operand.nx", source).unwrap();
+    compile_scalar("bottom_array_operand.n", source).unwrap();
     let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = [v, 2];\n    let z: Array<Bool> = w;\n}\n";
-    let result = compile_scalar("bottom_array_inference.nx", source);
+    let result = compile_scalar("bottom_array_inference.n", source);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref errors)) if errors.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
         "{result:?}"
@@ -165,7 +165,7 @@ fn divergent_left_less_than_checks_numeric_right_operand() {
         "fn Main() {\n    let v = (if true then {\n        return;\n    } else {\n        return;\n    }) < true;\n}\n",
         "fn Main() {\n    let v = true < (if true then {\n        return;\n    } else {\n        return;\n    });\n}\n",
     ] {
-        let result = compile_scalar("less_numeric.nx", source);
+        let result = compile_scalar("less_numeric.n", source);
         assert!(
             matches!(result, Err(CompileError::Rejected(ref errors)) if errors.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
             "{source}: {result:?}"
@@ -176,7 +176,7 @@ fn divergent_left_less_than_checks_numeric_right_operand() {
 #[test]
 fn dead_binary_placeholder_does_not_change_branch_flow() {
     let source = "fn Main() {\n    return;\n    Print(if false then 4 + 3 else {\n        return;\n    });\n}\n";
-    let program = compile_scalar("dead_binary.nx", source).unwrap();
+    let program = compile_scalar("dead_binary.n", source).unwrap();
     assert!(
         crate::interp::run_scalar(&program)
             .observations
@@ -185,7 +185,7 @@ fn dead_binary_placeholder_does_not_change_branch_flow() {
     );
 
     let invalid = "fn Main() {\n    return;\n    Print(if false then 1 else {\n        Print(4 - 2);\n    });\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_branch.nx", invalid) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_branch.n", invalid) else {
         panic!("missing branch value must be rejected");
     };
     assert!(
@@ -212,7 +212,7 @@ fn while_backedge_rechecks_complete_branching_condition() {
         ),
     ];
     for (source, expected) in sources {
-        let program = compile_scalar("branching_loop.nx", source).unwrap();
+        let program = compile_scalar("branching_loop.n", source).unwrap();
         assert_eq!(
             crate::interp::run_scalar(&program).observations.stdout(),
             [expected]
@@ -229,7 +229,7 @@ fn annotated_divergent_bindings_and_binary_results_keep_declared_types() {
         "fn Main() {\n    let v: I64 = if true then {\n        return;\n    } else {\n        return;\n    };\n    Print(v == true);\n}\n",
     ];
     for source in bad {
-        let result = compile_scalar("divergent_type.nx", source);
+        let result = compile_scalar("divergent_type.n", source);
         assert!(
             matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
             "{source}: {result:?}"
@@ -243,7 +243,7 @@ fn binary_result_type_survives_divergent_operand() {
         "fn Main() {\n    let v = 1 + (if true then {\n        return;\n    } else {\n        return;\n    });\n    let w: Bool = v;\n}\n",
         "fn Main() {\n    let v = 1 < (if true then {\n        return;\n    } else {\n        return;\n    });\n    let w: I64 = v;\n}\n",
     ] {
-        let result = compile_scalar("divergent_binary_type.nx", source);
+        let result = compile_scalar("divergent_binary_type.n", source);
         assert!(
             matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
             "{source}: {result:?}"
@@ -254,7 +254,7 @@ fn binary_result_type_survives_divergent_operand() {
 #[test]
 fn reading_deferred_binding_does_not_diverge_branch() {
     let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    Print(if true then 1 else {\n        Print(v);\n    });\n}\n";
-    let result = compile_scalar("deferred_read.nx", source);
+    let result = compile_scalar("deferred_read.n", source);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E1302" && d.subcause.as_deref() == Some("missing_branch_value"))),
         "{result:?}"
@@ -267,7 +267,7 @@ fn missing_branch_value_precedes_deferred_binding_type() {
         "fn Main() {\n    var v = if true then 1 + (if true then {\n        return;\n    } else {\n        return;\n    }) else {};\n    v = 5;\n}\n",
         "fn Main() {\n    var v = if true then {\n        return;\n    } else {\n        return;\n    };\n    v = (if true then 1 else {\n        Print(2);\n    });\n}\n",
     ] {
-        let result = compile_scalar("precedence.nx", source);
+        let result = compile_scalar("precedence.n", source);
         assert!(
             matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E1302" && d.subcause.as_deref() == Some("missing_branch_value"))),
             "{source}: {result:?}"
@@ -278,7 +278,7 @@ fn missing_branch_value_precedes_deferred_binding_type() {
 #[test]
 fn dead_declaration_in_returning_branch_does_not_break_later_value() {
     let source = "fn Main() {\n    Print(if true then 1 else {\n        return;\n        let v = 4;\n        value: v;\n    });\n}\n";
-    let program = compile_scalar("dead_local.nx", source).unwrap();
+    let program = compile_scalar("dead_local.n", source).unwrap();
     assert_eq!(
         crate::interp::run_scalar(&program).observations.stdout(),
         ["1"]
@@ -288,7 +288,7 @@ fn dead_declaration_in_returning_branch_does_not_break_later_value() {
 #[test]
 fn dead_value_call_after_return_does_not_mutate_emitted_tick() {
     let source = "fn G(x: view I64, y: view I64) -> I64 {\n    return y;\n}\nfn Main() {\n    let v1 = 1;\n    (if true then {\n        return;\n        value: G(7, v1);\n    } else 2);\n}\n";
-    compile_scalar("dead_call_tick.nx", source).unwrap();
+    compile_scalar("dead_call_tick.n", source).unwrap();
 }
 
 #[test]
@@ -309,14 +309,14 @@ fn loop_backedges_scale_in_steps_allocation_and_time() {
                 source.push_str(pattern);
             }
             source.push('}');
-            crate::test_alloc::reset("cfg_scale_counter.nx");
+            crate::test_alloc::reset("cfg_scale_counter.n");
             super::CFG_WORK.store(0, std::sync::atomic::Ordering::Relaxed);
             let start = Instant::now();
-            let result = compile_scalar("cfg_scale_counter.nx", &source);
+            let result = compile_scalar("cfg_scale_counter.n", &source);
             result.unwrap_or_else(|e| panic!("family {family}: {e:?}"));
             let steps = super::CFG_WORK.load(std::sync::atomic::Ordering::Relaxed);
             let elapsed = start.elapsed().as_nanos();
-            let traffic = crate::test_alloc::snapshot("cfg_scale_counter.nx");
+            let traffic = crate::test_alloc::snapshot("cfg_scale_counter.n");
             measurements.push((steps, traffic.0, traffic.1, elapsed));
         }
         let small = measurements[0];
@@ -345,7 +345,7 @@ fn repeated_while_preheaders_have_linear_verification_time() {
         }
         source.push('}');
         let start = Instant::now();
-        compile_scalar("loop_time.nx", &source).unwrap();
+        compile_scalar("loop_time.n", &source).unwrap();
         elapsed[at] = start.elapsed().as_nanos();
     }
     assert!(elapsed[1] as f64 / (elapsed[0] as f64) < 8.0, "{elapsed:?}");
@@ -354,33 +354,33 @@ fn repeated_while_preheaders_have_linear_verification_time() {
 #[test]
 fn adr_gap_deferred_binding_takes_first_concrete_assignment_type() {
     let prefix = "fn Main(){var v=if true then {return;}else{return;};v=5;";
-    compile_scalar("deferred_assign.nx", &format!("{prefix}Print(v);}}"))
+    compile_scalar("deferred_assign.n", &format!("{prefix}Print(v);}}"))
         .expect("the hypothetical binding may receive its first concrete type");
     for tail in ["v=true;", "let w:Bool=v;"] {
         let source = format!("{prefix}{tail}}}");
-        let result = compile_scalar("deferred_assign.nx", &source);
+        let result = compile_scalar("deferred_assign.n", &source);
         assert!(
             matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
             "{source}: {result:?}"
         );
     }
     let bool_prefix = "fn Main(){var v=if true then {return;}else{return;};v=true;";
-    compile_scalar("deferred_assign.nx", &format!("{bool_prefix}Print(v);}}"))
+    compile_scalar("deferred_assign.n", &format!("{bool_prefix}Print(v);}}"))
         .expect("the first concrete type may also be bool");
     let source = format!("{bool_prefix}v=5;}}");
-    let result = compile_scalar("deferred_assign.nx", &source);
+    let result = compile_scalar("deferred_assign.n", &source);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
         "{source}: {result:?}"
     );
-    compile_scalar("deferred_assign.nx", &format!("{prefix}let w:I64=v;}}"))
+    compile_scalar("deferred_assign.n", &format!("{prefix}let w:I64=v;}}"))
         .expect("the first concrete type is preserved by a later binding");
 }
 
 #[test]
 fn annotated_divergent_binding_reports_its_declared_type() {
     let source = "fn Main() {\n    let v: I64 = if true then {\n        return;\n    } else {\n        return;\n    };\n    if v {}\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("ann_type.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("ann_type.n", source) else {
         panic!("expected a type error");
     };
     let mismatch = errors.iter().find(|d| d.code == "NX-E0102").unwrap();
@@ -393,7 +393,7 @@ fn annotated_divergent_binding_reports_its_declared_type() {
         Some(&crate::diagnostic::DataValue::String("Bool".into()))
     );
     let valid = "fn Main() {\n    let v: I64 = if true then {\n        return;\n    } else {\n        return;\n    };\n    Print(v + 1);\n}\n";
-    let program = compile_scalar("ann_type.nx", valid).unwrap();
+    let program = compile_scalar("ann_type.n", valid).unwrap();
     assert_eq!(
         program.functions.function("Main").unwrap().locals[0].ty,
         model::Ty::I64
@@ -406,14 +406,14 @@ fn divergent_binary_result_types_allow_matching_annotations() {
         "fn Main() {\n    let v = 1 + (if true then {\n        return;\n    } else {\n        return;\n    });\n    let w: I64 = v;\n}\n",
         "fn Main() {\n    let v = 1 < (if true then {\n        return;\n    } else {\n        return;\n    });\n    let w: Bool = v;\n}\n",
     ] {
-        compile_scalar("binary_result_positive.nx", source).unwrap();
+        compile_scalar("binary_result_positive.n", source).unwrap();
     }
 }
 
 #[test]
 fn value_immediately_after_return_is_checked_without_emission() {
     let source = "fn Main() {\n    Print(if true then {\n        return;\n        value: 1;\n    } else 2);\n}\n";
-    let program = compile_scalar("dead_value.nx", source).unwrap();
+    let program = compile_scalar("dead_value.n", source).unwrap();
     let main = program.functions.function("Main").unwrap();
     let dead_literals = std::iter::once(&main.block)
         .chain(&main.blocks)
@@ -526,7 +526,7 @@ fn directed_divergence_positions_match_reference_acceptance_and_diagnostics() {
             String::new()
         };
         let source = format!("{helper}fn Main(){{let base={n};{body}}}");
-        let result = compile_scalar("divergence_campaign.nx", &source);
+        let result = compile_scalar("divergence_campaign.n", &source);
         match (expected, result) {
             (None, Ok(program)) => {
                 let execution = crate::interp::run_scalar(&program);
@@ -543,7 +543,7 @@ fn directed_divergence_positions_match_reference_acceptance_and_diagnostics() {
                     "seed {seed}: {source}: {errors:?}"
                 );
                 for error in errors {
-                    error.validate("divergence_campaign.nx", &source).unwrap();
+                    error.validate("divergence_campaign.n", &source).unwrap();
                 }
             }
             (_, other) => panic!("seed {seed}: {source}: {other:?}"),
@@ -554,7 +554,7 @@ fn directed_divergence_positions_match_reference_acceptance_and_diagnostics() {
 #[test]
 fn divergent_if_condition_checks_both_hypothetical_branches() {
     let valid = "fn Main() {\n    Print(if (if true then {\n        return;\n    } else {\n        return;\n    }) then 1 else 2);\n}\n";
-    let program = compile_scalar("divergent_condition.nx", valid).unwrap();
+    let program = compile_scalar("divergent_condition.n", valid).unwrap();
     assert!(
         crate::interp::run_scalar(&program)
             .observations
@@ -562,7 +562,7 @@ fn divergent_if_condition_checks_both_hypothetical_branches() {
             .is_empty()
     );
     let invalid = "fn Main() {\n    Print(if (if true then {\n        return;\n    } else {\n        return;\n    }) then 1 else {});\n}\n";
-    let result = compile_scalar("divergent_condition.nx", invalid);
+    let result = compile_scalar("divergent_condition.n", invalid);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E1302" && d.subcause.as_deref() == Some("missing_branch_value"))),
         "{result:?}"
@@ -572,13 +572,13 @@ fn divergent_if_condition_checks_both_hypothetical_branches() {
 #[test]
 fn divergent_else_if_and_deferred_call_argument_keep_branch_structure() {
     let valid = "fn Main() {\n    Print(if true then 1 else (if true then {\n        return;\n    } else {\n        return;\n    }));\n}\n";
-    let program = compile_scalar("else_if_never.nx", valid).unwrap();
+    let program = compile_scalar("else_if_never.n", valid).unwrap();
     assert_eq!(
         crate::interp::run_scalar(&program).observations.stdout(),
         ["1"]
     );
     let invalid = "fn H(x: view I64) {}\nfn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    Print(if true then 1 else {\n        H(v);\n    });\n}\n";
-    let result = compile_scalar("deferred_arg.nx", invalid);
+    let result = compile_scalar("deferred_arg.n", invalid);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E1302" && d.subcause.as_deref() == Some("missing_branch_value"))),
         "{result:?}"
@@ -588,13 +588,13 @@ fn divergent_else_if_and_deferred_call_argument_keep_branch_structure() {
 #[test]
 fn divergent_left_binary_operand_still_checks_numeric_right_type() {
     let source = "fn Main() {\n    Print((if true then {\n        return;\n    } else {\n        return;\n    }) + true);\n}\n";
-    let result = compile_scalar("left_never.nx", source);
+    let result = compile_scalar("left_never.n", source);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0102" && d.subcause.as_deref() == Some("type_mismatch"))),
         "{result:?}"
     );
     compile_scalar(
-        "left_never.nx",
+        "left_never.n",
         "fn Main() {\n    Print((if true then {\n        return;\n    } else {\n        return;\n    }) + 1);\n}\n",
     )
     .expect("a diverging left operand coerces to i64");
@@ -603,7 +603,7 @@ fn divergent_left_binary_operand_still_checks_numeric_right_type() {
 #[test]
 fn verifier_rejects_a_forged_unreachable_branch_block() {
     let program = compile_scalar(
-        "unreachable_cfg.nx",
+        "unreachable_cfg.n",
         "fn Main() {\n    Print(if true then 1 else 2);\n}\n",
     )
     .unwrap();
@@ -625,7 +625,7 @@ fn branch_diagnostic_restores_nested_scope_state() {
         "fn Main() {\n    let v = (if false then {\n        ();\n    } else 5);\n    return;\n    (if true then v else 1);\n}\n",
         "fn Main() {\n    let v = if true then {\n        var w = (if false then 4 else {});\n        value: (w == w);\n    } else true;\n}\n",
     ] {
-        let result = compile_scalar("branch_error.nx", source);
+        let result = compile_scalar("branch_error.n", source);
         assert!(
             matches!(result, Err(CompileError::Rejected(ref errors)) if errors.iter().any(|d| d.code == "NX-E1302" && d.subcause.as_deref() == Some("missing_branch_value"))),
             "{source}: {result:?}"
@@ -636,7 +636,7 @@ fn branch_diagnostic_restores_nested_scope_state() {
 #[test]
 fn nested_branch_error_keeps_later_independent_ownership_error() {
     let source = "fn Main() {\n    let r = MockOpen(1);\n    let v = if true then {\n        let x = if false then 4 else {};\n        Drop(r);\n        value: r;\n    } else r;\n}\n";
-    let result = compile_scalar("branch_two_errors.nx", source);
+    let result = compile_scalar("branch_two_errors.n", source);
     let Err(CompileError::Rejected(errors)) = result else {
         panic!("{result:?}")
     };
@@ -657,7 +657,7 @@ fn nested_branch_error_keeps_later_independent_ownership_error() {
 #[test]
 fn failed_while_condition_restores_lowering_mode_for_later_errors() {
     let source = "fn Main() {\n    while (if true then true else {}) {}\n    let r = MockOpen(1);\n    Drop(r);\n    Inspect(r);\n}\n";
-    let result = compile_scalar("while_error_state.nx", source);
+    let result = compile_scalar("while_error_state.n", source);
     let Err(CompileError::Rejected(errors)) = result else {
         panic!("{result:?}")
     };
@@ -681,7 +681,7 @@ fn missing_branch_value_suppresses_dependent_missing_return() {
     // obligation derived solely from that absent value.
     let source =
         "fn F() -> I64 {\n    let x = if true then {\n        1;\n    } else 2;\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("branch_return.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("branch_return.n", source) else {
         panic!("expected source diagnostic");
     };
     assert_eq!(errors.len(), 1);
@@ -692,26 +692,26 @@ fn missing_branch_value_suppresses_dependent_missing_return() {
 #[test]
 fn equality_copies_indexed_left_value_before_rhs_write() {
     let source = "fn Main() {\n    var a = [2];\n    Print(a[0] == (if true then {\n        a[0] = 5;\n        value: 2;\n    } else 2));\n}\n";
-    let program = compile_scalar("eq_copy.nx", source).unwrap();
+    let program = compile_scalar("eq_copy.n", source).unwrap();
     let result = crate::interp::run_scalar(&program);
     assert_eq!(result.observations.stdout(), ["true"]);
     let addition = "fn Main() {\n    var a = [2];\n    Print(a[0] + (if true then {\n        a[0] = 5;\n        value: 2;\n    } else 2));\n}\n";
-    let program = compile_scalar("add_copy.nx", addition).unwrap();
+    let program = compile_scalar("add_copy.n", addition).unwrap();
     assert_eq!(
         crate::interp::run_scalar(&program).observations.stdout(),
         ["4"]
     );
     let call = "fn H(x: view I64, y: view I64) {}\nfn Main() {\n    var a = [2];\n    H(a[0], if true then {\n        a[0] = 5;\n        value: 2;\n    } else 2);\n}\n";
-    let rejected = compile_scalar("call_loan.nx", call);
+    let rejected = compile_scalar("call_loan.n", call);
     assert!(
         matches!(rejected, Err(CompileError::Rejected(ref errors)) if errors.iter().any(|d| d.code == "NX-E1105")),
         "{rejected:?}"
     );
     let array = "fn Main() {\n    var a = [[2]];\n    Print(a[0] == (if true then {\n        a[0] = [5];\n        value: [2];\n    } else [2]));\n}\n";
-    let rejected = compile_scalar("array_eq_loan.nx", array);
+    let rejected = compile_scalar("array_eq_loan.n", array);
     if let Err(CompileError::Rejected(errors)) = &rejected {
         for diagnostic in errors {
-            diagnostic.validate("array_eq_loan.nx", array).unwrap();
+            diagnostic.validate("array_eq_loan.n", array).unwrap();
         }
     }
     assert!(
@@ -738,7 +738,7 @@ fn divergent_if_operands_and_bindings_do_not_form_invalid_ir() {
         "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    var a = [1];\n    a[v] = 2;\n}\n",
     ];
     for source in sources {
-        let result = compile_scalar("diverge_operand.nx", source);
+        let result = compile_scalar("diverge_operand.n", source);
         assert!(
             matches!(result, Ok(_) | Err(CompileError::Rejected(_))),
             "{source}: {result:?}"
@@ -752,7 +752,7 @@ fn direct_lowering_discards_divergent_composite_index_operands() {
         "fn Main() {\n    Print((if true then {\n        return;\n    } else {\n        return;\n    })[0]);\n}\n",
         "fn Main() {\n    Print(([1, 2])[if true then {\n        return;\n    } else {\n        return;\n    }]);\n}\n",
     ] {
-        let ast = crate::frontend::parse::parse("direct_diverge_index.nx", source).unwrap();
+        let ast = crate::frontend::parse::parse("direct_diverge_index.n", source).unwrap();
         let result = super::lower::compile_ast(&ast, source);
         assert!(result.is_ok(), "{source}: {result:?}");
     }
@@ -789,14 +789,14 @@ fn divergent_values_cover_branch_shapes_operand_positions_and_annotations() {
         ];
         for body in bodies {
             let source = format!("fn H(a:view I64,b:view I64){{}} fn Main(){{{body}}}");
-            let result = compile_scalar("diverge_matrix.nx", &source);
+            let result = compile_scalar("diverge_matrix.n", &source);
             assert!(
                 matches!(result, Ok(_) | Err(CompileError::Rejected(_))),
                 "{source}: {result:?}"
             );
         }
         let source = format!("fn F()->I64{{return {form};}} fn Main(){{Print(F());}}");
-        let result = compile_scalar("diverge_return.nx", &source);
+        let result = compile_scalar("diverge_return.n", &source);
         assert!(
             matches!(result, Ok(_) | Err(CompileError::Rejected(_))),
             "{source}: {result:?}"
@@ -810,7 +810,7 @@ fn divergent_later_argument_releases_pending_read_and_inout_loans() {
         "fn H(a: view MockResource, b: view I64) {}\nfn Main() {\n    let r = MockOpen(1);\n    H(r, if true then {\n        return;\n    } else {\n        return;\n    });\n}\n",
         "fn H(a: edit I64, b: view I64) {}\nfn Main() {\n    var a = 1;\n    H(edit a, if true then {\n        return;\n    } else {\n        return;\n    });\n}\n",
     ] {
-        let program = compile_scalar("diverge_loan.nx", source).unwrap();
+        let program = compile_scalar("diverge_loan.n", source).unwrap();
         let result = crate::interp::run_scalar(&program);
         assert!(
             matches!(result.outcome, crate::interp::Outcome::Unit),
@@ -831,7 +831,7 @@ fn if_values_after_other_operands_remain_available_across_cfg_edges() {
             "3\n",
         ),
     ] {
-        let program = compile_scalar("live_temp.nx", source).unwrap();
+        let program = compile_scalar("live_temp.n", source).unwrap();
         let result = crate::interp::run_scalar(&program);
         assert_eq!(result.observations.stdout(), [expected.trim_end()]);
     }
@@ -840,7 +840,7 @@ fn if_values_after_other_operands_remain_available_across_cfg_edges() {
 #[test]
 fn nested_branch_values_work_in_later_arguments_indexes_and_assignments() {
     let source = "fn F(a: view I64, b: view I64, c: view I64) {\n    AssertEq(a + b + c, 6);\n}\nfn Main() {\n    F(1, 2, if true then 3 else 4);\n    var a = [1, 2, 3];\n    a[if true then 1 else 0] = if false then 8 else 9;\n    Print(a[1]);\n    Print((if true then 1 else 2) + (if true then 2 else 3));\n}\n";
-    let program = compile_scalar("nested_live.nx", source).unwrap();
+    let program = compile_scalar("nested_live.n", source).unwrap();
     let run = crate::interp::run_scalar(&program);
     assert_eq!(run.observations.stdout(), ["9", "3"]);
 }
@@ -848,7 +848,7 @@ fn nested_branch_values_work_in_later_arguments_indexes_and_assignments() {
 #[test]
 fn read_loan_survives_branch_value_in_later_call_argument() {
     let source = "fn F(r: view MockResource, n: view I64) {\n    Inspect(r);\n    Print(n);\n}\nfn Main() {\n    let r = MockOpen(7);\n    F(r, if true then 2 else 3);\n    Inspect(r);\n}\n";
-    let program = compile_scalar("loan_live.nx", source).unwrap();
+    let program = compile_scalar("loan_live.n", source).unwrap();
     let run = crate::interp::run_scalar(&program);
     assert_eq!(run.observations.stdout(), ["2"]);
     assert_eq!(
@@ -860,7 +860,7 @@ fn read_loan_survives_branch_value_in_later_call_argument() {
 #[test]
 fn fault_in_branch_argument_releases_earlier_live_read_loan_and_owner() {
     let source = "fn F(r: view MockResource, n: view I64) {\n    Inspect(r);\n}\nfn Main() {\n    let r = MockOpen(7);\n    F(r, if true then {\n        Fail();\n        value: 2;\n    } else 3);\n}\n";
-    let program = compile_scalar("branch_fault.nx", source).unwrap();
+    let program = compile_scalar("branch_fault.n", source).unwrap();
     let run = crate::interp::run_scalar(&program);
     assert!(matches!(
         run.outcome,
@@ -877,20 +877,20 @@ fn while_condition_consuming_external_resource_needs_flow_fixpoint() {
         "fn Main() {\n    let r = MockOpen(1);\n    while Drop(r) == () {}\n    Inspect(r);\n}\n",
         "fn Main() {\n    let r = MockOpen(1);\n    while Drop(r) == () {\n        Inspect(r);\n    }\n}\n",
     ] {
-        let result = compile_scalar("while_consume.nx", source);
+        let result = compile_scalar("while_consume.n", source);
         assert!(
             matches!(&result, Err(CompileError::Rejected(errors)) if errors.iter().any(|d| d.code == "NX-E0202")),
             "{source}: {result:?}"
         );
     }
     let borrowed = "fn Main() {\n    let r = MockOpen(1);\n    while Inspect(r) == () {\n        return;\n    }\n    Inspect(r);\n}\n";
-    assert!(compile_scalar("while_borrow.nx", borrowed).is_ok());
+    assert!(compile_scalar("while_borrow.n", borrowed).is_ok());
 }
 
 #[test]
 fn branch_false_target_and_instruction_type_affect_semantic_hash() {
     let source = "fn Main() {\n    if true {\n        Print(1);\n    } else {\n        Print(2);\n    }\n}\n";
-    let function = compile_scalar("hash_branch.nx", source)
+    let function = compile_scalar("hash_branch.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -915,7 +915,7 @@ fn branch_false_target_and_instruction_type_affect_semantic_hash() {
 #[test]
 fn true_branch_and_instruction_scope_have_distinct_hash_roles() {
     let source = "fn Main() {\n    if true {\n        Print(1);\n    } else {\n        Print(2);\n    }\n}\n";
-    let program = compile_scalar("hash_yes.nx", source).unwrap();
+    let program = compile_scalar("hash_yes.n", source).unwrap();
     let function = program.functions.function("Main").unwrap();
     let original = model::content_hash(function);
     let mut changed = function.clone();
@@ -948,7 +948,7 @@ fn true_branch_and_instruction_scope_have_distinct_hash_roles() {
 #[test]
 fn terminator_operand_stays_live_across_jump() {
     let source = "fn Main() {\n    Print(1);\n}\n";
-    let mut function = compile_scalar("term_live.nx", source)
+    let mut function = compile_scalar("term_live.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -975,7 +975,7 @@ fn terminator_operand_stays_live_across_jump() {
 #[test]
 fn verifier_rejects_temporary_dropped_on_only_one_branch() {
     let source = "fn Main() {\n    Print(1 + (if true then {\n        return;\n    } else {\n        return;\n    }));\n}\n";
-    let mut function = compile_scalar("edge_leak.nx", source)
+    let mut function = compile_scalar("edge_leak.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -1010,7 +1010,7 @@ fn verifier_rejects_temporary_dropped_on_only_one_branch() {
 #[test]
 fn dominator_of_loop_header_includes_nonentry_preheader() {
     let source = "fn Main() {\n    if true {} else {}\n    while false {}\n}\n";
-    let mut function = compile_scalar("dom_loop.nx", source)
+    let mut function = compile_scalar("dom_loop.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -1094,7 +1094,7 @@ fn dominator_of_loop_header_includes_nonentry_preheader() {
 #[test]
 fn cfg_verifier_rejects_orphan_output_on_a_branch() {
     let source = "fn Main() {\n    if true {} else {}\n}\n";
-    let mut function = compile_scalar("orphan_branch.nx", source)
+    let mut function = compile_scalar("orphan_branch.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -1126,7 +1126,7 @@ fn cfg_verifier_rejects_orphan_output_on_a_branch() {
 #[test]
 fn cfg_verifier_rejects_operand_consumed_on_only_one_predecessor() {
     let source = "fn F(a: view I64, b: view I64) {\n    Print(b);\n}\nfn Main() {\n    F(1, if true then 2 else 3);\n}\n";
-    let mut function = compile_scalar("partial_temp.nx", source)
+    let mut function = compile_scalar("partial_temp.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -1164,7 +1164,7 @@ fn cfg_verifier_rejects_operand_consumed_on_only_one_predecessor() {
 #[test]
 fn branch_union_rechecks_value_type_when_semantic_gate_is_bypassed() {
     let source = "fn Main() {\n    let v = if true then 1 else true;\n}\n";
-    let ast = crate::frontend::parse::parse("bad_union.nx", source).unwrap();
+    let ast = crate::frontend::parse::parse("bad_union.n", source).unwrap();
     assert!(matches!(
         super::lower::compile_ast(&ast, source),
         Err(CompileError::InvalidIr("branch value type"))
@@ -1174,7 +1174,7 @@ fn branch_union_rechecks_value_type_when_semantic_gate_is_bypassed() {
 #[test]
 fn consumed_scoped_binding_has_no_second_cleanup_instruction() {
     let source = "fn Main() {\n    {\n        let r = MockOpen(1);\n        Drop(r);\n    }\n}\n";
-    let program = compile_scalar("scope_consumed.nx", source).unwrap();
+    let program = compile_scalar("scope_consumed.n", source).unwrap();
     let function = program.functions.function("Main").unwrap();
     assert!(
         !function
@@ -1196,7 +1196,7 @@ fn diverging_if_value_does_not_create_an_ir_temporary() {
         "fn F() -> I64 {\n    let v = if true then {\n        return 1;\n    } else {\n        return 2;\n    };\n    return v;\n}\nfn Main() {}\n",
         "fn Main() {\n    let a = if true then (if true then {\n        return;\n    } else {\n        return;\n    }) else 3;\n    Print(a);\n}\n",
     ] {
-        let result = compile_scalar("never.nx", source);
+        let result = compile_scalar("never.n", source);
         assert!(
             !matches!(result, Err(CompileError::InvalidIr(_))),
             "{source}: {result:?}"
@@ -1225,7 +1225,7 @@ fn a_returning_branch_coerces_to_the_other_branch_value_type() {
         ),
     ] {
         let program =
-            compile_scalar("coerce_never.nx", source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
+            compile_scalar("coerce_never.n", source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
         assert_eq!(
             crate::interp::run_scalar(&program).observations.stdout(),
             [expected]
@@ -1236,7 +1236,7 @@ fn a_returning_branch_coerces_to_the_other_branch_value_type() {
 #[test]
 fn all_reaching_consumptions_are_reported_in_source_order() {
     let source = "fn F(b: view Bool, c: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n    } else if c {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("consumptions.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("consumptions.n", source) else {
         panic!("expected ownership error");
     };
     let error = errors.iter().find(|e| e.code == "NX-E0202").unwrap();
@@ -1259,7 +1259,7 @@ fn nested_and_transferred_consumption_sites_reach_the_final_use() {
         "fn F(b: view Bool, c: view Bool, d: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n    } else if c {\n        Drop(r);\n    } else if d {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n",
         "fn F(b: view Bool, c: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        if c {\n            Drop(r);\n        } else {\n            let q = move r;\n        }\n    } else {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n",
     ] {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("consumption_branches.nx", source)
+        let Err(CompileError::Rejected(errors)) = compile_scalar("consumption_branches.n", source)
         else {
             panic!("expected ownership error");
         };
@@ -1284,7 +1284,7 @@ fn nested_and_transferred_consumption_sites_reach_the_final_use() {
 #[test]
 fn all_paths_consumed_reports_every_reaching_site() {
     let source = "fn Main() {\n    let r = MockOpen(1);\n    if true {\n        Drop(r);\n    } else {\n        Drop(r);\n    }\n    Inspect(r);\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("definitely_sites.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("definitely_sites.n", source) else {
         panic!("expected ownership error");
     };
     let error = errors.iter().find(|e| e.code == "NX-E0202").unwrap();
@@ -1307,7 +1307,7 @@ fn adr_gap_missing_final_else_in_chain_marks_nested_if_keyword() {
     // F0-D15 §3.1 requires parentheses around the nested expression. Its
     // missing final else is anchored at that nested if.
     let source = "fn Main(){let q=if true then {value:1;}else (if false then {value:2;});}";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("else_chain.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("else_chain.n", source) else {
         panic!("expected parse error");
     };
     assert_eq!(errors.len(), 1);
@@ -1330,7 +1330,7 @@ fn adr_gap_missing_final_else_in_chain_marks_nested_if_keyword() {
 fn missing_branch_value_in_one_function_does_not_hide_later_missing_return() {
     let source =
         "fn A() {\n    let q = if true then 1 else {};\n}\nfn F() -> I64 {}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("independent_flow.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("independent_flow.n", source) else {
         panic!("expected flow diagnostics");
     };
     assert_eq!(
@@ -1352,7 +1352,7 @@ fn missing_else_is_the_first_parse_failure_across_functions() {
         "fn G(){let q=if true then {value:1;};} fn F()->I64{ } fn Main(){}",
         "fn G(){let q=if true then {value:1;};} fn H(){ value: 1; } fn Main(){}",
     ] {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("parse_stage.nx", source) else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("parse_stage.n", source) else {
             panic!("expected missing else");
         };
         assert_eq!(errors.len(), 1, "{source}: {errors:?}");
@@ -1370,7 +1370,7 @@ fn missing_else_is_the_first_parse_failure_across_functions() {
 #[test]
 fn independent_missing_return_and_consumed_use_are_both_reported() {
     let source = "fn F(b: view Bool) -> I64 {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("return_and_use.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("return_and_use.n", source) else {
         panic!("expected ownership errors");
     };
     let codes: Vec<_> = errors.iter().map(|e| e.code.as_str()).collect();
@@ -1404,7 +1404,7 @@ fn generated_cfg_programs_match_independent_integer_model() {
             "fn Main(){{var x={start};if {choose_first}{{x=x+2;}}else{{x=x+3;}}while x<{threshold}{{x=x+1;}}AssertEq(x,{});}}",
             model(start, threshold, choose_first),
         );
-        let program = compile_scalar("generated.nx", &source)
+        let program = compile_scalar("generated.n", &source)
             .unwrap_or_else(|error| panic!("seed {seed}: {error:?}"));
         let result = crate::interp::run_scalar(&program);
         assert!(
@@ -1434,11 +1434,11 @@ fn semantic_cfg_sources_never_create_invalid_ir() {
             _ => format!("if true{{return;}}else{{while false{{let x={lhs};}}}}"),
         };
         let source = format!("fn Main(){{{body}}}");
-        match compile_scalar("fuzz.nx", &source) {
+        match compile_scalar("fuzz.n", &source) {
             Ok(_) => {}
             Err(CompileError::Rejected(errors)) => {
                 for diagnostic in errors {
-                    diagnostic.validate("fuzz.nx", &source).unwrap();
+                    diagnostic.validate("fuzz.n", &source).unwrap();
                 }
             }
             Err(other) => panic!("seed {seed}: {source}: {other:?}"),
@@ -1449,7 +1449,7 @@ fn semantic_cfg_sources_never_create_invalid_ir() {
 #[test]
 fn cfg_verifier_rejects_bad_edges_branch_type_and_missing_join_definition() {
     let source = "fn F(b: view Bool) -> I64 {\n    return if b then 1 else 2;\n}\nfn Main() {}\n";
-    let program = compile_scalar("verify_cfg.nx", source).unwrap();
+    let program = compile_scalar("verify_cfg.n", source).unwrap();
     let original = program.functions.function("F").unwrap().clone();
 
     let mut invalid = original.clone();
@@ -1493,7 +1493,7 @@ fn cfg_verifier_rejects_bad_edges_branch_type_and_missing_join_definition() {
 #[test]
 fn cfg_verifier_rejects_block_identity_exact_end_target_and_unreachable_arm() {
     let source = "fn F(b: view Bool) -> I64 {\n    return if b then 1 else 2;\n}\nfn Main() {}\n";
-    let original = compile_scalar("cfg_shape.nx", source)
+    let original = compile_scalar("cfg_shape.n", source)
         .unwrap()
         .functions
         .function("F")
@@ -1530,7 +1530,7 @@ fn cfg_verifier_rejects_block_identity_exact_end_target_and_unreachable_arm() {
 #[test]
 fn cfg_verifier_revisits_loop_header_after_backedge_consumes_owner() {
     let source = "fn Main() {\n    var x = 0;\n    while false {\n        x = x + 1;\n    }\n    Print(x);\n}\n";
-    let mut bad = compile_scalar("backedge.nx", source)
+    let mut bad = compile_scalar("backedge.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -1567,7 +1567,7 @@ fn cfg_verifier_revisits_loop_header_after_backedge_consumes_owner() {
 #[test]
 fn cfg_jump_to_entry_keeps_work_quota_active() {
     let source = "fn Main() {\n    while true {}\n}\n";
-    let mut function = compile_scalar("entry_jump.nx", source)
+    let mut function = compile_scalar("entry_jump.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -1594,7 +1594,7 @@ fn cfg_jump_to_entry_keeps_work_quota_active() {
 #[test]
 fn verifier_bounded_on_exhaustive_small_cfg_destinations() {
     let source = "fn Main() {\n    var a = [1, 2];\n    a[if true then 0 else 1] = if false then 5 else 6;\n    Print(a);\n}\n";
-    let original = compile_scalar("cyclic_cfg.nx", source)
+    let original = compile_scalar("cyclic_cfg.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -1668,7 +1668,7 @@ fn cfg_lowering_requires_bool_without_checker() {
         "fn Main() {\n    let x = if 1 then 2 else 3;\n}\n",
         "fn Main() {\n    if 1 {} else {}\n}\n",
     ] {
-        let ast = crate::frontend::parse::parse("bad_cond.nx", source).unwrap();
+        let ast = crate::frontend::parse::parse("bad_cond.n", source).unwrap();
         assert!(matches!(
             super::lower::compile_ast(&ast, source),
             Err(CompileError::InvalidIr("if condition type"))
@@ -1679,7 +1679,7 @@ fn cfg_lowering_requires_bool_without_checker() {
 #[test]
 fn cfg_verifier_queue_avoids_duplicate_work_for_pending_blocks() {
     let source = "fn F(b: view Bool) -> I64 {\n    return if b then 1 else 2;\n}\nfn Main() {}\n";
-    let function = compile_scalar("queue.nx", source)
+    let function = compile_scalar("queue.n", source)
         .unwrap()
         .functions
         .function("F")
@@ -1707,11 +1707,11 @@ fn mutated_cfg_sources_keep_rejections_structured() {
         let at = (state as usize) % bytes.len();
         bytes[at] = replacement[(state >> 32) as usize % replacement.len()];
         let source = String::from_utf8(bytes).unwrap();
-        match compile_scalar("mutated_cfg.nx", &source) {
+        match compile_scalar("mutated_cfg.n", &source) {
             Ok(_) => {}
             Err(CompileError::Rejected(errors)) => {
                 for diagnostic in errors {
-                    diagnostic.validate("mutated_cfg.nx", &source).unwrap();
+                    diagnostic.validate("mutated_cfg.n", &source).unwrap();
                 }
             }
             Err(other) => panic!("seed {seed}: {source}: {other:?}"),
@@ -1746,11 +1746,11 @@ fn directed_branch_error_and_divergence_fuzz_has_no_internal_failure() {
         let at = (state as usize) % bytes.len();
         bytes[at] = replacements[(state >> 32) as usize % replacements.len()];
         let source = String::from_utf8(bytes).unwrap();
-        match compile_scalar("branch_fuzz.nx", &source) {
+        match compile_scalar("branch_fuzz.n", &source) {
             Ok(_) => {}
             Err(CompileError::Rejected(errors)) => {
                 for diagnostic in errors {
-                    diagnostic.validate("branch_fuzz.nx", &source).unwrap();
+                    diagnostic.validate("branch_fuzz.n", &source).unwrap();
                 }
             }
             Err(other) => panic!("seed {seed}: {source}: {other:?}"),
@@ -1802,11 +1802,11 @@ fn cfg_dense_sources_have_bounded_deterministic_work() {
             }
             source.push('}');
             super::CFG_WORK.store(0, Ordering::Relaxed);
-            crate::test_alloc::reset("cfg_scale_counter.nx");
-            compile_scalar("cfg_scale_counter.nx", &source)
+            crate::test_alloc::reset("cfg_scale_counter.n");
+            compile_scalar("cfg_scale_counter.n", &source)
                 .unwrap_or_else(|e| panic!("family {family}: {e:?}"));
             work[at] = super::CFG_WORK.load(Ordering::Relaxed);
-            traffic[at] = crate::test_alloc::snapshot("cfg_scale_counter.nx");
+            traffic[at] = crate::test_alloc::snapshot("cfg_scale_counter.n");
         }
         let ratio = work[1] as f64 / work[0] as f64;
         eprintln!("cfg family {family}: {:?}, ratio {ratio:.3}", work);
@@ -1887,10 +1887,10 @@ fn cfg_later_operands_scale_linearly_in_work_and_allocation() {
             }
             source.push('}');
             super::CFG_WORK.store(0, Ordering::Relaxed);
-            crate::test_alloc::reset("cfg_scale_counter.nx");
-            compile_scalar("cfg_scale_counter.nx", &source).unwrap();
+            crate::test_alloc::reset("cfg_scale_counter.n");
+            compile_scalar("cfg_scale_counter.n", &source).unwrap();
             work[at] = super::CFG_WORK.load(Ordering::Relaxed);
-            traffic[at] = crate::test_alloc::snapshot("cfg_scale_counter.nx");
+            traffic[at] = crate::test_alloc::snapshot("cfg_scale_counter.n");
         }
         let ratio = work[1] as f64 / work[0] as f64;
         eprintln!(
@@ -1926,9 +1926,9 @@ fn later_operand_dominance_verification_has_no_quadratic_allocation() {
             source.push_str(pattern);
         }
         source.push('}');
-        crate::test_alloc::reset("later_operand_scale_counter.nx");
-        compile_scalar("later_operand_scale_counter.nx", &source).unwrap();
-        traffic[at] = crate::test_alloc::snapshot("later_operand_scale_counter.nx");
+        crate::test_alloc::reset("later_operand_scale_counter.n");
+        compile_scalar("later_operand_scale_counter.n", &source).unwrap();
+        traffic[at] = crate::test_alloc::snapshot("later_operand_scale_counter.n");
     }
     for metric in 0..2 {
         let small = if metric == 0 {
@@ -1961,9 +1961,9 @@ fn cfg_local_branch_scale_uses_sparse_temp_counters() {
             id += 1;
         }
         source.push('}');
-        crate::test_alloc::reset("cfg_scale_counter.nx");
-        compile_scalar("cfg_scale_counter.nx", &source).unwrap();
-        traffic[at] = crate::test_alloc::snapshot("cfg_scale_counter.nx");
+        crate::test_alloc::reset("cfg_scale_counter.n");
+        compile_scalar("cfg_scale_counter.n", &source).unwrap();
+        traffic[at] = crate::test_alloc::snapshot("cfg_scale_counter.n");
     }
     for metric in 0..2 {
         let small = if metric == 0 {
@@ -1991,7 +1991,7 @@ fn nested_cfg_compiles_and_runs_from_small_caller_stacks() {
             .spawn(|| {
                 for opening in ["if true{", "while false{"] {
                     let source = format!("fn Main(){{{}{}}}", opening.repeat(80), "}".repeat(80),);
-                    let program = compile_scalar("cfg_stack.nx", &source).unwrap();
+                    let program = compile_scalar("cfg_stack.n", &source).unwrap();
                     let execution = crate::interp::run_scalar(&program);
                     assert!(matches!(execution.outcome, crate::interp::Outcome::Unit));
                 }
@@ -2005,7 +2005,7 @@ fn nested_cfg_compiles_and_runs_from_small_caller_stacks() {
 #[test]
 fn dead_code_after_all_returning_branch_does_not_reuse_live_temp_ids() {
     let source = "fn G(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    {\n        return;\n        G(G(1));\n    }\n    if true {\n        return;\n    } else {\n        return;\n    }\n    G(G(1));\n}\n";
-    let program = compile_scalar("dead_cfg.nx", source).unwrap();
+    let program = compile_scalar("dead_cfg.n", source).unwrap();
     assert!(matches!(
         crate::interp::run_scalar(&program).outcome,
         crate::interp::Outcome::Unit
@@ -2015,7 +2015,7 @@ fn dead_code_after_all_returning_branch_does_not_reuse_live_temp_ids() {
 #[test]
 fn cfg_verifier_rejects_cross_block_temp_duplicate_and_wrong_join_type() {
     let source = "fn F(b: view Bool) -> I64 {\n    return if b then 1 else 2;\n}\nfn Main() {}\n";
-    let original = compile_scalar("cfg_mut.nx", source)
+    let original = compile_scalar("cfg_mut.n", source)
         .unwrap()
         .functions
         .function("F")
@@ -2071,7 +2071,7 @@ fn cfg_verifier_rejects_cross_block_temp_duplicate_and_wrong_join_type() {
 #[test]
 fn cfg_verifier_rejects_loan_metadata_and_unreleased_loan() {
     let source = "fn F(x: edit I64) {\n    x = x + 1;\n}\nfn Main() {\n    var a = 0;\n    if true {\n        F(edit a);\n    } else {}\n}\n";
-    let original = compile_scalar("cfg_loan.nx", source)
+    let original = compile_scalar("cfg_loan.n", source)
         .unwrap()
         .functions
         .function("Main")
@@ -2141,8 +2141,7 @@ fn published_branch_structure_diagnostics_identify_exact_marker_and_context() {
             (35, 36),
         ),
     ] {
-        let CompileError::Rejected(errors) = compile_scalar("branch.nx", source).unwrap_err()
-        else {
+        let CompileError::Rejected(errors) = compile_scalar("branch.n", source).unwrap_err() else {
             panic!("expected structural rejection")
         };
         assert_eq!(errors.len(), 1);
@@ -2162,7 +2161,7 @@ fn published_branch_structure_diagnostics_identify_exact_marker_and_context() {
         }
         assert!(d.data.is_empty());
         assert!(d.unexpected_token.is_none());
-        d.validate("branch.nx", source).unwrap();
+        d.validate("branch.n", source).unwrap();
     }
 }
 #[test]
@@ -2175,10 +2174,7 @@ fn divergent_bindings_allow_unreachable_assignments_and_indexes() {
         "fn Main() {\n    var v = [1, if true then {\n        return;\n    } else {\n        return;\n    }];\n    v[0] = 1;\n}\n",
     ];
     for source in sources {
-        assert!(
-            compile_scalar("dead_binding.nx", source).is_ok(),
-            "{source}"
-        );
+        assert!(compile_scalar("dead_binding.n", source).is_ok(), "{source}");
     }
 }
 
@@ -2196,7 +2192,7 @@ fn divergent_left_operand_still_checks_later_branch_and_ownership() {
             "definitely_consumed",
         ),
     ] {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_operand.nx", source) else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_operand.n", source) else {
             panic!("expected {code}/{subcause}: {source}");
         };
         assert!(
@@ -2214,8 +2210,7 @@ fn branch_structure_precedes_type_mismatch_with_divergent_operand() {
         "fn Main() {\n    Print((if true then {\n        return;\n    } else {}) + 1);\n}\n",
         "fn Main() {\n    Print(1 + (if true then {\n        return;\n    } else {}));\n}\n",
     ] {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_structure.nx", source)
-        else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_structure.n", source) else {
             panic!("expected missing branch value: {source}");
         };
         assert_eq!(errors.len(), 1, "{source}: {errors:?}");
@@ -2231,14 +2226,14 @@ fn branch_structure_precedes_type_mismatch_with_divergent_operand() {
         );
         assert!(errors[0].data.is_empty());
         assert!(errors[0].unexpected_token.is_none());
-        errors[0].validate("dead_structure.nx", source).unwrap();
+        errors[0].validate("dead_structure.n", source).unwrap();
     }
 }
 
 #[test]
 fn divergent_condition_checks_unreachable_branch_ownership() {
     let source = "fn Main() {\n    if (if true then {\n        return;\n    } else {\n        return;\n    }) {\n        let r = MockOpen(1);\n        Drop(r);\n        Inspect(r);\n    }\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_condition.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_condition.n", source) else {
         panic!("expected consumed resource diagnostic");
     };
     assert!(
@@ -2256,7 +2251,7 @@ fn later_divergent_arguments_preserve_branch_value_diagnostics() {
         "fn K3(x: view I64, y: view I64, z: view I64) -> I64 {\n    return x + z;\n}\nfn Main() {\n    K3(if (if true then {\n        let q = if true then {\n            return;\n        } else {};\n        return;\n    } else {\n        return;\n    }) then 6 else 4, (if true then {\n        return;\n    } else {\n        return;\n    }) + (), 1);\n}\n",
     ];
     for source in sources {
-        let outcome = compile_scalar("dead_args.nx", source);
+        let outcome = compile_scalar("dead_args.n", source);
         let Err(CompileError::Rejected(errors)) = outcome else {
             panic!("expected missing branch value: {source}: {outcome:?}");
         };
@@ -2281,7 +2276,7 @@ fn later_divergent_arguments_preserve_branch_value_diagnostics() {
         );
         assert!(errors[0].data.is_empty());
         assert!(errors[0].unexpected_token.is_none());
-        errors[0].validate("dead_args.nx", source).unwrap();
+        errors[0].validate("dead_args.n", source).unwrap();
     }
 }
 
@@ -2293,8 +2288,7 @@ fn divergent_left_operands_reject_unit_with_numeric_expected_type() {
         "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = v + ();\n}\n",
     ];
     for source in cases {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("divergent_unit.nx", source)
-        else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("divergent_unit.n", source) else {
             panic!("expected type mismatch: {source}");
         };
         assert_eq!(errors.len(), 1, "{source}: {errors:?}");
@@ -2336,7 +2330,7 @@ fn divergent_left_operands_reject_unit_with_numeric_expected_type() {
                     && r.span.end == unit + 2),
             "{source}"
         );
-        d.validate("divergent_unit.nx", source).unwrap();
+        d.validate("divergent_unit.n", source).unwrap();
     }
 }
 
@@ -2347,7 +2341,7 @@ fn deferred_numeric_operands_pass_expected_type_into_branch_values() {
             let source = format!(
                 "fn Main(){{let v=if true then {{return;}}else{{return;}};let w={left}{op}(if true then {{value:();}}else{{return;}});}}"
             );
-            let Err(CompileError::Rejected(errors)) = compile_scalar("numeric_branch.nx", &source)
+            let Err(CompileError::Rejected(errors)) = compile_scalar("numeric_branch.n", &source)
             else {
                 panic!("expected mismatch: {source}");
             };
@@ -2371,7 +2365,7 @@ fn deferred_numeric_operands_pass_expected_type_into_branch_values() {
                 Some(&crate::diagnostic::DataValue::String("()".into())),
                 "{source}"
             );
-            d.validate("numeric_branch.nx", &source).unwrap();
+            d.validate("numeric_branch.n", &source).unwrap();
         }
     }
 }
@@ -2379,7 +2373,7 @@ fn deferred_numeric_operands_pass_expected_type_into_branch_values() {
 #[test]
 fn wholly_deferred_array_keeps_its_contextual_bottom_type() {
     let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let a = [v];\n    let w = a + 1;\n}\n";
-    let program = compile_scalar("deferred_array.nx", source).unwrap();
+    let program = compile_scalar("deferred_array.n", source).unwrap();
     assert!(
         crate::interp::run_scalar(&program)
             .observations
@@ -2391,7 +2385,7 @@ fn wholly_deferred_array_keeps_its_contextual_bottom_type() {
 #[test]
 fn numeric_lowering_rejects_non_numeric_left_without_checker() {
     let source = "fn Main() {\n    let a = [1];\n    let v = a + 1;\n}\n";
-    let ast = crate::frontend::parse::parse("numeric_left.nx", source).unwrap();
+    let ast = crate::frontend::parse::parse("numeric_left.n", source).unwrap();
     let Err(CompileError::Rejected(errors)) = super::lower::compile_ast(&ast, source) else {
         panic!("lowering must preserve the numeric operand rule");
     };
@@ -2412,7 +2406,7 @@ fn numeric_lowering_rejects_non_numeric_left_without_checker() {
         d.data.get("found_type"),
         Some(&crate::diagnostic::DataValue::String("Array<I64>".into()))
     );
-    d.validate("numeric_left.nx", source).unwrap();
+    d.validate("numeric_left.n", source).unwrap();
 }
 
 #[test]
@@ -2429,10 +2423,10 @@ fn adr_gap_never_is_bottom_for_equality_and_array_inference() {
         format!("fn Main(){{let x={dv}==();}}"),
         format!("fn Main(){{let x=()=={dv};}}"),
     ] {
-        compile_scalar("never_bottom.nx", &source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
+        compile_scalar("never_bottom.n", &source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
     }
     let source = format!("fn Main(){{let x=[{dv},true,1];}}");
-    let Err(CompileError::Rejected(errors)) = compile_scalar("never_bottom.nx", &source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("never_bottom.n", &source) else {
         panic!("expected array mismatch: {source}");
     };
     assert_eq!(errors[0].code, "NX-E0102");
@@ -2442,13 +2436,13 @@ fn adr_gap_never_is_bottom_for_equality_and_array_inference() {
         Some((at, at + 1))
     );
     let source = format!("fn Main(){{let x=[{dv},1];}}");
-    let program = compile_scalar("never_bottom.nx", &source).unwrap();
+    let program = compile_scalar("never_bottom.n", &source).unwrap();
     assert_eq!(
         program.functions.function("Main").unwrap().locals[0].ty,
         model::Ty::Array(Box::new(model::Ty::I64))
     );
     let source = "fn Main() {\n    let x: Array<I64> = [];\n}\n";
-    let program = compile_scalar("never_bottom.nx", source).unwrap();
+    let program = compile_scalar("never_bottom.n", source).unwrap();
     assert_eq!(
         program.functions.function("Main").unwrap().locals[0].ty,
         model::Ty::Array(Box::new(model::Ty::I64))
@@ -2466,17 +2460,17 @@ fn deferred_var_assignment_accepts_value_branches_and_fixes_type_once() {
         ("", "F()"),
     ] {
         let source = format!("fn F()->I64{{return 3;}} fn Main(){{{prefix}var v={dv};v={rhs};}}");
-        compile_scalar("deferred_assignment.nx", &source)
+        compile_scalar("deferred_assignment.n", &source)
             .unwrap_or_else(|e| panic!("{source}: {e:?}"));
     }
     for body in ["if true{v=3;}else{v=7;}", "while false{v=3;}", "{v=3;}"] {
         let source = format!("fn Main(){{var v={dv};{body}}}");
-        compile_scalar("deferred_assignment.nx", &source)
+        compile_scalar("deferred_assignment.n", &source)
             .unwrap_or_else(|e| panic!("{source}: {e:?}"));
     }
     let source =
         format!("fn Main(){{var v={dv};v=if true then {{value:3;}}else{{value:7;}};v=true;}}");
-    let Err(CompileError::Rejected(errors)) = compile_scalar("deferred_assignment.nx", &source)
+    let Err(CompileError::Rejected(errors)) = compile_scalar("deferred_assignment.n", &source)
     else {
         panic!("expected later type mismatch");
     };
@@ -2496,14 +2490,14 @@ fn deferred_var_assignment_accepts_value_branches_and_fixes_type_once() {
     );
     assert_eq!(errors[0].subcause.as_deref(), Some("type_mismatch"));
     errors[0]
-        .validate("deferred_assignment.nx", &source)
+        .validate("deferred_assignment.n", &source)
         .unwrap();
     let source = format!("fn Main(){{var v={dv};let w=v;v=3;let z:I64=w;}}");
-    compile_scalar("deferred_assignment.nx", &source)
+    compile_scalar("deferred_assignment.n", &source)
         .expect("reading before the first assignment preserves the deferred type");
     let source =
         format!("fn Main(){{var v={dv};v=if true then {{return;}}else{{return;}};v=true;}}");
-    compile_scalar("deferred_assignment.nx", &source)
+    compile_scalar("deferred_assignment.n", &source)
         .expect("a diverging assignment does not fix the deferred type");
 }
 
@@ -2512,7 +2506,7 @@ fn analyzed_binary_assignment_records_intrinsic_result_type() {
     let dv = "if true then {return;}else{return;}";
     for (rhs, ty) in [("1+2", model::Ty::I64), ("1<2", model::Ty::Bool)] {
         let source = format!("fn Main(){{var v={dv};v={rhs};}}");
-        let program = compile_scalar("analyzed_binary.nx", &source).unwrap();
+        let program = compile_scalar("analyzed_binary.n", &source).unwrap();
         assert_eq!(
             program.functions.function("Main").unwrap().locals[0].ty,
             ty,
@@ -2528,7 +2522,7 @@ fn nested_binary_operand_error_precedes_enclosing_type_error() {
         format!("fn Main(){{let w=((({dv})-())-());}}"),
         format!("fn H(x:view Bool){{}} fn Main(){{H(({dv}-()));}}"),
     ] {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("nested_operand.nx", &source)
+        let Err(CompileError::Rejected(errors)) = compile_scalar("nested_operand.n", &source)
         else {
             panic!("expected operand mismatch: {source}");
         };
@@ -2563,10 +2557,10 @@ fn independent_right_operand_errors_survive_divergence_and_other_errors() {
     for (index, template) in templates.into_iter().enumerate() {
         let divergent = template.replacen('@', dv, 1);
         let live = template.replacen('@', "0", 1);
-        let Err(CompileError::Rejected(dead)) = compile_scalar("independent.nx", &divergent) else {
+        let Err(CompileError::Rejected(dead)) = compile_scalar("independent.n", &divergent) else {
             panic!("expected rejection: {divergent}");
         };
-        let Err(CompileError::Rejected(alive)) = compile_scalar("independent.nx", &live) else {
+        let Err(CompileError::Rejected(alive)) = compile_scalar("independent.n", &live) else {
             panic!("expected live rejection: {live}");
         };
         let origin = template.find('@').unwrap() as u64;
@@ -2610,7 +2604,7 @@ fn deferred_left_equality_value_branch_keeps_never_internal() {
         format!("let b=v=={branch};"),
     ] {
         let source = format!("fn Main(){{let v=if true then {{return;}}else{{return;}};{body}}}");
-        let result = compile_scalar("deferred_equal.nx", &source);
+        let result = compile_scalar("deferred_equal.n", &source);
         assert!(result.is_ok(), "{source}: {result:?}");
     }
 }
@@ -2618,7 +2612,7 @@ fn deferred_left_equality_value_branch_keeps_never_internal() {
 #[test]
 fn numeric_lowering_expects_branch_value_at_its_own_span() {
     let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = v + (if true then () else {\n        return;\n    });\n}\n";
-    let ast = crate::frontend::parse::parse("numeric_expected.nx", source).unwrap();
+    let ast = crate::frontend::parse::parse("numeric_expected.n", source).unwrap();
     let Err(CompileError::Rejected(errors)) = super::lower::compile_ast(&ast, source) else {
         panic!("expected mismatch");
     };
@@ -2643,7 +2637,7 @@ fn numeric_lowering_expects_branch_value_at_its_own_span() {
 fn long_value_branch_chain_obeys_published_expression_height() {
     let term = "(if true then {value:1;}else{value:2;})";
     let source = format!("fn Main(){{let x={};}}", vec![term; 127].join("+"));
-    compile_scalar("long_branch_chain.nx", &source).unwrap();
+    compile_scalar("long_branch_chain.n", &source).unwrap();
 }
 
 #[test]
@@ -2654,7 +2648,7 @@ fn adr_gap_deferred_var_aliases_do_not_unify_types() {
         format!("var v={dv};var w=true;w=v;v=3;"),
     ] {
         let source = format!("fn Main(){{{body}}}");
-        compile_scalar("deferred_alias.nx", &source)
+        compile_scalar("deferred_alias.n", &source)
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
     }
 }
@@ -2915,8 +2909,8 @@ fn injected_divergence_matches_live_twin_diagnostics() {
         let at = template.find('@').unwrap() as u64;
         let divergent = template.replacen('@', divergence, 1);
         let live = template.replacen('@', literal, 1);
-        let dead_result = compile_scalar("twin.nx", &divergent);
-        let live_result = compile_scalar("twin.nx", &live);
+        let dead_result = compile_scalar("twin.n", &divergent);
+        let live_result = compile_scalar("twin.n", &live);
         match (dead_result, live_result) {
             (Ok(dead), Ok(alive)) => {
                 assert!(!expected_rejection, "incorrect acceptance at seed {seed}");
@@ -2936,8 +2930,8 @@ fn injected_divergence_matches_live_twin_diagnostics() {
                         !format!("{:?}", dead.data).contains("Never"),
                         "seed {seed}: {divergent}"
                     );
-                    dead.validate("twin.nx", &divergent).unwrap();
-                    alive.validate("twin.nx", &live).unwrap();
+                    dead.validate("twin.n", &divergent).unwrap();
+                    alive.validate("twin.n", &live).unwrap();
                     let map = |offset: u64| -> u64 {
                         let end = at + divergence.len() as u64;
                         if offset <= at {
@@ -2997,7 +2991,7 @@ fn divergence_in_argument_and_index_checks_later_values() {
         "fn Main() {\n    var a = [1];\n    a[if true then {\n        return;\n    } else {\n        return;\n    }] = if true then {\n        1;\n    } else 2;\n}\n",
     ];
     for source in sources {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_later.nx", source) else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_later.n", source) else {
             panic!("expected missing branch value: {source}");
         };
         assert!(
@@ -3013,7 +3007,7 @@ fn divergence_in_argument_and_index_checks_later_values() {
 #[test]
 fn value_after_return_is_checked_in_dead_branch() {
     let source = "fn Main() {\n    let x = if true then {\n        return;\n        value: (if true then {\n            1;\n        } else 2);\n    } else 3;\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_value.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_value.n", source) else {
         panic!("expected missing branch value");
     };
     assert!(
@@ -3027,7 +3021,7 @@ fn value_after_return_is_checked_in_dead_branch() {
 #[test]
 fn divergent_while_condition_checks_body() {
     let source = "fn Main() {\n    while (if true then {\n        return;\n    } else {\n        return;\n    }) {\n        let r = MockOpen(1);\n        Drop(r);\n        Inspect(r);\n    }\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_while.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_while.n", source) else {
         panic!("expected consumed resource diagnostic");
     };
     assert!(
@@ -3045,7 +3039,7 @@ fn divergent_intrinsic_and_array_elements_check_later_branches() {
         "fn Main() {\n    let a = [(if true then {\n        return;\n    } else {\n        return;\n    }), if true then {\n        1;\n    } else 2];\n}\n",
     ];
     for source in sources {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_items.nx", source) else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_items.n", source) else {
             panic!("expected missing branch value: {source}");
         };
         assert!(
@@ -3070,7 +3064,7 @@ fn dead_analysis_reports_branch_structure_across_expression_positions() {
         "fn Main() {\n    var a = [1];\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    a[v] = if true then {\n        1;\n    } else 2;\n}\n",
     ];
     for source in sources {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_matrix.nx", source) else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_matrix.n", source) else {
             panic!("expected missing branch value: {source}");
         };
         assert!(
@@ -3086,10 +3080,10 @@ fn dead_analysis_reports_branch_structure_across_expression_positions() {
 #[test]
 fn valid_unreachable_siblings_do_not_create_ir_and_independent_errors_accumulate() {
     let valid = "fn Main() {\n    Print((if true then {\n        return;\n    } else {\n        return;\n    }) + (if true then 1 else 2));\n}\n";
-    assert!(compile_scalar("dead_valid.nx", valid).is_ok());
+    assert!(compile_scalar("dead_valid.n", valid).is_ok());
 
     let invalid = "fn Main() {\n    let r = MockOpen(1);\n    Drop(r);\n    Print((if true then {\n        return;\n    } else {\n        return;\n    }) + (if true then {\n        1;\n    } else 2));\n    Inspect(r);\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_errors.nx", invalid) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_errors.n", invalid) else {
         panic!("expected two independent diagnostics");
     };
     assert_eq!(errors.len(), 2, "{errors:?}");
@@ -3106,7 +3100,7 @@ fn valid_unreachable_siblings_do_not_create_ir_and_independent_errors_accumulate
 #[test]
 fn never_coerces_branch_value_without_a_visible_unit_type() {
     let valid = "fn Main() {\n    let x = if true then (if true then {\n        return;\n    } else {\n        return;\n    }) - 3 else 1;\n}\n";
-    let result = compile_scalar("never_value.nx", valid);
+    let result = compile_scalar("never_value.n", valid);
     assert!(result.is_ok(), "{result:?}");
 }
 
@@ -3115,7 +3109,7 @@ fn divergent_left_addition_still_checks_the_right_operand_domain() {
     use crate::diagnostic::{DataValue, Operation, RelatedRole, Stage};
     // F0-0002 §4.7 permits the divergent operand to coerce; §4.8 keeps + on i64.
     let source = "fn Main() {\n    Print((if true then {\n        return;\n    } else {\n        return;\n    }) + true);\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("never_add_bool.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("never_add_bool.n", source) else {
         panic!("expected i64 operand mismatch");
     };
     assert_eq!(errors.len(), 1, "{errors:?}");
@@ -3151,7 +3145,7 @@ fn divergent_left_addition_still_checks_the_right_operand_domain() {
         error.data.get("found_type"),
         Some(&DataValue::String("Bool".into()))
     );
-    error.validate("never_add_bool.nx", source).unwrap();
+    error.validate("never_add_bool.n", source).unwrap();
 }
 
 #[test]
@@ -3165,7 +3159,7 @@ fn later_uses_of_divergent_bindings_keep_structural_diagnostics() {
         "fn F() -> I64 {\n    let v = if true then {\n        return 1;\n    } else {\n        return 2;\n    };\n    return v + (if true then {\n        1;\n    } else 2);\n}\nfn Main() {\n    F();\n}\n",
     ];
     for source in sources {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_binding_use.nx", source)
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_binding_use.n", source)
         else {
             panic!("expected missing branch value: {source}");
         };
@@ -3185,7 +3179,7 @@ fn independent_branch_ownership_errors_accumulate_in_live_and_dead_modes() {
         let source = format!(
             "fn Main(){{{prefix}let r=MockOpen(1);Drop(r);let x=if true then {{value:Inspect(r);}}else{{value:Inspect(r);}};}}"
         );
-        let Err(CompileError::Rejected(errors)) = compile_scalar("branch_cardinality.nx", &source)
+        let Err(CompileError::Rejected(errors)) = compile_scalar("branch_cardinality.n", &source)
         else {
             panic!("expected ownership diagnostics: {source}");
         };
@@ -3195,7 +3189,7 @@ fn independent_branch_ownership_errors_accumulate_in_live_and_dead_modes() {
                 (error.code.as_str(), error.subcause.as_deref()),
                 ("NX-E0202", Some("definitely_consumed"))
             );
-            error.validate("branch_cardinality.nx", &source).unwrap();
+            error.validate("branch_cardinality.n", &source).unwrap();
         }
     }
 }
@@ -3203,7 +3197,7 @@ fn independent_branch_ownership_errors_accumulate_in_live_and_dead_modes() {
 #[test]
 fn consumed_divergent_binding_is_checked_when_used_as_read_argument() {
     let source = "fn H(a: view I64, b: view I64) {}\nfn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    Drop(v);\n    H(v, 1);\n}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_read_arg.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("dead_read_arg.n", source) else {
         panic!("expected consumed binding diagnostic");
     };
     assert_eq!(errors.len(), 1, "{errors:?}");
@@ -3211,7 +3205,7 @@ fn consumed_divergent_binding_is_checked_when_used_as_read_argument() {
         (errors[0].code.as_str(), errors[0].subcause.as_deref()),
         ("NX-E0202", Some("definitely_consumed"))
     );
-    errors[0].validate("dead_read_arg.nx", source).unwrap();
+    errors[0].validate("dead_read_arg.n", source).unwrap();
 }
 
 #[test]
@@ -3219,7 +3213,7 @@ fn independent_intrinsic_arguments_accumulate_ownership_errors_in_dead_mode() {
     for prefix in ["", "return;"] {
         let source =
             format!("fn Main(){{{prefix}var a=[1];var b=[2];Drop(a);Drop(b);AssertEq(a,b);}}");
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_intrinsic_args.nx", &source)
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_intrinsic_args.n", &source)
         else {
             panic!("expected two consumed array diagnostics: {source}");
         };
@@ -3229,7 +3223,7 @@ fn independent_intrinsic_arguments_accumulate_ownership_errors_in_dead_mode() {
                 (error.code.as_str(), error.subcause.as_deref()),
                 ("NX-E0202", Some("definitely_consumed"))
             );
-            error.validate("dead_intrinsic_args.nx", &source).unwrap();
+            error.validate("dead_intrinsic_args.n", &source).unwrap();
         }
     }
 }
@@ -3239,7 +3233,7 @@ fn independent_array_elements_accumulate_ownership_errors_in_dead_mode() {
     for prefix in ["", "return;"] {
         let source =
             format!("fn Main(){{{prefix}var a=[1];var b=[2];Drop(a);Drop(b);let c=[a,b];}}");
-        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_array_items.nx", &source)
+        let Err(CompileError::Rejected(errors)) = compile_scalar("dead_array_items.n", &source)
         else {
             panic!("expected two consumed array diagnostics: {source}");
         };
@@ -3249,7 +3243,7 @@ fn independent_array_elements_accumulate_ownership_errors_in_dead_mode() {
                 (error.code.as_str(), error.subcause.as_deref()),
                 ("NX-E0202", Some("definitely_consumed"))
             );
-            error.validate("dead_array_items.nx", &source).unwrap();
+            error.validate("dead_array_items.n", &source).unwrap();
         }
     }
 }
@@ -3298,7 +3292,7 @@ fn branch_value_contract_covers_divergent_expression_positions() {
             })
             .collect();
         assert_eq!(expected.len(), 1, "fixture: {source}");
-        let Err(CompileError::Rejected(errors)) = compile_scalar("branch_position.nx", source)
+        let Err(CompileError::Rejected(errors)) = compile_scalar("branch_position.n", source)
         else {
             panic!("expected branch rejection: {source}")
         };
@@ -3335,7 +3329,7 @@ fn branch_value_contract_covers_divergent_expression_positions() {
             );
             assert!(error.data.is_empty(), "{source}");
             assert!(error.unexpected_token.is_none(), "{source}");
-            error.validate("branch_position.nx", source).unwrap();
+            error.validate("branch_position.n", source).unwrap();
         }
     }
 }
@@ -3360,7 +3354,7 @@ fn independent_branch_value_errors_keep_exact_contract_after_divergence() {
         ),
     ];
     for (source, forms) in cases {
-        let Err(CompileError::Rejected(errors)) = compile_scalar("branch_many.nx", source) else {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("branch_many.n", source) else {
             panic!("expected two branch errors: {source}")
         };
         assert_eq!(errors.len(), 2, "{source}: {errors:?}");
@@ -3413,7 +3407,7 @@ fn independent_branch_value_errors_keep_exact_contract_after_divergence() {
             );
             assert!(error.data.is_empty());
             assert!(error.unexpected_token.is_none());
-            error.validate("branch_many.nx", source).unwrap();
+            error.validate("branch_many.n", source).unwrap();
         }
     }
 }
@@ -3512,12 +3506,12 @@ fn divergent_and_live_sources_scale_in_work_bytes_and_allocations() {
                     source.push_str(pattern);
                 }
                 source.push('}');
-                crate::test_alloc::reset("dead_scale_counter.nx");
+                crate::test_alloc::reset("dead_scale_counter.n");
                 super::CFG_WORK.store(0, std::sync::atomic::Ordering::Relaxed);
-                let result = compile_scalar("dead_scale_counter.nx", &source);
+                let result = compile_scalar("dead_scale_counter.n", &source);
                 result.unwrap_or_else(|e| panic!("family {family} {mode}: {e:?}"));
                 work[at] = super::CFG_WORK.load(std::sync::atomic::Ordering::Relaxed);
-                traffic[at] = crate::test_alloc::snapshot("dead_scale_counter.nx");
+                traffic[at] = crate::test_alloc::snapshot("dead_scale_counter.n");
             }
             for (name, small, large) in [
                 ("steps", work[0], work[1]),

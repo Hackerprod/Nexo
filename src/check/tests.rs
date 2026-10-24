@@ -4,7 +4,7 @@ use crate::diagnostic::{
 };
 use crate::frontend::parse;
 
-const FILE: &str = "i03.nx";
+const FILE: &str = "i03.n";
 
 fn byte_span(source: &str, needle: &str, occurrence: usize) -> (u64, u64) {
     let mut offset = 0;
@@ -2748,14 +2748,14 @@ fn semantic_passes_scale_with_source_bytes() {
         let mut observations = Vec::new();
         for size in [262_144, 1_048_576] {
             let source = source_for(family, size);
-            crate::test_alloc::reset("semantic_scale_counter.nx");
-            check_proposed("semantic_scale_counter.nx", &source, false).unwrap_or_else(|d| {
+            crate::test_alloc::reset("semantic_scale_counter.n");
+            check_proposed("semantic_scale_counter.n", &source, false).unwrap_or_else(|d| {
                 panic!(
                     "family {family}, size {size}: {} {:?}",
                     d[0].code, d[0].primary_span
                 )
             });
-            observations.push(crate::test_alloc::snapshot("semantic_scale_counter.nx"));
+            observations.push(crate::test_alloc::snapshot("semantic_scale_counter.n"));
         }
         println!("semantic family {family:02}: {observations:?}");
         for (small, large) in [
@@ -2773,7 +2773,7 @@ fn semantic_passes_scale_with_source_bytes() {
 fn isolated_edit_is_a_parse_diagnostic_in_check() {
     for body in ["var b=edit r;", "r=edit r;", "[edit r];", "edit r;"] {
         let source = format!("fn Main(){{var r=1;{body}}}");
-        let errors = super::check_proposed("edit.nx", &source, false).unwrap_err();
+        let errors = super::check_proposed("edit.n", &source, false).unwrap_err();
         assert_eq!(errors.len(), 1);
         let error = &errors[0];
         assert_eq!(error.code, "NX-E0002");
@@ -2783,10 +2783,10 @@ fn isolated_edit_is_a_parse_diagnostic_in_check() {
             source.find("edit r").unwrap()
         );
         assert!(error.data.is_empty());
-        error.validate("edit.nx", &source).unwrap();
+        error.validate("edit.n", &source).unwrap();
     }
     super::check_proposed(
-        "edit.nx",
+        "edit.n",
         "fn F(x:edit I64){} fn Main(){var r=1;F(edit r);}",
         false,
     )

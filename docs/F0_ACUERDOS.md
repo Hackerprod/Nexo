@@ -217,7 +217,7 @@ la sintaxis concreta no importa.
 **Relación con el roadmap 0.2.** D01 acepta llaves, `let`/`var`, `fn`, `struct`, patrones y
 terminadores opcionales: una superficie de la familia C/Rust. El roadmap prevé congelar la sintaxis
 en F0–F1. La decisión del propietario del 2026-10-22 fijó B como única superficie oficial;
-véanse F0-D14 §5 y F0-D15. Los archivos usan `.nx`.
+véanse F0-D14 §5 y F0-D15. La decisión del propietario del 2026-10-24 fija `.n` como extensión oficial de los archivos fuente.
 
 **Estado del código y coste real de cambiar.** La arquitectura separa la superficie de la
 semántica: el lexer (`frontend/lex.rs`), el parser (`frontend/parse.rs`) y el impresor canónico

@@ -13,7 +13,7 @@ fn source_file(bytes: &[u8]) -> PathBuf {
         .join("cli");
     std::fs::create_dir_all(&dir).unwrap();
     let path = dir.join(format!(
-        "source-{}-{}.nx",
+        "source-{}-{}.n",
         std::process::id(),
         NEXT.fetch_add(1, Ordering::Relaxed)
     ));
@@ -53,6 +53,28 @@ fn cli_check_and_run_use_official_b_pipeline() {
     assert_eq!(run.status.code(), Some(0));
     assert_eq!(run.stdout, b"3\n");
     assert_eq!(run.stderr, b"nexo-result:()\n");
+}
+
+#[test]
+fn cli_check_and_run_ignore_source_extension() {
+    let official = source_file(b"fn Main(){Print(7);}");
+    let without_extension = official.with_extension("");
+    std::fs::copy(&official, &without_extension).unwrap();
+
+    for command in ["check", "run"] {
+        let from_official = invoke(&[command, official.to_str().unwrap()]);
+        let from_without_extension = invoke(&[command, without_extension.to_str().unwrap()]);
+        assert_eq!(from_official.status.code(), Some(0), "{command}");
+        assert_eq!(
+            from_official.status.code(),
+            from_without_extension.status.code()
+        );
+        assert_eq!(from_official.stdout, from_without_extension.stdout);
+        assert_eq!(from_official.stderr, from_without_extension.stderr);
+    }
+
+    std::fs::remove_file(official).unwrap();
+    std::fs::remove_file(without_extension).unwrap();
 }
 
 #[test]
@@ -161,7 +183,7 @@ fn cli_array_equality_releases_loans_before_write() {
 
 #[test]
 fn cli_rejects_options_before_reading_any_source() {
-    let missing = "target/test-fixtures/no-such-source.nx";
+    let missing = "target/test-fixtures/no-such-source.n";
     for args in [
         vec!["check", missing, "--profile", "x"],
         vec!["run", "--profile=x", missing],
@@ -193,7 +215,7 @@ fn cli_rejects_options_before_reading_any_source() {
 
 #[test]
 fn cli_reports_unreadable_and_invalid_utf8_before_parsing() {
-    let missing = invoke(&["check", "target/test-fixtures/no-such-source.nx"]);
+    let missing = invoke(&["check", "target/test-fixtures/no-such-source.n"]);
     assert_eq!(missing.status.code(), Some(2));
     assert!(missing.stdout.is_empty());
     assert!(text(&missing.stderr).starts_with("NX-E0004:0:0:"));
@@ -284,7 +306,7 @@ fn cli_source_byte_boundary_precedes_utf8_decoding() {
 #[test]
 fn cli_preserves_corpus_semantics_and_events() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("corpus");
-    let transfer = root.join("pass/resource_transfer.nx");
+    let transfer = root.join("pass/resource_transfer.n");
     let output = invoke(&["run", transfer.to_str().unwrap()]);
     assert_eq!(output.status.code(), Some(0));
     assert!(output.stdout.is_empty());
@@ -294,7 +316,7 @@ fn cli_preserves_corpus_semantics_and_events() {
     );
 
     for command in ["check", "run"] {
-        let failure = root.join("fail/use_after_move.nx");
+        let failure = root.join("fail/use_after_move.n");
         let output = invoke(&[command, failure.to_str().unwrap()]);
         assert_eq!(output.status.code(), Some(1));
         assert!(output.stdout.is_empty());

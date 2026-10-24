@@ -38,8 +38,8 @@ Rust 1.99.1, sin dependencias externas. Se necesita `rustfmt` y `clippy` para
 validación. La cadena está fijada en `rust-toolchain.toml`.
 
 ```sh
-cargo run --locked --offline -- check corpus/pass/nested_copy.nx
-cargo run --locked --offline -- run corpus/pass/nested_copy.nx
+cargo run --locked --offline -- check corpus/pass/nested_copy.n
+cargo run --locked --offline -- run corpus/pass/nested_copy.n
 sh scripts/validate.sh
 ```
 

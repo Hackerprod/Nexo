@@ -3559,7 +3559,7 @@ mod tests {
             message: "Literal flotante fuera del perfil.".into(),
             operation: Operation::SyntaxParse,
             primary_span: Some(Span {
-                file: "decimal.nx".into(),
+                file: "decimal.n".into(),
                 start: 16,
                 end: 19,
             }),
@@ -3582,10 +3582,10 @@ mod tests {
     fn nx_json_matches_published_fixture_and_has_all_keys() {
         let s = "fn Main(){let x=0.5;}";
         let d = sample();
-        let json = d.to_json("decimal.nx", s).unwrap();
+        let json = d.to_json("decimal.n", s).unwrap();
         assert_eq!(
             json,
-            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-b-v2","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"parse","message":"Literal flotante fuera del perfil.","operation":"syntax.parse","primary_span":{"file":"decimal.nx","start":16,"end":19},"related_spans":[],"cause_chain":[],"feature_id":"float_literal","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"later_adr"}}"#
+            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-b-v2","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"parse","message":"Literal flotante fuera del perfil.","operation":"syntax.parse","primary_span":{"file":"decimal.n","start":16,"end":19},"related_spans":[],"cause_chain":[],"feature_id":"float_literal","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"later_adr"}}"#
         );
         let keys = [
             "schema_version",
@@ -3624,24 +3624,24 @@ mod tests {
         d.stage = Stage::Runtime;
         d.operation = Operation::ValueAdd;
         d.primary_span = Some(Span {
-            file: "decimal.nx".into(),
+            file: "decimal.n".into(),
             start: 16,
             end: 19,
         });
         d.data.clear();
-        let json = d.to_json("decimal.nx", "fn Main(){let x=0.5;}").unwrap();
+        let json = d.to_json("decimal.n", "fn Main(){let x=0.5;}").unwrap();
         assert!(json.contains("F0-0002-sim"));
         d.message = "Desbordamiento de suma i64.".into();
         d.operation = Operation::ValueAdd;
         d.primary_span = Some(Span {
-            file: "suma.nx".into(),
+            file: "suma.n".into(),
             start: 16,
             end: 37,
         });
         let source = "fn Main(){Print(9223372036854775807+1);}";
         assert_eq!(
-            d.to_json("suma.nx", source).unwrap(),
-            r#"{"schema_version":1,"diagnostic_namespace":"F0-0002-sim","profile_id":"f0-0002-b-v2","code":"R0101","subcause":null,"rule":"R0101","explanation_id":null,"severity":"error","stage":"runtime","message":"Desbordamiento de suma i64.","operation":"value.add","primary_span":{"file":"suma.nx","start":16,"end":37},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{}}"#
+            d.to_json("suma.n", source).unwrap(),
+            r#"{"schema_version":1,"diagnostic_namespace":"F0-0002-sim","profile_id":"f0-0002-b-v2","code":"R0101","subcause":null,"rule":"R0101","explanation_id":null,"severity":"error","stage":"runtime","message":"Desbordamiento de suma i64.","operation":"value.add","primary_span":{"file":"suma.n","start":16,"end":37},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{}}"#
         );
     }
     #[test]
@@ -3655,7 +3655,7 @@ mod tests {
         assert!(d.validate("x", "🙂").is_err());
         d = sample();
         d.feature_id = Some("invented".into());
-        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
     }
 
     #[test]
@@ -3675,15 +3675,15 @@ mod tests {
             let mut d = sample();
             d.profile_id = profile.into();
             d.primary_span = Some(Span {
-                file: "b.nx".into(),
+                file: "b.n".into(),
                 start: 16,
                 end: 19,
             });
-            assert!(d.validate("b.nx", source).is_ok(), "{profile}");
+            assert!(d.validate("b.n", source).is_ok(), "{profile}");
         }
         let mut d = sample();
         d.profile_id = "f0-0002-b-test-types-32-v1".into();
-        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
     }
 
     #[test]
@@ -3701,7 +3701,7 @@ mod tests {
             "pending_scope".into(),
             DataValue::String("migration".into()),
         );
-        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
         d.feature_id = Some("implementation_limit".into());
         d.stage = Stage::Types;
         d.operation = Operation::TypesCheck;
@@ -3709,20 +3709,20 @@ mod tests {
             d.data
                 .insert("pending_scope".into(), DataValue::String(scope.into()));
             assert!(
-                d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_ok(),
+                d.validate("decimal.n", "fn Main(){let x=0.5;}").is_ok(),
                 "{scope}: {:?}",
-                d.validate("decimal.nx", "fn Main(){let x=0.5;}")
+                d.validate("decimal.n", "fn Main(){let x=0.5;}")
             );
         }
         d.data.insert(
             "pending_scope".into(),
             DataValue::String("later_adr".into()),
         );
-        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
         d.profile_id = "f0-0002-v1".into();
         d.data
             .insert("pending_scope".into(), DataValue::String("I08".into()));
-        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
     }
 
     #[test]
@@ -3814,7 +3814,7 @@ mod tests {
     #[test]
     fn json_key_order_is_fixed_by_the_serialized_schema() {
         let json = sample()
-            .to_json("decimal.nx", "fn Main(){let x=0.5;}")
+            .to_json("decimal.n", "fn Main(){let x=0.5;}")
             .unwrap();
         let names = [
             "schema_version",
@@ -3875,7 +3875,7 @@ mod tests {
         d.related_spans.push(RelatedSpan {
             role: RelatedRole::Origin,
             span: Span {
-                file: "decimal.nx".into(),
+                file: "decimal.n".into(),
                 start: 10,
                 end: 16,
             },
@@ -3890,17 +3890,15 @@ mod tests {
             }),
             evidence: Evidence::Verified,
         });
-        let rendered = d
-            .render_text("decimal.nx", "fn Main(){let x=0.5;}")
-            .unwrap();
+        let rendered = d.render_text("decimal.n", "fn Main(){let x=0.5;}").unwrap();
         assert_eq!(
             rendered,
             concat!(
                 "NX-E0006:1:17: Literal flotante fuera del perfil.\n",
                 "  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: parse\n  operation: syntax.parse\n",
-                "  at: {\"end\":19,\"file\":\"decimal.nx\",\"start\":16}\n",
+                "  at: {\"end\":19,\"file\":\"decimal.n\",\"start\":16}\n",
                 "  feature_id: float_literal\n",
-                "  related: {\"role\":\"origin\",\"span\":{\"end\":16,\"file\":\"decimal.nx\",\"start\":10}}\n",
+                "  related: {\"role\":\"origin\",\"span\":{\"end\":16,\"file\":\"decimal.n\",\"start\":10}}\n",
                 "  cause: {\"entity\":{\"id\":\"prelude:print\",\"kind\":\"intrinsic\"},\"evidence\":\"verified\",\"kind\":\"call\",\"operation\":\"function.call\",\"span\":null}\n",
                 "  data: {\"pending_scope\":\"later_adr\"}\n"
             )
@@ -3917,7 +3915,7 @@ mod tests {
     #[test]
     fn missing_terminator_text_uses_published_lines_and_canonical_json() {
         let source = "fn Main(){let x=1}";
-        let file = "terminador.nx";
+        let file = "terminador.n";
         let mut diagnostic = Diagnostic {
             schema_version: 1,
             diagnostic_namespace: Namespace::NexoProposedV1,
@@ -3983,17 +3981,17 @@ mod tests {
         let text = diagnostic.render_text(file, source).unwrap();
         assert_eq!(
             diagnostic.to_json(file, source).unwrap(),
-            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-b-v2","code":"NX-E0005","subcause":null,"rule":"NX-E0005","explanation_id":"NX-E0005","severity":"error","stage":"parse","message":"Falta un terminador de sentencia.","operation":"syntax.parse","primary_span":{"file":"terminador.nx","start":17,"end":18},"related_spans":[{"role":"preceding_expression","span":{"file":"terminador.nx","start":16,"end":17}}],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"}","span":{"file":"terminador.nx","start":17,"end":18}},"expected_tokens":[";"],"expected_tokens_kind":"canonical_insertion","parser_context":"statement_terminator","recognized_prefix":{"file":"terminador.nx","start":10,"end":17},"repair":[{"id":"insert_terminator","status":"proposed","description":"Insertar un terminador explícito.","edits":[{"span":{"file":"terminador.nx","start":17,"end":17},"expected_text":"","replacement":";"}],"validation":null,"consequences":["Termina el binding antes del cierre del bloque."]}],"data":{}}"#
+            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-b-v2","code":"NX-E0005","subcause":null,"rule":"NX-E0005","explanation_id":"NX-E0005","severity":"error","stage":"parse","message":"Falta un terminador de sentencia.","operation":"syntax.parse","primary_span":{"file":"terminador.n","start":17,"end":18},"related_spans":[{"role":"preceding_expression","span":{"file":"terminador.n","start":16,"end":17}}],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"}","span":{"file":"terminador.n","start":17,"end":18}},"expected_tokens":[";"],"expected_tokens_kind":"canonical_insertion","parser_context":"statement_terminator","recognized_prefix":{"file":"terminador.n","start":10,"end":17},"repair":[{"id":"insert_terminator","status":"proposed","description":"Insertar un terminador explícito.","edits":[{"span":{"file":"terminador.n","start":17,"end":17},"expected_text":"","replacement":";"}],"validation":null,"consequences":["Termina el binding antes del cierre del bloque."]}],"data":{}}"#
         );
         assert_eq!(
             text,
             concat!(
                 "NX-E0005:1:18: Falta un terminador de sentencia.\n",
                 "  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: parse\n  operation: syntax.parse\n",
-                "  at: {\"end\":18,\"file\":\"terminador.nx\",\"start\":17}\n",
-                "  related: {\"role\":\"preceding_expression\",\"span\":{\"end\":17,\"file\":\"terminador.nx\",\"start\":16}}\n",
-                "  syntax: {\"expected_tokens\":[\";\"],\"expected_tokens_kind\":\"canonical_insertion\",\"parser_context\":\"statement_terminator\",\"recognized_prefix\":{\"end\":17,\"file\":\"terminador.nx\",\"start\":10},\"unexpected_token\":{\"kind\":\"symbol\",\"span\":{\"end\":18,\"file\":\"terminador.nx\",\"start\":17},\"text\":\"}\"}}\n",
-                "  repair: {\"consequences\":[\"Termina el binding antes del cierre del bloque.\"],\"description\":\"Insertar un terminador explícito.\",\"edits\":[{\"expected_text\":\"\",\"replacement\":\";\",\"span\":{\"end\":17,\"file\":\"terminador.nx\",\"start\":17}}],\"id\":\"insert_terminator\",\"status\":\"proposed\",\"validation\":null}\n"
+                "  at: {\"end\":18,\"file\":\"terminador.n\",\"start\":17}\n",
+                "  related: {\"role\":\"preceding_expression\",\"span\":{\"end\":17,\"file\":\"terminador.n\",\"start\":16}}\n",
+                "  syntax: {\"expected_tokens\":[\";\"],\"expected_tokens_kind\":\"canonical_insertion\",\"parser_context\":\"statement_terminator\",\"recognized_prefix\":{\"end\":17,\"file\":\"terminador.n\",\"start\":10},\"unexpected_token\":{\"kind\":\"symbol\",\"span\":{\"end\":18,\"file\":\"terminador.n\",\"start\":17},\"text\":\"}\"}}\n",
+                "  repair: {\"consequences\":[\"Termina el binding antes del cierre del bloque.\"],\"description\":\"Insertar un terminador explícito.\",\"edits\":[{\"expected_text\":\"\",\"replacement\":\";\",\"span\":{\"end\":17,\"file\":\"terminador.n\",\"start\":17}}],\"id\":\"insert_terminator\",\"status\":\"proposed\",\"validation\":null}\n"
             )
         );
         diagnostic.repair[0].edits[0].expected_text = "}".into();

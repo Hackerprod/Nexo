@@ -30,10 +30,10 @@ fn omitted_token_comments_keep_selection_and_terminator() {
             source.replace('\n', "\r"),
             source.replace('\n', "\r\n"),
         ] {
-            let original = parse("omitted-token.nx", &written).unwrap();
-            let formatted = super::format::format("omitted-token.nx", &written).unwrap();
+            let original = parse("omitted-token.n", &written).unwrap();
+            let formatted = super::format::format("omitted-token.n", &written).unwrap();
             assert_eq!(formatted, expected, "{written:?}");
-            let reparsed = parse("omitted-token.nx", &formatted)
+            let reparsed = parse("omitted-token.n", &formatted)
                 .unwrap_or_else(|error| panic!("{written:?} => {formatted:?}: {error:?}"));
             assert_eq!(
                 ast_without_spans(original),
@@ -42,11 +42,11 @@ fn omitted_token_comments_keep_selection_and_terminator() {
             );
             assert_eq!(
                 formatted,
-                super::format::format("omitted-token.nx", &formatted).unwrap(),
+                super::format::format("omitted-token.n", &formatted).unwrap(),
                 "{written:?}"
             );
-            let source_comments = super::cst::parse_cst("omitted-token.nx", &written).unwrap();
-            let output_comments = super::cst::parse_cst("omitted-token.nx", &formatted).unwrap();
+            let source_comments = super::cst::parse_cst("omitted-token.n", &written).unwrap();
+            let output_comments = super::cst::parse_cst("omitted-token.n", &formatted).unwrap();
             let comment_text = |cst: &super::cst::Cst| {
                 cst.comments
                     .iter()
@@ -79,7 +79,7 @@ fn written_terminator_after_discarded_else_groups_keeps_its_comment() {
             case.replace('\n', "\r\n"),
         ] {
             assert_omitted_token_format(&source);
-            let formatted = super::format::format("else-close.nx", &source).unwrap();
+            let formatted = super::format::format("else-close.n", &source).unwrap();
             if source.contains("//e") {
                 assert!(formatted.contains("; //e"), "{source:?} => {formatted:?}");
             }
@@ -121,20 +121,20 @@ fn origin_and_relocation_guards() {
         }
     }
     let source = "fn M(){x=if a then 1 else\n// next\n(if b then 2 else 3);}";
-    let formatted = super::format::format("next-anchor.nx", source).unwrap();
+    let formatted = super::format::format("next-anchor.n", source).unwrap();
     let comment = formatted.find("// next").unwrap();
     let inner_if = formatted.rfind("if b").unwrap();
     assert!(comment < inner_if, "{formatted:?}");
     assert_omitted_token_format(source);
 
     let source = "fn M(){x=if a then 1 else(// adjacent\nif b then 2 else 3);}";
-    let formatted = super::format::format("adjacent-anchor.nx", source).unwrap();
+    let formatted = super::format::format("adjacent-anchor.n", source).unwrap();
     assert!(formatted.contains("else ( // adjacent"), "{formatted:?}");
     assert_omitted_token_format(source);
 }
 
 fn assert_omitted_token_format(source: &str) {
-    let cst = super::cst::parse_cst("token-origin.nx", source).unwrap();
+    let cst = super::cst::parse_cst("token-origin.n", source).unwrap();
     let emitted = super::print::print_with_cst(&cst).unwrap();
     // Independent, deliberately linear oracle for the complete §5.2 anchor
     // rule. It scans origins for every comment instead of using Anchors.
@@ -229,8 +229,8 @@ fn assert_omitted_token_format(source: &str) {
             }
         }
     }
-    let formatted = super::format::format_cst("token-origin.nx", &cst).unwrap();
-    let reparsed = parse("token-origin.nx", &formatted)
+    let formatted = super::format::format_cst("token-origin.n", &cst).unwrap();
+    let reparsed = parse("token-origin.n", &formatted)
         .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
     for function in &reparsed.functions {
         assert_simple_terminators(&function.body, &formatted);
@@ -242,10 +242,10 @@ fn assert_omitted_token_format(source: &str) {
     );
     assert_eq!(
         formatted,
-        super::format::format("token-origin.nx", &formatted).unwrap(),
+        super::format::format("token-origin.n", &formatted).unwrap(),
         "{source:?}"
     );
-    let output = super::cst::parse_cst("token-origin.nx", &formatted).unwrap();
+    let output = super::cst::parse_cst("token-origin.n", &formatted).unwrap();
     for (source_comment, output_comment) in cst.comments.iter().zip(&output.comments) {
         if let Some((function_index, _)) =
             cst.ast.functions.iter().enumerate().find(|(_, function)| {
@@ -398,7 +398,7 @@ fn omitted_token_neighbor_matrix() {
     let mut kinds = std::collections::BTreeSet::new();
     for (base_id, base) in bases.into_iter().enumerate() {
         assert_omitted_token_format(base);
-        let cst = super::cst::parse_cst("token-origin.nx", base).unwrap();
+        let cst = super::cst::parse_cst("token-origin.n", base).unwrap();
         let emitted = super::print::print_with_cst(&cst).unwrap();
         let mut retained = vec![false; cst.tokens.len()];
         for event in emitted.emissions {
@@ -420,7 +420,7 @@ fn omitted_token_neighbor_matrix() {
                 ] {
                     let mut source = base.to_owned();
                     source.insert_str(offset, &format!("// neighbor{newline}"));
-                    match parse("token-origin.nx", &source) {
+                    match parse("token-origin.n", &source) {
                         Ok(_) => {
                             assert_omitted_token_format(&source);
                             accepted += 1;
@@ -434,7 +434,7 @@ fn omitted_token_neighbor_matrix() {
                     if before {
                         let mut independent = base.to_owned();
                         independent.insert_str(offset, &format!("{newline}// neighbor{newline}"));
-                        match parse("token-origin.nx", &independent) {
+                        match parse("token-origin.n", &independent) {
                             Ok(_) => {
                                 assert_omitted_token_format(&independent);
                                 accepted += 1;
@@ -470,10 +470,10 @@ fn omitted_token_neighbor_matrix() {
 #[test]
 fn canonical_structure_keeps_block_boundary_and_comparison_precedence() {
     let block = "fn M(){{x;} y;}";
-    let formatted = super::format::format("structure.nx", block).unwrap();
+    let formatted = super::format::format("structure.n", block).unwrap();
     assert_eq!(formatted, "fn M() {\n    {\n        x;\n    }\n    y;\n}\n");
     let comparison = "fn M(){x=a<b+c;}";
-    let formatted = super::format::format("structure.nx", comparison).unwrap();
+    let formatted = super::format::format("structure.n", comparison).unwrap();
     assert_eq!(formatted, "fn M() {\n    x = a < b + c;\n}\n");
 }
 
@@ -482,7 +482,7 @@ fn omitted_token_close_keeps_two_comments_in_source_order() {
     let source = "fn M(){let t=if a then 1 else{value:2\n}// first\n// second\n;}";
     assert_omitted_token_format(source);
     let source = "fn M(){x=if a then 1 else ((// c\nif b then 2 else 3));}";
-    let formatted = super::format::format("output.nx", source).unwrap();
+    let formatted = super::format::format("output.n", source).unwrap();
     assert_eq!(
         formatted,
         "fn M() {\n    x = if a then 1 else ( // c\n    if b then 2 else 3);\n}\n"
@@ -527,14 +527,11 @@ fn omitted_token_output_contracts() {
         ),
     ];
     for (source, expected) in cases {
-        assert_eq!(
-            super::format::format("output.nx", source).unwrap(),
-            expected
-        );
+        assert_eq!(super::format::format("output.n", source).unwrap(), expected);
         assert_omitted_token_format(source);
     }
     let source = "fn M(){let x=1\n// before terminator\n;}";
-    let cst = super::cst::parse_cst("origin.nx", source).unwrap();
+    let cst = super::cst::parse_cst("origin.n", source).unwrap();
     let semicolon = cst.tokens.iter().find(|token| token.text == ";").unwrap();
     let events = super::print::print_with_cst(&cst).unwrap().emissions;
     assert!(
@@ -544,24 +541,24 @@ fn omitted_token_output_contracts() {
     );
     assert_omitted_token_format(source);
     let source = "fn M(){let x=1; // tail\u{b}\u{c}\u{85}\u{2028}\u{2029}\n}";
-    let formatted = super::format::format("output.nx", source).unwrap();
+    let formatted = super::format::format("output.n", source).unwrap();
     assert!(formatted.contains("// tail\n"), "{formatted:?}");
     let source = "fn M(){let x=if a then 1 else{value:2;}// tail\n;}";
-    let formatted = super::format::format("output.nx", source).unwrap();
+    let formatted = super::format::format("output.n", source).unwrap();
     assert_eq!(
         formatted,
         "fn M() {\n    let x = if a then 1 else 2; // tail\n}\n"
     );
     assert_omitted_token_format(source);
     let source = "fn M(){let x=(if a then {value:1;} else {value:2;} // group\n);}";
-    let formatted = super::format::format("output.nx", source).unwrap();
+    let formatted = super::format::format("output.n", source).unwrap();
     assert!(formatted.contains("value: 2;"), "{formatted:?}");
     assert_omitted_token_format(source);
 }
 
 #[test]
 fn canonical_printer_groups_a_constructed_lower_precedence_child() {
-    let mut ast = parse("precedence.nx", "fn M(){x=(a<b)+c;}").unwrap();
+    let mut ast = parse("precedence.n", "fn M(){x=(a<b)+c;}").unwrap();
     let super::parse::Statement::Assign {
         value: super::parse::Expr::Binary { left, .. },
         ..
@@ -583,7 +580,7 @@ fn canonical_printer_groups_a_constructed_lower_precedence_child() {
 fn constructed_binary_children_and_selection_statement_are_grouped() {
     use super::parse::{Expr, Statement};
     fn operand(source: &str) -> Expr {
-        let ast = parse("constructed.nx", &format!("fn M(){{x={source};}}")).unwrap();
+        let ast = parse("constructed.n", &format!("fn M(){{x={source};}}")).unwrap();
         let Statement::Assign { value, .. } = &ast.functions[0].body.statements[0] else {
             unreachable!()
         };
@@ -607,7 +604,7 @@ fn constructed_binary_children_and_selection_statement_are_grouped() {
         ("a", "<", "b+c", "a < b + c"),
     ];
     for (left, op, right, expected) in cases {
-        let mut ast = parse("constructed.nx", "fn M(){x=0;}").unwrap();
+        let mut ast = parse("constructed.n", "fn M(){x=0;}").unwrap();
         let Statement::Assign { value, .. } = &mut ast.functions[0].body.statements[0] else {
             unreachable!()
         };
@@ -623,16 +620,16 @@ fn constructed_binary_children_and_selection_statement_are_grouped() {
             printed.contains(expected),
             "{left} {op} {right}: {printed:?}"
         );
-        parse("constructed.nx", &printed).unwrap();
+        parse("constructed.n", &printed).unwrap();
     }
-    let mut ast = parse("constructed.nx", "fn M(){0;}").unwrap();
+    let mut ast = parse("constructed.n", "fn M(){0;}").unwrap();
     let Statement::Expr { value, .. } = &mut ast.functions[0].body.statements[0] else {
         unreachable!()
     };
     *value = operand("if a then 1 else 2");
     let printed = print_canonical(&ast).unwrap();
     assert!(printed.contains("(if a then 1 else 2);"), "{printed:?}");
-    parse("constructed.nx", &printed).unwrap();
+    parse("constructed.n", &printed).unwrap();
 }
 
 #[test]
@@ -651,19 +648,19 @@ fn omitted_else_parentheses_and_comment_order_reach_a_fixed_point() {
     for source in cases {
         assert_omitted_token_format(source);
     }
-    let first = super::format::format("fixed-point.nx", cases[0]).unwrap();
+    let first = super::format::format("fixed-point.n", cases[0]).unwrap();
     assert_eq!(
         first,
         "fn M() {\n    x = if a then 1 else ( //c\n    if b then 2 else 3);\n}\n"
     );
-    let formatted = super::format::format("order.nx", cases[4]).unwrap();
+    let formatted = super::format::format("order.n", cases[4]).unwrap();
     assert!(
         formatted.contains("x = 1;\n    //d\n    //e\n"),
         "{formatted:?}"
     );
-    let after_group = super::format::format("group.nx", cases[7]).unwrap();
+    let after_group = super::format::format("group.n", cases[7]).unwrap();
     assert!(after_group.contains("then 1 else 2"), "{after_group:?}");
-    let inner_group = super::format::format("group.nx", cases[8]).unwrap();
+    let inner_group = super::format::format("group.n", cases[8]).unwrap();
     assert!(inner_group.contains("then {\n"), "{inner_group:?}");
 }
 
@@ -684,7 +681,7 @@ fn omitted_else_parenthesis_comment_gaps_stabilize() {
     let mut placements = Vec::new();
     let mut rejected_placements = Vec::new();
     for (base_id, base) in bases.iter().enumerate() {
-        let tokens = super::lex::lex("else-gaps.nx", base).unwrap();
+        let tokens = super::lex::lex("else-gaps.n", base).unwrap();
         for (token_id, token) in tokens.iter().enumerate() {
             if token.kind == super::lex::Kind::Eof {
                 continue;
@@ -705,7 +702,7 @@ fn omitted_else_parenthesis_comment_gaps_stabilize() {
                             "// gap\n"
                         },
                     );
-                    match parse("else-gaps.nx", &sample) {
+                    match parse("else-gaps.n", &sample) {
                         Ok(_) => placements.push((base_id, token_id, before, independent)),
                         Err(error) => rejected_placements.push(format!(
                             "{base_id},{token_id},{before},{independent}:{}:{}",
@@ -734,7 +731,7 @@ fn omitted_else_parenthesis_comment_gaps_stabilize() {
     for n in 0..limit {
         let (base_id, token_id, before, independent) = placements[n % placements.len()];
         let base = bases[base_id];
-        let tokens = super::lex::lex("else-gaps.nx", base).unwrap();
+        let tokens = super::lex::lex("else-gaps.n", base).unwrap();
         let token = &tokens[token_id];
         let offset = if before {
             token.span.start
@@ -775,7 +772,7 @@ fn consecutive_comment_gaps_preserve_canonical_properties() {
     let mut gaps = Vec::new();
     let mut rejected_gaps = Vec::new();
     for (base_id, base) in bases.into_iter().enumerate() {
-        let tokens = super::lex::lex("multi-gap.nx", base).unwrap();
+        let tokens = super::lex::lex("multi-gap.n", base).unwrap();
         let positions = tokens
             .iter()
             .filter(|token| token.kind != super::lex::Kind::Eof)
@@ -791,7 +788,7 @@ fn consecutive_comment_gaps_preserve_canonical_properties() {
                     );
                     let mut source = base.to_owned();
                     source.insert_str(at, &inserted);
-                    match parse("multi-gap.nx", &source) {
+                    match parse("multi-gap.n", &source) {
                         Ok(_) => gaps.push((base, gap, count, independent_first)),
                         Err(error) => rejected_gaps.push(format!(
                             "{base_id},{gap},{count},{independent_first}:{}:{}",
@@ -824,7 +821,7 @@ fn consecutive_comment_gaps_preserve_canonical_properties() {
         state ^= state << 17;
         let (base, gap, count, independent_first) = gaps[attempts % gaps.len()];
         let newline = ["\n", "\r", "\r\n"][attempts % 3];
-        let positions = super::lex::lex("multi-gap.nx", base)
+        let positions = super::lex::lex("multi-gap.n", base)
             .unwrap()
             .into_iter()
             .filter(|token| token.kind != super::lex::Kind::Eof)
@@ -850,7 +847,7 @@ fn consecutive_comment_gaps_preserve_canonical_properties() {
             );
         }
         attempts += 1;
-        if let Err(error) = parse("multi-gap.nx", &source) {
+        if let Err(error) = parse("multi-gap.n", &source) {
             rejected_attempts.push(format!(
                 "{}:{}:{}",
                 attempts - 1,
@@ -889,7 +886,7 @@ fn constructed_selection_operand_gets_required_parentheses() {
     use super::parse::{Argument, Else, Expr, Mode, Statement};
 
     fn expression(source: &str) -> Expr {
-        let ast = parse("selection-operand.nx", &format!("fn M(){{x={source};}}")).unwrap();
+        let ast = parse("selection-operand.n", &format!("fn M(){{x={source};}}")).unwrap();
         let Statement::Assign { value, .. } = &ast.functions[0].body.statements[0] else {
             panic!("expected assignment")
         };
@@ -1009,7 +1006,7 @@ fn constructed_selection_operand_gets_required_parentheses() {
         ),
     ];
     for (position, value, expected) in cases {
-        let mut ast = parse("selection-operand.nx", "fn M(){x=0;}").unwrap();
+        let mut ast = parse("selection-operand.n", "fn M(){x=0;}").unwrap();
         let Statement::Assign { value: slot, .. } = &mut ast.functions[0].body.statements[0] else {
             unreachable!()
         };
@@ -1019,7 +1016,7 @@ fn constructed_selection_operand_gets_required_parentheses() {
         // `move` requires a Place, so a hand-built selection there is outside
         // the parser's accepted AST domain; its grouping is still printable.
         if position != "unary prefix" {
-            parse("selection-operand.nx", &printed)
+            parse("selection-operand.n", &printed)
                 .unwrap_or_else(|error| panic!("{position}: {printed:?}: {error:?}"));
         }
     }
@@ -1045,7 +1042,7 @@ fn omitted_token_generated_programs() {
     let mut insertions = Vec::new();
     let mut rejected_insertions = Vec::new();
     for (base_id, base) in bases.iter().enumerate() {
-        let tokens = super::lex::lex("token-origin.nx", base).unwrap();
+        let tokens = super::lex::lex("token-origin.n", base).unwrap();
         for (token_id, token) in tokens.iter().enumerate() {
             if token.kind == super::lex::Kind::Eof {
                 continue;
@@ -1064,7 +1061,7 @@ fn omitted_token_generated_programs() {
                             "// generated\n"
                         },
                     );
-                    match parse("token-origin.nx", &candidate) {
+                    match parse("token-origin.n", &candidate) {
                         Ok(_) => insertions.push((base_id, token_id, before, leading)),
                         Err(error) => rejected_insertions.push(format!(
                             "{base_id},{token_id},{before},{leading}:{}:{}",
@@ -1092,7 +1089,7 @@ fn omitted_token_generated_programs() {
         assert_omitted_token_format(&bare);
         let (base_id, token_id, before, leading) = insertions[n % insertions.len()];
         let mut written = bases[base_id].replacen("fn M()", &format!("fn M{n}()"), 1);
-        let tokens = super::lex::lex("token-origin.nx", &written).unwrap();
+        let tokens = super::lex::lex("token-origin.n", &written).unwrap();
         let token = &tokens[token_id];
         let offset = if before {
             token.span.start
@@ -1132,10 +1129,10 @@ fn canonical_assignment_places_nested_branches_and_written_groups() {
         "fn F(){x=if a then 1 else ((if b then 2 else 3));}",
     ];
     for source in sources {
-        let original = parse("assignment-places.nx", source).unwrap();
-        let formatted = super::format::format("assignment-places.nx", source).unwrap();
+        let original = parse("assignment-places.n", source).unwrap();
+        let formatted = super::format::format("assignment-places.n", source).unwrap();
         assert_eq!(formatted, print_canonical(&original).unwrap(), "{source:?}");
-        let reparsed = parse("assignment-places.nx", &formatted)
+        let reparsed = parse("assignment-places.n", &formatted)
             .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
         assert_eq!(
             ast_without_spans(original),
@@ -1144,7 +1141,7 @@ fn canonical_assignment_places_nested_branches_and_written_groups() {
         );
         assert_eq!(
             formatted,
-            super::format::format("assignment-places.nx", &formatted).unwrap()
+            super::format::format("assignment-places.n", &formatted).unwrap()
         );
     }
 }
@@ -1153,17 +1150,17 @@ fn canonical_assignment_places_nested_branches_and_written_groups() {
 fn independent_comment_trims_only_horizontal_tail() {
     for tail in ["   ", "\t\t", "\u{3000}", "\u{a0}"] {
         let source = format!("fn M(){{x=1; // c{tail}\n}}");
-        let formatted = super::format::format("comment-tail.nx", &source).unwrap();
+        let formatted = super::format::format("comment-tail.n", &source).unwrap();
         assert!(formatted.contains("// c\n"), "{formatted:?}");
         assert!(!formatted.contains(&format!("// c{tail}")), "{formatted:?}");
         assert_eq!(
             formatted,
-            super::format::format("comment-tail.nx", &formatted).unwrap()
+            super::format::format("comment-tail.n", &formatted).unwrap()
         );
     }
     for vertical in ["\u{b}", "\u{c}", "\u{85}", "\u{2028}", "\u{2029}"] {
         let source = format!("fn M(){{x=1; // c{vertical}\n}}");
-        let formatted = super::format::format("comment-tail.nx", &source).unwrap();
+        let formatted = super::format::format("comment-tail.n", &source).unwrap();
         assert!(formatted.contains("// c\n"), "{formatted:?}");
     }
 }
@@ -1176,16 +1173,13 @@ fn canonical_roles_keep_suffix_contract_and_else_structure() {
         ("fn M(){if a {} else {x;} y;}", "}\n    y;"),
     ];
     for (source, literal) in cases {
-        let ast = parse("roles.nx", source).unwrap();
+        let ast = parse("roles.n", source).unwrap();
         let canonical = print_canonical(&ast).unwrap();
         assert!(canonical.contains(literal), "{source:?} => {canonical:?}");
-        assert_eq!(
-            super::format::format("roles.nx", source).unwrap(),
-            canonical
-        );
+        assert_eq!(super::format::format("roles.n", source).unwrap(), canonical);
         assert_eq!(
             ast_without_spans(ast),
-            ast_without_spans(parse("roles.nx", &canonical).unwrap())
+            ast_without_spans(parse("roles.n", &canonical).unwrap())
         );
     }
 }
@@ -1193,7 +1187,7 @@ fn canonical_roles_keep_suffix_contract_and_else_structure() {
 #[test]
 fn split_type_close_keeps_independent_comment_before_assignment() {
     let source = "fn F(){let a:Array<I64\n// keep\n>=x;}";
-    let cst = super::cst::parse_cst("split-comment.nx", source).unwrap();
+    let cst = super::cst::parse_cst("split-comment.n", source).unwrap();
     let close = cst
         .tokens
         .iter()
@@ -1210,19 +1204,19 @@ fn split_type_close_keeps_independent_comment_before_assignment() {
         cst.comments[0].attachment,
         super::cst::Attachment::Next(close.id)
     );
-    let original = parse("split-comment.nx", source).unwrap();
-    let formatted = super::format::format("split-comment.nx", source).unwrap();
+    let original = parse("split-comment.n", source).unwrap();
+    let formatted = super::format::format("split-comment.n", source).unwrap();
     assert_eq!(
         formatted,
         "fn F() {\n    let a: Array<I64\n    // keep\n    > = x;\n}\n"
     );
-    let reparsed = parse("split-comment.nx", &formatted)
+    let reparsed = parse("split-comment.n", &formatted)
         .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
     assert_eq!(ast_without_spans(original), ast_without_spans(reparsed));
     assert!(formatted.contains("// keep"), "{formatted:?}");
     assert_eq!(
         formatted,
-        super::format::format("split-comment.nx", &formatted).unwrap()
+        super::format::format("split-comment.n", &formatted).unwrap()
     );
 }
 
@@ -1233,15 +1227,15 @@ fn signed_integer_cst_identities_keep_adjacent_comments() {
         "fn Main(){Print(-// signed\n9223372036854775808-1);}",
         "fn Main(){Print(-\n// signed\n9223372036854775808-1);}",
     ] {
-        let original = parse("signed-comment.nx", source).unwrap();
-        let formatted = super::format::format("signed-comment.nx", source).unwrap();
+        let original = parse("signed-comment.n", source).unwrap();
+        let formatted = super::format::format("signed-comment.n", source).unwrap();
         if source.contains("-\n") {
             assert_eq!(
                 formatted,
                 "fn Main() {\n    Print(-9223372036854775808\n    // signed\n    - 1);\n}\n"
             );
         }
-        let reparsed = parse("signed-comment.nx", &formatted)
+        let reparsed = parse("signed-comment.n", &formatted)
             .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
         assert_eq!(
             ast_without_spans(original),
@@ -1251,7 +1245,7 @@ fn signed_integer_cst_identities_keep_adjacent_comments() {
         assert!(formatted.contains("// signed\n"), "{formatted:?}");
         assert_eq!(
             formatted,
-            super::format::format("signed-comment.nx", &formatted).unwrap()
+            super::format::format("signed-comment.n", &formatted).unwrap()
         );
     }
 }
@@ -1269,18 +1263,18 @@ fn fused_sign_digit_comments_stay_after_return_and_value() {
             case.replace('\n', "\r\n"),
         ] {
             assert_omitted_token_format(&source);
-            let formatted = super::format::format("fused-sign.nx", &source).unwrap();
+            let formatted = super::format::format("fused-sign.n", &source).unwrap();
             assert!(
                 formatted.contains("-1;\n") && formatted.contains("// doc"),
                 "{formatted:?}"
             );
             assert_eq!(
-                ast_without_spans(parse("fused-sign.nx", &source).unwrap()),
-                ast_without_spans(parse("fused-sign.nx", &formatted).unwrap())
+                ast_without_spans(parse("fused-sign.n", &source).unwrap()),
+                ast_without_spans(parse("fused-sign.n", &formatted).unwrap())
             );
             assert_eq!(
                 formatted,
-                super::format::format("fused-sign.nx", &formatted).unwrap()
+                super::format::format("fused-sign.n", &formatted).unwrap()
             );
         }
     }
@@ -1310,9 +1304,9 @@ fn multi_token_construct_comment_gaps_preserve_execution() {
         for newline in ["\n", "\r", "\r\n"] {
             let source = template.replace('~', &format!("{newline}// gap{id}{newline}"));
             assert_omitted_token_format(&source);
-            let formatted = super::format::format("gaps-run.nx", &source).unwrap();
-            let original = crate::ir::compile_scalar("gaps-run.nx", &source).unwrap();
-            let rewritten = crate::ir::compile_scalar("gaps-run.nx", &formatted).unwrap();
+            let formatted = super::format::format("gaps-run.n", &source).unwrap();
+            let original = crate::ir::compile_scalar("gaps-run.n", &source).unwrap();
+            let rewritten = crate::ir::compile_scalar("gaps-run.n", &formatted).unwrap();
             let before = crate::interp::run_scalar(&original);
             let after = crate::interp::run_scalar(&rewritten);
             assert!(before.diagnostics.is_empty(), "{source:?}");
@@ -1345,12 +1339,11 @@ fn accepted_commented_sources_keep_run_result_after_format() {
         let value = 1 + (id % 10_000);
         let template = templates[id % templates.len()].replace("{n}", &value.to_string());
         let source = template.replace('~', &format!("{newline}// c{id}{newline}"));
-        let formatted = super::format::format("run-format.nx", &source).unwrap();
-        let before = crate::interp::run_scalar(
-            &crate::ir::compile_scalar("run-format.nx", &source).unwrap(),
-        );
+        let formatted = super::format::format("run-format.n", &source).unwrap();
+        let before =
+            crate::interp::run_scalar(&crate::ir::compile_scalar("run-format.n", &source).unwrap());
         let after = crate::interp::run_scalar(
-            &crate::ir::compile_scalar("run-format.nx", &formatted).unwrap(),
+            &crate::ir::compile_scalar("run-format.n", &formatted).unwrap(),
         );
         assert!(before.diagnostics.is_empty(), "{id}: {source:?}");
         assert!(after.diagnostics.is_empty(), "{id}: {formatted:?}");
@@ -1395,12 +1388,12 @@ fn generated_assignment_places_and_comments_preserve_canonical_tree() {
             } else {
                 format!("fn M(){{{statement}{ending}}}")
             };
-            let original = parse("places-matrix.nx", &source).unwrap();
-            let formatted = super::format::format("places-matrix.nx", &source).unwrap();
+            let original = parse("places-matrix.n", &source).unwrap();
+            let formatted = super::format::format("places-matrix.n", &source).unwrap();
             if !commented {
                 assert_eq!(formatted, print_canonical(&original).unwrap(), "{source:?}");
             }
-            let reparsed = parse("places-matrix.nx", &formatted)
+            let reparsed = parse("places-matrix.n", &formatted)
                 .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
             assert_eq!(
                 ast_without_spans(original),
@@ -1409,11 +1402,11 @@ fn generated_assignment_places_and_comments_preserve_canonical_tree() {
             );
             assert_eq!(
                 formatted,
-                super::format::format("places-matrix.nx", &formatted).unwrap()
+                super::format::format("places-matrix.n", &formatted).unwrap()
             );
             if commented {
-                let before = super::cst::parse_cst("places-matrix.nx", &source).unwrap();
-                let after = super::cst::parse_cst("places-matrix.nx", &formatted).unwrap();
+                let before = super::cst::parse_cst("places-matrix.n", &source).unwrap();
+                let after = super::cst::parse_cst("places-matrix.n", &formatted).unwrap();
                 let literals = |cst: &super::cst::Cst| {
                     cst.comments
                         .iter()
@@ -1451,11 +1444,11 @@ fn canonical_formatter_keeps_branch_terminators_and_structural_spacing() {
         "fn M(){view[0]; view(0);}",
     ];
     for source in cases {
-        let original = parse("canonical-format.nx", source).unwrap();
-        let formatted = super::format::format("canonical-format.nx", source).unwrap();
+        let original = parse("canonical-format.n", source).unwrap();
+        let formatted = super::format::format("canonical-format.n", source).unwrap();
         let printed = print_canonical(&original).unwrap();
         assert_eq!(formatted, printed, "{source:?}");
-        let reparsed = parse("canonical-format.nx", &formatted)
+        let reparsed = parse("canonical-format.n", &formatted)
             .unwrap_or_else(|e| panic!("{source:?} => {formatted:?}: {e:?}"));
         assert_eq!(
             ast_without_spans(original),
@@ -1464,7 +1457,7 @@ fn canonical_formatter_keeps_branch_terminators_and_structural_spacing() {
         );
         assert_eq!(
             formatted,
-            super::format::format("canonical-format.nx", &formatted).unwrap(),
+            super::format::format("canonical-format.n", &formatted).unwrap(),
             "{source:?}"
         );
     }
@@ -1495,11 +1488,11 @@ fn systematic_statement_and_branch_terminators_use_the_canonical_emitter() {
         ];
         for statement in statements {
             let source = format!("fn M(){{{statement}}}");
-            let original = parse("terminators.nx", &source)
+            let original = parse("terminators.n", &source)
                 .unwrap_or_else(|error| panic!("{source:?}: {error:?}"));
-            let formatted = super::format::format("terminators.nx", &source).unwrap();
+            let formatted = super::format::format("terminators.n", &source).unwrap();
             assert_eq!(formatted, print_canonical(&original).unwrap(), "{source:?}");
-            let reparsed = parse("terminators.nx", &formatted)
+            let reparsed = parse("terminators.n", &formatted)
                 .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
             assert_eq!(
                 ast_without_spans(original),
@@ -1507,7 +1500,7 @@ fn systematic_statement_and_branch_terminators_use_the_canonical_emitter() {
                 "{source:?}"
             );
             assert_eq!(
-                super::format::format("terminators.nx", &formatted).unwrap(),
+                super::format::format("terminators.n", &formatted).unwrap(),
                 formatted,
                 "{source:?}"
             );
@@ -1519,14 +1512,14 @@ fn systematic_statement_and_branch_terminators_use_the_canonical_emitter() {
 fn non_final_value_span_ends_at_actual_colon_with_unicode_space() {
     for space in [" ", "\u{00a0}", "\u{2028}", "\u{3000}"] {
         let source = format!("fn M(){{(if e then 5 else{{value{space}:9;m;}});}}");
-        let error = parse("value-space.nx", &source).unwrap_err();
+        let error = parse("value-space.n", &source).unwrap_err();
         assert_eq!(error.code, "NX-E1302");
         assert_eq!(error.subcause.as_deref(), Some("non_final_branch_value"));
         let start = source.find("value").unwrap();
         let end = source.find(":9").unwrap() + 1;
         let span = error.primary_span.as_ref().unwrap();
         assert_eq!((span.start, span.end), (start as u64, end as u64));
-        error.validate("value-space.nx", &source).unwrap();
+        error.validate("value-space.n", &source).unwrap();
     }
 }
 
@@ -1542,23 +1535,23 @@ fn unicode_trivia_diagnostic_spans_stay_on_utf8_boundaries() {
             spaces[(n / 7) % spaces.len()],
             spaces[(n / 49) % spaces.len()]
         );
-        let error = parse("unicode-trivia.nx", &source).unwrap_err();
+        let error = parse("unicode-trivia.n", &source).unwrap_err();
         assert_eq!(error.code, "NX-E1302");
         assert_eq!(error.subcause.as_deref(), Some("non_final_branch_value"));
-        error.validate("unicode-trivia.nx", &source).unwrap();
+        error.validate("unicode-trivia.n", &source).unwrap();
     }
 }
 
 #[test]
 fn adr_gap_receiver_call_group_and_try_line_continuation_keep_current_diagnostics() {
     let source = "fn F(){} fn Main(){let x=edit(F());}";
-    let error = parse("gap.nx", source).unwrap_err();
+    let error = parse("gap.n", source).unwrap_err();
     assert_eq!(error.code, "NX-E0006");
     assert_eq!(error.feature_id.as_deref(), Some("receiver_mode"));
-    error.validate("gap.nx", source).unwrap();
+    error.validate("gap.n", source).unwrap();
 
     let source = "fn Main(){let y=x?\n(y);}";
-    let error = parse("gap.nx", source).unwrap_err();
+    let error = parse("gap.n", source).unwrap_err();
     assert_eq!(error.code, "NX-E0002");
     assert_eq!(error.parser_context.as_deref(), Some("grammar.TryExpr"));
     assert_eq!(
@@ -1568,15 +1561,15 @@ fn adr_gap_receiver_call_group_and_try_line_continuation_keep_current_diagnostic
             .and_then(|token| token.text.as_deref()),
         Some("(")
     );
-    error.validate("gap.nx", source).unwrap();
+    error.validate("gap.n", source).unwrap();
 }
 
 #[test]
 fn unicode_horizontal_spaces_separate_b_tokens_without_newline_terminators() {
     for space in ["\u{85}", "\u{a0}", "\u{2028}", "\u{2029}", "\u{3000}"] {
         let source = format!("fn{space}F(){{let{space}x=1;}}");
-        assert!(parse("spaces.nx", &source).is_ok(), "{space:?}");
-        let tokens = super::lex::lex("spaces.nx", &source).unwrap();
+        assert!(parse("spaces.n", &source).is_ok(), "{space:?}");
+        let tokens = super::lex::lex("spaces.n", &source).unwrap();
         assert_eq!(tokens[0].text, "fn");
         assert_eq!(tokens[1].text, "F");
     }
@@ -1586,7 +1579,7 @@ fn unicode_horizontal_spaces_separate_b_tokens_without_newline_terminators() {
 fn adr_gap_documentary_comment_effect_is_cst_flag_and_cr_association() {
     use super::cst::Attachment;
     let source = "fn F(){let x=1;\r/// docs\rlet y=2; // trailing\r}\n";
-    let cst = super::cst::parse_cst("comments.nx", source).unwrap();
+    let cst = super::cst::parse_cst("comments.n", source).unwrap();
     assert_eq!(cst.comments.len(), 2);
     assert!(cst.comments[0].documentary);
     assert!(!cst.comments[1].documentary);
@@ -1616,7 +1609,7 @@ fn cst_token_identity_owns_each_comment_once() {
         "fn F(){let x=(// inner\r\n1);}\r/// docs\r",
         "fn F(){let a=[1,// item\r2];}",
     ] {
-        let cst = super::cst::parse_cst("identity.nx", source).unwrap();
+        let cst = super::cst::parse_cst("identity.n", source).unwrap();
         for (index, token) in cst.tokens.iter().enumerate() {
             assert_eq!(token.id, index);
         }
@@ -1631,8 +1624,8 @@ fn cst_token_identity_owns_each_comment_once() {
                 }
             }
         }
-        let formatted = super::format::format_cst("identity.nx", &cst).unwrap();
-        let reparsed = super::cst::parse_cst("identity.nx", &formatted).unwrap();
+        let formatted = super::format::format_cst("identity.n", &cst).unwrap();
+        let reparsed = super::cst::parse_cst("identity.n", &formatted).unwrap();
         let literals = |cst: &super::cst::Cst| {
             cst.comments
                 .iter()
@@ -1641,7 +1634,7 @@ fn cst_token_identity_owns_each_comment_once() {
         };
         assert_eq!(literals(&cst), literals(&reparsed));
         assert_eq!(
-            super::format::format("identity.nx", &formatted).unwrap(),
+            super::format::format("identity.n", &formatted).unwrap(),
             formatted
         );
     }
@@ -1669,10 +1662,10 @@ fn structural_format_rules_keep_binary_spaces_statement_lines_and_branch_anchors
         ),
     ];
     for (source, expected) in cases {
-        let before = super::cst::parse_cst("structural.nx", source).unwrap();
-        let formatted = super::format::format_cst("structural.nx", &before).unwrap();
+        let before = super::cst::parse_cst("structural.n", source).unwrap();
+        let formatted = super::format::format_cst("structural.n", &before).unwrap();
         assert_eq!(formatted, expected, "{source:?}");
-        let after = super::cst::parse_cst("structural.nx", &formatted).unwrap();
+        let after = super::cst::parse_cst("structural.n", &formatted).unwrap();
         assert_eq!(
             ast_without_spans(before.ast.clone()),
             ast_without_spans(after.ast.clone())
@@ -1685,19 +1678,19 @@ fn structural_format_rules_keep_binary_spaces_statement_lines_and_branch_anchors
         };
         assert_eq!(comments(&before), comments(&after));
         assert_eq!(
-            super::format::format("structural.nx", &formatted).unwrap(),
+            super::format::format("structural.n", &formatted).unwrap(),
             formatted
         );
     }
     let source = "fn F(){let x=(if b then 1 else{value:2;}// c\n);}";
-    let before = super::cst::parse_cst("structural.nx", source).unwrap();
-    let formatted = super::format::format_cst("structural.nx", &before).unwrap();
+    let before = super::cst::parse_cst("structural.n", source).unwrap();
+    let formatted = super::format::format_cst("structural.n", &before).unwrap();
     assert!(formatted.contains("else {"), "{formatted:?}");
     assert!(formatted.contains("// c"), "{formatted:?}");
-    let after = super::cst::parse_cst("structural.nx", &formatted).unwrap();
+    let after = super::cst::parse_cst("structural.n", &formatted).unwrap();
     assert_eq!(ast_without_spans(before.ast), ast_without_spans(after.ast));
     assert_eq!(
-        super::format::format("structural.nx", &formatted).unwrap(),
+        super::format::format("structural.n", &formatted).unwrap(),
         formatted
     );
 }
@@ -1712,9 +1705,9 @@ fn comments_in_branches_and_blocks_reparse_and_stabilize() {
         "fn M(){if a{}else if x<2{897\r\n// next\r\nzz;}}",
         "fn M(){b=if a then {} else {value:_u;}// branch\r\nc;}",
     ] {
-        let original = parse("comments.nx", source).unwrap();
-        let formatted = super::format::format("comments.nx", source).unwrap();
-        let reparsed = parse("comments.nx", &formatted)
+        let original = parse("comments.n", source).unwrap();
+        let formatted = super::format::format("comments.n", source).unwrap();
+        let reparsed = parse("comments.n", &formatted)
             .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
         assert_eq!(
             ast_without_spans(original),
@@ -1723,10 +1716,10 @@ fn comments_in_branches_and_blocks_reparse_and_stabilize() {
         );
         assert_eq!(
             formatted,
-            super::format::format("comments.nx", &formatted).unwrap()
+            super::format::format("comments.n", &formatted).unwrap()
         );
-        let before = super::cst::parse_cst("comments.nx", source).unwrap();
-        let after = super::cst::parse_cst("comments.nx", &formatted).unwrap();
+        let before = super::cst::parse_cst("comments.n", source).unwrap();
+        let after = super::cst::parse_cst("comments.n", &formatted).unwrap();
         let literal = |cst: &super::cst::Cst| {
             cst.comments
                 .iter()
@@ -1741,15 +1734,15 @@ fn comments_in_branches_and_blocks_reparse_and_stabilize() {
 fn comments_after_large_token_prefix_keep_canonical_branch_structure() {
     let prefix = "let p=1;".repeat(100);
     let source = format!("fn F(){{{prefix}let x=if a then {{value:1;}} else// branch\n2;}}");
-    let formatted = super::format::format("large-comments.nx", &source).unwrap();
-    let reparsed = parse("large-comments.nx", &formatted).unwrap();
+    let formatted = super::format::format("large-comments.n", &source).unwrap();
+    let reparsed = parse("large-comments.n", &formatted).unwrap();
     assert_eq!(
-        ast_without_spans(parse("large-comments.nx", &source).unwrap()),
+        ast_without_spans(parse("large-comments.n", &source).unwrap()),
         ast_without_spans(reparsed)
     );
     assert_eq!(
         formatted,
-        super::format::format("large-comments.nx", &formatted).unwrap()
+        super::format::format("large-comments.n", &formatted).unwrap()
     );
     assert!(formatted.contains("let p = 1;"));
 }
@@ -1765,9 +1758,9 @@ fn standalone_comments_before_delimiters_and_eof_keep_following_tokens() {
         "fn F(){let x=if a then 1 else\n// branch\n2;}",
         "fn F(){}\n// eof",
     ] {
-        let original = super::cst::parse_cst("standalone.nx", source).unwrap();
-        let formatted = super::format::format_cst("standalone.nx", &original).unwrap();
-        let reparsed = super::cst::parse_cst("standalone.nx", &formatted)
+        let original = super::cst::parse_cst("standalone.n", source).unwrap();
+        let formatted = super::format::format_cst("standalone.n", &original).unwrap();
+        let reparsed = super::cst::parse_cst("standalone.n", &formatted)
             .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
         assert_eq!(
             ast_without_spans(original.ast.clone()),
@@ -1783,7 +1776,7 @@ fn standalone_comments_before_delimiters_and_eof_keep_following_tokens() {
         assert_eq!(literals(&original), literals(&reparsed));
         assert_eq!(
             formatted,
-            super::format::format("standalone.nx", &formatted).unwrap()
+            super::format::format("standalone.n", &formatted).unwrap()
         );
     }
 }
@@ -1792,7 +1785,7 @@ fn standalone_comments_before_delimiters_and_eof_keep_following_tokens() {
 fn unavailable_printer_worker_returns_a_valid_budget_diagnostic() {
     use crate::diagnostic::{DataValue, Stage};
 
-    let file = "printer-worker.nx";
+    let file = "printer-worker.n";
     let source = "fn F(){}";
     let ast = parse(file, source).unwrap();
     let unavailable = super::print::simulate_unavailable_worker(&ast).unwrap_err();
@@ -1816,9 +1809,9 @@ fn commented_format_regressions_do_not_panic_or_change_ast() {
         "fn F(){let x=(if a then 1 else//\ns//\n);}",
         "fn F(){(if a then 1 else value//\n);}",
     ] {
-        let ast = parse("comments.nx", source).unwrap();
-        let formatted = super::format::format("comments.nx", source).unwrap();
-        let reparsed = parse("comments.nx", &formatted)
+        let ast = parse("comments.n", source).unwrap();
+        let formatted = super::format::format("comments.n", source).unwrap();
+        let reparsed = parse("comments.n", &formatted)
             .unwrap_or_else(|error| panic!("{source:?} => {formatted:?}: {error:?}"));
         assert_eq!(
             super::test_normalize::ast_without_spans(ast),
@@ -1826,7 +1819,7 @@ fn commented_format_regressions_do_not_panic_or_change_ast() {
             "{source:?} => {formatted:?}"
         );
         assert_eq!(
-            super::format::format("comments.nx", &formatted).unwrap(),
+            super::format::format("comments.n", &formatted).unwrap(),
             formatted
         );
     }
@@ -1841,9 +1834,9 @@ fn consecutive_comments_at_omitted_else_parentheses_keep_source_order() {
         for newline in ["\n", "\r", "\r\n"] {
             let source = source.replace('\n', newline);
             assert_omitted_token_format(&source);
-            let before = super::cst::parse_cst("comments.nx", &source).unwrap();
-            let formatted = super::format::format_cst("comments.nx", &before).unwrap();
-            let after = super::cst::parse_cst("comments.nx", &formatted).unwrap();
+            let before = super::cst::parse_cst("comments.n", &source).unwrap();
+            let formatted = super::format::format_cst("comments.n", &before).unwrap();
+            let after = super::cst::parse_cst("comments.n", &formatted).unwrap();
             let texts = |cst: &super::cst::Cst| {
                 cst.comments
                     .iter()
@@ -1857,7 +1850,7 @@ fn consecutive_comments_at_omitted_else_parentheses_keep_source_order() {
                 "{source:?} => {formatted:?}"
             );
             assert_eq!(
-                super::format::format("comments.nx", &formatted).unwrap(),
+                super::format::format("comments.n", &formatted).unwrap(),
                 formatted
             );
         }
@@ -1867,16 +1860,16 @@ fn consecutive_comments_at_omitted_else_parentheses_keep_source_order() {
 #[test]
 fn formatter_preserves_comments_after_compact_if_expansion() {
     let source = "fn Main(){let x=if true then ( // next\n1) else 2;}";
-    let ast = parse("comments.nx", source).unwrap();
-    let formatted = super::format::format("comments.nx", source).unwrap();
+    let ast = parse("comments.n", source).unwrap();
+    let formatted = super::format::format("comments.n", source).unwrap();
     assert!(formatted.contains("// next"), "{formatted}");
     assert_eq!(
         ast_without_spans(ast),
-        ast_without_spans(parse("comments.nx", &formatted).unwrap()),
+        ast_without_spans(parse("comments.n", &formatted).unwrap()),
         "{source:?} => {formatted:?}"
     );
     assert_eq!(
-        super::format::format("comments.nx", &formatted).unwrap(),
+        super::format::format("comments.n", &formatted).unwrap(),
         formatted
     );
 }
@@ -1897,7 +1890,7 @@ fn inserted_terminator_span_stops_before_comment_and_newline() {
                 ""
             };
             let source = format!("fn F(){{ {body} // c{newline}{suffix}}}");
-            let ast = parse("span.nx", &source).unwrap();
+            let ast = parse("span.n", &source).unwrap();
             let statement = if body.contains("if true") {
                 let super::parse::Statement::Let {
                     value: super::parse::Expr::If { then_block, .. },
@@ -1956,7 +1949,7 @@ fn every_terminated_statement_ends_at_its_last_token_before_trivia() {
             let suffix = if kind == "value" { "} else 2;" } else { "" };
             // The final function brace is followed immediately by EOF.
             let source = format!("fn F(){{{body}{trivia}{suffix}}}");
-            let ast = parse("statement-span.nx", &source).unwrap();
+            let ast = parse("statement-span.n", &source).unwrap();
             let statement = if kind == "value" {
                 let Statement::Let {
                     value: super::parse::Expr::If { then_block, .. },
@@ -1998,7 +1991,7 @@ fn every_terminated_statement_ends_at_its_last_token_before_trivia() {
 
 #[test]
 fn signed_name_points_at_name_after_minus() {
-    let d = parse("signed.nx", "fn Main(){let a=-x;}").unwrap_err();
+    let d = parse("signed.n", "fn Main(){let a=-x;}").unwrap_err();
     assert_eq!(d.code, "NX-E0002");
     assert_eq!(d.parser_context.as_deref(), Some("signed_integer"));
     assert_eq!(
@@ -2014,7 +2007,7 @@ fn signed_name_points_at_name_after_minus() {
 #[test]
 fn explicit_surface_boundaries_and_printer_rules() {
     use crate::diagnostic::TokenKind;
-    let spaced = super::lex::lex("space.nx", "a\u{0085}b").unwrap();
+    let spaced = super::lex::lex("space.n", "a\u{0085}b").unwrap();
     assert_eq!(
         spaced
             .iter()
@@ -2025,7 +2018,7 @@ fn explicit_surface_boundaries_and_printer_rules() {
 
     for (mode, context) in [("move", "consume_place"), ("edit", "inout_place")] {
         let source = format!("fn Main(){{let x={mode} [1];}}");
-        let error = parse("prefix.nx", &source).unwrap_err();
+        let error = parse("prefix.n", &source).unwrap_err();
         assert_eq!(error.code, "NX-E0002");
         assert_eq!(error.parser_context.as_deref(), Some(context));
         assert_eq!(
@@ -2033,13 +2026,13 @@ fn explicit_surface_boundaries_and_printer_rules() {
             Some("[")
         );
     }
-    let error = parse("cr.nx", "fn Main(){if true{value\r:1;}else{}}").unwrap_err();
+    let error = parse("cr.n", "fn Main(){if true{value\r:1;}else{}}").unwrap_err();
     assert_eq!(error.code, "NX-E0002");
     assert_eq!(
         error.unexpected_token.as_ref().unwrap().text.as_deref(),
         Some(":")
     );
-    let error = parse("else.nx", "fn Main(){if true{}else 1;}").unwrap_err();
+    let error = parse("else.n", "fn Main(){if true{}else 1;}").unwrap_err();
     assert_eq!(error.code, "NX-E0002");
     assert_eq!(error.parser_context.as_deref(), Some("grammar.IfForm"));
     assert_eq!(error.expected_tokens, ["if", "{"]);
@@ -2049,16 +2042,16 @@ fn explicit_surface_boundaries_and_printer_rules() {
     );
 
     assert!(
-        print_canonical(&parse("print.nx", "fn Main(){let a=[1,2];}").unwrap())
+        print_canonical(&parse("print.n", "fn Main(){let a=[1,2];}").unwrap())
             .unwrap()
             .contains("[1, 2]")
     );
-    let nested = print_canonical(&parse("print.nx", "fn Main(){{{let a=1;}}}").unwrap()).unwrap();
+    let nested = print_canonical(&parse("print.n", "fn Main(){{{let a=1;}}}").unwrap()).unwrap();
     assert!(
         nested.contains("\n    {\n        {\n            let a = 1;\n"),
         "{nested:?}"
     );
-    let mut ungrouped_right = parse("print.nx", "fn Main(){let a=1+(2+3);}").unwrap();
+    let mut ungrouped_right = parse("print.n", "fn Main(){let a=1+(2+3);}").unwrap();
     let super::parse::Statement::Let {
         value: super::parse::Expr::Binary { right, .. },
         ..
@@ -2077,26 +2070,26 @@ fn explicit_surface_boundaries_and_printer_rules() {
     );
 
     let source = "fn Main(){let a=1// first\rlet b=2// second\r}";
-    let formatted = super::format::format("cr.nx", source).unwrap();
+    let formatted = super::format::format("cr.n", source).unwrap();
     assert!(formatted.contains("// first\n"));
     assert!(formatted.contains("// second\n"));
     assert!(formatted.find("// first") < formatted.find("// second"));
     assert_eq!(
-        super::format::format("cr.nx", &formatted).unwrap(),
+        super::format::format("cr.n", &formatted).unwrap(),
         formatted
     );
     let source = "fn Main(){let a=1// first\n;// second\n}";
-    let formatted = super::format::format("order.nx", source).unwrap();
+    let formatted = super::format::format("order.n", source).unwrap();
     assert!(formatted.find("// first") < formatted.find("// second"));
     assert_eq!(
-        super::cst::parse_cst("order.nx", &formatted)
+        super::cst::parse_cst("order.n", &formatted)
             .unwrap()
             .comments
             .len(),
         2
     );
     assert_eq!(
-        super::format::format("order.nx", &formatted).unwrap(),
+        super::format::format("order.n", &formatted).unwrap(),
         formatted
     );
 }
@@ -2132,7 +2125,7 @@ fn adr_gap_edit_outside_admitted_context() {
         "let b=if true then 1 else (if false then edit r else 2);",
     ] {
         let source = format!("fn Main(){{var r=1;{body}}}");
-        let error = parse("edit.nx", &source).unwrap_err();
+        let error = parse("edit.n", &source).unwrap_err();
         let start = source.find("edit r").unwrap() as u64;
         assert_eq!(error.code, "NX-E0002", "{source}");
         assert_eq!(error.subcause, None);
@@ -2164,33 +2157,33 @@ fn adr_gap_edit_outside_admitted_context() {
         assert!(error.related_spans.is_empty());
         assert!(error.cause_chain.is_empty());
         assert!(error.repair.is_empty());
-        error.validate("edit.nx", &source).unwrap();
+        error.validate("edit.n", &source).unwrap();
     }
     for source in [
         "fn F(x:edit I64){} fn Main(){var r=1;F(edit r);}",
         "fn Main(){let r=1;let b=move r;}",
         "fn Main(){let view=1;let b=view;}",
     ] {
-        assert!(parse("edit.nx", source).is_ok(), "{source}");
+        assert!(parse("edit.n", source).is_ok(), "{source}");
     }
 }
 
 #[test]
 fn edit_cannot_become_a_call_or_index_target() {
     let source = "fn Main(){var r=1;edit r(1);}";
-    let error = parse("target.nx", source).unwrap_err();
+    let error = parse("target.n", source).unwrap_err();
     assert_eq!(error.code, "NX-E0006");
     assert_eq!(error.feature_id.as_deref(), Some("receiver_mode"));
-    error.validate("target.nx", source).unwrap();
+    error.validate("target.n", source).unwrap();
 
     for source in [
         "fn Main(){var r=1;(edit r)(1);}",
         "fn Main(){var r=[1];let b=(edit r)[0];}",
     ] {
-        let error = parse("target.nx", source).unwrap_err();
+        let error = parse("target.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0002");
         assert_eq!(error.parser_context.as_deref(), Some("inout_place"));
-        error.validate("target.nx", source).unwrap();
+        error.validate("target.n", source).unwrap();
     }
 }
 
@@ -2198,13 +2191,13 @@ fn edit_cannot_become_a_call_or_index_target() {
 fn structural_budget_boundaries_are_exact() {
     use crate::diagnostic::DataValue;
     let assert_budget = |source: &str, kind: &str| {
-        let error = parse("budget.nx", source).unwrap_err();
+        let error = parse("budget.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0003", "{kind}: {error:?}");
         assert_eq!(
             error.data.get("budget_kind"),
             Some(&DataValue::String(kind.into()))
         );
-        assert!(error.validate("budget.nx", source).is_ok());
+        assert!(error.validate("budget.n", source).is_ok());
         error
     };
     let ty = |n: usize| {
@@ -2214,10 +2207,10 @@ fn structural_budget_boundaries_are_exact() {
             ">".repeat(n)
         )
     };
-    assert!(parse("budget.nx", &ty(127)).is_ok());
+    assert!(parse("budget.n", &ty(127)).is_ok());
     assert_budget(&ty(128), "syntax_nesting");
     let blocks = |n: usize| format!("fn Main(){{{}{} }}", "{".repeat(n), "}".repeat(n));
-    assert!(parse("budget.nx", &blocks(127)).is_ok());
+    assert!(parse("budget.n", &blocks(127)).is_ok());
     let block_error = assert_budget(&blocks(128), "syntax_nesting");
     assert_eq!(block_error.data.get("limit"), Some(&DataValue::UInt(128)));
     assert_eq!(
@@ -2240,7 +2233,7 @@ fn structural_budget_boundaries_are_exact() {
             "]".repeat(n)
         )
     };
-    assert!(parse("budget.nx", &assignment_arrays(0)).is_ok());
+    assert!(parse("budget.n", &assignment_arrays(0)).is_ok());
     let assignment_error = assert_budget(&assignment_arrays(200), "syntax_nesting");
     assert_eq!(
         assignment_error
@@ -2250,14 +2243,14 @@ fn structural_budget_boundaries_are_exact() {
         Some((147, 148))
     );
     let binary = |n: usize| format!("fn Main(){{let x=1{};}}", "+1".repeat(n));
-    assert!(parse("budget.nx", &binary(127)).is_ok());
+    assert!(parse("budget.n", &binary(127)).is_ok());
     assert_budget(&binary(128), "expression_tree_depth");
 
     let mut functions = String::new();
     for index in 0..1_024 {
         functions.push_str(&format!("fn F{index}(){{}}"));
     }
-    assert!(parse("budget.nx", &functions).is_ok());
+    assert!(parse("budget.n", &functions).is_ok());
     let rejected_start = functions.len();
     functions.push_str("fn F1024(){}");
     let error = assert_budget(&functions, "function_count");
@@ -2274,7 +2267,7 @@ fn structural_budget_boundaries_are_exact() {
         " ".repeat(1_048_577 - "fn Main(){}".len())
     );
     assert_eq!(source.len(), 1_048_577);
-    assert!(parse("budget.nx", &source[..1_048_576]).is_ok());
+    assert!(parse("budget.n", &source[..1_048_576]).is_ok());
     let error = assert_budget(&source, "source_bytes");
     assert_eq!(
         error
@@ -2293,11 +2286,11 @@ fn composite_expression_depth_uses_the_published_source_boundary() {
     let source = |count: usize| format!("fn Main(){{let x={};}}", vec![TERM; count].join("+"));
     let accepted = source(127);
     assert_eq!(accepted.len(), 3_065);
-    assert!(parse("depth.nx", &accepted).is_ok());
+    assert!(parse("depth.n", &accepted).is_ok());
 
     let rejected = source(128);
     assert_eq!(rejected.len(), 3_089);
-    let error = parse("depth.nx", &rejected).unwrap_err();
+    let error = parse("depth.n", &rejected).unwrap_err();
     assert_eq!(error.code, "NX-E0003");
     assert_eq!(error.stage, Stage::Parse);
     assert_eq!(
@@ -2313,11 +2306,11 @@ fn composite_expression_depth_uses_the_published_source_boundary() {
             .map(|span| (span.start, span.end)),
         Some((16, 3087))
     );
-    error.validate("depth.nx", &rejected).unwrap();
+    error.validate("depth.n", &rejected).unwrap();
 }
 
 fn assert_adr_gap(source: &str, code: &str, context: &str, token: &str, span: (u64, u64)) {
-    let error = parse("gap.nx", source).unwrap_err();
+    let error = parse("gap.n", source).unwrap_err();
     assert_eq!(error.code, code);
     assert_eq!(error.parser_context.as_deref(), Some(context));
     assert_eq!(
@@ -2381,7 +2374,7 @@ fn adr_gap_try_followed_by_index_is_try_expr_syntax() {
 fn adr_gap_public_lexer_emits_one_crlf_newline_token() {
     // §2.1 calls CRLF one logical newline. The public lex API exposes it as
     // one token spanning both source bytes; CST and parser ignore the split.
-    let tokens = super::lex::lex("gap.nx", "x\r\ny").unwrap();
+    let tokens = super::lex::lex("gap.n", "x\r\ny").unwrap();
     assert_eq!(tokens.len(), 4);
     assert_eq!(tokens[1].kind, super::lex::Kind::Newline);
     assert_eq!(tokens[1].text, "\r\n");
@@ -2410,7 +2403,7 @@ fn generated_comment_positions_preserve_ast_order_and_idempotence() {
     let tokens: Vec<Vec<_>> = seeds
         .iter()
         .map(|seed| {
-            super::lex::lex("comments.nx", seed)
+            super::lex::lex("comments.n", seed)
                 .unwrap()
                 .into_iter()
                 .filter(|token| {
@@ -2450,14 +2443,11 @@ fn generated_comment_positions_preserve_ast_order_and_idempotence() {
         for (at, comment) in comments.iter().rev() {
             source.insert_str(*at, comment);
         }
-        let original = match parse("comments.nx", &source) {
+        let original = match parse("comments.n", &source) {
             Ok(ast) => ast,
             Err(error) => {
-                assert!(error.validate("comments.nx", &source).is_ok(), "{n}");
-                assert!(
-                    super::format::format("comments.nx", &source).is_err(),
-                    "{n}"
-                );
+                assert!(error.validate("comments.n", &source).is_ok(), "{n}");
+                assert!(super::format::format("comments.n", &source).is_err(), "{n}");
                 rejected.push(format!(
                     "{n}:{}:{}",
                     error.code,
@@ -2467,8 +2457,8 @@ fn generated_comment_positions_preserve_ast_order_and_idempotence() {
             }
         };
         accepted += 1;
-        let formatted = super::format::format("comments.nx", &source).unwrap();
-        let reparsed = parse("comments.nx", &formatted)
+        let formatted = super::format::format("comments.n", &source).unwrap();
+        let reparsed = parse("comments.n", &formatted)
             .unwrap_or_else(|error| panic!("{n} {source:?} => {formatted:?}: {error:?}"));
         assert_eq!(
             super::test_normalize::ast_without_spans(original),
@@ -2476,12 +2466,12 @@ fn generated_comment_positions_preserve_ast_order_and_idempotence() {
             "{n} {source:?} => {formatted:?}"
         );
         assert_eq!(
-            super::format::format("comments.nx", &formatted).unwrap(),
+            super::format::format("comments.n", &formatted).unwrap(),
             formatted,
             "{n} {source:?}"
         );
-        let input_comments = super::cst::parse_cst("comments.nx", &source).unwrap();
-        let output_comments = super::cst::parse_cst("comments.nx", &formatted).unwrap();
+        let input_comments = super::cst::parse_cst("comments.n", &source).unwrap();
+        let output_comments = super::cst::parse_cst("comments.n", &formatted).unwrap();
         let literals = |cst: &super::cst::Cst| {
             cst.comments
                 .iter()
@@ -2516,7 +2506,7 @@ fn every_concrete_gap_preserves_comments_and_tree() {
         .0;
     for line in table.lines().filter(|line| line.starts_with("| F2-")) {
         let source = line.split('`').nth(1).unwrap().replace(['⟦', '⟧'], "");
-        match parse("gaps.nx", &source) {
+        match parse("gaps.n", &source) {
             Ok(_) => programs.push(source),
             Err(error) => rejected_programs.push(format!(
                 "{}:{}:{}",
@@ -2536,7 +2526,7 @@ fn every_concrete_gap_preserves_comments_and_tree() {
             .0;
         for (block_id, block) in body.split("```nexo\n").skip(1).enumerate() {
             let source = block.split_once("\n```").unwrap().0.replace(['⟦', '⟧'], "");
-            match parse("gaps.nx", &source) {
+            match parse("gaps.n", &source) {
                 Ok(_) => programs.push(source),
                 Err(error) => rejected_programs.push(format!(
                     "8.{section}.{block_id}:{}:{}",
@@ -2559,7 +2549,7 @@ fn every_concrete_gap_preserves_comments_and_tree() {
     {
         let literal_cell = line.split(" | ").nth(1).unwrap();
         for (literal_id, source) in literal_cell.split('`').skip(1).step_by(2).enumerate() {
-            match parse("gaps.nx", source) {
+            match parse("gaps.n", source) {
                 Ok(_) => programs.push(source.to_owned()),
                 Err(error) => rejected_programs.push(format!(
                     "{}.{literal_id}:{}:{}",
@@ -2603,7 +2593,7 @@ fn every_concrete_gap_preserves_comments_and_tree() {
             .replace("{{", "{")
             .replace("}}", "}")
             .replace("{n}", &(n % 97).to_string());
-        let parsed = parse("gaps.nx", &source);
+        let parsed = parse("gaps.n", &source);
         assert!(
             parsed.is_ok(),
             "template {}: {source}: {:?}",
@@ -2616,17 +2606,17 @@ fn every_concrete_gap_preserves_comments_and_tree() {
     let mut attempted_insertions = 0usize;
     let mut rejected_insertions = Vec::new();
     for (program_index, source) in programs.iter().enumerate() {
-        let ast = parse("gaps.nx", source)
+        let ast = parse("gaps.n", source)
             .unwrap_or_else(|error| panic!("generated template rejected: {source}: {error:?}"));
         let canonical = super::print::print_canonical(&ast).unwrap();
-        if super::cst::parse_cst("gaps.nx", source)
+        if super::cst::parse_cst("gaps.n", source)
             .unwrap()
             .comments
             .is_empty()
         {
-            assert_eq!(super::format::format("gaps.nx", source).unwrap(), canonical);
+            assert_eq!(super::format::format("gaps.n", source).unwrap(), canonical);
         }
-        let tokens = super::lex::lex("gaps.nx", source).unwrap();
+        let tokens = super::lex::lex("gaps.n", source).unwrap();
         let mut gaps = vec![0usize];
         gaps.extend(
             tokens
@@ -2642,7 +2632,7 @@ fn every_concrete_gap_preserves_comments_and_tree() {
                     attempted_insertions += 1;
                     let mut inserted = source.clone();
                     inserted.insert_str(gap, &format!("{prefix}// gap{program_index}{newline}"));
-                    let original = match parse("gaps.nx", &inserted) {
+                    let original = match parse("gaps.n", &inserted) {
                         Ok(ast) => ast,
                         Err(error) => {
                             rejected_insertions.push(format!(
@@ -2654,8 +2644,8 @@ fn every_concrete_gap_preserves_comments_and_tree() {
                         }
                     };
                     accepted_insertions += 1;
-                    let formatted = super::format::format("gaps.nx", &inserted).unwrap();
-                    let reparsed = parse("gaps.nx", &formatted).unwrap_or_else(|error| {
+                    let formatted = super::format::format("gaps.n", &inserted).unwrap();
+                    let reparsed = parse("gaps.n", &formatted).unwrap_or_else(|error| {
                         panic!("{program_index} gap {gap} {inserted:?} => {formatted:?}: {error:?}")
                     });
                     assert_eq!(
@@ -2664,11 +2654,11 @@ fn every_concrete_gap_preserves_comments_and_tree() {
                         "{program_index} gap {gap} {inserted:?} => {formatted:?}"
                     );
                     assert_eq!(
-                        super::format::format("gaps.nx", &formatted).unwrap(),
+                        super::format::format("gaps.n", &formatted).unwrap(),
                         formatted
                     );
-                    let before = super::cst::parse_cst("gaps.nx", &inserted).unwrap();
-                    let after = super::cst::parse_cst("gaps.nx", &formatted).unwrap();
+                    let before = super::cst::parse_cst("gaps.n", &inserted).unwrap();
+                    let after = super::cst::parse_cst("gaps.n", &formatted).unwrap();
                     let comments = |cst: &super::cst::Cst| {
                         cst.comments
                             .iter()
@@ -2792,7 +2782,7 @@ fn adr_literal_f2_table_rows_reach_the_published_frontend_boundary() {
             _ if id.starts_with("F2-F") && id != "F2-F01" => Some("NX-E0006"),
             _ => None,
         };
-        match (expected, parse("adr-f2.nx", &source)) {
+        match (expected, parse("adr-f2.n", &source)) {
             (None, Ok(ast)) => {
                 assert!(
                     LATER_ROWS.contains(&id),
@@ -2821,7 +2811,7 @@ fn adr_literal_f2_table_rows_reach_the_published_frontend_boundary() {
             }
             (Some(code), Err(error)) => {
                 assert_eq!(error.code, code, "{id}: {source}");
-                assert!(error.validate("adr-f2.nx", &source).is_ok(), "{id}");
+                assert!(error.validate("adr-f2.n", &source).is_ok(), "{id}");
             }
             (None, Err(error)) => panic!("{id}: expected parse success for {source}: {error:?}"),
             (Some(code), Ok(_)) => panic!("{id}: expected {code} for {source}"),
@@ -2861,11 +2851,11 @@ fn adr_literal_program_blocks_are_all_accounted_for_at_parse_boundary() {
         assert_eq!(blocks.len(), expected.len(), "§8.{section}");
         for (index, (&code, source)) in expected.iter().zip(blocks).enumerate() {
             let source = source.replace(['⟦', '⟧'], "");
-            match (code, parse("adr-block.nx", &source)) {
+            match (code, parse("adr-block.n", &source)) {
                 (None, Ok(_)) => {}
                 (Some(code), Err(error)) => {
                     assert_eq!(error.code, code, "§8.{section} block {index}");
-                    assert!(error.validate("adr-block.nx", &source).is_ok());
+                    assert!(error.validate("adr-block.n", &source).is_ok());
                 }
                 (None, Err(error)) => panic!("§8.{section} block {index}: {error:?}"),
                 (Some(code), Ok(_)) => panic!("§8.{section} block {index}: expected {code}"),
@@ -2899,7 +2889,7 @@ fn adr_inference_and_placement_rows_parse_the_literal_b_sources() {
         let sources = cells.next().expect("literal source cell");
         assert!(ids.insert(id.to_owned()), "duplicate §8.12 row {id}");
         for source in sources.split('`').skip(1).step_by(2) {
-            let ast = parse("adr-inference.nx", source)
+            let ast = parse("adr-inference.n", source)
                 .unwrap_or_else(|error| panic!("{id}: {source}: {error:?}"));
             let names: &[&str] = if id == "D03" {
                 &["F", "Main"]
@@ -2917,7 +2907,7 @@ fn adr_inference_and_placement_rows_parse_the_literal_b_sources() {
             assert_eq!(
                 super::test_normalize::ast_without_spans(ast.clone()),
                 super::test_normalize::ast_without_spans(
-                    parse("adr-inference.nx", &print_canonical(&ast).unwrap()).unwrap()
+                    parse("adr-inference.n", &print_canonical(&ast).unwrap()).unwrap()
                 ),
                 "{id}"
             );
@@ -2951,13 +2941,13 @@ fn cst_formatter_keeps_comments_and_normalized_ast() {
         ),
     ];
     for (source, expected) in cases {
-        let cst = super::cst::parse_cst("comments.nx", source).unwrap();
+        let cst = super::cst::parse_cst("comments.n", source).unwrap();
         assert_eq!(cst.comments.len(), source.matches("//").count());
-        let formatted = super::format::format_cst("comments.nx", &cst).unwrap();
+        let formatted = super::format::format_cst("comments.n", &cst).unwrap();
         assert_eq!(formatted, expected, "{source}");
-        let again = super::format::format("comments.nx", &formatted).unwrap();
+        let again = super::format::format("comments.n", &formatted).unwrap();
         assert_eq!(again, formatted, "{source}");
-        let reparsed = parse("comments.nx", &formatted).unwrap();
+        let reparsed = parse("comments.n", &formatted).unwrap();
         assert_eq!(
             super::test_normalize::ast_without_spans(cst.ast),
             super::test_normalize::ast_without_spans(reparsed),
@@ -2979,10 +2969,10 @@ fn formatter_abbreviates_only_branches_without_attached_comments() {
         ),
     ];
     for (source, expected) in cases {
-        let formatted = super::format::format("branch.nx", source).unwrap();
+        let formatted = super::format::format("branch.n", source).unwrap();
         assert_eq!(formatted, expected);
         assert_eq!(
-            super::format::format("branch.nx", &formatted).unwrap(),
+            super::format::format("branch.n", &formatted).unwrap(),
             expected
         );
     }
@@ -2992,10 +2982,10 @@ fn formatter_abbreviates_only_branches_without_attached_comments() {
 fn formatter_moves_intertoken_comment_without_trailing_spaces() {
     let source = "fn // name\nMain(){}";
     let expected = "fn // name\nMain() {}\n";
-    let formatted = super::format::format("comments.nx", source).unwrap();
+    let formatted = super::format::format("comments.n", source).unwrap();
     assert_eq!(formatted, expected);
     assert_eq!(
-        super::format::format("comments.nx", &formatted).unwrap(),
+        super::format::format("comments.n", &formatted).unwrap(),
         expected
     );
 }
@@ -3012,8 +3002,8 @@ fn formatter_preserves_ast_under_inserted_line_comments() {
     let mut accepted = 0;
     let mut rejected = Vec::new();
     for (seed_id, seed) in seeds.into_iter().enumerate() {
-        parse("comments.nx", seed).expect("comment insertion seed must parse");
-        let tokens = super::lex::lex("comments.nx", seed).unwrap();
+        parse("comments.n", seed).expect("comment insertion seed must parse");
+        let tokens = super::lex::lex("comments.n", seed).unwrap();
         let tokens: Vec<_> = tokens
             .iter()
             .filter(|t| t.kind != super::lex::Kind::Eof)
@@ -3034,7 +3024,7 @@ fn formatter_preserves_ast_under_inserted_line_comments() {
         }
         generated += sources.len();
         for (source_id, source) in sources.into_iter().enumerate() {
-            let ast = match parse("comments.nx", &source) {
+            let ast = match parse("comments.n", &source) {
                 Ok(ast) => ast,
                 Err(error) => {
                     rejected.push(format!(
@@ -3046,15 +3036,15 @@ fn formatter_preserves_ast_under_inserted_line_comments() {
                 }
             };
             accepted += 1;
-            let formatted = super::format::format("comments.nx", &source).unwrap();
-            let reparsed = parse("comments.nx", &formatted).unwrap();
+            let formatted = super::format::format("comments.n", &source).unwrap();
+            let reparsed = parse("comments.n", &formatted).unwrap();
             assert_eq!(
                 super::test_normalize::ast_without_spans(ast),
                 super::test_normalize::ast_without_spans(reparsed),
                 "{source:?} => {formatted:?}"
             );
             assert_eq!(
-                super::format::format("comments.nx", &formatted).unwrap(),
+                super::format::format("comments.n", &formatted).unwrap(),
                 formatted,
                 "{source:?}"
             );
@@ -3143,7 +3133,7 @@ fn adr_scope_rows_use_literal_b_sources_and_offsets() {
     ];
     assert_eq!(rows.len(), 32, "F0-D15 §8.7 F2-F02…F2-F33");
     for &(source, feature, start, end) in rows {
-        let error = parse("b.nx", source).unwrap_err();
+        let error = parse("b.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0006", "{source}");
         assert_eq!(error.schema_version, 1, "{source}");
         assert_eq!(
@@ -3239,9 +3229,9 @@ fn adr_scope_rows_use_literal_b_sources_and_offsets() {
             assert_eq!(error.related_spans, [], "{source}");
         }
         assert!(
-            error.validate("b.nx", source).is_ok(),
+            error.validate("b.n", source).is_ok(),
             "{source}: {:?}",
-            error.validate("b.nx", source)
+            error.validate("b.n", source)
         );
     }
 }
@@ -3261,15 +3251,15 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
             let prefix = "fn F(){} fn Main(){";
             let implicit = format!("{prefix}{left}{newline}let z=2;}}");
             let explicit = format!("{prefix}{repaired}let z=2;}}");
-            let a = parse("matrix.nx", &implicit).unwrap();
-            let b = parse("matrix.nx", &explicit).unwrap();
+            let a = parse("matrix.n", &implicit).unwrap();
+            let b = parse("matrix.n", &explicit).unwrap();
             assert_eq!(
                 ast_without_spans(a.clone()),
                 ast_without_spans(b),
                 "{left:?} {newline:?}"
             );
             let printed = print_canonical(&a).unwrap();
-            let reparsed = parse("matrix.nx", &printed).unwrap();
+            let reparsed = parse("matrix.n", &printed).unwrap();
             assert_eq!(printed, print_canonical(&reparsed).unwrap());
         }
         for continuation in ["(", "[", "?", "+", "-", "<", "==", ","] {
@@ -3284,17 +3274,17 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
                 "+" | "-" | "<" | "==" => format!("fn Main(){{let x=1{newline}{continuation}2;}}"),
                 _ => format!("fn F(x:view I64,y:view I64){{}} fn Main(){{F(1{newline},2);}}"),
             };
-            let continued = parse("continuation.nx", &source).unwrap();
+            let continued = parse("continuation.n", &source).unwrap();
             let same_line = source.replacen(newline, "", 1);
-            let paired = parse("continuation.nx", &same_line).unwrap();
+            let paired = parse("continuation.n", &same_line).unwrap();
             assert_eq!(
                 ast_without_spans(continued.clone()),
                 ast_without_spans(paired)
             );
             let split = source.replacen(newline, &format!(";{newline}"), 1);
-            match parse("continuation.nx", &split) {
+            match parse("continuation.n", &split) {
                 Ok(ast) => assert_ne!(ast_without_spans(continued), ast_without_spans(ast)),
-                Err(error) => error.validate("continuation.nx", &split).unwrap(),
+                Err(error) => error.validate("continuation.n", &split).unwrap(),
             }
         }
         for source in [
@@ -3304,20 +3294,20 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
                 "fn F()->I64{{return if true then {{value:1{newline}+2;}}else 2;}} fn Main(){{}}"
             ),
         ] {
-            let continued = parse("continuation.nx", &source).unwrap();
+            let continued = parse("continuation.n", &source).unwrap();
             let same_line = source.replacen(newline, "", 1);
             assert_eq!(
                 ast_without_spans(continued.clone()),
-                ast_without_spans(parse("continuation.nx", &same_line).unwrap())
+                ast_without_spans(parse("continuation.n", &same_line).unwrap())
             );
             let split = source.replacen(newline, &format!(";{newline}"), 1);
-            match parse("continuation.nx", &split) {
+            match parse("continuation.n", &split) {
                 Ok(ast) => assert_ne!(ast_without_spans(continued), ast_without_spans(ast)),
-                Err(error) => error.validate("continuation.nx", &split).unwrap(),
+                Err(error) => error.validate("continuation.n", &split).unwrap(),
             }
         }
         let empty_return = format!("fn Main(){{return{newline}(1);}}");
-        let ast = parse("lines.nx", &empty_return).unwrap();
+        let ast = parse("lines.n", &empty_return).unwrap();
         assert!(matches!(
             ast.functions[0].body.statements[0],
             Statement::Return { value: None, .. }
@@ -3325,13 +3315,13 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
 
         let empty_value =
             format!("fn Main(){{let x=if true then {{value:{newline}(1);}}else{{value:2;}};}}");
-        let diagnostic = parse("lines.nx", &empty_value).unwrap_err();
+        let diagnostic = parse("lines.n", &empty_value).unwrap_err();
         assert_eq!(diagnostic.rule, "NX-E1302/missing_value_operand");
-        diagnostic.validate("lines.nx", &empty_value).unwrap();
+        diagnostic.validate("lines.n", &empty_value).unwrap();
     }
 
     let trailing = "fn Main(){} unexpected";
-    let diagnostic = parse("eof.nx", trailing).unwrap_err();
+    let diagnostic = parse("eof.n", trailing).unwrap_err();
     assert_eq!(diagnostic.code, "NX-E0002");
     assert_eq!(diagnostic.parser_context.as_deref(), Some("module_item"));
     assert_eq!(
@@ -3343,11 +3333,11 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
             .as_deref(),
         Some("unexpected")
     );
-    diagnostic.validate("eof.nx", trailing).unwrap();
+    diagnostic.validate("eof.n", trailing).unwrap();
 
     let branch = "fn Main(){let x=if true then 1\r\nelse 2;}";
     assert_eq!(
-        parse("continuation.nx", branch).unwrap().functions[0]
+        parse("continuation.n", branch).unwrap().functions[0]
             .body
             .statements
             .len(),
@@ -3355,7 +3345,7 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
     );
     let functions = "fn A(){}\r\nfn B(){}";
     assert_eq!(
-        parse("continuation.nx", functions).unwrap().functions.len(),
+        parse("continuation.n", functions).unwrap().functions.len(),
         2
     );
 
@@ -3369,7 +3359,7 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
     ] {
         let brace = source.rfind('}').unwrap();
         let token_end = source[..brace].trim_end().len();
-        let diagnostic = parse("trivia.nx", source).unwrap_err();
+        let diagnostic = parse("trivia.n", source).unwrap_err();
         assert_eq!(diagnostic.code, "NX-E0005", "{source}");
         assert_eq!(
             diagnostic.primary_span.as_ref().unwrap().start as usize,
@@ -3381,22 +3371,22 @@ fn b_terminator_productions_and_continuations_keep_their_line_boundaries() {
             (token_end, token_end)
         );
         assert_eq!(edit.replacement, ";");
-        diagnostic.validate("trivia.nx", source).unwrap();
+        diagnostic.validate("trivia.n", source).unwrap();
     }
     for source in [
         "fn Main(){let x=1 // no\n}",
         "fn Main(){x=F(1) // no\r\n}",
         "fn F()->I64{return 1 // no\r\n}",
     ] {
-        assert!(parse("trivia.nx", source).is_ok(), "{source:?}");
+        assert!(parse("trivia.n", source).is_ok(), "{source:?}");
     }
     let no_insert_before_brace = "fn Main(){if true{1}else{}}";
-    let error = parse("same-line.nx", no_insert_before_brace).unwrap_err();
+    let error = parse("same-line.n", no_insert_before_brace).unwrap_err();
     assert_eq!(error.code, "NX-E0005");
     let end = no_insert_before_brace.find('1').unwrap() + 1;
     assert_eq!(error.primary_span.as_ref().unwrap().start as usize, end);
     error
-        .validate("same-line.nx", no_insert_before_brace)
+        .validate("same-line.n", no_insert_before_brace)
         .unwrap();
 }
 
@@ -3418,7 +3408,7 @@ fn commented_crlf_terminators_match_explicit_b_programs() {
         "fn F()->I64{return if true then {value:1//é\r\n}else{value:2;};} fn Main(){}",
         "fn Main(){F()//é\r\nlet z=2;}",
     ] {
-        let implicit = parse("p2.nx", source).unwrap();
+        let implicit = parse("p2.n", source).unwrap();
         let end = source.find("//é").unwrap() as u64;
         let ended = implicit
             .functions
@@ -3428,11 +3418,11 @@ fn commented_crlf_terminators_match_explicit_b_programs() {
             || matches!(&implicit.functions[0].body.statements[0], Statement::Return { value: Some(super::parse::Expr::If { then_block, .. }), .. } if token_end(&then_block.statements[0]) == Some(end));
         assert!(ended, "{source:?}");
         let explicit_source = source.replace("//é", ";//é");
-        let explicit = parse("p2.nx", &explicit_source).unwrap();
+        let explicit = parse("p2.n", &explicit_source).unwrap();
         assert_eq!(ast_without_spans(implicit), ast_without_spans(explicit));
     }
     let negative = "fn F()->I64{return if true then {value:1 }else{value:2;};} fn Main(){}";
-    let error = parse("p2.nx", negative).unwrap_err();
+    let error = parse("p2.n", negative).unwrap_err();
     assert_eq!(error.code, "NX-E0005");
     assert_eq!(
         error.parser_context.as_deref(),
@@ -3444,10 +3434,10 @@ fn commented_crlf_terminators_match_explicit_b_programs() {
         Some("}")
     );
     assert_eq!(error.repair[0].edits[0].replacement, ";");
-    error.validate("p2.nx", negative).unwrap();
+    error.validate("p2.n", negative).unwrap();
     assert!(
         parse(
-            "p2.nx",
+            "p2.n",
             "fn F()->I64{return if true then {value:1; }else{value:2;};} fn Main(){}"
         )
         .is_ok()
@@ -3457,7 +3447,7 @@ fn commented_crlf_terminators_match_explicit_b_programs() {
 #[test]
 fn adr_line_endings_contextual_names_and_branch_values() {
     let l02 = "fn F()->I64{\nreturn if true then {\nvalue:\n(1);\n}else{value:2;};\n}\nfn Main(){}";
-    let error = parse("b.nx", l02).unwrap_err();
+    let error = parse("b.n", l02).unwrap_err();
     assert_eq!(error.rule, "NX-E1302/missing_value_operand");
     assert_eq!(
         (
@@ -3466,21 +3456,21 @@ fn adr_line_endings_contextual_names_and_branch_values() {
         ),
         (35, 41)
     );
-    assert!(error.validate("b.nx", l02).is_ok());
+    assert!(error.validate("b.n", l02).is_ok());
 
     let l03 =
         "fn value(x:view I64)->I64{return x;}\nfn Main(){let x=7;let y=value\n(x);AssertEq(y,7);}";
-    let ast = parse("b.nx", l03).unwrap();
+    let ast = parse("b.n", l03).unwrap();
     assert_eq!(ast.functions[0].name, "value");
     assert!(print_canonical(&ast).unwrap().contains("value(x)"));
     let l04 = "fn Main(){\nlet value=2\nlet a=value -1\nlet b=value - 1\nAssertEq(a,b)\n}";
-    assert!(parse("b.nx", l04).is_ok());
+    assert!(parse("b.n", l04).is_ok());
     let l05 = "fn Main(){\nlet x=if true then {value: ();}else{value: ();};\nAssertEq(x,());\n}";
-    let ast = parse("b.nx", l05).unwrap();
+    let ast = parse("b.n", l05).unwrap();
     let printed = print_canonical(&ast).unwrap();
     assert!(printed.contains("if true then () else ()"));
     assert_eq!(
-        print_canonical(&parse("b.nx", &printed).unwrap()).unwrap(),
+        print_canonical(&parse("b.n", &printed).unwrap()).unwrap(),
         printed
     );
 }
@@ -3505,7 +3495,7 @@ fn adr_missing_terminators_use_published_byte_offsets() {
             (40, 40),
         ),
     ] {
-        let error = parse("b.nx", source).unwrap_err();
+        let error = parse("b.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0005", "{source}");
         let primary = error.primary_span.as_ref().unwrap();
         assert_eq!((primary.start, primary.end), (start, end));
@@ -3516,9 +3506,9 @@ fn adr_missing_terminators_use_published_byte_offsets() {
         let edit = &error.repair[0].edits[0].span;
         assert_eq!((edit.start, edit.end), insertion);
         assert!(
-            error.validate("b.nx", source).is_ok(),
+            error.validate("b.n", source).is_ok(),
             "{source}: {:?}",
-            error.validate("b.nx", source)
+            error.validate("b.n", source)
         );
     }
 }
@@ -3526,7 +3516,7 @@ fn adr_missing_terminators_use_published_byte_offsets() {
 #[test]
 fn adr_terminator_diagnostic_matches_complete_published_json() {
     // F0-D15 §6.4, transcribed independently of the parser and serializer.
-    let file = "terminador.nx";
+    let file = "terminador.n";
     let source = "fn Main(){let x=1}";
     let error = parse(file, source).unwrap_err();
     assert_eq!(
@@ -3537,16 +3527,16 @@ fn adr_terminator_diagnostic_matches_complete_published_json() {
             "\"rule\":\"NX-E0005\",\"explanation_id\":\"NX-E0005\",\"severity\":\"error\",",
             "\"stage\":\"parse\",\"message\":\"Falta un terminador de sentencia.\",",
             "\"operation\":\"syntax.parse\",",
-            "\"primary_span\":{\"file\":\"terminador.nx\",\"start\":17,\"end\":18},",
-            "\"related_spans\":[{\"role\":\"preceding_expression\",\"span\":{\"file\":\"terminador.nx\",\"start\":16,\"end\":17}}],",
+            "\"primary_span\":{\"file\":\"terminador.n\",\"start\":17,\"end\":18},",
+            "\"related_spans\":[{\"role\":\"preceding_expression\",\"span\":{\"file\":\"terminador.n\",\"start\":16,\"end\":17}}],",
             "\"cause_chain\":[],\"feature_id\":null,",
-            "\"unexpected_token\":{\"kind\":\"symbol\",\"text\":\"}\",\"span\":{\"file\":\"terminador.nx\",\"start\":17,\"end\":18}},",
+            "\"unexpected_token\":{\"kind\":\"symbol\",\"text\":\"}\",\"span\":{\"file\":\"terminador.n\",\"start\":17,\"end\":18}},",
             "\"expected_tokens\":[\";\"],\"expected_tokens_kind\":\"canonical_insertion\",",
             "\"parser_context\":\"statement_terminator\",",
-            "\"recognized_prefix\":{\"file\":\"terminador.nx\",\"start\":10,\"end\":17},",
+            "\"recognized_prefix\":{\"file\":\"terminador.n\",\"start\":10,\"end\":17},",
             "\"repair\":[{\"id\":\"insert_terminator\",\"status\":\"proposed\",",
             "\"description\":\"Insertar un terminador explícito.\",",
-            "\"edits\":[{\"span\":{\"file\":\"terminador.nx\",\"start\":17,\"end\":17},",
+            "\"edits\":[{\"span\":{\"file\":\"terminador.n\",\"start\":17,\"end\":17},",
             "\"expected_text\":\"\",\"replacement\":\";\"}],\"validation\":null,",
             "\"consequences\":[\"Termina el binding antes del cierre del bloque.\"]}],\"data\":{}}",
         )
@@ -3557,7 +3547,7 @@ fn adr_terminator_diagnostic_matches_complete_published_json() {
 fn contextual_modes_labels_and_else_if_keep_distinct_ast_shapes() {
     use super::parse::{Expr, Mode, Statement};
     let source = "fn F(x:view I64){} fn Main(){let move=1;let edit=2;F(move);F(move: edit);F(move x);move(x);(move)(x);if true{}else if false{}else{}}";
-    let ast = parse("b.nx", source).unwrap();
+    let ast = parse("b.n", source).unwrap();
     let statements = &ast.functions[1].body.statements;
     assert!(
         matches!(&statements[2], Statement::Expr { value: Expr::Call { args, .. }, .. } if matches!(&args[0].value, Expr::Name(name, _) if name == "move"))
@@ -3585,7 +3575,7 @@ fn contextual_modes_labels_and_else_if_keep_distinct_ast_shapes() {
     let printed = print_canonical(&ast).unwrap();
     assert!(printed.contains("} else if false {} else {}"));
     assert_eq!(
-        print_canonical(&parse("b.nx", &printed).unwrap()).unwrap(),
+        print_canonical(&parse("b.n", &printed).unwrap()).unwrap(),
         printed
     );
 }
@@ -3594,13 +3584,13 @@ fn contextual_modes_labels_and_else_if_keep_distinct_ast_shapes() {
 fn line_endings_and_utf8_comments_preserve_byte_coordinates() {
     for (newline, expected) in [("\n", 27), ("\r\n", 29), ("\r", 27)] {
         let source = format!("// á🙂{newline}fn Main(){{{newline}let x=missing;{newline}}}");
-        let tokens = super::lex::lex("b.nx", &source).unwrap();
+        let tokens = super::lex::lex("b.n", &source).unwrap();
         let missing = tokens.iter().find(|t| t.text == "missing").unwrap();
         assert_eq!(
             (missing.span.start, missing.span.end),
             (expected, expected + 7)
         );
-        assert!(parse("b.nx", &source).is_ok());
+        assert!(parse("b.n", &source).is_ok());
     }
 }
 
@@ -3620,29 +3610,29 @@ fn accepted_b_ast_round_trips_without_source_spans() {
         "fn Main() with {call(no_io,no_alloc)}{}",
     ];
     for source in sources {
-        let ast = parse("b.nx", source).unwrap();
+        let ast = parse("b.n", source).unwrap();
         let printed = print_canonical(&ast).unwrap();
-        let reparsed = parse("b.nx", &printed).unwrap();
+        let reparsed = parse("b.n", &printed).unwrap();
         assert_eq!(
             super::test_normalize::ast_without_spans(ast.clone()),
             super::test_normalize::ast_without_spans(reparsed),
             "{source} => {printed}"
         );
         assert_eq!(
-            print_canonical(&parse("b.nx", &printed).unwrap()).unwrap(),
+            print_canonical(&parse("b.n", &printed).unwrap()).unwrap(),
             printed
         );
-        assert_eq!(super::format::format("b.nx", source).unwrap(), printed);
-        assert_eq!(super::format::format("b.nx", &printed).unwrap(), printed);
+        assert_eq!(super::format::format("b.n", source).unwrap(), printed);
+        assert_eq!(super::format::format("b.n", &printed).unwrap(), printed);
     }
     let modes = "fn F(x:edit I64,y:move I64){}";
-    let ast = parse("b.nx", modes).unwrap();
+    let ast = parse("b.n", modes).unwrap();
     assert_eq!(ast.functions[0].params[0].mode, super::parse::Mode::Inout);
     assert_eq!(ast.functions[0].params[1].mode, super::parse::Mode::Consume);
     let printed = print_canonical(&ast).unwrap();
     assert_eq!(
         ast_without_spans(ast),
-        ast_without_spans(parse("b.nx", &printed).unwrap())
+        ast_without_spans(parse("b.n", &printed).unwrap())
     );
 }
 
@@ -3682,10 +3672,10 @@ fn canonical_printer_preserves_full_b_ast_across_body_and_signature_matrix() {
         };
         let source = format!("{header}{{{body}}}");
         let original =
-            parse("roundtrip.nx", &source).unwrap_or_else(|e| panic!("source {source}: {e:?}"));
+            parse("roundtrip.n", &source).unwrap_or_else(|e| panic!("source {source}: {e:?}"));
         let printed = print_canonical(&original).unwrap();
         let reparsed =
-            parse("roundtrip.nx", &printed).unwrap_or_else(|e| panic!("printed {printed}: {e:?}"));
+            parse("roundtrip.n", &printed).unwrap_or_else(|e| panic!("printed {printed}: {e:?}"));
         assert_eq!(
             ast_without_spans(original),
             ast_without_spans(reparsed.clone()),
@@ -3726,25 +3716,22 @@ fn generated_valid_programs_round_trip() {
             11 => format!("fn Main(){{view({a});view[0];}}"),
             _ => format!("fn Main(){{let x=if true then {a} else {{value:{b};}}\nlet y=3;}}"),
         };
-        let ast = parse("b.nx", &source).unwrap();
+        let ast = parse("b.n", &source).unwrap();
         let printed = print_canonical(&ast).unwrap();
-        let reparsed = parse("b.nx", &printed).unwrap();
+        let reparsed = parse("b.n", &printed).unwrap();
         assert_eq!(
             super::test_normalize::ast_without_spans(ast.clone()),
             super::test_normalize::ast_without_spans(reparsed)
         );
         assert_eq!(
-            print_canonical(&parse("b.nx", &printed).unwrap()).unwrap(),
+            print_canonical(&parse("b.n", &printed).unwrap()).unwrap(),
             printed
         );
-        let formatted = super::format::format("b.nx", &source).unwrap();
+        let formatted = super::format::format("b.n", &source).unwrap();
         assert_eq!(formatted, printed);
+        assert_eq!(super::format::format("b.n", &formatted).unwrap(), formatted);
         assert_eq!(
-            super::format::format("b.nx", &formatted).unwrap(),
-            formatted
-        );
-        assert_eq!(
-            super::test_normalize::ast_without_spans(parse("b.nx", &formatted).unwrap()),
+            super::test_normalize::ast_without_spans(parse("b.n", &formatted).unwrap()),
             super::test_normalize::ast_without_spans(ast),
         );
     }
@@ -3801,7 +3788,7 @@ fn adr_accepted_corpus_formats_idempotently_with_the_same_normalized_ast() {
     let mut accepted = 0;
     let mut rejected = Vec::new();
     for (source_id, source) in sources.into_iter().enumerate() {
-        let ast = match parse("adr-fmt.nx", &source) {
+        let ast = match parse("adr-fmt.n", &source) {
             Ok(ast) => ast,
             Err(error) => {
                 rejected.push(format!(
@@ -3812,15 +3799,15 @@ fn adr_accepted_corpus_formats_idempotently_with_the_same_normalized_ast() {
                 continue;
             }
         };
-        let formatted = super::format::format("adr-fmt.nx", &source).unwrap();
+        let formatted = super::format::format("adr-fmt.n", &source).unwrap();
         assert!(formatted.len() <= 1_048_576, "{source}");
         assert_eq!(
-            super::format::format("adr-fmt.nx", &formatted).unwrap(),
+            super::format::format("adr-fmt.n", &formatted).unwrap(),
             formatted,
             "{source}"
         );
         assert_eq!(
-            super::test_normalize::ast_without_spans(parse("adr-fmt.nx", &formatted).unwrap()),
+            super::test_normalize::ast_without_spans(parse("adr-fmt.n", &formatted).unwrap()),
             super::test_normalize::ast_without_spans(ast),
             "{source}"
         );
@@ -3850,7 +3837,7 @@ fn adr_large_compact_source_obeys_canonical_reparse_budget() {
     source.push_str(&"}".repeat(97));
     source.push_str("fn Main(){}");
     let token_texts = |text: &str| {
-        super::lex::lex("b-d1.nx", text)
+        super::lex::lex("b-d1.n", text)
             .unwrap()
             .into_iter()
             .filter(|token| token.kind != super::lex::Kind::Newline)
@@ -3872,7 +3859,7 @@ fn adr_large_compact_source_obeys_canonical_reparse_budget() {
         ),
     ] {
         assert_eq!(compact.len(), compact_size);
-        let ast = parse("b-d1.nx", &compact).unwrap();
+        let ast = parse("b-d1.n", &compact).unwrap();
         assert_eq!(
             ast.functions
                 .iter()
@@ -3883,7 +3870,7 @@ fn adr_large_compact_source_obeys_canonical_reparse_budget() {
         let printed = print_canonical(&ast).unwrap();
         assert_eq!(printed.len(), canonical_size);
         assert_eq!(token_texts(&compact), token_texts(&printed));
-        let error = parse("b-d1.nx", &printed).unwrap_err();
+        let error = parse("b-d1.n", &printed).unwrap_err();
         assert_eq!(error.code, "NX-E0003");
         assert_eq!(
             error.data.get("budget_kind"),
@@ -3903,7 +3890,7 @@ fn adr_large_compact_source_obeys_canonical_reparse_budget() {
             Some(&DataValue::UInt(1_048_577))
         );
         assert_eq!(error.data.len(), 5);
-        assert!(error.validate("b-d1.nx", &printed).is_ok());
+        assert!(error.validate("b-d1.n", &printed).is_ok());
     }
 }
 
@@ -3944,32 +3931,32 @@ fn mutated_bytes_and_tokens_never_panic_or_emit_invalid_diagnostics() {
             assert_eq!(bytes_hex.len(), (end - start) * 2, "raw bytes {n}");
         }
         let source = String::from_utf8_lossy(&bytes);
-        match super::lex::lex("fuzz.nx", &source) {
+        match super::lex::lex("fuzz.n", &source) {
             Ok(tokens) => {
                 assert!(!tokens.is_empty());
             }
             Err(error) => assert!(
-                error.validate("fuzz.nx", &source).is_ok(),
+                error.validate("fuzz.n", &source).is_ok(),
                 "lex {n}: {source:?}: {:?}",
-                error.validate("fuzz.nx", &source)
+                error.validate("fuzz.n", &source)
             ),
         }
-        match parse("fuzz.nx", &source) {
+        match parse("fuzz.n", &source) {
             Ok(ast) => {
-                let formatted = super::format::format("fuzz.nx", &source).unwrap();
-                let formatted_ast = parse("fuzz.nx", &formatted).unwrap();
+                let formatted = super::format::format("fuzz.n", &source).unwrap();
+                let formatted_ast = parse("fuzz.n", &formatted).unwrap();
                 assert_eq!(
                     super::test_normalize::ast_without_spans(ast.clone()),
                     super::test_normalize::ast_without_spans(formatted_ast),
                     "formatted {n}: {source:?}"
                 );
                 assert_eq!(
-                    super::format::format("fuzz.nx", &formatted).unwrap(),
+                    super::format::format("fuzz.n", &formatted).unwrap(),
                     formatted,
                     "idempotence {n}: {source:?}"
                 );
                 let printed = print_canonical(&ast).unwrap();
-                let reparsed = parse("fuzz.nx", &printed).unwrap();
+                let reparsed = parse("fuzz.n", &printed).unwrap();
                 assert_eq!(
                     super::test_normalize::ast_without_spans(ast),
                     super::test_normalize::ast_without_spans(reparsed),
@@ -3978,12 +3965,12 @@ fn mutated_bytes_and_tokens_never_panic_or_emit_invalid_diagnostics() {
             }
             Err(error) => {
                 assert!(
-                    error.validate("fuzz.nx", &source).is_ok(),
+                    error.validate("fuzz.n", &source).is_ok(),
                     "parse {n}: {source:?}: {:?}",
-                    error.validate("fuzz.nx", &source)
+                    error.validate("fuzz.n", &source)
                 );
-                let format_error = super::format::format("fuzz.nx", &source).unwrap_err();
-                format_error.validate("fuzz.nx", &source).unwrap();
+                let format_error = super::format::format("fuzz.n", &source).unwrap_err();
+                format_error.validate("fuzz.n", &source).unwrap();
             }
         }
     }
@@ -3999,7 +3986,7 @@ fn token_sequence_mutations_never_panic_and_accepted_asts_reparse() {
         "fn Main(){var a=[1,2];a[0]=3;}",
     ];
     let tokenized = seeds.map(|source| {
-        super::lex::lex("fuzz-token.nx", source)
+        super::lex::lex("fuzz-token.n", source)
             .unwrap()
             .into_iter()
             .filter(|t| !matches!(t.kind, super::lex::Kind::Eof | super::lex::Kind::Newline))
@@ -4029,26 +4016,26 @@ fn token_sequence_mutations_never_panic_and_accepted_asts_reparse() {
             }
         }
         let source = tokens.join(" ");
-        match super::lex::lex("fuzz-token.nx", &source) {
+        match super::lex::lex("fuzz-token.n", &source) {
             Ok(_) => {}
-            Err(error) => assert!(error.validate("fuzz-token.nx", &source).is_ok(), "lex {n}"),
+            Err(error) => assert!(error.validate("fuzz-token.n", &source).is_ok(), "lex {n}"),
         }
-        match parse("fuzz-token.nx", &source) {
+        match parse("fuzz-token.n", &source) {
             Ok(ast) => {
-                let formatted = super::format::format("fuzz-token.nx", &source).unwrap();
-                let formatted_ast = parse("fuzz-token.nx", &formatted).unwrap();
+                let formatted = super::format::format("fuzz-token.n", &source).unwrap();
+                let formatted_ast = parse("fuzz-token.n", &formatted).unwrap();
                 assert_eq!(
                     super::test_normalize::ast_without_spans(ast.clone()),
                     super::test_normalize::ast_without_spans(formatted_ast),
                     "formatted {n}"
                 );
                 assert_eq!(
-                    super::format::format("fuzz-token.nx", &formatted).unwrap(),
+                    super::format::format("fuzz-token.n", &formatted).unwrap(),
                     formatted,
                     "idempotence {n}"
                 );
                 let printed = print_canonical(&ast).unwrap();
-                let reparsed = parse("fuzz-token.nx", &printed).unwrap();
+                let reparsed = parse("fuzz-token.n", &printed).unwrap();
                 assert_eq!(
                     super::test_normalize::ast_without_spans(ast),
                     super::test_normalize::ast_without_spans(reparsed),
@@ -4056,12 +4043,9 @@ fn token_sequence_mutations_never_panic_and_accepted_asts_reparse() {
                 );
             }
             Err(error) => {
-                assert!(
-                    error.validate("fuzz-token.nx", &source).is_ok(),
-                    "parse {n}"
-                );
-                let format_error = super::format::format("fuzz-token.nx", &source).unwrap_err();
-                format_error.validate("fuzz-token.nx", &source).unwrap();
+                assert!(error.validate("fuzz-token.n", &source).is_ok(), "parse {n}");
+                let format_error = super::format::format("fuzz-token.n", &source).unwrap_err();
+                format_error.validate("fuzz-token.n", &source).unwrap();
             }
         }
     }
@@ -4099,9 +4083,9 @@ fn lexer_and_parser_scale_linearly_across_surface_families() {
         let small = program(fragment, 256 * 1024);
         let large = program(fragment, 1024 * 1024);
         let (_, lex_small) =
-            super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &small).unwrap());
+            super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &small).unwrap());
         let (_, lex_large) =
-            super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &large).unwrap());
+            super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &large).unwrap());
         let (parsed_small, parse_small) = super::parse::measure_parse_work(&small);
         let (parsed_large, parse_large) = super::parse::measure_parse_work(&large);
         println!(
@@ -4155,13 +4139,13 @@ fn printer_and_formatter_scale_in_emitted_and_allocated_bytes() {
         let mut samples = Vec::new();
         for target in [256 * 1024, 1024 * 1024] {
             let written = source(fragment, target);
-            let ast = parse("print_scale_counter.nx", &written).unwrap();
-            crate::test_alloc::reset("print_scale_counter.nx");
+            let ast = parse("print_scale_counter.n", &written).unwrap();
+            crate::test_alloc::reset("print_scale_counter.n");
             let printed = print_canonical(&ast).unwrap();
-            let print_alloc = crate::test_alloc::snapshot("print_scale_counter.nx");
-            crate::test_alloc::reset("format_scale_counter.nx");
-            let formatted = super::format::format("format_scale_counter.nx", &written).unwrap();
-            let format_alloc = crate::test_alloc::snapshot("format_scale_counter.nx");
+            let print_alloc = crate::test_alloc::snapshot("print_scale_counter.n");
+            crate::test_alloc::reset("format_scale_counter.n");
+            let formatted = super::format::format("format_scale_counter.n", &written).unwrap();
+            let format_alloc = crate::test_alloc::snapshot("format_scale_counter.n");
             assert!(print_alloc.0 > 0 && print_alloc.1 > 0, "print {name}");
             assert!(format_alloc.0 > 0 && format_alloc.1 > 0, "format {name}");
             samples.push((printed.len(), print_alloc, formatted.len(), format_alloc));
@@ -4198,7 +4182,7 @@ fn explicit_branch_comment_search_scales_by_comparison_count() {
     for size in [256 * 1024, 1024 * 1024] {
         super::emit::reset_comment_search_steps();
         let input = source(size);
-        let formatted = super::format::format("comment_search_scale.nx", &input).unwrap();
+        let formatted = super::format::format("comment_search_scale.n", &input).unwrap();
         assert!(formatted.contains("// c"));
         let count = super::emit::comment_search_steps();
         assert!(count > 0, "{size}: search was not exercised");
@@ -4246,9 +4230,9 @@ fn long_identifiers_deep_blocks_and_strings_have_linear_work() {
         let small = builder(256 * 1024);
         let large = builder(1024 * 1024);
         let (_, lex_small) =
-            super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &small).unwrap());
+            super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &small).unwrap());
         let (_, lex_large) =
-            super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &large).unwrap());
+            super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &large).unwrap());
         let (parsed_small, parse_small) = super::parse::measure_parse_work(&small);
         let (parsed_large, parse_large) = super::parse::measure_parse_work(&large);
         println!(
@@ -4277,15 +4261,15 @@ fn long_identifiers_deep_blocks_and_strings_have_linear_work() {
     let small = string_source(256 * 1024);
     let large = string_source(1024 * 1024);
     for source in [&small, &large] {
-        let error = parse("b-scale.nx", source).unwrap_err();
+        let error = parse("b-scale.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0006");
         assert_eq!(error.feature_id.as_deref(), Some("text"));
-        assert!(error.validate("b-scale.nx", source).is_ok());
+        assert!(error.validate("b-scale.n", source).is_ok());
     }
     let (_, lex_small) =
-        super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &small).unwrap());
+        super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &small).unwrap());
     let (_, lex_large) =
-        super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &large).unwrap());
+        super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &large).unwrap());
     println!(
         "multibyte_strings: lex {lex_small}/{lex_large} ({:.3})",
         lex_large as f64 / lex_small as f64
@@ -4325,9 +4309,9 @@ fn function_and_parameter_families_scale_linearly() {
         let small = builder(256 * 1024);
         let large = builder(1024 * 1024);
         let (_, lex_small) =
-            super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &small).unwrap());
+            super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &small).unwrap());
         let (_, lex_large) =
-            super::lex::measure_lex_work(|| super::lex::lex("b-scale.nx", &large).unwrap());
+            super::lex::measure_lex_work(|| super::lex::lex("b-scale.n", &large).unwrap());
         let (parsed_small, parse_small) = super::parse::measure_parse_work(&small);
         let (parsed_large, parse_large) = super::parse::measure_parse_work(&large);
         assert!(
@@ -4403,16 +4387,16 @@ fn small_stack_child_probe() {
         ),
         _ => unreachable!(),
     };
-    let probe = move || match parse("stack-b.nx", &source) {
+    let probe = move || match parse("stack-b.n", &source) {
         Ok(ast) => {
             let printed = print_canonical(&ast).unwrap();
-            assert!(parse("stack-b.nx", &printed).is_ok());
-            let formatted = super::format::format("stack-b.nx", &source).unwrap();
-            assert!(parse("stack-b.nx", &formatted).is_ok());
+            assert!(parse("stack-b.n", &printed).is_ok());
+            let formatted = super::format::format("stack-b.n", &source).unwrap();
+            assert!(parse("stack-b.n", &formatted).is_ok());
         }
         Err(error) => {
             assert_eq!(error.code, "NX-E0003");
-            assert!(error.validate("stack-b.nx", &source).is_ok());
+            assert!(error.validate("stack-b.n", &source).is_ok());
         }
     };
     if size == 0 {
@@ -4556,14 +4540,14 @@ fn first_sets_and_excluded_operators_match_published_literals() {
         ),
     ];
     for &(source, context, expected) in rows {
-        let error = parse("b.nx", source).unwrap_err();
+        let error = parse("b.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0002", "{source}");
         assert_eq!(error.parser_context.as_deref(), Some(context), "{source}");
         assert_eq!(error.expected_tokens, expected, "{source}");
         assert!(
-            error.validate("b.nx", source).is_ok(),
+            error.validate("b.n", source).is_ok(),
             "{source}: {:?}",
-            error.validate("b.nx", source)
+            error.validate("b.n", source)
         );
     }
 }
@@ -4572,7 +4556,7 @@ fn first_sets_and_excluded_operators_match_published_literals() {
 fn type_close_split_and_contextual_delimiters() {
     use super::parse::{Expr, Statement, Type};
     let source = "fn Main(){let x:Result<I64,I64>=Ok(1);}";
-    let ast = parse("b.nx", source).unwrap();
+    let ast = parse("b.n", source).unwrap();
     assert!(matches!(
         &ast.functions[0].body.statements[0],
         Statement::Let {
@@ -4584,7 +4568,7 @@ fn type_close_split_and_contextual_delimiters() {
     let printed = print_canonical(&ast).unwrap();
     assert!(printed.contains("Result<I64, I64> = Ok(1)"));
     let invalid = "fn Main(){value:1;}";
-    let error = parse("b.nx", invalid).unwrap_err();
+    let error = parse("b.n", invalid).unwrap_err();
     assert_eq!(error.rule, "NX-E1302/invalid_value_target");
     assert_eq!(
         (
@@ -4593,11 +4577,11 @@ fn type_close_split_and_contextual_delimiters() {
         ),
         (10, 16)
     );
-    assert!(error.validate("b.nx", invalid).is_ok());
+    assert!(error.validate("b.n", invalid).is_ok());
     let empty = "fn Main(){let x=if true then {value:}else{value:1;};}";
-    let error = parse("b.nx", empty).unwrap_err();
+    let error = parse("b.n", empty).unwrap_err();
     assert_eq!(error.rule, "NX-E1302/missing_value_operand");
-    assert!(error.validate("b.nx", empty).is_ok());
+    assert!(error.validate("b.n", empty).is_ok());
 }
 
 #[test]
@@ -4785,7 +4769,7 @@ fn published_syntax_rows_have_exact_tokens_spans_and_prefixes() {
     ];
     assert_eq!(rows.len(), 27, "F0-D15 §6.3 sintaxis publicada");
     for (source, context, kind, primary, prefix) in rows {
-        let error = parse("b.nx", source).unwrap_err();
+        let error = parse("b.n", source).unwrap_err();
         assert_eq!(error.code, "NX-E0002", "{source}");
         assert_eq!(error.schema_version, 1, "{source}");
         assert_eq!(
@@ -4901,14 +4885,14 @@ fn published_syntax_rows_have_exact_tokens_spans_and_prefixes() {
         };
         assert_eq!(error.expected_tokens, expected, "{source}");
         assert!(
-            error.validate("b.nx", source).is_ok(),
+            error.validate("b.n", source).is_ok(),
             "{source}: {:?}",
-            error.validate("b.nx", source)
+            error.validate("b.n", source)
         );
     }
     for invalid in ['!', '&', '|'] {
         let source = format!("fn Main(){{let x=1{invalid}2;}}");
-        let error = parse("b.nx", &source).unwrap_err();
+        let error = parse("b.n", &source).unwrap_err();
         assert_eq!(error.code, "NX-E0001");
         assert_eq!(
             (
@@ -4917,6 +4901,6 @@ fn published_syntax_rows_have_exact_tokens_spans_and_prefixes() {
             ),
             (17, 18)
         );
-        assert!(error.validate("b.nx", &source).is_ok());
+        assert!(error.validate("b.n", &source).is_ok());
     }
 }

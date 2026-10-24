@@ -4,7 +4,7 @@ use crate::interp::{Outcome, run_scalar};
 #[test]
 fn inout_reborrow_returns_modified_value() {
     let source = "fn Inc(x: edit I64) {\n    x = x + 1;\n}\nfn Dos(x: edit I64) {\n    Inc(edit x);\n    Inc(edit x);\n}\nfn Main() {\n    var x = 0;\n    Dos(edit x);\n    AssertEq(x, 2);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::Unit);
     assert!(result.diagnostics.is_empty());
 }
@@ -52,12 +52,12 @@ fn published_conflicts_have_exact_identity_data() {
         ),
     ];
     for (source, subcause, binding, loan, start, end, origin_start, origin_end) in cases {
-        let CompileError::Rejected(errors) = compile_scalar("i06.nx", source).unwrap_err() else {
+        let CompileError::Rejected(errors) = compile_scalar("i06.n", source).unwrap_err() else {
             panic!("missing source diagnostic: {source}")
         };
         assert_eq!(errors.len(), 1, "{source}");
         let d = &errors[0];
-        d.validate("i06.nx", source).unwrap();
+        d.validate("i06.n", source).unwrap();
         assert_eq!(d.code, "NX-E1105");
         assert_eq!(d.subcause.as_deref(), Some(subcause));
         assert_eq!(
@@ -134,13 +134,13 @@ fn reading_during_argument_loans_reports_source_conflict() {
         ),
     ];
     for (source, suffix, place, access) in cases {
-        let CompileError::Rejected(errors) = compile_scalar("conflict.nx", source).unwrap_err()
+        let CompileError::Rejected(errors) = compile_scalar("conflict.n", source).unwrap_err()
         else {
             panic!("missing source conflict: {source}");
         };
         assert_eq!(errors.len(), 1, "{source}");
         let d = &errors[0];
-        d.validate("conflict.nx", source).unwrap();
+        d.validate("conflict.n", source).unwrap();
         assert_eq!(d.code, "NX-E1105", "{source}");
         assert_eq!(
             d.subcause.as_deref(),
@@ -175,12 +175,12 @@ fn indexed_conflict_primary_covers_complete_place_across_line_endings() {
         let source = format!(
             "{prefix}fn F(x:edit I64,y:edit I64){{}}\nfn Main(){{var a=[1,2];F(edit a[0],edit a[1]);}}"
         );
-        let CompileError::Rejected(errors) = compile_scalar("p07.nx", &source).unwrap_err() else {
+        let CompileError::Rejected(errors) = compile_scalar("p07.n", &source).unwrap_err() else {
             panic!("missing P07 conflict")
         };
         assert_eq!(errors.len(), 1);
         let d = &errors[0];
-        d.validate("p07.nx", &source).unwrap();
+        d.validate("p07.n", &source).unwrap();
         assert_eq!(d.code, "NX-E1105");
         assert_eq!(d.subcause.as_deref(), Some("overlapping_mutable_borrows"));
         let start = source.rfind("a[1]").unwrap() as u64;
@@ -200,12 +200,12 @@ fn indexed_conflict_primary_covers_complete_place_across_line_endings() {
 fn named_loan_identity_starts_at_argument_label() {
     use crate::diagnostic::DataValue;
     let source = "fn F(x: edit I64, y: edit I64) {}\nfn Main() {\n    var a = [1, 2];\n    F(x: edit a[0], y: edit a[1]);\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("label.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("label.n", source).unwrap_err() else {
         panic!("missing named loan conflict")
     };
     assert_eq!(errors.len(), 1);
     let d = &errors[0];
-    d.validate("label.nx", source).unwrap();
+    d.validate("label.n", source).unwrap();
     let first = source.find("x: edit a[0]").unwrap() as u64;
     let second = source.find("y: edit a[1]").unwrap() as u64;
     let place = source.rfind("a[1]").unwrap() as u64;
@@ -229,7 +229,7 @@ fn named_loan_identity_starts_at_argument_label() {
 fn named_exclusive_loan_keeps_full_argument_origin_in_verified_ir() {
     use super::model::Op;
     let source = "fn F(x: edit I64) {}\nfn Main() {\n    var a = [1];\n    F(x: edit a[0]);\n}\n";
-    let program = compile_scalar("named.nx", source).unwrap();
+    let program = compile_scalar("named.n", source).unwrap();
     let function = program.functions().function("Main").unwrap();
     let first = source.find("x: edit a[0]").unwrap() as u64;
     let loan = function
@@ -257,7 +257,7 @@ fn named_exclusive_loan_keeps_full_argument_origin_in_verified_ir() {
 #[test]
 fn two_read_loans_of_the_same_root_remain_compatible() {
     let source = "fn F(x: view Array<I64>, y: view Array<I64>) {}\nfn Main() {\n    var a = [1];\n    F(a, a);\n}\n";
-    let result = run_scalar(&compile_scalar("reads.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("reads.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::Unit);
     assert!(result.diagnostics.is_empty());
 }
@@ -265,12 +265,12 @@ fn two_read_loans_of_the_same_root_remain_compatible() {
 #[test]
 fn indexed_assignment_rechecks_owner_consumed_by_rhs() {
     let source = "fn Take(x: move Array<I64>) -> I64 {\n    return 1;\n}\nfn Main() {\n    var a = [0];\n    a[0] = Take(move a);\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("consume.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("consume.n", source).unwrap_err() else {
         panic!("missing unavailable destination")
     };
     assert_eq!(errors.len(), 1);
     let d = &errors[0];
-    d.validate("consume.nx", source).unwrap();
+    d.validate("consume.n", source).unwrap();
     assert_eq!(d.code, "NX-E0202");
     assert_eq!(d.subcause.as_deref(), Some("definitely_consumed"));
     let destination = source.rfind("a[0] =").unwrap() as u64;
@@ -294,7 +294,7 @@ fn valid_pairs_and_permissions() {
     ];
     for source in valid {
         let result = run_scalar(
-            &compile_scalar("i06.nx", source).unwrap_or_else(|e| panic!("{source}: {e:?}")),
+            &compile_scalar("i06.n", source).unwrap_or_else(|e| panic!("{source}: {e:?}")),
         );
         assert_eq!(
             result.outcome,
@@ -325,12 +325,12 @@ fn valid_pairs_and_permissions() {
             "active_borrow_conflict",
         ),
     ] {
-        let CompileError::Rejected(errors) = compile_scalar("i06.nx", source).unwrap_err() else {
+        let CompileError::Rejected(errors) = compile_scalar("i06.n", source).unwrap_err() else {
             panic!("missing diagnostic: {source}")
         };
         assert_eq!(errors[0].subcause.as_deref(), Some(subcause), "{source}");
         for e in errors {
-            e.validate("i06.nx", source)
+            e.validate("i06.n", source)
                 .unwrap_or_else(|reason| panic!("{source}: {reason:?}: {e:?}"));
         }
     }
@@ -339,11 +339,11 @@ fn valid_pairs_and_permissions() {
 #[test]
 fn indexed_destination_rechecks_after_rhs_call_modifies_root() {
     let source = "fn Resize(a: edit Array<I64>) -> I64 {\n    a = [7];\n    return 9;\n}\nfn Main() {\n    var a = [1, 2];\n    a[1] = Resize(edit a);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0102");
     let source = "fn Resize(a: edit Array<I64>) -> I64 {\n    a = [7, 8, 9];\n    return 4;\n}\nfn Main() {\n    var a = [1];\n    a[1] = Resize(edit a);\n    AssertEq(a, [7, 4, 9]);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::Unit, "{:?}", result.diagnostics);
 }
 
@@ -380,12 +380,12 @@ fn syntax_mode_and_immutable_place_pairs() {
             "NX-E0002" => source.rfind('1').unwrap(),
             _ => unreachable!(),
         } as u64;
-        let CompileError::Rejected(errors) = compile_scalar("i06.nx", source).unwrap_err() else {
+        let CompileError::Rejected(errors) = compile_scalar("i06.n", source).unwrap_err() else {
             panic!("missing {code}: {source}")
         };
         assert_eq!(errors.len(), 1, "{source}");
         let d = &errors[0];
-        d.validate("i06.nx", source).unwrap();
+        d.validate("i06.n", source).unwrap();
         assert_eq!(d.code, code);
         assert_eq!(d.subcause.as_deref(), subcause);
         assert_eq!(d.stage, stage);
@@ -402,7 +402,7 @@ fn verifier_rejects_forged_loan_permissions_and_lifecycle() {
     use super::model::{self, LoanId, LoanPermission, Op};
     use super::verify::verify_function;
     let p = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn F(x: edit I64) {}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
     )
     .unwrap();
@@ -500,7 +500,7 @@ fn verifier_rejects_forged_loan_permissions_and_lifecycle() {
 #[test]
 fn independent_argument_errors_are_collected_without_dependent_cascades() {
     let source = "fn F(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    let r = MockOpen(1);\n    let s = MockOpen(2);\n    F(r, s);\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("i06.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("i06.n", source).unwrap_err() else {
         panic!("missing copy diagnostics")
     };
     assert_eq!(errors.len(), 2);
@@ -510,11 +510,11 @@ fn independent_argument_errors_are_collected_without_dependent_cascades() {
             < errors[1].primary_span.as_ref().unwrap().start
     );
     for e in errors {
-        e.validate("i06.nx", source).unwrap();
+        e.validate("i06.n", source).unwrap();
     }
 
     let source = "fn F(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    F(s, s);\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("i06.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("i06.n", source).unwrap_err() else {
         panic!("missing original copy diagnostic")
     };
     assert_eq!(errors.len(), 1);
@@ -524,12 +524,12 @@ fn independent_argument_errors_are_collected_without_dependent_cascades() {
 #[test]
 fn loan_hash_ignores_source_offsets_and_tracks_permission_and_callee_signature() {
     let a = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn F(x: edit I64) {\n    x = x + 1;\n}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
     )
     .unwrap();
     let b = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn F(x: edit I64) {\n    x = x + 1;\n}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
     )
     .unwrap();
@@ -538,7 +538,7 @@ fn loan_hash_ignores_source_offsets_and_tracks_permission_and_callee_signature()
         b.functions().function("Main").unwrap().content_hash
     );
     let c = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn F(x: edit I64) {\n    x = x + 2;\n}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
     )
     .unwrap();
@@ -551,7 +551,7 @@ fn loan_hash_ignores_source_offsets_and_tracks_permission_and_callee_signature()
         c.functions().function("F").unwrap().content_hash
     );
     let d = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn F(y: edit I64) {\n    y = y + 1;\n}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
     )
     .unwrap();
@@ -564,12 +564,12 @@ fn loan_hash_ignores_source_offsets_and_tracks_permission_and_callee_signature()
 #[test]
 fn development_substitution_executes_new_inout_body() {
     let mut base = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn Inc(x: edit I64) {\n    x = x + 1;\n}\nfn Main() {\n    var x = 0;\n    Inc(edit x);\n    AssertEq(x, 2);\n}\n",
     )
     .unwrap();
     let donor = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn Inc(x: edit I64) {\n    x = x + 2;\n}\nfn Main() {\n    var x = 0;\n    Inc(edit x);\n    AssertEq(x, 2);\n}\n",
     )
     .unwrap();
@@ -581,7 +581,7 @@ fn development_substitution_executes_new_inout_body() {
 #[test]
 fn inout_resource_replacement_preserves_single_owner_and_cleanup_order() {
     let source = "fn Replace(r: edit MockResource) {\n    r = MockOpen(2);\n    Inspect(r);\n}\nfn Main() {\n    var r = MockOpen(1);\n    Replace(edit r);\n    Inspect(r);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::Unit);
     assert_eq!(
         result.observations.events(),
@@ -599,7 +599,7 @@ fn inout_resource_replacement_preserves_single_owner_and_cleanup_order() {
 #[test]
 fn inout_owner_is_restored_on_fault_and_frame_limit() {
     let source = "fn Change(r: edit MockResource) {\n    r = MockOpen(2);\n    Fail();\n}\nfn Main() {\n    var r = MockOpen(1);\n    Change(edit r);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0301");
     assert_eq!(
@@ -608,7 +608,7 @@ fn inout_owner_is_restored_on_fault_and_frame_limit() {
     );
 
     let source = "fn Recur(r: edit MockResource) {\n    Recur(edit r);\n}\nfn Main() {\n    var r = MockOpen(1);\n    Recur(edit r);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0002");
     assert_eq!(result.observations.events(), ["open:0:1", "close:0:1"]);
@@ -660,7 +660,7 @@ fn generated_inout_and_copy_programs_match_independent_integer_model() {
             "AssertEq(x,{x});AssertEq(a,[{},{}]);}}",
             a[0], a[1]
         ));
-        let compiled = compile_scalar("model.nx", &source)
+        let compiled = compile_scalar("model.n", &source)
             .unwrap_or_else(|e| panic!("case {case}: {e:?}: {source}"));
         let result = run_scalar(&compiled);
         assert_eq!(
@@ -690,17 +690,17 @@ fn semantic_loan_fuzz_never_constructs_invalid_ir() {
     ];
     for i in 0..30_000 {
         let source = programs[(i * 7919) % programs.len()].replace("=1", &format!("={}", i % 31));
-        match compile_scalar("fuzz.nx", &source) {
+        match compile_scalar("fuzz.n", &source) {
             Ok(program) => {
                 let result = run_scalar(&program);
                 for d in result.diagnostics {
-                    d.validate("fuzz.nx", &source).unwrap();
+                    d.validate("fuzz.n", &source).unwrap();
                 }
                 assert_ne!(result.outcome, Outcome::InternalError("invalid program"));
             }
             Err(CompileError::Rejected(errors)) => {
                 for d in errors {
-                    d.validate("fuzz.nx", &source)
+                    d.validate("fuzz.n", &source)
                         .unwrap_or_else(|reason| panic!("{source}: {reason:?}: {d:?}"));
                 }
             }
@@ -739,7 +739,7 @@ fn loan_source_fuzz_validates_diagnostics_and_never_panics() {
             case % 31,
             case % 19
         );
-        match compile_scalar("fuzz.nx", &source) {
+        match compile_scalar("fuzz.n", &source) {
             Ok(program) => {
                 let result = run_scalar(&program);
                 assert!(
@@ -747,12 +747,12 @@ fn loan_source_fuzz_validates_diagnostics_and_never_panics() {
                     "{source}"
                 );
                 for d in result.diagnostics {
-                    d.validate("fuzz.nx", &source).unwrap();
+                    d.validate("fuzz.n", &source).unwrap();
                 }
             }
             Err(CompileError::Rejected(errors)) => {
                 for d in errors {
-                    d.validate("fuzz.nx", &source).unwrap();
+                    d.validate("fuzz.n", &source).unwrap();
                 }
             }
             Err(other) => panic!("unexpected compiler outcome {other:?}: {source}"),
@@ -765,7 +765,7 @@ fn loan_compiler_and_interpreter_work_from_small_caller_stacks() {
     for stack in [128 * 1024, 256 * 1024, 512 * 1024] {
         std::thread::Builder::new().stack_size(stack).spawn(|| {
             let source = "fn Inc(x: edit I64) {\n    x = x + 1;\n}\nfn Twice(x: edit I64) {\n    Inc(edit x);\n    Inc(edit x);\n}\nfn Main() {\n    var a = [0, 0];\n    Twice(edit a[0]);\n    AssertEq(a, [2, 0]);\n}\n";
-            let program = compile_scalar("stack.nx", source).unwrap();
+            let program = compile_scalar("stack.n", source).unwrap();
             let result = run_scalar(&program);
             assert_eq!(result.outcome, Outcome::Unit);
         }).unwrap().join().unwrap();
@@ -814,12 +814,12 @@ fn dense_loan_and_call_sources_scale_across_twelve_families() {
         for bytes in [256 * 1024, 1024 * 1024] {
             let src = source(family, bytes);
             super::lower::LOAN_WORK.store(0, Ordering::Relaxed);
-            crate::test_alloc::reset("dead_scale_counter.nx");
-            let program = compile_scalar("dead_scale_counter.nx", &src)
+            crate::test_alloc::reset("dead_scale_counter.n");
+            let program = compile_scalar("dead_scale_counter.n", &src)
                 .unwrap_or_else(|e| panic!("family {family}: {e:?}"));
             let work = super::lower::LOAN_WORK.load(Ordering::Relaxed);
             assert!(program.functions().function("Main").is_some());
-            samples.push((crate::test_alloc::snapshot("dead_scale_counter.nx"), work));
+            samples.push((crate::test_alloc::snapshot("dead_scale_counter.n"), work));
         }
         let work_ratio = samples[1].1 as f64 / samples[0].1.max(1) as f64;
         eprintln!("I06 scale family {family}: {samples:?}, work {work_ratio:.3}");
@@ -841,7 +841,7 @@ fn verifier_rejects_unavailable_and_misplaced_loans() {
     use super::model::{self, Op};
     use super::verify::verify_function;
     let p = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn F(x: edit I64) {}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
     )
     .unwrap();
@@ -946,7 +946,7 @@ fn verifier_rejects_unavailable_and_misplaced_loans() {
 fn verifier_rejects_forged_overlapping_roots() {
     use super::model::{self, LoanPermission, Op};
     let p = compile_scalar(
-        "i06.nx",
+        "i06.n",
         "fn F(x: edit I64, y: edit I64) {}\nfn Main() {\n    var x = 1;\n    var y = 2;\n    F(edit x, edit y);\n}\n",
     )
     .unwrap();
@@ -1003,7 +1003,7 @@ fn verifier_requires_reverse_loan_release_and_parameter_permissions() {
     use super::model::{self, Op};
     use super::verify::verify_function;
     let p = compile_scalar(
-        "loans.nx",
+        "loans.n",
         "fn F(x: edit I64, y: edit I64) {}\nfn Main() {\n    var x = 1;\n    var y = 2;\n    F(edit x, edit y);\n}\n",
     )
     .unwrap();
@@ -1023,7 +1023,7 @@ fn verifier_requires_reverse_loan_release_and_parameter_permissions() {
     assert_eq!(verify_function(&forged), Err("unmatched loan end"));
 
     let p = compile_scalar(
-        "loans.nx",
+        "loans.n",
         "fn F(x: edit I64) {\n    x = x + 1;\n}\nfn Main() {}\n",
     )
     .unwrap();
@@ -1050,7 +1050,7 @@ fn verifier_requires_reverse_loan_release_and_parameter_permissions() {
 fn loan_permission_is_part_of_function_content_hash() {
     use super::model::{self, LoanPermission, Op};
     let p = compile_scalar(
-        "hash.nx",
+        "hash.n",
         "fn F(x: edit I64) {}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
     )
     .unwrap();
@@ -1076,7 +1076,7 @@ fn indexed_inout_does_not_add_live_cells() {
         .join(",");
     let source =
         format!("fn Take(x:edit Array<I64>){{}} fn Main(){{var a=[[{values}]];Take(edit a[0]);}}");
-    let result = run_scalar(&compile_scalar("cells.nx", &source).unwrap());
+    let result = run_scalar(&compile_scalar("cells.n", &source).unwrap());
     assert_eq!(result.outcome, Outcome::Unit, "{:?}", result.diagnostics);
     assert!(result.diagnostics.is_empty());
 }
@@ -1095,7 +1095,7 @@ fn large_indexed_inout_uses_existing_owner_cells() {
                 "G"
             }
         );
-        let result = run_scalar(&compile_scalar("big.nx", &source).unwrap());
+        let result = run_scalar(&compile_scalar("big.n", &source).unwrap());
         assert_eq!(
             result.outcome,
             Outcome::Unit,
@@ -1109,7 +1109,7 @@ fn large_indexed_inout_uses_existing_owner_cells() {
 #[test]
 fn indexed_inout_replacement_restores_nested_value_and_owner() {
     let source = "fn Replace(x: edit Array<I64>) {\n    x = [7, 8];\n}\nfn Main() {\n    var a = [[1], [2]];\n    Replace(edit a[0]);\n    AssertEq(a, [[7, 8], [2]]);\n}\n";
-    let result = run_scalar(&compile_scalar("nested.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("nested.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::Unit, "{:?}", result.diagnostics);
     assert!(result.diagnostics.is_empty());
 }
@@ -1125,7 +1125,7 @@ fn indexed_inout_owner_survives_each_callee_runtime_fault() {
     ] {
         let source =
             format!("fn F(x:edit Array<I64>){{{body}}} fn Main(){{var a=[[1]];F(edit a[0]);}}");
-        let program = compile_scalar("fault.nx", &source).unwrap();
+        let program = compile_scalar("fault.n", &source).unwrap();
         let result = run_scalar(&program);
         assert_eq!(
             result.outcome,
@@ -1135,7 +1135,7 @@ fn indexed_inout_owner_survives_each_callee_runtime_fault() {
         );
         assert_eq!(result.diagnostics.len(), 1);
         assert_eq!(result.diagnostics[0].code, code);
-        result.diagnostics[0].validate("fault.nx", &source).unwrap();
+        result.diagnostics[0].validate("fault.n", &source).unwrap();
     }
 }
 
@@ -1147,20 +1147,20 @@ fn indexed_inout_replacement_updates_root_cell_count() {
     let source = format!(
         "fn Grow(x:edit Array<I64>){{x=[0,0];}} fn Main(){{var a=[[0],[{values}]];Grow(edit a[0]);let b=a;}}"
     );
-    let result = run_scalar(&compile_scalar("cells.nx", &source).unwrap());
+    let result = run_scalar(&compile_scalar("cells.n", &source).unwrap());
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0002");
     assert_eq!(
         result.diagnostics[0].data["observed"],
         crate::diagnostic::DataValue::UInt(65_538)
     );
-    result.diagnostics[0].validate("cells.nx", &source).unwrap();
+    result.diagnostics[0].validate("cells.n", &source).unwrap();
 }
 
 #[test]
 fn indexed_write_runs_the_disposal_path_for_replaced_value() {
     let source = "fn Main() {\n    var a = [1];\n    a[0] = 2;\n}\n";
-    let result = run_scalar(&compile_scalar("dispose.nx", source).unwrap());
+    let result = run_scalar(&compile_scalar("dispose.n", source).unwrap());
     assert_eq!(result.outcome, Outcome::Unit);
     assert_eq!(result.disposals, 2);
 }
@@ -1168,8 +1168,7 @@ fn indexed_write_runs_the_disposal_path_for_replaced_value() {
 #[test]
 fn ordinary_parameter_cannot_grant_an_exclusive_reborrow() {
     let source = "fn Mutate(x: edit MockResource) {}\nfn Read(r: view MockResource) {\n    Mutate(edit r);\n}\nfn Main() {}\n";
-    let CompileError::Rejected(errors) = compile_scalar("permission.nx", source).unwrap_err()
-    else {
+    let CompileError::Rejected(errors) = compile_scalar("permission.n", source).unwrap_err() else {
         panic!("missing permission diagnostic")
     };
     assert_eq!(errors.len(), 1);
@@ -1180,13 +1179,13 @@ fn ordinary_parameter_cannot_grant_an_exclusive_reborrow() {
         d.data["requested_access"],
         crate::diagnostic::DataValue::String("borrow_inout".into())
     );
-    d.validate("permission.nx", source).unwrap();
+    d.validate("permission.n", source).unwrap();
 }
 
 #[test]
 fn conflict_uses_earliest_read_loan_and_releases_nested_loans_only() {
     let source = "fn F(a: view I64, b: view I64, c: edit I64) {}\nfn Main() {\n    var x = 1;\n    F(x, x, edit x);\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("loans.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("loans.n", source).unwrap_err() else {
         panic!("missing conflict")
     };
     assert_eq!(errors.len(), 1);
@@ -1204,40 +1203,40 @@ fn conflict_uses_earliest_read_loan_and_releases_nested_loans_only() {
             ),
         ]))
     );
-    errors[0].validate("loans.nx", source).unwrap();
+    errors[0].validate("loans.n", source).unwrap();
 
     let source = "fn Read(x: view I64) -> I64 {\n    return x;\n}\nfn Write(x: edit I64) -> I64 {\n    x = 2;\n    return x;\n}\nfn F(a: view I64, b: view I64, c: view I64) {}\nfn Main() {\n    var x = 1;\n    F(x, Read(x), Write(edit x));\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("loans.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("loans.n", source).unwrap_err() else {
         panic!("outer loan was lost")
     };
     assert_eq!(
         errors[0].subcause.as_deref(),
         Some("active_borrow_conflict")
     );
-    errors[0].validate("loans.nx", source).unwrap();
+    errors[0].validate("loans.n", source).unwrap();
 
     let source =
         "fn F(a: edit I64, b: view I64) {}\nfn Main() {\n    var x = 1;\n    F(edit x, x);\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("loans.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("loans.n", source).unwrap_err() else {
         panic!("exclusive loan allowed read")
     };
     assert_eq!(
         errors[0].subcause.as_deref(),
         Some("active_borrow_conflict")
     );
-    errors[0].validate("loans.nx", source).unwrap();
+    errors[0].validate("loans.n", source).unwrap();
 }
 
 #[test]
 fn adr_gap_reborrow_parent_uses_formal_declaration_without_caller_argument() {
     use crate::diagnostic::{CauseKind, CauseOperation, EntityKind};
     let source = "fn G(a: view I64, b: edit I64) {}\nfn F(x: edit I64) {\n    G(x, edit x);\n}\nfn Main() {}\n";
-    let CompileError::Rejected(errors) = compile_scalar("reborrow.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("reborrow.n", source).unwrap_err() else {
         panic!("missing conflict")
     };
     assert_eq!(errors.len(), 1);
     let d = &errors[0];
-    d.validate("reborrow.nx", source).unwrap();
+    d.validate("reborrow.n", source).unwrap();
     assert_eq!(d.subcause.as_deref(), Some("active_borrow_conflict"));
     assert_eq!(d.cause_chain.len(), 2);
     assert_eq!(d.cause_chain[0].kind, CauseKind::Borrow);
@@ -1257,24 +1256,24 @@ fn adr_gap_reborrow_parent_uses_formal_declaration_without_caller_argument() {
 #[test]
 fn same_call_independent_name_and_type_sites_are_reported() {
     let names = "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(nada, nada2);\n}\n";
-    let errors = crate::check::check_proposed("cardinality.nx", names, true).unwrap_err();
+    let errors = crate::check::check_proposed("cardinality.n", names, true).unwrap_err();
     assert_eq!(errors.len(), 2, "{errors:?}");
     for e in errors {
-        e.validate("cardinality.nx", names).unwrap();
+        e.validate("cardinality.n", names).unwrap();
     }
 
     let types = "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(true, false);\n}\n";
-    let errors = crate::check::check_proposed("cardinality.nx", types, true).unwrap_err();
+    let errors = crate::check::check_proposed("cardinality.n", types, true).unwrap_err();
     assert_eq!(errors.len(), 2, "{errors:?}");
     for e in errors {
-        e.validate("cardinality.nx", types).unwrap();
+        e.validate("cardinality.n", types).unwrap();
     }
 
     let tainted = "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    let x: I64 = true;\n    F(x, false);\n}\n";
-    let errors = crate::check::check_proposed("cardinality.nx", tainted, true).unwrap_err();
+    let errors = crate::check::check_proposed("cardinality.n", tainted, true).unwrap_err();
     assert_eq!(errors.len(), 2, "{errors:?}");
     for e in errors {
-        e.validate("cardinality.nx", tainted).unwrap();
+        e.validate("cardinality.n", tainted).unwrap();
     }
 }
 #[test]
@@ -1315,15 +1314,15 @@ fn sequential_intrinsic_arguments_hold_place_loans() {
     ];
     for (source, site, subcause, requested) in cases {
         for result in [
-            check_scalar("call_loan.nx", source),
-            compile_scalar("call_loan.nx", source),
+            check_scalar("call_loan.n", source),
+            compile_scalar("call_loan.n", source),
         ] {
             let Err(CompileError::Rejected(errors)) = result else {
                 panic!("expected source diagnostic: {source}: {result:?}");
             };
             assert_eq!(errors.len(), 1, "{source}: {errors:#?}");
             let diagnostic = &errors[0];
-            diagnostic.validate("call_loan.nx", source).unwrap();
+            diagnostic.validate("call_loan.n", source).unwrap();
             assert_eq!(diagnostic.code, "NX-E1105", "{source}");
             assert_eq!(diagnostic.subcause.as_deref(), Some(subcause), "{source}");
             assert_eq!(diagnostic.stage, Stage::Ownership);
@@ -1361,7 +1360,7 @@ fn sequential_intrinsic_arguments_hold_place_loans() {
         "fn Main(){var a=[1];AssertEq(a[0],if true then {var b=[2];b[0]=3;value:1;} else 1);}",
         "fn Main(){var i=1;AssertEq(i,i);}",
     ] {
-        let result = compile_scalar("call_loan_valid.nx", source);
+        let result = compile_scalar("call_loan_valid.n", source);
         assert!(result.is_ok(), "{source}: {result:?}");
     }
 }
@@ -1443,11 +1442,10 @@ fn sequential_operands_never_escape_as_invalid_ir() {
             let source = format!(
                 "fn Inc(x:edit I64){{x=x+1;}} fn Pair(x:view I64,y:view I64){{}} fn Take(p:move Array<I64>)->I64{{return 0;}} fn EditArray(p:edit Array<I64>){{p[0]=2;}} fn Main(){{var i=1;var a=[1];var m=[[1]];{body}}}"
             );
-            parsed +=
-                usize::from(crate::frontend::parse::parse("operand_fuzz.nx", &source).is_ok());
+            parsed += usize::from(crate::frontend::parse::parse("operand_fuzz.n", &source).is_ok());
             for result in [
-                check_scalar("operand_fuzz.nx", &source),
-                compile_scalar("operand_fuzz.nx", &source),
+                check_scalar("operand_fuzz.n", &source),
+                compile_scalar("operand_fuzz.n", &source),
             ] {
                 match result {
                     Ok(program) => {
@@ -1461,7 +1459,7 @@ fn sequential_operands_never_escape_as_invalid_ir() {
                     }
                     Err(CompileError::Rejected(errors)) => {
                         for diagnostic in errors {
-                            diagnostic.validate("operand_fuzz.nx", &source).unwrap();
+                            diagnostic.validate("operand_fuzz.n", &source).unwrap();
                         }
                     }
                     Err(other) => panic!("{source}: {other:?}"),

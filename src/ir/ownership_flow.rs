@@ -62,7 +62,7 @@ struct Budget {
 impl Budget {
     fn charge(&mut self, span: &Span) -> Result<(), CompileError> {
         #[cfg(test)]
-        let limit = if span.file == "quota_preserve.nx" {
+        let limit = if span.file == "quota_preserve.n" {
             64
         } else {
             FLOW_LIMIT
@@ -73,16 +73,16 @@ impl Budget {
         #[cfg(test)]
         if matches!(
             span.file.as_str(),
-            "flow_short_scale.nx" | "cfg_scale_counter.nx"
+            "flow_short_scale.n" | "cfg_scale_counter.n"
         ) {
             FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         #[cfg(test)]
-        if span.file == "sparse_scale.nx" {
+        if span.file == "sparse_scale.n" {
             SPARSE_FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         #[cfg(test)]
-        if span.file == "prefix_scale.nx" {
+        if span.file == "prefix_scale.n" {
             PREFIX_FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         self.used += 1;
@@ -480,7 +480,7 @@ mod tests {
 
     fn span(start: u64, end: u64) -> Span {
         Span {
-            file: "flow_state.nx".into(),
+            file: "flow_state.n".into(),
             start,
             end,
         }
@@ -507,7 +507,7 @@ mod tests {
     fn full_write_kills_only_its_root_and_transfer_keeps_source_kind() {
         use super::super::model::{LocalId, Op};
         let source = "fn Main() {\n    var r = MockOpen(1);\n    var s = MockOpen(2);\n    Drop(r);\n    Drop(s);\n}\n";
-        let program = super::super::compile_scalar("flow_state.nx", source).unwrap();
+        let program = super::super::compile_scalar("flow_state.n", source).unwrap();
         let function = program.functions.function("Main").unwrap();
         let ins = function
             .block
@@ -553,7 +553,7 @@ mod tests {
     #[test]
     fn synthetic_union_slot_does_not_become_a_source_owner() {
         let source = "fn Main() {\n    let v = if true then 1 else 2;\n}\n";
-        let program = super::super::compile_scalar("flow_state.nx", source).unwrap();
+        let program = super::super::compile_scalar("flow_state.n", source).unwrap();
         let function = program.functions.function("Main").unwrap();
         let slot = function
             .locals
@@ -700,7 +700,7 @@ mod tests {
     fn ownership_flow_budget_rejects_exactly_first_excess_step() {
         let source = "fn Main() {\n    while false {}\n}\n";
         let span = Span {
-            file: "budget_flow.nx".into(),
+            file: "budget_flow.n".into(),
             start: 10,
             end: 23,
         };
@@ -729,15 +729,15 @@ mod tests {
             d.data.get("observed"),
             Some(&diagnostic::DataValue::UInt(1_000_001))
         );
-        d.validate("budget_flow.nx", source).unwrap();
+        d.validate("budget_flow.n", source).unwrap();
     }
 
     #[test]
     fn ownership_flow_counts_summary_instruction_once() {
         let source = "fn Main() {\n    while false {}\n}\n";
-        let program = super::super::compile_scalar("summary_charge.nx", source).unwrap();
+        let program = super::super::compile_scalar("summary_charge.n", source).unwrap();
         let function = program.functions.function("Main").unwrap();
-        let tokens = crate::frontend::lex::lex("summary_charge.nx", source).unwrap();
+        let tokens = crate::frontend::lex::lex("summary_charge.n", source).unwrap();
         let mut used = 0;
         analyze(function, &[], &tokens, &mut used).unwrap();
         assert_eq!(used, 5);

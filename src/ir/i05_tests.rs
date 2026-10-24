@@ -39,11 +39,11 @@ fn assert_consumed_binding_diagnostics(
         Cause, CauseKind, CauseOperation, Diagnostic, Entity, EntityKind, Evidence, Namespace,
         Operation, RelatedRole, RelatedSpan, Severity, Span, Stage,
     };
-    let CompileError::Rejected(actual) = compile_scalar("d7.nx", source).unwrap_err() else {
+    let CompileError::Rejected(actual) = compile_scalar("d7.n", source).unwrap_err() else {
         panic!("expected NX-E0202 for {source}")
     };
     let span = |(start, end)| Span {
-        file: "d7.nx".into(),
+        file: "d7.n".into(),
         start,
         end,
     };
@@ -110,7 +110,7 @@ fn assert_consumed_binding_diagnostics(
         let mut expected = expected.clone();
         expected.primary_span = Some(span(*use_span));
         assert_eq!(**diagnostic, expected, "{source}");
-        diagnostic.validate("d7.nx", source).unwrap();
+        diagnostic.validate("d7.n", source).unwrap();
     }
 }
 
@@ -295,7 +295,7 @@ fn consumed_bindings_in_every_read_form_never_become_invalid_ir() {
         "fn Main() {\n    let x = 1;\n    Drop(x);\n    if x == 1 {\n        Print(1);\n    }\n}\n",
         "fn Main() {\n    let x = 1;\n    Drop(x);\n    while x == 1 {\n        Print(1);\n    }\n}\n",
     ] {
-        let result = compile_scalar("reads.nx", source);
+        let result = compile_scalar("reads.n", source);
         match result {
             Err(CompileError::Rejected(ref errors)) => {
                 assert_eq!(errors.len(), 1, "{source}");
@@ -310,7 +310,7 @@ fn consumed_bindings_in_every_read_form_never_become_invalid_ir() {
 #[test]
 fn shadowed_resource_declaration_uses_the_later_token() {
     let source = "fn Main() {\n    let r = MockOpen(1);\n    {\n        let r = MockOpen(2);\n        let s = r;\n    }\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("shadow.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("shadow.n", source).unwrap_err() else {
         panic!("expected resource copy diagnostic")
     };
     assert_eq!(errors.len(), 1);
@@ -325,7 +325,7 @@ fn shadowed_resource_declaration_uses_the_later_token() {
 #[test]
 fn dead_transfer_does_not_change_later_diagnostic_or_execution() {
     let source = "fn Main() {\n    let r = MockOpen(1);\n    {\n        return;\n        Drop(r);\n    }\n    Inspect(r);\n}\n";
-    let program = compile_scalar("dead.nx", source).unwrap();
+    let program = compile_scalar("dead.n", source).unwrap();
     let execution = run_scalar(&program);
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(
@@ -337,7 +337,7 @@ fn dead_transfer_does_not_change_later_diagnostic_or_execution() {
 #[test]
 fn dead_declaration_keeps_live_name_span_for_later_error() {
     let source = "fn Main() {\n    let r = MockOpen(1);\n    {\n        return;\n        let x = 1;\n    }\n    let s = r;\n}\n";
-    let CompileError::Rejected(errors) = compile_scalar("dead_span.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("dead_span.n", source).unwrap_err() else {
         panic!("expected resource copy diagnostic")
     };
     assert_eq!(errors.len(), 1);
@@ -351,7 +351,7 @@ fn dead_declaration_keeps_live_name_span_for_later_error() {
 fn entity_ids_follow_declared_kind_and_name_offset() {
     let source =
         "fn F(x: view MockResource) -> MockResource {\n    return move x;\n}\nfn Main() {}\n";
-    let CompileError::Rejected(errors) = compile_scalar("entity.nx", source).unwrap_err() else {
+    let CompileError::Rejected(errors) = compile_scalar("entity.n", source).unwrap_err() else {
         panic!("expected permission diagnostic")
     };
     assert_eq!(errors.len(), 1);
@@ -380,7 +380,7 @@ fn entity_ids_follow_declared_kind_and_name_offset() {
 fn consumed_and_dropped_binding_causes_use_binding_entity() {
     for action in ["let s=move r;", "Drop(r);"] {
         let source = format!("fn Main(){{let r=MockOpen(1);{action}Inspect(r);}}");
-        let CompileError::Rejected(errors) = compile_scalar("entity.nx", &source).unwrap_err()
+        let CompileError::Rejected(errors) = compile_scalar("entity.n", &source).unwrap_err()
         else {
             panic!("expected use-after-consumption diagnostic")
         };
@@ -415,7 +415,7 @@ fn failed_argument_cleans_prepared_temporaries_before_locals_in_reverse_order() 
             ],
         ),
     ] {
-        let e = run_scalar(&compile_scalar("cleanup.nx", source).unwrap());
+        let e = run_scalar(&compile_scalar("cleanup.n", source).unwrap());
         assert_eq!(e.outcome, Outcome::SimulatorFault);
         assert_eq!(e.diagnostics[0].code, "R0101");
         assert_eq!(e.observations.events(), events);
@@ -454,14 +454,14 @@ fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
             "NX-E0201",
         ),
     ] {
-        let CompileError::Rejected(ds) = compile_scalar("poison.nx", source).unwrap_err() else {
+        let CompileError::Rejected(ds) = compile_scalar("poison.n", source).unwrap_err() else {
             panic!("expected source diagnostics: {source}")
         };
         assert_eq!(ds.len(), 1, "{source}");
         assert_eq!(ds[0].code, code, "{source}");
     }
     let source = "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    Inspect(s);\n    let t = MockOpen(2);\n    let u = t;\n    Inspect(u);\n}\n";
-    let CompileError::Rejected(ds) = compile_scalar("poison.nx", source).unwrap_err() else {
+    let CompileError::Rejected(ds) = compile_scalar("poison.n", source).unwrap_err() else {
         panic!("expected two independent diagnostics")
     };
     assert_eq!(
@@ -469,7 +469,7 @@ fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
         ["NX-E0201", "NX-E0201"]
     );
     let source = "fn Main() {\n    let x = MockOpen(1);\n    {\n        let r = MockOpen(2);\n        let x = r;\n    }\n    let z = x;\n}\n";
-    let CompileError::Rejected(ds) = compile_scalar("poison.nx", source).unwrap_err() else {
+    let CompileError::Rejected(ds) = compile_scalar("poison.n", source).unwrap_err() else {
         panic!("expected errors inside and after shadowing block")
     };
     assert_eq!(
@@ -480,7 +480,7 @@ fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
 
 #[test]
 fn named_owner_arguments_keep_parameter_slots_and_reverse_callee_cleanup() {
-    let e = run_scalar(&compile_scalar("named.nx", "fn G(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    G(b: MockOpen(1), a: MockOpen(2));\n}\n").unwrap());
+    let e = run_scalar(&compile_scalar("named.n", "fn G(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    G(b: MockOpen(1), a: MockOpen(2));\n}\n").unwrap());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -490,7 +490,7 @@ fn named_owner_arguments_keep_parameter_slots_and_reverse_callee_cleanup() {
 
 #[test]
 fn borrowed_owner_temporaries_close_in_reverse_written_order() {
-    let e = run_scalar(&compile_scalar("borrow.nx", "fn G(a: view MockResource, b: view MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    G(MockOpen(1), MockOpen(2));\n}\n").unwrap());
+    let e = run_scalar(&compile_scalar("borrow.n", "fn G(a: view MockResource, b: view MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    G(MockOpen(1), MockOpen(2));\n}\n").unwrap());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -508,7 +508,7 @@ fn borrowed_owner_temporaries_close_in_reverse_written_order() {
 #[test]
 fn mixed_argument_modes_use_each_declared_slot() {
     let source = "fn G(a: view MockResource, b: move MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    let r = MockOpen(1);\n    G(r, MockOpen(2));\n    Inspect(r);\n}\n";
-    let e = run_scalar(&compile_scalar("modes.nx", source).unwrap());
+    let e = run_scalar(&compile_scalar("modes.n", source).unwrap());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -534,7 +534,7 @@ fn rejected_frame_entry_closes_two_transfers_in_reverse_argument_order() {
         ));
     }
     source.push_str("fn F256(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    F0(MockOpen(1), MockOpen(2));\n}\n");
-    let e = run_scalar(&compile_scalar("frames.nx", &source).unwrap());
+    let e = run_scalar(&compile_scalar("frames.n", &source).unwrap());
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -553,7 +553,7 @@ fn rejected_frame_entry_does_not_close_borrowed_argument() {
         ));
     }
     source.push_str("fn F256(a: view MockResource, b: move MockResource) {}\nfn Main() {\n    let a = MockOpen(1);\n    F0(a, MockOpen(2));\n}\n");
-    let e = run_scalar(&compile_scalar("frames.nx", &source).unwrap());
+    let e = run_scalar(&compile_scalar("frames.n", &source).unwrap());
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -747,7 +747,7 @@ fn generated_calls_resources_and_early_returns_match_independent_reference() {
             expected.apply(*action);
         }
         let expected = expected.finish();
-        let p = compile_scalar("generated.nx", &source)
+        let p = compile_scalar("generated.n", &source)
             .unwrap_or_else(|e| panic!("case {n}: {e:?}\n{source}"));
         let result = run_scalar(&p);
         assert_eq!(result.outcome, Outcome::Unit, "case {n}");
@@ -816,17 +816,17 @@ fn malformed_call_and_resource_sources_never_panic_and_diagnostics_validate() {
         let source = format!(
             "fn F(r:move MockResource,n:view I64){{Inspect(r);}} fn Main(){{let r=MockOpen(1);{one}{two};}}",
         );
-        match compile_scalar("fuzz.nx", &source) {
+        match compile_scalar("fuzz.n", &source) {
             Err(CompileError::Rejected(errors)) => {
                 for d in errors {
-                    d.validate("fuzz.nx", &source)
+                    d.validate("fuzz.n", &source)
                         .unwrap_or_else(|e| panic!("case {n}: {e:?}"));
                 }
             }
             Ok(p) => {
                 let run = run_scalar(&p);
                 for d in run.diagnostics {
-                    d.validate("fuzz.nx", &source).unwrap();
+                    d.validate("fuzz.n", &source).unwrap();
                 }
             }
             Err(CompileError::InvalidIr(reason)) => {
@@ -849,11 +849,11 @@ fn call_lowering_and_execution_survive_small_caller_stacks() {
             std::thread::Builder::new()
                 .stack_size(bytes)
                 .spawn(move || {
-                    let p = compile_scalar("small.nx", source).unwrap();
+                    let p = compile_scalar("small.n", source).unwrap();
                     let result = run_scalar(&p);
                     assert!(!matches!(result.outcome, Outcome::InternalError(_)));
                     for d in &result.diagnostics {
-                        d.validate("small.nx", source).unwrap();
+                        d.validate("small.n", source).unwrap();
                     }
                 })
                 .unwrap()
@@ -891,10 +891,10 @@ fn i05_call_and_resource_source_families_scale_linearly() {
             source.push('}');
             source.push_str("//");
             source.push_str(&"x".repeat(size - source.len()));
-            crate::test_alloc::reset("dead_scale_counter.nx");
-            let p = compile_scalar("dead_scale_counter.nx", &source).unwrap();
+            crate::test_alloc::reset("dead_scale_counter.n");
+            let p = compile_scalar("dead_scale_counter.n", &source).unwrap();
             assert!(p.functions().function("Main").is_some());
-            traffic[index] = crate::test_alloc::snapshot("dead_scale_counter.nx");
+            traffic[index] = crate::test_alloc::snapshot("dead_scale_counter.n");
         }
         println!("i05-family-{family} traffic={traffic:?}");
         for (small, large) in [(traffic[0].0, traffic[1].0), (traffic[0].1, traffic[1].1)] {
@@ -956,10 +956,10 @@ fn i05_large_signature_and_many_functions_scale_linearly() {
             );
             source.push_str("//");
             source.push_str(&"a".repeat(size - source.len()));
-            crate::test_alloc::reset("dead_scale_counter.nx");
-            let program = compile_scalar("dead_scale_counter.nx", &source).unwrap();
+            crate::test_alloc::reset("dead_scale_counter.n");
+            let program = compile_scalar("dead_scale_counter.n", &source).unwrap();
             assert!(program.functions().function("Main").is_some());
-            traffic[usize::from(scale == 4)] = crate::test_alloc::snapshot("dead_scale_counter.nx");
+            traffic[usize::from(scale == 4)] = crate::test_alloc::snapshot("dead_scale_counter.n");
         }
         println!("i05-large-family-{family} traffic={traffic:?}");
         for (small, large) in [(traffic[0].0, traffic[1].0), (traffic[0].1, traffic[1].1)] {
@@ -1010,9 +1010,9 @@ fn unreachable_lowering_short_scale_regression() {
         let mut measurements = [(0_u64, 0_u64); 2];
         for (index, size) in [64 * 1024, 256 * 1024].into_iter().enumerate() {
             let source = unreachable_scale_source(family, size);
-            crate::test_alloc::reset("dead_scale_counter.nx");
-            compile_scalar("dead_scale_counter.nx", &source).unwrap();
-            let (bytes, allocations) = crate::test_alloc::snapshot("dead_scale_counter.nx");
+            crate::test_alloc::reset("dead_scale_counter.n");
+            compile_scalar("dead_scale_counter.n", &source).unwrap();
+            let (bytes, allocations) = crate::test_alloc::snapshot("dead_scale_counter.n");
             measurements[index] = (bytes, allocations);
         }
         let small = measurements[0];
@@ -1037,9 +1037,9 @@ fn i05_unreachable_and_dense_declarations_scale_across_twelve_families() {
         let mut traffic = [(0_u64, 0_u64); 2];
         for (index, size) in [256 * 1024, 1024 * 1024].into_iter().enumerate() {
             let source = unreachable_scale_source(family, size);
-            crate::test_alloc::reset("dead_scale_counter.nx");
-            compile_scalar("dead_scale_counter.nx", &source).unwrap();
-            traffic[index] = crate::test_alloc::snapshot("dead_scale_counter.nx");
+            crate::test_alloc::reset("dead_scale_counter.n");
+            compile_scalar("dead_scale_counter.n", &source).unwrap();
+            traffic[index] = crate::test_alloc::snapshot("dead_scale_counter.n");
         }
         println!("i05-dead-dense-{family} traffic={traffic:?}");
         for (small, large) in [(traffic[0].0, traffic[1].0), (traffic[0].1, traffic[1].1)] {

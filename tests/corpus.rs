@@ -6,7 +6,7 @@ use nexo::{
     ir::{CompileError, compile_scalar},
 };
 
-const FILE: &str = "corpus.nx";
+const FILE: &str = "corpus.n";
 
 fn compile(source: &str) -> Result<nexo::ir::model::Program, CompileError> {
     compile_scalar(FILE, source)
@@ -37,6 +37,36 @@ fn rejected(source: &str) -> Vec<Box<Diagnostic>> {
 }
 
 #[test]
+fn corpus_has_only_official_source_extension() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("corpus");
+    for (group, expected) in [("pass", 5), ("fail", 10)] {
+        let mut count = 0;
+        for entry in fs::read_dir(root.join(group)).unwrap() {
+            let path = entry.unwrap().path();
+            assert!(
+                path.is_file(),
+                "unexpected corpus entry: {}",
+                path.display()
+            );
+            assert_ne!(
+                path.extension(),
+                Some(std::ffi::OsStr::new(concat!("n", "x"))),
+                "obsolete corpus source: {}",
+                path.display()
+            );
+            assert_eq!(
+                path.extension(),
+                Some(std::ffi::OsStr::new("n")),
+                "unexpected corpus source extension: {}",
+                path.display()
+            );
+            count += 1;
+        }
+        assert_eq!(count, expected, "corpus/{group}");
+    }
+}
+
+#[test]
 fn positive_corpus() {
     for entry in fs::read_dir(Path::new(env!("CARGO_MANIFEST_DIR")).join("corpus/pass")).unwrap() {
         let path = entry.unwrap().path();
@@ -57,9 +87,9 @@ fn positive_corpus() {
         );
         let (stdout, events): (&[&str], &[&str]) = match path.file_name().unwrap().to_str().unwrap()
         {
-            "integer_limits.nx" => (&["25"], &[]),
-            "nested_copy.nx" => (&["[[1, 9], [7, 8]]"], &[]),
-            "resource_transfer.nx" => (
+            "integer_limits.n" => (&["25"], &[]),
+            "nested_copy.n" => (&["[[1, 9], [7, 8]]"], &[]),
+            "resource_transfer.n" => (
                 &[],
                 &[
                     "open:0:10",
@@ -70,8 +100,8 @@ fn positive_corpus() {
                     "close:0:10",
                 ],
             ),
-            "return_cleanup.nx" => (&[], &["open:0:1", "open:1:2", "close:1:2", "close:0:1"]),
-            "shadow_scope.nx" => (&[], &["open:0:7", "inspect:0:7", "close:0:7"]),
+            "return_cleanup.n" => (&[], &["open:0:1", "open:1:2", "close:1:2", "close:0:1"]),
+            "shadow_scope.n" => (&[], &["open:0:7", "inspect:0:7", "close:0:7"]),
             other => panic!("unclassified pass corpus fixture: {other}"),
         };
         assert_eq!(result.observations.stdout(), stdout, "{}", path.display());
@@ -109,18 +139,18 @@ fn negative_corpus_exact_codes() {
         let observed = (span.start, span.end);
         let crlf = source.contains("\r\n");
         match name {
-            "escape_scope.nx" => assert_eq!(observed, if crlf { (66, 67) } else { (65, 66) }),
-            "immutable_write.nx" => assert_eq!(observed, if crlf { (52, 57) } else { (51, 56) }),
-            "overflow_literal.nx" => assert_eq!(observed, if crlf { (45, 64) } else { (44, 63) }),
-            "unreachable_resource_copy.nx" => {
+            "escape_scope.n" => assert_eq!(observed, if crlf { (66, 67) } else { (65, 66) }),
+            "immutable_write.n" => assert_eq!(observed, if crlf { (52, 57) } else { (51, 56) }),
+            "overflow_literal.n" => assert_eq!(observed, if crlf { (45, 64) } else { (44, 63) }),
+            "unreachable_resource_copy.n" => {
                 assert_eq!(observed, if crlf { (78, 79) } else { (77, 78) })
             }
-            "mixed_array.nx" => assert_eq!(observed, byte_span(&source, "true", 0)),
-            "nested_resource.nx" => assert_eq!(observed, byte_span(&source, "[MockOpen(1)]", 0)),
-            "resource_copy.nx" => assert_eq!(observed, first_byte(byte_span(&source, "r;", 0))),
-            "trailing_garbage.nx" => assert_eq!(observed, byte_span(&source, "ignored", 0)),
-            "use_after_drop.nx" => assert_eq!(observed, first_byte(byte_span(&source, "r);", 1))),
-            "use_after_move.nx" => assert_eq!(observed, first_byte(byte_span(&source, "r);", 0))),
+            "mixed_array.n" => assert_eq!(observed, byte_span(&source, "true", 0)),
+            "nested_resource.n" => assert_eq!(observed, byte_span(&source, "[MockOpen(1)]", 0)),
+            "resource_copy.n" => assert_eq!(observed, first_byte(byte_span(&source, "r;", 0))),
+            "trailing_garbage.n" => assert_eq!(observed, byte_span(&source, "ignored", 0)),
+            "use_after_drop.n" => assert_eq!(observed, first_byte(byte_span(&source, "r);", 1))),
+            "use_after_move.n" => assert_eq!(observed, first_byte(byte_span(&source, "r);", 0))),
             other => panic!("unclassified fail corpus fixture: {other}"),
         }
         error.validate(path.to_str().unwrap(), &source).unwrap();
@@ -129,14 +159,14 @@ fn negative_corpus_exact_codes() {
 
 #[test]
 fn nested_copy_output() {
-    let result = run(include_str!("../corpus/pass/nested_copy.nx"));
+    let result = run(include_str!("../corpus/pass/nested_copy.n"));
     assert_eq!(result.observations.stdout(), ["[[1, 9], [7, 8]]"]);
     assert!(result.observations.events().is_empty());
 }
 
 #[test]
 fn transfer_has_one_owner_and_exact_cleanup() {
-    let result = run(include_str!("../corpus/pass/resource_transfer.nx"));
+    let result = run(include_str!("../corpus/pass/resource_transfer.n"));
     assert_eq!(
         result.observations.events(),
         [
@@ -152,7 +182,7 @@ fn transfer_has_one_owner_and_exact_cleanup() {
 
 #[test]
 fn early_return_unwinds_scopes_in_reverse_order() {
-    let result = run(include_str!("../corpus/pass/return_cleanup.nx"));
+    let result = run(include_str!("../corpus/pass/return_cleanup.n"));
     assert_eq!(
         result.observations.events(),
         ["open:0:1", "open:1:2", "close:1:2", "close:0:1"]

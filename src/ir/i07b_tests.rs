@@ -6,21 +6,21 @@ fn while_condition_effects_reach_body_and_false_exit() {
         "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    while Drop(r) == () {\n        Inspect(r);\n        r = MockOpen(2);\n    }\n}\nfn Main() {}\n",
     ];
     for source in invalid {
-        let result = compile_scalar("condition_effects.nx", source);
+        let result = compile_scalar("condition_effects.n", source);
         assert!(
             matches!(&result, Err(CompileError::Rejected(ds)) if ds.iter().any(|d| d.code == "NX-E0202" && d.subcause.as_deref() == Some("definitely_consumed"))),
             "{source}: {result:?}"
         );
     }
     let valid = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    Drop(r);\n    while if b then {\n        r = MockOpen(2);\n        value: true;\n    } else {\n        r = MockOpen(3);\n        value: false;\n    } {\n        Inspect(r);\n    }\n}\nfn Main() {}\n";
-    let result = compile_scalar("condition_effects.nx", valid);
+    let result = compile_scalar("condition_effects.n", valid);
     assert!(result.is_ok(), "{result:?}");
 }
 
 #[test]
 fn boolean_condition_keeps_its_true_and_false_ownership_exits_separate() {
     let source = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    while if b then {\n        Drop(r);\n        value: true;\n    } else false {\n        r = MockOpen(2);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
-    let result = compile_scalar("boolean_condition_exits.nx", source);
+    let result = compile_scalar("boolean_condition_exits.n", source);
     assert!(
         matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0202" && d.subcause.as_deref() == Some("maybe_consumed"))),
         "{result:?}"
@@ -31,7 +31,7 @@ fn boolean_condition_keeps_its_true_and_false_ownership_exits_separate() {
 fn condition_arm_consumption_has_exact_joined_exit_diagnostic() {
     use crate::diagnostic::{CauseKind, CauseOperation, Operation, RelatedRole, Stage};
     let source = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    while if b then {\n        Drop(r);\n        value: true;\n    } else false {\n        r = MockOpen(2);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("joined_condition.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("joined_condition.n", source) else {
         panic!("expected joined ownership error");
     };
     let at = source.find("Inspect(r)").unwrap() as u64 + 8;
@@ -63,7 +63,7 @@ fn condition_arm_consumption_has_exact_joined_exit_diagnostic() {
     assert_eq!(d.cause_chain.len(), 1);
     assert_eq!(d.cause_chain[0].kind, CauseKind::Drop);
     assert_eq!(d.cause_chain[0].operation, CauseOperation::ValueDrop);
-    d.validate("joined_condition.nx", source).unwrap();
+    d.validate("joined_condition.n", source).unwrap();
 }
 
 #[test]
@@ -77,7 +77,7 @@ fn condition_value_forms_share_joined_ownership_state() {
         let source = format!(
             "fn F(b:view Bool){{var r=MockOpen(1);while {condition}{{r=MockOpen(2);}}Inspect(r);}}fn Main(){{}}"
         );
-        let result = compile_scalar("joined_value_forms.nx", &source);
+        let result = compile_scalar("joined_value_forms.n", &source);
         assert!(
             matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0202" && d.subcause.as_deref() == Some("maybe_consumed") && d.primary_span.as_ref().is_some_and(|s| s.start == source.find("Inspect(r)").unwrap() as u64 + 8))),
             "{source}: {result:?}"
@@ -106,7 +106,7 @@ fn condition_effects_match_single_iteration_unrolled_twins() {
             "fn F(b:view Bool){{var r=MockOpen(1);if ({condition}){{{body}}}{use_after}}}fn Main(){{}}"
         );
         for source in [loop_source, twin_source] {
-            let result = compile_scalar("condition_twin.nx", &source);
+            let result = compile_scalar("condition_twin.n", &source);
             assert!(
                 matches!(result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0202" && d.subcause.as_deref() == Some("maybe_consumed"))),
                 "{source}: {result:?}"
@@ -119,7 +119,7 @@ fn condition_effects_match_single_iteration_unrolled_twins() {
 fn false_condition_arm_consumption_reaches_next_header() {
     use crate::diagnostic::{CauseOperation, Operation, RelatedRole, Stage};
     let source = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    while if b then true else {\n        Drop(r);\n        value: false;\n    } {}\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("false_arm_header.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("false_arm_header.n", source) else {
         panic!("expected ownership error");
     };
     let at = source.find("Drop(r)").unwrap() as u64 + 5;
@@ -158,7 +158,7 @@ fn false_condition_arm_consumption_reaches_next_header() {
             .iter()
             .any(|cause| cause.operation == CauseOperation::FlowBackedge)
     );
-    d.validate("false_arm_header.nx", source).unwrap();
+    d.validate("false_arm_header.n", source).unwrap();
 }
 
 #[test]
@@ -198,7 +198,7 @@ fn condition_arm_effects_cover_values_branches_and_use_positions() {
                     let source = format!(
                         "fn F(b:view Bool){{var r=MockOpen(1);{initial_drop}while {condition}{{{body}}}{after}}}fn Main(){{}}"
                     );
-                    let result = compile_scalar("condition_matrix.nx", &source);
+                    let result = compile_scalar("condition_matrix.n", &source);
                     let invalid =
                         action == "Drop(r);" || (action.starts_with("r=") && position != "header");
                     let twin = source.replacen("while ", "if (", 1).replacen(
@@ -206,7 +206,7 @@ fn condition_arm_effects_cover_values_branches_and_use_positions() {
                         &format!("{condition}){{"),
                         1,
                     );
-                    let twin_result = compile_scalar("condition_twin_matrix.nx", &twin);
+                    let twin_result = compile_scalar("condition_twin_matrix.n", &twin);
                     let twin_invalid = invalid && position != "header";
                     assert_eq!(
                         matches!(twin_result, Err(CompileError::Rejected(ref ds)) if ds.iter().any(|d| d.code == "NX-E0202" && d.subcause.as_deref() == Some("maybe_consumed"))),
@@ -264,7 +264,7 @@ fn condition_arm_effects_cover_values_branches_and_use_positions() {
                         format!("binding:{declaration}"),
                         "{source}"
                     );
-                    d.validate("condition_matrix.nx", &source).unwrap();
+                    d.validate("condition_matrix.n", &source).unwrap();
                 }
             }
         }
@@ -280,7 +280,7 @@ fn condition_arm_outcomes_keep_consumption_and_reinitialization_on_their_edges()
         "fn F(b: view Bool) {\n    while if b then false else false {}\n}\nfn Main() {}\n",
     ];
     for source in valid {
-        let result = compile_scalar("condition_arm_matrix.nx", source);
+        let result = compile_scalar("condition_arm_matrix.n", source);
         assert!(result.is_ok(), "{source}: {result:?}");
     }
     let invalid = [
@@ -306,7 +306,7 @@ fn condition_arm_outcomes_keep_consumption_and_reinitialization_on_their_edges()
         ),
     ];
     for (source, subcause) in invalid {
-        let result = compile_scalar("condition_arm_matrix.nx", source);
+        let result = compile_scalar("condition_arm_matrix.n", source);
         assert!(
             matches!(&result, Err(CompileError::Rejected(ds)) if ds.iter().any(|d| d.code == "NX-E0202" && d.subcause.as_deref() == Some(subcause))),
             "{source}: {result:?}"
@@ -317,7 +317,7 @@ fn condition_arm_outcomes_keep_consumption_and_reinitialization_on_their_edges()
 #[test]
 fn forward_and_backedge_errors_accumulate_at_independent_uses() {
     let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    let s = MockOpen(2);\n    Drop(s);\n    Inspect(s);\n    while b {\n        Drop(r);\n    }\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("independent_flow.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("independent_flow.n", source) else {
         panic!("expected two ownership errors");
     };
     assert_eq!(
@@ -330,7 +330,7 @@ fn forward_and_backedge_errors_accumulate_at_independent_uses() {
     );
 
     let source = "fn Take(x: move MockResource) {}\nfn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Take(move r);\n        Inspect(r);\n    }\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("independent_flow.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("independent_flow.n", source) else {
         panic!("expected two ownership errors");
     };
     assert_eq!(
@@ -346,7 +346,7 @@ fn loop_join_distinguishes_maybe_from_definite_consumption() {
         "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    Drop(r);\n    while b {\n        Inspect(r);\n        r = MockOpen(2);\n    }\n}\nfn Main() {}\n",
         "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    Drop(r);\n    while b {\n        r = MockOpen(2);\n    }\n    Inspect(r);\n}\nfn Main() {}\n",
     ] {
-        let Err(CompileError::Rejected(ds)) = compile_scalar("join_consumption.nx", source) else {
+        let Err(CompileError::Rejected(ds)) = compile_scalar("join_consumption.n", source) else {
             panic!("expected ownership error: {source}");
         };
         assert!(
@@ -361,7 +361,7 @@ fn loop_join_distinguishes_maybe_from_definite_consumption() {
 fn loop_exit_lists_all_reaching_consumptions_and_backedge() {
     use crate::diagnostic::RelatedRole;
     let source = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    Drop(r);\n    while b {\n        r = MockOpen(2);\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("all_loop_sites.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("all_loop_sites.n", source) else {
         panic!("expected ownership error");
     };
     let d = ds
@@ -395,7 +395,7 @@ fn exhausted_flow_budget_keeps_earlier_independent_diagnostics() {
         source.push_str("while b{} ");
     }
     source.push_str("}fn Main(){}");
-    let Err(CompileError::Rejected(ds)) = compile_scalar("quota_preserve.nx", &source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("quota_preserve.n", &source) else {
         panic!("expected earlier errors and flow limit");
     };
     assert_eq!(
@@ -432,7 +432,7 @@ fn adr_gap_ownership_flow_quota_scope() {
         ));
     }
     source.push_str("}fn G(){let z=MockOpen(1);Drop(z);Inspect(z);}fn Main(){}");
-    let Err(CompileError::Rejected(ds)) = compile_scalar("quota_preserve.nx", &source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("quota_preserve.n", &source) else {
         panic!("expected ownership errors and quota");
     };
     let observed: Vec<_> = ds.iter().map(|d| d.code.as_str()).collect();
@@ -465,13 +465,13 @@ fn ownership_quota_large_source_keeps_converged_loop_diagnostic() {
     }
     source.push_str("}fn Main(){}");
     let short = format!("{prefix}}}fn Main(){{}}");
-    let expected = match compile_scalar("quota_large.nx", &short) {
+    let expected = match compile_scalar("quota_large.n", &short) {
         Err(CompileError::Rejected(errors)) => errors.into_iter().map(|d| *d).collect::<Vec<_>>(),
         other => panic!("expected an ownership diagnostic: {other:?}"),
     };
     assert_eq!(expected.len(), 1);
     assert_eq!(expected[0].subcause.as_deref(), Some("maybe_consumed"));
-    let actual = match compile_scalar("quota_large.nx", &source) {
+    let actual = match compile_scalar("quota_large.n", &source) {
         Err(CompileError::Rejected(errors)) => errors.into_iter().map(|d| *d).collect::<Vec<_>>(),
         other => panic!("expected a quota diagnostic: {other:?}"),
     };
@@ -493,8 +493,7 @@ fn ownership_quota_large_source_keeps_converged_loop_diagnostic() {
 fn shared_node_join_keeps_conditional_subcause_at_source_use() {
     use crate::diagnostic::{CauseKind, CauseOperation, Operation, RelatedRole, Stage};
     let source = "fn F(b: view Bool) {\n    var r0 = MockOpen(0);\n    Drop(r0);\n    while b {\n        while if b then true else {\n            if if b then true else {\n                r0 = MockOpen(7);\n                value: false;\n            } {}\n            value: false;\n        } {}\n    }\n    Inspect(r0);\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("shared_conditional.nx", source)
-    else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("shared_conditional.n", source) else {
         panic!("expected ownership diagnostic");
     };
     assert_eq!(errors.len(), 1, "{errors:?}");
@@ -551,7 +550,7 @@ fn shared_node_join_keeps_conditional_subcause_at_source_use() {
         format!("binding:{}", source.find("var r0").unwrap() + 4)
     );
     assert!(d.data.is_empty());
-    d.validate("shared_conditional.nx", source).unwrap();
+    d.validate("shared_conditional.n", source).unwrap();
 }
 
 #[test]
@@ -564,11 +563,11 @@ fn shared_node_nested_condition_matches_dense_reference() {
             seed % 97,
             seed % 89
         );
-        match compile_scalar("sparse_dense_oracle.nx", &source) {
+        match compile_scalar("sparse_dense_oracle.n", &source) {
             Err(CompileError::Rejected(errors)) if errors.iter().all(|d| d.code == "NX-E0202") => {
                 for diagnostic in errors {
                     diagnostic
-                        .validate("sparse_dense_oracle.nx", &source)
+                        .validate("sparse_dense_oracle.n", &source)
                         .unwrap();
                 }
             }
@@ -581,7 +580,7 @@ fn shared_node_nested_condition_matches_dense_reference() {
 fn shared_node_shortest_path_preserves_source_cause() {
     use crate::diagnostic::CauseOperation;
     let source = "fn F(b: view Bool) {\n    var r2 = MockOpen(0);\n    while if b then {\n        if Drop(r2) == () {\n            while if b then true else false {}\n        } else {}\n        value: true;\n    } else false {\n        Drop(r2);\n    }\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(errors)) = compile_scalar("shared_witness.nx", source) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("shared_witness.n", source) else {
         panic!("expected ownership error");
     };
     let use_at = source.rfind("Drop(r2)").unwrap() as u64 + 5;
@@ -598,7 +597,7 @@ fn shared_node_shortest_path_preserves_source_cause() {
         d.cause_chain.last().unwrap().span.as_ref().unwrap().start,
         source.find("Drop(r2)").unwrap() as u64
     );
-    d.validate("shared_witness.nx", source).unwrap();
+    d.validate("shared_witness.n", source).unwrap();
 }
 
 #[test]
@@ -608,14 +607,14 @@ fn flow_budget_resets_for_each_function() {
         source.push_str(&format!("fn f{n}(b:view Bool){{while b{{}}}}"));
     }
     source.push_str("fn Main() {}\n");
-    assert!(compile_scalar("quota_preserve.nx", &source).is_ok());
+    assert!(compile_scalar("quota_preserve.n", &source).is_ok());
 }
 
 #[test]
 fn shortest_backedge_witness_uses_fewer_cfg_edges() {
     use crate::diagnostic::CauseOperation;
     let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Inspect(r);\n        if b {\n            Drop(r);\n            if b {} else {}\n            if b {} else {}\n        } else {\n            Drop(r);\n        }\n    }\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("short_witness.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("short_witness.n", source) else {
         panic!("expected ownership error");
     };
     let d = ds
@@ -640,7 +639,7 @@ fn shortest_backedge_witness_uses_fewer_cfg_edges() {
 #[test]
 fn loop_loan_origin_is_checked_after_a_prior_iteration_consumes_it() {
     let source = "fn G(x: edit MockResource) {}\nfn F(b: view Bool) {\n    var r = MockOpen(1);\n    while b {\n        G(edit r);\n        Drop(r);\n    }\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("loan_after_backedge.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("loan_after_backedge.n", source) else {
         panic!("expected consumed loan origin");
     };
     assert!(
@@ -656,7 +655,7 @@ fn loop_loan_origin_is_checked_after_a_prior_iteration_consumes_it() {
 fn unreachable_loop_backedge_witness_marks_its_closing_brace() {
     use crate::diagnostic::RelatedRole;
     let source = "fn F(b: view Bool) {\n    return;\n    let r = MockOpen(1);\n    while b {\n        Drop(r);\n    }\n}\nfn Main() {}\n";
-    let Err(CompileError::Rejected(ds)) = compile_scalar("dead_closing.nx", source) else {
+    let Err(CompileError::Rejected(ds)) = compile_scalar("dead_closing.n", source) else {
         panic!("expected dead loop error");
     };
     let d = ds.iter().find(|d| d.code == "NX-E0202").unwrap();
@@ -682,7 +681,7 @@ fn loop_reinitialization_and_read_borrows_reach_a_stable_state() {
         "fn F(x: edit I64, b: view Bool) {\n    while b {\n        x = x + 1;\n        return;\n    }\n}\nfn Main() {}\n",
         "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        while b {\n            Inspect(r);\n            return;\n        }\n    }\n}\nfn Main() {}\n",
     ] {
-        let result = compile_scalar("loop_valid.nx", source);
+        let result = compile_scalar("loop_valid.n", source);
         assert!(result.is_ok(), "{source}: {result:?}");
     }
 }
@@ -695,7 +694,7 @@ fn conditional_consumption_and_loop_exit_keep_backedge_witnesses() {
         "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n",
         "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while Drop(r) == () {}\n}\nfn Main() {}\n",
     ] {
-        let result = compile_scalar("loop_invalid.nx", source);
+        let result = compile_scalar("loop_invalid.n", source);
         assert!(
             matches!(&result, Err(CompileError::Rejected(ds)) if ds.iter().any(|d| d.code == "NX-E0202" && d.related_spans.iter().any(|r| r.role == crate::diagnostic::RelatedRole::Backedge))),
             "{source}: {result:?}"
@@ -706,7 +705,7 @@ fn conditional_consumption_and_loop_exit_keep_backedge_witnesses() {
 #[test]
 fn independent_backedge_consumptions_keep_two_diagnostics() {
     let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    let s = MockOpen(2);\n    while b {\n        Drop(r);\n        Drop(s);\n    }\n}\nfn Main() {}\n";
-    let result = compile_scalar("two_loops.nx", source);
+    let result = compile_scalar("two_loops.n", source);
     let Err(CompileError::Rejected(errors)) = result else {
         panic!("{result:?}")
     };
@@ -729,16 +728,16 @@ fn independent_backedge_consumptions_keep_two_diagnostics() {
             d.cause_chain[0].operation,
             crate::diagnostic::CauseOperation::FlowBackedge
         );
-        d.validate("two_loops.nx", source).unwrap();
+        d.validate("two_loops.n", source).unwrap();
     }
 }
 
 #[test]
 fn independent_functions_keep_each_backedge_diagnostic() {
     let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Drop(r);\n    }\n}\nfn G(b: view Bool) {\n    let s = MockOpen(2);\n    while b {\n        Drop(s);\n    }\n}\nfn Main() {}\n";
-    let ast = crate::frontend::parse::parse("two_functions.nx", source).unwrap();
+    let ast = crate::frontend::parse::parse("two_functions.n", source).unwrap();
     let canonical = crate::frontend::print::print_canonical(&ast).unwrap();
-    let Err(CompileError::Rejected(errors)) = compile_scalar("two_functions.nx", &canonical) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("two_functions.n", &canonical) else {
         panic!("expected independent ownership diagnostics for {canonical}")
     };
     assert_eq!(errors.len(), 2);
@@ -752,14 +751,14 @@ fn independent_functions_keep_each_backedge_diagnostic() {
             < errors[1].primary_span.as_ref().unwrap().start
     );
     for d in errors {
-        d.validate("two_functions.nx", &canonical).unwrap();
+        d.validate("two_functions.n", &canonical).unwrap();
     }
 }
 
 #[test]
 fn nested_loop_witness_runs_from_use_through_outer_and_inner_backedges() {
     let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while Inspect(r) == () {\n        while b {\n            Drop(r);\n        }\n    }\n}\nfn Main() {}\n";
-    let result = compile_scalar("nested_witness.nx", source);
+    let result = compile_scalar("nested_witness.n", source);
     let Err(CompileError::Rejected(errors)) = result else {
         panic!("{result:?}")
     };
@@ -786,13 +785,13 @@ fn nested_loop_witness_runs_from_use_through_outer_and_inner_backedges() {
         .map(|c| c.span.as_ref().unwrap().start)
         .collect();
     assert!(backedges[0] > backedges[1]);
-    d.validate("nested_witness.nx", source).unwrap();
+    d.validate("nested_witness.n", source).unwrap();
 }
 
 #[test]
 fn body_local_conditional_drop_is_cleaned_per_iteration() {
     let source = "fn F(b: view Bool) {\n    while b {\n        let r = MockOpen(1);\n        if b {\n            Drop(r);\n        }\n    }\n}\nfn Main() {}\n";
-    let result = compile_scalar("loop_local.nx", source);
+    let result = compile_scalar("loop_local.n", source);
     assert!(result.is_ok(), "{result:?}");
 }
 
@@ -800,12 +799,11 @@ fn body_local_conditional_drop_is_cleaned_per_iteration() {
 fn consumed_parameter_across_backedge_keeps_parameter_identity() {
     use crate::diagnostic::{CauseKind, CauseOperation, EntityKind, RelatedRole};
     let source = "fn F(r: move MockResource, b: view Bool) {\n    while b {\n        Drop(r);\n    }\n}\nfn Main() {}\n";
-    let ast = crate::frontend::parse::parse("parameter_loop.nx", source).unwrap();
+    let ast = crate::frontend::parse::parse("parameter_loop.n", source).unwrap();
     let canonical = crate::frontend::print::print_canonical(&ast).unwrap();
     let declaration = canonical.find("r: move").unwrap() as u64;
     let use_at = canonical.find("Drop(r)").unwrap() as u64 + "Drop(".len() as u64;
-    let Err(CompileError::Rejected(errors)) = compile_scalar("parameter_loop.nx", &canonical)
-    else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("parameter_loop.n", &canonical) else {
         panic!("expected ownership diagnostic for {canonical}")
     };
     let d = errors
@@ -833,16 +831,16 @@ fn consumed_parameter_across_backedge_keeps_parameter_identity() {
         d.cause_chain[0].entity.as_ref().unwrap().id,
         format!("parameter:{declaration}")
     );
-    d.validate("parameter_loop.nx", &canonical).unwrap();
+    d.validate("parameter_loop.n", &canonical).unwrap();
 }
 
 #[test]
 fn transferred_binding_across_backedge_keeps_consume_cause() {
     use crate::diagnostic::{CauseKind, CauseOperation};
     let source = "fn Take(r: move MockResource) {}\nfn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Take(move r);\n    }\n}\nfn Main() {}\n";
-    let ast = crate::frontend::parse::parse("transfer_loop.nx", source).unwrap();
+    let ast = crate::frontend::parse::parse("transfer_loop.n", source).unwrap();
     let canonical = crate::frontend::print::print_canonical(&ast).unwrap();
-    let Err(CompileError::Rejected(errors)) = compile_scalar("transfer_loop.nx", &canonical) else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar("transfer_loop.n", &canonical) else {
         panic!("expected ownership diagnostic for {canonical}")
     };
     let d = errors.iter().find(|d| d.code == "NX-E0202").unwrap();
@@ -852,13 +850,13 @@ fn transferred_binding_across_backedge_keeps_consume_cause() {
         d.cause_chain.last().unwrap().operation,
         CauseOperation::ValueConsume
     );
-    d.validate("transfer_loop.nx", &canonical).unwrap();
+    d.validate("transfer_loop.n", &canonical).unwrap();
 }
 
 #[test]
 fn unreachable_loop_still_checks_later_iteration() {
     let source = "fn F(b: view Bool) {\n    return;\n    let r = MockOpen(1);\n    while b {\n        Drop(r);\n    }\n}\nfn Main() {}\n";
-    let result = compile_scalar("dead_loop.nx", source);
+    let result = compile_scalar("dead_loop.n", source);
     let Err(CompileError::Rejected(ds)) = result else {
         panic!("{result:?}")
     };
@@ -868,7 +866,7 @@ fn unreachable_loop_still_checks_later_iteration() {
         d.cause_chain[0].operation,
         crate::diagnostic::CauseOperation::FlowBackedge
     );
-    d.validate("dead_loop.nx", source).unwrap();
+    d.validate("dead_loop.n", source).unwrap();
 }
 
 #[test]
@@ -881,7 +879,7 @@ fn live_and_unreachable_loop_use_the_same_ownership_rules() {
     ] {
         let compile = |prefix: &str| {
             compile_scalar(
-                "mode_loop.nx",
+                "mode_loop.n",
                 &format!("fn F(b:view Bool){{{prefix}{body}}}fn Main(){{}}"),
             )
         };
@@ -911,7 +909,7 @@ fn repeated_loop_analysis_has_linear_step_growth() {
         }
         source.push('}');
         super::ownership_flow::FLOW_WORK.store(0, Relaxed);
-        compile_scalar("flow_short_scale.nx", &source).unwrap();
+        compile_scalar("flow_short_scale.n", &source).unwrap();
         samples.push(super::ownership_flow::FLOW_WORK.load(Relaxed));
     }
     let ratio = samples[1] as f64 / samples[0] as f64;
@@ -932,7 +930,7 @@ fn consumed_prefix_then_loop_suffix_converges_before_each_exit() {
         }
         source.push_str("}fn Main(){}");
         super::ownership_flow::PREFIX_FLOW_WORK.store(0, Relaxed);
-        let result = compile_scalar("prefix_scale.nx", &source);
+        let result = compile_scalar("prefix_scale.n", &source);
         assert!(
             result.is_ok(),
             "{count} / {} bytes: {result:?}",
@@ -959,7 +957,7 @@ fn ownership_trie_addresses_resource_after_65536_locals() {
     }
     source.push_str("var r=MockOpen(1);Drop(r);while b{r=MockOpen(2);}}fn Main(){}");
     assert!(source.len() < 1_048_576, "{}", source.len());
-    let result = compile_scalar("large_local_index.nx", &source);
+    let result = compile_scalar("large_local_index.n", &source);
     assert!(result.is_ok(), "{} bytes: {result:?}", source.len());
 }
 
@@ -982,7 +980,7 @@ fn consumed_prefix_loop_suffix_scales_across_source_budget() {
         source.push_str(&" ".repeat(target - source.len() - ending.len()));
         source.push_str(ending);
         super::ownership_flow::PREFIX_FLOW_WORK.store(0, Relaxed);
-        let result = compile_scalar("prefix_scale.nx", &source);
+        let result = compile_scalar("prefix_scale.n", &source);
         assert!(
             result.is_ok(),
             "{count} / {} bytes: {result:?}",
@@ -1011,7 +1009,7 @@ fn consumed_bindings_before_many_small_loops_keep_sparse_state_linear() {
         super::ownership_flow::SPARSE_FLOW_WORK.store(0, Relaxed);
         super::ownership_flow::FLOW_STATE_ALLOCS.store(0, Relaxed);
         super::ownership_flow::FLOW_STATE_BYTES.store(0, Relaxed);
-        compile_scalar("sparse_scale.nx", &source).unwrap();
+        compile_scalar("sparse_scale.n", &source).unwrap();
         samples.push([
             super::ownership_flow::SPARSE_FLOW_WORK.load(Relaxed),
             super::ownership_flow::FLOW_STATE_ALLOCS.load(Relaxed),
@@ -1141,7 +1139,7 @@ fn sparse_ownership_scales_across_fourteen_adversarial_families() {
             super::ownership_flow::FLOW_STATE_ALLOCS.store(0, Relaxed);
             super::ownership_flow::FLOW_STATE_BYTES.store(0, Relaxed);
             let start = std::time::Instant::now();
-            compile_scalar("sparse_scale.nx", &source)
+            compile_scalar("sparse_scale.n", &source)
                 .unwrap_or_else(|e| panic!("family {family}, {} bytes: {e:?}", source.len()));
             let elapsed = start.elapsed().as_nanos() as u64;
             samples.push((
@@ -1187,7 +1185,7 @@ fn nested_loops_compile_on_small_calling_stacks() {
                         "Print(1);",
                         "}".repeat(depth)
                     );
-                    let result = compile_scalar("nested_stack.nx", &source);
+                    let result = compile_scalar("nested_stack.n", &source);
                     assert!(result.is_ok(), "depth {depth}: {result:?}");
                 }
             })
@@ -1396,26 +1394,26 @@ fn generated_ownership_oracle(samples: u64, file: &str) {
 
 #[test]
 fn generated_nested_loop_ownership_matches_source_ast_model() {
-    generated_ownership_oracle(3_000, "ownership_oracle.nx");
+    generated_ownership_oracle(3_000, "ownership_oracle.n");
 }
 
 #[test]
 fn generated_sparse_ownership_matches_dense_reference_in_regular_tests() {
-    generated_ownership_oracle(3_000, "sparse_dense_oracle.nx");
+    generated_ownership_oracle(3_000, "sparse_dense_oracle.n");
 }
 
 #[test]
 #[ignore = "explicit 200000-program source-AST ownership campaign"]
 fn extensive_nested_loop_ownership_matches_source_ast_model() {
     let _campaign = crate::test_alloc::campaign_guard();
-    generated_ownership_oracle(200_000, "ownership_oracle.nx");
+    generated_ownership_oracle(200_000, "ownership_oracle.n");
 }
 
 #[test]
 #[ignore = "explicit 100000-program sparse versus dense ownership comparison"]
 fn generated_sparse_ownership_matches_dense_reference_exactly() {
     let _campaign = crate::test_alloc::campaign_guard();
-    generated_ownership_oracle(100_000, "sparse_dense_oracle.nx");
+    generated_ownership_oracle(100_000, "sparse_dense_oracle.n");
 }
 
 #[test]
@@ -1453,14 +1451,14 @@ fn loop_fixpoint_scales_by_steps_and_allocation_traffic() {
                 source.push_str(pattern);
             }
             source.push('}');
-            crate::test_alloc::reset("cfg_scale_counter.nx");
+            crate::test_alloc::reset("cfg_scale_counter.n");
             super::CFG_WORK.store(0, Relaxed);
             super::ownership_flow::FLOW_WORK.store(0, Relaxed);
-            compile_scalar("cfg_scale_counter.nx", &source)
+            compile_scalar("cfg_scale_counter.n", &source)
                 .unwrap_or_else(|e| panic!("family {family} at {target}: {e:?}"));
             let all_steps = super::CFG_WORK.load(Relaxed);
             let flow_steps = super::ownership_flow::FLOW_WORK.load(Relaxed);
-            let traffic = crate::test_alloc::snapshot("cfg_scale_counter.nx");
+            let traffic = crate::test_alloc::snapshot("cfg_scale_counter.n");
             measures.push([
                 all_steps,
                 flow_steps,

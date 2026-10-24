@@ -9,9 +9,7 @@ fn accepted_corpus_files_format_like_the_canonical_printer() {
     for subdir in ["pass", "fail"] {
         for file in std::fs::read_dir(root.join(subdir)).unwrap() {
             let path = file.unwrap().path();
-            if path.extension().is_none_or(|extension| extension != "nx") {
-                continue;
-            }
+            assert_eq!(path.extension(), Some(std::ffi::OsStr::new("n")));
             visited += 1;
             let source = std::fs::read_to_string(&path).unwrap();
             let source = source
@@ -41,14 +39,14 @@ fn accepted_corpus_files_format_like_the_canonical_printer() {
 #[test]
 fn canonical_text_round_trips_written_modes_and_statement_terminators() {
     let source = "fn F(x: edit I64, y: move I64) -> I64 {\n    let z = x + y;\n    return z;\n}\n";
-    let ast = parse("canonical.nx", source).unwrap();
+    let ast = parse("canonical.n", source).unwrap();
     let text = print_canonical(&ast).unwrap();
     assert!(text.contains("x: edit I64"));
     assert!(text.contains("y: move I64"));
     assert!(text.contains("let z = x + y;"));
     assert!(text.contains("return z;"));
     assert_eq!(
-        print_canonical(&parse("canonical.nx", &text).unwrap()).unwrap(),
+        print_canonical(&parse("canonical.n", &text).unwrap()).unwrap(),
         text
     );
     assert!(matches!(
@@ -93,9 +91,9 @@ fn canonical_statement_if_else_variants_preserve_structure_and_text() {
     for header in headers {
         for body in bodies {
             let source = format!("{header}{{{body}}}");
-            let original = parse("canonical.nx", &source).unwrap();
+            let original = parse("canonical.n", &source).unwrap();
             let printed = print_canonical(&original).unwrap();
-            let reparsed = parse("canonical.nx", &printed).unwrap();
+            let reparsed = parse("canonical.n", &printed).unwrap();
             assert_eq!(
                 ast_without_spans(&original),
                 ast_without_spans(&reparsed),
