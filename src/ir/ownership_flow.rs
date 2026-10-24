@@ -425,6 +425,9 @@ fn propagate(
     budget: &mut Budget,
     name_spans: &[Span],
 ) -> Result<(), CompileError> {
+    // Test-only dense oracle: generated_sparse_ownership_matches_dense_reference_
+    // in_regular_tests compares this with the production sparse pass. The
+    // source compiler allocates every target and the while preheader together.
     if target >= blocks.len() {
         return Err(CompileError::InvalidIr("invalid jump target"));
     }
@@ -503,9 +506,9 @@ mod tests {
     #[test]
     fn full_write_kills_only_its_root_and_transfer_keeps_source_kind() {
         use super::super::model::{LocalId, Op};
-        let source = "fn main(){var r=mock_open(1);var s=mock_open(2);drop(r);drop(s);}";
+        let source = "fn Main() {\n    var r = MockOpen(1);\n    var s = MockOpen(2);\n    Drop(r);\n    Drop(s);\n}\n";
         let program = super::super::compile_scalar("flow_state.nx", source).unwrap();
-        let function = program.functions.function("main").unwrap();
+        let function = program.functions.function("Main").unwrap();
         let ins = function
             .block
             .instructions
@@ -549,9 +552,9 @@ mod tests {
 
     #[test]
     fn synthetic_union_slot_does_not_become_a_source_owner() {
-        let source = "fn main(){let v=if true{value:1;}else{value:2;};}";
+        let source = "fn Main() {\n    let v = if true then 1 else 2;\n}\n";
         let program = super::super::compile_scalar("flow_state.nx", source).unwrap();
-        let function = program.functions.function("main").unwrap();
+        let function = program.functions.function("Main").unwrap();
         let slot = function
             .locals
             .iter()
@@ -695,7 +698,7 @@ mod tests {
 
     #[test]
     fn ownership_flow_budget_rejects_exactly_first_excess_step() {
-        let source = "fn main(){while false{}}";
+        let source = "fn Main() {\n    while false {}\n}\n";
         let span = Span {
             file: "budget_flow.nx".into(),
             start: 10,
@@ -731,9 +734,9 @@ mod tests {
 
     #[test]
     fn ownership_flow_counts_summary_instruction_once() {
-        let source = "fn main(){while false{}}";
+        let source = "fn Main() {\n    while false {}\n}\n";
         let program = super::super::compile_scalar("summary_charge.nx", source).unwrap();
-        let function = program.functions.function("main").unwrap();
+        let function = program.functions.function("Main").unwrap();
         let tokens = crate::frontend::lex::lex("summary_charge.nx", source).unwrap();
         let mut used = 0;
         analyze(function, &[], &tokens, &mut used).unwrap();

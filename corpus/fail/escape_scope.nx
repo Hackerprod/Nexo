@@ -1,2 +1,2 @@
-// expect: E0101
-fn main() { { let r = mock_open(1); } inspect(r); }
+// expect: NX-E0101
+fn Main() { { let r = MockOpen(1); } Inspect(r); }

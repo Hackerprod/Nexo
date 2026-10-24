@@ -1,2 +1,2 @@
-// expect: E0102
-fn main() { let invalid = [1, true]; }
+// expect: NX-E0102/type_mismatch
+fn Main() { let invalid = [1, true]; }

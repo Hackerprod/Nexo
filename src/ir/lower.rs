@@ -20,9 +20,34 @@ fn count_loan_work() {
 fn count_loan_work() {}
 
 #[derive(Debug)]
+// InvalidIr is a guard on an invariant, never a source diagnostic. The
+// source path is parse -> names/limits/types -> lowering -> verify_function
+// -> verify_program. The source and forged-IR tests below exercise both sides
+// of every guard family; see the per-site inventory in the D15 implementation
+// notes. The exclusive-prefix case is screened in parse::function.
+//
+// Lexical/AST invariants: binary operation (both sites), parameter name token,
+// declaration token, unvalidated integer, assignment root, call target,
+// partial transfer, edit place passed parser, nonlocal place.
+// Semantic invariants: unresolved local, edit mode passed checker,
+// non-callable target passed checker, call arity/label/argument type passed
+// checker, duplicate call argument, call parameter slot, intrinsic arity,
+// user or deferred call, assignment/return type passed checker, resource or
+// result type, array element type, index type/target type (all sites), loan
+// index/target type, if/while condition type (all sites).
+// Flow/scope invariants: control-flow return analysis, function return flow,
+// return flow, branch value type/slot, if/while condition flow (all sites),
+// else if form, scope stack/name (all sites), availability undo, scope restore
+// length, binding/assignment/expression/return value flow, control flow,
+// binary/index operand flow, exclusive loans or result propagation.
+// Infrastructure/verified-IR invariants: lowering worker unavailable/panicked,
+// verify_function and verify_program adapters. Tests: semantic_cfg_sources_
+// never_create_invalid_ir, semantic_loan_fuzz_never_constructs_invalid_ir,
+// array_sources_with_mutated_syntax_never_panic_and_validate_rejections,
+// access_prefix_contexts_never_escape_as_invalid_ir, unicode_sources_never_
+// reach_internal_failure, and ir::verify forged-function tests.
 pub enum CompileError {
     Rejected(Vec<Box<Diagnostic>>),
-    OutsideScalarSlice(&'static str),
     InvalidIr(&'static str),
     Dependent,
 }
@@ -31,14 +56,14 @@ fn binary_result_type(op: &str) -> Result<Ty, CompileError> {
     match op {
         "+" | "-" => Ok(Ty::I64),
         "<" | "==" => Ok(Ty::Bool),
-        _ => Err(CompileError::OutsideScalarSlice("binary operation")),
+        _ => Err(CompileError::InvalidIr("binary operation")),
     }
 }
 
 fn type_label(ty: &Ty) -> String {
     match ty {
-        Ty::I64 => "i64".into(),
-        Ty::Bool => "bool".into(),
+        Ty::I64 => "I64".into(),
+        Ty::Bool => "Bool".into(),
         Ty::Unit => "()".into(),
         Ty::Array(inner) => format!("Array<{}>", type_label(inner)),
         Ty::MockResource => "MockResource".into(),
@@ -84,8 +109,28 @@ fn type_mismatch(
 
 /// Produces an opaque, verified artifact. No interpreter entry accepts an AST.
 pub fn compile_scalar(file: &str, source: &str) -> Result<Program, CompileError> {
-    let checked = crate::check::check_proposed(file, source, true);
+    compile_scalar_with_entry(file, source, true)
+}
+
+/// Check and verify a library without requiring an entry point.
+pub fn check_scalar(file: &str, source: &str) -> Result<Program, CompileError> {
+    compile_scalar_with_entry(file, source, false)
+}
+
+fn compile_scalar_with_entry(
+    file: &str,
+    source: &str,
+    run_entry: bool,
+) -> Result<Program, CompileError> {
     let ast = parse::parse(file, source).map_err(|d| CompileError::Rejected(vec![d]))?;
+    let checked = crate::check::check_for_compilation(file, source, &ast, run_entry);
+    if let Err(errors) = &checked
+        && errors
+            .iter()
+            .any(|d| d.feature_id.as_deref() == Some("implementation_limit"))
+    {
+        return Err(CompileError::Rejected(errors.clone()));
+    }
     let lowered = std::thread::scope(|scope| {
         std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
@@ -304,9 +349,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             Some(value)
         } else {
             if result != Ty::Unit {
-                return Err(CompileError::OutsideScalarSlice(
-                    "control-flow return analysis",
-                ));
+                return Err(CompileError::InvalidIr("control-flow return analysis"));
             }
             Some(
                 lower
@@ -465,6 +508,7 @@ impl Flow {
     }
 }
 type FunctionSignature = (Vec<(String, ParameterMode, Ty)>, Ty);
+type PreparedCallArguments = (Vec<(usize, TempId)>, Vec<(LocalId, LoanId, Span)>, bool);
 #[derive(Clone)]
 struct ActiveLoan {
     permission: LoanPermission,
@@ -1613,6 +1657,22 @@ impl Lower<'_> {
         }
         Ok(())
     }
+    // An indexed place is acquired only after its index expressions have run.
+    // Those expressions may consume or borrow the root, so every access path
+    // (read, write, and call loan) crosses this same boundary.
+    fn check_place_access(
+        &self,
+        id: LocalId,
+        root: &Expr,
+        place: &Expr,
+        requested: &str,
+        indexed: bool,
+    ) -> Result<(), CompileError> {
+        if indexed || requested != "write" {
+            self.check_available(id, root.span().clone())?;
+        }
+        self.conflict(id, place.span().clone(), requested)
+    }
     fn copy_error(&self, id: LocalId, span: Span) -> CompileError {
         self.ownership_error(
             "NX-E0201",
@@ -1734,8 +1794,19 @@ impl Lower<'_> {
         mode: ParameterMode,
         expected: &Ty,
         depth: usize,
+        retain_place_loan: bool,
     ) -> Result<(Flow, Option<LocalId>), CompileError> {
         count_loan_work();
+        if !retain_place_loan {
+            return self
+                .expr_mode(
+                    &arg.value,
+                    depth + 1,
+                    (expected != &Ty::Never).then_some(expected),
+                    mode == ParameterMode::Read,
+                )
+                .map(|flow| (flow, None));
+        }
         let place = if mode == ParameterMode::Inout {
             match &arg.value {
                 Expr::Unary {
@@ -1743,7 +1814,7 @@ impl Lower<'_> {
                     value,
                     ..
                 } => Some(value.as_ref()),
-                _ => return Err(CompileError::InvalidIr("inout mode passed checker")),
+                _ => return Err(CompileError::InvalidIr("edit mode passed checker")),
             }
         } else if mode == ParameterMode::Read {
             Some(&arg.value)
@@ -1755,16 +1826,7 @@ impl Lower<'_> {
             && let Some(name) = place_name(root)
         {
             let local = self.get(name)?;
-            self.check_available(local, root.span().clone())?;
-            if self.locals[local.0].ty == Ty::Never {
-                return Ok((
-                    Flow::Value {
-                        temp: None,
-                        ty: expected.clone(),
-                    },
-                    None,
-                ));
-            }
+            let indexed_place = !index_exprs.is_empty();
             if mode == ParameterMode::Inout {
                 if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
                     return Err(self.permission_error(local, root.span().clone(), "borrow_inout"));
@@ -1779,7 +1841,6 @@ impl Lower<'_> {
                 "read"
             };
             // ADR §14.2 marks the complete selected place in P07 (`a[1]`).
-            self.conflict(local, place.span().clone(), requested)?;
             let mut indexes = Vec::with_capacity(index_exprs.len());
             let mut ty = self.locals[local.0].ty.clone();
             for index_expr in index_exprs {
@@ -1795,13 +1856,24 @@ impl Lower<'_> {
                 if index_flow.ty() != Some(&Ty::I64) {
                     return Err(CompileError::InvalidIr("loan index type"));
                 }
-                let Ty::Array(child) = ty else {
-                    return Err(CompileError::InvalidIr("loan target type"));
+                ty = match ty {
+                    Ty::Array(child) => *child,
+                    Ty::Never => Ty::Never,
+                    _ => return Err(CompileError::InvalidIr("loan target type")),
                 };
-                ty = *child;
                 if let Some(id) = index_flow.temp() {
                     indexes.push(id);
                 }
+            }
+            self.check_place_access(local, root, place, requested, indexed_place)?;
+            if ty == Ty::Never {
+                return Ok((
+                    Flow::Value {
+                        temp: None,
+                        ty: expected.clone(),
+                    },
+                    None,
+                ));
             }
             let permission = if mode == ParameterMode::Inout {
                 LoanPermission::Inout
@@ -1840,15 +1912,129 @@ impl Lower<'_> {
             return Ok((flow, Some(local)));
         }
         if mode == ParameterMode::Inout {
-            return Err(CompileError::InvalidIr("inout place passed parser"));
+            return Err(CompileError::InvalidIr("edit place passed parser"));
         }
         let flow = self.expr_mode(
             &arg.value,
             depth + 1,
-            Some(expected),
+            (expected != &Ty::Never).then_some(expected),
             mode == ParameterMode::Read,
         )?;
         Ok((flow, None))
+    }
+
+    // A call holds each place loan until all later arguments have been
+    // evaluated. Both user calls and intrinsics use this ownership boundary.
+    fn prepare_call_arguments(
+        &mut self,
+        args: &[parse::Argument],
+        params: &[(String, ParameterMode, Ty)],
+        depth: usize,
+        check_types: bool,
+        retain_place_loans: bool,
+    ) -> Result<PreparedCallArguments, CompileError> {
+        let mut acquired = Vec::new();
+        let result = (|| {
+            let mut used = vec![false; params.len()];
+            let slot_by_name: HashMap<&str, usize> = params
+                .iter()
+                .enumerate()
+                .map(|(index, (name, _, _))| (name.as_str(), index))
+                .collect();
+            let mut prepared = Vec::with_capacity(args.len());
+            let mut argument_errors = Vec::new();
+            let mut dependent = false;
+            let mut diverged = false;
+            let mut next_positional = 0usize;
+            for arg in args {
+                if diverged {
+                    self.terminated = None;
+                }
+                count_loan_work();
+                let slot = if let Some(label) = &arg.label {
+                    slot_by_name
+                        .get(label.as_str())
+                        .copied()
+                        .ok_or(CompileError::InvalidIr("call label passed checker"))?
+                } else {
+                    while used.get(next_positional) == Some(&true) {
+                        next_positional += 1;
+                    }
+                    next_positional
+                };
+                let (_, mode, expected) = params
+                    .get(slot)
+                    .ok_or(CompileError::InvalidIr("call parameter slot"))?;
+                if used[slot] {
+                    return Err(CompileError::InvalidIr("duplicate call argument"));
+                }
+                used[slot] = true;
+                let (argument_flow, loan_root) =
+                    match self.call_argument(arg, *mode, expected, depth, retain_place_loans) {
+                        Ok(value) => value,
+                        Err(CompileError::Rejected(errors)) => {
+                            argument_errors.extend(errors);
+                            continue;
+                        }
+                        Err(CompileError::Dependent) => {
+                            dependent = true;
+                            continue;
+                        }
+                        Err(other) => return Err(other),
+                    };
+                if argument_flow.diverged() {
+                    diverged = true;
+                    self.emission = EmissionMode::Analyze;
+                    continue;
+                }
+                if let Some(root) = loan_root {
+                    acquired.push((root, LoanId(arg.span.start as usize), arg.span.clone()));
+                }
+                if check_types
+                    && argument_flow
+                        .ty()
+                        .is_some_and(|actual| *actual != *expected && *actual != Ty::Never)
+                {
+                    return Err(CompileError::InvalidIr("call argument type passed checker"));
+                }
+                if let Some(id) = argument_flow.temp() {
+                    prepared.push((slot, id));
+                }
+            }
+            if !argument_errors.is_empty() {
+                return Err(CompileError::Rejected(argument_errors));
+            }
+            if dependent {
+                return Err(CompileError::Dependent);
+            }
+            if diverged {
+                self.terminated = Some(Termination::Diverged);
+            }
+            Ok((prepared, diverged))
+        })();
+        if result.is_err() {
+            self.release_call_loans(&acquired);
+        }
+        result.map(|(prepared, diverged)| (prepared, acquired, diverged))
+    }
+
+    fn release_call_loans(&mut self, acquired: &[(LocalId, LoanId, Span)]) {
+        for (root, _, _) in acquired.iter().rev() {
+            if let Some(loans) = self.active_loans.get_mut(root) {
+                loans.pop();
+            }
+        }
+    }
+
+    fn end_call_loans(&mut self, acquired: Vec<(LocalId, LoanId, Span)>) {
+        for (_, loan, origin) in acquired.into_iter().rev() {
+            self.statement_op(Op::EndLoan(loan), origin, Access::Own, false);
+            if self.emission == EmissionMode::Live
+                && let Some(last) = self.instructions.last_mut()
+            {
+                last.tick = false;
+            }
+        }
     }
     fn scoped_block(
         &mut self,
@@ -2012,9 +2198,6 @@ impl Lower<'_> {
         diagnostics: &mut Vec<Diagnostic>,
         tail: impl FnOnce(&mut Self, bool) -> Result<T, CompileError>,
     ) -> Result<T, CompileError> {
-        if depth >= 128 {
-            return Err(CompileError::OutsideScalarSlice("lowering depth"));
-        }
         let mut unreachable = None;
         for statement in statements {
             super::count_cfg_work(1);
@@ -2210,8 +2393,8 @@ impl Lower<'_> {
             }
             Statement::Assign { place, value, .. } => {
                 let (root, index_exprs) = place_parts(place)?;
-                let name =
-                    place_name(root).ok_or(CompileError::OutsideScalarSlice("assignment root"))?;
+                let indexed_place = !index_exprs.is_empty();
+                let name = place_name(root).ok_or(CompileError::InvalidIr("assignment root"))?;
                 let id = self.get(name)?;
                 if self.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
                     return Err(self.permission_error(id, root.span().clone(), "write"));
@@ -2251,7 +2434,7 @@ impl Lower<'_> {
                 }
                 let value_flow =
                     self.expr(value, 0, (target_ty != Ty::Never).then_some(&target_ty))?;
-                if indexes.is_empty()
+                if !indexed_place
                     && target_ty == Ty::Never
                     && !value_flow.diverged()
                     && let Some(ty) = value_flow.ty().filter(|ty| **ty != Ty::Never)
@@ -2266,11 +2449,8 @@ impl Lower<'_> {
                 if value_flow.diverged() {
                     return Ok(());
                 }
-                self.conflict(id, root.span().clone(), "write")?;
-                if !indexes.is_empty() {
-                    self.check_available(id, root.span().clone())?;
-                }
-                if indexes.is_empty() {
+                self.check_place_access(id, root, root, "write", indexed_place)?;
+                if !indexed_place {
                     self.mark_consumed(id, None);
                 }
                 if self.emission == EmissionMode::Analyze {
@@ -2285,7 +2465,7 @@ impl Lower<'_> {
                     return Err(CompileError::InvalidIr("assignment type passed checker"));
                 }
                 self.statement_op(
-                    if indexes.is_empty() {
+                    if !indexed_place {
                         Op::WritePlace {
                             local: id,
                             value: temp,
@@ -2357,7 +2537,7 @@ impl Lower<'_> {
                 span,
             } => self.while_statement(condition, body, span, depth, diagnostics)?,
             Statement::Value { .. } => {
-                return Err(CompileError::OutsideScalarSlice("control flow"));
+                return Err(CompileError::InvalidIr("control flow"));
             }
         }
         Ok(())
@@ -2377,9 +2557,6 @@ impl Lower<'_> {
         expected: Option<&Ty>,
         borrow: bool,
     ) -> Result<Flow, CompileError> {
-        if depth >= 256 {
-            return Err(CompileError::OutsideScalarSlice("expression depth"));
-        }
         match e {
             Expr::Integer(n, s) => {
                 let n = n
@@ -2440,6 +2617,9 @@ impl Lower<'_> {
                 )?;
                 let left_diverged = left_flow.diverged();
                 let left_ty = left_flow.ty().cloned();
+                // This repeats the I64 expectation passed to expr_mode. Keep
+                // the local check as a defensive invariant for flows that
+                // return a type without consuming their expected type.
                 if numeric_operand
                     && let Some(actual) = left_ty.as_ref()
                     && *actual != Ty::I64
@@ -2461,6 +2641,9 @@ impl Lower<'_> {
                     None
                 };
                 if let Some(root) = left_root {
+                    // Conflict reporting reads the first live loan. Append so
+                    // an outer loan keeps its source origin while this nested
+                    // comparison runs; pop below removes precisely this loan.
                     self.active_loans.entry(root).or_default().push(ActiveLoan {
                         permission: LoanPermission::Read,
                         span: left.span().clone(),
@@ -2506,7 +2689,7 @@ impl Lower<'_> {
                     "-" => Binary::Sub,
                     "<" => Binary::Less,
                     "==" => Binary::Equal,
-                    _ => return Err(CompileError::OutsideScalarSlice("binary operation")),
+                    _ => return Err(CompileError::InvalidIr("binary operation")),
                 };
                 let ty = binary_result_type(op)?;
                 if left_diverged || right_diverged {
@@ -2533,8 +2716,7 @@ impl Lower<'_> {
                 ))
             }
             Expr::Call { target, args, span } => {
-                let name =
-                    place_name(target).ok_or(CompileError::OutsideScalarSlice("call target"))?;
+                let name = place_name(target).ok_or(CompileError::InvalidIr("call target"))?;
                 if self.visible.get(name).and_then(|v| v.last()).is_some() {
                     self.get(name)?;
                     return Err(CompileError::InvalidIr(
@@ -2545,96 +2727,10 @@ impl Lower<'_> {
                     if args.len() != params.len() {
                         return Err(CompileError::InvalidIr("call arity passed checker"));
                     }
-                    let mut acquired = Vec::new();
-                    let prepared_result =
-                        (|| {
-                            let mut used = vec![false; params.len()];
-                            let slot_by_name: HashMap<&str, usize> = params
-                                .iter()
-                                .enumerate()
-                                .map(|(index, (name, _, _))| (name.as_str(), index))
-                                .collect();
-                            let mut prepared = Vec::with_capacity(args.len());
-                            let mut argument_errors = Vec::new();
-                            let mut dependent = false;
-                            let mut diverged = false;
-                            let mut next_positional = 0usize;
-                            for arg in args {
-                                if diverged {
-                                    self.terminated = None;
-                                }
-                                count_loan_work();
-                                let slot = if let Some(label) = &arg.label {
-                                    slot_by_name.get(label.as_str()).copied().ok_or(
-                                        CompileError::InvalidIr("call label passed checker"),
-                                    )?
-                                } else {
-                                    while used.get(next_positional) == Some(&true) {
-                                        next_positional += 1;
-                                    }
-                                    next_positional
-                                };
-                                let (_, mode, expected) = params
-                                    .get(slot)
-                                    .ok_or(CompileError::InvalidIr("call parameter slot"))?;
-                                if used[slot] {
-                                    return Err(CompileError::InvalidIr("duplicate call argument"));
-                                }
-                                used[slot] = true;
-                                let (argument_flow, loan_root) =
-                                    match self.call_argument(arg, *mode, expected, depth) {
-                                        Ok(value) => value,
-                                        Err(CompileError::Rejected(errors)) => {
-                                            argument_errors.extend(errors);
-                                            continue;
-                                        }
-                                        Err(CompileError::Dependent) => {
-                                            dependent = true;
-                                            continue;
-                                        }
-                                        Err(other) => return Err(other),
-                                    };
-                                if argument_flow.diverged() {
-                                    diverged = true;
-                                    self.emission = EmissionMode::Analyze;
-                                    continue;
-                                }
-                                if let Some(root) = loan_root {
-                                    acquired.push((
-                                        root,
-                                        LoanId(arg.span.start as usize),
-                                        arg.span.clone(),
-                                    ));
-                                }
-                                if argument_flow.ty().is_some_and(|actual| {
-                                    *actual != *expected && *actual != Ty::Never
-                                }) {
-                                    return Err(CompileError::InvalidIr(
-                                        "call argument type passed checker",
-                                    ));
-                                }
-                                if let Some(id) = argument_flow.temp() {
-                                    prepared.push((slot, id));
-                                }
-                            }
-                            if !argument_errors.is_empty() {
-                                return Err(CompileError::Rejected(argument_errors));
-                            }
-                            if dependent {
-                                return Err(CompileError::Dependent);
-                            }
-                            if diverged {
-                                self.terminated = Some(Termination::Diverged);
-                            }
-                            Ok(prepared)
-                        })();
-                    for (root, _, _) in acquired.iter().rev() {
-                        if let Some(loans) = self.active_loans.get_mut(root) {
-                            loans.pop();
-                        }
-                    }
-                    let prepared: Vec<(usize, TempId)> = prepared_result?;
-                    if self.terminated == Some(Termination::Diverged) {
+                    let (prepared, acquired, diverged) =
+                        self.prepare_call_arguments(args, &params, depth, true, true)?;
+                    self.release_call_loans(&acquired);
+                    if diverged {
                         return Ok(Flow::Diverged { ty: Some(result) });
                     }
                     if self.emission == EmissionMode::Analyze {
@@ -2655,26 +2751,19 @@ impl Lower<'_> {
                         Access::Own,
                         false,
                     );
-                    for (_, loan, origin) in acquired.into_iter().rev() {
-                        self.statement_op(Op::EndLoan(loan), origin, Access::Own, false);
-                        if self.emission == EmissionMode::Live
-                            && let Some(last) = self.instructions.last_mut()
-                        {
-                            last.tick = false;
-                        }
-                    }
+                    self.end_call_loans(acquired);
                     return Ok(result_flow);
                 }
                 let intrinsic = match name {
-                    "print" => Intrinsic::Print,
-                    "assert_eq" => Intrinsic::AssertEq,
-                    "drop" => Intrinsic::DropData,
-                    "fail" => Intrinsic::Fail,
-                    "len" => Intrinsic::Len,
-                    "mock_open" => Intrinsic::MockOpen,
-                    "mock_blocking_open" => Intrinsic::MockBlockingOpen,
-                    "inspect" => Intrinsic::Inspect,
-                    _ => return Err(CompileError::OutsideScalarSlice("user or deferred call")),
+                    "Print" => Intrinsic::Print,
+                    "AssertEq" => Intrinsic::AssertEq,
+                    "Drop" => Intrinsic::DropData,
+                    "Fail" => Intrinsic::Fail,
+                    "Len" => Intrinsic::Len,
+                    "MockOpen" => Intrinsic::MockOpen,
+                    "MockBlockingOpen" => Intrinsic::MockBlockingOpen,
+                    "Inspect" => Intrinsic::Inspect,
+                    _ => return Err(CompileError::InvalidIr("user or deferred call")),
                 };
                 if intrinsic == Intrinsic::DropData
                     && args.len() == 1
@@ -2702,56 +2791,36 @@ impl Lower<'_> {
                         false,
                     ));
                 }
-                let mut ids = Vec::with_capacity(args.len());
-                let mut diverged = false;
-                let mut argument_errors = Vec::new();
-                let mut dependent = false;
-                for arg in args {
-                    if diverged {
-                        self.terminated = None;
+                let parameters: Vec<(String, ParameterMode, Ty)> = match intrinsic {
+                    Intrinsic::AssertEq => vec![
+                        ("a".into(), ParameterMode::Read, Ty::Never),
+                        ("b".into(), ParameterMode::Read, Ty::Never),
+                    ],
+                    Intrinsic::Print | Intrinsic::DropData => vec![(
+                        "v".into(),
+                        if intrinsic == Intrinsic::Print {
+                            ParameterMode::Read
+                        } else {
+                            ParameterMode::Consume
+                        },
+                        Ty::Never,
+                    )],
+                    Intrinsic::Len => vec![("a".into(), ParameterMode::Read, Ty::Never)],
+                    Intrinsic::Inspect => vec![("r".into(), ParameterMode::Read, Ty::Never)],
+                    Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
+                        vec![("label".into(), ParameterMode::Consume, Ty::I64)]
                     }
-                    let result = self.expr_mode(
-                        &arg.value,
-                        depth + 1,
-                        None,
-                        matches!(
-                            intrinsic,
-                            Intrinsic::Print
-                                | Intrinsic::AssertEq
-                                | Intrinsic::Len
-                                | Intrinsic::Inspect
-                        ),
-                    );
-                    let argument_flow = match result {
-                        Ok(value) => value,
-                        Err(CompileError::Rejected(errors)) => {
-                            argument_errors.extend(errors);
-                            continue;
-                        }
-                        Err(CompileError::Dependent) => {
-                            dependent = true;
-                            continue;
-                        }
-                        Err(error) => return Err(error),
-                    };
-                    if argument_flow.diverged() {
-                        diverged = true;
-                        self.emission = EmissionMode::Analyze;
-                    }
-                    if let Some(id) = argument_flow.temp() {
-                        ids.push(id);
-                    }
-                }
-                if !argument_errors.is_empty() {
-                    return Err(CompileError::Rejected(argument_errors));
-                }
-                if dependent {
-                    return Err(CompileError::Dependent);
-                }
+                    Intrinsic::Fail => vec![],
+                };
+                let (prepared, acquired, diverged) =
+                    self.prepare_call_arguments(args, &parameters, depth, false, args.len() > 1)?;
+                self.release_call_loans(&acquired);
                 if diverged {
-                    self.terminated = Some(Termination::Diverged);
                     return Ok(Flow::Diverged { ty: None });
                 }
+                // AssertEq is symmetric; retain source order so loan release
+                // is the exact reverse of argument evaluation.
+                let ids: Vec<_> = prepared.into_iter().map(|(_, id)| id).collect();
                 let arity = match intrinsic {
                     Intrinsic::Print
                     | Intrinsic::DropData
@@ -2771,7 +2840,7 @@ impl Lower<'_> {
                     Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
                     _ => Ty::Unit,
                 };
-                Ok(self.emitted(
+                let result_flow = self.emitted(
                     Op::CallIntrinsic {
                         intrinsic,
                         args: ids,
@@ -2786,7 +2855,9 @@ impl Lower<'_> {
                             | Intrinsic::MockBlockingOpen
                             | Intrinsic::Inspect
                     ),
-                ))
+                );
+                self.end_call_loans(acquired);
+                Ok(result_flow)
             }
             Expr::Array(items, span) => {
                 let element_expected = expected.and_then(|ty| match ty {
@@ -2871,8 +2942,6 @@ impl Lower<'_> {
                     && let Some(name) = place_name(root)
                 {
                     let local = self.get(name)?;
-                    self.check_available(local, root.span().clone())?;
-                    self.conflict(local, e.span().clone(), "read")?;
                     let mut ty = self.locals[local.0].ty.clone();
                     let mut ids = Vec::with_capacity(index_exprs.len());
                     let mut diverged = false;
@@ -2900,6 +2969,9 @@ impl Lower<'_> {
                         if let Some(id) = index_flow.temp() {
                             ids.push(id);
                         }
+                        // The root is acquired after each index expression. An
+                        // index may consume it, including on one branch only.
+                        self.check_place_access(local, root, e, "read", true)?;
                         self.statement_op(
                             Op::CheckIndex {
                                 local,
@@ -2987,7 +3059,7 @@ impl Lower<'_> {
                 span,
             } => {
                 let Some(name) = place_name(value) else {
-                    return Err(CompileError::OutsideScalarSlice("partial transfer"));
+                    return Err(CompileError::InvalidIr("partial transfer"));
                 };
                 let id = self.get(name)?;
                 self.check_available(id, value.span().clone())?;
@@ -3008,7 +3080,12 @@ impl Lower<'_> {
                 }
                 Ok(self.emitted(Op::TransferValue(id), ty, span.clone(), Access::Own, false))
             }
-            Expr::Unary { .. } => Err(CompileError::OutsideScalarSlice(
+            // parse::unadmitted_edit_in_expr rejects an exclusive prefix except
+            // as an immediate call argument; lower_call handles that argument.
+            // limits::first_pending rejects result propagation before lowering.
+            // The source-level witnesses live in isolated_edit_never_reaches_lowering
+            // and access_prefix_contexts_never_escape_as_invalid_ir.
+            Expr::Unary { .. } => Err(CompileError::InvalidIr(
                 "exclusive loans or result propagation",
             )),
             Expr::If {
@@ -3048,7 +3125,7 @@ fn place_parts(expr: &Expr) -> Result<(&Expr, Vec<&Expr>), CompileError> {
                 indexes.reverse();
                 return Ok((node, indexes));
             }
-            _ => return Err(CompileError::OutsideScalarSlice("nonlocal place")),
+            _ => return Err(CompileError::InvalidIr("nonlocal place")),
         }
     }
 }
@@ -3059,9 +3136,6 @@ fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
         match node {
             Type::Array(child) => {
                 depth += 1;
-                if depth > 128 {
-                    return Err(CompileError::OutsideScalarSlice("array type depth"));
-                }
                 node = child;
             }
             Type::I64 | Type::Bool | Type::Unit => {
@@ -3086,7 +3160,7 @@ fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
                 }
                 return Ok(result);
             }
-            _ => return Err(CompileError::OutsideScalarSlice("resource or result type")),
+            _ => return Err(CompileError::InvalidIr("resource or result type")),
         }
     }
 }
@@ -3155,7 +3229,7 @@ mod tests {
 
     #[test]
     fn analyzed_binding_loan_and_index_preserve_flow_type() {
-        let source = "fn main(){h(v);h(a[(if true{return;}else{return;})]);}";
+        let source = "fn Main() {\n    h(v);\n    h(a[(if true then {\n        return;\n    } else {\n        return;\n    })]);\n}\n";
         let ast = parse::parse("flow_contract.nx", source).unwrap();
         let signatures = HashMap::new();
         let statements = &ast.functions[0].body.statements;
@@ -3168,7 +3242,7 @@ mod tests {
         };
         let mut binding = analyzed_lower(source, &signatures, ("v", Ty::Never));
         let (flow, loan) = binding
-            .call_argument(&first[0], ParameterMode::Read, &Ty::I64, 0)
+            .call_argument(&first[0], ParameterMode::Read, &Ty::I64, 0, true)
             .unwrap();
         assert!(matches!(
             flow,
@@ -3188,14 +3262,14 @@ mod tests {
         };
         let mut indexed = analyzed_lower(source, &signatures, ("a", Ty::Array(Box::new(Ty::I64))));
         let (flow, _) = indexed
-            .call_argument(&second[0], ParameterMode::Read, &Ty::I64, 0)
+            .call_argument(&second[0], ParameterMode::Read, &Ty::I64, 0, true)
             .unwrap();
         assert!(matches!(flow, Flow::Diverged { ty: Some(Ty::I64) }));
     }
 
     #[test]
     fn analyzed_branch_retains_type_of_only_continuing_value() {
-        let source = "fn main(){let w=if true{value:1;}else{return;};}";
+        let source = "fn Main() {\n    let w = if true then 1 else {\n        return;\n    };\n}\n";
         let ast = parse::parse("flow_contract.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = analyzed_lower(source, &signatures, ("unused", Ty::Never));
@@ -3214,7 +3288,7 @@ mod tests {
 
     #[test]
     fn hypothetical_bottom_read_preserves_rhs_flow_and_branch_join_type() {
-        let source = "fn main(){let v=if true{return;}else{return;};let w=v==(if true{return;}else{return;});}";
+        let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = v == (if true then {\n        return;\n    } else {\n        return;\n    });\n}\n";
         let ast = parse::parse("bottom_flow.nx", source).unwrap();
         let signatures = HashMap::new();
         let declaration = &ast.functions[0].body.statements[0];
@@ -3280,11 +3354,11 @@ mod tests {
 
     #[test]
     fn divergent_call_argument_does_not_leave_orphan_call_instruction() {
-        let source = "fn h(a:i64,b:i64){} fn main(){h(1,if true{return;}else{return;});}";
+        let source = "fn H(a: view I64, b: view I64) {}\nfn Main() {\n    H(1, if true then {\n        return;\n    } else {\n        return;\n    });\n}\n";
         let ast = parse::parse("orphan_call.nx", source).unwrap();
         let mut signatures = HashMap::new();
         signatures.insert(
-            "h".into(),
+            "H".into(),
             (
                 vec![
                     ("a".into(), ParameterMode::Read, Ty::I64),
@@ -3319,7 +3393,7 @@ mod tests {
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
-        let main = ast.functions.iter().find(|f| f.name == "main").unwrap();
+        let main = ast.functions.iter().find(|f| f.name == "Main").unwrap();
         lower
             .statement(&main.body.statements[0], 0, &mut Vec::new())
             .unwrap();
@@ -3351,7 +3425,7 @@ mod tests {
 
     #[test]
     fn scoped_block_error_pops_scope_and_restores_parent() {
-        let source = "fn main(){{let x=try_add(1,2)?;}}";
+        let source = "fn Main() {\n    {\n        let x = TryAdd(1, 2)?;\n    }\n}\n";
         let ast = parse::parse("scope_error.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
@@ -3382,7 +3456,7 @@ mod tests {
         };
         assert!(matches!(
             lower.statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new()),
-            Err(CompileError::OutsideScalarSlice(_))
+            Err(CompileError::InvalidIr(_))
         ));
         assert_eq!(lower.scopes.len(), 1);
         assert_eq!(lower.scope, ScopeId(0));
@@ -3391,7 +3465,7 @@ mod tests {
 
     #[test]
     fn rejected_while_condition_restores_statement_checkpoint() {
-        let source = "fn main(){while (if true{value:true;}else{}){}let x=1;}";
+        let source = "fn Main() {\n    while (if true then true else {}) {}\n    let x = 1;\n}\n";
         let ast = parse::parse("while_error_checkpoint.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
@@ -3452,7 +3526,7 @@ mod tests {
 
     #[test]
     fn branch_local_consumption_does_not_escape_its_scope() {
-        let source = "fn main(){if true{let r=mock_open(1);drop(r);}else{}}";
+        let source = "fn Main() {\n    if true {\n        let r = MockOpen(1);\n        Drop(r);\n    } else {}\n}\n";
         let ast = parse::parse("branch_scope.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
@@ -3490,7 +3564,7 @@ mod tests {
 
     #[test]
     fn pending_read_loan_rejects_assignment_with_write_access() {
-        let source = "fn main(){var x=1;x=2;}";
+        let source = "fn Main() {\n    var x = 1;\n    x = 2;\n}\n";
         let ast = parse::parse("loan_write.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
@@ -3553,7 +3627,7 @@ mod tests {
 
     #[test]
     fn dead_declaration_and_reinitialization_restore_all_lowering_state() {
-        let source = "fn main(){var r=mock_open(1);drop(r);{return;let s=r;let x=1;r=mock_open(2);return;}inspect(r);}";
+        let source = "fn Main() {\n    var r = MockOpen(1);\n    Drop(r);\n    {\n        return;\n        let s = r;\n        let x = 1;\n        r = MockOpen(2);\n        return;\n    }\n    Inspect(r);\n}\n";
         let ast = parse::parse("dead_state.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
@@ -3595,7 +3669,10 @@ mod tests {
         );
         assert_eq!(lower.locals.len(), 1);
         assert_eq!(lower.name_spans.len(), 1);
-        assert_eq!(lower.name_spans[0].start, 14);
+        assert_eq!(
+            lower.name_spans[0].start,
+            source.find("r = MockOpen").unwrap() as u64
+        );
         assert_eq!(lower.visible.get("r").unwrap(), &vec![LocalId(0)]);
         assert!(lower.visible.get("s").is_none_or(Vec::is_empty));
         assert!(lower.visible.get("x").is_none_or(Vec::is_empty));
@@ -3609,14 +3686,18 @@ mod tests {
                 Termination::Diverged => unreachable!(),
             }])
         );
-        assert_eq!(lower.consumed_at.get(&LocalId(0)).unwrap()[0].0.start, 29);
+        assert_eq!(
+            lower.consumed_at.get(&LocalId(0)).unwrap()[0].0.start,
+            source.find("Drop(r)").unwrap() as u64
+        );
         assert_eq!(lower.dead_depth, 0);
         assert!(lower.consumed_undo.is_empty());
     }
 
     #[test]
     fn poisoned_binding_in_rejected_block_has_no_cleanup_instruction() {
-        let source = "fn main(){{let r=mock_open(1);let s=r;}}";
+        let source =
+            "fn Main() {\n    {\n        let r = MockOpen(1);\n        let s = r;\n    }\n}\n";
         let ast = parse::parse("poison.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {
@@ -3662,7 +3743,7 @@ mod tests {
 
     #[test]
     fn poisoned_call_target_preserves_original_lowering_diagnostic() {
-        let source = "fn main(){let r=mock_open(1);let s=r;s();}";
+        let source = "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    s();\n}\n";
         let ast = parse::parse("poison.nx", source).unwrap();
         let signatures = HashMap::new();
         let mut lower = Lower {

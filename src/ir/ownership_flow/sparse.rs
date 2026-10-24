@@ -474,6 +474,10 @@ fn summarize_backedge(
     name_spans: &[Span],
     budget: &mut Budget,
 ) -> Result<Backedge, CompileError> {
+    // lower::build_while creates a Jump backedge with a preceding Jump
+    // preheader. verify_function rejects malformed targets/cycles in forged
+    // IR; semantic_cfg_sources_never_create_invalid_ir and the generated
+    // sparse/dense comparison exercise accepted source CFGs.
     let Terminator::Jump { span, .. } = &blocks[source].terminator else {
         return Err(CompileError::InvalidIr("invalid control-flow cycle"));
     };
@@ -529,6 +533,34 @@ pub(in crate::ir) fn analyze(
     tokens: &[Token],
     used: &mut u64,
 ) -> Result<Vec<Diagnostic>, CompileError> {
+    let blocks = std::iter::once(&function.block).chain(&function.blocks);
+    // Only these instructions create ownership facts. Without a source fact,
+    // every incoming state stays empty, so a fixed-point walk cannot report
+    // a use after consumption. Charge the single inspection pass to the same
+    // budget and leave the full analysis for functions that can generate facts.
+    if !blocks.clone().any(|block| {
+        block
+            .instructions
+            .iter()
+            .any(|ins| matches!(ins.op, Op::TransferValue(_) | Op::DropBinding(_)))
+    }) {
+        let mut budget = Budget { used: *used };
+        for (index, block) in blocks.enumerate() {
+            if index > 0 {
+                let terminator_span = match &block.terminator {
+                    Terminator::Return { span, .. }
+                    | Terminator::Jump { span, .. }
+                    | Terminator::BranchBool { span, .. } => span,
+                };
+                budget.charge(terminator_span)?;
+            }
+            for ins in &block.instructions {
+                budget.charge(&ins.span)?;
+            }
+        }
+        *used = budget.used;
+        return Ok(Vec::new());
+    }
     let mut observed = Vec::new();
     let result = analyze_inner(function, name_spans, tokens, used, &mut observed);
     match result {
@@ -649,6 +681,9 @@ fn analyze_inner(
                 sparse_transfer(&mut state, ins, function);
             }
             let mut propagate = |target: usize| -> Result<(), CompileError> {
+                // Targets are allocated from the current function's block
+                // table. The guards remain for forged CFGs tested by the
+                // verifier; accepted while/if sources exercise this closure.
                 if target >= blocks.len() {
                     return Err(CompileError::InvalidIr("invalid jump target"));
                 }
@@ -917,16 +952,16 @@ mod tests {
     fn quota_discards_intermediate_loop_observations() {
         use super::super::super::model::Op;
         let mut source = String::from(
-            "fn f(b:bool){var s=mock_open(1);inspect(s);drop(s);while b{s=mock_open(2);}",
+            "fn F(b:view Bool){var s=MockOpen(1);Inspect(s);Drop(s);while b{s=MockOpen(2);}",
         );
         for index in 0..100 {
             source.push_str(&format!(
-                "var r{index}=mock_open(1);drop(r{index});while b{{r{index}=mock_open(2);}}"
+                "var r{index}=MockOpen(1);Drop(r{index});while b{{r{index}=MockOpen(2);}}"
             ));
         }
-        source.push_str("}fn main(){}");
+        source.push_str("}fn Main(){}");
         let program = super::super::super::compile_scalar("quota_forged.nx", &source).unwrap();
-        let mut function = program.functions.function("f").unwrap().clone();
+        let mut function = program.functions.function("F").unwrap().clone();
         let tokens = crate::frontend::lex::lex("quota_forged.nx", &source).unwrap();
         let s = function
             .locals
@@ -934,14 +969,14 @@ mod tests {
             .find(|local| local.name == "s")
             .unwrap()
             .id;
-        let inspect_at = source.find("inspect(s)").unwrap() as u64;
+        let inspect_at = source.find("Inspect(s)").unwrap() as u64;
         let inspected = function
             .block
             .instructions
             .iter()
             .find(|ins| {
                 ins.span.start >= inspect_at
-                    && ins.span.end <= inspect_at + "inspect(s)".len() as u64
+                    && ins.span.end <= inspect_at + "Inspect(s)".len() as u64
                     && use_local(&ins.op) == Some(s)
             })
             .expect("source inspection instruction")
@@ -1041,21 +1076,21 @@ mod tests {
     fn diagnostic_pass_quota_preserves_one_to_three_independent_loop_uses() {
         for nested in [false, true] {
             for uses in 1..=3 {
-                let mut source = String::from("fn f(b:bool){");
+                let mut source = String::from("fn F(b:view Bool){");
                 for index in 0..uses {
                     source.push_str(&format!(
-                        "var s{index}=mock_open(1);inspect(s{index});drop(s{index});"
+                        "var s{index}=MockOpen(1);Inspect(s{index});Drop(s{index});"
                     ));
                     if nested {
-                        source.push_str(&format!("while b{{while b{{s{index}=mock_open(2);}}}}"));
+                        source.push_str(&format!("while b{{while b{{s{index}=MockOpen(2);}}}}"));
                     } else {
-                        source.push_str(&format!("while b{{s{index}=mock_open(2);}}"));
+                        source.push_str(&format!("while b{{s{index}=MockOpen(2);}}"));
                     }
                 }
-                source.push_str("}fn main(){}");
+                source.push_str("}fn Main(){}");
                 let file = "quota_forged.nx";
                 let program = super::super::super::compile_scalar(file, &source).unwrap();
-                let mut function = program.functions.function("f").unwrap().clone();
+                let mut function = program.functions.function("F").unwrap().clone();
                 let tokens = crate::frontend::lex::lex(file, &source).unwrap();
                 let names: Vec<_> = function
                     .locals
@@ -1075,7 +1110,7 @@ mod tests {
                         .find(|local| local.name == name)
                         .unwrap()
                         .id;
-                    let at = source.find(&format!("inspect({name})")).unwrap() as u64;
+                    let at = source.find(&format!("Inspect({name})")).unwrap() as u64;
                     let inspected = std::iter::once(&function.block)
                         .chain(&function.blocks)
                         .flat_map(|block| &block.instructions)
@@ -1130,7 +1165,7 @@ mod tests {
 
     #[test]
     fn same_source_use_prefers_joined_subcause_and_matching_cause() {
-        let source = "fn f(b:bool){var r=mock_open(1);drop(r);while b{inspect(r);r=mock_open(2);}}fn main(){}";
+        let source = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    Drop(r);\n    while b {\n        Inspect(r);\n        r = MockOpen(2);\n    }\n}\nfn Main() {}\n";
         let Err(CompileError::Rejected(errors)) =
             super::super::super::compile_scalar("same_use.nx", source)
         else {
@@ -1263,16 +1298,16 @@ mod tests {
 
     #[test]
     fn loop_summary_indexes_local_consumption_and_scope_kill() {
-        let source = "fn f(b:bool){while b{let r=mock_open(1);drop(r);}}fn main(){}";
+        let source = "fn F(b: view Bool) {\n    while b {\n        let r = MockOpen(1);\n        Drop(r);\n    }\n}\nfn Main() {}\n";
         let program = super::super::super::compile_scalar("loop_summary.nx", source).unwrap();
-        let function = program.functions.function("f").unwrap();
+        let function = program.functions.function("F").unwrap();
         let names: Vec<_> = function
             .locals
             .iter()
             .map(|local| {
                 let start = match local.name.as_str() {
-                    "b" => source.find("b:bool").unwrap(),
-                    "r" => source.find("let r=").unwrap() + 4,
+                    "b" => source.find("b: view Bool").unwrap(),
+                    "r" => source.find("let r =").unwrap() + 4,
                     _ => 0,
                 } as u64;
                 Span {

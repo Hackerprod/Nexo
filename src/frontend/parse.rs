@@ -1,7 +1,20 @@
-//! Parser and normalized syntax tree for the accepted part of f0-0002-v1.
+//! Parser for F0-D15 B, building the shared normalized AST.
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::mpsc::{self, Sender};
+#[cfg(test)]
+static PARSE_SCALE_WORK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+#[cfg(test)]
+static PARSE_SCALE_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+#[cfg(test)]
+pub(crate) fn measure_parse_work(source: &str) -> (Result<Ast, Box<Diagnostic>>, u64) {
+    use std::sync::atomic::Ordering;
+    let _guard = PARSE_SCALE_MUTEX.lock().unwrap();
+    PARSE_SCALE_WORK.store(0, Ordering::Relaxed);
+    let result = parse("b-scale.nx", source);
+    (result, PARSE_SCALE_WORK.load(Ordering::Relaxed))
+}
 
 use super::lex::{self, Kind, Token};
 use crate::diagnostic::{
@@ -15,10 +28,10 @@ const EXPR_START: &[&str] = &[
     "IntLiteral",
     "Name",
     "[",
-    "consume",
+    "edit",
     "false",
     "if",
-    "inout",
+    "move",
     "true",
 ];
 const TRY_START: &[&str] = &[
@@ -27,9 +40,9 @@ const TRY_START: &[&str] = &[
     "IntLiteral",
     "Name",
     "[",
-    "consume",
+    "edit",
     "false",
-    "inout",
+    "move",
     "true",
 ];
 const BLOCK_NEXT: &[&str] = &[
@@ -38,11 +51,11 @@ const BLOCK_NEXT: &[&str] = &[
     "IntLiteral",
     "Name",
     "[",
-    "consume",
+    "edit",
     "false",
     "if",
-    "inout",
     "let",
+    "move",
     "return",
     "true",
     "var",
@@ -53,17 +66,18 @@ const BLOCK_NEXT: &[&str] = &[
 const TYPE_START: &[&str] = &[
     "(",
     "Array",
+    "Bool",
+    "I64",
     "MockBlockingResource",
     "MockResource",
     "Result",
-    "bool",
-    "i64",
 ];
 const POSTFIX_START: &[&str] = &["(", "-", "IntLiteral", "Name", "[", "false", "true"];
 // FIRST sets transcribed from §3 and §13.14. Callers select a committed
 // production state before looking at the erroneous token (including EOF).
-const PARAMETER_LIST_FIRST: &[&str] = &[")", "Name", "consume", "inout"];
-const PARAMETER_FIRST: &[&str] = &["Name", "consume", "inout"];
+const PARAMETER_LIST_FIRST: &[&str] = &[")", "Name"];
+const PARAMETER_FIRST: &[&str] = &["Name"];
+const PARAM_MODE_FIRST: &[&str] = &["edit", "move", "view"];
 const OPERATION_FIRST: &[&str] = &["call", "cancel", "copy", "create", "drop", "resume"];
 const OPERATION_LIST_FIRST: &[&str] = &["call", "cancel", "copy", "create", "drop", "resume", "}"];
 const WITH_FIRST: &[&str] = &[
@@ -93,10 +107,10 @@ const GROUP_FIRST: &[&str] = &[
     "IntLiteral",
     "Name",
     "[",
-    "consume",
+    "edit",
     "false",
     "if",
-    "inout",
+    "move",
     "true",
 ];
 const ARRAY_FIRST: &[&str] = &[
@@ -106,13 +120,25 @@ const ARRAY_FIRST: &[&str] = &[
     "Name",
     "[",
     "]",
-    "consume",
+    "edit",
     "false",
     "if",
-    "inout",
+    "move",
     "true",
 ];
 const ELSE_FIRST: &[&str] = &["if", "{"];
+const BRANCH_FIRST: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "move",
+    "true",
+    "{",
+];
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ast {
@@ -207,20 +233,6 @@ pub enum Statement {
         span: Span,
     },
 }
-impl Statement {
-    fn span(&self) -> &Span {
-        match self {
-            Self::Let { span, .. }
-            | Self::Assign { span, .. }
-            | Self::Return { span, .. }
-            | Self::Value { span, .. }
-            | Self::If { span, .. }
-            | Self::While { span, .. }
-            | Self::Expr { span, .. } => span,
-            Self::Block(block) => &block.span,
-        }
-    }
-}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expr {
     Name(String, Span),
@@ -262,14 +274,6 @@ pub enum Else {
     Block(Block),
     If(Box<Expr>),
 }
-impl Else {
-    fn span(&self) -> &Span {
-        match self {
-            Self::Block(block) => &block.span,
-            Self::If(expr) => expr.span(),
-        }
-    }
-}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Argument {
     pub label: Option<String>,
@@ -294,7 +298,31 @@ impl Expr {
     }
 }
 
-type ParseResult = Result<Ast, Box<Diagnostic>>;
+pub(crate) fn statement_span(s: &Statement) -> &Span {
+    match s {
+        Statement::Block(b) => &b.span,
+        Statement::Let { span, .. }
+        | Statement::Assign { span, .. }
+        | Statement::Return { span, .. }
+        | Statement::Value { span, .. }
+        | Statement::If { span, .. }
+        | Statement::While { span, .. }
+        | Statement::Expr { span, .. } => span,
+    }
+}
+fn else_span(e: &Else) -> &Span {
+    match e {
+        Else::Block(b) => &b.span,
+        Else::If(e) => e.span(),
+    }
+}
+
+type ParseResult = Result<(Ast, Vec<usize>), Box<Diagnostic>>;
+#[derive(Clone, Copy)]
+enum TerminatedStatement {
+    Binding,
+    Other,
+}
 type WorkerResult = Result<ParseResult, Box<dyn std::any::Any + Send>>;
 struct ParseJob {
     file: String,
@@ -309,7 +337,7 @@ thread_local! {
     static PARSE_WORKER_SPAWNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
 }
 
-fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
+pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
     // A failed worker allocation cannot safely recurse on the caller's unknown stack.
     let parser = Parser {
         file,
@@ -318,6 +346,7 @@ fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
         at: 0,
         statement_start: 0,
         split_type_close: None,
+        split_type_closes: Vec::new(),
         depth: 0,
         function_names: HashSet::new(),
         local_scopes: Vec::new(),
@@ -332,6 +361,13 @@ fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
 }
 
 pub fn parse(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
+    parse_with_split_tokens(file, source).map(|(ast, _)| ast)
+}
+
+pub(crate) fn parse_with_split_tokens(
+    file: &str,
+    source: &str,
+) -> Result<(Ast, Vec<usize>), Box<Diagnostic>> {
     if source.len() > 1_048_576 {
         let parser = Parser {
             file,
@@ -340,6 +376,7 @@ pub fn parse(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
             at: 0,
             statement_start: 0,
             split_type_close: None,
+            split_type_closes: Vec::new(),
             depth: 0,
             function_names: HashSet::new(),
             local_scopes: Vec::new(),
@@ -389,7 +426,7 @@ pub fn parse(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
     }
 }
 
-fn parse_inner(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
+fn parse_inner(file: &str, source: &str) -> ParseResult {
     #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(file);
     let tokens = lex::lex(file, source)?;
@@ -412,6 +449,7 @@ fn parse_inner(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
         at: 0,
         statement_start: 0,
         split_type_close: None,
+        split_type_closes: Vec::new(),
         depth: 0,
         function_names,
         local_scopes: Vec::new(),
@@ -419,9 +457,237 @@ fn parse_inner(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
     .program()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::diagnostic::DataValue;
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn parser_token_patterns_scale_with_source_length() {
+        fn source(pattern: &str, bytes: usize) -> String {
+            let (prefix, unit, suffix) = match pattern {
+                "statements" => ("fn F(){", "a;", "}"),
+                "functions" => ("", "fn F(){}", ""),
+                "expressions" => ("fn F(){let x=1", "+1", ";}"),
+                "parameters" => ("fn F(", "x:view I64,", "x:view I64){}"),
+                "arguments" => ("fn F(){F(", "1,", "1);}"),
+                "blocks" => ("fn F(){", "{}", "}"),
+                "bindings" => ("fn F(){", "let x=1;", "}"),
+                "typed_bindings" => ("fn F(){", "let x:I64=1;", "}"),
+                "assignments" => ("fn F(){var x=0;", "x=1;", "}"),
+                "returns" => ("fn F(){", "return;", "}"),
+                "if_statements" => ("fn F(){", "if true{}", "}"),
+                "while_statements" => ("fn F(){", "while false{}", "}"),
+                "array_literals" => ("fn F(){", "let x=[1];", "}"),
+                "calls" => ("fn F(){", "F(1);", "}"),
+                "lf_statements" => ("fn F(){", "a\n", "}"),
+                "crlf_statements" => ("fn F(){", "a\r\n", "}"),
+                "cr_statements" => ("fn F(){", "a\r", "}"),
+                "commented_statements" => ("fn F(){", "a;//x\n", "}"),
+                "spaced_bindings" => ("fn F(){", "let x = 1; ", "}"),
+                "paren_exprs" => ("fn F(){", "(1);", "}"),
+                "return_values" => ("fn F()->I64{", "return 1;", "}"),
+                "indexed_expressions" => ("fn F(){", "a[1];", "}"),
+                "adjacent_type_close" => ("fn F(){", "let a:Array<I64>=x;", "}"),
+                "nested_type_close" => ("fn F(){", "let a:Result<Array<Array<I64>>,Bool>=x;", "}"),
+                _ => unreachable!(),
+            };
+            format!(
+                "{prefix}{}{suffix}",
+                unit.repeat((bytes - prefix.len() - suffix.len()) / unit.len())
+            )
+        }
+        fn measure(pattern: &str, bytes: usize) -> (u64, u64) {
+            let source = source(pattern, bytes);
+            crate::test_alloc::reset("parser_scale_counter.nx");
+            if let Err(error) = parse("parser_scale_counter.nx", &source) {
+                assert!(
+                    error.code != "NX-E0001" && error.code != "NX-E0002",
+                    "{pattern} is not a B source: {error:?}"
+                );
+            }
+            crate::test_alloc::snapshot("parser_scale_counter.nx")
+        }
+        for pattern in [
+            "statements",
+            "functions",
+            "expressions",
+            "parameters",
+            "arguments",
+            "blocks",
+            "bindings",
+            "typed_bindings",
+            "assignments",
+            "returns",
+            "if_statements",
+            "while_statements",
+            "array_literals",
+            "calls",
+            "lf_statements",
+            "crlf_statements",
+            "cr_statements",
+            "commented_statements",
+            "spaced_bindings",
+            "paren_exprs",
+            "return_values",
+            "indexed_expressions",
+            "adjacent_type_close",
+            "nested_type_close",
+        ] {
+            let samples: Vec<_> = [65_536, 131_072, 262_144, 524_288, 1_048_576]
+                .into_iter()
+                .map(|bytes| measure(pattern, bytes))
+                .collect();
+            for (metric, axis) in [("allocated bytes", 0), ("allocations", 1)] {
+                let value = |sample: &(u64, u64)| if axis == 0 { sample.0 } else { sample.1 };
+                eprintln!(
+                    "linearity {pattern} {metric}: {:?}",
+                    samples.iter().map(value).collect::<Vec<_>>()
+                );
+                assert!(
+                    value(&samples[4]) <= value(&samples[2]).saturating_mul(8),
+                    "{pattern} {metric}: {samples:?}"
+                );
+                for pair in samples.windows(2) {
+                    assert!(
+                        value(&pair[1]) <= value(&pair[0]).saturating_mul(7) / 2 + 1,
+                        "{pattern} {metric}: {samples:?}"
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn lexer_comment_scan_scales_with_source_bytes() {
+        let measure = |mebibytes: usize| {
+            let source = format!("fn Main(){{}}//{}", "x".repeat(mebibytes * 1_048_576));
+            let (tokens, steps) = super::super::lex::measure_lex_work(|| {
+                super::super::lex::lex("linear.nx", &source).unwrap()
+            });
+            assert!(!tokens.is_empty());
+            steps
+        };
+        let one = measure(1);
+        let four = measure(4);
+        assert!(four <= one * 8, "1 MiB {one}; 4 MiB {four}");
+    }
+
+    #[test]
+    fn adversarial_inputs_preserve_parser_diagnostic_validity() {
+        let soup = b"fn Main(){let x=([,)]?+-<>!=@/*\r\n0123value";
+        for seed in 0..20_000usize {
+            let mut state = (seed as u64 + 1).wrapping_mul(0x9e3779b97f4a7c15);
+            let mut next = || {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state as u8
+            };
+            let len = seed % 193;
+            let bytes: Vec<u8> = match seed % 4 {
+                0 => (0..len).map(|_| next()).collect(),
+                1 => (0..len)
+                    .map(|_| soup[(next() as usize) % soup.len()])
+                    .collect(),
+                2 => {
+                    let mut b = b"fn Main(){let x=1;//".to_vec();
+                    b.extend_from_slice(&[0xc3, 0xa9, 0xf0, 0x9f, 0x99, 0x82][..seed % 7]);
+                    b
+                }
+                _ => format!("fn Main(){{let x={};}}", next() % 100).into_bytes(),
+            };
+            if let Ok(source) = crate::diagnostic::decode_utf8(bytes)
+                && let Err(d) = parse("fuzz.nx", &source)
+            {
+                d.validate("fuzz.nx", &source)
+                    .unwrap_or_else(|e| panic!("invalid parser diagnostic for seed {seed}: {e}"));
+            }
+        }
+    }
+
+    #[test]
+    fn contextual_value_name_stays_an_ordinary_identifier() {
+        let ast = parse(
+            "x",
+            "fn value(x:view I64)->I64{return x;} fn Main(){let value=2;let y=value -1;}",
+        )
+        .unwrap();
+        assert_eq!(ast.functions[1].body.statements.len(), 2);
+    }
+
+    #[test]
+    fn parser_small_source_worker_cost_is_measured() {
+        use std::time::Instant;
+        const COUNT: usize = 20_000;
+        let source = "fn F(){let x=1;}";
+        let start = Instant::now();
+        for _ in 0..COUNT {
+            std::hint::black_box(parse_inner("cost.nx", source).unwrap());
+        }
+        let direct = start.elapsed();
+        let before = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get);
+        let start = Instant::now();
+        for _ in 0..COUNT {
+            std::hint::black_box(parse("cost.nx", source).unwrap());
+        }
+        let worker = start.elapsed();
+        let spawns = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get) - before;
+        eprintln!("small parses: direct {direct:?}, worker {worker:?}");
+        assert!(spawns <= 1, "{spawns} worker spawns for repeated parses");
+    }
+
+    #[test]
+    fn unavailable_parser_worker_has_a_structural_budget_diagnostic() {
+        let source = "fn F(){}";
+        let d = worker_unavailable("worker.nx", source);
+        assert_eq!(d.code, "NX-E0003");
+        assert_eq!(d.stage, Stage::Parse);
+        assert_eq!(
+            d.data.get("budget_kind"),
+            Some(&DataValue::String("syntax_nesting".into()))
+        );
+        assert_eq!(d.data.get("limit"), Some(&DataValue::UInt(128)));
+        assert_eq!(d.data.get("observed"), Some(&DataValue::UInt(129)));
+        let span = d.primary_span.as_ref().unwrap();
+        assert_eq!((&*span.file, span.start, span.end), ("worker.nx", 0, 1));
+        d.validate("worker.nx", source).unwrap();
+    }
+
+    #[test]
+    fn non_unit_returns_are_found_in_source_order_through_all_branches() {
+        for source in [
+            "fn F(){if a{return 1;}}",
+            "fn F(){if a{return 1;}else{}}",
+            "fn F(){if a{return 1;}else if b{}}",
+            "fn F(){while true{return 1;}}",
+            "fn F(){if a{}else if b{return 1;}}",
+            "fn F(){if a{}else if b{}else{return 1;}}",
+            "fn F(){let x=if a then {return 1;}else{value:2;};}",
+            "fn F(){{return 1;}}",
+            "fn F(){let x=if a then {value:0;}else (if b then {return 1;}else{value:2;});}",
+        ] {
+            let d = parse("return.nx", source).unwrap_err();
+            assert_eq!(d.code, "NX-E0006", "{source}: {d:?}");
+            assert_eq!(
+                d.feature_id.as_deref(),
+                Some("inferred_non_unit_result"),
+                "{source}"
+            );
+            assert_eq!(d.related_spans.len(), 1, "{source}");
+            assert_eq!(
+                d.related_spans[0].span.start as usize,
+                source.find("return 1").unwrap(),
+                "{source}"
+            );
+            d.validate("return.nx", source).unwrap();
+        }
+    }
+}
+
 fn deferred_feature(word: &str) -> Option<&'static str> {
     match word {
-        "move" => Some("legacy_move"),
         "@" => Some("attributes"),
         "struct" | "enum" | "type" => Some("user_types"),
         "trait" | "impl" | "where" | "dyn" => Some("traits_generics"),
@@ -436,6 +702,94 @@ fn deferred_feature(word: &str) -> Option<&'static str> {
         "match" => Some("match"),
         "self" => Some("methods"),
         _ => None,
+    }
+}
+
+// An `edit` argument is consumed by call binding. Descendants of that
+// argument, including index expressions, do not inherit that permission.
+fn unadmitted_edit_in_block(block: &Block) -> Option<Span> {
+    block
+        .statements
+        .iter()
+        .find_map(unadmitted_edit_in_statement)
+}
+
+fn unadmitted_edit_in_statement(statement: &Statement) -> Option<Span> {
+    match statement {
+        Statement::Let { value, .. }
+        | Statement::Expr { value, .. }
+        | Statement::Return {
+            value: Some(value), ..
+        }
+        | Statement::Value {
+            value: Some(value), ..
+        } => unadmitted_edit_in_expr(value, false),
+        Statement::Assign { place, value, .. } => {
+            unadmitted_edit_in_expr(place, false).or_else(|| unadmitted_edit_in_expr(value, false))
+        }
+        Statement::If {
+            condition,
+            then_block,
+            otherwise,
+            ..
+        } => unadmitted_edit_in_expr(condition, false)
+            .or_else(|| unadmitted_edit_in_block(then_block))
+            .or_else(|| otherwise.as_deref().and_then(unadmitted_edit_in_statement)),
+        Statement::While {
+            condition, body, ..
+        } => unadmitted_edit_in_expr(condition, false).or_else(|| unadmitted_edit_in_block(body)),
+        Statement::Block(block) => unadmitted_edit_in_block(block),
+        Statement::Return { value: None, .. } | Statement::Value { value: None, .. } => None,
+    }
+}
+
+fn unadmitted_edit_in_expr(expr: &Expr, immediate_argument: bool) -> Option<Span> {
+    match expr {
+        Expr::Unary {
+            mode: Mode::Inout,
+            value,
+            span,
+        } => {
+            if !immediate_argument {
+                Some(span.clone())
+            } else {
+                unadmitted_edit_in_expr(value, false)
+            }
+        }
+        Expr::Unary { value, .. } | Expr::Group(value, _) => unadmitted_edit_in_expr(value, false),
+        Expr::Array(items, _) => items
+            .iter()
+            .find_map(|item| unadmitted_edit_in_expr(item, false)),
+        Expr::Binary { left, right, .. } => {
+            unadmitted_edit_in_expr(left, false).or_else(|| unadmitted_edit_in_expr(right, false))
+        }
+        // The direct `edit r(...)` shape is rejected as receiver_mode while
+        // parsing; a grouped target is inspected with permission reset by
+        // Group. Thus even granting permission at the target edge cannot
+        // admit it (edit_cannot_become_a_call_or_index_target).
+        Expr::Call { target, args, .. } => unadmitted_edit_in_expr(target, false).or_else(|| {
+            args.iter()
+                .find_map(|arg| unadmitted_edit_in_expr(&arg.value, true))
+        }),
+        // Likewise, direct `edit r[i]` is one outer Unary and a grouped
+        // `(edit r)[i]` loses argument permission at Group.
+        Expr::Index { target, index, .. } => {
+            unadmitted_edit_in_expr(target, false).or_else(|| unadmitted_edit_in_expr(index, false))
+        }
+        Expr::If {
+            condition,
+            then_block,
+            otherwise,
+            ..
+        } => unadmitted_edit_in_expr(condition, false)
+            .or_else(|| unadmitted_edit_in_block(then_block))
+            .or_else(|| {
+                otherwise.as_deref().and_then(|branch| match branch {
+                    Else::Block(block) => unadmitted_edit_in_block(block),
+                    Else::If(expr) => unadmitted_edit_in_expr(expr, false),
+                })
+            }),
+        Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => None,
     }
 }
 fn returns_unit(expr: &Expr) -> bool {
@@ -518,12 +872,13 @@ struct Parser<'a> {
     at: usize,
     statement_start: usize,
     split_type_close: Option<Span>,
+    split_type_closes: Vec<usize>,
     depth: usize,
     function_names: HashSet<String>,
     local_scopes: Vec<HashSet<String>>,
 }
 impl Parser<'_> {
-    fn program(mut self) -> Result<Ast, Box<Diagnostic>> {
+    fn program(mut self) -> ParseResult {
         let start = 0;
         let mut fs = Vec::new();
         while !self.eof() {
@@ -548,10 +903,13 @@ impl Parser<'_> {
                 return Err(self.err("module_item", &["EOF", "fn"], 0, None));
             }
         }
-        Ok(Ast {
-            functions: fs,
-            span: self.span(start, self.source.len()),
-        })
+        Ok((
+            Ast {
+                functions: fs,
+                span: self.span(start, self.source.len()),
+            },
+            self.split_type_closes,
+        ))
     }
     fn function(&mut self) -> Result<Function, Box<Diagnostic>> {
         let start = self.take().span.start as usize;
@@ -582,23 +940,22 @@ impl Parser<'_> {
                 ));
             }
             let ps = self.peek().span.start as usize;
-            let mode = if self.eat("inout") {
+            let n = self.expect_name("grammar.Parameter", PARAMETER_FIRST, ps)?;
+            self.expect(":", "grammar.Parameter", &[":"], ps)?;
+            let mode = if self.eat("view") {
+                Mode::Read
+            } else if self.eat("edit") {
                 Mode::Inout
-            } else if self.eat("consume") {
+            } else if self.eat("move") {
                 Mode::Consume
             } else {
-                Mode::Read
+                return Err(self.err(
+                    "grammar.ParamMode",
+                    PARAM_MODE_FIRST,
+                    self.peek().span.start as usize,
+                    None,
+                ));
             };
-            let n = self.expect_name(
-                "grammar.Parameter",
-                if mode == Mode::Read {
-                    PARAMETER_FIRST
-                } else {
-                    &["Name"]
-                },
-                ps,
-            )?;
-            self.expect(":", "grammar.Parameter", &[":"], ps)?;
             let ty = self.ty()?;
             if self.at_text("=") {
                 return Err(self.feature("default_argument", self.peek().span.clone()));
@@ -686,6 +1043,17 @@ impl Parser<'_> {
             .push(params.iter().map(|p| p.name.clone()).collect());
         let body = self.block()?;
         self.local_scopes.pop();
+        // Classify a selected `edit` prefix before later semantic exclusions
+        // and before lowering. A call consumes the permission only when the
+        // prefix is the immediate argument expression.
+        if let Some(span) = unadmitted_edit_in_block(&body) {
+            let prefix = self
+                .tokens
+                .iter()
+                .find(|token| token.span.start == span.start && token.text == "edit")
+                .expect("parsed edit prefix has a source token");
+            return Err(self.syntax(prefix, "inout_place", &["Place"], span.start as usize));
+        }
         if result.is_none()
             && let Some(ret) = body.statements.iter().find_map(non_unit_return)
         {
@@ -869,9 +1237,9 @@ impl Parser<'_> {
             self.depth -= 1;
             return Err(self.nesting_error("syntax_nesting"));
         }
-        let t = if self.eat("i64") {
+        let t = if self.eat("I64") {
             Type::I64
-        } else if self.eat("bool") {
+        } else if self.eat("Bool") {
             Type::Bool
         } else if self.eat("MockResource") {
             Type::MockResource
@@ -898,7 +1266,7 @@ impl Parser<'_> {
                 return Err(self.feature("option", tok.span));
             }
             if tok.kind == Kind::Name {
-                let id = if matches!(tok.text.as_str(), "Future" | "Task") {
+                let id = if matches!(tok.text.as_str(), "Future" | "TaskHandle" | "TaskOutcome") {
                     "async"
                 } else {
                     "unsupported_type"
@@ -932,6 +1300,7 @@ impl Parser<'_> {
         }
         if self.at_text(">=") {
             let t = self.peek().clone();
+            self.split_type_closes.push(t.span.start as usize);
             // Keep the second half at the current index. The consumed '>' is
             // represented only as the previous span until '=' is taken.
             self.split_type_close =
@@ -969,6 +1338,7 @@ impl Parser<'_> {
                     None,
                 ));
             }
+            let statement_token = self.at;
             let statement = self.statement(value_target, st)?;
             if matches!(
                 &statement,
@@ -979,7 +1349,7 @@ impl Parser<'_> {
                 self.take();
             }
             if let Some(value_span) = pending_value.take() {
-                let next_span = statement.span().clone();
+                let next_span = statement_span(&statement).clone();
                 let mut d = self.branch_error("non_final_branch_value", value_span);
                 d.related_spans.push(RelatedSpan {
                     role: RelatedRole::Context,
@@ -987,8 +1357,10 @@ impl Parser<'_> {
                 });
                 return Err(d);
             }
-            if let Statement::Value { span, .. } = &statement {
-                pending_value = Some(self.span(span.start as usize, span.start as usize + 6));
+            if let Statement::Value { .. } = &statement {
+                let value = &self.tokens[statement_token];
+                let colon = &self.tokens[statement_token + 1];
+                pending_value = Some(self.span(value.span.start as usize, colon.span.end as usize));
             }
             ss.push(statement)
         }
@@ -1046,7 +1418,7 @@ impl Parser<'_> {
             }
             let v = self.expr(0)?;
             self.reject_function_value(&v)?;
-            let end = self.terminator(st, v.span().clone())?;
+            let end = self.terminator(st, v.span().clone(), TerminatedStatement::Binding)?;
             if let Some(scope) = self.local_scopes.last_mut() {
                 scope.insert(n.text.clone());
             }
@@ -1072,6 +1444,7 @@ impl Parser<'_> {
                 val.as_ref()
                     .map(|x| x.span().clone())
                     .unwrap_or_else(|| self.span(st, self.prev_end())),
+                TerminatedStatement::Other,
             )?;
             return Ok(Statement::Return {
                 value: val,
@@ -1136,6 +1509,7 @@ impl Parser<'_> {
                 val.as_ref()
                     .map(|x| x.span().clone())
                     .unwrap_or_else(|| self.span(st, self.prev_end())),
+                TerminatedStatement::Other,
             )?;
             return Ok(Statement::Value {
                 value: val,
@@ -1187,31 +1561,42 @@ impl Parser<'_> {
         if is_place_expr(&e) && self.eat("=") {
             let val = self.expr(0)?;
             self.reject_function_value(&val)?;
-            let end = self.terminator(st, val.span().clone())?;
+            let end = self.terminator(st, val.span().clone(), TerminatedStatement::Other)?;
             return Ok(Statement::Assign {
                 place: e,
                 value: val,
                 span: self.span(st, end),
             });
         }
-        let end = self.terminator(st, e.span().clone())?;
+        let end = self.terminator(st, e.span().clone(), TerminatedStatement::Other)?;
         self.reject_function_value(&e)?;
         Ok(Statement::Expr {
             value: e,
             span: self.span(st, end),
         })
     }
-    fn terminator(&mut self, st: usize, preceding: Span) -> Result<usize, Box<Diagnostic>> {
+    fn terminator(
+        &mut self,
+        st: usize,
+        preceding: Span,
+        kind: TerminatedStatement,
+    ) -> Result<usize, Box<Diagnostic>> {
         if self.eat(";") {
             return Ok(self.prev_end());
         }
-        if let Some(offset) = self.newline_after(preceding.end as usize) {
-            return Ok(offset);
+        if self.newline_after(preceding.end as usize).is_some() {
+            return Ok(preceding.end as usize);
         }
         let p = self.peek().clone();
-        Err(self.terminator_error(st, p, preceding))
+        Err(self.terminator_error(st, p, preceding, kind))
     }
-    fn terminator_error(&self, st: usize, p: Token, preceding: Span) -> Box<Diagnostic> {
+    fn terminator_error(
+        &self,
+        st: usize,
+        p: Token,
+        preceding: Span,
+        kind: TerminatedStatement,
+    ) -> Box<Diagnostic> {
         let mut d = self.base(
             "NX-E0005",
             Stage::Parse,
@@ -1237,14 +1622,27 @@ impl Parser<'_> {
         d.repair.push(Repair {
             id: "insert_terminator".into(),
             status: RepairStatus::Proposed,
-            description: "Insert canonical statement terminator.".into(),
+            description: "Insertar un terminador explícito.".into(),
             edits: vec![diagnostic::Edit {
                 span: self.span(preceding.end as usize, preceding.end as usize),
                 expected_text: String::new(),
                 replacement: ";".into(),
             }],
             validation: None,
-            consequences: vec!["Termina la sentencia antes del siguiente token.".into()],
+            consequences: vec![
+                match (kind, p.text.as_str()) {
+                    (TerminatedStatement::Binding, "}") => {
+                        "Termina el binding antes del cierre del bloque."
+                    }
+                    (TerminatedStatement::Binding, _) => {
+                        "Termina el binding antes del siguiente token."
+                    }
+                    (TerminatedStatement::Other, _) => {
+                        "Termina la sentencia antes del siguiente token."
+                    }
+                }
+                .into(),
+            ],
         });
         d
     }
@@ -1395,12 +1793,24 @@ impl Parser<'_> {
                 return Err(self.feature("methods", self.peek().span.clone()));
             }
             if op == ".." {
+                let t = self.peek().clone();
+                return Err(self.syntax(
+                    &t,
+                    "range_endpoint",
+                    &["..<", "..="],
+                    lhs.span().start as usize,
+                ));
+            }
+            if matches!(op, "..<" | "..=") {
                 return Err(self.feature("range", self.peek().span.clone()));
             }
             if op == "+=" {
                 return Err(self.feature("compound_assignment", self.peek().span.clone()));
             }
-            if matches!(op, "*" | "!=" | ">" | "<=" | ">=") {
+            if matches!(
+                op,
+                "*" | "/" | "%" | "!=" | ">" | "<=" | ">=" | "and" | "or"
+            ) {
                 let t = self.peek().clone();
                 return Err(self.syntax(
                     &t,
@@ -1453,10 +1863,18 @@ impl Parser<'_> {
             return Err(self.feature("text", t.span));
         }
         if t.text == ".." {
+            return Err(self.syntax(&t, "range_endpoint", &["..<", "..="], self.statement_start));
+        }
+        if matches!(t.text.as_str(), "..<" | "..=") {
             return Err(self.feature("range", t.span));
         }
-        if t.text == "move" {
-            return Err(self.feature("legacy_move", t.span));
+        if t.text == "not" {
+            return Err(self.syntax(
+                &t,
+                "unsupported_unary_operator",
+                EXPR_START,
+                self.statement_start,
+            ));
         }
         if t.text == "self" {
             return Err(self.feature("methods", t.span));
@@ -1470,12 +1888,16 @@ impl Parser<'_> {
                     self.span(s, n.span.end as usize),
                 ));
             }
-            let unexpected = if self.eof() { self.peek().clone() } else { t };
+            let unexpected = self.peek().clone();
             return Err(self.syntax(&unexpected, "signed_integer", &["IntLiteral"], s));
         }
-        let mode = if self.eat("consume") {
+        let prefix_follows = self.tokens.get(self.at + 1).is_some_and(|next| {
+            matches!(next.kind, Kind::Name | Kind::Integer)
+                || matches!(next.text.as_str(), "(" | "[" | "-" | "true" | "false")
+        });
+        let mode = if prefix_follows && self.eat("move") {
             Some(Mode::Consume)
-        } else if self.eat("inout") {
+        } else if prefix_follows && self.eat("edit") {
             Some(Mode::Inout)
         } else {
             None
@@ -1485,14 +1907,32 @@ impl Parser<'_> {
             if !self.starts_postfix() {
                 return Err(self.err("grammar.Postfix", POSTFIX_START, op, None));
             }
+            // A selected access mode cannot itself be a Place root. Reject a
+            // second selected mode before recursive descent, including hostile
+            // chains, while leaving a bare contextual Name available as a root.
+            if matches!(self.peek().text.as_str(), "move" | "edit")
+                && self.tokens.get(self.at + 1).is_some_and(|next| {
+                    matches!(next.kind, Kind::Name | Kind::Integer)
+                        || matches!(next.text.as_str(), "(" | "[" | "-" | "true" | "false")
+                })
+            {
+                let token = self.peek().clone();
+                return Err(self.syntax(
+                    &token,
+                    if m == Mode::Consume {
+                        "consume_place"
+                    } else {
+                        "inout_place"
+                    },
+                    &["Place"],
+                    op,
+                ));
+            }
             // AccessExpr owns its Postfix; TryExpr applies '?' to the completed
             // access, including the mode prefix (§3).
             let val = self.expr(4)?;
             if has_call_root(&val) {
-                return Err(self.feature(
-                    "receiver_mode",
-                    self.span(op, op + if m == Mode::Consume { 7 } else { 5 }),
-                ));
+                return Err(self.feature("receiver_mode", self.span(op, op + 4)));
             }
             if let Some(bad) = place_root_failure(&val) {
                 let tok = self
@@ -1516,7 +1956,7 @@ impl Parser<'_> {
                 let mut d = self.feature("partial_transfer", val.span().clone());
                 d.related_spans.push(RelatedSpan {
                     role: RelatedRole::Context,
-                    span: self.span(op, op + 7),
+                    span: self.span(op, op + 4),
                 });
                 return Err(d);
             }
@@ -1532,12 +1972,7 @@ impl Parser<'_> {
         if t.text == "if" {
             return self.if_form(true);
         }
-        if t.text == "fn"
-            && self
-                .tokens
-                .get(self.at + 1)
-                .is_some_and(|next| next.text == "[")
-        {
+        if t.text == "fn" {
             return Err(self.feature("closure", t.span));
         }
         if let Some(id) = deferred_feature(&t.text) {
@@ -1625,6 +2060,48 @@ impl Parser<'_> {
         Err(self.err("grammar.Primary", EXPR_START, t.span.start as usize, None))
     }
     fn if_form(&mut self, value_target: bool) -> Result<Expr, Box<Diagnostic>> {
+        if value_target {
+            let start = self.take().span.start as usize;
+            let condition = self.expr(0)?;
+            self.expect("then", "grammar.IfExpr", &["then"], start)?;
+            let then_block = self.branch_operand()?;
+            if !self.eat("else") {
+                return Err(self.branch_error("missing_else", self.span(start, start + 2)));
+            }
+            if !self.at_text("{") && !self.starts_try() {
+                return Err(self.err("grammar.BranchOperand", BRANCH_FIRST, start, None));
+            }
+            let otherwise = if self.at_text("{") {
+                Else::Block(self.block_with_target(true)?)
+            } else {
+                let operand = self.expr(1)?;
+                let mut ungrouped = &operand;
+                while let Expr::Group(inner, _) = ungrouped {
+                    ungrouped = inner;
+                }
+                if let Expr::If { .. } = ungrouped {
+                    Else::If(Box::new(ungrouped.clone()))
+                } else {
+                    let span = operand.span().clone();
+                    Else::Block(Block {
+                        statements: vec![Statement::Value {
+                            value: Some(operand),
+                            span: span.clone(),
+                        }],
+                        span,
+                    })
+                }
+            };
+            let end = self.prev_end();
+            let expression = Expr::If {
+                condition: Box::new(condition),
+                then_block,
+                otherwise: Some(Box::new(otherwise)),
+                span: self.span(start, end),
+            };
+            self.check_expression_height(&expression)?;
+            return Ok(expression);
+        }
         let mut branches = Vec::new();
         let otherwise = loop {
             let st = self.take().span.start as usize;
@@ -1652,7 +2129,7 @@ impl Parser<'_> {
         while let Some((st, condition, then_block)) = branches.pop() {
             let end = otherwise
                 .as_ref()
-                .map_or(then_block.span.end as usize, |x| x.span().end as usize);
+                .map_or(then_block.span.end as usize, |x| else_span(x).end as usize);
             let candidate = Expr::If {
                 condition: Box::new(condition),
                 then_block,
@@ -1666,6 +2143,28 @@ impl Parser<'_> {
             otherwise = Some(Else::If(Box::new(candidate)));
         }
         unreachable!("if form has a branch")
+    }
+    fn branch_operand(&mut self) -> Result<Block, Box<Diagnostic>> {
+        if self.at_text("{") {
+            return self.block_with_target(true);
+        }
+        if !self.starts_try() {
+            return Err(self.err(
+                "grammar.BranchOperand",
+                BRANCH_FIRST,
+                self.peek().span.start as usize,
+                None,
+            ));
+        }
+        let operand = self.expr(1)?;
+        let span = operand.span().clone();
+        Ok(Block {
+            statements: vec![Statement::Value {
+                value: Some(operand),
+                span: span.clone(),
+            }],
+            span,
+        })
     }
     fn check_expression_height(&self, expr: &Expr) -> Result<(), Box<Diagnostic>> {
         self.check_candidate_height(expression_height(expr), expr.span().clone())
@@ -1767,9 +2266,7 @@ impl Parser<'_> {
         d.data.insert(
             "pending_scope".into(),
             DataValue::String(
-                if id == "legacy_move" {
-                    "migration"
-                } else if matches!(id, "closure" | "generator" | "option" | "match") {
+                if matches!(id, "closure" | "generator" | "option" | "match") {
                     "F0-0003"
                 } else {
                     "later_adr"
@@ -1833,6 +2330,14 @@ impl Parser<'_> {
         d.operation = Operation::AnalysisLimit;
         d.data
             .insert("budget_kind".into(), DataValue::String(kind.into()));
+        d.data.insert(
+            "budget_scope".into(),
+            DataValue::String("compilation".into()),
+        );
+        d.data.insert(
+            "incomplete_analysis".into(),
+            DataValue::String(stage.as_str().into()),
+        );
         d.data.insert("limit".into(), DataValue::UInt(limit));
         d.data.insert("observed".into(), DataValue::UInt(observed));
         d
@@ -1879,7 +2384,7 @@ impl Parser<'_> {
         self.peek().kind == Kind::Eof
     }
     fn starts_parameter(&self) -> bool {
-        self.peek().kind == Kind::Name || matches!(self.peek().text.as_str(), "inout" | "consume")
+        self.peek().kind == Kind::Name
     }
     fn starts_restriction(&self) -> bool {
         is_restriction(&self.peek().text)
@@ -1890,13 +2395,8 @@ impl Parser<'_> {
             Kind::Name | Kind::Integer | Kind::Decimal | Kind::String
         ) || matches!(
             self.peek().text.as_str(),
-            "(" | "[" | "-" | "true" | "false" | "if" | "consume" | "inout"
+            "(" | "[" | "-" | "true" | "false" | "if" | "fn" | "not"
         ) || deferred_feature(&self.peek().text).is_some()
-            || (self.word("fn")
-                && self
-                    .tokens
-                    .get(self.at + 1)
-                    .is_some_and(|next| next.text == "["))
     }
     fn starts_try(&self) -> bool {
         self.starts_expr() && !self.word("if")
@@ -1949,6 +2449,10 @@ impl Parser<'_> {
         self.newline_after(self.prev_end()).is_some()
     }
     fn peek(&self) -> &Token {
+        #[cfg(test)]
+        if self.file == "b-scale.nx" {
+            PARSE_SCALE_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
         &self.tokens[self.at.min(self.tokens.len() - 1)]
     }
     fn prev_span(&self) -> Span {
@@ -2024,7 +2528,7 @@ fn is_projected_place(expr: &Expr) -> bool {
     }
 }
 fn is_resource_constructor(expr: &Expr) -> bool {
-    matches!(expr, Expr::Call { target, .. } if matches!(&**target, Expr::Name(name, _) if name == "mock_open" || name == "mock_blocking_open"))
+    matches!(expr, Expr::Call { target, .. } if matches!(&**target, Expr::Name(name, _) if name == "MockOpen" || name == "MockBlockingOpen"))
 }
 
 fn expression_height(expr: &Expr) -> usize {
@@ -2119,4 +2623,155 @@ fn statement_expression_height(statement: &Statement) -> usize {
 }
 
 #[cfg(test)]
-mod tests;
+mod b_tests {
+    use super::*;
+    use crate::frontend::print::print_canonical;
+
+    #[test]
+    fn type_close_ge_splits_only_inside_a_type() {
+        let ast = parse("split.nx", "fn Main(){let r:Result<I64,I64>=Ok(1);}").unwrap();
+        assert_eq!(ast.functions[0].body.statements.len(), 1);
+        let source = "Result<I64,I64>=Ok(1)";
+        let tokens = lex::lex("split.nx", source).unwrap();
+        let at = tokens.iter().position(|token| token.text == ">=").unwrap();
+        let start = tokens[at].span.start;
+        let mut parser = Parser {
+            file: "split.nx",
+            source,
+            tokens,
+            at,
+            statement_start: 0,
+            split_type_close: None,
+            split_type_closes: Vec::new(),
+            depth: 0,
+            function_names: HashSet::new(),
+            local_scopes: Vec::new(),
+        };
+        parser.expect_type_close().unwrap();
+        assert_eq!(
+            (parser.prev_span().start, parser.prev_span().end),
+            (start, start + 1)
+        );
+        assert_eq!(parser.peek().text, "=");
+        assert_eq!(
+            (parser.peek().span.start, parser.peek().span.end),
+            (start + 1, start + 2)
+        );
+        parser.take();
+        assert_eq!(
+            (parser.prev_span().start, parser.prev_span().end),
+            (start + 1, start + 2)
+        );
+    }
+
+    #[test]
+    fn parses_shared_ast_and_prints_official_spelling() {
+        let source = "fn F(x:view I64,y:edit Array<I64>)->I64{return if true then 1 else 2;} fn Main(){let r=MockOpen(1);let s=move r;}";
+        let ast = parse("b.nx", source).unwrap();
+        assert_eq!(ast.functions[0].params[0].mode, Mode::Read);
+        assert_eq!(ast.functions[0].params[1].mode, Mode::Inout);
+        assert!(matches!(
+            ast.functions[0].body.statements[0],
+            Statement::Return {
+                value: Some(Expr::If { .. }),
+                ..
+            }
+        ));
+        assert!(matches!(
+            ast.functions[1].body.statements[1],
+            Statement::Let {
+                value: Expr::Unary {
+                    mode: Mode::Consume,
+                    ..
+                },
+                ..
+            }
+        ));
+        let printed = print_canonical(&ast).unwrap();
+        assert!(printed.contains("x: view I64, y: edit Array<I64>"));
+        assert!(printed.contains("if true then 1 else 2"));
+        assert!(printed.ends_with("\n"));
+        let reparsed = parse("b.nx", &printed).unwrap();
+        assert_eq!(print_canonical(&reparsed).unwrap(), printed);
+    }
+
+    #[test]
+    fn b_scope_and_syntax_diagnostics_validate() {
+        for (source, code, feature, span) in [
+            (
+                "fn Main(){let s=\"…{x}\";}",
+                "NX-E0006",
+                Some("text"),
+                (16, 24),
+            ),
+            ("fn Main(){let s=\"\\q\";}", "NX-E0001", None, (17, 19)),
+            (
+                "fn Main(){let x=0.5;}",
+                "NX-E0006",
+                Some("float_literal"),
+                (16, 19),
+            ),
+            (
+                "fn Main(){let n=1;let x=0..<n;}",
+                "NX-E0006",
+                Some("range"),
+                (25, 28),
+            ),
+        ] {
+            let error = parse("b.nx", source).unwrap_err();
+            assert_eq!(error.code, code, "{source}");
+            assert_eq!(error.feature_id.as_deref(), feature, "{source}");
+            let primary = error.primary_span.as_ref().unwrap();
+            assert_eq!((primary.start, primary.end), span, "{source}");
+            assert_eq!(error.profile_id, diagnostic::PROFILE_ID);
+            assert!(
+                error.validate("b.nx", source).is_ok(),
+                "{source}: {:?}",
+                error.validate("b.nx", source)
+            );
+        }
+    }
+
+    #[test]
+    fn b_statement_start_scope_restores_on_success_and_error() {
+        for (source, expect_error) in [
+            ("  let x=1;", false),
+            ("  let x=1;else", false),
+            ("  let x=1*2;", true),
+            (
+                "  let x=(if c then {let a=1;value:2;}else{value:3;})*4;",
+                true,
+            ),
+        ] {
+            let tokens = lex::lex("scope.nx", source)
+                .unwrap()
+                .into_iter()
+                .filter(|t| t.kind != Kind::Newline)
+                .collect();
+            let mut parser = Parser {
+                file: "scope.nx",
+                source,
+                tokens,
+                at: 0,
+                statement_start: 97,
+                split_type_close: None,
+                split_type_closes: Vec::new(),
+                depth: 0,
+                function_names: HashSet::new(),
+                local_scopes: Vec::new(),
+            };
+            let result = parser.statement(false, 0);
+            assert_eq!(result.is_err(), expect_error, "{source}");
+            if expect_error {
+                let d = result.unwrap_err();
+                assert_eq!(d.code, "NX-E0002", "{source}");
+                assert_eq!(
+                    d.recognized_prefix.as_ref().map(|s| s.start),
+                    Some(2),
+                    "{source}"
+                );
+            }
+            assert_eq!(parser.statement_start, 97, "{source}");
+        }
+    }
+}

@@ -1,2 +1,2 @@
-// expect: E0201
-fn main() { return; let r = mock_open(1); let duplicate = r; }
+// expect: NX-E0201
+fn Main() { return; let r = MockOpen(1); let duplicate = r; }

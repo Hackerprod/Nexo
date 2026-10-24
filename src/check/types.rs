@@ -22,8 +22,8 @@ fn pretty(ty: &Type) -> String {
     while let Some(part) = work.pop() {
         match part {
             Part::Text(text) => output.push_str(text),
-            Part::Type(Type::I64) => output.push_str("i64"),
-            Part::Type(Type::Bool) => output.push_str("bool"),
+            Part::Type(Type::I64) => output.push_str("I64"),
+            Part::Type(Type::Bool) => output.push_str("Bool"),
             Part::Type(Type::Unit) => output.push_str("()"),
             Part::Type(Type::MockResource) => output.push_str("MockResource"),
             Part::Type(Type::MockBlockingResource) => output.push_str("MockBlockingResource"),
@@ -739,7 +739,7 @@ impl Checker<'_> {
                                 left.span().clone(),
                                 left.span().clone(),
                                 None,
-                                "i64",
+                                "I64",
                                 &l,
                             ));
                         }
@@ -752,7 +752,7 @@ impl Checker<'_> {
                                 right.span().clone(),
                                 right.span().clone(),
                                 None,
-                                "i64",
+                                "I64",
                                 &r,
                             ));
                         }
@@ -766,7 +766,7 @@ impl Checker<'_> {
                                     op_span,
                                     left.span().clone(),
                                     None,
-                                    "i64",
+                                    "I64",
                                     &l,
                                 ));
                             }
@@ -791,7 +791,7 @@ impl Checker<'_> {
                             ));
                         }
                         if op == "<" && l != Type::I64 {
-                            return Err(mismatch(op_span, left.span().clone(), None, "i64", &l));
+                            return Err(mismatch(op_span, left.span().clone(), None, "I64", &l));
                         }
                         if op == "==" && !copyable(&l) {
                             return Err(mismatch(
@@ -1015,19 +1015,19 @@ impl Checker<'_> {
             .value
         };
         match name {
-            "mock_open" | "mock_blocking_open" | "mock_write_i64" | "mock_reply" => {
+            "MockOpen" | "MockBlockingOpen" | "MockWriteI64" | "MockReply" => {
                 self.expr(ordered(0), Some(&Type::I64), None)?;
                 Ok(declared.result)
             }
-            "try_add" => {
+            "TryAdd" => {
                 // Type checking is in written order even when labels permute slots.
                 for arg in args {
                     self.expr(&arg.value, Some(&Type::I64), None)?;
                 }
                 Ok(declared.result)
             }
-            "mock_request" | "mock_unknown" | "fail" => Ok(declared.result),
-            "mock_read_records" => {
+            "MockRequest" | "MockUnknown" | "Fail" => Ok(declared.result),
+            "MockReadRecords" => {
                 let got = self.expr(ordered(0), None, None)?;
                 if got != Type::MockResource {
                     return Err(mismatch(
@@ -1040,7 +1040,7 @@ impl Checker<'_> {
                 }
                 Ok(declared.result)
             }
-            "inspect" => {
+            "Inspect" => {
                 let got = self.expr(ordered(0), None, None)?;
                 if !matches!(got, Type::MockResource | Type::MockBlockingResource) {
                     return Err(domain_error(
@@ -1054,11 +1054,11 @@ impl Checker<'_> {
                 }
                 Ok(declared.result)
             }
-            "drop" => {
+            "Drop" => {
                 self.expr(ordered(0), None, None)?;
                 Ok(declared.result)
             }
-            "len" => {
+            "Len" => {
                 let got = self.expr(ordered(0), None, None)?;
                 if !matches!(got, Type::Array(_)) {
                     return Err(domain_error(
@@ -1072,7 +1072,7 @@ impl Checker<'_> {
                 }
                 Ok(declared.result)
             }
-            "print" => {
+            "Print" => {
                 let got = self.expr(ordered(0), None, None)?;
                 if !copyable(&got) {
                     return Err(mismatch(
@@ -1085,7 +1085,7 @@ impl Checker<'_> {
                 }
                 Ok(declared.result)
             }
-            "assert_eq" => {
+            "AssertEq" => {
                 let mut values: [Option<Type>; 2] = [None, None];
                 let mut deferred = false;
                 for (arg, &slot) in args.iter().zip(slots) {

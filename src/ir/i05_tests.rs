@@ -1,6 +1,15 @@
 use super::{CompileError, compile_scalar};
 use crate::interp::{Outcome, run_scalar};
 
+fn byte_span(source: &str, needle: &str, occurrence: usize) -> (u64, u64) {
+    let start = source
+        .match_indices(needle)
+        .nth(occurrence)
+        .unwrap_or_else(|| panic!("missing occurrence {occurrence} of {needle:?}"))
+        .0;
+    (start as u64, (start + needle.len()) as u64)
+}
+
 fn assert_consumed_binding_diagnostic(
     source: &str,
     use_span: (u64, u64),
@@ -107,141 +116,125 @@ fn assert_consumed_binding_diagnostics(
 
 #[test]
 fn consumed_index_reads_keep_the_complete_ownership_diagnostic() {
-    for (source, use_span, declaration, consumption, dropped) in [
+    for (source, dropped) in [
         (
-            "fn main(){let a=[1];drop(a);print(a[0]);}",
-            (34, 35),
-            (14, 15),
-            (20, 27),
+            "fn Main() {\n    let a = [1];\n    Drop(a);\n    Print(a[0]);\n}\n",
             true,
         ),
         (
-            "fn main(){let a=[[1,2]];let b=consume a;print(a[0][1]);}",
-            (46, 47),
-            (14, 15),
-            (30, 39),
+            "fn Main() {\n    let a = [[1, 2]];\n    let b = move a;\n    Print(a[0][1]);\n}\n",
             false,
         ),
         (
-            "fn show(x:i64){} fn main(){let a=[1];drop(a);show(a[0]);}",
-            (50, 51),
-            (31, 32),
-            (37, 44),
+            "fn Show(x: view I64) {}\nfn Main() {\n    let a = [1];\n    Drop(a);\n    Show(a[0]);\n}\n",
             true,
         ),
         (
-            "fn main(){let a=[1];drop(a);let x=a[0];}",
-            (34, 35),
-            (14, 15),
-            (20, 27),
+            "fn Main() {\n    let a = [1];\n    Drop(a);\n    let x = a[0];\n}\n",
             true,
         ),
         (
-            "fn f()->i64{let a=[1];drop(a);return a[0];} fn main(){}",
-            (37, 38),
-            (16, 17),
-            (22, 29),
+            "fn F() -> I64 {\n    let a = [1];\n    Drop(a);\n    return a[0];\n}\nfn Main() {}\n",
             true,
         ),
         (
-            "fn main(){let a=[1];drop(a);print(a[0]==1);}",
-            (34, 35),
-            (14, 15),
-            (20, 27),
+            "fn Main() {\n    let a = [1];\n    Drop(a);\n    Print(a[0] == 1);\n}\n",
             true,
         ),
         (
-            "fn take(consume x:Array<i64>){} fn main(){let a=[1];take(consume a);print(a[0]);}",
-            (74, 75),
-            (46, 47),
-            (57, 66),
+            "fn Take(x: move Array<I64>) {}\nfn Main() {\n    let a = [1];\n    Take(move a);\n    Print(a[0]);\n}\n",
             false,
         ),
         (
-            "fn main(){let a=[1];drop(a);let b=a[0];print(b);}",
-            (34, 35),
-            (14, 15),
-            (20, 27),
+            "fn Main() {\n    let a = [1];\n    Drop(a);\n    let b = a[0];\n    Print(b);\n}\n",
             true,
         ),
     ] {
-        assert_consumed_binding_diagnostic(source, use_span, declaration, consumption, dropped);
+        let use_at = byte_span(source, "a[", 0).0;
+        let declaration = if source.contains("let a =") {
+            byte_span(source, "a =", 0).0
+        } else {
+            byte_span(source, "a: move", 0).0
+        };
+        let consumption = if dropped {
+            byte_span(source, "Drop(a)", 0)
+        } else {
+            byte_span(source, "move a", 0)
+        };
+        assert_consumed_binding_diagnostic(
+            source,
+            (use_at, use_at + 1),
+            (declaration, declaration + 1),
+            consumption,
+            dropped,
+        );
     }
 }
 
 #[test]
 fn consumed_index_reads_use_the_actual_local_after_scalars_shadowing_and_parameters() {
-    for (source, use_span, declaration, consumption) in [
-        (
-            "fn main(){let x=1;let a=[1];drop(a);print(a[0]);}",
-            (42, 43),
-            (22, 23),
-            (28, 35),
-        ),
-        (
-            "fn main(){let x=1;let y=2;let a=[1];drop(a);print(a[0]);}",
-            (50, 51),
-            (30, 31),
-            (36, 43),
-        ),
-        (
-            "fn main(){let x=1;let a=[1];{let a=[2];drop(a);print(a[0]);}}",
-            (53, 54),
-            (33, 34),
-            (39, 46),
-        ),
-        (
-            "fn f(x:i64,consume a:Array<i64>){drop(a);print(a[0]);} fn main(){f(1,[1]);}",
-            (47, 48),
-            (19, 20),
-            (33, 40),
-        ),
+    for source in [
+        "fn Main() {\n    let x = 1;\n    let a = [1];\n    Drop(a);\n    Print(a[0]);\n}\n",
+        "fn Main() {\n    let x = 1;\n    let y = 2;\n    let a = [1];\n    Drop(a);\n    Print(a[0]);\n}\n",
+        "fn Main() {\n    let x = 1;\n    let a = [1];\n    {\n        let a = [2];\n        Drop(a);\n        Print(a[0]);\n    }\n}\n",
+        "fn F(x: view I64, a: move Array<I64>) {\n    Drop(a);\n    Print(a[0]);\n}\nfn Main() {\n    F(1, [1]);\n}\n",
     ] {
+        let use_at = byte_span(source, "a[", 0).0;
+        let declaration = if source.contains("a: move") {
+            byte_span(source, "a: move", 0).0
+        } else {
+            source.rfind("a = [").expect("array binding") as u64
+        };
         assert_consumed_binding_diagnostics(
             source,
-            &[use_span],
-            declaration,
-            consumption,
+            &[(use_at, use_at + 1)],
+            (declaration, declaration + 1),
+            byte_span(source, "Drop(a)", 0),
             true,
-            source.starts_with("fn f("),
+            source.starts_with("fn F("),
         );
     }
 }
 
 #[test]
 fn dead_consumed_index_reads_keep_sequential_diagnostics() {
-    for (source, use_span, declaration, consumption) in [
-        (
-            "fn main(){return;let a=[1];drop(a);print(a[0]);}",
-            (41, 42),
-            (21, 22),
-            (27, 34),
-        ),
-        (
-            "fn main(){let x=1;return;{let a=[1];drop(a);print(a[0]);}}",
-            (50, 51),
-            (30, 31),
-            (36, 43),
-        ),
-        (
-            "fn main(){let a=[1];return;drop(a);print(a[0]);}",
-            (41, 42),
-            (14, 15),
-            (27, 34),
-        ),
+    for source in [
+        "fn Main() {\n    return;\n    let a = [1];\n    Drop(a);\n    Print(a[0]);\n}\n",
+        "fn Main() {\n    let x = 1;\n    return;\n    {\n        let a = [1];\n        Drop(a);\n        Print(a[0]);\n    }\n}\n",
+        "fn Main() {\n    let a = [1];\n    return;\n    Drop(a);\n    Print(a[0]);\n}\n",
     ] {
-        assert_consumed_binding_diagnostic(source, use_span, declaration, consumption, true);
+        let use_at = byte_span(source, "a[", 0).0;
+        let declaration = byte_span(source, "a = [", 0).0;
+        assert_consumed_binding_diagnostic(
+            source,
+            (use_at, use_at + 1),
+            (declaration, declaration + 1),
+            byte_span(source, "Drop(a)", 0),
+            true,
+        );
     }
 }
 
 #[test]
 fn dead_block_consumption_reports_each_later_use() {
-    let source = "fn main(){let r=mock_open(1);return;{drop(r);}inspect(r);inspect(r);}";
+    let source = "fn Main() {\n    let r = MockOpen(1);\n    return;\n    {\n        Drop(r);\n    }\n    Inspect(r);\n    Inspect(r);\n}\n";
     assert_consumed_binding_diagnostics(
         source,
-        &[(54, 55), (65, 66)],
-        (14, 15),
-        (37, 44),
+        &[
+            (
+                byte_span(source, "r);", 1).0,
+                byte_span(source, "r);", 1).0 + 1,
+            ),
+            (
+                byte_span(source, "r);", 2).0,
+                byte_span(source, "r);", 2).0 + 1,
+            ),
+        ],
+        (
+            byte_span(source, "r = MockOpen", 0).0,
+            byte_span(source, "r = MockOpen", 0).0 + 1,
+        ),
+        byte_span(source, "Drop(r)", 0),
         true,
         false,
     );
@@ -249,24 +242,41 @@ fn dead_block_consumption_reports_each_later_use() {
 
 #[test]
 fn adr_gap_index_read_checks_root_before_evaluating_index() {
-    let source = "fn main(){let a=[1];drop(a);print(a[9223372036854775807+1]);}";
-    assert_consumed_binding_diagnostic(source, (34, 35), (14, 15), (20, 27), true);
+    let source =
+        "fn Main() {\n    let a = [1];\n    Drop(a);\n    Print(a[9223372036854775807 + 1]);\n}\n";
+    let use_at = byte_span(source, "a[", 0).0;
+    assert_consumed_binding_diagnostic(
+        source,
+        (use_at, use_at + 1),
+        (
+            byte_span(source, "a = [", 0).0,
+            byte_span(source, "a = [", 0).0 + 1,
+        ),
+        byte_span(source, "Drop(a)", 0),
+        true,
+    );
 }
 
 #[test]
 fn dead_reinitialization_keeps_prior_consumption_diagnostic() {
+    let source = "fn Main() {\n    var r = MockOpen(1);\n    Drop(r);\n    {\n        return;\n        let s = r;\n    }\n}\n";
+    let use_at = byte_span(source, "r;", 0).0;
+    let declaration = byte_span(source, "r = MockOpen", 0).0;
     assert_consumed_binding_diagnostic(
-        "fn main(){var r=mock_open(1);drop(r);{return;let s=r;}}",
-        (51, 52),
-        (14, 15),
-        (29, 36),
+        source,
+        (use_at, use_at + 1),
+        (declaration, declaration + 1),
+        byte_span(source, "Drop(r)", 0),
         true,
     );
+    let source = "fn Main() {\n    var r = MockOpen(1);\n    Drop(r);\n    {\n        return;\n        r = MockOpen(2);\n    }\n    Inspect(r);\n}\n";
+    let use_at = byte_span(source, "Inspect(r)", 0).0 + "Inspect(".len() as u64;
+    let declaration = byte_span(source, "r = MockOpen", 0).0;
     assert_consumed_binding_diagnostic(
-        "fn main(){var r=mock_open(1);drop(r);{return;r=mock_open(2);}inspect(r);}",
-        (69, 70),
-        (14, 15),
-        (29, 36),
+        source,
+        (use_at, use_at + 1),
+        (declaration, declaration + 1),
+        byte_span(source, "Drop(r)", 0),
         true,
     );
 }
@@ -274,16 +284,16 @@ fn dead_reinitialization_keeps_prior_consumption_diagnostic() {
 #[test]
 fn consumed_bindings_in_every_read_form_never_become_invalid_ir() {
     for source in [
-        "fn main(){let x=1;drop(x);print(x);}",
-        "fn main(){let a=[1];drop(a);print(a[0]);}",
-        "fn main(){let a=[[1]];drop(a);print(a[0][0]);}",
-        "fn main(){let x=1;drop(x);assert_eq(x,1);}",
-        "fn f(x:i64){} fn main(){let x=1;drop(x);f(x);}",
-        "fn main(){let x=1;drop(x);print(x+1);}",
-        "fn main(){let x=1;drop(x);let y=x;}",
-        "fn f()->i64{let x=1;drop(x);return x;} fn main(){}",
-        "fn main(){let x=1;drop(x);if x==1{print(1);}}",
-        "fn main(){let x=1;drop(x);while x==1{print(1);}}",
+        "fn Main() {\n    let x = 1;\n    Drop(x);\n    Print(x);\n}\n",
+        "fn Main() {\n    let a = [1];\n    Drop(a);\n    Print(a[0]);\n}\n",
+        "fn Main() {\n    let a = [[1]];\n    Drop(a);\n    Print(a[0][0]);\n}\n",
+        "fn Main() {\n    let x = 1;\n    Drop(x);\n    AssertEq(x, 1);\n}\n",
+        "fn F(x: view I64) {}\nfn Main() {\n    let x = 1;\n    Drop(x);\n    F(x);\n}\n",
+        "fn Main() {\n    let x = 1;\n    Drop(x);\n    Print(x + 1);\n}\n",
+        "fn Main() {\n    let x = 1;\n    Drop(x);\n    let y = x;\n}\n",
+        "fn F() -> I64 {\n    let x = 1;\n    Drop(x);\n    return x;\n}\nfn Main() {}\n",
+        "fn Main() {\n    let x = 1;\n    Drop(x);\n    if x == 1 {\n        Print(1);\n    }\n}\n",
+        "fn Main() {\n    let x = 1;\n    Drop(x);\n    while x == 1 {\n        Print(1);\n    }\n}\n",
     ] {
         let result = compile_scalar("reads.nx", source);
         match result {
@@ -299,13 +309,13 @@ fn consumed_bindings_in_every_read_form_never_become_invalid_ir() {
 
 #[test]
 fn shadowed_resource_declaration_uses_the_later_token() {
-    let source = "fn main(){let r=mock_open(1);{let r=mock_open(2);let s=r;}}";
+    let source = "fn Main() {\n    let r = MockOpen(1);\n    {\n        let r = MockOpen(2);\n        let s = r;\n    }\n}\n";
     let CompileError::Rejected(errors) = compile_scalar("shadow.nx", source).unwrap_err() else {
         panic!("expected resource copy diagnostic")
     };
     assert_eq!(errors.len(), 1);
     let declaration = &errors[0].related_spans[0].span;
-    let inner = source.rfind("r=mock_open").unwrap();
+    let inner = source.rfind("r = MockOpen").unwrap();
     assert_eq!(
         (declaration.start, declaration.end),
         (inner as u64, inner as u64 + 1)
@@ -314,7 +324,7 @@ fn shadowed_resource_declaration_uses_the_later_token() {
 
 #[test]
 fn dead_transfer_does_not_change_later_diagnostic_or_execution() {
-    let source = "fn main(){let r=mock_open(1);{return;drop(r);}inspect(r);}";
+    let source = "fn Main() {\n    let r = MockOpen(1);\n    {\n        return;\n        Drop(r);\n    }\n    Inspect(r);\n}\n";
     let program = compile_scalar("dead.nx", source).unwrap();
     let execution = run_scalar(&program);
     assert_eq!(execution.outcome, Outcome::Unit);
@@ -326,20 +336,21 @@ fn dead_transfer_does_not_change_later_diagnostic_or_execution() {
 
 #[test]
 fn dead_declaration_keeps_live_name_span_for_later_error() {
-    let source = "fn main(){let r=mock_open(1);{return;let x=1;}let s=r;}";
+    let source = "fn Main() {\n    let r = MockOpen(1);\n    {\n        return;\n        let x = 1;\n    }\n    let s = r;\n}\n";
     let CompileError::Rejected(errors) = compile_scalar("dead_span.nx", source).unwrap_err() else {
         panic!("expected resource copy diagnostic")
     };
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].code, "NX-E0201");
     let span = &errors[0].related_spans[0].span;
-    let start = source.find("r=mock_open").unwrap() as u64;
+    let start = source.find("r = MockOpen").unwrap() as u64;
     assert_eq!((span.start, span.end), (start, start + 1));
 }
 
 #[test]
 fn entity_ids_follow_declared_kind_and_name_offset() {
-    let source = "fn f(x:MockResource)->MockResource{return consume x;} fn main(){}";
+    let source =
+        "fn F(x: view MockResource) -> MockResource {\n    return move x;\n}\nfn Main() {}\n";
     let CompileError::Rejected(errors) = compile_scalar("entity.nx", source).unwrap_err() else {
         panic!("expected permission diagnostic")
     };
@@ -367,8 +378,8 @@ fn entity_ids_follow_declared_kind_and_name_offset() {
 
 #[test]
 fn consumed_and_dropped_binding_causes_use_binding_entity() {
-    for action in ["let s=consume r;", "drop(r);"] {
-        let source = format!("fn main(){{let r=mock_open(1);{action}inspect(r);}}");
+    for action in ["let s=move r;", "Drop(r);"] {
+        let source = format!("fn Main(){{let r=MockOpen(1);{action}Inspect(r);}}");
         let CompileError::Rejected(errors) = compile_scalar("entity.nx", &source).unwrap_err()
         else {
             panic!("expected use-after-consumption diagnostic")
@@ -380,7 +391,7 @@ fn consumed_and_dropped_binding_causes_use_binding_entity() {
         assert_eq!(entity.kind, crate::diagnostic::EntityKind::Binding);
         assert_eq!(
             entity.id,
-            format!("binding:{}", source.find("r=mock_open").unwrap())
+            format!("binding:{}", source.find("r=MockOpen").unwrap())
         );
     }
 }
@@ -389,11 +400,11 @@ fn consumed_and_dropped_binding_causes_use_binding_entity() {
 fn failed_argument_cleans_prepared_temporaries_before_locals_in_reverse_order() {
     for (source, events) in [
         (
-            "fn g(consume a:MockResource,consume b:MockResource,n:i64){} fn main(){g(mock_open(1),mock_open(2),9223372036854775807+1);}",
+            "fn G(a: move MockResource, b: move MockResource, n: view I64) {}\nfn Main() {\n    G(MockOpen(1), MockOpen(2), 9223372036854775807 + 1);\n}\n",
             vec!["open:0:1", "open:1:2", "close:1:2", "close:0:1"],
         ),
         (
-            "fn g(consume a:MockResource,consume b:MockResource,n:i64){} fn main(){let r=mock_open(0);g(mock_open(1),mock_open(2),9223372036854775807+1);}",
+            "fn G(a: move MockResource, b: move MockResource, n: view I64) {}\nfn Main() {\n    let r = MockOpen(0);\n    G(MockOpen(1), MockOpen(2), 9223372036854775807 + 1);\n}\n",
             vec![
                 "open:0:0",
                 "open:1:1",
@@ -415,31 +426,31 @@ fn failed_argument_cleans_prepared_temporaries_before_locals_in_reverse_order() 
 fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
     for (source, code) in [
         (
-            "fn main(){let r=mock_open(1);let s=r;inspect(s);inspect(s);}",
+            "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    Inspect(s);\n    Inspect(s);\n}\n",
             "NX-E0201",
         ),
         (
-            "fn f(a:MockResource){let x=consume a;inspect(x);inspect(x);} fn main(){}",
+            "fn F(a: view MockResource) {\n    let x = move a;\n    Inspect(x);\n    Inspect(x);\n}\nfn Main() {}\n",
             "NX-E1105",
         ),
         (
-            "fn take(r:MockResource){} fn main(){let r=mock_open(1);let s=r;take(s);}",
+            "fn Take(r: view MockResource) {}\nfn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    Take(s);\n}\n",
             "NX-E0201",
         ),
         (
-            "fn main(){let r=mock_open(1);let s=r;{let s=mock_open(2);inspect(s);}inspect(s);}",
+            "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    {\n        let s = MockOpen(2);\n        Inspect(s);\n    }\n    Inspect(s);\n}\n",
             "NX-E0201",
         ),
         (
-            "fn f()->MockResource{let r=mock_open(1);let s=r;return s;} fn main(){}",
+            "fn F() -> MockResource {\n    let r = MockOpen(1);\n    let s = r;\n    return s;\n}\nfn Main() {}\n",
             "NX-E0201",
         ),
         (
-            "fn main(){let r=mock_open(1);let s=r;let t=s;inspect(t);}",
+            "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    let t = s;\n    Inspect(t);\n}\n",
             "NX-E0201",
         ),
         (
-            "fn main(){let r=mock_open(1);{let s=r;inspect(s);}print(1);}",
+            "fn Main() {\n    let r = MockOpen(1);\n    {\n        let s = r;\n        Inspect(s);\n    }\n    Print(1);\n}\n",
             "NX-E0201",
         ),
     ] {
@@ -449,8 +460,7 @@ fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
         assert_eq!(ds.len(), 1, "{source}");
         assert_eq!(ds[0].code, code, "{source}");
     }
-    let source =
-        "fn main(){let r=mock_open(1);let s=r;inspect(s);let t=mock_open(2);let u=t;inspect(u);}";
+    let source = "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    Inspect(s);\n    let t = MockOpen(2);\n    let u = t;\n    Inspect(u);\n}\n";
     let CompileError::Rejected(ds) = compile_scalar("poison.nx", source).unwrap_err() else {
         panic!("expected two independent diagnostics")
     };
@@ -458,7 +468,7 @@ fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
         ds.iter().map(|d| d.code.as_str()).collect::<Vec<_>>(),
         ["NX-E0201", "NX-E0201"]
     );
-    let source = "fn main(){let x=mock_open(1);{let r=mock_open(2);let x=r;}let z=x;}";
+    let source = "fn Main() {\n    let x = MockOpen(1);\n    {\n        let r = MockOpen(2);\n        let x = r;\n    }\n    let z = x;\n}\n";
     let CompileError::Rejected(ds) = compile_scalar("poison.nx", source).unwrap_err() else {
         panic!("expected errors inside and after shadowing block")
     };
@@ -470,7 +480,7 @@ fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
 
 #[test]
 fn named_owner_arguments_keep_parameter_slots_and_reverse_callee_cleanup() {
-    let e = run_scalar(&compile_scalar("named.nx", "fn g(consume a:MockResource,consume b:MockResource){} fn main(){g(b:mock_open(1),a:mock_open(2));}").unwrap());
+    let e = run_scalar(&compile_scalar("named.nx", "fn G(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    G(b: MockOpen(1), a: MockOpen(2));\n}\n").unwrap());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -480,7 +490,7 @@ fn named_owner_arguments_keep_parameter_slots_and_reverse_callee_cleanup() {
 
 #[test]
 fn borrowed_owner_temporaries_close_in_reverse_written_order() {
-    let e = run_scalar(&compile_scalar("borrow.nx", "fn g(a:MockResource,b:MockResource){inspect(a);inspect(b);} fn main(){g(mock_open(1),mock_open(2));}").unwrap());
+    let e = run_scalar(&compile_scalar("borrow.nx", "fn G(a: view MockResource, b: view MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    G(MockOpen(1), MockOpen(2));\n}\n").unwrap());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -497,7 +507,7 @@ fn borrowed_owner_temporaries_close_in_reverse_written_order() {
 
 #[test]
 fn mixed_argument_modes_use_each_declared_slot() {
-    let source = "fn g(a:MockResource,consume b:MockResource){inspect(a);inspect(b);} fn main(){let r=mock_open(1);g(r,mock_open(2));inspect(r);}";
+    let source = "fn G(a: view MockResource, b: move MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    let r = MockOpen(1);\n    G(r, MockOpen(2));\n    Inspect(r);\n}\n";
     let e = run_scalar(&compile_scalar("modes.nx", source).unwrap());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
@@ -519,11 +529,11 @@ fn rejected_frame_entry_closes_two_transfers_in_reverse_argument_order() {
     let mut source = String::new();
     for n in 0..256 {
         source.push_str(&format!(
-            "fn f{n}(consume a:MockResource,consume b:MockResource){{f{}(consume a,consume b);}}",
+            "fn F{n}(a: move MockResource,b: move MockResource){{F{}(move a,move b);}}",
             n + 1
         ));
     }
-    source.push_str("fn f256(consume a:MockResource,consume b:MockResource){} fn main(){f0(mock_open(1),mock_open(2));}");
+    source.push_str("fn F256(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    F0(MockOpen(1), MockOpen(2));\n}\n");
     let e = run_scalar(&compile_scalar("frames.nx", &source).unwrap());
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
@@ -538,11 +548,11 @@ fn rejected_frame_entry_does_not_close_borrowed_argument() {
     let mut source = String::new();
     for n in 0..256 {
         source.push_str(&format!(
-            "fn f{n}(a:MockResource,consume b:MockResource){{f{}(a,consume b);}}",
+            "fn F{n}(a:view MockResource,b:move MockResource){{F{}(a,move b);}}",
             n + 1
         ));
     }
-    source.push_str("fn f256(a:MockResource,consume b:MockResource){} fn main(){let a=mock_open(1);f0(a,mock_open(2));}");
+    source.push_str("fn F256(a: view MockResource, b: move MockResource) {}\nfn Main() {\n    let a = MockOpen(1);\n    F0(a, MockOpen(2));\n}\n");
     let e = run_scalar(&compile_scalar("frames.nx", &source).unwrap());
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
@@ -660,7 +670,7 @@ impl Reference {
 
 fn source(actions: &[Action]) -> String {
     let mut s = String::from(
-        "fn sum(a:i64,b:i64)->i64{return a+b;} fn read(r:MockResource){inspect(r);} fn take(consume r:MockResource){inspect(r);} fn main(){",
+        "fn Sum(a:view I64,b:view I64)->I64{return a+b;} fn Read(r:view MockResource){Inspect(r);} fn Take(r:move MockResource){Inspect(r);} fn Main(){",
     );
     let mut depth = 0;
     let mut has_r = false;
@@ -668,9 +678,9 @@ fn source(actions: &[Action]) -> String {
         match action {
             Action::Open(label) => {
                 if !has_r && depth == 0 {
-                    s.push_str("var r=mock_open(");
+                    s.push_str("var r=MockOpen(");
                 } else {
-                    s.push_str("let r=mock_open(");
+                    s.push_str("let r=MockOpen(");
                 }
                 s.push_str(&format!("{label});"));
                 has_r = true;
@@ -685,14 +695,14 @@ fn source(actions: &[Action]) -> String {
                 depth -= 1;
                 has_r = true;
             }
-            Action::Read => s.push_str("read(r);"),
-            Action::Take => s.push_str("take(consume r);"),
-            Action::Drop => s.push_str("drop(r);"),
-            Action::Reopen(label) => s.push_str(&format!("r=mock_open({label});")),
-            Action::ReadTemporary(label) => s.push_str(&format!("read(mock_open({label}));")),
-            Action::PrintSum(a, b) => s.push_str(&format!("print(sum({a},{b}));")),
+            Action::Read => s.push_str("Read(r);"),
+            Action::Take => s.push_str("Take(move r);"),
+            Action::Drop => s.push_str("Drop(r);"),
+            Action::Reopen(label) => s.push_str(&format!("r=MockOpen({label});")),
+            Action::ReadTemporary(label) => s.push_str(&format!("Read(MockOpen({label}));")),
+            Action::PrintSum(a, b) => s.push_str(&format!("Print(Sum({a},{b}));")),
             Action::Return => s.push_str("return;"),
-            Action::LatePrint => s.push_str("print(999);"),
+            Action::LatePrint => s.push_str("Print(999);"),
         }
     }
     s.push('}');
@@ -779,11 +789,11 @@ fn generated_calls_resources_and_early_returns_match_independent_reference() {
 fn malformed_call_and_resource_sources_never_panic_and_diagnostics_validate() {
     let mut seed = 0x2a56_19b3_u64;
     let fragments = [
-        "consume ",
-        "drop(",
-        "inspect(",
-        "mock_open(",
-        "f(",
+        "move ",
+        "Drop(",
+        "Inspect(",
+        "MockOpen(",
+        "F(",
         "let r=",
         "return ",
         "a[",
@@ -804,7 +814,7 @@ fn malformed_call_and_resource_sources_never_panic_and_diagnostics_validate() {
         let one = fragments[(seed as usize) % fragments.len()];
         let two = fragments[((seed >> 11) as usize) % fragments.len()];
         let source = format!(
-            "fn f(consume r:MockResource,n:i64){{inspect(r);}} fn main(){{let r=mock_open(1);{one}{two};}}",
+            "fn F(r:move MockResource,n:view I64){{Inspect(r);}} fn Main(){{let r=MockOpen(1);{one}{two};}}",
         );
         match compile_scalar("fuzz.nx", &source) {
             Err(CompileError::Rejected(errors)) => {
@@ -819,7 +829,6 @@ fn malformed_call_and_resource_sources_never_panic_and_diagnostics_validate() {
                     d.validate("fuzz.nx", &source).unwrap();
                 }
             }
-            Err(CompileError::OutsideScalarSlice(_)) => {}
             Err(CompileError::InvalidIr(reason)) => {
                 panic!("case {n}: invalid IR {reason}: {source}")
             }
@@ -830,10 +839,10 @@ fn malformed_call_and_resource_sources_never_panic_and_diagnostics_validate() {
 #[test]
 fn call_lowering_and_execution_survive_small_caller_stacks() {
     let sources = [
-        "fn f(x:i64)->i64{return x+1;} fn main(){assert_eq(f(f(f(1))),4);}",
-        "fn f(consume x:MockResource){inspect(x);} fn main(){let r=mock_open(1);f(consume r);}",
-        "fn f(){f();} fn main(){f();}",
-        "fn main(){let r=mock_open(1);{let r=mock_open(2);inspect(r);}inspect(r);}",
+        "fn F(x: view I64) -> I64 {\n    return x + 1;\n}\nfn Main() {\n    AssertEq(F(F(F(1))), 4);\n}\n",
+        "fn F(x: move MockResource) {\n    Inspect(x);\n}\nfn Main() {\n    let r = MockOpen(1);\n    F(move r);\n}\n",
+        "fn F() {\n    F();\n}\nfn Main() {\n    F();\n}\n",
+        "fn Main() {\n    let r = MockOpen(1);\n    {\n        let r = MockOpen(2);\n        Inspect(r);\n    }\n    Inspect(r);\n}\n",
     ];
     for bytes in [128 * 1024, 256 * 1024, 512 * 1024] {
         for source in sources {
@@ -856,18 +865,19 @@ fn call_lowering_and_execution_survive_small_caller_stacks() {
 #[test]
 #[ignore = "explicit 256 KiB to 1 MiB measurement"]
 fn i05_call_and_resource_source_families_scale_linearly() {
-    let header = "fn f(x:i64)->i64{return x+1;} fn two(a:i64,b:i64){} fn read(r:MockResource){inspect(r);} fn take(consume r:MockResource){inspect(r);} fn main(){";
+    let _campaign = crate::test_alloc::campaign_guard();
+    let header = "fn F(x:view I64)->I64{return x+1;} fn Two(a:view I64,b:view I64){} fn Read(r:view MockResource){Inspect(r);} fn Take(r:move MockResource){Inspect(r);} fn Main(){";
     let snippets = [
-        "{f(1);}",
-        "{f(x:1234567);}",
-        "{f(f(1));}",
-        "{let x=1;f(x);}",
-        "{let r=mock_open(1);read(r);}",
-        "{let r=mock_blocking_open(1);inspect(r);}",
-        "{let r=mock_open(1);take(consume r);}",
-        "{read(mock_open(1));}",
-        "{var r=mock_open(1);drop(r);r=mock_open(2);}",
-        "{two(b:f(2),a:f(1));}",
+        "{F(1);}",
+        "{F(x:1234567);}",
+        "{F(F(1));}",
+        "{let x=1;F(x);}",
+        "{let r=MockOpen(1);Read(r);}",
+        "{let r=MockBlockingOpen(1);Inspect(r);}",
+        "{let r=MockOpen(1);Take(move r);}",
+        "{Read(MockOpen(1));}",
+        "{var r=MockOpen(1);Drop(r);r=MockOpen(2);}",
+        "{Two(b:F(2),a:F(1));}",
     ];
     let sizes = [256 * 1024, 1024 * 1024];
     for (family, snippet) in snippets.iter().enumerate() {
@@ -883,7 +893,7 @@ fn i05_call_and_resource_source_families_scale_linearly() {
             source.push_str(&"x".repeat(size - source.len()));
             crate::test_alloc::reset("dead_scale_counter.nx");
             let p = compile_scalar("dead_scale_counter.nx", &source).unwrap();
-            assert!(p.functions().function("main").is_some());
+            assert!(p.functions().function("Main").is_some());
             traffic[index] = crate::test_alloc::snapshot("dead_scale_counter.nx");
         }
         println!("i05-family-{family} traffic={traffic:?}");
@@ -899,6 +909,7 @@ fn i05_call_and_resource_source_families_scale_linearly() {
 #[test]
 #[ignore = "explicit 256 KiB to 1 MiB lowering measurement"]
 fn i05_large_signature_and_many_functions_scale_linearly() {
+    let _campaign = crate::test_alloc::campaign_guard();
     for family in 0..5 {
         let mut traffic = [(0_u64, 0_u64); 2];
         for (scale, size) in [(1usize, 256 * 1024), (4, 1024 * 1024)] {
@@ -908,33 +919,33 @@ fn i05_large_signature_and_many_functions_scale_linearly() {
                     let count = 250 * scale;
                     for n in 0..count {
                         let body = if family == 1 && n + 1 < count {
-                            format!("return f{}(x);", n + 1)
+                            format!("return F{}(x);", n + 1)
                         } else if family == 2 {
-                            "let r=mock_open(1);inspect(r);return x;".into()
+                            "let r=MockOpen(1);Inspect(r);return x;".into()
                         } else {
                             "return x+1;".into()
                         };
-                        source.push_str(&format!("fn f{n}(x:i64)->i64{{{body}}}\n"));
+                        source.push_str(&format!("fn F{n}(x:view I64)->I64{{{body}}}\n"));
                         source.push_str(&" ".repeat(850));
                     }
-                    source.push_str("fn main(){print(f0(1));}\n");
+                    source.push_str("fn Main() {\n    Print(F0(1));\n}\n");
                 }
                 3 => {
-                    source.push_str("fn f(x:i64)->i64{return x+1;} fn main(){");
+                    source.push_str("fn F(x:view I64)->I64{return x+1;} fn Main(){");
                     for _ in 0..(2500 * scale) {
-                        source.push_str("f(f(1));");
+                        source.push_str("F(F(1));");
                     }
                     source.push('}');
                 }
                 4 => {
-                    source.push_str("fn f(");
+                    source.push_str("fn F(");
                     for n in 0..(12_000 * scale) {
                         if n > 0 {
                             source.push(',');
                         }
-                        source.push_str(&format!("p{n}:i64"));
+                        source.push_str(&format!("p{n}:view I64"));
                     }
-                    source.push_str("){} fn main(){}");
+                    source.push_str("){} fn Main(){}");
                 }
                 _ => unreachable!(),
             }
@@ -947,7 +958,7 @@ fn i05_large_signature_and_many_functions_scale_linearly() {
             source.push_str(&"a".repeat(size - source.len()));
             crate::test_alloc::reset("dead_scale_counter.nx");
             let program = compile_scalar("dead_scale_counter.nx", &source).unwrap();
-            assert!(program.functions().function("main").is_some());
+            assert!(program.functions().function("Main").is_some());
             traffic[usize::from(scale == 4)] = crate::test_alloc::snapshot("dead_scale_counter.nx");
         }
         println!("i05-large-family-{family} traffic={traffic:?}");
@@ -961,21 +972,21 @@ fn i05_large_signature_and_many_functions_scale_linearly() {
 }
 
 fn unreachable_scale_source(family: usize, size: usize) -> String {
-    let mut source = String::from("fn g(x:i64)->i64{return x;} fn main(){");
+    let mut source = String::from("fn G(x:view I64)->I64{return x;} fn Main(){");
     if family == 5 {
         for n in 0..2000 {
             source.push_str(&format!("let v{n}=1;"));
         }
     }
     let pattern = match family {
-        0 | 5 | 8 | 9 => "{return;g(g(1));}",
-        1 => "{return;{g(g(1));}}",
-        2 => "{{return;g(g(1));}}",
-        3 => "{let r=mock_open(1);return;inspect(r);}",
-        4 => "{return;let x=1;g(x);}",
-        6 => "{{{{{return;g(g(1));}}}}}",
-        7 => "{return;let r=mock_open(1);drop(r);}",
-        10 => "{let r=mock_open(1);}",
+        0 | 5 | 8 | 9 => "{return;G(G(1));}",
+        1 => "{return;{G(G(1));}}",
+        2 => "{{return;G(G(1));}}",
+        3 => "{let r=MockOpen(1);return;Inspect(r);}",
+        4 => "{return;let x=1;G(x);}",
+        6 => "{{{{{return;G(G(1));}}}}}",
+        7 => "{return;let r=MockOpen(1);Drop(r);}",
+        10 => "{let r=MockOpen(1);}",
         11 => "{let x=1;}",
         _ => unreachable!(),
     };
@@ -983,9 +994,9 @@ fn unreachable_scale_source(family: usize, size: usize) -> String {
         source.push_str(pattern);
     }
     if family == 8 {
-        source.push_str("if true{return;}else{return;}g(g(1));");
+        source.push_str("if true{return;}else{return;}G(G(1));");
     } else if family == 9 {
-        source.push_str("while true{return;}g(g(1));");
+        source.push_str("while true{return;}G(G(1));");
     }
     source.push('}');
     source.push_str("//");
@@ -1021,6 +1032,7 @@ fn unreachable_lowering_short_scale_regression() {
 #[test]
 #[ignore = "explicit dead-code and dense-declaration compilation measurement"]
 fn i05_unreachable_and_dense_declarations_scale_across_twelve_families() {
+    let _campaign = crate::test_alloc::campaign_guard();
     for family in 0..12 {
         let mut traffic = [(0_u64, 0_u64); 2];
         for (index, size) in [256 * 1024, 1024 * 1024].into_iter().enumerate() {

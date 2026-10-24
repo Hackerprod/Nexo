@@ -6,6 +6,20 @@ use crate::frontend::parse;
 
 const FILE: &str = "i03.nx";
 
+fn byte_span(source: &str, needle: &str, occurrence: usize) -> (u64, u64) {
+    let mut offset = 0;
+    let mut found = 0;
+    while let Some(local) = source[offset..].find(needle) {
+        let start = offset + local;
+        if found == occurrence {
+            return (start as u64, (start + needle.len()) as u64);
+        }
+        found += 1;
+        offset = start + needle.len();
+    }
+    panic!("missing occurrence {occurrence} of {needle:?}");
+}
+
 #[test]
 fn binary_and_collection_siblings_keep_both_independent_type_errors() {
     // F0-0002 §13.9: each faulty operand is an independent diagnostic site.
@@ -17,7 +31,7 @@ fn binary_and_collection_siblings_keep_both_independent_type_errors() {
         ("let w=[1][true]+(1+());", "true", "1+()"),
         ("let w=[(1+()),(1+())];", "1+()", "1+()"),
     ] {
-        let source = format!("fn main(){{{body}}}");
+        let source = format!("fn Main(){{{body}}}");
         let first_at = source.find(first).unwrap();
         let second_at = source[first_at + first.len()..]
             .find(second)
@@ -56,14 +70,14 @@ fn binary_and_collection_siblings_keep_both_independent_type_errors() {
             assert_eq!(diagnostic.data.len(), 2, "{source}");
             assert_eq!(
                 diagnostic.data.get("expected_type"),
-                Some(&DataValue::String("i64".into())),
+                Some(&DataValue::String("I64".into())),
                 "{source}"
             );
             assert_eq!(
                 diagnostic.data.get("found_type"),
                 Some(&DataValue::String(
                     if first == "true" && start == first_at as u64 {
-                        "bool".into()
+                        "Bool".into()
                     } else {
                         "()".into()
                     }
@@ -78,20 +92,16 @@ fn binary_and_collection_siblings_keep_both_independent_type_errors() {
 #[test]
 fn type_errors_sort_across_operands_statements_arguments_and_functions() {
     // F0-0002 §13.9 orders independent sites by primary_span.start.
-    for (source, expected) in [
-        (
-            "fn main(){let w=((1+())+(1+()));let x:i64=();}",
-            &[20, 27, 42][..],
-        ),
-        (
-            "fn f(x:i64,y:i64){} fn main(){f(1+(),1+());let z:i64=();}",
-            &[34, 39, 53][..],
-        ),
-        (
-            "fn a(){let x=((1+())+(1+()));} fn main(){let y:i64=();}",
-            &[17, 24, 51][..],
-        ),
+    for source in [
+        "fn Main() {\n    let w = ((1 + ()) + (1 + ()));\n    let x: I64 = ();\n}\n",
+        "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(1 + (), 1 + ());\n    let z: I64 = ();\n}\n",
+        "fn A() {\n    let x = ((1 + ()) + (1 + ()));\n}\nfn Main() {\n    let y: I64 = ();\n}\n",
     ] {
+        let expected = source
+            .match_indices("()")
+            .filter(|(at, _)| source[..*at].ends_with("+ ") || source[..*at].ends_with("= "))
+            .map(|(at, _)| at as u64)
+            .collect::<Vec<_>>();
         let diagnostics = check_proposed(FILE, source, true).expect_err(source);
         let actual = diagnostics
             .iter()
@@ -110,12 +120,12 @@ fn comparison_with_divergent_right_marks_operator_for_invalid_bool_left() {
     // F0-0002 S16: '<' requires i64; a divergent right operand contributes no type.
     for left in ["true", "()", "1"] {
         for (op, right) in [
-            ("<", "(if true{return;}else{return;})"),
+            ("<", "(if true then {return;} else {return;})"),
             ("<", "false"),
-            ("==", "(if true{return;}else{return;})"),
+            ("==", "(if true then {return;} else {return;})"),
             ("==", "false"),
         ] {
-            let source = format!("fn main(){{let v0={left};let w=v0{op}{right};}}");
+            let source = format!("fn Main(){{let v0={left};let w=v0{op}{right};}}");
             let result = check_proposed(FILE, &source, true);
             let invalid = (op == "<" && (left != "1" || right == "false"))
                 || (op == "==" && left != "true" && right == "false");
@@ -165,14 +175,14 @@ fn sp(start: u64, end: u64) -> Span {
 
 #[test]
 fn divergent_left_keeps_independent_numeric_operand_sites() {
-    let dv = "(if true{return;}else{return;})";
+    let dv = "(if true then {return;} else {return;})";
     for body in [
-        "let a=@+();let b:i64=();",
-        "let b:i64=();let a=@-();",
-        "let a=@<();let b:i64=();",
-        "let a=(@+())-();let b:i64=();",
+        "let a=@+();let b:I64=();",
+        "let b:I64=();let a=@-();",
+        "let a=@<();let b:I64=();",
+        "let a=(@+())-();let b:I64=();",
     ] {
-        let source = format!("fn main(){{{}}}", body.replacen('@', dv, 1));
+        let source = format!("fn Main(){{{}}}", body.replacen('@', dv, 1));
         let errors = check_proposed(FILE, &source, true).expect_err(&source);
         assert_eq!(errors.len(), 2, "{source}: {errors:?}");
         if body.contains("@<()") {
@@ -195,7 +205,7 @@ fn divergent_left_keeps_independent_numeric_operand_sites() {
             assert_eq!(error.operation, Operation::TypesCheck);
             assert_eq!(
                 error.data.get("expected_type"),
-                Some(&DataValue::String("i64".into()))
+                Some(&DataValue::String("I64".into()))
             );
             assert_eq!(
                 error.data.get("found_type"),
@@ -208,12 +218,12 @@ fn divergent_left_keeps_independent_numeric_operand_sites() {
 
 #[test]
 fn nested_calls_and_arrays_collect_each_independent_type_site() {
-    let dv = "(if true{return;}else{return;})";
+    let dv = "(if true then {return;} else {return;})";
     for source in [
-        format!("fn g(x:i64){{}} fn main(){{g({dv}+());g(());}}"),
-        format!("fn g(x:i64){{}} fn main(){{let a=[g({dv}+()),g(())];}}"),
-        format!("fn g(x:i64){{}} fn main(){{let a=g({dv}+())+g(());}}"),
-        format!("fn g(x:i64){{}} fn main(){{let a=g(())-g({dv}+());}}"),
+        format!("fn G(x:view I64){{}} fn Main(){{G({dv}+());G(());}}"),
+        format!("fn G(x:view I64){{}} fn Main(){{let a=[G({dv}+()),G(())];}}"),
+        format!("fn G(x:view I64){{}} fn Main(){{let a=G({dv}+())+G(());}}"),
+        format!("fn G(x:view I64){{}} fn Main(){{let a=G(())-G({dv}+());}}"),
     ] {
         let errors = check_proposed(FILE, &source, true).expect_err(&source);
         assert_eq!(errors.len(), 2, "{source}: {errors:?}");
@@ -224,7 +234,7 @@ fn nested_calls_and_arrays_collect_each_independent_type_site() {
             assert_eq!(error.operation, Operation::TypesCheck);
             assert_eq!(
                 error.data.get("expected_type"),
-                Some(&DataValue::String("i64".into()))
+                Some(&DataValue::String("I64".into()))
             );
             assert_eq!(
                 error.data.get("found_type"),
@@ -239,14 +249,14 @@ fn nested_calls_and_arrays_collect_each_independent_type_site() {
 fn deferred_equality_does_not_force_numeric_right_operand() {
     for right in ["true", "false", "()"] {
         let source =
-            format!("fn main(){{let v=if true{{return;}}else{{return;}};let b=v=={right};}}");
+            format!("fn Main(){{let v=if true then {{return;}}else{{return;}};let b=v=={right};}}");
         check_proposed(FILE, &source, true).unwrap_or_else(|errors| panic!("{source}: {errors:?}"));
     }
 }
 
 #[test]
 fn tainted_left_does_not_suppress_direct_error_on_right() {
-    let source = "fn g(x:i64){} fn main(){let a=g(())-((if true{return;}else{return;})+());}";
+    let source = "fn G(x: view I64) {}\nfn Main() {\n    let a = G(()) - ((if true then {\n        return;\n    } else {\n        return;\n    }) + ());\n}\n";
     let errors = check_proposed(FILE, source, true).expect_err(source);
     assert_eq!(errors.len(), 2, "{errors:?}");
     for error in errors {
@@ -257,7 +267,7 @@ fn tainted_left_does_not_suppress_direct_error_on_right() {
 
 #[test]
 fn array_visits_second_element_after_first_type_error() {
-    let source = "fn main(){let a=[0+(),1+()];}";
+    let source = "fn Main() {\n    let a = [0 + (), 1 + ()];\n}\n";
     let errors = check_proposed(FILE, source, true).expect_err(source);
     assert_eq!(errors.len(), 2, "{errors:?}");
     for error in errors {
@@ -274,6 +284,34 @@ fn error(source: &str, run_entry: bool) -> Box<Diagnostic> {
     d
 }
 
+#[test]
+fn adr_gap_function_name_is_not_an_assignable_place() {
+    for source in [
+        "fn M(){M=();}",
+        "fn Main(){Main=();}",
+        "fn F(){} fn Main(){F=();}",
+        "fn F(){} fn Main(){(F)=();}",
+        "fn F(){} fn Main(){F[0]=();}",
+    ] {
+        let d = error(source, true);
+        assert_eq!(d.code, "NX-E0006", "{source}");
+        assert_eq!(d.feature_id.as_deref(), Some("function_value"), "{source}");
+        assert_eq!(d.stage, Stage::Names, "{source}");
+        assert_eq!(d.operation, Operation::NamesResolve, "{source}");
+        let root = if source.contains("F=") || source.contains("(F)") || source.contains("F[") {
+            source.rfind('F').unwrap()
+        } else if source.contains("M=()") {
+            source.rfind('M').unwrap()
+        } else {
+            source.rfind("Main").unwrap()
+        } as u64;
+        assert_eq!(
+            d.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some((root, root + if source.contains("Main=()") { 4 } else { 1 }))
+        );
+    }
+}
+
 #[allow(clippy::too_many_arguments)]
 fn exact(
     d: &Diagnostic,
@@ -287,7 +325,7 @@ fn exact(
 ) {
     assert_eq!(d.schema_version, 1);
     assert_eq!(d.diagnostic_namespace, Namespace::NexoProposedV1);
-    assert_eq!(d.profile_id, "f0-0002-v1");
+    assert_eq!(d.profile_id, "f0-0002-b-v2");
     assert_eq!(d.code, code);
     assert_eq!(d.subcause.as_deref(), sub);
     let rule = sub.map_or_else(|| code.to_owned(), |s| format!("{code}/{s}"));
@@ -325,70 +363,94 @@ fn datum(value: &str) -> DataValue {
 
 #[test]
 fn function_signatures_are_registered_before_bodies_and_duplicates_keep_first_site() {
-    check_proposed(FILE, "fn main(){later(1);} fn later(x:i64){}", false).unwrap();
-    let d = error("fn f(){} fn f(){} fn main(){}", false);
+    check_proposed(
+        FILE,
+        "fn Main() {\n    Later(1);\n}\nfn Later(x: view I64) {}\n",
+        false,
+    )
+    .unwrap();
+    let source = "fn F() {}\nfn F() {}\nfn Main() {}\n";
+    let d = error(source, false);
     exact(
         &d,
         "NX-E0104",
         None,
         Stage::Names,
         Operation::NamesDeclare,
-        (12, 13),
-        &[(RelatedRole::PreviousDeclaration, 3, 4)],
+        byte_span(source, "F", 1),
+        &[(
+            RelatedRole::PreviousDeclaration,
+            byte_span(source, "F", 0).0,
+            byte_span(source, "F", 0).1,
+        )],
         &[("declaration_kind", datum("function"))],
     );
-    check_proposed(FILE, "fn f(){} fn g(){} fn main(){}", false).unwrap();
+    check_proposed(FILE, "fn F() {}\nfn G() {}\nfn Main() {}\n", false).unwrap();
 }
 
 #[test]
 fn parameter_and_body_binding_share_initial_scope_but_child_block_shadows() {
-    let d = error("fn f(x:i64,x:i64){} fn main(){}", false);
+    let source = "fn F(x: view I64, x: view I64) {}\nfn Main() {}\n";
+    let d = error(source, false);
+    let first = byte_span(source, "x:", 0).0;
+    let second = byte_span(source, "x:", 1).0;
     exact(
         &d,
         "NX-E0104",
         None,
         Stage::Names,
         Operation::NamesDeclare,
-        (11, 12),
-        &[(RelatedRole::PreviousDeclaration, 5, 6)],
+        (second, second + 1),
+        &[(RelatedRole::PreviousDeclaration, first, first + 1)],
         &[("declaration_kind", datum("parameter"))],
     );
-    let d = error("fn f(x:i64){let x=1;} fn main(){}", false);
+    let source = "fn F(x: view I64) {\n    let x = 1;\n}\nfn Main() {}\n";
+    let d = error(source, false);
+    let parameter = byte_span(source, "x:", 0).0;
+    let binding = byte_span(source, "x =", 0).0;
     exact(
         &d,
         "NX-E0104",
         None,
         Stage::Names,
         Operation::NamesDeclare,
-        (16, 17),
-        &[(RelatedRole::PreviousDeclaration, 5, 6)],
+        (binding, binding + 1),
+        &[(RelatedRole::PreviousDeclaration, parameter, parameter + 1)],
         &[("declaration_kind", datum("binding"))],
     );
     check_proposed(
         FILE,
-        "fn f(x:i64){{let x=1;assert_eq(x,1);}assert_eq(x,2);} fn main(){}",
+        "fn F(x: view I64) {\n    {\n        let x = 1;\n        AssertEq(x, 1);\n    }\n    AssertEq(x, 2);\n}\nfn Main() {}\n",
         false,
     )
     .unwrap();
-    check_proposed(FILE, "fn f(x:i64,y:bool){} fn main(){f(1,true);}", false).unwrap();
+    check_proposed(
+        FILE,
+        "fn F(x: view I64, y: view Bool) {}\nfn Main() {\n    F(1, true);\n}\n",
+        false,
+    )
+    .unwrap();
 }
 
 #[test]
 fn duplicate_binding_and_inner_shadowing_are_lexical() {
-    let d = error("fn main(){let x=1;let x=2;}", false);
+    let source = "fn Main() {\n    let x = 1;\n    let x = 2;\n}\n";
+    let d = error(source, false);
+    let duplicate = byte_span(source, "x =", 1).0;
+    let first = byte_span(source, "x =", 0).0;
     exact(
         &d,
         "NX-E0104",
         None,
         Stage::Names,
         Operation::NamesDeclare,
-        (22, 23),
-        &[(RelatedRole::PreviousDeclaration, 14, 15)],
+        (duplicate, duplicate + 1),
+        &[(RelatedRole::PreviousDeclaration, first, first + 1)],
         &[("declaration_kind", datum("binding"))],
     );
     check_proposed(
         FILE,
-        "fn main(){let x=1;{let x=true;assert_eq(x,true);}assert_eq(x,1);}",
+        "fn Main() {\n    let x = 1;\n    {\n        let x = true;\n        AssertEq(x, true);\n    }\n    AssertEq(x, 1);\n}\n",
         false,
     )
     .unwrap();
@@ -396,31 +458,33 @@ fn duplicate_binding_and_inner_shadowing_are_lexical() {
 
 #[test]
 fn absent_value_and_call_target_use_distinct_kinds() {
-    let d = error("fn main(){ausente();}", false);
+    let source = "fn Main() {\n    ausente();\n}\n";
+    let d = error(source, false);
     exact(
         &d,
         "NX-E0101",
         None,
         Stage::Names,
         Operation::NamesResolve,
-        (10, 17),
+        byte_span(source, "ausente", 0),
         &[],
         &[("use_kind", datum("call_target"))],
     );
-    let d = error("fn main(){let x=missing;}", false);
+    let source = "fn Main() {\n    let x = missing;\n}\n";
+    let d = error(source, false);
     exact(
         &d,
         "NX-E0101",
         None,
         Stage::Names,
         Operation::NamesResolve,
-        (16, 23),
+        byte_span(source, "missing", 0),
         &[],
         &[("use_kind", datum("value"))],
     );
     check_proposed(
         FILE,
-        "fn later(){} fn main(){later();let missing=1;let x=missing;}",
+        "fn Later() {}\nfn Main() {\n    Later();\n    let missing = 1;\n    let x = missing;\n}\n",
         false,
     )
     .unwrap();
@@ -428,36 +492,42 @@ fn absent_value_and_call_target_use_distinct_kinds() {
 
 #[test]
 fn local_shadowing_blocks_calls_to_module_and_prelude_functions() {
-    let d = error("fn main(){let f=1;f();}", false);
+    let source = "fn Main() {\n    let f = 1;\n    f();\n}\n";
+    let d = error(source, false);
+    let call = byte_span(source, "f()", 0).0;
+    let declaration = byte_span(source, "f =", 0).0;
     exact(
         &d,
         "NX-E0111",
         Some("non_callable_target"),
         Stage::Arguments,
         Operation::CallBind,
-        (18, 19),
-        &[(RelatedRole::Declaration, 14, 15)],
+        (call, call + 1),
+        &[(RelatedRole::Declaration, declaration, declaration + 1)],
         &[],
     );
-    let d = error("fn f(){} fn main(){let f=1;f();}", false);
+    let d = error(
+        "fn F() {}\nfn Main() {\n    let F = 1;\n    F();\n}\n",
+        false,
+    );
     assert_eq!(
         (d.code.as_str(), d.subcause.as_deref(), d.stage),
         ("NX-E0111", Some("non_callable_target"), Stage::Arguments)
     );
-    let d = error("fn main(){let print=1;print(2);}", false);
+    let d = error("fn Main() {\n    let Print = 1;\n    Print(2);\n}\n", false);
     assert_eq!(
         (d.code.as_str(), d.subcause.as_deref(), d.stage),
         ("NX-E0111", Some("non_callable_target"), Stage::Arguments)
     );
     check_proposed(
         FILE,
-        "fn print(x:i64)->i64{return x+1;} fn main(){let n=print(2);assert_eq(n,3);}",
+        "fn Print(x: view I64) -> I64 {\n    return x + 1;\n}\nfn Main() {\n    let n = Print(2);\n    AssertEq(n, 3);\n}\n",
         false,
     )
     .unwrap();
     check_proposed(
         FILE,
-        "fn f(x:i64)->i64{return x;} fn main(){let n=((f))(2);assert_eq(n,2);}",
+        "fn F(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    let n = ((F))(2);\n    AssertEq(n, 2);\n}\n",
         false,
     )
     .unwrap();
@@ -467,37 +537,58 @@ fn local_shadowing_blocks_calls_to_module_and_prelude_functions() {
 fn structural_binding_checks_missing_excess_unknown_duplicate_and_order() {
     let cases = [
         (
-            "fn f(x:i64){} fn main(){f();}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F();\n}\n",
             "missing_argument",
-            (24, 25),
-            vec![(RelatedRole::Declaration, 5, 6)],
         ),
         (
-            "fn f(x:i64){} fn main(){f(1,2);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(1, 2);\n}\n",
             "excess_positional_argument",
-            (28, 29),
-            vec![],
         ),
         (
-            "fn f(x:i64){} fn main(){f(y:1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(y: 1);\n}\n",
             "unknown_argument_label",
-            (26, 27),
-            vec![],
         ),
         (
-            "fn f(x:i64){} fn main(){f(x:1,x:2);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(x: 1, x: 2);\n}\n",
             "duplicate_argument",
-            (30, 31),
-            vec![(RelatedRole::Context, 26, 27)],
         ),
         (
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,2);}",
+            "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(x: 1, 2);\n}\n",
             "positional_after_named",
-            (36, 37),
-            vec![(RelatedRole::Context, 32, 33)],
         ),
     ];
-    for (source, sub, primary, related) in cases {
+    for (source, sub) in cases {
+        let (primary, related) = match sub {
+            "missing_argument" => {
+                let target = byte_span(source, "F()", 0).0;
+                let parameter = byte_span(source, "x:", 0).0;
+                (
+                    (target, target + 1),
+                    vec![(RelatedRole::Declaration, parameter, parameter + 1)],
+                )
+            }
+            "excess_positional_argument" => (byte_span(source, "2", 0), vec![]),
+            "unknown_argument_label" => {
+                let label = byte_span(source, "y:", 0).0;
+                ((label, label + 1), vec![])
+            }
+            "duplicate_argument" => {
+                let second = byte_span(source, "x:", 2).0;
+                let first = byte_span(source, "x:", 1).0;
+                (
+                    (second, second + 1),
+                    vec![(RelatedRole::Context, first, first + 1)],
+                )
+            }
+            "positional_after_named" => {
+                let label = byte_span(source, "x:", 1).0;
+                (
+                    byte_span(source, "2", 0),
+                    vec![(RelatedRole::Context, label, label + 1)],
+                )
+            }
+            _ => unreachable!(),
+        };
         let d = error(source, false);
         exact(
             &d,
@@ -512,7 +603,7 @@ fn structural_binding_checks_missing_excess_unknown_duplicate_and_order() {
     }
     check_proposed(
         FILE,
-        "fn f(x:i64,y:i64){} fn main(){f(y:2,x:1);f(1,2);}",
+        "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(y: 2, x: 1);\n    F(1, 2);\n}\n",
         false,
     )
     .unwrap();
@@ -520,31 +611,34 @@ fn structural_binding_checks_missing_excess_unknown_duplicate_and_order() {
 
 #[test]
 fn mode_is_checked_during_left_to_right_association() {
-    let d = error("fn f(inout x:i64){} fn main(){var x=1;f(x);}", false);
+    let source = "fn F(x: edit I64) {}\nfn Main() {\n    var x = 1;\n    F(x);\n}\n";
+    let d = error(source, false);
+    let argument = byte_span(source, "F(x)", 0).0 + 2;
+    let parameter = byte_span(source, "x:", 0).0;
     exact(
         &d,
         "NX-E0111",
         Some("argument_mode_mismatch"),
         Stage::Arguments,
         Operation::CallBind,
-        (40, 41),
-        &[(RelatedRole::Declaration, 11, 12)],
+        (argument, argument + 1),
+        &[(RelatedRole::Declaration, parameter, parameter + 1)],
         &[],
     );
     check_proposed(
         FILE,
-        "fn f(inout x:i64){} fn main(){var x=1;f(inout x);}",
+        "fn F(x: edit I64) {}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
         false,
     )
     .unwrap();
     let d = error(
-        "fn f(consume x:i64){} fn main(){let x=1;f(inout x);}",
+        "fn F(x: move I64) {}\nfn Main() {\n    let x = 1;\n    F(edit x);\n}\n",
         false,
     );
     assert_eq!(d.subcause.as_deref(), Some("argument_mode_mismatch"));
     check_proposed(
         FILE,
-        "fn f(consume x:i64){} fn main(){let x=1;f(x);f(consume x);}",
+        "fn F(x: move I64) {}\nfn Main() {\n    let x = 1;\n    F(x);\n    F(move x);\n}\n",
         false,
     )
     .unwrap();
@@ -552,69 +646,89 @@ fn mode_is_checked_during_left_to_right_association() {
 
 #[test]
 fn written_return_and_empty_return_newline_use_expected_type() {
-    let d = error("fn f()->i64{return true;} fn main(){}", false);
+    let source = "fn F() -> I64 {\n    return true;\n}\nfn Main() {}\n";
+    let d = error(source, false);
+    let expected = byte_span(source, "I64", 0);
+    let found = byte_span(source, "true", 0);
     exact(
         &d,
         "NX-E0102",
         Some("type_mismatch"),
         Stage::Types,
         Operation::TypesCheck,
-        (19, 23),
+        found,
         &[
-            (RelatedRole::ExpectedType, 8, 11),
-            (RelatedRole::FoundType, 19, 23),
+            (RelatedRole::ExpectedType, expected.0, expected.1),
+            (RelatedRole::FoundType, found.0, found.1),
         ],
         &[
-            ("expected_type", datum("i64")),
-            ("found_type", datum("bool")),
+            ("expected_type", datum("I64")),
+            ("found_type", datum("Bool")),
         ],
     );
-    check_proposed(FILE, "fn f()->i64{return 1;} fn main(){}", false).unwrap();
-    let d = error("fn f()->i64{\nreturn\n(1);\n}\nfn main(){}", false);
+    check_proposed(
+        FILE,
+        "fn F() -> I64 {\n    return 1;\n}\nfn Main() {}\n",
+        false,
+    )
+    .unwrap();
+    let source = "fn F()->I64{\nreturn\n(1);\n}\nfn Main(){}";
+    let d = error(source, false);
+    let expected = byte_span(source, "I64", 0);
+    let keyword = byte_span(source, "return", 0);
+    let delimiter = (keyword.1, keyword.1 + 1);
     exact(
         &d,
         "NX-E0102",
         Some("type_mismatch"),
         Stage::Types,
         Operation::TypesCheck,
-        (13, 19),
+        keyword,
         &[
-            (RelatedRole::ExpectedType, 8, 11),
-            (RelatedRole::Delimiter, 19, 20),
+            (RelatedRole::ExpectedType, expected.0, expected.1),
+            (RelatedRole::Delimiter, delimiter.0, delimiter.1),
         ],
-        &[("expected_type", datum("i64")), ("found_type", datum("()"))],
+        &[("expected_type", datum("I64")), ("found_type", datum("()"))],
     );
-    check_proposed(FILE, "fn f()->i64{\nreturn (\n1);\n}\nfn main(){}", false).unwrap();
+    check_proposed(
+        FILE,
+        "fn F() -> I64 {\n    return (1);\n}\nfn Main() {}\n",
+        false,
+    )
+    .unwrap();
 }
 
 #[test]
 fn empty_written_return_uses_keyword_and_terminating_newline_delimiter() {
-    for (source, keyword, delimiter) in [
-        ("fn f()->i64{\nreturn\n(1);\n}", (13, 19), Some((19, 20))),
-        (
-            "fn f()->i64{\r\nreturn\r\n(1);\r\n}",
-            (14, 20),
-            Some((20, 22)),
-        ),
-        ("fn f()->i64{\rreturn\r(1);\r}", (13, 19), Some((19, 20))),
-        ("fn f()->i64{return;\n}", (12, 18), None),
-        ("fn f()->i64{\nreturn  \n(1);\n}", (13, 19), Some((21, 22))),
-        (
-            "fn f()->i64{\nreturn // c\n(1);\n}",
-            (13, 19),
-            Some((24, 25)),
-        ),
-        (
-            "fn f()->i64{\r\nreturn // c\r\n(1);\r\n}",
-            (14, 20),
-            Some((25, 27)),
-        ),
-        (
-            "fn f()->i64{\r\nreturn \t\r\n(1);\r\n}",
-            (14, 20),
-            Some((22, 24)),
-        ),
+    for source in [
+        "fn F()->I64{\nreturn\n(1);\n}",
+        "fn F()->I64{\r\nreturn\r\n(1);\r\n}",
+        "fn F()->I64{\rreturn\r(1);\r}",
+        "fn F()->I64{return;\n}",
+        "fn F()->I64{\nreturn  \n(1);\n}",
+        "fn F()->I64{\nreturn // c\n(1);\n}",
+        "fn F()->I64{\r\nreturn // c\r\n(1);\r\n}",
+        "fn F()->I64{\r\nreturn \t\r\n(1);\r\n}",
     ] {
+        let keyword = byte_span(source, "return", 0);
+        let after = &source[keyword.1 as usize..];
+        let delimiter = if after.starts_with(';') {
+            None
+        } else {
+            let relative = after
+                .bytes()
+                .position(|byte| byte == b'\r' || byte == b'\n')
+                .expect("newline after empty return");
+            let start = keyword.1 + relative as u64;
+            let width = if source.as_bytes()[start as usize] == b'\r'
+                && source.as_bytes().get(start as usize + 1) == Some(&b'\n')
+            {
+                2
+            } else {
+                1
+            };
+            Some((start, start + width))
+        };
         let d = error(source, false);
         assert_eq!(d.primary_span, Some(sp(keyword.0, keyword.1)));
         assert_eq!(
@@ -624,21 +738,29 @@ fn empty_written_return_uses_keyword_and_terminating_newline_delimiter() {
                 .map(|r| (r.span.start, r.span.end)),
             delimiter
         );
-        assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
+        assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
         assert_eq!(d.data.get("found_type"), Some(&datum("()")));
     }
 }
 
 #[test]
 fn annotation_closing_angles_exclude_assignment_equals() {
-    for (source, expected) in [
-        ("fn main(){let x:Array<i64>=true;}", (16, 26)),
-        ("fn main(){let x:Result<i64,i64>=true;}", (16, 31)),
-        ("fn main(){let x:Array<Array<i64>>=true;}", (16, 33)),
-        ("fn main(){let x:Array<i64> =true;}", (16, 26)),
-        ("fn main(){let x:Array<i64> // c\n=true;}", (16, 26)),
-        ("fn main(){let x:Array<i64> // c\r\n=true;}", (16, 26)),
+    for source in [
+        "fn Main(){let x:Array<I64>=true;}",
+        "fn Main(){let x:Result<I64,I64>=true;}",
+        "fn Main(){let x:Array<Array<I64>>=true;}",
+        "fn Main(){let x:Array<I64> =true;}",
+        "fn Main(){let x:Array<I64> // c\n=true;}",
+        "fn Main(){let x:Array<I64> // c\r\n=true;}",
     ] {
+        let type_name = if source.contains("Result<I64,I64>") {
+            "Result<I64,I64>"
+        } else if source.contains("Array<Array<I64>>") {
+            "Array<Array<I64>>"
+        } else {
+            "Array<I64>"
+        };
+        let expected = byte_span(source, type_name, 0);
         let d = error(source, false);
         assert_eq!(d.code, "NX-E0102", "{source}");
         assert_eq!(
@@ -655,8 +777,8 @@ fn annotation_closing_angles_exclude_assignment_equals() {
 #[test]
 fn registration_errors_keep_independent_body_errors_in_names_stage() {
     for source in [
-        "fn f(a:i64,a:i64){} fn main(){zz();}",
-        "fn f(){} fn f(){} fn main(){zz();}",
+        "fn F(a: view I64, a: view I64) {}\nfn Main() {\n    zz();\n}\n",
+        "fn F() {}\nfn F() {}\nfn Main() {\n    zz();\n}\n",
     ] {
         let errors = check_proposed(FILE, source, false).unwrap_err();
         assert_eq!(errors.len(), 2, "{source}");
@@ -669,8 +791,8 @@ fn registration_errors_keep_independent_body_errors_in_names_stage() {
 #[test]
 fn expression_if_collects_independent_statement_type_errors() {
     for source in [
-        "fn main(){let x=if true{let a:i64=true;value:1;}else{let b:i64=true;value:2;};}",
-        "fn main(){let x=if true{let a:i64=true;let b:i64=true;value:1;}else{value:2;};}",
+        "fn Main() {\n    let x = if true then {\n        let a: I64 = true;\n        value: 1;\n    } else {\n        let b: I64 = true;\n        value: 2;\n    };\n}\n",
+        "fn Main() {\n    let x = if true then {\n        let a: I64 = true;\n        let b: I64 = true;\n        value: 1;\n    } else 2;\n}\n",
     ] {
         let errors = check_proposed(FILE, source, false).unwrap_err();
         assert_eq!(errors.len(), 2, "{source}");
@@ -686,7 +808,7 @@ fn expression_if_collects_independent_statement_type_errors() {
 fn expression_if_resets_taint_before_independent_branch_value() {
     let errors = check_proposed(
         FILE,
-        "fn main(){let x=if true{let a:i64=true;value:false;}else{value:1;};}",
+        "fn Main() {\n    let x = if true then {\n        let a: I64 = true;\n        value: false;\n    } else 1;\n}\n",
         false,
     )
     .unwrap_err();
@@ -697,50 +819,49 @@ fn expression_if_resets_taint_before_independent_branch_value() {
 
 #[test]
 fn expression_if_checks_value_context_after_an_independent_binding_error() {
-    let errors = check_proposed(
-        FILE,
-        "fn main(){let x:i64=if true{let a:i64=true;value:true;}else{value:1;};}",
-        false,
-    )
-    .unwrap_err();
+    let source = "fn Main() {\n    let x: I64 = if true then {\n        let a: I64 = true;\n        value: true;\n    } else 1;\n}\n";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 2);
     assert!(errors.iter().all(|d| d.code == "NX-E0102"));
-    assert_eq!(errors[0].primary_span, Some(sp(38, 42)));
-    assert_eq!(errors[1].primary_span, Some(sp(49, 53)));
-    assert_eq!(errors[0].data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(errors[1].data.get("expected_type"), Some(&datum("i64")));
+    let binding_true = byte_span(source, "true", 1);
+    let value_true = byte_span(source, "true", 2);
+    assert_eq!(
+        errors[0].primary_span,
+        Some(sp(binding_true.0, binding_true.1))
+    );
+    assert_eq!(errors[1].primary_span, Some(sp(value_true.0, value_true.1)));
+    assert_eq!(errors[0].data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(errors[1].data.get("expected_type"), Some(&datum("I64")));
 }
 
 #[test]
 fn expression_if_restores_taint_from_outer_invalid_binding() {
-    let errors = check_proposed(
-        FILE,
-        "fn main(){let bad:i64=true;let x:i64=if true{value:bad;}else{value:1;};let y:bool=x;}",
-        false,
-    )
-    .unwrap_err();
+    let source = "fn Main() {\n    let bad: I64 = true;\n    let x: I64 = if true then bad else 1;\n    let y: Bool = x;\n}\n";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 1, "{errors:?}");
-    assert_eq!(errors[0].primary_span, Some(sp(22, 26)));
+    let mismatch = byte_span(source, "true", 0);
+    assert_eq!(errors[0].primary_span, Some(sp(mismatch.0, mismatch.1)));
 }
 
 #[test]
 fn expression_if_keeps_independent_later_type_error_after_branch_binding_error() {
-    let errors = check_proposed(
-        FILE,
-        "fn main(){let x:i64=if true{let a:i64=true;value:1;}else{value:1;};let y:bool=x;}",
-        false,
-    )
-    .unwrap_err();
+    let source = "fn Main() {\n    let x: I64 = if true then {\n        let a: I64 = true;\n        value: 1;\n    } else 1;\n    let y: Bool = x;\n}\n";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].code, "NX-E0102");
-    assert_eq!(errors[0].primary_span, Some(sp(38, 42)));
-    assert_eq!(errors[1].primary_span, Some(sp(78, 79)));
+    let binding_true = byte_span(source, "true", 1);
+    let later_x = byte_span(source, "= x", 0).0 + 2;
+    assert_eq!(
+        errors[0].primary_span,
+        Some(sp(binding_true.0, binding_true.1))
+    );
+    assert_eq!(errors[1].primary_span, Some(sp(later_x, later_x + 1)));
 }
 
 #[test]
 fn branch_restores_dependency_taint_after_invalid_return_expression() {
     let errors = check_proposed(FILE,
-        "fn f(c:bool)->i64{let bad:i64=true;let x:i64=if c{return bad+true;}else{value:1;};let y:bool=x;return 1;}", false)
+        "fn F(c: view Bool) -> I64 {\n    let bad: I64 = true;\n    let x: I64 = if c then {\n        return bad + true;\n    } else 1;\n    let y: Bool = x;\n    return 1;\n}\n", false)
         .unwrap_err();
     assert_eq!(errors.len(), 1, "{errors:?}");
     assert_eq!(errors[0].code, "NX-E0102");
@@ -749,10 +870,10 @@ fn branch_restores_dependency_taint_after_invalid_return_expression() {
 #[test]
 fn expression_if_with_only_returning_branches_has_no_invented_unit_type() {
     for source in [
-        "fn f(c:bool)->i64{let x=if c{return 1;}else{return 2;};let y:i64=x;return y;}",
-        "fn f(c:bool)->i64{let x:i64=if c{return 1;}else{return 2;};return x;}",
-        "fn f(c:bool)->i64{let x=if c{return 1;}else{value:2;};return x;}",
-        "fn f(c:bool)->i64{let x=if c{value:1;}else{return 2;};return x;}",
+        "fn F(c: view Bool) -> I64 {\n    let x = if c then {\n        return 1;\n    } else {\n        return 2;\n    };\n    let y: I64 = x;\n    return y;\n}\n",
+        "fn F(c: view Bool) -> I64 {\n    let x: I64 = if c then {\n        return 1;\n    } else {\n        return 2;\n    };\n    return x;\n}\n",
+        "fn F(c: view Bool) -> I64 {\n    let x = if c then {\n        return 1;\n    } else 2;\n    return x;\n}\n",
+        "fn F(c: view Bool) -> I64 {\n    let x = if c then 1 else {\n        return 2;\n    };\n    return x;\n}\n",
     ] {
         check_proposed(FILE, source, false).unwrap_or_else(|e| panic!("{source}: {e:?}"));
     }
@@ -761,15 +882,15 @@ fn expression_if_with_only_returning_branches_has_no_invented_unit_type() {
 #[test]
 fn deferred_try_operator_causes_no_type_mismatch_in_this_slice() {
     check_proposed(FILE,
-        "fn try_add(x:i64,y:i64)->Result<i64,i64>{return Ok(x+y);} fn f()->i64{let x:i64=try_add(1,2)?;return x;}", false).unwrap();
+        "fn TryAdd(x: view I64, y: view I64) -> Result<I64, I64> {\n    return Ok(x + y);\n}\nfn F() -> I64 {\n    let x: I64 = TryAdd(1, 2)?;\n    return x;\n}\n", false).unwrap();
 }
 
 #[test]
 fn adr_gap_try_result_type_is_deferred_until_result_semantics() {
     for source in [
-        "fn f()->Result<i64,i64>{return Ok(1);} fn main(){let x:i64=f()?;}",
-        "fn f()->Result<i64,i64>{return Ok(1);} fn main(){let x:i64=f()?+1;}",
-        "fn f()->Result<i64,i64>{return Ok(1);} fn main(){let x:i64=1+f()?;}",
+        "fn F() -> Result<I64, I64> {\n    return Ok(1);\n}\nfn Main() {\n    let x: I64 = F()?;\n}\n",
+        "fn F() -> Result<I64, I64> {\n    return Ok(1);\n}\nfn Main() {\n    let x: I64 = F()? + 1;\n}\n",
+        "fn F() -> Result<I64, I64> {\n    return Ok(1);\n}\nfn Main() {\n    let x: I64 = 1 + F()?;\n}\n",
     ] {
         check_proposed(FILE, source, false).unwrap();
     }
@@ -777,30 +898,32 @@ fn adr_gap_try_result_type_is_deferred_until_result_semantics() {
 
 #[test]
 fn independent_call_arguments_are_reported_without_dependent_binding_cascades() {
-    let source = "fn f(x:i64,y:i64){} fn main(){f(true,true);}";
+    let source = "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(true, true);\n}\n";
     let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].code, "NX-E0102");
     assert_eq!(errors[1].code, "NX-E0102");
-    let source = "fn main(){zz(yy);}";
+    let source = "fn Main() {\n    zz(yy);\n}\n";
     let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].primary_span, Some(sp(10, 12)));
-    let source = "fn main(){if bad {bad2();}}";
+    let target = byte_span(source, "zz", 0);
+    assert_eq!(errors[0].primary_span, Some(sp(target.0, target.1)));
+    let source = "fn Main() {\n    if bad {\n        bad2();\n    }\n}\n";
     let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].data.get("use_kind"), Some(&datum("value")));
-    let source = "fn main(){let x:i64=true;let y:bool=x;}";
+    let source = "fn Main() {\n    let x: I64 = true;\n    let y: Bool = x;\n}\n";
     let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 1);
-    assert_eq!(errors[0].primary_span, Some(sp(20, 24)));
+    let mismatch = byte_span(source, "true", 0);
+    assert_eq!(errors[0].primary_span, Some(sp(mismatch.0, mismatch.1)));
 }
 
 #[test]
 fn written_parameter_result_and_assignment_type_spans_exclude_trivia() {
     for source in [
-        "fn f(x:Array<i64>){} fn main(){f(1);}",
-        "fn f(x:Array<i64> // c\n){} fn main(){f(1);}",
+        "fn F(x:view Array<I64>){} fn Main(){F(1);}",
+        "fn F(x:view Array<I64> // c\n){} fn Main(){F(1);}",
     ] {
         let d = error(source, false);
         assert_eq!(
@@ -808,42 +931,45 @@ fn written_parameter_result_and_assignment_type_spans_exclude_trivia() {
                 .iter()
                 .find(|r| r.role == RelatedRole::ExpectedType)
                 .map(|r| (r.span.start, r.span.end)),
-            Some((7, 17))
+            Some(byte_span(source, "Array<I64>", 0))
         );
     }
-    let d = error("fn f()->Array<i64>{return true;}", false);
+    let source = "fn F()->Array<I64>{return true;}";
+    let d = error(source, false);
     assert_eq!(
         d.related_spans
             .iter()
             .find(|r| r.role == RelatedRole::ExpectedType)
             .map(|r| (r.span.start, r.span.end)),
-        Some((8, 18))
+        Some(byte_span(source, "Array<I64>", 0))
     );
-    let d = error("fn main(){var x:Array<i64>=[1];x=true;}", false);
+    let source = "fn Main(){var x:Array<I64>=[1];x=true;}";
+    let d = error(source, false);
     assert_eq!(
         d.related_spans
             .iter()
             .find(|r| r.role == RelatedRole::ExpectedType)
             .map(|r| (r.span.start, r.span.end)),
-        Some((16, 26))
+        Some(byte_span(source, "Array<I64>", 0))
     );
 }
 
 #[test]
 fn duplicate_function_body_is_not_resolved_but_other_functions_are() {
-    let source = "fn f(){} fn f(){skip();} fn main(){report();}";
+    let source = "fn F() {}\nfn F() {\n    skip();\n}\nfn Main() {\n    report();\n}\n";
     let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 2);
     assert_eq!(errors[0].code, "NX-E0104");
     assert_eq!(errors[1].code, "NX-E0101");
-    assert_eq!(errors[1].primary_span, Some(sp(35, 41)));
+    let target = byte_span(source, "report", 0);
+    assert_eq!(errors[1].primary_span, Some(sp(target.0, target.1)));
 }
 
 #[test]
 fn returning_if_binding_can_flow_into_arithmetic_and_nested_arms() {
     for source in [
-        "fn f(c:bool)->i64{let x=if c{return 1;}else{return 2;};return x+1;}",
-        "fn f(c:bool)->i64{let x=if c{value:if c{return 1;}else{return 2;};}else{return 3;};return x+1;}",
+        "fn F(c: view Bool) -> I64 {\n    let x = if c then {\n        return 1;\n    } else {\n        return 2;\n    };\n    return x + 1;\n}\n",
+        "fn F(c: view Bool) -> I64 {\n    let x = if c then (if c then {\n        return 1;\n    } else {\n        return 2;\n    }) else {\n        return 3;\n    };\n    return x + 1;\n}\n",
     ] {
         check_proposed(FILE, source, false).unwrap();
     }
@@ -851,71 +977,82 @@ fn returning_if_binding_can_flow_into_arithmetic_and_nested_arms() {
 
 #[test]
 fn missing_arguments_follow_declaration_order_and_point_to_missing_parameter() {
-    let d = error("fn f(x:i64,y:i64){} fn main(){f();}", false);
+    let source = "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F();\n}\n";
+    let d = error(source, false);
+    let target = byte_span(source, "F()", 0).0;
+    let first = byte_span(source, "x:", 0).0;
     exact(
         &d,
         "NX-E0111",
         Some("missing_argument"),
         Stage::Arguments,
         Operation::CallBind,
-        (30, 31),
-        &[(RelatedRole::Declaration, 5, 6)],
+        (target, target + 1),
+        &[(RelatedRole::Declaration, first, first + 1)],
         &[],
     );
-    let d = error("fn f(x:i64,y:i64){} fn main(){f(1);}", false);
+    let source = "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(1);\n}\n";
+    let d = error(source, false);
+    let target = byte_span(source, "F(1)", 0).0;
+    let second = byte_span(source, "y:", 0).0;
     exact(
         &d,
         "NX-E0111",
         Some("missing_argument"),
         Stage::Arguments,
         Operation::CallBind,
-        (30, 31),
-        &[(RelatedRole::Declaration, 11, 12)],
+        (target, target + 1),
+        &[(RelatedRole::Declaration, second, second + 1)],
         &[],
     );
 }
 
 #[test]
 fn heterogeneous_array_uses_first_element_as_expected_type_origin() {
-    let d = error("fn main(){let x=[1,true];}", false);
+    let source = "fn Main() {\n    let x = [1, true];\n}\n";
+    let d = error(source, false);
+    let first = byte_span(source, "[1,", 0).0 + 1;
+    let found = byte_span(source, "true", 0);
     exact(
         &d,
         "NX-E0102",
         Some("type_mismatch"),
         Stage::Types,
         Operation::TypesCheck,
-        (19, 23),
+        found,
         &[
-            (RelatedRole::ExpectedType, 17, 18),
-            (RelatedRole::FoundType, 19, 23),
+            (RelatedRole::ExpectedType, first, first + 1),
+            (RelatedRole::FoundType, found.0, found.1),
         ],
         &[
-            ("expected_type", datum("i64")),
-            ("found_type", datum("bool")),
+            ("expected_type", datum("I64")),
+            ("found_type", datum("Bool")),
         ],
     );
-    check_proposed(FILE, "fn main(){let x=[1,2];}", false).unwrap();
+    check_proposed(FILE, "fn Main() {\n    let x = [1, 2];\n}\n", false).unwrap();
 }
 
 #[test]
 fn expression_if_condition_requires_bool() {
-    let d = error("fn main(){let x=if 1{value:2;}else{value:3;};}", false);
+    let source = "fn Main() {\n    let x = if 1 then 2 else 3;\n}\n";
+    let d = error(source, false);
+    let condition = byte_span(source, "if 1", 0).0 + 3;
     exact(
         &d,
         "NX-E0102",
         Some("type_mismatch"),
         Stage::Types,
         Operation::TypesCheck,
-        (19, 20),
-        &[(RelatedRole::FoundType, 19, 20)],
+        (condition, condition + 1),
+        &[(RelatedRole::FoundType, condition, condition + 1)],
         &[
-            ("expected_type", datum("bool")),
-            ("found_type", datum("i64")),
+            ("expected_type", datum("Bool")),
+            ("found_type", datum("I64")),
         ],
     );
     check_proposed(
         FILE,
-        "fn main(){let x=if true{value:2;}else{value:3;};}",
+        "fn Main() {\n    let x = if true then 2 else 3;\n}\n",
         false,
     )
     .unwrap();
@@ -923,35 +1060,37 @@ fn expression_if_condition_requires_bool() {
 
 #[test]
 fn unit_function_accepts_empty_return_and_written_unit() {
-    for source in ["fn main(){return;}", "fn main(){return ();}"] {
+    for source in [
+        "fn Main() {\n    return;\n}\n",
+        "fn Main() {\n    return ();\n}\n",
+    ] {
         check_proposed(FILE, source, false).unwrap();
     }
 }
 
 #[test]
 fn names_inside_statement_then_and_expression_else_if_are_resolved() {
-    let d = error("fn main(){if true{zz();}}", false);
+    let source = "fn Main() {\n    if true {\n        zz();\n    }\n}\n";
+    let d = error(source, false);
     exact(
         &d,
         "NX-E0101",
         None,
         Stage::Names,
         Operation::NamesResolve,
-        (18, 20),
+        byte_span(source, "zz", 0),
         &[],
         &[("use_kind", datum("call_target"))],
     );
-    let d = error(
-        "fn main(){let x=if true{value:1;}else if true{zz();value:2;}else{value:3;};}",
-        false,
-    );
+    let source = "fn Main() {\n    let x = if true then 1 else (if true then {\n        zz();\n        value: 2;\n    } else 3);\n}\n";
+    let d = error(source, false);
     exact(
         &d,
         "NX-E0101",
         None,
         Stage::Names,
         Operation::NamesResolve,
-        (46, 48),
+        byte_span(source, "zz", 0),
         &[],
         &[("use_kind", datum("call_target"))],
     );
@@ -959,39 +1098,44 @@ fn names_inside_statement_then_and_expression_else_if_are_resolved() {
 
 #[test]
 fn invalid_binding_suppresses_dependent_type_cascade() {
-    let errors = check_proposed(FILE, "fn main(){let a=1+true;let b=a+1;}", false).unwrap_err();
+    let source = "fn Main() {\n    let a = 1 + true;\n    let b = a + 1;\n}\n";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(errors.len(), 1);
+    let mismatch = byte_span(source, "true", 0);
     exact(
         &errors[0],
         "NX-E0102",
         Some("type_mismatch"),
         Stage::Types,
         Operation::TypesCheck,
-        (18, 22),
-        &[(RelatedRole::FoundType, 18, 22)],
+        mismatch,
+        &[(RelatedRole::FoundType, mismatch.0, mismatch.1)],
         &[
-            ("expected_type", datum("i64")),
-            ("found_type", datum("bool")),
+            ("expected_type", datum("I64")),
+            ("found_type", datum("Bool")),
         ],
     );
 }
 
 #[test]
 fn if_else_scope_does_not_erase_outer_binding() {
-    let d = error("fn main(){let x=1;if true{}else{}let x=2;}", false);
+    let source = "fn Main() {\n    let x = 1;\n    if true {} else {}\n    let x = 2;\n}\n";
+    let d = error(source, false);
+    let first = byte_span(source, "x =", 0).0;
+    let second = byte_span(source, "x =", 1).0;
     exact(
         &d,
         "NX-E0104",
         None,
         Stage::Names,
         Operation::NamesDeclare,
-        (37, 38),
-        &[(RelatedRole::PreviousDeclaration, 14, 15)],
+        (second, second + 1),
+        &[(RelatedRole::PreviousDeclaration, first, first + 1)],
         &[("declaration_kind", datum("binding"))],
     );
     check_proposed(
         FILE,
-        "fn main(){let x=1;if true{let x=2;}else{let x=3;}}",
+        "fn Main() {\n    let x = 1;\n    if true {\n        let x = 2;\n    } else {\n        let x = 3;\n    }\n}\n",
         false,
     )
     .unwrap();
@@ -1000,9 +1144,9 @@ fn if_else_scope_does_not_erase_outer_binding() {
 #[test]
 fn written_type_spans_end_at_type_tokens_after_trivia() {
     for source in [
-        "fn f(x:bool)->i64{return true;}",
-        "fn f(x:bool)->i64\n{return true;}",
-        "fn f(x:bool)->i64 // note\n{return true;}",
+        "fn F(x:view Bool)->I64{return true;}",
+        "fn F(x:view Bool)->I64\n{return true;}",
+        "fn F(x:view Bool)->I64 // note\n{return true;}",
     ] {
         let d = error(source, false);
         assert_eq!(
@@ -1010,15 +1154,15 @@ fn written_type_spans_end_at_type_tokens_after_trivia() {
                 .iter()
                 .find(|r| r.role == RelatedRole::ExpectedType)
                 .map(|r| (r.span.start, r.span.end)),
-            Some((14, 17))
+            Some(byte_span(source, "I64", 0))
         );
     }
     for source in [
-        "fn main(){let a:\ni64=true;}",
-        "fn main(){let a: // note\ni64=true;}",
+        "fn Main(){let a:\nI64=true;}",
+        "fn Main(){let a: // note\nI64=true;}",
     ] {
         let d = error(source, false);
-        let start = source.find("i64").unwrap() as u64;
+        let start = source.find("I64").unwrap() as u64;
         assert_eq!(
             d.related_spans
                 .iter()
@@ -1028,11 +1172,11 @@ fn written_type_spans_end_at_type_tokens_after_trivia() {
         );
     }
     for source in [
-        "fn f(x:\nbool){} fn main(){f(1);}",
-        "fn f(x: // note\nbool){} fn main(){f(1);}",
+        "fn F(x:\nview Bool){} fn Main(){F(1);}",
+        "fn F(x: // note\nview Bool){} fn Main(){F(1);}",
     ] {
         let d = error(source, false);
-        let start = source.find("bool").unwrap() as u64;
+        let start = source.find("Bool").unwrap() as u64;
         assert_eq!(
             d.related_spans
                 .iter()
@@ -1045,34 +1189,38 @@ fn written_type_spans_end_at_type_tokens_after_trivia() {
 
 #[test]
 fn names_errors_precede_arguments_and_independent_sites_accumulate() {
-    let source = "fn f(x:i64){} fn main(){f();ausente();}";
+    let source = "fn F(x: view I64) {}\nfn Main() {\n    F();\n    ausente();\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 1);
     assert_eq!(
         (&ds[0].code, ds[0].stage),
         (&"NX-E0101".to_owned(), Stage::Names)
     );
-    let source = "fn f(x:i64){} fn main(){f();let x=1;let x=2;}";
+    let source = "fn F(x: view I64) {}\nfn Main() {\n    F();\n    let x = 1;\n    let x = 2;\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 1);
     assert_eq!(
         (&ds[0].code, ds[0].stage),
         (&"NX-E0104".to_owned(), Stage::Names)
     );
-    let source = "fn main(){a1();a2();a3();}";
+    let source = "fn Main() {\n    a1();\n    a2();\n    a3();\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 3);
     assert_eq!(
         ds.iter()
             .map(|d| d.primary_span.as_ref().unwrap().start)
             .collect::<Vec<_>>(),
-        vec![10, 15, 20]
+        vec![
+            byte_span(source, "a1", 0).0,
+            byte_span(source, "a2", 0).0,
+            byte_span(source, "a3", 0).0,
+        ]
     );
     assert!(
         ds.iter()
             .all(|d| d.code == "NX-E0101" && d.stage == Stage::Names)
     );
-    let source = "fn f(x:i64){} fn main(){f();f();f();}";
+    let source = "fn F(x: view I64) {}\nfn Main() {\n    F();\n    F();\n    F();\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 3);
     assert!(
@@ -1084,12 +1232,13 @@ fn names_errors_precede_arguments_and_independent_sites_accumulate() {
 
 #[test]
 fn mode_defect_precedes_missing_or_excess_arguments() {
-    let source = "fn f(inout x:i64,y:i64){} fn main(){var a=1;f(a);}";
+    let source = "fn F(x: edit I64, y: view I64) {}\nfn Main() {\n    var a = 1;\n    F(a);\n}\n";
     assert_eq!(
         error(source, false).subcause.as_deref(),
         Some("argument_mode_mismatch")
     );
-    let source = "fn f(inout x:i64,y:i64){} fn main(){var a=1;f(a,1,2);}";
+    let source =
+        "fn F(x: edit I64, y: view I64) {}\nfn Main() {\n    var a = 1;\n    F(a, 1, 2);\n}\n";
     assert_eq!(
         error(source, false).subcause.as_deref(),
         Some("argument_mode_mismatch")
@@ -1099,8 +1248,11 @@ fn mode_defect_precedes_missing_or_excess_arguments() {
 #[test]
 fn operator_span_ignores_matching_text_in_comments() {
     for (source, op) in [
-        ("fn main(){let x=true\n// <\n< false;}", "<"),
-        ("fn main(){let r=mock_open(1);let b=r // ==\n==r;}", "=="),
+        ("fn Main() {\n    let x = true < false;\n}\n", "<"),
+        (
+            "fn Main() {\n    let r = MockOpen(1);\n    let b = r == r;\n}\n",
+            "==",
+        ),
     ] {
         let d = error(source, false);
         let at = source.rfind(op).unwrap() as u64;
@@ -1110,58 +1262,50 @@ fn operator_span_ignores_matching_text_in_comments() {
 
 #[test]
 fn len_uses_manifest_label_a() {
-    check_proposed(FILE, "fn main(){let n=len(a:[1]);}", false).unwrap();
-    let d = error("fn main(){let n=len(v:[1]);}", false);
+    check_proposed(FILE, "fn Main() {\n    let n = Len(a: [1]);\n}\n", false).unwrap();
+    let d = error("fn Main() {\n    let n = Len(v: [1]);\n}\n", false);
     assert_eq!(d.subcause.as_deref(), Some("unknown_argument_label"));
 }
 
 #[test]
 fn manifest_primitives_accept_only_their_written_labels_and_results() {
     let cases = [
-        ("mock_open(label:1)", "MockResource", "mock_open(wrong:1)"),
+        ("MockOpen(label:1)", "MockResource", "MockOpen(wrong:1)"),
         (
-            "mock_blocking_open(label:1)",
+            "MockBlockingOpen(label:1)",
             "MockBlockingResource",
-            "mock_blocking_open(wrong:1)",
+            "MockBlockingOpen(wrong:1)",
+        ),
+        ("Inspect(r:MockOpen(1))", "()", "Inspect(wrong:MockOpen(1))"),
+        ("Drop(v:1)", "()", "Drop(wrong:1)"),
+        ("Len(a:[1])", "I64", "Len(wrong:[1])"),
+        ("TryAdd(a:1,b:2)", "Result<I64,I64>", "TryAdd(wrong:1,b:2)"),
+        ("AssertEq(a:1,b:1)", "()", "AssertEq(wrong:1,b:1)"),
+        ("Print(v:1)", "()", "Print(wrong:1)"),
+        ("Fail()", "()", "Fail(wrong:1)"),
+        (
+            "MockReadRecords(r:MockOpen(1))",
+            "Result<Array<Result<I64,I64>>,I64>",
+            "MockReadRecords(wrong:MockOpen(1))",
         ),
         (
-            "inspect(r:mock_open(1))",
-            "()",
-            "inspect(wrong:mock_open(1))",
+            "MockWriteI64(n:1)",
+            "Result<(),I64>",
+            "MockWriteI64(wrong:1)",
         ),
-        ("drop(v:1)", "()", "drop(wrong:1)"),
-        ("len(a:[1])", "i64", "len(wrong:[1])"),
+        ("MockRequest()", "Result<I64,I64>", "MockRequest(wrong:1)"),
         (
-            "try_add(a:1,b:2)",
-            "Result<i64,i64>",
-            "try_add(wrong:1,b:2)",
+            "MockReply(status:1)",
+            "Result<(),I64>",
+            "MockReply(wrong:1)",
         ),
-        ("assert_eq(a:1,b:1)", "()", "assert_eq(wrong:1,b:1)"),
-        ("print(v:1)", "()", "print(wrong:1)"),
-        ("fail()", "()", "fail(wrong:1)"),
-        (
-            "mock_read_records(r:mock_open(1))",
-            "Result<Array<Result<i64,i64>>,i64>",
-            "mock_read_records(wrong:mock_open(1))",
-        ),
-        (
-            "mock_write_i64(n:1)",
-            "Result<(),i64>",
-            "mock_write_i64(wrong:1)",
-        ),
-        ("mock_request()", "Result<i64,i64>", "mock_request(wrong:1)"),
-        (
-            "mock_reply(status:1)",
-            "Result<(),i64>",
-            "mock_reply(wrong:1)",
-        ),
-        ("mock_unknown()", "()", "mock_unknown(wrong:1)"),
+        ("MockUnknown()", "()", "MockUnknown(wrong:1)"),
     ];
     for (call, result, wrong) in cases {
-        let positive = format!("fn main(){{let x:{result}={call};}}");
+        let positive = format!("fn Main(){{let x:{result}={call};}}");
         check_proposed(FILE, &positive, false)
             .unwrap_or_else(|d| panic!("{call}: {} {:?}", d[0].code, d[0].primary_span));
-        let negative = format!("fn main(){{{wrong};}}");
+        let negative = format!("fn Main(){{{wrong};}}");
         let d = error(&negative, false);
         assert_eq!(
             d.subcause.as_deref(),
@@ -1174,13 +1318,13 @@ fn manifest_primitives_accept_only_their_written_labels_and_results() {
 #[test]
 fn a_returning_if_branch_does_not_contribute_a_value_type() {
     for source in [
-        "fn f()->i64{let x=if true{return 1;}else{value:2;};return x;}",
-        "fn f()->i64{let x=if true{value:2;}else{return 1;};return x;}",
-        "fn f()->i64{let x:i64=if true{return 1;}else{value:2;};return x;}",
-        "fn f()->i64{let x:i64=if true{value:2;}else{return 1;};return x;}",
-        "fn f()->i64{let x:i64=if true{return 1;}else{return 2;};return 3;}",
-        "fn f()->i64{let x:i64=if true{value:if true{return 1;}else{return 2;};}else{value:3;};return x;}",
-        "fn f()->i64{let x=if true{value:if true{return 1;}else{return 2;};}else{value:3;};return x;}",
+        "fn F() -> I64 {\n    let x = if true then {\n        return 1;\n    } else 2;\n    return x;\n}\n",
+        "fn F() -> I64 {\n    let x = if true then 2 else {\n        return 1;\n    };\n    return x;\n}\n",
+        "fn F() -> I64 {\n    let x: I64 = if true then {\n        return 1;\n    } else 2;\n    return x;\n}\n",
+        "fn F() -> I64 {\n    let x: I64 = if true then 2 else {\n        return 1;\n    };\n    return x;\n}\n",
+        "fn F() -> I64 {\n    let x: I64 = if true then {\n        return 1;\n    } else {\n        return 2;\n    };\n    return 3;\n}\n",
+        "fn F() -> I64 {\n    let x: I64 = if true then (if true then {\n        return 1;\n    } else {\n        return 2;\n    }) else 3;\n    return x;\n}\n",
+        "fn F() -> I64 {\n    let x = if true then (if true then {\n        return 1;\n    } else {\n        return 2;\n    }) else 3;\n    return x;\n}\n",
     ] {
         check_proposed(FILE, source, false).unwrap();
     }
@@ -1190,7 +1334,7 @@ fn a_returning_if_branch_does_not_contribute_a_value_type() {
 fn branch_without_value_waits_for_flow_analysis() {
     check_proposed(
         FILE,
-        "fn main(){let x=if true{}else{value:2;};let y=x+1;}",
+        "fn Main() {\n    let x = if true then {} else 2;\n    let y = x + 1;\n}\n",
         false,
     )
     .unwrap();
@@ -1199,13 +1343,13 @@ fn branch_without_value_waits_for_flow_analysis() {
 #[test]
 fn else_if_type_union_uses_first_normal_continuation() {
     for source in [
-        "fn main(){let x=if true{value:1;}else if false{value:true;}else{value:2;};}",
-        "fn main(){let x=if true{value:1;}else if false{value:1;}else{value:true;};}",
+        "fn Main(){let x=if true then {value:1;}else (if false then {value:true;}else{value:2;});}",
+        "fn Main(){let x=if true then {value:1;}else (if false then {value:1;}else{value:true;});}",
     ] {
         let d = error(source, false);
         assert_eq!(d.code, "NX-E1303");
-        assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-        assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
+        assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+        assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
         let first = source.find("value:1;").unwrap() as u64 + 6;
         let bad = source.find("value:true;").unwrap() as u64 + 6;
         assert_eq!(d.primary_span, Some(sp(bad, bad + 4)));
@@ -1224,41 +1368,46 @@ fn else_if_type_union_uses_first_normal_continuation() {
 
 #[test]
 fn positional_after_multiple_named_arguments_relates_first_label() {
-    let d = error("fn f(x:i64,y:i64,z:i64){} fn main(){f(x:1,y:2,3);}", false);
+    let source =
+        "fn F(x: view I64, y: view I64, z: view I64) {}\nfn Main() {\n    F(x: 1, y: 2, 3);\n}\n";
+    let d = error(source, false);
     assert_eq!(d.subcause.as_deref(), Some("positional_after_named"));
     assert_eq!(
         d.related_spans
             .iter()
             .find(|r| r.role == RelatedRole::Context)
             .map(|r| (r.span.start, r.span.end)),
-        Some((38, 39))
+        Some((
+            byte_span(source, "F(x:", 1).0 + 2,
+            byte_span(source, "F(x:", 1).0 + 3
+        ))
     );
 }
 
 #[test]
 fn independent_diagnostics_are_sorted_and_invalid_call_descendants_are_skipped() {
-    let source = "fn a(){} fn a(){} fn b(){} fn b(){} fn main(){}";
+    let source = "fn A() {}\nfn A() {}\nfn B() {}\nfn B() {}\nfn Main() {}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 2);
     assert!(
         ds.iter()
             .all(|d| d.code == "NX-E0104" && d.stage == Stage::Names)
     );
-    let source = "fn main(){let a:i64=true;let b:bool=1;let c=a;}";
+    let source = "fn Main() {\n    let a: I64 = true;\n    let b: Bool = 1;\n    let c = a;\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 2);
     assert!(
         ds.iter()
             .all(|d| d.code == "NX-E0102" && d.stage == Stage::Types)
     );
-    let source = "fn main(){let a=missing;let b=absent;let c=a;}";
+    let source = "fn Main() {\n    let a = missing;\n    let b = absent;\n    let c = a;\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 2);
     assert!(
         ds.iter()
             .all(|d| d.code == "NX-E0101" && d.stage == Stage::Names)
     );
-    let mut source = String::from("fn main(){");
+    let mut source = String::from("fn Main(){");
     for i in 0..8 {
         source.push_str(&format!("a{i}();"));
     }
@@ -1270,16 +1419,19 @@ fn independent_diagnostics_are_sorted_and_invalid_call_descendants_are_skipped()
             .all(|pair| pair[0].primary_span.as_ref().unwrap().start
                 < pair[1].primary_span.as_ref().unwrap().start)
     );
-    let source = "fn main(){missing(a1());a2();}";
+    let source = "fn Main() {\n    missing(a1());\n    a2();\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 2);
     assert_eq!(
         ds.iter()
             .map(|d| d.primary_span.as_ref().unwrap().start)
             .collect::<Vec<_>>(),
-        vec![10, 24]
+        vec![
+            byte_span(source, "missing", 0).0,
+            byte_span(source, "a2", 0).0
+        ]
     );
-    let source = "fn f(x:i64){} fn main(){f(z:missing());f();}";
+    let source = "fn F(x: view I64) {}\nfn Main() {\n    F(z: missing());\n    F();\n}\n";
     let ds = check_proposed(FILE, source, false).unwrap_err();
     assert_eq!(ds.len(), 1);
     assert_eq!(ds[0].code, "NX-E0101");
@@ -1287,20 +1439,24 @@ fn independent_diagnostics_are_sorted_and_invalid_call_descendants_are_skipped()
 
 #[test]
 fn main_signature_context_ends_at_last_signature_token() {
-    let d = error("fn main(x:i64) // note\n {}", true);
+    let source = "fn Main(x: view I64) {}\n";
+    let d = error(source, true);
     assert_eq!(d.subcause.as_deref(), Some("invalid_main_signature"));
     assert_eq!(
         d.related_spans
             .iter()
             .find(|r| r.role == RelatedRole::Context)
             .map(|r| (r.span.start, r.span.end)),
-        Some((0, 14))
+        Some((0, byte_span(source, ")", 0).1))
     );
 }
 
 #[test]
 fn prelude_functions_cannot_be_read_as_values() {
-    for source in ["fn main(){let a=len;}", "fn main(){assert_eq(print,());}"] {
+    for source in [
+        "fn Main() {\n    let a = Len;\n}\n",
+        "fn Main() {\n    AssertEq(Print, ());\n}\n",
+    ] {
         let d = error(source, false);
         assert_eq!(d.code, "NX-E0006");
         assert_eq!(d.feature_id.as_deref(), Some("function_value"));
@@ -1310,9 +1466,9 @@ fn prelude_functions_cannot_be_read_as_values() {
 
 #[test]
 fn missing_argument_points_to_target_after_other_written_arguments() {
-    let source = "fn f(x:i64,y:i64){} fn main(){f(1);}";
+    let source = "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(1);\n}\n";
     let d = error(source, false);
-    let at = source.rfind("f(1)").unwrap() as u64;
+    let at = byte_span(source, "F(1)", 0).0;
     assert_eq!(d.subcause.as_deref(), Some("missing_argument"));
     assert_eq!(d.primary_span, Some(sp(at, at + 1)));
     assert_eq!(
@@ -1323,28 +1479,33 @@ fn missing_argument_points_to_target_after_other_written_arguments() {
 
 #[test]
 fn main_result_is_unit_or_result_unit_i64() {
-    let d = error("fn main()->i64{return 1;}", true);
+    let d = error("fn Main() -> I64 {\n    return 1;\n}\n", true);
     assert_eq!(d.subcause.as_deref(), Some("invalid_main_signature"));
     assert_eq!(d.stage, Stage::Entry);
-    check_proposed(FILE, "fn main()->Result<(),i64>{return Ok(());}", true).unwrap();
+    check_proposed(
+        FILE,
+        "fn Main() -> Result<(), I64> {\n    return Ok(());\n}\n",
+        true,
+    )
+    .unwrap();
 }
 
 #[test]
 fn resource_primitive_domains_match_manifest() {
     check_proposed(
         FILE,
-        "fn main(){let r=mock_blocking_open(1);inspect(r);}",
+        "fn Main() {\n    let r = MockBlockingOpen(1);\n    Inspect(r);\n}\n",
         false,
     )
     .unwrap();
-    let d = error("fn main(){inspect(1);}", false);
+    let d = error("fn Main() {\n    Inspect(1);\n}\n", false);
     assert_eq!(d.subcause.as_deref(), Some("resource_required"));
     assert_eq!(
         d.data.get("expected_type"),
         Some(&datum("domain:mock_resource"))
     );
     let d = error(
-        "fn main(){let r=mock_blocking_open(1);mock_read_records(r);}",
+        "fn Main() {\n    let r = MockBlockingOpen(1);\n    MockReadRecords(r);\n}\n",
         false,
     );
     assert_eq!(d.data.get("expected_type"), Some(&datum("MockResource")));
@@ -1352,7 +1513,10 @@ fn resource_primitive_domains_match_manifest() {
         d.data.get("found_type"),
         Some(&datum("MockBlockingResource"))
     );
-    let d = error("fn main(){let r=mock_open(1);assert_eq(a:r,b:r);}", false);
+    let d = error(
+        "fn Main() {\n    let r = MockOpen(1);\n    AssertEq(a: r, b: r);\n}\n",
+        false,
+    );
     assert_eq!(
         d.data.get("expected_type"),
         Some(&datum("domain:copyable_data"))
@@ -1362,37 +1526,43 @@ fn resource_primitive_domains_match_manifest() {
 
 #[test]
 fn conditions_require_bool_and_assignment_keeps_written_type_origin() {
-    for source in ["fn main(){if 1{}}", "fn main(){while 1{}}"] {
+    for source in [
+        "fn Main() {\n    if 1 {}\n}\n",
+        "fn Main() {\n    while 1 {}\n}\n",
+    ] {
         let d = error(source, false);
-        assert_eq!(d.data.get("expected_type"), Some(&datum("bool")));
-        assert_eq!(d.data.get("found_type"), Some(&datum("i64")));
+        assert_eq!(d.data.get("expected_type"), Some(&datum("Bool")));
+        assert_eq!(d.data.get("found_type"), Some(&datum("I64")));
     }
-    let d = error("fn main(){var x:i64=1;x=true;}", false);
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
+    let source = "fn Main() {\n    var x: I64 = 1;\n    x = true;\n}\n";
+    let d = error(source, false);
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
     assert_eq!(
         d.related_spans
             .iter()
             .find(|r| r.role == RelatedRole::ExpectedType)
             .map(|r| (r.span.start, r.span.end)),
-        Some((16, 19))
+        Some(byte_span(source, "I64", 0))
     );
 }
 
 #[test]
 fn mode_uses_associated_parameter_not_first_parameter() {
-    let source = "fn f(x:i64,inout y:i64){} fn main(){var a=1;f(1,a);}";
+    let source =
+        "fn F(x: view I64, y: edit I64) {}\nfn Main() {\n    var a = 1;\n    F(1, a);\n}\n";
     let d = error(source, false);
+    let parameter = byte_span(source, "y:", 0).0;
     assert_eq!(d.subcause.as_deref(), Some("argument_mode_mismatch"));
     assert_eq!(
         d.related_spans
             .iter()
             .find(|r| r.role == RelatedRole::Declaration)
             .map(|r| (r.span.start, r.span.end)),
-        Some((17, 18))
+        Some((parameter, parameter + 1))
     );
     check_proposed(
         FILE,
-        "fn f(x:i64,inout y:i64){} fn main(){var a=1;f(1,inout a);}",
+        "fn F(x: view I64, y: edit I64) {}\nfn Main() {\n    var a = 1;\n    F(1, edit a);\n}\n",
         false,
     )
     .unwrap();
@@ -1400,32 +1570,37 @@ fn mode_uses_associated_parameter_not_first_parameter() {
 
 #[test]
 fn adr_gap_array_element_mismatch_uses_element_primary_and_whole_annotation_context() {
-    let d = error("fn main(){let a:Array<i64>=[true];}", false);
-    assert_eq!(d.primary_span, Some(sp(28, 32)));
+    let source = "fn Main() {\n    let a: Array<I64> = [true];\n}\n";
+    let d = error(source, false);
+    let found = byte_span(source, "true", 0);
+    let expected = byte_span(source, "Array<I64>", 0);
+    assert_eq!(d.primary_span, Some(sp(found.0, found.1)));
     assert_eq!(
         d.related_spans
             .iter()
             .map(|r| (r.role, r.span.start, r.span.end))
             .collect::<Vec<_>>(),
         vec![
-            (RelatedRole::ExpectedType, 16, 26),
-            (RelatedRole::FoundType, 28, 32)
+            (RelatedRole::ExpectedType, expected.0, expected.1),
+            (RelatedRole::FoundType, found.0, found.1)
         ]
     );
 }
 
 #[test]
 fn adr_gap_primitive_domain_primary_is_first_offending_argument() {
-    let d = error("fn main(){len(a:1);}", false);
-    assert_eq!(d.primary_span, Some(sp(16, 17)));
+    let source = "fn Main() {\n    Len(a: 1);\n}\n";
+    let d = error(source, false);
+    let primary = byte_span(source, "1", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
     assert_eq!(d.subcause.as_deref(), Some("not_indexable"));
-    let source = "fn main(){assert_eq(a:mock_open(1),b:mock_open(2));}";
+    let source = "fn Main() {\n    AssertEq(a: MockOpen(1), b: MockOpen(2));\n}\n";
     let d = error(source, false);
     assert_eq!(
         d.primary_span
             .as_ref()
             .map(|s| &source[s.start as usize..s.end as usize]),
-        Some("mock_open(1)")
+        Some("MockOpen(1)")
     );
     assert_eq!(
         d.data.get("expected_type"),
@@ -1435,17 +1610,23 @@ fn adr_gap_primitive_domain_primary_is_first_offending_argument() {
 
 #[test]
 fn adr_gap_inout_to_ordinary_parameter_uses_place_primary() {
-    let d = error("fn f(x:i64){} fn main(){var x=1;f(inout x);}", false);
-    assert_eq!(d.primary_span, Some(sp(40, 41)));
+    let source = "fn F(x: view I64) {}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n";
+    let d = error(source, false);
+    let primary = byte_span(source, "x", 2);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
     assert_eq!(d.subcause.as_deref(), Some("argument_mode_mismatch"));
 }
 
 #[test]
 fn adr_gap_non_name_call_target_uses_whole_target_span() {
-    let d = error("fn main(){1();}", false);
-    assert_eq!(d.primary_span, Some(sp(10, 11)));
-    let d = error("fn f(x:i64)->i64{return x;} fn main(){f(1)(2);}", false);
-    assert_eq!(d.primary_span, Some(sp(38, 42)));
+    let source = "fn Main() {\n    1();\n}\n";
+    let d = error(source, false);
+    let primary = byte_span(source, "1", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
+    let source = "fn F(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    F(1)(2);\n}\n";
+    let d = error(source, false);
+    let primary = byte_span(source, "F(1)", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
     assert_eq!(d.subcause.as_deref(), Some("non_callable_target"));
 }
 
@@ -1453,42 +1634,53 @@ fn adr_gap_non_name_call_target_uses_whole_target_span() {
 fn adr_gap_result_constructor_payload_label_is_v() {
     check_proposed(
         FILE,
-        "fn main(){let x:Result<i64,i64>=Ok(v:1);let y:Result<i64,i64>=Err(v:1);}",
+        "fn Main() {\n    let x: Result<I64, I64> = Ok(v: 1);\n    let y: Result<I64, I64> = Err(v: 1);\n}\n",
         false,
     )
     .unwrap();
-    let d = error("fn main(){let x:Result<i64,i64>=Ok(value:1);}", false);
+    let source = "fn Main() {\n    let x: Result<I64, I64> = Ok(value: 1);\n}\n";
+    let d = error(source, false);
     assert_eq!(d.subcause.as_deref(), Some("unknown_argument_label"));
-    assert_eq!(d.primary_span, Some(sp(35, 40)));
+    let primary = byte_span(source, "value", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
 }
 
 #[test]
 fn adr_gap_empty_array_without_array_context_reports_inference_error() {
-    let d = error("fn main(){let x:i64=[];}", false);
+    let source = "fn Main() {\n    let x: I64 = [];\n}\n";
+    let d = error(source, false);
     assert_eq!(d.code, "NX-E0103");
-    assert_eq!(d.primary_span, Some(sp(20, 22)));
-    let d = error("fn main(){let a=[1];let b=[]==a;}", false);
+    let primary = byte_span(source, "[]", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
+    let source = "fn Main() {\n    let a = [1];\n    let b = [] == a;\n}\n";
+    let d = error(source, false);
     assert_eq!(d.code, "NX-E0103");
-    assert_eq!(d.primary_span, Some(sp(26, 28)));
+    let primary = byte_span(source, "[]", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
 }
 
 #[test]
 fn adr_gap_grouped_absent_target_keeps_call_target_use_kind() {
-    let d = error("fn main(){(ausente)();}", false);
-    assert_eq!(d.primary_span, Some(sp(11, 18)));
+    let source = "fn Main() {\n    (ausente)();\n}\n";
+    let d = error(source, false);
+    let primary = byte_span(source, "ausente", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
     assert_eq!(d.data.get("use_kind"), Some(&datum("call_target")));
 }
 
 #[test]
 fn adr_gap_explicit_empty_return_uses_keyword_primary() {
-    let d = error("fn f()->i64{return;}", false);
-    assert_eq!(d.primary_span, Some(sp(12, 18)));
+    let source = "fn F() -> I64 {\n    return;\n}\n";
+    let d = error(source, false);
+    let primary = byte_span(source, "return", 0);
+    let expected = byte_span(source, "I64", 0);
+    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
     assert_eq!(
         d.related_spans
             .iter()
             .map(|r| (r.role, r.span.start, r.span.end))
             .collect::<Vec<_>>(),
-        vec![(RelatedRole::ExpectedType, 8, 11)]
+        vec![(RelatedRole::ExpectedType, expected.0, expected.1)]
     );
 }
 
@@ -1496,13 +1688,13 @@ fn adr_gap_explicit_empty_return_uses_keyword_primary() {
 fn integer_boundaries_are_signed_i64() {
     check_proposed(
         FILE,
-        "fn main(){let a=9223372036854775807;let b=-9223372036854775808;}",
+        "fn Main() {\n    let a = 9223372036854775807;\n    let b = -9223372036854775808;\n}\n",
         false,
     )
     .unwrap();
     for source in [
-        "fn main(){let a=9223372036854775808;}",
-        "fn main(){let a=-9223372036854775809;}",
+        "fn Main() {\n    let a = 9223372036854775808;\n}\n",
+        "fn Main() {\n    let a = -9223372036854775809;\n}\n",
     ] {
         let d = error(source, false);
         assert_eq!(
@@ -1513,7 +1705,7 @@ fn integer_boundaries_are_signed_i64() {
             d.primary_span
                 .as_ref()
                 .map(|s| &source[s.start as usize..s.end as usize]),
-            Some(if source.contains("=-") {
+            Some(if source.contains("-9223372036854775809") {
                 "-9223372036854775809"
             } else {
                 "9223372036854775808"
@@ -1526,36 +1718,25 @@ fn integer_boundaries_are_signed_i64() {
 #[test]
 fn comparisons_use_right_operand_for_mismatch_and_operator_for_domain() {
     let cases = [
+        ("fn Main(){let b=true<false;}", "<", "I64", "Bool", "true"),
+        ("fn Main(){let b=[1]<[2];}", "<", "I64", "Array<I64>", "[1]"),
+        ("fn Main(){let b=1==true;}", "true", "I64", "Bool", "true"),
         (
-            "fn main(){let b=true<false;}",
-            (20, 21),
-            "i64",
-            "bool",
-            (16, 20),
-        ),
-        (
-            "fn main(){let b=[1]<[2];}",
-            (19, 20),
-            "i64",
-            "Array<i64>",
-            (16, 19),
-        ),
-        (
-            "fn main(){let b=1==true;}",
-            (19, 23),
-            "i64",
-            "bool",
-            (19, 23),
-        ),
-        (
-            "fn main(){let r=mock_open(1);let b=r==r;}",
-            (36, 38),
+            "fn Main() {\n    let r = MockOpen(1);\n    let b = r == r;\n}\n",
+            "==",
             "domain:copyable_data",
             "MockResource",
-            (35, 36),
+            "r ==",
         ),
     ];
-    for (source, primary, expected, found, found_span) in cases {
+    for (source, primary_needle, expected, found, found_needle) in cases {
+        let primary = byte_span(source, primary_needle, 0);
+        let found_span = if found_needle == "r ==" {
+            let start = byte_span(source, found_needle, 0).0;
+            (start, start + 1)
+        } else {
+            byte_span(source, found_needle, 0)
+        };
         let d = error(source, false);
         assert_eq!(
             (d.code.as_str(), d.subcause.as_deref(), d.stage, d.operation),
@@ -1580,7 +1761,7 @@ fn comparisons_use_right_operand_for_mismatch_and_operator_for_domain() {
     }
     check_proposed(
         FILE,
-        "fn main(){let a=[1];let b=[2];let x=a==b;let y=1<2;let z=()==();}",
+        "fn Main() {\n    let a = [1];\n    let b = [2];\n    let x = a == b;\n    let y = 1 < 2;\n    let z = () == ();\n}\n",
         false,
     )
     .unwrap();
@@ -1590,49 +1771,49 @@ fn comparisons_use_right_operand_for_mismatch_and_operator_for_domain() {
 fn published_comparison_diagnostics_have_exact_related_locations_and_data() {
     let cases = [
         (
-            "fn main(){let b=true<false;}",
+            "fn Main(){let b=true<false;}",
             (20, 21),
             vec![(RelatedRole::FoundType, 16, 20)],
-            "i64",
-            "bool",
+            "I64",
+            "Bool",
         ),
         (
-            "fn main(){let b=[1]<[2];}",
+            "fn Main(){let b=[1]<[2];}",
             (19, 20),
             vec![(RelatedRole::FoundType, 16, 19)],
-            "i64",
-            "Array<i64>",
+            "I64",
+            "Array<I64>",
         ),
         (
-            "fn main(){let b=1==true;}",
+            "fn Main(){let b=1==true;}",
             (19, 23),
             vec![
                 (RelatedRole::ExpectedType, 16, 17),
                 (RelatedRole::FoundType, 19, 23),
             ],
-            "i64",
-            "bool",
+            "I64",
+            "Bool",
         ),
         (
-            "fn main(){let r=mock_open(1);let b=r==r;}",
-            (36, 38),
-            vec![(RelatedRole::FoundType, 35, 36)],
+            "fn Main(){let r=MockOpen(1);let b=r==r;}",
+            (35, 37),
+            vec![(RelatedRole::FoundType, 34, 35)],
             "domain:copyable_data",
             "MockResource",
         ),
         (
-            "fn main(){let a:Result<i64,i64>=Ok(1);let b=a<a;}",
+            "fn Main(){let a:Result<I64,I64>=Ok(1);let b=a<a;}",
             (45, 46),
             vec![(RelatedRole::FoundType, 44, 45)],
-            "i64",
-            "Result<i64,i64>",
+            "I64",
+            "Result<I64,I64>",
         ),
         (
-            "fn main(){let a:Result<MockResource,i64>=Ok(mock_open(1));let b=a==a;}",
-            (65, 67),
-            vec![(RelatedRole::FoundType, 64, 65)],
+            "fn Main(){let a:Result<MockResource,I64>=Ok(MockOpen(1));let b=a==a;}",
+            (64, 66),
+            vec![(RelatedRole::FoundType, 63, 64)],
             "domain:copyable_data",
-            "Result<MockResource,i64>",
+            "Result<MockResource,I64>",
         ),
     ];
     for (source, primary, related, expected, found) in cases {
@@ -1655,7 +1836,7 @@ fn published_comparison_diagnostics_have_exact_related_locations_and_data() {
 
 #[test]
 fn resource_arrays_are_rejected_after_alias_resolution_and_in_written_types() {
-    let source = "fn main(){let r=mock_open(1);let a=[r];}";
+    let source = "fn Main() {\n    let r = MockOpen(1);\n    let a = [r];\n}\n";
     let d = error(source, false);
     assert_eq!(
         (
@@ -1672,24 +1853,29 @@ fn resource_arrays_are_rejected_after_alias_resolution_and_in_written_types() {
         )
     );
     assert_eq!(d.data.get("pending_scope"), Some(&datum("later_adr")));
-    let source = "fn f(a:Array<MockResource>){} fn main(){}";
+    let source = "fn F(a: view Array<MockResource>) {}\nfn Main() {}\n";
     let d = error(source, false);
     assert_eq!(
         (d.code.as_str(), d.feature_id.as_deref(), d.stage),
         ("NX-E0006", Some("resource_array"), Stage::Types)
     );
-    let d = error("fn main(){let r=mock_open(1);drop([r]);}", false);
+    let d = error(
+        "fn Main() {\n    let r = MockOpen(1);\n    Drop([r]);\n}\n",
+        false,
+    );
     assert_eq!(
         (d.code.as_str(), d.feature_id.as_deref(), d.stage),
         ("NX-E0006", Some("resource_array"), Stage::Types)
     );
-    check_proposed(FILE, "fn main(){let a:Array<i64>=[];}", false).unwrap();
+    check_proposed(FILE, "fn Main() {\n    let a: Array<I64> = [];\n}\n", false).unwrap();
 }
 
 #[test]
 fn intrinsic_drop_rejects_projected_owner_but_user_drop_can_read_it() {
-    let source = "fn main(){let a=[1];drop(a[0]);}";
+    let source = "fn Main() {\n    let a = [1];\n    Drop(a[0]);\n}\n";
     let d = error(source, false);
+    let index = byte_span(source, "a[0]", 0);
+    let target = byte_span(source, "Drop", 0);
     assert_eq!(
         (
             d.code.as_str(),
@@ -1703,7 +1889,7 @@ fn intrinsic_drop_rejects_projected_owner_but_user_drop_can_read_it() {
             Some("partial_transfer"),
             Stage::Arguments,
             Operation::CallBind,
-            Some(sp(25, 29))
+            Some(sp(index.0, index.1))
         )
     );
     assert_eq!(
@@ -1711,72 +1897,87 @@ fn intrinsic_drop_rejects_projected_owner_but_user_drop_can_read_it() {
             .iter()
             .map(|r| (r.role, r.span.start, r.span.end))
             .collect::<Vec<_>>(),
-        vec![(RelatedRole::Context, 20, 24)]
+        vec![(RelatedRole::Context, target.0, target.1)]
     );
     assert_eq!(d.data.get("pending_scope"), Some(&datum("later_adr")));
-    check_proposed(FILE, "fn main(){let a=[1];drop(a);}", false).unwrap();
     check_proposed(
         FILE,
-        "fn drop(x:i64){} fn main(){let a=[1];drop(a[0]);}",
+        "fn Main() {\n    let a = [1];\n    Drop(a);\n}\n",
         false,
     )
     .unwrap();
-    check_proposed(FILE, "fn main(){drop([1][0]);}", false).unwrap();
+    check_proposed(
+        FILE,
+        "fn Drop(x: view I64) {}\nfn Main() {\n    let a = [1];\n    Drop(a[0]);\n}\n",
+        false,
+    )
+    .unwrap();
+    check_proposed(FILE, "fn Main() {\n    Drop([1][0]);\n}\n", false).unwrap();
 }
 
 #[test]
 fn array_element_context_and_empty_array_inference_are_independent() {
-    let d = error("fn main(){let xs=[];}", false);
+    let source = "fn Main() {\n    let xs = [];\n}\n";
+    let d = error(source, false);
     exact(
         &d,
         "NX-E0103",
         None,
         Stage::Types,
         Operation::TypesInfer,
-        (17, 19),
+        byte_span(source, "[]", 0),
         &[],
         &[],
     );
-    check_proposed(FILE, "fn main(){let xs:Array<i64>=[];let ys=[1,2];}", false).unwrap();
-    let d = error("fn main(){let xs=[1,true];}", false);
+    check_proposed(
+        FILE,
+        "fn Main() {\n    let xs: Array<I64> = [];\n    let ys = [1, 2];\n}\n",
+        false,
+    )
+    .unwrap();
+    let d = error("fn Main() {\n    let xs = [1, true];\n}\n", false);
     assert_eq!(d.code, "NX-E0102");
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
 }
 
 #[test]
 fn index_and_intrinsic_domains_are_typed_after_resolution() {
-    let d = error("fn main(){let x=1[0];}", false);
+    let source = "fn Main() {\n    let x = 1[0];\n}\n";
+    let d = error(source, false);
+    let root = byte_span(source, "1[0]", 0).0;
     exact(
         &d,
         "NX-E0102",
         Some("not_indexable"),
         Stage::Types,
         Operation::TypesCheck,
-        (16, 17),
-        &[(RelatedRole::FoundType, 16, 17)],
+        (root, root + 1),
+        &[(RelatedRole::FoundType, root, root + 1)],
         &[
             ("expected_type", datum("domain:array")),
-            ("found_type", datum("i64")),
+            ("found_type", datum("I64")),
         ],
     );
-    let d = error("fn main(){let x=1;inspect(x);}", false);
+    let source = "fn Main() {\n    let x = 1;\n    Inspect(x);\n}\n";
+    let d = error(source, false);
+    let argument = byte_span(source, "Inspect(x)", 0).0 + "Inspect(".len() as u64;
     exact(
         &d,
         "NX-E0102",
         Some("resource_required"),
         Stage::Types,
         Operation::TypesCheck,
-        (26, 27),
-        &[(RelatedRole::FoundType, 26, 27)],
+        (argument, argument + 1),
+        &[(RelatedRole::FoundType, argument, argument + 1)],
         &[
             ("expected_type", datum("domain:mock_resource")),
-            ("found_type", datum("i64")),
+            ("found_type", datum("I64")),
         ],
     );
     check_proposed(
         FILE,
-        "fn main(){let xs=[1];let x=xs[0];let r=mock_open(1);inspect(r);}",
+        "fn Main() {\n    let xs = [1];\n    let x = xs[0];\n    let r = MockOpen(1);\n    Inspect(r);\n}\n",
         false,
     )
     .unwrap();
@@ -1784,51 +1985,50 @@ fn index_and_intrinsic_domains_are_typed_after_resolution() {
 
 #[test]
 fn entry_check_is_separate_from_module_check() {
-    check_proposed(FILE, "fn f(){}", false).unwrap();
-    let d = error("fn f(){}", true);
+    let source = "fn F() {}\n";
+    check_proposed(FILE, source, false).unwrap();
+    let d = error(source, true);
+    let eof = source.len() as u64;
     exact(
         &d,
         "NX-E0112",
         Some("missing_main"),
         Stage::Entry,
         Operation::EntryCheck,
-        (8, 8),
+        (eof, eof),
         &[],
-        &[("entry", datum("main"))],
+        &[("entry", datum("Main"))],
     );
-    let d = error("fn main(x:i64){}", true);
+    let source = "fn Main(x: view I64) {}\n";
+    let d = error(source, true);
     exact(
         &d,
         "NX-E0112",
         Some("invalid_main_signature"),
         Stage::Entry,
         Operation::EntryCheck,
-        (3, 7),
-        &[(RelatedRole::Context, 0, 14)],
-        &[("entry", datum("main"))],
+        byte_span(source, "Main", 0),
+        &[(RelatedRole::Context, 0, byte_span(source, ")", 0).1)],
+        &[("entry", datum("Main"))],
     );
-    check_proposed(FILE, "fn main(){}", true).unwrap();
+    check_proposed(FILE, "fn Main() {}\n", true).unwrap();
 }
 
 #[test]
 fn unicode_comment_and_crlf_preserve_absent_name_byte_spans() {
-    for (source, start, end) in [
-        ("// á🙂\nfn main(){\nlet x=missing;\n}".to_owned(), 27, 34),
-        (
-            "// á🙂\r\nfn main(){\r\nlet x=missing;\r\n}".to_owned(),
-            29,
-            36,
-        ),
-        ("// á🙂\nfn main(){\nlet x=missing;\n}\n".to_owned(), 27, 34),
+    for source in [
+        "// á🙂\nfn Main(){\nlet x=missing;\n}",
+        "// á🙂\r\nfn Main(){\r\nlet x=missing;\r\n}",
+        "// á🙂\nfn Main(){\nlet x=missing;\n}\n",
     ] {
-        let d = error(&source, false);
+        let d = error(source, false);
         exact(
             &d,
             "NX-E0101",
             None,
             Stage::Names,
             Operation::NamesResolve,
-            (start, end),
+            byte_span(source, "missing", 0),
             &[],
             &[("use_kind", datum("value"))],
         );
@@ -1839,7 +2039,7 @@ fn unicode_comment_and_crlf_preserve_absent_name_byte_spans() {
 
 #[test]
 fn all_preparsed_names_are_resolved_by_lexical_position() {
-    let source = "fn f(x:i64){{let f=1;let Option=2;let from=3;let value=4;assert_eq(f+Option+from+value,10);}assert_eq(x,1);} fn main(){f(1);}";
+    let source = "fn F(x:view I64){{let f=1;let Option=2;let from=3;let value=4;AssertEq(f+Option+from+value,10);}AssertEq(x,1);} fn Main(){F(1);}";
     let ast = parse::parse(FILE, source).unwrap();
     let resolved = names::resolve(FILE, source, &ast).unwrap();
     assert_eq!(resolved.signatures.len(), 2);
@@ -1849,38 +2049,43 @@ fn all_preparsed_names_are_resolved_by_lexical_position() {
 #[test]
 fn written_argument_defects_precede_missing_slots() {
     let d = error(
-        "fn f(inout x:i64,y:i64){} fn main(){var x=1;f(z:1);}",
+        "fn F(x: edit I64, y: view I64) {}\nfn Main() {\n    var x = 1;\n    F(z: 1);\n}\n",
         false,
     );
     assert_eq!(d.subcause.as_deref(), Some("unknown_argument_label"));
     let d = error(
-        "fn f(inout x:i64,y:i64){} fn main(){var x=1;f(x:1,x:2);}",
+        "fn F(x: edit I64, y: view I64) {}\nfn Main() {\n    var x = 1;\n    F(x: 1, x: 2);\n}\n",
         false,
     );
     assert_eq!(d.subcause.as_deref(), Some("argument_mode_mismatch"));
     let d = error(
-        "fn f(inout x:i64,y:i64){} fn main(){var x=1;f(x:1,2);}",
+        "fn F(x: edit I64, y: view I64) {}\nfn Main() {\n    var x = 1;\n    F(x: 1, 2);\n}\n",
         false,
     );
     assert_eq!(d.subcause.as_deref(), Some("argument_mode_mismatch"));
-    let d = error("fn f(x:i64,y:i64,z:i64){} fn main(){f(x:1,y:2,3);}", false);
+    let source =
+        "fn F(x: view I64, y: view I64, z: view I64) {}\nfn Main() {\n    F(x: 1, y: 2, 3);\n}\n";
+    let d = error(source, false);
     assert_eq!(d.subcause.as_deref(), Some("positional_after_named"));
     assert_eq!(
         d.related_spans
             .iter()
             .find(|r| r.role == RelatedRole::Context)
             .map(|r| r.span.clone()),
-        Some(sp(38, 39))
+        Some({
+            let label = byte_span(source, "F(x:", 1).0 + 2;
+            sp(label, label + 1)
+        })
     );
 }
 
 #[test]
 fn inner_scopes_restore_outer_types_and_callability() {
-    check_proposed(FILE,"fn f(x:i64)->i64{return x;} fn main(){let f=1;{let f=true;assert_eq(f,true);}assert_eq(f,1);}",false).unwrap();
-    check_proposed(FILE,"fn f(x:i64)->i64{return x;} fn main(){{let f=1;assert_eq(f,1);}let n=f(2);assert_eq(n,2);}",false).unwrap();
+    check_proposed(FILE,"fn F(x:view I64)->I64{return x;} fn Main(){let f=1;{let f=true;AssertEq(f,true);}AssertEq(f,1);}",false).unwrap();
+    check_proposed(FILE,"fn F(x:view I64)->I64{return x;} fn Main(){{let f=1;AssertEq(f,1);}let n=F(2);AssertEq(n,2);}",false).unwrap();
     check_proposed(
         FILE,
-        "fn main(){let x=1;{let x=true;assert_eq(x,true);}let z=x+1;assert_eq(z,2);}",
+        "fn Main() {\n    let x = 1;\n    {\n        let x = true;\n        AssertEq(x, true);\n    }\n    let z = x + 1;\n    AssertEq(z, 2);\n}\n",
         false,
     )
     .unwrap();
@@ -1888,12 +2093,14 @@ fn inner_scopes_restore_outer_types_and_callability() {
 
 #[test]
 fn written_result_types_remain_whole_for_comparison_domains() {
-    let d = error("fn main(){let a:Result<i64,i64>=Ok(1);let b=a<a;}", false);
-    assert_eq!(d.primary_span, Some(sp(45, 46)));
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("Result<i64,i64>")));
+    let source = "fn Main() {\n    let a: Result<I64, I64> = Ok(1);\n    let b = a < a;\n}\n";
+    let d = error(source, false);
+    let comparison = byte_span(source, "a < a", 0).0 + 2;
+    assert_eq!(d.primary_span, Some(sp(comparison, comparison + 1)));
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Result<I64,I64>")));
     let d = error(
-        "fn main(){let a:Result<MockResource,i64>=Ok(mock_open(1));let b=a==a;}",
+        "fn Main() {\n    let a: Result<MockResource, I64> = Ok(MockOpen(1));\n    let b = a == a;\n}\n",
         false,
     );
     assert_eq!(
@@ -1902,54 +2109,62 @@ fn written_result_types_remain_whole_for_comparison_domains() {
     );
     assert_eq!(
         d.data.get("found_type"),
-        Some(&datum("Result<MockResource,i64>"))
+        Some(&datum("Result<MockResource,I64>"))
     );
 }
 
 #[test]
 fn annotation_parameter_and_assignment_contexts_report_concrete_types() {
-    let d = error("fn main(){let x:bool=1;}", false);
+    let source = "fn Main() {\n    let x: Bool = 1;\n}\n";
+    let d = error(source, false);
+    let value = byte_span(source, "1", 0);
+    let annotation = byte_span(source, "Bool", 0);
     exact(
         &d,
         "NX-E0102",
         Some("type_mismatch"),
         Stage::Types,
         Operation::TypesCheck,
-        (21, 22),
+        value,
         &[
-            (RelatedRole::ExpectedType, 16, 20),
-            (RelatedRole::FoundType, 21, 22),
+            (RelatedRole::ExpectedType, annotation.0, annotation.1),
+            (RelatedRole::FoundType, value.0, value.1),
         ],
         &[
-            ("expected_type", datum("bool")),
-            ("found_type", datum("i64")),
+            ("expected_type", datum("Bool")),
+            ("found_type", datum("I64")),
         ],
     );
-    let d = error("fn f(x:bool){} fn main(){f(1);}", false);
+    let source = "fn F(x: view Bool) {}\nfn Main() {\n    F(1);\n}\n";
+    let d = error(source, false);
+    let value = byte_span(source, "F(1)", 0).0 + 2;
+    let annotation = byte_span(source, "Bool", 0);
     exact(
         &d,
         "NX-E0102",
         Some("type_mismatch"),
         Stage::Types,
         Operation::TypesCheck,
-        (27, 28),
+        (value, value + 1),
         &[
-            (RelatedRole::ExpectedType, 7, 11),
-            (RelatedRole::FoundType, 27, 28),
+            (RelatedRole::ExpectedType, annotation.0, annotation.1),
+            (RelatedRole::FoundType, value, value + 1),
         ],
         &[
-            ("expected_type", datum("bool")),
-            ("found_type", datum("i64")),
+            ("expected_type", datum("Bool")),
+            ("found_type", datum("I64")),
         ],
     );
-    let d = error("fn main(){var x=1;x=true;}", false);
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
+    let d = error("fn Main() {\n    var x = 1;\n    x = true;\n}\n", false);
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
 }
 
 #[test]
 fn unresolved_result_constructor_uses_whole_call_and_known_context() {
-    let d = error("fn main(){let r=Ok (1);}", false);
+    let source = "fn Main() {\n    let r = Ok(1);\n}\n";
+    let d = error(source, false);
+    let call = byte_span(source, "Ok(1)", 0);
     assert_eq!(
         (
             d.code.as_str(),
@@ -1961,36 +2176,47 @@ fn unresolved_result_constructor_uses_whole_call_and_known_context() {
             "NX-E0113",
             Stage::Types,
             Operation::TypesInfer,
-            Some(&sp(16, 22))
+            Some(&sp(call.0, call.1))
         )
     );
     assert_eq!(
         d.data.get("unresolved_components"),
         Some(&DataValue::Array(vec![datum("$.err")]))
     );
-    check_proposed(FILE, "fn main(){let r:Result<i64,i64>=Ok(1);}", false).unwrap();
+    check_proposed(
+        FILE,
+        "fn Main() {\n    let r: Result<I64, I64> = Ok(1);\n}\n",
+        false,
+    )
+    .unwrap();
 }
 
 #[test]
 fn argument_labels_select_types_without_changing_written_diagnostic_order() {
     check_proposed(
         FILE,
-        "fn f(x:i64,y:bool){} fn main(){f(y:true,x:1);}",
+        "fn F(x: view I64, y: view Bool) {}\nfn Main() {\n    F(y: true, x: 1);\n}\n",
         false,
     )
     .unwrap();
-    let d = error("fn f(x:i64,y:bool){} fn main(){f(y:1,x:1);}", false);
-    assert_eq!(d.data.get("expected_type"), Some(&datum("bool")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("i64")));
-    let d = error("fn f(x:i64,y:bool){} fn main(){f(y:true,x:false);}", false);
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
+    let d = error(
+        "fn F(x: view I64, y: view Bool) {}\nfn Main() {\n    F(y: 1, x: 1);\n}\n",
+        false,
+    );
+    assert_eq!(d.data.get("expected_type"), Some(&datum("Bool")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("I64")));
+    let d = error(
+        "fn F(x: view I64, y: view Bool) {}\nfn Main() {\n    F(y: true, x: false);\n}\n",
+        false,
+    );
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
 }
 
 #[test]
 fn both_result_variants_must_be_copyable_for_equality() {
     let d = error(
-        "fn main(){let a:Result<i64,MockResource>=Err(mock_open(1));let b=a==a;}",
+        "fn Main() {\n    let a: Result<I64, MockResource> = Err(MockOpen(1));\n    let b = a == a;\n}\n",
         false,
     );
     assert_eq!(
@@ -1999,28 +2225,31 @@ fn both_result_variants_must_be_copyable_for_equality() {
     );
     assert_eq!(
         d.data.get("found_type"),
-        Some(&datum("Result<i64,MockResource>"))
+        Some(&datum("Result<I64,MockResource>"))
     );
 }
 
 #[test]
 fn intrinsic_data_and_index_domains_reject_wrong_types() {
-    let d = error("fn main(){let r=mock_open(1);print(r);}", false);
+    let d = error(
+        "fn Main() {\n    let r = MockOpen(1);\n    Print(r);\n}\n",
+        false,
+    );
     assert_eq!(
         d.data.get("expected_type"),
         Some(&datum("domain:copyable_data"))
     );
-    let d = error("fn main(){let x=[1][true];}", false);
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
-    let d = error("fn main(){assert_eq(1,true);}", false);
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
+    let d = error("fn Main() {\n    let x = [1][true];\n}\n", false);
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
+    let d = error("fn Main() {\n    AssertEq(1, true);\n}\n", false);
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
 }
 
 #[test]
 fn operand_and_operator_spans_survive_trivia() {
-    let source = "fn main(){let b=true /*x*/ < false;}";
+    let source = "fn Main(){let b=true /*x*/ < false;}";
     // `/*...*/` is outside this lexer; use line breaks as legal trivia.
     let source = source.replace(" /*x*/ ", "\n ");
     let d = error(&source, false);
@@ -2037,29 +2266,36 @@ fn operand_and_operator_spans_survive_trivia() {
 
 #[test]
 fn arithmetic_and_intrinsic_arguments_fail_in_written_order() {
-    check_proposed(FILE, "fn main(){let x=1+2;let y=3-1;}", false).unwrap();
-    let source = "fn main(){let x=true+9223372036854775808;}";
+    check_proposed(
+        FILE,
+        "fn Main() {\n    let x = 1 + 2;\n    let y = 3 - 1;\n}\n",
+        false,
+    )
+    .unwrap();
+    let source = "fn Main() {\n    let x = true + 9223372036854775808;\n}\n";
     let d = error(source, false);
+    let mismatch = byte_span(source, "true", 0);
     assert_eq!(
         (&d.code, d.subcause.as_deref(), d.primary_span),
         (
             &"NX-E0102".to_owned(),
             Some("type_mismatch"),
-            Some(sp(16, 20))
+            Some(sp(mismatch.0, mismatch.1))
         )
     );
-    let d = error("fn main(){let x=1+true;}", false);
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
-    let source = "fn main(){assert_eq(b:9223372036854775808,a:9223372036854775808);}";
+    let d = error("fn Main() {\n    let x = 1 + true;\n}\n", false);
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
+    let source = "fn Main() {\n    AssertEq(b: 9223372036854775808, a: 9223372036854775808);\n}\n";
     let d = error(source, false);
     assert_eq!(d.code, "NX-E0107");
-    assert_eq!(d.primary_span, Some(sp(22, 41)));
+    let first_argument = byte_span(source, "9223372036854775808", 0);
+    assert_eq!(d.primary_span, Some(sp(first_argument.0, first_argument.1)));
 }
 
 #[test]
 fn non_callable_expression_target_has_no_binding_declaration() {
-    let d = error("fn main(){(1)();}", false);
+    let d = error("fn Main() {\n    (1)();\n}\n", false);
     assert_eq!(
         (d.code.as_str(), d.subcause.as_deref(), d.stage, d.operation),
         (
@@ -2074,31 +2310,44 @@ fn non_callable_expression_target_has_no_binding_declaration() {
 
 #[test]
 fn ordinary_parameters_reject_explicit_inout_mode() {
-    let d = error("fn f(x:i64){} fn main(){var x=1;f(inout x);}", false);
+    let d = error(
+        "fn F(x: view I64) {}\nfn Main() {\n    var x = 1;\n    F(edit x);\n}\n",
+        false,
+    );
     assert_eq!(d.subcause.as_deref(), Some("argument_mode_mismatch"));
-    check_proposed(FILE, "fn f(x:i64){} fn main(){var x=1;f(x);}", false).unwrap();
+    check_proposed(
+        FILE,
+        "fn F(x: view I64) {}\nfn Main() {\n    var x = 1;\n    F(x);\n}\n",
+        false,
+    )
+    .unwrap();
 }
 
 #[test]
 fn written_unit_annotation_checks_unit_literal_type() {
-    check_proposed(FILE, "fn main(){let x:()=();assert_eq(x,());}", false).unwrap();
-    let d = error("fn main(){let x:()=1;}", false);
+    check_proposed(
+        FILE,
+        "fn Main() {\n    let x: () = ();\n    AssertEq(x, ());\n}\n",
+        false,
+    )
+    .unwrap();
+    let d = error("fn Main() {\n    let x: () = 1;\n}\n", false);
     assert_eq!(d.data.get("expected_type"), Some(&datum("()")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("i64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("I64")));
 }
 
 #[test]
 fn branch_values_synthesize_without_context_and_use_written_return_context() {
     let d = error(
-        "fn main(){let x=if true{value: 1;}else{value: true;};}",
+        "fn Main() {\n    let x = if true then 1 else true;\n}\n",
         false,
     );
     assert_eq!(
         (d.code.as_str(), d.subcause.as_deref(), d.stage),
         ("NX-E1303", None, Stage::Types)
     );
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
     assert_eq!(
         d.related_spans
             .iter()
@@ -2107,18 +2356,18 @@ fn branch_values_synthesize_without_context_and_use_written_return_context() {
         1
     );
     let d = error(
-        "fn f()->i64{return if true{value: 1;}else{value: true;};} fn main(){}",
+        "fn F() -> I64 {\n    return if true then 1 else true;\n}\nfn Main() {}\n",
         false,
     );
     assert_eq!(
         (d.code.as_str(), d.subcause.as_deref(), d.stage),
         ("NX-E0102", Some("type_mismatch"), Stage::Types)
     );
-    assert_eq!(d.data.get("expected_type"), Some(&datum("i64")));
-    assert_eq!(d.data.get("found_type"), Some(&datum("bool")));
+    assert_eq!(d.data.get("expected_type"), Some(&datum("I64")));
+    assert_eq!(d.data.get("found_type"), Some(&datum("Bool")));
     check_proposed(
         FILE,
-        "fn main(){let x=if true{value: 1;}else{value: 2;};}",
+        "fn Main() {\n    let x = if true then 1 else 2;\n}\n",
         false,
     )
     .unwrap();
@@ -2126,71 +2375,45 @@ fn branch_values_synthesize_without_context_and_use_written_return_context() {
 
 #[test]
 fn adr_gap_duplicate_named_after_positional_relates_first_value() {
-    let d = error("fn f(x:i64){} fn main(){f(1,x:2);}", false);
+    let source = "fn F(x: view I64) {}\nfn Main() {\n    F(1, x: 2);\n}\n";
+    let d = error(source, false);
     assert_eq!(d.subcause.as_deref(), Some("duplicate_argument"));
     assert_eq!(
         d.related_spans
             .iter()
             .map(|r| (r.role, r.span.start, r.span.end))
             .collect::<Vec<_>>(),
-        vec![(RelatedRole::Context, 26, 27)]
+        vec![(
+            RelatedRole::Context,
+            byte_span(source, "1", 0).0,
+            byte_span(source, "1", 0).1
+        )]
     );
 }
 
 #[test]
-fn move_and_async_are_reserved_names() {
-    for (name, end) in [("move", 18), ("async", 19)] {
-        let source = format!("fn main(){{let {name}=1;}}");
-        let d = error(&source, false);
-        assert_eq!(
-            (
-                d.code.as_str(),
-                d.subcause.as_deref(),
-                d.stage,
-                d.operation,
-                d.primary_span
-            ),
-            (
-                "NX-E0002",
-                None,
-                Stage::Parse,
-                Operation::SyntaxParse,
-                Some(sp(14, end))
-            )
-        );
-        assert_eq!(d.parser_context.as_deref(), Some("binding_name"));
-        assert_eq!(d.expected_tokens, ["Name"]);
-        assert_eq!(d.recognized_prefix, Some(sp(10, 14)));
-        assert_eq!(
-            d.unexpected_token
-                .as_ref()
-                .map(|t| (t.text.as_deref(), t.span.clone())),
-            Some((Some(name), sp(14, end)))
-        );
-        let positive = source.replace(name, &format!("{name}_value"));
-        check_proposed(FILE, &positive, false).unwrap();
-    }
+fn contextual_move_name_and_reserved_async_have_distinct_results() {
+    check_proposed(FILE, "fn Main(){let move=1;AssertEq(move,1);}", false).unwrap();
+    let source = "fn Main(){let async=1;}";
+    let d = error(source, false);
+    assert_eq!(d.code, "NX-E0002");
+    assert_eq!(d.stage, Stage::Parse);
+    assert_eq!(d.operation, Operation::SyntaxParse);
+    assert_eq!(d.parser_context.as_deref(), Some("binding_name"));
+    assert_eq!(d.expected_tokens, ["Name"]);
+    let (start, end) = byte_span(source, "async", 0);
+    assert_eq!(d.primary_span, Some(sp(start, end)));
+    assert_eq!(
+        d.unexpected_token.as_ref().and_then(|t| t.text.as_deref()),
+        Some("async")
+    );
 }
 
 #[test]
 fn valid_generated_names_shadowing_and_comparisons_have_no_diagnostics() {
     let names = [
-        "Option",
-        "from",
-        "value",
-        "Ok",
-        "Result",
-        "print",
-        "drop",
-        "mock_open",
-        "inspect",
-        "assert_eq",
-        "len",
-        "x",
-        "y",
-        "z",
-        "a",
-        "b",
+        "Option", "from", "value", "Ok", "Result", "Print", "Drop", "MockOpen", "Inspect",
+        "AssertEq", "Len", "x", "y", "z", "a", "b",
     ];
     for n in 0..8_000_u32 {
         let name = names[n as usize % names.len()];
@@ -2200,7 +2423,7 @@ fn valid_generated_names_shadowing_and_comparisons_have_no_diagnostics() {
             "9223372036854775807"
         };
         let source = format!(
-            "fn f({name}:i64)->i64{{return {name}+1;}} fn main(){{let {name}={value};{{let {name}=true;let condition={name}==true;}}let outcome={name}<9223372036854775807;}} "
+            "fn F({name}:view I64)->I64{{return {name}+1;}} fn Main(){{let {name}={value};{{let {name}=true;let condition={name}==true;}}let outcome={name}<9223372036854775807;}} "
         );
         check_proposed(FILE, &source, false)
             .unwrap_or_else(|d| panic!("{n}: {source}: {} {:?}", d[0].code, d[0].primary_span));
@@ -2233,8 +2456,8 @@ fn generated_valid_mutations_return_valid_diagnostics_without_panics() {
         "-",
         "<",
         "==",
-        "consume",
-        "inout",
+        "move",
+        "edit",
         "Ok",
         "Err",
         "\n",
@@ -2246,7 +2469,7 @@ fn generated_valid_mutations_return_valid_diagnostics_without_panics() {
         seed ^= seed << 7;
         seed ^= seed >> 9;
         seed ^= seed << 8;
-        let mut source = String::from("fn main(){let x=1;let y=x+1;}");
+        let mut source = String::from("fn Main() {\n    let x = 1;\n    let y = x + 1;\n}\n");
         let count = (seed as usize % 6) + 1;
         for j in 0..count {
             let at = (seed.rotate_left((j * 7) as u32) as usize) % (source.len() + 1);
@@ -2271,11 +2494,11 @@ fn generated_valid_mutations_return_valid_diagnostics_without_panics() {
 
 #[test]
 fn semantic_passes_run_on_a_512_kib_caller_stack() {
-    let mut source = String::from("fn main(){");
+    let mut source = String::from("fn Main(){");
     for _ in 0..110 {
         source.push('{');
     }
-    source.push_str("let x=1;assert_eq(x,1);");
+    source.push_str("let x=1;AssertEq(x,1);");
     for _ in 0..110 {
         source.push('}');
     }
@@ -2295,37 +2518,40 @@ fn semantic_passes_use_bounded_wide_stack_for_nested_forms() {
     fn source(family: usize, depth: usize) -> String {
         match family {
             0 => format!(
-                "fn main(){{let x={};}}",
+                "fn Main(){{let x={};}}",
                 "(".repeat(depth) + "1" + &")".repeat(depth)
             ),
             1 => format!(
-                "fn main(){{let x={};}}",
+                "fn Main(){{let x={};}}",
                 "[".repeat(depth) + "1" + &"]".repeat(depth)
             ),
             2 => format!(
-                "fn main(){{{}let x=1;{}}}",
+                "fn Main(){{{}let x=1;{}}}",
                 "{".repeat(depth),
                 "}".repeat(depth)
             ),
             3 => format!(
-                "fn main(){{let x:{}i64{}={}1{};}}",
+                "fn Main(){{let x:{}I64{}={}1{};}}",
                 "Array<".repeat(depth),
                 ">".repeat(depth),
                 "[".repeat(depth),
                 "]".repeat(depth)
             ),
             4 => format!(
-                "fn f(x:i64)->i64{{return x;}} fn main(){{let x={}1{};}}",
-                "f(".repeat(depth),
+                "fn F(x:view I64)->I64{{return x;}} fn Main(){{let x={}1{};}}",
+                "F(".repeat(depth),
                 ")".repeat(depth)
             ),
-            5 => format!("fn main(){{let x=[1]{};}}", "[0]".repeat(depth)),
-            6 => format!(
-                "fn main(){{let x={}{{value:1;}};}}",
-                "if true{value:1;}else ".repeat(depth)
-            ),
+            5 => format!("fn Main(){{let x=[1]{};}}", "[0]".repeat(depth)),
+            6 => {
+                let mut expression = "1".to_owned();
+                for _ in 0..depth {
+                    expression = format!("if true then {{value:1;}} else ({expression})");
+                }
+                format!("fn Main(){{let x={expression};}}")
+            }
             7 => format!(
-                "fn main(){{{}let x=1;{}}}",
+                "fn Main(){{{}let x=1;{}}}",
                 "{let y=1;".repeat(depth),
                 "}".repeat(depth)
             ),
@@ -2365,7 +2591,7 @@ fn semantic_passes_use_bounded_wide_stack_for_nested_forms() {
 #[test]
 fn adr_gap_parser_depth_bounds_semantic_guard_for_accepted_blocks() {
     let source = format!(
-        "fn main(){{{}let x=1;{}}}",
+        "fn Main(){{{}let x=1;{}}}",
         "{".repeat(126),
         "}".repeat(126)
     );
@@ -2374,7 +2600,7 @@ fn adr_gap_parser_depth_bounds_semantic_guard_for_accepted_blocks() {
 
 #[test]
 fn inferred_type_depth_enforces_array_priority_and_result_value_limit() {
-    let mut source = String::from("fn main(){let a0=0;");
+    let mut source = String::from("fn Main(){let a0=0;");
     for i in 1..=128 {
         source.push_str(&format!("let a{i}=[a{}];", i - 1));
     }
@@ -2397,7 +2623,7 @@ fn inferred_type_depth_enforces_array_priority_and_result_value_limit() {
     assert_eq!(d.data.get("limit"), Some(&DataValue::UInt(128)));
     assert_eq!(d.data.get("observed"), Some(&DataValue::UInt(129)));
 
-    let mut source = String::from("fn main(){let a0:Result<i64,i64>=Ok(0);");
+    let mut source = String::from("fn Main(){let a0:Result<I64,I64>=Ok(0);");
     for i in 1..=127 {
         source.push_str(&format!("let a{i}=[a{}];", i - 1));
     }
@@ -2429,19 +2655,19 @@ fn semantic_passes_scale_with_source_bytes() {
         if family == 18 {
             let count = if target < 500_000 { 256 } else { 1023 };
             for i in 0..count {
-                source.push_str(&format!("fn f{i}(){{let x=1;}}"));
+                source.push_str(&format!("fn F{i}(){{let x=1;}}"));
             }
-            source.push_str("fn main(){} ");
+            source.push_str("fn Main() {}\n");
         } else if family == 19 {
             let count = target / 100;
-            source.push_str("fn f(");
+            source.push_str("fn F(");
             for i in 0..count {
                 if i > 0 {
                     source.push(',');
                 }
-                source.push_str(&format!("p{i}:i64"));
+                source.push_str(&format!("p{i}:view I64"));
             }
-            source.push_str("){} fn main(){f(");
+            source.push_str("){} fn Main(){F(");
             for i in 0..count {
                 if i > 0 {
                     source.push(',');
@@ -2451,37 +2677,37 @@ fn semantic_passes_scale_with_source_bytes() {
             source.push_str(");}");
         } else {
             let prelude = if family == 7 || family == 8 || family == 23 {
-                "fn f(x:i64){} "
+                "fn F(x: view I64) {}\n"
             } else {
                 ""
             };
             source.push_str(prelude);
-            source.push_str("fn main(){");
+            source.push_str("fn Main(){");
             let mut i = 0usize;
             loop {
                 let segment = match family {
                     0 => format!("let n{i}=1;"),
                     1 => "x=1;".into(),
-                    2 => format!("let n{i}:i64=1;"),
-                    3 => format!("let n{i}:bool=true;"),
+                    2 => format!("let n{i}:I64=1;"),
+                    3 => format!("let n{i}:Bool=true;"),
                     4 => format!("let n{i}=[1,2];"),
                     5 => format!("let n{i}=[1][0];"),
-                    6 => "assert_eq(1,1);".into(),
-                    7 => "f(1);".into(),
-                    8 => "f(x:1);".into(),
-                    9 => format!("let n{i}=mock_open(1);inspect(n{i});"),
-                    10 => format!("let n{i}:Result<i64,i64>=Ok(1);"),
-                    11 => "{let x=1;assert_eq(x,1);}".into(),
+                    6 => "AssertEq(1,1);".into(),
+                    7 => "F(1);".into(),
+                    8 => "F(x:1);".into(),
+                    9 => format!("let n{i}=MockOpen(1);Inspect(n{i});"),
+                    10 => format!("let n{i}:Result<I64,I64>=Ok(1);"),
+                    11 => "{let x=1;AssertEq(x,1);}".into(),
                     12 => format!("let n{i}=1<2;"),
                     13 => format!("let n{i}=1==1;"),
                     14 => format!("let n{i}=true==false;"),
                     15 => format!("let n{i}=()==();"),
                     16 => format!("let n{i}=1+2-3;"),
                     17 => "{let Option=1;let from=Option+1;}".into(),
-                    20 => "{".repeat(64) + "let x=1;assert_eq(x,1);" + &"}".repeat(64),
+                    20 => "{".repeat(64) + "let x=1;AssertEq(x,1);" + &"}".repeat(64),
                     21 => "{".repeat(32) + "let x=1;" + &"}".repeat(32),
                     22 => {
-                        let mut ty = "i64".to_owned();
+                        let mut ty = "I64".to_owned();
                         let mut value = "1".to_owned();
                         for _ in 0..32 {
                             ty = format!("Array<{ty}>");
@@ -2489,7 +2715,7 @@ fn semantic_passes_scale_with_source_bytes() {
                         }
                         format!("let n{i}:{ty}={value};")
                     }
-                    23 => "f(x:1);f(2);".into(),
+                    23 => "F(x:1);F(2);".into(),
                     _ => unreachable!(),
                 };
                 if family == 1 && i == 0 {
@@ -2542,4 +2768,27 @@ fn semantic_passes_scale_with_source_bytes() {
             );
         }
     }
+}
+#[test]
+fn isolated_edit_is_a_parse_diagnostic_in_check() {
+    for body in ["var b=edit r;", "r=edit r;", "[edit r];", "edit r;"] {
+        let source = format!("fn Main(){{var r=1;{body}}}");
+        let errors = super::check_proposed("edit.nx", &source, false).unwrap_err();
+        assert_eq!(errors.len(), 1);
+        let error = &errors[0];
+        assert_eq!(error.code, "NX-E0002");
+        assert_eq!(error.parser_context.as_deref(), Some("inout_place"));
+        assert_eq!(
+            error.primary_span.as_ref().unwrap().start as usize,
+            source.find("edit r").unwrap()
+        );
+        assert!(error.data.is_empty());
+        error.validate("edit.nx", &source).unwrap();
+    }
+    super::check_proposed(
+        "edit.nx",
+        "fn F(x:edit I64){} fn Main(){var r=1;F(edit r);}",
+        false,
+    )
+    .unwrap();
 }

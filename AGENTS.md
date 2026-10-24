@@ -59,7 +59,7 @@ Objetivo permanente: un lenguaje que tome lo mejor de los demás (ver roadmap §
 - Nunca terminar con el árbol roto: si falta presupuesto, revertir a un estado verde y listar lo
   pendiente nominalmente.
 - Los documentos versionables (HANDOFF.md, Pending.md, RECOVERY.md, notas) se ACTUALIZAN, no se
-  reescriben: comparar con `git diff HEAD` para no perder contenido útil. No citan .scratch, el
+  reescriben: comparar con `git diff HEAD` para no perder contenido útil. No citan archivos temporales, el
   brief ni etiquetas de proceso, y no afirman PASS ni commit antes de tiempo.
 - El validador compara siempre `check`/`run` contra HEAD con su propia batería (`git archive HEAD`),
   no solo con la del implementador. Criterio acotado de mutaciones: re-ejecutar las supervivientes

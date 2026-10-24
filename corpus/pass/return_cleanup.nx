@@ -1,8 +1,8 @@
-fn main() {
-    let outer = mock_open(1);
+fn Main() {
+    let outer = MockOpen(1);
     {
-        let inner = mock_open(2);
+        let inner = MockOpen(2);
         return;
     }
-    print(999);
+    Print(999);
 }

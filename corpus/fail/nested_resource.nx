@@ -1,2 +1,2 @@
-// expect: E0203
-fn main() { let invalid = [mock_open(1)]; }
+// expect: NX-E0006/resource_array
+fn Main() { let invalid = [MockOpen(1)]; }

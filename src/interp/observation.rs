@@ -72,6 +72,12 @@ impl Log {
         Ok(())
     }
     pub fn release_reservation(&mut self, bytes: u64) -> Result<(), &'static str> {
+        // Only the interpreter reserves and releases these bytes. It reserves
+        // the complete close event before an effect, so the three internal
+        // guards here cannot be reached by a verified source execution.
+        // output_bytes_include_lf_and_rejected_line_is_atomic and the
+        // machine's failed_inspection_of_temporary_resource_still_emits_
+        // reserved_close exercise the accounting boundary.
         self.reserved = self
             .reserved
             .checked_sub(bytes)

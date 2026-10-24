@@ -1,5 +1,5 @@
 //! Name registration, lexical scopes and structural call binding for F0-0002.
-//! This module is deliberately separate from the slice-1 checker.
+//! Resolution for the official B frontend.
 use std::borrow::Cow;
 use std::collections::{HashMap, HashSet};
 
@@ -68,6 +68,17 @@ pub(crate) fn diagnostic(
     span: Span,
 ) -> Box<Diagnostic> {
     let rule = subcause.map_or_else(|| code.to_owned(), |s| format!("{code}/{s}"));
+    let mut data = std::collections::BTreeMap::new();
+    if code == "NX-E0003" {
+        data.insert(
+            "budget_scope".into(),
+            DataValue::String("compilation".into()),
+        );
+        data.insert(
+            "incomplete_analysis".into(),
+            DataValue::String(stage.as_str().into()),
+        );
+    }
     Box::new(Diagnostic {
         schema_version: diagnostic::SCHEMA_VERSION,
         diagnostic_namespace: Namespace::NexoProposedV1,
@@ -90,7 +101,7 @@ pub(crate) fn diagnostic(
         parser_context: None,
         recognized_prefix: None,
         repair: Vec::new(),
-        data: Default::default(),
+        data,
     })
 }
 
@@ -216,7 +227,10 @@ pub fn register(file: &str, source: &str, ast: &Ast) -> Result<Registered, Vec<B
                     tokens
                         .iter()
                         .skip(tokens.partition_point(|t| t.span.start < colon.span.end))
-                        .find(|t| t.kind != Kind::Newline)
+                        // B requires an explicit mode after `name:`; the written
+                        // type begins at the following token, even across trivia.
+                        .filter(|t| t.kind != Kind::Newline)
+                        .nth(1)
                 })
                 .map(|first| Span {
                     file: file.into(),
@@ -265,10 +279,10 @@ pub fn register(file: &str, source: &str, ast: &Ast) -> Result<Registered, Vec<B
 pub(crate) fn intrinsic(name: &str) -> Option<Signature> {
     use Type::{I64, MockBlockingResource, MockResource, Unit};
     let (params, result) = match name {
-        "mock_open" => (vec![("label", I64)], MockResource),
-        "mock_blocking_open" => (vec![("label", I64)], MockBlockingResource),
-        "inspect" => (vec![("r", MockResource)], Unit),
-        "mock_read_records" => (
+        "MockOpen" => (vec![("label", I64)], MockResource),
+        "MockBlockingOpen" => (vec![("label", I64)], MockBlockingResource),
+        "Inspect" => (vec![("r", MockResource)], Unit),
+        "MockReadRecords" => (
             vec![("r", MockResource)],
             Type::Result(
                 Box::new(Type::Array(Box::new(Type::Result(
@@ -278,23 +292,23 @@ pub(crate) fn intrinsic(name: &str) -> Option<Signature> {
                 Box::new(I64),
             ),
         ),
-        "mock_write_i64" => (
+        "MockWriteI64" => (
             vec![("n", I64)],
             Type::Result(Box::new(Unit), Box::new(I64)),
         ),
-        "mock_request" => (vec![], Type::Result(Box::new(I64), Box::new(I64))),
-        "mock_reply" => (
+        "MockRequest" => (vec![], Type::Result(Box::new(I64), Box::new(I64))),
+        "MockReply" => (
             vec![("status", I64)],
             Type::Result(Box::new(Unit), Box::new(I64)),
         ),
-        "try_add" => (
+        "TryAdd" => (
             vec![("a", I64), ("b", I64)],
             Type::Result(Box::new(I64), Box::new(I64)),
         ),
-        "len" => (vec![("a", Unit)], I64),
-        "print" | "drop" => (vec![("v", Unit)], Unit),
-        "assert_eq" => (vec![("a", Unit), ("b", Unit)], Unit),
-        "fail" | "mock_unknown" => (vec![], Unit),
+        "Len" => (vec![("a", Unit)], I64),
+        "Print" | "Drop" => (vec![("v", Unit)], Unit),
+        "AssertEq" => (vec![("a", Unit), ("b", Unit)], Unit),
+        "Fail" | "MockUnknown" => (vec![], Unit),
         "Ok" | "Err" => (vec![("v", Unit)], Unit),
         _ => return None,
     };
@@ -354,6 +368,14 @@ fn projected_named_place(expr: &Expr) -> bool {
             Expr::Name(..) => return true,
             _ => return false,
         };
+    }
+}
+
+fn place_root(expr: &Expr) -> Option<&Span> {
+    match expr {
+        Expr::Name(_, span) => Some(span),
+        Expr::Group(inner, _) | Expr::Index { target: inner, .. } => place_root(inner),
+        _ => None,
     }
 }
 
@@ -458,6 +480,26 @@ impl Resolver {
             }
             Statement::Assign { place, value, .. } => {
                 self.expr(place, false)?;
+                if let Some(root) = place_root(place)
+                    && matches!(
+                        self.resolved.uses.get(&root.start),
+                        Some(ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
+                    )
+                {
+                    let mut d = diagnostic(
+                        "NX-E0006",
+                        None,
+                        Stage::Names,
+                        Operation::NamesResolve,
+                        root.clone(),
+                    );
+                    d.feature_id = Some("function_value".into());
+                    d.data.insert(
+                        "pending_scope".into(),
+                        DataValue::String("later_adr".into()),
+                    );
+                    return Err(d);
+                }
                 self.expr(value, false)
             }
             Statement::Return { value, .. } | Statement::Value { value, .. } => {
@@ -597,7 +639,7 @@ impl Resolver {
                 }
                 let sig = signature(&self.resolved, &target_use).expect("registered target");
                 let slots = self.bind(&sig, target.span(), args)?;
-                if matches!(&target_use,ResolvedUse::Intrinsic(name) if name == "drop")
+                if matches!(&target_use,ResolvedUse::Intrinsic(name) if name == "Drop")
                     && let Some(arg) = args.first()
                     && projected_named_place(&arg.value)
                 {
@@ -796,7 +838,7 @@ pub fn entry(
     resolved: &Resolved,
     ast: &Ast,
 ) -> Result<(), Box<Diagnostic>> {
-    let Some(sig) = resolved.signatures.get("main") else {
+    let Some(sig) = resolved.signatures.get("Main") else {
         let mut d = diagnostic(
             "NX-E0112",
             Some("missing_main"),
@@ -809,7 +851,7 @@ pub fn entry(
             },
         );
         d.data
-            .insert("entry".into(), DataValue::String("main".into()));
+            .insert("entry".into(), DataValue::String("Main".into()));
         return Err(d);
     };
     let valid_result = sig.result == Type::Unit
@@ -823,8 +865,8 @@ pub fn entry(
             sig.name_span.clone(),
         );
         d.data
-            .insert("entry".into(), DataValue::String("main".into()));
-        if let Some(f) = ast.functions.iter().find(|f| f.name == "main") {
+            .insert("entry".into(), DataValue::String("Main".into()));
+        if let Some(f) = ast.functions.iter().find(|f| f.name == "Main") {
             let tokens = lex::lex(file, source)?;
             let end = tokens
                 .iter()
@@ -853,7 +895,7 @@ mod tests {
 
     #[test]
     fn function_scope_restores_preexisting_resolver_state() {
-        let source = "fn main(){}";
+        let source = "fn Main() {}\n";
         let ast = crate::frontend::parse::parse("scope.nx", source).unwrap();
         let (resolved, errors) = register("scope.nx", source, &ast).unwrap();
         assert!(errors.is_empty());

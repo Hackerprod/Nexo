@@ -7,34 +7,42 @@ type AvailabilityExpectation = (
     &'static [(Option<&'static str>, &'static str)],
 );
 
+fn refresh_budget_metadata(d: &mut diagnostic::Diagnostic) {
+    use diagnostic::DataValue as V;
+    let function_scope = d.data.get("budget_kind")
+        == Some(&V::String("ownership_flow_steps".into()))
+        && d.data.contains_key("analysis_function");
+    d.data.insert(
+        "budget_scope".into(),
+        V::String(
+            if function_scope {
+                "function"
+            } else {
+                "compilation"
+            }
+            .into(),
+        ),
+    );
+    d.data.insert(
+        "incomplete_analysis".into(),
+        V::String(d.stage.as_str().into()),
+    );
+}
+
 #[test]
-fn cli_preserves_head_utf8_errors_and_exact_source_limit() {
-    use std::{
-        fs,
-        time::{SystemTime, UNIX_EPOCH},
-    };
+fn cli_preserves_b_utf8_errors_and_exact_source_limit() {
+    use std::fs;
     let exe = env!("CARGO_BIN_EXE_nexo");
-    let nonce = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap()
-        .as_nanos();
-    let path = std::env::temp_dir().join(format!("nexo-i01-{nonce}.nx"));
-    for (name, bytes, stderr) in [
-        (
-            "truncated",
-            b"a\xf0\x9f".as_slice(),
-            "E0004: cannot read UTF-8 source: incomplete utf-8 byte sequence from index 1\n",
-        ),
-        (
-            "middle",
-            b"a\xffb".as_slice(),
-            "E0004: cannot read UTF-8 source: invalid utf-8 sequence of 1 bytes from index 1\n",
-        ),
-        (
-            "one-byte",
-            b"\xff".as_slice(),
-            "E0004: cannot read UTF-8 source: invalid utf-8 sequence of 1 bytes from index 0\n",
-        ),
+    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("target")
+        .join("test-fixtures")
+        .join("input");
+    fs::create_dir_all(&root).unwrap();
+    let path = root.join(format!("i01-{}.nx", std::process::id()));
+    for (name, bytes, start, hex) in [
+        ("truncated", b"a\xf0\x9f".as_slice(), 1, "f09f"),
+        ("middle", b"a\xffb".as_slice(), 1, "ff"),
+        ("one-byte", b"\xff".as_slice(), 0, "ff"),
     ] {
         fs::write(&path, bytes).unwrap();
         let output = Command::new(exe)
@@ -43,10 +51,28 @@ fn cli_preserves_head_utf8_errors_and_exact_source_limit() {
             .unwrap();
         assert_eq!(output.status.code(), Some(2), "{name}");
         assert_eq!(output.stdout, b"", "{name}");
-        assert_eq!(output.stderr, stderr.as_bytes(), "{name}");
+        let stderr = String::from_utf8(output.stderr).unwrap();
+        assert!(stderr.starts_with("NX-E0004:0:0:"), "{name}: {stderr}");
+        assert!(
+            stderr.contains("subcause: invalid_utf8"),
+            "{name}: {stderr}"
+        );
+        assert!(stderr.contains("stage: input"), "{name}: {stderr}");
+        assert!(
+            stderr.contains("operation: input.decode"),
+            "{name}: {stderr}"
+        );
+        assert!(
+            stderr.contains(&format!("\"start\":{start}")),
+            "{name}: {stderr}"
+        );
+        assert!(
+            stderr.contains(&format!("\"invalid_bytes_hex\":\"{hex}\"")),
+            "{name}: {stderr}"
+        );
     }
     let mut exact_bytes = vec![b' '; nexo::diagnostic::SOURCE_LIMIT];
-    exact_bytes[..13].copy_from_slice(b"fn main(){}//");
+    exact_bytes[..13].copy_from_slice(b"fn Main(){}//");
     exact_bytes[nexo::diagnostic::SOURCE_LIMIT - 1] = b'\n';
     fs::write(&path, exact_bytes).unwrap();
     let exact = Command::new(exe)
@@ -54,10 +80,7 @@ fn cli_preserves_head_utf8_errors_and_exact_source_limit() {
         .output()
         .unwrap();
     assert_eq!(exact.status.code(), Some(0));
-    assert_eq!(
-        exact.stdout,
-        b"checked: F0 slice 1 (not full-language validation)\n"
-    );
+    assert_eq!(exact.stdout, b"nexo-check:ok\n");
     assert_eq!(exact.stderr, b"");
     fs::write(&path, vec![b' '; nexo::diagnostic::SOURCE_LIMIT + 1]).unwrap();
     let over = Command::new(exe)
@@ -66,7 +89,16 @@ fn cli_preserves_head_utf8_errors_and_exact_source_limit() {
         .unwrap();
     assert_eq!(over.status.code(), Some(1));
     assert_eq!(over.stdout, b"");
-    assert_eq!(over.stderr, b"E0003:1:1: F0 source limit is 1 MiB\n");
+    let stderr = String::from_utf8(over.stderr).unwrap();
+    assert!(stderr.starts_with("NX-E0003:0:0:"), "{stderr}");
+    assert!(stderr.contains("stage: input"), "{stderr}");
+    assert!(stderr.contains("operation: analysis.limit"), "{stderr}");
+    assert!(
+        stderr.contains("\"budget_kind\":\"source_bytes\""),
+        "{stderr}"
+    );
+    assert!(stderr.contains("\"limit\":1048576"), "{stderr}");
+    assert!(stderr.contains("\"observed\":1048577"), "{stderr}");
     fs::remove_file(path).unwrap();
 }
 
@@ -84,8 +116,8 @@ fn pending_scope_matches_the_published_feature_partition() {
         ("for_iteration", "later_adr"),
         ("function_value", "later_adr"),
         ("generator", "F0-0003"),
+        ("implementation_limit", "I08"),
         ("inferred_non_unit_result", "later_adr"),
-        ("legacy_move", "migration"),
         ("loop_control", "later_adr"),
         ("match", "F0-0003"),
         ("methods", "later_adr"),
@@ -115,9 +147,11 @@ fn pending_scope_matches_the_published_feature_partition() {
                 diagnostic::Stage::Names,
                 diagnostic::Operation::NamesResolve,
             ),
-            "inferred_non_unit_result" | "resource_array" | "option" | "unsupported_type" => {
-                (diagnostic::Stage::Types, diagnostic::Operation::TypesCheck)
-            }
+            "implementation_limit"
+            | "inferred_non_unit_result"
+            | "resource_array"
+            | "option"
+            | "unsupported_type" => (diagnostic::Stage::Types, diagnostic::Operation::TypesCheck),
             "partial_transfer" => (
                 diagnostic::Stage::Arguments,
                 diagnostic::Operation::CallBind,
@@ -160,7 +194,7 @@ fn invalid_utf8_text_uses_zero_coordinates_from_source_view() {
         rendered,
         concat!(
             "NX-E0004:0:0: fixture\n",
-            "  namespace: Nexo-proposed-v1\n  profile: f0-0002-v1\n  stage: input\n  operation: input.decode\n",
+            "  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: input\n  operation: input.decode\n",
             "  at: {\"end\":2,\"file\":\"input.nx\",\"start\":1}\n",
             "  subcause: invalid_utf8\n  data: {\"invalid_bytes_hex\":\"ff\"}\n"
         )
@@ -171,9 +205,9 @@ fn invalid_utf8_text_uses_zero_coordinates_from_source_view() {
 #[test]
 fn text_rendering_matches_unicode_crlf_and_l07_positions_completely() {
     let cases = [
-        ("// á🙂\nfn main(){\n let a = missing;\n}", 30, 37, 10),
-        ("// á🙂\r\nfn main(){\r\nlet x=missing;\r\n}", 29, 36, 7),
-        ("// á🙂\nfn main(){\nlet x=missing;\n}", 27, 34, 7),
+        ("// á🙂\nfn Main(){\n let a = missing;\n}", 30, 37, 10),
+        ("// á🙂\r\nfn Main(){\r\nlet x=missing;\r\n}", 29, 36, 7),
+        ("// á🙂\nfn Main(){\nlet x=missing;\n}", 27, 34, 7),
     ];
     for (source, start, end, column) in cases {
         let mut d = diagnostic_for_catalog("NX-E0101", None);
@@ -181,7 +215,7 @@ fn text_rendering_matches_unicode_crlf_and_l07_positions_completely() {
         d.primary_span.as_mut().unwrap().end = end;
         let text = d.render_text("input.nx", source).unwrap();
         let expected = format!(
-            "NX-E0101:3:{column}: fixture\n  namespace: Nexo-proposed-v1\n  profile: f0-0002-v1\n  stage: names\n  operation: names.resolve\n  at: {{\"end\":{end},\"file\":\"input.nx\",\"start\":{start}}}\n  data: {{\"use_kind\":\"value\"}}\n"
+            "NX-E0101:3:{column}: fixture\n  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: names\n  operation: names.resolve\n  at: {{\"end\":{end},\"file\":\"input.nx\",\"start\":{start}}}\n  data: {{\"use_kind\":\"value\"}}\n"
         );
         assert_eq!(text, expected);
     }
@@ -897,11 +931,11 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
             data.insert("declaration_kind".into(), V::String("binding".into()));
         }
         "NX-E0102" | "NX-E1303" => {
-            data.insert("expected_type".into(), V::String("i64".into()));
-            data.insert("found_type".into(), V::String("bool".into()));
+            data.insert("expected_type".into(), V::String("I64".into()));
+            data.insert("found_type".into(), V::String("Bool".into()));
         }
         "NX-E0112" => {
-            data.insert("entry".into(), V::String("main".into()));
+            data.insert("entry".into(), V::String("Main".into()));
         }
         "NX-E0113" => {
             data.insert(
@@ -1034,6 +1068,9 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         d.expected_tokens_kind = Some(diagnostic::ExpectedTokensKind::LexicalCategory);
         d.recognized_prefix = Some(empty);
     }
+    if code == "NX-E0003" {
+        refresh_budget_metadata(&mut d);
+    }
     d
 }
 
@@ -1054,8 +1091,8 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
                     d.data.insert(
                         "pending_scope".into(),
                         diagnostic::DataValue::String(
-                            if feature == "legacy_move" {
-                                "migration"
+                            if feature == "implementation_limit" {
+                                "I08"
                             } else if ["closure", "generator", "option", "match"].contains(&feature)
                             {
                                 "F0-0003"
@@ -1070,7 +1107,8 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
                             d.stage = diagnostic::Stage::Names;
                             d.operation = diagnostic::Operation::NamesResolve;
                         }
-                        "inferred_non_unit_result"
+                        "implementation_limit"
+                        | "inferred_non_unit_result"
                         | "resource_array"
                         | "option"
                         | "unsupported_type" => {
@@ -1144,28 +1182,28 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
         }
     }
     let expected_types = [
-        "i64",
-        "bool",
+        "I64",
+        "Bool",
         "()",
         "MockResource",
         "MockBlockingResource",
-        "Array<i64>",
-        "Array<bool>",
-        "Array<Array<i64>>",
-        "Result<i64,bool>",
-        "Result<Array<i64>,bool>",
-        "Array<Result<i64,bool>>",
+        "Array<I64>",
+        "Array<Bool>",
+        "Array<Array<I64>>",
+        "Result<I64,Bool>",
+        "Result<Array<I64>,Bool>",
+        "Array<Result<I64,Bool>>",
         "domain:copyable_data",
         "domain:result",
     ];
     let found_types = [
-        "i64",
-        "bool",
+        "I64",
+        "Bool",
         "()",
         "MockResource",
         "MockBlockingResource",
-        "Array<i64>",
-        "Result<i64,bool>",
+        "Array<I64>",
+        "Result<I64,Bool>",
     ];
     let mut type_fixtures = 0;
     'pairs: for expected in expected_types {
@@ -1239,130 +1277,134 @@ fn feature_explanations_match_literal_f01_f33_fixtures() {
     const FIXTURES: &[(&str, &str, &str)] = &[
         (
             "async",
-            "async fn f(){} fn main(){}",
-            " fn f(){} fn main(){}",
+            "async fn F(){} fn Main(){}",
+            " fn F(){} fn Main(){}",
         ),
         (
             "attributes",
-            "@derive(JsonEncode) fn main(){}",
-            " fn main(){}",
+            "@derive(JsonEncode) fn Main(){}",
+            " fn Main(){}",
         ),
         (
             "closure",
-            "fn main(){let f=fn[](){return ();};}",
-            "fn main(){let f=();}",
+            "fn Main(){let f=fn[](){return ();};}",
+            "fn Main(){let f=();}",
         ),
         (
             "compound_assignment",
-            "fn main(){var x=1;x+=1;}",
-            "fn main(){var x=1;x=x+1;}",
+            "fn Main(){var x=1;x+=1;}",
+            "fn Main(){var x=1;x=x+1;}",
         ),
         (
             "comptime",
-            "const X:i64=comptime 1;fn main(){}",
-            "fn main(){}",
+            "const x:I64=comptime 1;fn Main(){}",
+            "fn Main(){}",
         ),
         (
             "default_argument",
-            "fn f(x:i64=1){} fn main(){f(1);}",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x:view I64=1){} fn Main(){F(1);}",
+            "fn F(x:view I64){} fn Main(){F(1);}",
         ),
-        ("extensions", "extend i64{} fn main(){}", " fn main(){}"),
+        ("extensions", "extend I64{} fn Main(){}", " fn Main(){}"),
         (
             "float_literal",
-            "fn main(){let x=0.5;}",
-            "fn main(){let x=0;}",
+            "fn Main(){let x=0.5;}",
+            "fn Main(){let x=0;}",
         ),
         (
             "for_iteration",
-            "fn main(){for n in [1]{}}",
-            "fn main(){while false{}}",
+            "fn Main(){for n in [1]{}}",
+            "fn Main(){while false{}}",
         ),
         (
             "function_value",
-            "fn f(){} fn main(){let g=f;}",
-            "fn f(){} fn main(){f();}",
+            "fn F(){} fn Main(){let g=F;}",
+            "fn F(){} fn Main(){F();}",
         ),
         (
             "generator",
-            "gen fn g(){} fn main(){}",
-            " fn g(){} fn main(){}",
+            "gen fn G(){} fn Main(){}",
+            " fn G(){} fn Main(){}",
+        ),
+        (
+            "implementation_limit",
+            "fn Main()->Result<(),I64>{return Ok(());}",
+            "fn Main(){}",
         ),
         (
             "inferred_non_unit_result",
-            "fn f(){return 1;} fn main(){}",
-            "fn f()->i64{return 1;} fn main(){}",
-        ),
-        (
-            "legacy_move",
-            "fn main(){let r=mock_open(1);let s=move r;}",
-            "fn main(){let r=mock_open(1);let s=consume r;}",
+            "fn F(){return 1;} fn Main(){}",
+            "fn F()->I64{return 1;} fn Main(){}",
         ),
         (
             "loop_control",
-            "fn main(){while false{break;}}",
-            "fn main(){while false{}}",
+            "fn Main(){while false{break;}}",
+            "fn Main(){while false{}}",
         ),
         (
             "match",
-            "fn main(){match true{true=>{},false=>{}}}",
-            "fn main(){if true{}else{}}",
+            "fn Main(){match true{true=>{},false=>{}}}",
+            "fn Main(){if true{}else{}}",
         ),
         (
             "methods",
-            "fn main(){let a=[1];a.foo();}",
-            "fn main(){let a=[1];len(a);}",
+            "fn Main(){let a=[1];a.Foo();}",
+            "fn Main(){let a=[1];Len(a);}",
         ),
         (
             "modules_visibility",
-            "use std.app;fn main(){}",
-            "fn main(){}",
+            "use std.app;fn Main(){}",
+            "fn Main(){}",
         ),
         (
             "no_heap_alloc",
-            "fn main() with no_heap_alloc{}",
-            "fn main() with no_alloc{}",
+            "fn Main() with no_heap_alloc{}",
+            "fn Main() with no_alloc{}",
         ),
         (
             "option",
-            "fn f(x:Option<i64>){} fn main(){}",
-            "fn f(x:Result<i64,i64>){} fn main(){}",
+            "fn F(x:view Option<I64>){} fn Main(){}",
+            "fn F(x:view Result<I64,I64>){} fn Main(){}",
         ),
         (
             "partial_transfer",
-            "fn main(){let a=[1];let x=consume a[0];}",
-            "fn main(){let a=[1];let x= a[0];}",
+            "fn Main(){let a=[1];let x=move a[0];}",
+            "fn Main(){let a=[1];let x= a[0];}",
         ),
         (
             "provenance_clauses",
-            "fn f(x:i64)->i64 from(x){return x;} fn main(){}",
-            "fn f(x:i64)->i64 {return x;} fn main(){}",
+            "fn F(x:view I64)->I64 from(x){return x;} fn Main(){}",
+            "fn F(x:view I64)->I64 {return x;} fn Main(){}",
         ),
         (
             "range",
-            "fn main(){let n=1;let x=0..n;}",
-            "fn main(){let n=1;let x=0+n;}",
+            "fn Main(){let n=1;let x=0..<n;}",
+            "fn Main(){let n=1;let x=0+n;}",
         ),
         (
             "receiver_mode",
-            "fn f(){} fn main(){consume f();}",
-            "fn f(){} fn main(){ f();}",
+            "fn F(){} fn Main(){move F();}",
+            "fn F(){} fn Main(){ F();}",
         ),
-        ("region", "fn main(){region r{}}", "fn main(){{}}"),
+        (
+            "region",
+            "fn Main(){region r(capacity:0){}}",
+            "fn Main(){{}}",
+        ),
         (
             "resource_array",
-            "fn main(){let a=[mock_open(1)];}",
-            "fn main(){let a=mock_open(1);}",
+            "fn Main(){let a=[MockOpen(1)];}",
+            "fn Main(){let a=MockOpen(1);}",
         ),
-        ("text", "fn main(){let x=\"hola\";}", "fn main(){let x=1;}"),
-        ("traits_generics", "trait T{} fn main(){}", " fn main(){}"),
-        ("tuple", "fn main(){let x=(1,2);}", "fn main(){let x=(1);}"),
+        ("text", "fn Main(){let x=\"hola\";}", "fn Main(){let x=1;}"),
+        ("traits_generics", "trait T{} fn Main(){}", " fn Main(){}"),
+        ("tuple", "fn Main(){let x=(1,2);}", "fn Main(){let x=(1);}"),
         (
             "unsupported_type",
-            "fn f(x:u32){} fn main(){}",
-            "fn f(x:i64){} fn main(){}",
+            "fn F(x:view U32){} fn Main(){}",
+            "fn F(x:view I64){} fn Main(){}",
         ),
-        ("user_types", "struct S{} fn main(){}", " fn main(){}"),
+        ("user_types", "struct S{} fn Main(){}", " fn Main(){}"),
     ];
     for (id, negative, positive) in FIXTURES {
         let entry = diagnostic::explain("NX-E0006", None)
@@ -1374,7 +1416,7 @@ fn feature_explanations_match_literal_f01_f33_fixtures() {
         assert_eq!(entry.positive_source, *positive, "{id}");
         assert_eq!(
             entry.example_profile_id.as_deref(),
-            Some("f0-0002-v1"),
+            Some("f0-0002-b-v2"),
             "{id}"
         );
         assert!(entry.repair_consequences.is_empty(), "{id}");
@@ -1389,273 +1431,300 @@ fn ordinary_explanations_match_literal_published_pairs_and_fixture_profile() {
         (
             "NX-E0002",
             None,
-            "fn main(){let match=1;}",
-            "fn main(){let match_value=1;}",
+            "fn Main(){let match=1;}",
+            "fn Main(){let match_value=1;}",
         ),
         (
             "NX-E0005",
             None,
-            "fn f()->i64{return 1 } fn main(){}",
-            "fn f()->i64{return 1; } fn main(){}",
+            "fn F()->I64{return 1 } fn Main(){}",
+            "fn F()->I64{return 1; } fn Main(){}",
         ),
         (
             "NX-E0111",
             Some("missing_argument"),
-            "fn f(x:i64){} fn main(){f();}",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x:view I64){} fn Main(){F();}",
+            "fn F(x:view I64){} fn Main(){F(1);}",
         ),
         (
             "NX-E0111",
             Some("excess_positional_argument"),
-            "fn f(x:i64){} fn main(){f(1,2);}",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x:view I64){} fn Main(){F(1,2);}",
+            "fn F(x:view I64){} fn Main(){F(1);}",
         ),
         (
             "NX-E0111",
             Some("unknown_argument_label"),
-            "fn f(x:i64){} fn main(){f(y:1);}",
-            "fn f(x:i64){} fn main(){f(x:1);}",
+            "fn F(x:view I64){} fn Main(){F(y:1);}",
+            "fn F(x:view I64){} fn Main(){F(x:1);}",
         ),
         (
             "NX-E0111",
             Some("duplicate_argument"),
-            "fn f(x:i64){} fn main(){f(x:1,x:2);}",
-            "fn f(x:i64){} fn main(){f(x:1);}",
+            "fn F(x:view I64){} fn Main(){F(x:1,x:2);}",
+            "fn F(x:view I64){} fn Main(){F(x:1);}",
         ),
         (
             "NX-E0111",
             Some("positional_after_named"),
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,2);}",
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,y:2);}",
+            "fn F(x:view I64,y:view I64){} fn Main(){F(x:1,2);}",
+            "fn F(x:view I64,y:view I64){} fn Main(){F(x:1,y:2);}",
         ),
         (
             "NX-E0111",
             Some("argument_mode_mismatch"),
-            "fn f(inout x:i64){} fn main(){var x=1;f(x);}",
-            "fn f(inout x:i64){} fn main(){var x=1;f(inout x);}",
+            "fn F(x:edit I64){} fn Main(){var x=1;F(x);}",
+            "fn F(x:edit I64){} fn Main(){var x=1;F(edit x);}",
         ),
         (
             "NX-E0111",
             Some("non_callable_target"),
-            "fn main(){let f=1;f();}",
-            "fn f(){} fn main(){f();}",
+            "fn Main(){let f=1;f();}",
+            "fn F(){} fn Main(){F();}",
         ),
         (
             "NX-E0112",
             Some("missing_main"),
-            "fn f(){}",
-            "fn f(){} fn main(){}",
+            "fn F(){}",
+            "fn F(){} fn Main(){}",
         ),
         (
             "NX-E0112",
             Some("invalid_main_signature"),
-            "fn main(x:i64){}",
-            "fn main(){}",
+            "fn Main(x:view I64){}",
+            "fn Main(){}",
         ),
         (
             "NX-E0105",
             None,
-            "fn f(inout x:i64){} fn main(){let x=1;f(inout x);}",
-            "fn f(inout x:i64){} fn main(){var x=1;f(inout x);}",
+            "fn F(x:edit I64){} fn Main(){let x=1;F(edit x);}",
+            "fn F(x:edit I64){} fn Main(){var x=1;F(edit x);}",
         ),
         (
             "NX-E0113",
             None,
-            "fn main(){let r=Ok(1);}",
-            "fn main(){let r:Result<i64,i64>=Ok(1);}",
+            "fn Main(){let r=Ok(1);}",
+            "fn Main(){let r:Result<I64,I64>=Ok(1);}",
         ),
         (
             "NX-E0103",
             None,
-            "fn main(){let xs=[];}",
-            "fn main(){let xs:Array<i64>=[];}",
+            "fn Main(){let xs=[];}",
+            "fn Main(){let xs:Array<I64>=[];}",
         ),
         (
             "NX-E1317",
             None,
-            "fn f()->i64 { } fn main(){}",
-            "fn f()->i64 { return 1;} fn main(){}",
+            "fn F()->I64 { } fn Main(){}",
+            "fn F()->I64 { return 1;} fn Main(){}",
         ),
         (
             "NX-E0102",
             Some("type_mismatch"),
-            "fn f()->i64{return true;} fn main(){}",
-            "fn f()->i64{return 1;} fn main(){}",
+            "fn F()->I64{return true;} fn Main(){}",
+            "fn F()->I64{return 1;} fn Main(){}",
         ),
         (
             "NX-E0102",
             Some("not_indexable"),
-            "fn main(){let x=1[0];}",
-            "fn main(){let x=[1][0];}",
+            "fn Main(){let x=1[0];}",
+            "fn Main(){let x=[1][0];}",
         ),
         (
             "NX-E0102",
             Some("resource_required"),
-            "fn main(){let x=1;inspect(x);}",
-            "fn main(){let x=mock_open(1);inspect(x);}",
+            "fn Main(){let x=1;Inspect(x);}",
+            "fn Main(){let x=MockOpen(1);Inspect(x);}",
         ),
         (
             "NX-E0107",
             None,
-            "fn main() { let x = 9223372036854775808; }",
-            "fn main() { let x = 9223372036854775807; }",
+            "fn Main() { let x = 9223372036854775808; }",
+            "fn Main() { let x = 9223372036854775807; }",
         ),
         (
             "NX-E0104",
             None,
-            "fn f(){} fn f(){} fn main(){}",
-            "fn f(){} fn g(){} fn main(){}",
+            "fn F(){} fn F(){} fn Main(){}",
+            "fn F(){} fn G(){} fn Main(){}",
         ),
         (
             "NX-E0101",
             None,
-            "fn main(){ausente();}",
-            "fn ausente(){} fn main(){ausente();}",
+            "fn Main(){ausente();}",
+            "fn Ausente(){} fn Main(){Ausente();}",
         ),
         (
             "NX-E0002",
             None,
-            "fn main(){let match=1;}",
-            "fn main(){let match_value=1;}",
+            "fn Main(){let match=1;}",
+            "fn Main(){let match_value=1;}",
         ),
         (
             "NX-E0201",
             None,
-            "fn main(){let r=mock_open(1);let s=r;}",
-            "fn main(){let r=mock_open(1);let s=consume r;}",
+            "fn Main(){let r=MockOpen(1);let s=r;}",
+            "fn Main(){let r=MockOpen(1);let s=move r;}",
         ),
         (
             "NX-E0202",
             Some("definitely_consumed"),
-            "fn main(){let r=mock_open(1);let s=consume r;inspect(r);}",
-            "fn main(){let r=mock_open(1);let s=consume r;inspect(s);}",
+            "fn Main(){let r=MockOpen(1);let s=move r;Inspect(r);}",
+            "fn Main(){let r=MockOpen(1);let s=move r;Inspect(s);}",
         ),
         (
             "NX-E0202",
             Some("maybe_consumed"),
-            "fn f(b:bool){let r=mock_open(1);if b{drop(r);}inspect(r);} fn main(){}",
-            "fn f(b:bool){let r=mock_open(1);if b{drop(r);return;}inspect(r);} fn main(){}",
+            "fn F(b:view Bool){let r=MockOpen(1);if b{Drop(r);}Inspect(r);} fn Main(){}",
+            "fn F(b:view Bool){let r=MockOpen(1);if b{Drop(r);return;}Inspect(r);} fn Main(){}",
         ),
         (
             "NX-E1105",
             Some("permission_escalation"),
-            "fn f(x:MockResource)->MockResource{return consume x;} fn main(){}",
-            "fn f(consume x:MockResource)->MockResource{return consume x;} fn main(){}",
+            "fn F(x:view MockResource)->MockResource{return move x;} fn Main(){}",
+            "fn F(x:move MockResource)->MockResource{return move x;} fn Main(){}",
         ),
         (
             "NX-E1105",
             Some("overlapping_mutable_borrows"),
-            "fn f(inout x:i64,inout y:i64){} fn main(){var x=1;f(inout x,inout x);}",
-            "fn f(inout x:i64,inout y:i64){} fn main(){var x=1;var y=2;f(inout x,inout y);}",
+            "fn F(x:edit I64,y:edit I64){} fn Main(){var x=1;F(edit x,edit x);}",
+            "fn F(x:edit I64,y:edit I64){} fn Main(){var x=1;var y=2;F(edit x,edit y);}",
         ),
         (
             "NX-E1105",
             Some("active_borrow_conflict"),
-            "fn f(x:i64,inout y:i64){} fn main(){var x=1;f(x,inout x);}",
-            "fn f(x:i64,inout y:i64){} fn main(){var x=1;f(x+0,inout x);}",
+            "fn F(x:view I64,y:edit I64){} fn Main(){var x=1;F(x,edit x);}",
+            "fn F(x:view I64,y:edit I64){} fn Main(){var x=1;F(x+0,edit x);}",
         ),
         (
             "NX-E1302",
             Some("missing_else"),
-            "fn f(b:bool)->i64{return if b{value:1;};} fn main(){}",
-            "fn f(b:bool)->i64{return if b{value:1;}else{value:2;};} fn main(){}",
+            "fn F(b:view Bool)->I64{return if b then {value:1;};} fn Main(){}",
+            "fn F(b:view Bool)->I64{return if b then {value:1;}else{value:2;};} fn Main(){}",
         ),
         (
             "NX-E1302",
             Some("missing_branch_value"),
-            "fn f()->i64{return if true{1;}else{value:2;};} fn main(){}",
-            "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {1;}else{value:2;};} fn Main(){}",
+            "fn F()->I64{return if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         (
             "NX-E1302",
             Some("invalid_value_target"),
-            "fn main(){value:1;}",
-            "fn main(){let value=1;}",
+            "fn Main(){value:1;}",
+            "fn Main(){let value=1;}",
         ),
         (
             "NX-E1302",
             Some("missing_value_operand"),
-            "fn f()->i64{return if true{value:}else{value:2;};} fn main(){}",
-            "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {value:}else{value:2;};} fn Main(){}",
+            "fn F()->I64{return if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         (
             "NX-E1302",
             Some("non_final_branch_value"),
-            "fn f()->i64{return if true{value:1;2;}else{value:2;};} fn main(){}",
-            "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {value:1;2;}else{value:2;};} fn Main(){}",
+            "fn F()->I64{return if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         (
             "NX-E1303",
             None,
-            "fn f(){let n=if true{value:1;}else{value:true;};} fn main(){}",
-            "fn f(){let n=if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F(){let n=if true then {value:1;}else{value:true;};} fn Main(){}",
+            "fn F(){let n=if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         (
             "NX-E0417",
             Some("duplicate_operation"),
-            "fn main() with {call(no_io),call(no_alloc)}{}",
-            "fn main() with {call(no_io)}{}",
+            "fn Main() with {call(no_io),call(no_alloc)}{}",
+            "fn Main() with {call(no_io)}{}",
         ),
         (
             "NX-E0417",
             Some("invalid_operation"),
-            "fn main() with {resume(no_io)}{}",
-            "fn main() with {call(no_io)}{}",
+            "fn Main() with {resume(no_io)}{}",
+            "fn Main() with {call(no_io)}{}",
         ),
         (
             "NX-E0417",
             Some("duplicate_restriction"),
-            "fn main() with no_io,no_io{}",
-            "fn main() with no_io{}",
+            "fn Main() with no_io,no_io{}",
+            "fn Main() with no_io{}",
         ),
         (
             "NX-E0417",
             Some("empty_operation_list"),
-            "fn main() with {}{}",
-            "fn main() with {call(unrestricted)}{}",
+            "fn Main() with {}{}",
+            "fn Main() with {call(unrestricted)}{}",
         ),
         (
             "NX-E0417",
             Some("unrestricted_mixed"),
-            "fn main() with unrestricted,no_io{}",
-            "fn main() with no_io{}",
+            "fn Main() with unrestricted,no_io{}",
+            "fn Main() with no_io{}",
         ),
         (
             "NX-E0412",
             None,
-            "fn main() with no_alloc{let a=[1];}",
-            "fn main() with no_alloc{let a=1;}",
+            "fn Main() with no_alloc{let a=[1];}",
+            "fn Main() with no_alloc{let a=1;}",
         ),
         (
             "NX-E0413",
             None,
-            "fn main() with no_block{let r=mock_blocking_open(1);}",
-            "fn main() with no_block{let r=mock_open(1);}",
+            "fn Main() with no_block{let r=MockBlockingOpen(1);}",
+            "fn Main() with no_block{let r=MockOpen(1);}",
         ),
         (
             "NX-E0414",
             None,
-            "fn main() with no_suspend{mock_unknown();}",
-            "fn main() with no_suspend{assert_eq(1,1);}",
+            "fn Main() with no_suspend{MockUnknown();}",
+            "fn Main() with no_suspend{AssertEq(1,1);}",
         ),
         (
             "NX-E0415",
             None,
-            "fn hoja(){print(1);} fn medio(){hoja();} fn main() with no_io{medio();}",
-            "fn hoja(){} fn medio(){hoja();} fn main() with no_io{medio();}",
+            "fn Hoja(){Print(1);} fn Medio(){Hoja();} fn Main() with no_io{Medio();}",
+            "fn Hoja(){} fn Medio(){Hoja();} fn Main() with no_io{Medio();}",
         ),
         (
             "NX-E0001",
             None,
-            "fn main(){let x=1/2;}",
-            "fn main(){let x=1+2;}",
+            "fn Main(){let x=1!2;}",
+            "fn Main(){let x=1+2;}",
         ),
     ];
     for (code, subcause, negative, positive) in FIXTURES {
         let entry = diagnostic::explain(code, *subcause).unwrap().remove(0);
         assert_eq!(entry.negative_source, *negative, "{code}/{subcause:?}");
         assert_eq!(entry.positive_source, *positive, "{code}/{subcause:?}");
-        assert_eq!(entry.example_profile_id.as_deref(), Some("f0-0002-v1"));
+        if !matches!(*code, "NX-E0412" | "NX-E0413" | "NX-E0414" | "NX-E0415") {
+            let errors = if *code == "NX-E0113" {
+                // I08 keeps the catalog's type rule, while compilation reports
+                // the temporary implementation limit at the same source site.
+                nexo::check::check_proposed("catalog_example.nx", negative, true)
+                    .err()
+                    .unwrap_or_else(|| panic!("catalog negative did not reject: {negative}"))
+            } else {
+                match nexo::ir::compile_scalar("catalog_example.nx", negative) {
+                    Err(nexo::ir::CompileError::Rejected(errors)) => errors,
+                    other => {
+                        panic!("catalog negative did not reject: {code}/{subcause:?}: {other:?}")
+                    }
+                }
+            };
+            assert_eq!(errors[0].code, *code, "catalog negative: {negative}");
+            assert_eq!(
+                errors[0].subcause.as_deref(),
+                *subcause,
+                "catalog negative: {negative}"
+            );
+            let repaired = nexo::check::check_proposed("catalog_example.nx", positive, true);
+            assert!(
+                repaired.is_ok(),
+                "catalog positive: {code}/{subcause:?}: {positive}: {repaired:?}"
+            );
+        }
+        assert_eq!(entry.example_profile_id.as_deref(), Some("f0-0002-b-v2"));
         assert_eq!(
             entry.repair_consequences,
             if *code == "NX-E0005" {
@@ -1668,14 +1737,14 @@ fn ordinary_explanations_match_literal_published_pairs_and_fixture_profile() {
     assert_eq!(FIXTURES.len(), 44);
 
     let budget = diagnostic::explain("NX-E0003", None).unwrap().remove(0);
-    let mut negative = String::from("fn main(){var x=0;x=");
+    let mut negative = String::from("fn Main(){var x=0;x=");
     negative.push_str(&"[".repeat(200));
     negative.push('1');
     negative.push_str(&"]".repeat(200));
     negative.push_str(";}");
     assert_eq!(budget.negative_source, negative);
-    assert_eq!(budget.positive_source, "fn main(){var x=0;x=0;}");
-    assert_eq!(budget.example_profile_id.as_deref(), Some("f0-0002-v1"));
+    assert_eq!(budget.positive_source, "fn Main(){var x=0;x=0;}");
+    assert_eq!(budget.example_profile_id.as_deref(), Some("f0-0002-b-v2"));
 }
 
 #[test]
@@ -2006,7 +2075,7 @@ fn nx_e1105_accepts_the_four_published_permission_fixtures() {
 }
 
 #[test]
-fn validator_rejects_single_attribute_mutations() {
+fn diagnostic_schema_rejects_single_attribute_mutations() {
     use diagnostic::{
         Cause, CauseKind, CauseOperation, DataValue as V, Edit, Repair, RepairStatus, Stage,
         TokenKind,
@@ -2317,6 +2386,7 @@ fn code_validation_rejects_invalid_lexical_and_terminator_fields() {
     d.primary_span.as_mut().unwrap().start = 1_048_576;
     d.primary_span.as_mut().unwrap().end = 1_048_577;
     d.stage = Stage::Input;
+    refresh_budget_metadata(&mut d);
     let long = "x".repeat(1_048_577);
     assert!(d.validate("input.nx", &long).is_ok());
     for (field, value) in [("limit", 9), ("observed", 9)] {
@@ -2579,6 +2649,7 @@ fn exact_component_path_runtime_and_coordinate_contracts() {
     budget.data.insert("observed".into(), V::UInt(262_145));
     budget.stage = diagnostic::Stage::Lower;
     budget.operation = diagnostic::Operation::AnalysisLimit;
+    refresh_budget_metadata(&mut budget);
     assert!(budget.validate("input.nx", "x").is_ok());
     budget.stage = diagnostic::Stage::Ownership;
     assert!(
@@ -2642,21 +2713,21 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
 
     for (profile, kind, stage) in [
         (
-            "f0-0002-test-types-32-v1",
+            "f0-0002-b-test-types-32-v2",
             "type_solver_steps",
             Stage::Types,
         ),
         (
-            "f0-0002-test-flow-32-v1",
+            "f0-0002-b-test-flow-32-v2",
             "ownership_flow_steps",
             Stage::Ownership,
         ),
         (
-            "f0-0002-test-effects-32-v1",
+            "f0-0002-b-test-effects-32-v2",
             "effect_fixpoint_steps",
             Stage::Effects,
         ),
-        ("f0-0002-test-ir-32-v1", "ir_items", Stage::Lower),
+        ("f0-0002-b-test-ir-32-v2", "ir_items", Stage::Lower),
     ] {
         let mut d = diagnostic_for_catalog("NX-E0003", None);
         d.profile_id = profile.into();
@@ -2665,6 +2736,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         d.data.insert("budget_kind".into(), V::String(kind.into()));
         d.data.insert("limit".into(), V::UInt(32));
         d.data.insert("observed".into(), V::UInt(33));
+        refresh_budget_metadata(&mut d);
         assert!(d.validate("input.nx", "x").is_ok(), "{profile}");
         d.data
             .insert("budget_kind".into(), V::String("function_count".into()));
@@ -2672,13 +2744,14 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         d.operation = Operation::AnalysisLimit;
         d.data.insert("limit".into(), V::UInt(1_024));
         d.data.insert("observed".into(), V::UInt(1_025));
+        refresh_budget_metadata(&mut d);
         assert!(
             d.validate("input.nx", "x").is_ok(),
             "{profile} inherits normal quota"
         );
     }
     let mut wrong_kind = diagnostic_for_catalog("NX-E0003", None);
-    wrong_kind.profile_id = "f0-0002-test-types-32-v1".into();
+    wrong_kind.profile_id = "f0-0002-b-test-types-32-v2".into();
     wrong_kind.stage = Stage::Types;
     wrong_kind.operation = Operation::AnalysisLimit;
     wrong_kind
@@ -2703,6 +2776,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         d.data.insert("budget_kind".into(), V::String(kind.into()));
         d.stage = stage;
         d.operation = Operation::AnalysisLimit;
+        refresh_budget_metadata(&mut d);
         if kind == "source_bytes" {
             d.data.insert("limit".into(), V::UInt(1_048_576));
             d.data.insert("observed".into(), V::UInt(1_048_577));
@@ -2726,6 +2800,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             };
             d.data.insert("limit".into(), V::UInt(limit));
             d.data.insert("observed".into(), V::UInt(limit + 1));
+            refresh_budget_metadata(&mut d);
             assert!(d.validate("input.nx", "x").is_ok(), "{kind}");
         }
     }
@@ -2804,9 +2879,9 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         assert!(d.validate("input.nx", "x").is_ok(), "use_kind={value}");
     }
     for (profile, kind, limit) in [
-        ("f0-0002-test-frames-8-v1", "call_frames", 8),
-        ("f0-0002-test-cells-64-v1", "live_value_cells", 64),
-        ("f0-0002-test-observations-64-v1", "observation_bytes", 64),
+        ("f0-0002-b-test-frames-8-v2", "call_frames", 8),
+        ("f0-0002-b-test-cells-64-v2", "live_value_cells", 64),
+        ("f0-0002-b-test-observations-64-v2", "observation_bytes", 64),
     ] {
         let mut d = diagnostic_for_catalog("NX-E0006", None);
         d.diagnostic_namespace = diagnostic::Namespace::F0002Sim;
@@ -2833,7 +2908,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
     wrong_runtime_kind.data.clear();
     wrong_runtime_kind.stage = Stage::Runtime;
     wrong_runtime_kind.operation = Operation::RuntimeLimit;
-    wrong_runtime_kind.profile_id = "f0-0002-test-frames-8-v1".into();
+    wrong_runtime_kind.profile_id = "f0-0002-b-test-frames-8-v2".into();
     wrong_runtime_kind.data.insert(
         "runtime_budget_kind".into(),
         V::String("live_value_cells".into()),
@@ -2890,7 +2965,7 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
     assert!(terminator.validate("input.nx", "x").is_err());
 
     let mut no_expression = diagnostic_for_catalog("NX-E0005", None);
-    let source = "fn main(){return}";
+    let source = "fn Main(){return}";
     let primary = diagnostic::Span {
         file: "input.nx".into(),
         start: 16,
@@ -3004,14 +3079,17 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
         ("observation_bytes", 65_536),
     ];
     let profiles = [
-        ("f0-0002-v1", None),
-        ("f0-0002-test-types-32-v1", Some("type_solver_steps")),
-        ("f0-0002-test-flow-32-v1", Some("ownership_flow_steps")),
-        ("f0-0002-test-effects-32-v1", Some("effect_fixpoint_steps")),
-        ("f0-0002-test-ir-32-v1", Some("ir_items")),
-        ("f0-0002-test-frames-8-v1", None),
-        ("f0-0002-test-cells-64-v1", None),
-        ("f0-0002-test-observations-64-v1", None),
+        ("f0-0002-b-v2", None),
+        ("f0-0002-b-test-types-32-v2", Some("type_solver_steps")),
+        ("f0-0002-b-test-flow-32-v2", Some("ownership_flow_steps")),
+        (
+            "f0-0002-b-test-effects-32-v2",
+            Some("effect_fixpoint_steps"),
+        ),
+        ("f0-0002-b-test-ir-32-v2", Some("ir_items")),
+        ("f0-0002-b-test-frames-8-v2", None),
+        ("f0-0002-b-test-cells-64-v2", None),
+        ("f0-0002-b-test-observations-64-v2", None),
     ];
     for (profile, changed) in profiles {
         for (kind, normal, stage) in analysis {
@@ -3023,6 +3101,7 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
             d.data.insert("budget_kind".into(), V::String(kind.into()));
             d.data.insert("limit".into(), V::UInt(limit));
             d.data.insert("observed".into(), V::UInt(limit + 1));
+            refresh_budget_metadata(&mut d);
             let source = if kind == "source_bytes" {
                 "x".repeat(limit as usize + 1)
             } else {
@@ -3048,14 +3127,17 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
         }
     }
     for (profile, changed) in [
-        ("f0-0002-v1", None),
-        ("f0-0002-test-frames-8-v1", Some("call_frames")),
-        ("f0-0002-test-cells-64-v1", Some("live_value_cells")),
-        ("f0-0002-test-observations-64-v1", Some("observation_bytes")),
-        ("f0-0002-test-types-32-v1", None),
-        ("f0-0002-test-flow-32-v1", None),
-        ("f0-0002-test-effects-32-v1", None),
-        ("f0-0002-test-ir-32-v1", None),
+        ("f0-0002-b-v2", None),
+        ("f0-0002-b-test-frames-8-v2", Some("call_frames")),
+        ("f0-0002-b-test-cells-64-v2", Some("live_value_cells")),
+        (
+            "f0-0002-b-test-observations-64-v2",
+            Some("observation_bytes"),
+        ),
+        ("f0-0002-b-test-types-32-v2", None),
+        ("f0-0002-b-test-flow-32-v2", None),
+        ("f0-0002-b-test-effects-32-v2", None),
+        ("f0-0002-b-test-ir-32-v2", None),
     ] {
         for (kind, normal) in runtime {
             let limit = if changed == Some(kind) {
@@ -3102,7 +3184,7 @@ fn nx_e0003_costly_analysis_requires_a_nonempty_primary_span() {
     ];
     for (kind, stage, limit) in cases {
         let mut diagnostic = diagnostic_for_catalog("NX-E0003", None);
-        diagnostic.profile_id = "f0-0002-v1".into();
+        diagnostic.profile_id = "f0-0002-b-v2".into();
         diagnostic.stage = stage;
         diagnostic.operation = Operation::AnalysisLimit;
         diagnostic
@@ -3112,6 +3194,7 @@ fn nx_e0003_costly_analysis_requires_a_nonempty_primary_span() {
         diagnostic
             .data
             .insert("observed".into(), V::UInt(limit + 1));
+        refresh_budget_metadata(&mut diagnostic);
         diagnostic.primary_span = Some(Span {
             file: "input.nx".into(),
             start: 0,
@@ -3158,6 +3241,7 @@ fn nx_e0003_structural_budgets_require_primary_spans() {
         diagnostic
             .data
             .insert("observed".into(), V::UInt(limit + 1));
+        refresh_budget_metadata(&mut diagnostic);
         assert!(
             diagnostic.validate("input.nx", "x").is_ok(),
             "{kind} positive"
@@ -3279,13 +3363,13 @@ fn nx_e1105_permission_tables_cover_every_pair() {
 fn canonical_type_parser_stops_at_the_published_depth_bound() {
     use diagnostic::DataValue as V;
     let mut d = diagnostic_for_catalog("NX-E0102", Some("type_mismatch"));
-    let at_limit = format!("{}i64{}", "Array<".repeat(128), ">".repeat(128));
+    let at_limit = format!("{}I64{}", "Array<".repeat(128), ">".repeat(128));
     d.data.insert("expected_type".into(), V::String(at_limit));
     assert!(d.validate("input.nx", "x").is_ok());
-    let over_limit = format!("{}i64{}", "Array<".repeat(129), ">".repeat(129));
+    let over_limit = format!("{}I64{}", "Array<".repeat(129), ">".repeat(129));
     d.data.insert("expected_type".into(), V::String(over_limit));
     assert!(d.validate("input.nx", "x").is_err());
-    let deeply_nested = format!("{}i64{}", "Array<".repeat(10_000), ">".repeat(10_000));
+    let deeply_nested = format!("{}I64{}", "Array<".repeat(10_000), ">".repeat(10_000));
     d.data
         .insert("expected_type".into(), V::String(deeply_nested));
     let error = d.validate("input.nx", "x").unwrap_err();

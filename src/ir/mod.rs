@@ -4,7 +4,7 @@ pub mod model;
 mod ownership_flow;
 pub(crate) mod verify;
 
-pub use lower::{CompileError, compile_scalar};
+pub use lower::{CompileError, check_scalar, compile_scalar};
 pub use model::Program;
 
 #[cfg(test)]

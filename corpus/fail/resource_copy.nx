@@ -1,2 +1,2 @@
-// expect: E0201
-fn main() { let r = mock_open(1); let copy = r; }
+// expect: NX-E0201
+fn Main() { let r = MockOpen(1); let copy = r; }

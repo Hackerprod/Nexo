@@ -216,29 +216,30 @@ la sintaxis concreta no importa.
 
 **Relación con el roadmap 0.2.** D01 acepta llaves, `let`/`var`, `fn`, `struct`, patrones y
 terminadores opcionales: una superficie de la familia C/Rust. El roadmap prevé congelar la sintaxis
-en F0–F1 (los archivos utilizan provisionalmente `.nx`). Esta directiva mantiene abierta la
-decisión.
+en F0–F1. La decisión del propietario del 2026-10-22 fijó B como única superficie oficial;
+véanse F0-D14 §5 y F0-D15. Los archivos usan `.nx`.
 
-**Estado del código y coste real de cambiar.** La arquitectura ya separa la superficie de la
+**Estado del código y coste real de cambiar.** La arquitectura separa la superficie de la
 semántica: el lexer (`frontend/lex.rs`), el parser (`frontend/parse.rs`) y el impresor canónico
 (`frontend/print.rs`) producen y consumen un AST normalizado, y la comprobación de nombres, tipos
 y las etapas posteriores operan sobre el AST, no sobre el texto. Cambiar la sintaxis supone
 reescribir lexer, parser e impresor y migrar las fuentes de prueba. **Lo que más pesa hoy son los
 fixtures**: cientos de fuentes con spans, tokens y conjuntos esperados transcritos del ADR están
-ligados a la sintaxis actual. Esa deuda crece con cada corte.
+ligados a la sintaxis oficial B. La sustitución local migró las fixtures existentes y espera
+revisión independiente; la deuda de oráculos textuales sigue creciendo con cada corte.
 
-**Decisiones que abre y recomendación de proceso.** (a) Fijar un punto de decisión de sintaxis
-(antes de cerrar F1) con un ADR de alternativas. (b) Mientras tanto, no multiplicar fixtures
-dependientes del texto más de lo que cada corte necesite, y preferir esperados al nivel de AST o
-generados con el impresor canónico. (c) La IR, los efectos y la propiedad no dependen de la sintaxis y
-pueden continuar.
+**Decisión de superficie y proceso.** La decisión del propietario del 2026-10-22 adopta B de
+F0-D14 §5 como única sintaxis oficial, especificada normativamente en F0-D15. No se mantiene
+compatibilidad ni un segundo frontend. Limitar fixtures dependientes del texto a las necesarias
+por corte; los esperados publicados de tokens, spans y diagnósticos se transcriben de forma
+independiente del impresor. La IR, los efectos y la propiedad conservan sus contratos semánticos.
 
 **Aclaración del propietario (2026-10-20, posterior a la directiva).** El criterio no es evitar toda
 influencia reconocible, sino que **ningún lenguaje domine** y que se tome **lo mejor de cada uno**,
 incluidas las mayúsculas de C# (PascalCase), que aportan identidad visual y belleza al código. La
 sintaxis no debe favorecer a quienes implementan en Rust o C++ ni incomodar al resto.
 
-**Criterios que se derivan** (a fijar en el ADR de sintaxis de superficie, antes de cerrar F1):
+**Criterios de la decisión de superficie y de su medición posterior:**
 1. **Mérito propio, no procedencia.** Cada construcción se justifica por legibilidad, regularidad de
    parseo, utilidad para agentes y coste visual, nunca por «viene de» un lenguaje concreto. Una
    influencia reconocible no es un defecto ni una virtud.
@@ -252,20 +253,20 @@ sintaxis no debe favorecer a quienes implementan en Rust o C++ ni incomodar al r
    miembros públicos y el camelCase para variables se adoptan como convención de la superficie. No
    cambian la semántica (el compilador no decide que algo es un tipo por empezar en mayúscula) y las
    hace cumplir el formateador oficial.
-5. **Medición.** Cada candidata de sintaxis reescribe los mismos programas (EX01 a EX04 y otros) y se
-   evalúa con una prueba de agente (generación y reparación de programas, con recuento de errores) y
-   con la comprensión por cohortes. El objetivo de lenguaje amigable para agentes se mide, no se
-   afirma.
+5. **Medición.** B se evalúa después de implementarse con tareas de agente (generación y reparación
+   de programas, con recuento de errores) y comprensión por cohortes según F0-D15 §9.3. La medición
+   no reabre la elección de superficie ni sustituye las puertas independientes del roadmap.
 
-**Estado de la propuesta externa recibida** (documento de sintaxis de 22 secciones, 2026-10-20):
-se toma como una candidata a evaluar, no como decisión. Ideas con mérito propio identificadas:
+**Antecedente histórico de la propuesta externa recibida** (documento de sintaxis de 22 secciones,
+2026-10-20): se evaluó como candidata antes de la decisión del propietario. Ideas con mérito propio
+identificadas entonces:
 vocabulario de modos `view`/`edit`/`take`/`move`/`copy` con marca visible, `if c then a else b`
 como expresión de un solo valor, operadores lógicos en palabras (`and`/`or`/`not`), rangos
 `0..<10` y `1..=10`, y la tabla de traducción de superficie a núcleo. Puntos a resolver antes de
 adoptarla: dos maneras de componer (método con punto y tubería `|>`) y la pérdida del modo en la
 tubería; `fails` frente a `Result` explícito; `prop` y `defer` (características nuevas); comas
 finales, rechazadas hoy por decisión del ADR; y choques con D01, D11 y D13 (`=> expr` sin `return`,
-`capture [...]`, `value:`).
+`capture [...]`, `value:`). F0-D14 §5 resolvió esta comparación y F0-D15 fija la superficie elegida.
 
 ### 9.7. Orden propuesto de las decisiones
 

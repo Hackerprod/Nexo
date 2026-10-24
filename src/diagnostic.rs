@@ -1,8 +1,6 @@
 //! Structured diagnostics for the F0-0002 profile.
 //!
-//! This module is deliberately independent of the existing slice-1 frontend
-//! and runtime. It provides the schema and presentation layer that later
-//! compiler steps can use without changing their current output.
+//! Shared schema and presentation layer for the official B pipeline.
 
 use std::{
     collections::{BTreeMap, BTreeSet},
@@ -11,7 +9,7 @@ use std::{
 };
 
 pub const SCHEMA_VERSION: u8 = 1;
-pub const PROFILE_ID: &str = "f0-0002-v1";
+pub const PROFILE_ID: &str = "f0-0002-b-v2";
 pub const SOURCE_LIMIT: usize = 1_048_576;
 
 macro_rules! vocabulary {
@@ -220,13 +218,14 @@ impl Diagnostic {
         }
         const PUBLISHED_PROFILES: &[&str] = &[
             PROFILE_ID,
-            "f0-0002-test-types-32-v1",
-            "f0-0002-test-flow-32-v1",
-            "f0-0002-test-effects-32-v1",
-            "f0-0002-test-ir-32-v1",
-            "f0-0002-test-frames-8-v1",
-            "f0-0002-test-cells-64-v1",
-            "f0-0002-test-observations-64-v1",
+            "f0-0002-b-test-types-32-v2",
+            "f0-0002-b-test-flow-32-v2",
+            "f0-0002-b-test-flow-global-32-v2",
+            "f0-0002-b-test-effects-32-v2",
+            "f0-0002-b-test-ir-32-v2",
+            "f0-0002-b-test-frames-8-v2",
+            "f0-0002-b-test-cells-64-v2",
+            "f0-0002-b-test-observations-64-v2",
         ];
         if !PUBLISHED_PROFILES.contains(&self.profile_id.as_str()) {
             return fail("unknown profile_id");
@@ -331,10 +330,10 @@ impl Diagnostic {
         if self.code == "NX-E0003" {
             let kind = self.data.get("budget_kind");
             let reduced = match self.profile_id.as_str() {
-                "f0-0002-test-types-32-v1" => Some(("type_solver_steps", 32)),
-                "f0-0002-test-flow-32-v1" => Some(("ownership_flow_steps", 32)),
-                "f0-0002-test-effects-32-v1" => Some(("effect_fixpoint_steps", 32)),
-                "f0-0002-test-ir-32-v1" => Some(("ir_items", 32)),
+                "f0-0002-b-test-types-32-v2" => Some(("type_solver_steps", 32)),
+                "f0-0002-b-test-flow-32-v2" => Some(("ownership_flow_steps", 32)),
+                "f0-0002-b-test-effects-32-v2" => Some(("effect_fixpoint_steps", 32)),
+                "f0-0002-b-test-ir-32-v2" => Some(("ir_items", 32)),
                 _ => None,
             };
             let kind_name = match kind {
@@ -490,6 +489,9 @@ impl Diagnostic {
             "input_path",
             "invalid_bytes_hex",
             "budget_kind",
+            "budget_scope",
+            "incomplete_analysis",
+            "analysis_function",
             "runtime_budget_kind",
             "limit",
             "observed",
@@ -523,7 +525,9 @@ impl Diagnostic {
                 "unresolved_components" => {
                     matches!(value, DataValue::Array(items) if items.iter().all(|item| matches!(item, DataValue::String(_))))
                 }
-                "origin" | "loan" | "binding" | "parameter" => valid_entity_value(value),
+                "origin" | "loan" | "binding" | "parameter" | "analysis_function" => {
+                    valid_entity_value(value)
+                }
                 "contract_origin" => valid_span_value(value),
                 _ => matches!(value, DataValue::String(_)),
             };
@@ -896,13 +900,13 @@ impl Diagnostic {
             let f = self.feature_id.as_deref().unwrap_or("");
             match f {
                 "function_value" => ("names", "names.resolve"),
+                "implementation_limit" => ("types", "types.check"),
                 "inferred_non_unit_result" | "resource_array" | "option" | "unsupported_type" => {
                     ("types", "types.check")
                 }
                 "async" if self.stage == Stage::Types => ("types", "types.check"),
                 "partial_transfer" if self.stage == Stage::Arguments => ("arguments", "call.bind"),
-                "legacy_move"
-                | "float_literal"
+                "float_literal"
                 | "range"
                 | "tuple"
                 | "attributes"
@@ -990,7 +994,14 @@ impl Diagnostic {
         let code = self.code.as_str();
         let cause = self.subcause.as_deref();
         let allowed_for_code: &[&str] = match code {
-            "NX-E0003" => &["budget_kind", "limit", "observed"],
+            "NX-E0003" => &[
+                "budget_kind",
+                "budget_scope",
+                "incomplete_analysis",
+                "analysis_function",
+                "limit",
+                "observed",
+            ],
             "NX-E0004" if cause == Some("source_unreadable") => &["input_path"],
             "NX-E0004" => &["invalid_bytes_hex"],
             "NX-E0006" => &["pending_scope", "type_spelling"],
@@ -1065,7 +1076,7 @@ impl Diagnostic {
                 "§13.6 NX-E0006 type_spelling is absent outside unsupported_type".into(),
             ));
         }
-        if code == "NX-E0112" && self.data.get("entry") != Some(&DataValue::String("main".into())) {
+        if code == "NX-E0112" && self.data.get("entry") != Some(&DataValue::String("Main".into())) {
             return Err(SchemaError("§13.6 NX-E0112 entry must be main".into()));
         }
         if code == "NX-E0113" {
@@ -1201,6 +1212,33 @@ impl Diagnostic {
                 }));
             }
         }
+        if self.code == "NX-E0003" && self.profile_id.starts_with("f0-0002-b-") {
+            for key in ["budget_scope", "incomplete_analysis"] {
+                if !has(key) {
+                    return Err(SchemaError(format!(
+                        "§13.6 data.{key} is required for profile B"
+                    )));
+                }
+            }
+            let scope = if self.data.get("budget_kind")
+                == Some(&DataValue::String("ownership_flow_steps".into()))
+                && has("analysis_function")
+            {
+                "function"
+            } else {
+                "compilation"
+            };
+            if self.data.get("budget_scope") != Some(&DataValue::String(scope.into())) {
+                return Err(SchemaError("§13.13 NX-E0003 budget_scope mismatch".into()));
+            }
+            if self.data.get("incomplete_analysis")
+                != Some(&DataValue::String(self.stage.as_str().into()))
+            {
+                return Err(SchemaError(
+                    "§13.13 NX-E0003 incomplete_analysis mismatch".into(),
+                ));
+            }
+        }
         if self.code == "NX-E0003" && has("runtime_budget_kind") {
             return Err(SchemaError(
                 "NX-E0003 cannot use runtime_budget_kind".into(),
@@ -1247,9 +1285,17 @@ impl Diagnostic {
             "runtime_budget_kind",
             &["call_frames", "live_value_cells", "observation_bytes"],
         )?;
+        enum_value("budget_scope", &["function", "compilation"])?;
+        enum_value(
+            "incomplete_analysis",
+            &["input", "parse", "types", "ownership", "effects", "lower"],
+        )?;
         enum_value("declaration_kind", &["binding", "function", "parameter"])?;
         enum_value("use_kind", &["value", "call_target"])?;
-        enum_value("pending_scope", &["migration", "F0-0003", "later_adr"])?;
+        enum_value(
+            "pending_scope",
+            &["F0-0003", "later_adr", "I08", "I09", "I10a", "I10b", "I11a"],
+        )?;
         enum_value("effect_evidence", &["known_effect", "unknown_effect"])?;
         enum_value("required_effect", &["alloc", "block", "suspend", "io"])?;
         if matches!(code, "NX-E0412" | "NX-E0413" | "NX-E0414" | "NX-E0415")
@@ -1293,9 +1339,9 @@ impl Diagnostic {
         }
         if code == "R0002" {
             let reduced = match self.profile_id.as_str() {
-                "f0-0002-test-frames-8-v1" => Some(("call_frames", 8)),
-                "f0-0002-test-cells-64-v1" => Some(("live_value_cells", 64)),
-                "f0-0002-test-observations-64-v1" => Some(("observation_bytes", 64)),
+                "f0-0002-b-test-frames-8-v2" => Some(("call_frames", 8)),
+                "f0-0002-b-test-cells-64-v2" => Some(("live_value_cells", 64)),
+                "f0-0002-b-test-observations-64-v2" => Some(("observation_bytes", 64)),
                 _ => None,
             };
             let kind = match self.data.get("runtime_budget_kind") {
@@ -1345,17 +1391,23 @@ impl Diagnostic {
             ));
         }
         if self.code == "NX-E0006" {
-            let expected = if self.feature_id.as_deref() == Some("legacy_move") {
-                "migration"
+            let expected = if self.feature_id.as_deref() == Some("implementation_limit") {
+                None
             } else if matches!(
                 self.feature_id.as_deref(),
                 Some("closure" | "generator" | "option" | "match")
             ) {
-                "F0-0003"
+                Some("F0-0003")
             } else {
-                "later_adr"
+                Some("later_adr")
             };
-            if self.data.get("pending_scope") != Some(&DataValue::String(expected.into())) {
+            let scope = self.data.get("pending_scope");
+            let valid = if let Some(expected) = expected {
+                scope == Some(&DataValue::String(expected.into()))
+            } else {
+                matches!(scope, Some(DataValue::String(value)) if ["I08", "I09", "I10a", "I10b", "I11a"].contains(&value.as_str()))
+            };
+            if !valid {
                 return Err(SchemaError(
                     "pending_scope does not match feature_id".into(),
                 ));
@@ -1569,8 +1621,8 @@ fn valid_diagnostic_type(value: &str, expected: bool) -> bool {
         }
         let rest = &bytes[*index..];
         for (name, compound) in [
-            (b"i64".as_slice(), false),
-            (b"bool", false),
+            (b"I64".as_slice(), false),
+            (b"Bool", false),
             (b"()", false),
             (b"MockResource", false),
             (b"MockBlockingResource", false),
@@ -1868,7 +1920,7 @@ pub fn decode_utf8(bytes: Vec<u8>) -> Result<String, InputError> {
     })
 }
 
-/// Input feature IDs explicitly published for NX-E0006/f0-0002-v1.
+/// Input feature IDs of the official B profile.
 pub const FEATURE_IDS: &[&str] = &[
     "async",
     "attributes",
@@ -1881,8 +1933,8 @@ pub const FEATURE_IDS: &[&str] = &[
     "for_iteration",
     "function_value",
     "generator",
+    "implementation_limit",
     "inferred_non_unit_result",
-    "legacy_move",
     "loop_control",
     "match",
     "methods",
@@ -1904,7 +1956,6 @@ pub const FEATURE_IDS: &[&str] = &[
 fn feature_known(s: &str) -> bool {
     FEATURE_IDS.contains(&s)
 }
-
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Explanation {
     pub subcause: Option<String>,
@@ -1987,201 +2038,201 @@ struct FeatureFixture {
 // Literal F01-F33 rows from section 14.6, keyed by the catalog feature identity.
 static FEATURE_FIXTURES: &[FeatureFixture] = &[
     FeatureFixture {
-        id: "legacy_move",
-        description: "Operador provisional move de F0-0001; consume es la migración candidata, sujeta a recomprobación.",
-        negative: "fn main(){let r=mock_open(1);let s=move r;}",
-        repair: "Cambiar `move` por `consume`",
+        id: "implementation_limit",
+        description: "Capacidad pendiente de implementación en I08, I09, I10a, I10b o I11a.",
+        negative: "fn Main()->Result<(),I64>{return Ok(());}",
+        repair: "Usar una función sin Result hasta completar I08",
     },
     FeatureFixture {
         id: "inferred_non_unit_result",
         description: "Función sin anotación de resultado que requiere inferir un resultado distinto de unidad.",
-        negative: "fn f(){return 1;} fn main(){}",
-        repair: "Añadir `->i64` después de `f()`",
+        negative: "fn F(){return 1;} fn Main(){}",
+        repair: "Añadir `->I64` después de `F()`",
     },
     FeatureFixture {
         id: "float_literal",
         description: "Literal decimal reconocido; semántica flotante no implementada.",
-        negative: "fn main(){let x=0.5;}",
+        negative: "fn Main(){let x=0.5;}",
         repair: "Sustituir el literal por `0`",
     },
     FeatureFixture {
         id: "range",
-        description: "Rango reconocido mediante .., sin ejecución de rangos en el perfil.",
-        negative: "fn main(){let n=1;let x=0..n;}",
-        repair: "Sustituir `..` por `+`",
+        description: "Rango reconocido mediante ..< o ..=, sin ejecución de rangos en el perfil.",
+        negative: "fn Main(){let n=1;let x=0..<n;}",
+        repair: "Sustituir `..<` por `+`",
     },
     FeatureFixture {
         id: "tuple",
         description: "Tipo, expresión o patrón de producto distinto de unidad/agrupación.",
-        negative: "fn main(){let x=(1,2);}",
+        negative: "fn Main(){let x=(1,2);}",
         repair: "Quitar `,2`; queda agrupación `(1)`",
     },
     FeatureFixture {
         id: "attributes",
         description: "Atributos, incluido @derive.",
-        negative: "@derive(JsonEncode) fn main(){}",
+        negative: "@derive(JsonEncode) fn Main(){}",
         repair: "Quitar `@derive(JsonEncode)`",
     },
     FeatureFixture {
         id: "default_argument",
         description: "Valor por defecto de parámetro.",
-        negative: "fn f(x:i64=1){} fn main(){f(1);}",
+        negative: "fn F(x:view I64=1){} fn Main(){F(1);}",
         repair: "Quitar `=1`",
     },
     FeatureFixture {
         id: "closure",
         description: "Literal de closure y sus capturas.",
-        negative: "fn main(){let f=fn[](){return ();};}",
+        negative: "fn Main(){let f=fn[](){return ();};}",
         repair: "Sustituir el inicializador completo por `()`",
     },
     FeatureFixture {
         id: "function_value",
         description: "Uso almacenado, retornado o pasado de una función como valor.",
-        negative: "fn f(){} fn main(){let g=f;}",
-        repair: "Sustituir `let g=f;` por `f();`",
+        negative: "fn F(){} fn Main(){let g=F;}",
+        repair: "Sustituir `let g=F;` por `F();`",
     },
     FeatureFixture {
         id: "receiver_mode",
-        description: "Prefijo inout/consume aplicado al receptor de una llamada completa.",
-        negative: "fn f(){} fn main(){consume f();}",
-        repair: "Quitar el prefijo `consume`",
+        description: "Prefijo edit/move aplicado al receptor de una llamada completa.",
+        negative: "fn F(){} fn Main(){move F();}",
+        repair: "Quitar el prefijo `move`",
     },
     FeatureFixture {
         id: "partial_transfer",
-        description: "Transferencia consume de una proyección, en vez de un binding completo.",
-        negative: "fn main(){let a=[1];let x=consume a[0];}",
-        repair: "Quitar `consume`; se copia el elemento",
+        description: "Transferencia move de una proyección, en vez de un binding completo.",
+        negative: "fn Main(){let a=[1];let x=move a[0];}",
+        repair: "Quitar `move`; se copia el elemento",
     },
     FeatureFixture {
         id: "resource_array",
         description: "Array cuyo elemento contiene transitivamente un recurso.",
-        negative: "fn main(){let a=[mock_open(1)];}",
+        negative: "fn Main(){let a=[MockOpen(1)];}",
         repair: "Quitar los corchetes del inicializador",
     },
     FeatureFixture {
         id: "no_heap_alloc",
         description: "Contrato reconocido, fuera del conjunto implementado por este perfil.",
-        negative: "fn main() with no_heap_alloc{}",
+        negative: "fn Main() with no_heap_alloc{}",
         repair: "Sustituir por `no_alloc`",
     },
     FeatureFixture {
         id: "match",
         description: "Selección por patrones; pending_scope = F0-0003 identifica el diseño de la selección necesaria para next/Option, sin prometer toda la selección por patrones de la base en ese corte.",
-        negative: "fn main(){match true{true=>{},false=>{}}}",
+        negative: "fn Main(){match true{true=>{},false=>{}}}",
         repair: "Sustituir el `match` completo por `if true{}else{}`",
     },
     FeatureFixture {
         id: "option",
         description: "Tipo o constructores intrínsecos de Option.",
-        negative: "fn f(x:Option<i64>){} fn main(){}",
-        repair: "Sustituir `Option<i64>` por `Result<i64,i64>`",
+        negative: "fn F(x:view Option<I64>){} fn Main(){}",
+        repair: "Sustituir `Option<I64>` por `Result<I64,I64>`",
     },
     FeatureFixture {
         id: "user_types",
         description: "Struct, enum o alias declarado por el usuario.",
-        negative: "struct S{} fn main(){}",
+        negative: "struct S{} fn Main(){}",
         repair: "Quitar `struct S{}`",
     },
     FeatureFixture {
         id: "traits_generics",
         description: "Traits, impl, genéricos, where o despacho dinámico.",
-        negative: "trait T{} fn main(){}",
+        negative: "trait T{} fn Main(){}",
         repair: "Quitar `trait T{}`",
     },
     FeatureFixture {
         id: "modules_visibility",
         description: "Mod, use, pub o rutas de módulos adicionales fuera del contexto de tipo descrito abajo.",
-        negative: "use std.app;fn main(){}",
+        negative: "use std.app;fn Main(){}",
         repair: "Quitar `use std.app;`",
     },
     FeatureFixture {
         id: "extensions",
         description: "Extend, use extension o llamada cualificada de extensión.",
-        negative: "extend i64{} fn main(){}",
-        repair: "Quitar `extend i64{}`",
+        negative: "extend I64{} fn Main(){}",
+        repair: "Quitar `extend I64{}`",
     },
     FeatureFixture {
         id: "provenance_clauses",
         description: "From, result_from o retains escritos.",
-        negative: "fn f(x:i64)->i64 from(x){return x;} fn main(){}",
+        negative: "fn F(x:view I64)->I64 from(x){return x;} fn Main(){}",
         repair: "Quitar `from(x)`",
     },
     FeatureFixture {
         id: "comptime",
         description: "Evaluación o constantes de módulo mediante comptime.",
-        negative: "const X:i64=comptime 1;fn main(){}",
+        negative: "const x:I64=comptime 1;fn Main(){}",
         repair: "Quitar la declaración de constante completa",
     },
     FeatureFixture {
         id: "text",
         description: "Cadenas e interpolación.",
-        negative: "fn main(){let x=\"hola\";}",
+        negative: "fn Main(){let x=\"hola\";}",
         repair: "Sustituir la cadena por `1`",
     },
     FeatureFixture {
         id: "methods",
         description: "Selección o invocación de métodos/campos fuera de las proyecciones indexadas del perfil; self como expresión de receptor reconocida, con span de ese token y etapa parse. En posición que exige Name, self conserva NX-E0002.",
-        negative: "fn main(){let a=[1];a.foo();}",
-        repair: "Sustituir `a.foo()` por `len(a)`",
+        negative: "fn Main(){let a=[1];a.Foo();}",
+        repair: "Sustituir `a.Foo()` por `Len(a)`",
     },
     FeatureFixture {
         id: "compound_assignment",
         description: "Asignación compuesta, incluido +=.",
-        negative: "fn main(){var x=1;x+=1;}",
+        negative: "fn Main(){var x=1;x+=1;}",
         repair: "Sustituir `x+=1;` por `x=x+1;`",
     },
     FeatureFixture {
         id: "for_iteration",
         description: "For y su protocolo de iteración.",
-        negative: "fn main(){for n in [1]{}}",
+        negative: "fn Main(){for n in [1]{}}",
         repair: "Sustituir el bucle completo por `while false{}`",
     },
     FeatureFixture {
         id: "loop_control",
         description: "Break o continue.",
-        negative: "fn main(){while false{break;}}",
+        negative: "fn Main(){while false{break;}}",
         repair: "Quitar `break;`",
     },
     FeatureFixture {
         id: "generator",
         description: "Gen fn, yield y operaciones de generador.",
-        negative: "gen fn g(){} fn main(){}",
+        negative: "gen fn G(){} fn Main(){}",
         repair: "Quitar `gen`",
     },
     FeatureFixture {
         id: "async",
         description: "Async, await y tipos u operaciones reconocidos de tareas/futuros.",
-        negative: "async fn f(){} fn main(){}",
+        negative: "async fn F(){} fn Main(){}",
         repair: "Quitar `async`",
     },
     FeatureFixture {
         id: "unsupported_type",
-        description: "Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye u32, u64, f32, String y app.Error.",
-        negative: "fn f(x:u32){} fn main(){}",
-        repair: "Sustituir `u32` por `i64`",
+        description: "Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye U32, U64, F32, String y app.Error.",
+        negative: "fn F(x:view U32){} fn Main(){}",
+        repair: "Sustituir `U32` por `I64`",
     },
     FeatureFixture {
         id: "unsupported_type",
-        description: "Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye u32, u64, f32, String y app.Error.",
-        negative: "fn f(x:String){} fn main(){}",
-        repair: "Sustituir `String` por `Array<i64>`",
+        description: "Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye U32, U64, F32, String y app.Error.",
+        negative: "fn F(x:view String){} fn Main(){}",
+        repair: "Sustituir `String` por `Array<I64>`",
     },
     FeatureFixture {
         id: "unsupported_type",
-        description: "Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye u32, u64, f32, String y app.Error.",
-        negative: "fn f(x:app.Error){} fn main(){}",
-        repair: "Sustituir la ruta completa por `i64`",
+        description: "Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye U32, U64, F32, String y app.Error.",
+        negative: "fn F(x:view app.Error){} fn Main(){}",
+        repair: "Sustituir la ruta completa por `I64`",
     },
     FeatureFixture {
         id: "region",
         description: "Regiones y su grupo de tareas.",
-        negative: "fn main(){region r{}}",
+        negative: "fn Main(){region r(capacity:0){}}",
         repair: "Quitar `region r`; queda un bloque ordinario",
     },
     FeatureFixture {
         id: "methods",
         description: "Selección o invocación de métodos/campos fuera de las proyecciones indexadas del perfil; self como expresión de receptor reconocida, con span de ese token y etapa parse. En posición que exige Name, self conserva NX-E0002.",
-        negative: "fn main(){let x=self;}",
+        negative: "fn Main(){let x=self;}",
         repair: "Sustituir `self` por `0`",
     },
 ];
@@ -2202,48 +2253,48 @@ fn feature_negative_source(id: &str) -> String {
 
 fn feature_positive_source(id: &str) -> String {
     match id {
-        "legacy_move" => "fn main(){let r=mock_open(1);let s=consume r;}".into(),
-        "inferred_non_unit_result" => "fn f()->i64{return 1;} fn main(){}".into(),
-        "float_literal" => "fn main(){let x=0;}".into(),
-        "range" => "fn main(){let n=1;let x=0+n;}".into(),
-        "tuple" => "fn main(){let x=(1);}".into(),
-        "attributes" => " fn main(){}".into(),
-        "default_argument" => "fn f(x:i64){} fn main(){f(1);}".into(),
-        "closure" => "fn main(){let f=();}".into(),
-        "function_value" => "fn f(){} fn main(){f();}".into(),
-        "receiver_mode" => "fn f(){} fn main(){ f();}".into(),
-        "partial_transfer" => "fn main(){let a=[1];let x= a[0];}".into(),
-        "resource_array" => "fn main(){let a=mock_open(1);}".into(),
-        "no_heap_alloc" => "fn main() with no_alloc{}".into(),
-        "match" => "fn main(){if true{}else{}}".into(),
-        "option" => "fn f(x:Result<i64,i64>){} fn main(){}".into(),
-        "user_types" => " fn main(){}".into(),
-        "traits_generics" => " fn main(){}".into(),
-        "modules_visibility" => "fn main(){}".into(),
-        "extensions" => " fn main(){}".into(),
-        "provenance_clauses" => "fn f(x:i64)->i64 {return x;} fn main(){}".into(),
-        "comptime" => "fn main(){}".into(),
-        "text" => "fn main(){let x=1;}".into(),
-        "methods" => "fn main(){let a=[1];len(a);}".into(),
-        "compound_assignment" => "fn main(){var x=1;x=x+1;}".into(),
-        "for_iteration" => "fn main(){while false{}}".into(),
-        "loop_control" => "fn main(){while false{}}".into(),
-        "generator" => " fn g(){} fn main(){}".into(),
-        "async" => " fn f(){} fn main(){}".into(),
-        "unsupported_type" => "fn f(x:i64){} fn main(){}".into(),
-        "region" => "fn main(){{}}".into(),
+        "async" => " fn F(){} fn Main(){}".into(),
+        "attributes" => " fn Main(){}".into(),
+        "closure" => "fn Main(){let f=();}".into(),
+        "compound_assignment" => "fn Main(){var x=1;x=x+1;}".into(),
+        "comptime" => "fn Main(){}".into(),
+        "default_argument" => "fn F(x:view I64){} fn Main(){F(1);}".into(),
+        "extensions" => " fn Main(){}".into(),
+        "float_literal" => "fn Main(){let x=0;}".into(),
+        "for_iteration" => "fn Main(){while false{}}".into(),
+        "function_value" => "fn F(){} fn Main(){F();}".into(),
+        "generator" => " fn G(){} fn Main(){}".into(),
+        "implementation_limit" => "fn Main(){}".into(),
+        "inferred_non_unit_result" => "fn F()->I64{return 1;} fn Main(){}".into(),
+        "loop_control" => "fn Main(){while false{}}".into(),
+        "match" => "fn Main(){if true{}else{}}".into(),
+        "methods" => "fn Main(){let a=[1];Len(a);}".into(),
+        "modules_visibility" => "fn Main(){}".into(),
+        "no_heap_alloc" => "fn Main() with no_alloc{}".into(),
+        "option" => "fn F(x:view Result<I64,I64>){} fn Main(){}".into(),
+        "partial_transfer" => "fn Main(){let a=[1];let x= a[0];}".into(),
+        "provenance_clauses" => "fn F(x:view I64)->I64 {return x;} fn Main(){}".into(),
+        "range" => "fn Main(){let n=1;let x=0+n;}".into(),
+        "receiver_mode" => "fn F(){} fn Main(){ F();}".into(),
+        "region" => "fn Main(){{}}".into(),
+        "resource_array" => "fn Main(){let a=MockOpen(1);}".into(),
+        "text" => "fn Main(){let x=1;}".into(),
+        "traits_generics" => " fn Main(){}".into(),
+        "tuple" => "fn Main(){let x=(1);}".into(),
+        "unsupported_type" => "fn F(x:view I64){} fn Main(){}".into(),
+        "user_types" => " fn Main(){}".into(),
         _ => String::new(),
     }
 }
 
 fn explanation_for(code: &str, subcause: Option<&str>, description: String) -> Explanation {
     let (negative_source, positive_source) = if code == "NX-E0003" && subcause.is_none() {
-        let mut negative = String::from("fn main(){var x=0;x=");
+        let mut negative = String::from("fn Main(){var x=0;x=");
         negative.push_str(&"[".repeat(200));
         negative.push('1');
         negative.push_str(&"]".repeat(200));
         negative.push_str(";}");
-        (negative, "fn main(){var x=0;x=0;}".to_owned())
+        (negative, "fn Main(){var x=0;x=0;}".to_owned())
     } else {
         let (negative, positive) = published_source(code, subcause);
         (negative.to_owned(), positive.to_owned())
@@ -2271,159 +2322,159 @@ fn explanation_for(code: &str, subcause: Option<&str>, description: String) -> E
 fn published_source(code: &str, subcause: Option<&str>) -> (&'static str, &'static str) {
     match (code, subcause) {
         ("NX-E0111", Some("missing_argument")) => (
-            "fn f(x:i64){} fn main(){f();}",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x:view I64){} fn Main(){F();}",
+            "fn F(x:view I64){} fn Main(){F(1);}",
         ),
         ("NX-E0111", Some("excess_positional_argument")) => (
-            "fn f(x:i64){} fn main(){f(1,2);}",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x:view I64){} fn Main(){F(1,2);}",
+            "fn F(x:view I64){} fn Main(){F(1);}",
         ),
         ("NX-E0111", Some("unknown_argument_label")) => (
-            "fn f(x:i64){} fn main(){f(y:1);}",
-            "fn f(x:i64){} fn main(){f(x:1);}",
+            "fn F(x:view I64){} fn Main(){F(y:1);}",
+            "fn F(x:view I64){} fn Main(){F(x:1);}",
         ),
         ("NX-E0111", Some("duplicate_argument")) => (
-            "fn f(x:i64){} fn main(){f(x:1,x:2);}",
-            "fn f(x:i64){} fn main(){f(x:1);}",
+            "fn F(x:view I64){} fn Main(){F(x:1,x:2);}",
+            "fn F(x:view I64){} fn Main(){F(x:1);}",
         ),
         ("NX-E0111", Some("positional_after_named")) => (
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,2);}",
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,y:2);}",
+            "fn F(x:view I64,y:view I64){} fn Main(){F(x:1,2);}",
+            "fn F(x:view I64,y:view I64){} fn Main(){F(x:1,y:2);}",
         ),
         ("NX-E0111", Some("argument_mode_mismatch")) => (
-            "fn f(inout x:i64){} fn main(){var x=1;f(x);}",
-            "fn f(inout x:i64){} fn main(){var x=1;f(inout x);}",
+            "fn F(x:edit I64){} fn Main(){var x=1;F(x);}",
+            "fn F(x:edit I64){} fn Main(){var x=1;F(edit x);}",
         ),
         ("NX-E0111", Some("non_callable_target")) => {
-            ("fn main(){let f=1;f();}", "fn f(){} fn main(){f();}")
+            ("fn Main(){let f=1;f();}", "fn F(){} fn Main(){F();}")
         }
-        ("NX-E0112", Some("missing_main")) => ("fn f(){}", "fn f(){} fn main(){}"),
-        ("NX-E0112", Some("invalid_main_signature")) => ("fn main(x:i64){}", "fn main(){}"),
+        ("NX-E0112", Some("missing_main")) => ("fn F(){}", "fn F(){} fn Main(){}"),
+        ("NX-E0112", Some("invalid_main_signature")) => ("fn Main(x:view I64){}", "fn Main(){}"),
         ("NX-E0105", None) => (
-            "fn f(inout x:i64){} fn main(){let x=1;f(inout x);}",
-            "fn f(inout x:i64){} fn main(){var x=1;f(inout x);}",
+            "fn F(x:edit I64){} fn Main(){let x=1;F(edit x);}",
+            "fn F(x:edit I64){} fn Main(){var x=1;F(edit x);}",
         ),
         ("NX-E0113", None) => (
-            "fn main(){let r=Ok(1);}",
-            "fn main(){let r:Result<i64,i64>=Ok(1);}",
+            "fn Main(){let r=Ok(1);}",
+            "fn Main(){let r:Result<I64,I64>=Ok(1);}",
         ),
-        ("NX-E0103", None) => ("fn main(){let xs=[];}", "fn main(){let xs:Array<i64>=[];}"),
+        ("NX-E0103", None) => ("fn Main(){let xs=[];}", "fn Main(){let xs:Array<I64>=[];}"),
         ("NX-E1317", None) => (
-            "fn f()->i64 { } fn main(){}",
-            "fn f()->i64 { return 1;} fn main(){}",
+            "fn F()->I64 { } fn Main(){}",
+            "fn F()->I64 { return 1;} fn Main(){}",
         ),
         ("NX-E0102", Some("type_mismatch")) => (
-            "fn f()->i64{return true;} fn main(){}",
-            "fn f()->i64{return 1;} fn main(){}",
+            "fn F()->I64{return true;} fn Main(){}",
+            "fn F()->I64{return 1;} fn Main(){}",
         ),
         ("NX-E0102", Some("not_indexable")) => {
-            ("fn main(){let x=1[0];}", "fn main(){let x=[1][0];}")
+            ("fn Main(){let x=1[0];}", "fn Main(){let x=[1][0];}")
         }
         ("NX-E0102", Some("resource_required")) => (
-            "fn main(){let x=1;inspect(x);}",
-            "fn main(){let x=mock_open(1);inspect(x);}",
+            "fn Main(){let x=1;Inspect(x);}",
+            "fn Main(){let x=MockOpen(1);Inspect(x);}",
         ),
         ("NX-E0107", None) => (
-            "fn main() { let x = 9223372036854775808; }",
-            "fn main() { let x = 9223372036854775807; }",
+            "fn Main() { let x = 9223372036854775808; }",
+            "fn Main() { let x = 9223372036854775807; }",
         ),
         ("NX-E0104", None) => (
-            "fn f(){} fn f(){} fn main(){}",
-            "fn f(){} fn g(){} fn main(){}",
+            "fn F(){} fn F(){} fn Main(){}",
+            "fn F(){} fn G(){} fn Main(){}",
         ),
         ("NX-E0101", None) => (
-            "fn main(){ausente();}",
-            "fn ausente(){} fn main(){ausente();}",
+            "fn Main(){ausente();}",
+            "fn Ausente(){} fn Main(){Ausente();}",
         ),
-        ("NX-E0002", None) => ("fn main(){let match=1;}", "fn main(){let match_value=1;}"),
+        ("NX-E0002", None) => ("fn Main(){let match=1;}", "fn Main(){let match_value=1;}"),
         ("NX-E0201", None) => (
-            "fn main(){let r=mock_open(1);let s=r;}",
-            "fn main(){let r=mock_open(1);let s=consume r;}",
+            "fn Main(){let r=MockOpen(1);let s=r;}",
+            "fn Main(){let r=MockOpen(1);let s=move r;}",
         ),
         ("NX-E0202", Some("definitely_consumed")) => (
-            "fn main(){let r=mock_open(1);let s=consume r;inspect(r);}",
-            "fn main(){let r=mock_open(1);let s=consume r;inspect(s);}",
+            "fn Main(){let r=MockOpen(1);let s=move r;Inspect(r);}",
+            "fn Main(){let r=MockOpen(1);let s=move r;Inspect(s);}",
         ),
         ("NX-E0202", Some("maybe_consumed")) => (
-            "fn f(b:bool){let r=mock_open(1);if b{drop(r);}inspect(r);} fn main(){}",
-            "fn f(b:bool){let r=mock_open(1);if b{drop(r);return;}inspect(r);} fn main(){}",
+            "fn F(b:view Bool){let r=MockOpen(1);if b{Drop(r);}Inspect(r);} fn Main(){}",
+            "fn F(b:view Bool){let r=MockOpen(1);if b{Drop(r);return;}Inspect(r);} fn Main(){}",
         ),
         ("NX-E1105", Some("permission_escalation")) => (
-            "fn f(x:MockResource)->MockResource{return consume x;} fn main(){}",
-            "fn f(consume x:MockResource)->MockResource{return consume x;} fn main(){}",
+            "fn F(x:view MockResource)->MockResource{return move x;} fn Main(){}",
+            "fn F(x:move MockResource)->MockResource{return move x;} fn Main(){}",
         ),
         ("NX-E1105", Some("overlapping_mutable_borrows")) => (
-            "fn f(inout x:i64,inout y:i64){} fn main(){var x=1;f(inout x,inout x);}",
-            "fn f(inout x:i64,inout y:i64){} fn main(){var x=1;var y=2;f(inout x,inout y);}",
+            "fn F(x:edit I64,y:edit I64){} fn Main(){var x=1;F(edit x,edit x);}",
+            "fn F(x:edit I64,y:edit I64){} fn Main(){var x=1;var y=2;F(edit x,edit y);}",
         ),
         ("NX-E1105", Some("active_borrow_conflict")) => (
-            "fn f(x:i64,inout y:i64){} fn main(){var x=1;f(x,inout x);}",
-            "fn f(x:i64,inout y:i64){} fn main(){var x=1;f(x+0,inout x);}",
+            "fn F(x:view I64,y:edit I64){} fn Main(){var x=1;F(x,edit x);}",
+            "fn F(x:view I64,y:edit I64){} fn Main(){var x=1;F(x+0,edit x);}",
         ),
         ("NX-E1302", Some("missing_else")) => (
-            "fn f(b:bool)->i64{return if b{value:1;};} fn main(){}",
-            "fn f(b:bool)->i64{return if b{value:1;}else{value:2;};} fn main(){}",
+            "fn F(b:view Bool)->I64{return if b then {value:1;};} fn Main(){}",
+            "fn F(b:view Bool)->I64{return if b then {value:1;}else{value:2;};} fn Main(){}",
         ),
         ("NX-E1302", Some("missing_branch_value")) => (
-            "fn f()->i64{return if true{1;}else{value:2;};} fn main(){}",
-            "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {1;}else{value:2;};} fn Main(){}",
+            "fn F()->I64{return if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         ("NX-E1302", Some("invalid_value_target")) => {
-            ("fn main(){value:1;}", "fn main(){let value=1;}")
+            ("fn Main(){value:1;}", "fn Main(){let value=1;}")
         }
         ("NX-E1302", Some("missing_value_operand")) => (
-            "fn f()->i64{return if true{value:}else{value:2;};} fn main(){}",
-            "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {value:}else{value:2;};} fn Main(){}",
+            "fn F()->I64{return if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         ("NX-E1302", Some("non_final_branch_value")) => (
-            "fn f()->i64{return if true{value:1;2;}else{value:2;};} fn main(){}",
-            "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {value:1;2;}else{value:2;};} fn Main(){}",
+            "fn F()->I64{return if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         ("NX-E1303", None) => (
-            "fn f(){let n=if true{value:1;}else{value:true;};} fn main(){}",
-            "fn f(){let n=if true{value:1;}else{value:2;};} fn main(){}",
+            "fn F(){let n=if true then {value:1;}else{value:true;};} fn Main(){}",
+            "fn F(){let n=if true then {value:1;}else{value:2;};} fn Main(){}",
         ),
         ("NX-E0417", Some("duplicate_operation")) => (
-            "fn main() with {call(no_io),call(no_alloc)}{}",
-            "fn main() with {call(no_io)}{}",
+            "fn Main() with {call(no_io),call(no_alloc)}{}",
+            "fn Main() with {call(no_io)}{}",
         ),
         ("NX-E0417", Some("invalid_operation")) => (
-            "fn main() with {resume(no_io)}{}",
-            "fn main() with {call(no_io)}{}",
+            "fn Main() with {resume(no_io)}{}",
+            "fn Main() with {call(no_io)}{}",
         ),
         ("NX-E0417", Some("duplicate_restriction")) => {
-            ("fn main() with no_io,no_io{}", "fn main() with no_io{}")
+            ("fn Main() with no_io,no_io{}", "fn Main() with no_io{}")
         }
         ("NX-E0417", Some("empty_operation_list")) => (
-            "fn main() with {}{}",
-            "fn main() with {call(unrestricted)}{}",
+            "fn Main() with {}{}",
+            "fn Main() with {call(unrestricted)}{}",
         ),
         ("NX-E0417", Some("unrestricted_mixed")) => (
-            "fn main() with unrestricted,no_io{}",
-            "fn main() with no_io{}",
+            "fn Main() with unrestricted,no_io{}",
+            "fn Main() with no_io{}",
         ),
         ("NX-E0412", None) => (
-            "fn main() with no_alloc{let a=[1];}",
-            "fn main() with no_alloc{let a=1;}",
+            "fn Main() with no_alloc{let a=[1];}",
+            "fn Main() with no_alloc{let a=1;}",
         ),
         ("NX-E0413", None) => (
-            "fn main() with no_block{let r=mock_blocking_open(1);}",
-            "fn main() with no_block{let r=mock_open(1);}",
+            "fn Main() with no_block{let r=MockBlockingOpen(1);}",
+            "fn Main() with no_block{let r=MockOpen(1);}",
         ),
         ("NX-E0414", None) => (
-            "fn main() with no_suspend{mock_unknown();}",
-            "fn main() with no_suspend{assert_eq(1,1);}",
+            "fn Main() with no_suspend{MockUnknown();}",
+            "fn Main() with no_suspend{AssertEq(1,1);}",
         ),
         ("NX-E0415", None) => (
-            "fn hoja(){print(1);} fn medio(){hoja();} fn main() with no_io{medio();}",
-            "fn hoja(){} fn medio(){hoja();} fn main() with no_io{medio();}",
+            "fn Hoja(){Print(1);} fn Medio(){Hoja();} fn Main() with no_io{Medio();}",
+            "fn Hoja(){} fn Medio(){Hoja();} fn Main() with no_io{Medio();}",
         ),
-        ("NX-E0001", None) => ("fn main(){let x=1/2;}", "fn main(){let x=1+2;}"),
+        ("NX-E0001", None) => ("fn Main(){let x=1!2;}", "fn Main(){let x=1+2;}"),
         ("NX-E0005", None) => (
-            "fn f()->i64{return 1 } fn main(){}",
-            "fn f()->i64{return 1; } fn main(){}",
+            "fn F()->I64{return 1 } fn Main(){}",
+            "fn F()->I64{return 1; } fn Main(){}",
         ),
-        ("NX-E0006", None) => ("fn main(){let x=0.5;}", "fn main(){let x=0; }"),
+        ("NX-E0006", None) => ("fn Main(){let x=0.5;}", "fn Main(){let x=0; }"),
         _ => ("", ""),
     }
 }
@@ -2607,7 +2658,7 @@ static CATALOG: &[CatalogEntry] = &[
     },
     CatalogEntry {
         code: "NX-E0105",
-        description: "Acceso de modificación solicitado sobre binding inmutable, incluida asignación, receptor inout y match inout.",
+        description: "Acceso de modificación solicitado sobre binding inmutable, incluida asignación, receptor edit y match edit.",
         subcauses: &[],
         availability: "in_profile",
         stage: "ownership",
@@ -2615,7 +2666,7 @@ static CATALOG: &[CatalogEntry] = &[
     },
     CatalogEntry {
         code: "NX-E0107",
-        description: "Literal fuera del rango i64 del corte.",
+        description: "Literal fuera del rango I64 del corte.",
         subcauses: &[],
         availability: "in_profile",
         stage: "types",
@@ -3529,12 +3580,12 @@ mod tests {
     }
     #[test]
     fn nx_json_matches_published_fixture_and_has_all_keys() {
-        let s = "fn main(){let x=0.5;}";
+        let s = "fn Main(){let x=0.5;}";
         let d = sample();
         let json = d.to_json("decimal.nx", s).unwrap();
         assert_eq!(
             json,
-            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"parse","message":"Literal flotante fuera del perfil.","operation":"syntax.parse","primary_span":{"file":"decimal.nx","start":16,"end":19},"related_spans":[],"cause_chain":[],"feature_id":"float_literal","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"later_adr"}}"#
+            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-b-v2","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"parse","message":"Literal flotante fuera del perfil.","operation":"syntax.parse","primary_span":{"file":"decimal.nx","start":16,"end":19},"related_spans":[],"cause_chain":[],"feature_id":"float_literal","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"later_adr"}}"#
         );
         let keys = [
             "schema_version",
@@ -3578,7 +3629,7 @@ mod tests {
             end: 19,
         });
         d.data.clear();
-        let json = d.to_json("decimal.nx", "fn main(){let x=0.5;}").unwrap();
+        let json = d.to_json("decimal.nx", "fn Main(){let x=0.5;}").unwrap();
         assert!(json.contains("F0-0002-sim"));
         d.message = "Desbordamiento de suma i64.".into();
         d.operation = Operation::ValueAdd;
@@ -3587,10 +3638,10 @@ mod tests {
             start: 16,
             end: 37,
         });
-        let source = "fn main(){print(9223372036854775807+1);}";
+        let source = "fn Main(){Print(9223372036854775807+1);}";
         assert_eq!(
             d.to_json("suma.nx", source).unwrap(),
-            r#"{"schema_version":1,"diagnostic_namespace":"F0-0002-sim","profile_id":"f0-0002-v1","code":"R0101","subcause":null,"rule":"R0101","explanation_id":null,"severity":"error","stage":"runtime","message":"Desbordamiento de suma i64.","operation":"value.add","primary_span":{"file":"suma.nx","start":16,"end":37},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{}}"#
+            r#"{"schema_version":1,"diagnostic_namespace":"F0-0002-sim","profile_id":"f0-0002-b-v2","code":"R0101","subcause":null,"rule":"R0101","explanation_id":null,"severity":"error","stage":"runtime","message":"Desbordamiento de suma i64.","operation":"value.add","primary_span":{"file":"suma.nx","start":16,"end":37},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{}}"#
         );
     }
     #[test]
@@ -3604,7 +3655,74 @@ mod tests {
         assert!(d.validate("x", "🙂").is_err());
         d = sample();
         d.feature_id = Some("invented".into());
-        assert!(d.validate("decimal.nx", "fn main(){let x=0.5;}").is_err());
+        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+    }
+
+    #[test]
+    fn b_profiles_are_official_and_exact() {
+        let source = "fn Main(){let x=0.5;}";
+        for profile in [
+            PROFILE_ID,
+            "f0-0002-b-test-types-32-v2",
+            "f0-0002-b-test-flow-32-v2",
+            "f0-0002-b-test-flow-global-32-v2",
+            "f0-0002-b-test-effects-32-v2",
+            "f0-0002-b-test-ir-32-v2",
+            "f0-0002-b-test-frames-8-v2",
+            "f0-0002-b-test-cells-64-v2",
+            "f0-0002-b-test-observations-64-v2",
+        ] {
+            let mut d = sample();
+            d.profile_id = profile.into();
+            d.primary_span = Some(Span {
+                file: "b.nx".into(),
+                start: 16,
+                end: 19,
+            });
+            assert!(d.validate("b.nx", source).is_ok(), "{profile}");
+        }
+        let mut d = sample();
+        d.profile_id = "f0-0002-b-test-types-32-v1".into();
+        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+    }
+
+    #[test]
+    fn b_feature_catalog_excludes_legacy_and_validates_limit_scope() {
+        let mut ids: Vec<_> = FEATURE_IDS.to_vec();
+        ids.sort_unstable();
+        assert_eq!(ids.len(), 30);
+        assert!(!ids.contains(&"legacy_move"));
+        assert!(ids.contains(&"implementation_limit"));
+        assert!(ids.windows(2).all(|pair| pair[0] != pair[1]));
+        let mut d = sample();
+        d.profile_id = PROFILE_ID.into();
+        d.feature_id = Some("legacy_move".into());
+        d.data.insert(
+            "pending_scope".into(),
+            DataValue::String("migration".into()),
+        );
+        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+        d.feature_id = Some("implementation_limit".into());
+        d.stage = Stage::Types;
+        d.operation = Operation::TypesCheck;
+        for scope in ["I08", "I09", "I10a", "I10b", "I11a"] {
+            d.data
+                .insert("pending_scope".into(), DataValue::String(scope.into()));
+            assert!(
+                d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_ok(),
+                "{scope}: {:?}",
+                d.validate("decimal.nx", "fn Main(){let x=0.5;}")
+            );
+        }
+        d.data.insert(
+            "pending_scope".into(),
+            DataValue::String("later_adr".into()),
+        );
+        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
+        d.profile_id = "f0-0002-v1".into();
+        d.data
+            .insert("pending_scope".into(), DataValue::String("I08".into()));
+        assert!(d.validate("decimal.nx", "fn Main(){let x=0.5;}").is_err());
     }
 
     #[test]
@@ -3629,6 +3747,14 @@ mod tests {
             ),
             ("limit".into(), DataValue::UInt(1_048_576)),
             ("observed".into(), DataValue::UInt(1_048_577)),
+            (
+                "budget_scope".into(),
+                DataValue::String("compilation".into()),
+            ),
+            (
+                "incomplete_analysis".into(),
+                DataValue::String("input".into()),
+            ),
         ]);
         assert!(
             d.to_json_view(
@@ -3688,7 +3814,7 @@ mod tests {
     #[test]
     fn json_key_order_is_fixed_by_the_serialized_schema() {
         let json = sample()
-            .to_json("decimal.nx", "fn main(){let x=0.5;}")
+            .to_json("decimal.nx", "fn Main(){let x=0.5;}")
             .unwrap();
         let names = [
             "schema_version",
@@ -3765,13 +3891,13 @@ mod tests {
             evidence: Evidence::Verified,
         });
         let rendered = d
-            .render_text("decimal.nx", "fn main(){let x=0.5;}")
+            .render_text("decimal.nx", "fn Main(){let x=0.5;}")
             .unwrap();
         assert_eq!(
             rendered,
             concat!(
                 "NX-E0006:1:17: Literal flotante fuera del perfil.\n",
-                "  namespace: Nexo-proposed-v1\n  profile: f0-0002-v1\n  stage: parse\n  operation: syntax.parse\n",
+                "  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: parse\n  operation: syntax.parse\n",
                 "  at: {\"end\":19,\"file\":\"decimal.nx\",\"start\":16}\n",
                 "  feature_id: float_literal\n",
                 "  related: {\"role\":\"origin\",\"span\":{\"end\":16,\"file\":\"decimal.nx\",\"start\":10}}\n",
@@ -3790,7 +3916,7 @@ mod tests {
 
     #[test]
     fn missing_terminator_text_uses_published_lines_and_canonical_json() {
-        let source = "fn main(){let x=1}";
+        let source = "fn Main(){let x=1}";
         let file = "terminador.nx";
         let mut diagnostic = Diagnostic {
             schema_version: 1,
@@ -3857,13 +3983,13 @@ mod tests {
         let text = diagnostic.render_text(file, source).unwrap();
         assert_eq!(
             diagnostic.to_json(file, source).unwrap(),
-            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-v1","code":"NX-E0005","subcause":null,"rule":"NX-E0005","explanation_id":"NX-E0005","severity":"error","stage":"parse","message":"Falta un terminador de sentencia.","operation":"syntax.parse","primary_span":{"file":"terminador.nx","start":17,"end":18},"related_spans":[{"role":"preceding_expression","span":{"file":"terminador.nx","start":16,"end":17}}],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"}","span":{"file":"terminador.nx","start":17,"end":18}},"expected_tokens":[";"],"expected_tokens_kind":"canonical_insertion","parser_context":"statement_terminator","recognized_prefix":{"file":"terminador.nx","start":10,"end":17},"repair":[{"id":"insert_terminator","status":"proposed","description":"Insertar un terminador explícito.","edits":[{"span":{"file":"terminador.nx","start":17,"end":17},"expected_text":"","replacement":";"}],"validation":null,"consequences":["Termina el binding antes del cierre del bloque."]}],"data":{}}"#
+            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0002-b-v2","code":"NX-E0005","subcause":null,"rule":"NX-E0005","explanation_id":"NX-E0005","severity":"error","stage":"parse","message":"Falta un terminador de sentencia.","operation":"syntax.parse","primary_span":{"file":"terminador.nx","start":17,"end":18},"related_spans":[{"role":"preceding_expression","span":{"file":"terminador.nx","start":16,"end":17}}],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"}","span":{"file":"terminador.nx","start":17,"end":18}},"expected_tokens":[";"],"expected_tokens_kind":"canonical_insertion","parser_context":"statement_terminator","recognized_prefix":{"file":"terminador.nx","start":10,"end":17},"repair":[{"id":"insert_terminator","status":"proposed","description":"Insertar un terminador explícito.","edits":[{"span":{"file":"terminador.nx","start":17,"end":17},"expected_text":"","replacement":";"}],"validation":null,"consequences":["Termina el binding antes del cierre del bloque."]}],"data":{}}"#
         );
         assert_eq!(
             text,
             concat!(
                 "NX-E0005:1:18: Falta un terminador de sentencia.\n",
-                "  namespace: Nexo-proposed-v1\n  profile: f0-0002-v1\n  stage: parse\n  operation: syntax.parse\n",
+                "  namespace: Nexo-proposed-v1\n  profile: f0-0002-b-v2\n  stage: parse\n  operation: syntax.parse\n",
                 "  at: {\"end\":18,\"file\":\"terminador.nx\",\"start\":17}\n",
                 "  related: {\"role\":\"preceding_expression\",\"span\":{\"end\":17,\"file\":\"terminador.nx\",\"start\":16}}\n",
                 "  syntax: {\"expected_tokens\":[\";\"],\"expected_tokens_kind\":\"canonical_insertion\",\"parser_context\":\"statement_terminator\",\"recognized_prefix\":{\"end\":17,\"file\":\"terminador.nx\",\"start\":10},\"unexpected_token\":{\"kind\":\"symbol\",\"span\":{\"end\":18,\"file\":\"terminador.nx\",\"start\":17},\"text\":\"}\"}}\n",

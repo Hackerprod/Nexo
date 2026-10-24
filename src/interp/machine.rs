@@ -132,6 +132,11 @@ struct FrameReturn {
 }
 
 pub fn run_scalar(program: &Program) -> Execution {
+    // Source programs arrive through compile_scalar, which verifies the IR.
+    // The worker failure branches describe host failure, not a source form.
+    // unicode_sources_never_reach_internal_failure and the source/IR model
+    // tests exercise the accepted path; forged-IR verifier tests cover the
+    // rejection side of the boundary.
     std::thread::scope(|scope| {
         match std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
@@ -165,8 +170,15 @@ fn run_verified(program: &Program) -> Execution {
         #[cfg(test)]
         disposals: 0,
     };
+    // Every internal Result below is guarded by this verifier: identities,
+    // modes, index paths and types, call slots, temporary ownership, jumps,
+    // output types and return shape are checked before interpretation.
+    // Verified source executions are covered by generated_scalar_programs_
+    // match_independent_decimal_model, generated_calls_resources_and_early_
+    // returns_match_independent_reference, generated_array_copies_and_writes_
+    // match_independent_matrix_model, and the directed prefix/Unicode tests.
     let result = crate::ir::verify::verify_program(program)
-        .and_then(|()| program.functions.function("main").ok_or("missing main"));
+        .and_then(|()| program.functions.function("Main").ok_or("missing main"));
     let Ok(function) = result else {
         return Execution {
             outcome: Outcome::InternalError(result.err().unwrap_or("invalid program")),
@@ -918,24 +930,24 @@ impl Machine {
                                 ParameterMode::Consume => (temp.into_owned()?, false),
                                 ParameterMode::Inout => {
                                     let TempValue::Exclusive(root, path) = temp else {
-                                        return Err("inout argument loan");
+                                        return Err("edit argument loan");
                                     };
                                     let value = if path.is_empty() {
                                         locals
                                             .get_mut(root.0)
-                                            .ok_or("inout root")?
+                                            .ok_or("edit root")?
                                             .take()
-                                            .ok_or("inout unavailable root")?
+                                            .ok_or("edit unavailable root")?
                                     } else {
                                         let root_value = locals
                                             .get_mut(root.0)
-                                            .ok_or("inout root")?
+                                            .ok_or("edit root")?
                                             .as_mut()
-                                            .ok_or("inout unavailable root")?;
+                                            .ok_or("edit unavailable root")?;
                                         // Move the selected owner into the callee. The unit is an
                                         // inaccessible structural placeholder, not a live Nexo cell.
                                         let selected = get_mut_path(root_value, &path)
-                                            .ok_or("inout index path")?;
+                                            .ok_or("edit index path")?;
                                         let value = std::mem::replace(selected, Value::Unit);
                                         adjust_size(root_value, &path, value.cells(), 1);
                                         value
@@ -957,19 +969,19 @@ impl Machine {
                         for (slot, returned) in result.inout.into_iter().enumerate() {
                             if let Some(value) = returned {
                                 let (root, path) =
-                                    targets[slot].take().ok_or("inout return target")?;
+                                    targets[slot].take().ok_or("edit return target")?;
                                 if path.is_empty() {
                                     if locals[root.0].replace(value).is_some() {
-                                        return Err("inout occupied root");
+                                        return Err("edit occupied root");
                                     }
                                 } else {
                                     let root_value =
-                                        locals[root.0].as_mut().ok_or("inout missing root")?;
+                                        locals[root.0].as_mut().ok_or("edit missing root")?;
                                     let node = get_mut_path(root_value, &path)
-                                        .ok_or("inout return path")?;
+                                        .ok_or("edit return path")?;
                                     let previous = std::mem::replace(node, value);
                                     if previous != Value::Unit {
-                                        return Err("inout placeholder replaced");
+                                        return Err("edit placeholder replaced");
                                     }
                                     let new_size = node.cells();
                                     adjust_size(root_value, &path, 1, new_size);
@@ -1133,9 +1145,12 @@ mod tests {
     use super::*;
     #[test]
     fn drop_binding_disarms_runtime_slot_before_later_instruction() {
-        let program =
-            crate::ir::compile_scalar("slot.nx", "fn main(){let a=[1];drop(a);}").unwrap();
-        let mut function = program.functions().function("main").unwrap().clone();
+        let program = crate::ir::compile_scalar(
+            "slot.nx",
+            "fn Main() {\n    let a = [1];\n    Drop(a);\n}\n",
+        )
+        .unwrap();
+        let mut function = program.functions().function("Main").unwrap().clone();
         let drop_pos = function
             .block
             .instructions
@@ -1188,7 +1203,7 @@ mod tests {
     fn denied_frame_tick_releases_prepared_owners_in_reverse_and_preserves_borrow() {
         let program = crate::ir::compile_scalar(
             "limits.nx",
-            "fn own(consume a:MockResource,consume b:MockResource){} fn read(a:MockResource,consume b:MockResource){} fn main(){}",
+            "fn Own(a: move MockResource, b: move MockResource) {}\nfn Read(a: view MockResource, b: move MockResource) {}\nfn Main() {}\n",
         )
         .unwrap();
         let resource = |id| Value::Resource {
@@ -1205,7 +1220,7 @@ mod tests {
                 .reserve(("mock-resource:".len() + close.len() + 1) as u64)
                 .unwrap();
         }
-        let target = program.functions().function("own").unwrap();
+        let target = program.functions().function("Own").unwrap();
         assert!(
             own.run_frame(
                 target,
@@ -1229,7 +1244,7 @@ mod tests {
                 .reserve(("mock-resource:".len() + close.len() + 1) as u64)
                 .unwrap();
         }
-        let target = program.functions().function("read").unwrap();
+        let target = program.functions().function("Read").unwrap();
         assert!(
             read.run_frame(
                 target,
@@ -1292,8 +1307,8 @@ mod tests {
     #[test]
     fn indexed_inout_and_read_have_same_exact_cell_boundary() {
         for source in [
-            "fn f(inout x:Array<i64>){} fn main(){var a=[[1]];f(inout a[0]);}",
-            "fn f(x:Array<i64>){} fn main(){var a=[[1]];f(a[0]);}",
+            "fn F(x: edit Array<I64>) {}\nfn Main() {\n    var a = [[1]];\n    F(edit a[0]);\n}\n",
+            "fn F(x: view Array<I64>) {}\nfn Main() {\n    var a = [[1]];\n    F(a[0]);\n}\n",
         ] {
             let p = crate::ir::compile_scalar("limits.nx", source).unwrap();
             for (preload, accepted) in [(65_531, true), (65_532, true), (65_533, false)] {
@@ -1301,7 +1316,7 @@ mod tests {
                 m.cells = preload;
                 let returned = m
                     .run_frame(
-                        p.functions().function("main").unwrap(),
+                        p.functions().function("Main").unwrap(),
                         Some(&p),
                         vec![],
                         &span(),
@@ -1322,12 +1337,12 @@ mod tests {
     }
     #[test]
     fn indexed_array_growth_uses_exact_cached_cell_count() {
-        let source = "fn main(){var a=[[0]];a[0]=[1,2];let b=a;}";
+        let source = "fn Main() {\n    var a = [[0]];\n    a[0] = [1, 2];\n    let b = a;\n}\n";
         let p = crate::ir::compile_scalar("growth.nx", source).unwrap();
         for (preload, accepted) in [(65_526, true), (65_527, true), (65_528, false)] {
             let mut m = machine();
             m.cells = preload;
-            m.run(p.functions().function("main").unwrap()).unwrap();
+            m.run(p.functions().function("Main").unwrap()).unwrap();
             assert_eq!(m.fault.is_none(), accepted, "{preload}");
             if let Some(fault) = m.fault.as_ref() {
                 assert_eq!(fault.code, "R0002");
@@ -1339,10 +1354,11 @@ mod tests {
     }
     #[test]
     fn rejected_print_releases_prepared_result_cell_before_cleanup() {
-        let program = crate::ir::compile_scalar("limits.nx", "fn main(){print(0);}").unwrap();
+        let program =
+            crate::ir::compile_scalar("limits.nx", "fn Main() {\n    Print(0);\n}\n").unwrap();
         let mut m = machine();
         m.log.push_stdout("x".repeat(65_535)).unwrap();
-        m.run(program.functions().function("main").unwrap())
+        m.run(program.functions().function("Main").unwrap())
             .unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
         assert_eq!(m.cells, 0);
@@ -1350,22 +1366,39 @@ mod tests {
     }
     #[test]
     fn failed_indexed_write_releases_rhs_and_root_cells() {
-        let p = crate::ir::compile_scalar("limits.nx", "fn main(){var a=[[1]];a[2]=[3];}").unwrap();
+        let p = crate::ir::compile_scalar(
+            "limits.nx",
+            "fn Main() {\n    var a = [[1]];\n    a[2] = [3];\n}\n",
+        )
+        .unwrap();
         let mut m = machine();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0102"));
         assert_eq!(m.cells, 0);
     }
     #[test]
+    fn indexed_edit_loan_checks_each_index_before_entering_callee() {
+        let source = "fn F(x:edit I64){}fn Main(){var a=[[0]];F(edit a[0][2]);}";
+        let p = crate::ir::compile_scalar("d03.nx", source).unwrap();
+        let mut m = machine();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
+        let fault = m.fault.as_ref().expect("D03 runtime index fault");
+        assert_eq!(fault.code, "R0102");
+        // F0-D15 §8.12 assigns the precise D03 primary [51,54) to I10b.
+        assert!(fault.validate("d03.nx", source).is_ok());
+        assert_eq!(m.cells, 0);
+        assert!(m.log.observations().is_empty());
+    }
+    #[test]
     fn rejected_array_copy_releases_prepared_values_and_all_bindings() {
-        let mut source = String::from("fn main(){let a0=[0];");
+        let mut source = String::from("fn Main(){let a0=[0];");
         for k in 1..=14 {
             source.push_str(&format!("let a{k}=[a{},a{}];", k - 1, k - 1));
         }
         source.push('}');
         let p = crate::ir::compile_scalar("limits.nx", &source).unwrap();
         let mut m = machine();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
         assert_eq!(m.cells, 0);
     }
@@ -1379,29 +1412,30 @@ mod tests {
     }
     #[test]
     fn rejected_array_header_restores_prepared_element_cell() {
-        let p = crate::ir::compile_scalar("limits.nx", "fn main(){let a=[1];}").unwrap();
+        let p =
+            crate::ir::compile_scalar("limits.nx", "fn Main() {\n    let a = [1];\n}\n").unwrap();
         let mut m = machine();
         m.cells = 65_535;
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
         assert_eq!(m.cells, 65_535);
     }
     #[test]
     fn repeated_borrowed_index_releases_consumed_index_cells() {
-        let source = format!("fn main(){{let a=[[1]];{}}}", "len(a[0]);".repeat(66_000));
+        let source = format!("fn Main(){{let a=[[1]];{}}}", "Len(a[0]);".repeat(66_000));
         let p = crate::ir::compile_scalar("limits.nx", &source).unwrap();
         let mut m = machine();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert!(m.fault.is_none(), "{:?}", m.fault);
         assert_eq!(m.cells, 0);
         assert_eq!(m.work, 528_010);
     }
     #[test]
     fn repeated_index_value_releases_unselected_array_cells() {
-        let source = format!("fn main(){{{}}}", "len([[1,2,3],[4]][0]);".repeat(25_000));
+        let source = format!("fn Main(){{{}}}", "Len([[1,2,3],[4]][0]);".repeat(25_000));
         let p = crate::ir::compile_scalar("limits.nx", &source).unwrap();
         let mut m = machine();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert!(m.fault.is_none(), "{:?}", m.fault);
         assert_eq!(m.cells, 0);
         assert_eq!(m.work, 525_003);
@@ -1423,10 +1457,11 @@ mod tests {
     #[test]
     fn failed_inspection_of_temporary_resource_still_emits_reserved_close() {
         let p =
-            crate::ir::compile_scalar("limits.nx", "fn main(){inspect(mock_open(1));}").unwrap();
+            crate::ir::compile_scalar("limits.nx", "fn Main() {\n    Inspect(MockOpen(1));\n}\n")
+                .unwrap();
         let mut m = machine();
         m.log.push_stdout("x".repeat(65_488)).unwrap();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
         assert_eq!(m.log.events(), ["open:0:1", "close:0:1"]);
         assert_eq!(m.log.reserved_bytes(), 0);
@@ -1434,10 +1469,12 @@ mod tests {
     }
     #[test]
     fn rejected_open_does_not_emit_acquisition_or_leave_cell() {
-        let p = crate::ir::compile_scalar("limits.nx", "fn main(){let r=mock_open(1);}").unwrap();
+        let p =
+            crate::ir::compile_scalar("limits.nx", "fn Main() {\n    let r = MockOpen(1);\n}\n")
+                .unwrap();
         let mut m = machine();
         m.log.push_stdout("x".repeat(65_490)).unwrap();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
         assert!(m.log.events().is_empty());
         assert_eq!(m.log.reserved_bytes(), 0);
@@ -1445,10 +1482,11 @@ mod tests {
     }
     #[test]
     fn rejected_open_event_releases_prepared_close_reservation() {
-        let p = crate::ir::compile_scalar("limits.nx", "fn main(){mock_open(1);}").unwrap();
+        let p =
+            crate::ir::compile_scalar("limits.nx", "fn Main() {\n    MockOpen(1);\n}\n").unwrap();
         let mut m = machine();
         m.log.push_stdout("x".repeat(65_499)).unwrap();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
         assert!(m.log.events().is_empty());
         assert_eq!(m.log.reserved_bytes(), 0);
@@ -1456,10 +1494,11 @@ mod tests {
     }
     #[test]
     fn rejected_close_reservation_restores_new_resource_cell() {
-        let p = crate::ir::compile_scalar("limits.nx", "fn main(){mock_open(1);}").unwrap();
+        let p =
+            crate::ir::compile_scalar("limits.nx", "fn Main() {\n    MockOpen(1);\n}\n").unwrap();
         let mut m = machine();
         m.log.push_stdout("x".repeat(65_529)).unwrap();
-        m.run(p.functions().function("main").unwrap()).unwrap();
+        m.run(p.functions().function("Main").unwrap()).unwrap();
         assert_eq!(m.fault.as_ref().map(|d| d.code.as_str()), Some("R0002"));
         assert!(m.log.events().is_empty());
         assert_eq!(m.log.reserved_bytes(), 0);

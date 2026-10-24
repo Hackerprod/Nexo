@@ -496,6 +496,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     {
                         return Err("drop borrowed value");
                     }
+                    if let Some(Some(loan)) = loan_id_by_temp.get(first_id.0) {
+                        pending_end.push(loan.0);
+                    }
                     let first = take(
                         *first_id,
                         &temps,
@@ -519,16 +522,20 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     if *intrinsic == Intrinsic::Print && !first.copyable() {
                         return Err("print resource");
                     }
-                    if *intrinsic == Intrinsic::AssertEq
-                        && take(
+                    if *intrinsic == Intrinsic::AssertEq {
+                        if let Some(Some(loan)) = loan_id_by_temp.get(args[1].0) {
+                            pending_end.push(loan.0);
+                        }
+                        if take(
                             args[1],
                             &temps,
                             &mut live,
                             &borrow_sources,
                             &mut active_borrows,
                         )? != first
-                    {
-                        return Err("assert type");
+                        {
+                            return Err("assert type");
+                        }
                     }
                 }
                 Some(match intrinsic {
@@ -560,7 +567,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         ParameterMode::Inout
                             if loan_permission.get(id.0) != Some(&Some(LoanPermission::Inout)) =>
                         {
-                            return Err("inout argument permission");
+                            return Err("edit argument permission");
                         }
                         ParameterMode::Read
                             if loan_permission.get(id.0) == Some(&Some(LoanPermission::Inout)) =>
@@ -1589,14 +1596,20 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         {
                             return Err("drop borrowed value");
                         }
+                        if let Some(loan) = temps.info(*id)?.loan {
+                            temps.pending_end.push(loan);
+                        }
                         Some(temps.read(*id, true)?)
                     } else {
                         None
                     };
-                    if *intrinsic == Intrinsic::AssertEq
-                        && temps.read(args[1], true)? != first.clone().unwrap()
-                    {
-                        return Err("assert type");
+                    if *intrinsic == Intrinsic::AssertEq {
+                        if let Some(loan) = temps.info(args[1])?.loan {
+                            temps.pending_end.push(loan);
+                        }
+                        if temps.read(args[1], true)? != first.clone().unwrap() {
+                            return Err("assert type");
+                        }
                     }
                     if *intrinsic == Intrinsic::Len && !matches!(first.as_ref(), Some(Ty::Array(_)))
                     {
@@ -1648,7 +1661,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         if *mode == ParameterMode::Inout
                             && info.permission != Some(LoanPermission::Inout)
                         {
-                            return Err("inout argument permission");
+                            return Err("edit argument permission");
                         }
                         if *mode == ParameterMode::Read
                             && info.permission == Some(LoanPermission::Inout)
@@ -1883,7 +1896,8 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_index_write_while_reordered_read_loan_is_live() {
-        let p = compile_scalar("v.nx", "fn main(){var a=[1];a[0]=2;}").unwrap();
+        let p =
+            compile_scalar("v.nx", "fn Main() {\n    var a = [1];\n    a[0] = 2;\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         let pos = f
             .block
@@ -1946,7 +1960,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_drop_binding_while_read_loan_is_live() {
-        let p = compile_scalar("v.nx", "fn main(){let a=[1];drop(a);}").unwrap();
+        let p = compile_scalar("v.nx", "fn Main() {\n    let a = [1];\n    Drop(a);\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         let pos = f
             .block
@@ -2012,7 +2026,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_undefined_temporary_and_changed_hash() {
-        let p = compile_scalar("v.nx", "fn main(){let x=1;print(x);}").unwrap();
+        let p = compile_scalar("v.nx", "fn Main() {\n    let x = 1;\n    Print(x);\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         if let Op::WritePlace { value, .. } = &mut f.block.instructions[1].op {
             *value = TempId(999)
@@ -2025,7 +2039,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_uninitialized_local_and_wrong_type() {
-        let p = compile_scalar("v.nx", "fn main(){let x=1;print(x);}").unwrap();
+        let p = compile_scalar("v.nx", "fn Main() {\n    let x = 1;\n    Print(x);\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         f.block.instructions.swap(0, 1);
         f.content_hash = super::super::model::content_hash(&f);
@@ -2037,7 +2051,11 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_effect_access_cleanup_and_terminator_mutations() {
-        let p = compile_scalar("v.nx", "fn main(){var x=1;x=x+1;print(x);}").unwrap();
+        let p = compile_scalar(
+            "v.nx",
+            "fn Main() {\n    var x = 1;\n    x = x + 1;\n    Print(x);\n}\n",
+        )
+        .unwrap();
         let original = p.functions.entries[0].clone();
         let mut f = original.clone();
         let call = f
@@ -2073,7 +2091,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_duplicate_temporary_consumption_and_orphans() {
-        let p = compile_scalar("v.nx", "fn main(){assert_eq(1,2);}").unwrap();
+        let p = compile_scalar("v.nx", "fn Main() {\n    AssertEq(1, 2);\n}\n").unwrap();
         let original = p.functions.entries[0].clone();
         let mut f = original.clone();
         let call = f
@@ -2099,7 +2117,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_unknown_scope_duplicate_origin_and_invalid_source_spans() {
-        let source = "fn main(){let x=1;print(x);}//é";
+        let source = "// é\nfn Main() {\n    let x = 1;\n    Print(x);\n}\n";
         let p = compile_scalar("v.nx", source).unwrap();
         let original = p.functions.entries[0].clone();
         let mut f = original.clone();
@@ -2138,7 +2156,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_changed_function_identity_position_and_scope_count() {
-        let p = compile_scalar("v.nx", "fn helper(){} fn main(){}").unwrap();
+        let p = compile_scalar("v.nx", "fn Helper() {}\nfn Main() {}\n").unwrap();
         let mut changed = p.clone();
         changed.functions.entries[1].table_index = 0;
         assert_eq!(verify_program(&changed), Err("function identity"));
@@ -2151,7 +2169,8 @@ mod tests {
         let mut f = p.functions.entries[1].clone();
         f.scope_count = 1000;
         assert_eq!(verify_function(&f), Err("scope table"));
-        let p = compile_scalar("v.nx", "fn main(){{print(1);}}").unwrap();
+        let p =
+            compile_scalar("v.nx", "fn Main() {\n    {\n        Print(1);\n    }\n}\n").unwrap();
         let mut f = p.functions.entries[0].clone();
         f.scope_parents[1] = Some(super::super::model::ScopeId(1));
         assert_eq!(verify_function(&f), Err("scope table"));
@@ -2168,14 +2187,14 @@ mod tests {
     }
     fn changed_main(source: &str, edit: impl FnOnce(&mut Function)) -> Result<(), &'static str> {
         let p = compile_scalar("v.nx", source).unwrap();
-        let mut f = p.functions.function("main").unwrap().clone();
+        let mut f = p.functions.function("Main").unwrap().clone();
         edit(&mut f);
         f.content_hash = super::super::model::content_hash(&f);
         verify_function(&f)
     }
     #[test]
     fn verifier_rejects_array_element_type_mismatch() {
-        let got = changed("fn main(){let a=[1,2];}", |f| {
+        let got = changed("fn Main() {\n    let a = [1, 2];\n}\n", |f| {
             let i = f
                 .block
                 .instructions
@@ -2189,66 +2208,78 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_non_integer_read_index() {
-        let got = changed("fn main(){let a=[1];print(a[0]);}", |f| {
-            let i = f
-                .block
-                .instructions
-                .iter_mut()
-                .find(|i| matches!(i.op, Op::ConstI64(0)))
-                .unwrap();
-            i.op = Op::ConstBool(false);
-            i.ty = Some(Ty::Bool);
-        });
+        let got = changed(
+            "fn Main() {\n    let a = [1];\n    Print(a[0]);\n}\n",
+            |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::ConstI64(0)))
+                    .unwrap();
+                i.op = Op::ConstBool(false);
+                i.ty = Some(Ty::Bool);
+            },
+        );
         assert_eq!(got, Err("index type"));
     }
     #[test]
     fn verifier_rejects_read_index_from_non_array_root() {
-        let got = changed("fn main(){let n=1;let a=[2];let b=a[0];}", |f| {
-            let i = f
-                .block
-                .instructions
-                .iter_mut()
-                .find(|i| matches!(i.op, Op::ReadIndex { .. }))
-                .unwrap();
-            if let Op::ReadIndex { local, .. } = &mut i.op {
-                *local = super::super::model::LocalId(0);
-            }
-        });
+        let got = changed(
+            "fn Main() {\n    let n = 1;\n    let a = [2];\n    let b = a[0];\n}\n",
+            |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::ReadIndex { .. }))
+                    .unwrap();
+                if let Op::ReadIndex { local, .. } = &mut i.op {
+                    *local = super::super::model::LocalId(0);
+                }
+            },
+        );
         assert_eq!(got, Err("index base type"));
     }
     #[test]
     fn verifier_rejects_read_index_from_uninitialized_array() {
-        let got = changed("fn main(){let a=[1];let b=a[0];let c=[2];}", |f| {
-            let i = f
-                .block
-                .instructions
-                .iter_mut()
-                .find(|i| matches!(i.op, Op::ReadIndex { .. }))
-                .unwrap();
-            if let Op::ReadIndex { local, .. } = &mut i.op {
-                *local = super::super::model::LocalId(2);
-            }
-        });
+        let got = changed(
+            "fn Main() {\n    let a = [1];\n    let b = a[0];\n    let c = [2];\n}\n",
+            |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::ReadIndex { .. }))
+                    .unwrap();
+                if let Op::ReadIndex { local, .. } = &mut i.op {
+                    *local = super::super::model::LocalId(2);
+                }
+            },
+        );
         assert_eq!(got, Err("read index uninitialized local"));
     }
     #[test]
     fn verifier_rejects_write_index_to_immutable_root() {
-        let got = changed("fn main(){let b=[1];var a=[2];a[0]=3;}", |f| {
-            let i = f
-                .block
-                .instructions
-                .iter_mut()
-                .find(|i| matches!(i.op, Op::WriteIndex { .. }))
-                .unwrap();
-            if let Op::WriteIndex { local, .. } = &mut i.op {
-                *local = super::super::model::LocalId(0);
-            }
-        });
+        let got = changed(
+            "fn Main() {\n    let b = [1];\n    var a = [2];\n    a[0] = 3;\n}\n",
+            |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::WriteIndex { .. }))
+                    .unwrap();
+                if let Op::WriteIndex { local, .. } = &mut i.op {
+                    *local = super::super::model::LocalId(0);
+                }
+            },
+        );
         assert_eq!(got, Err("immutable index root"));
     }
     #[test]
     fn verifier_rejects_write_index_with_wrong_element_type() {
-        let got = changed("fn main(){var a=[1];a[0]=3;}", |f| {
+        let got = changed("fn Main() {\n    var a = [1];\n    a[0] = 3;\n}\n", |f| {
             let i = f
                 .block
                 .instructions
@@ -2262,7 +2293,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_index_operations_without_projection() {
-        let got = changed("fn main(){var a=[1];a[0]=3;}", |f| {
+        let got = changed("fn Main() {\n    var a = [1];\n    a[0] = 3;\n}\n", |f| {
             let i = f
                 .block
                 .instructions
@@ -2277,34 +2308,40 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_index_probe_with_wrong_operand_type() {
-        let got = changed("fn main(){let a=[1];print(a[0]);}", |f| {
-            let i = f
-                .block
-                .instructions
-                .iter_mut()
-                .find(|i| matches!(i.op, Op::ConstI64(0)))
-                .unwrap();
-            i.op = Op::ConstBool(false);
-            i.ty = Some(Ty::Bool);
-        });
+        let got = changed(
+            "fn Main() {\n    let a = [1];\n    Print(a[0]);\n}\n",
+            |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::ConstI64(0)))
+                    .unwrap();
+                i.op = Op::ConstBool(false);
+                i.ty = Some(Ty::Bool);
+            },
+        );
         assert_eq!(got, Err("index type"));
     }
     #[test]
     fn verifier_rejects_copy_of_resource_local() {
-        let got = changed("fn main(){let a=mock_open(1);inspect(a);}", |f| {
-            let i = f
-                .block
-                .instructions
-                .iter_mut()
-                .find(|i| matches!(i.op, Op::BorrowValue(_)))
-                .unwrap();
-            i.op = Op::CopyValue(super::super::model::LocalId(0));
-        });
+        let got = changed(
+            "fn Main() {\n    let a = MockOpen(1);\n    Inspect(a);\n}\n",
+            |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::BorrowValue(_)))
+                    .unwrap();
+                i.op = Op::CopyValue(super::super::model::LocalId(0));
+            },
+        );
         assert_eq!(got, Err("copy noncopyable local"));
     }
     #[test]
     fn verifier_rejects_destroying_root_while_read_argument_is_live() {
-        let got = changed("fn main(){let a=[1];print(a);}", |f| {
+        let got = changed("fn Main() {\n    let a = [1];\n    Print(a);\n}\n", |f| {
             let i = f
                 .block
                 .instructions
@@ -2317,7 +2354,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_indexed_write_with_missing_owner_root() {
-        let got = changed("fn main(){var a=[1];a[0]=2;}", |f| {
+        let got = changed("fn Main() {\n    var a = [1];\n    a[0] = 2;\n}\n", |f| {
             let i = f
                 .block
                 .instructions
@@ -2332,12 +2369,12 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_direct_call_to_missing_function() {
-        let mut p = compile_scalar("v.nx", "fn f(){} fn main(){f();}").unwrap();
+        let mut p = compile_scalar("v.nx", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
         let f = p
             .functions
             .entries
             .iter_mut()
-            .find(|f| f.name == "main")
+            .find(|f| f.name == "Main")
             .unwrap();
         let call = f
             .block
@@ -2353,7 +2390,7 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_direct_call_wrong_arity_and_duplicate_slot() {
-        let source = "fn f(a:i64,b:i64){} fn main(){f(1,2);}";
+        let source = "fn F(a: view I64, b: view I64) {}\nfn Main() {\n    F(1, 2);\n}\n";
         let got = changed_main(source, |f| {
             if let Op::CallDirect { args, .. } = &mut f
                 .block
@@ -2383,12 +2420,13 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_direct_call_signature_mismatch() {
-        let mut p = compile_scalar("v.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
+        let mut p =
+            compile_scalar("v.nx", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
         let f = p
             .functions
             .entries
             .iter_mut()
-            .find(|f| f.name == "main")
+            .find(|f| f.name == "Main")
             .unwrap();
         let call = f
             .block
@@ -2405,7 +2443,7 @@ mod tests {
     #[test]
     fn verifier_rejects_consuming_a_borrowed_argument() {
         let got = changed_main(
-            "fn f(consume x:i64){} fn main(){let x=1;f(consume x);}",
+            "fn F(x: move I64) {}\nfn Main() {\n    let x = 1;\n    F(move x);\n}\n",
             |f| {
                 let transfer = f
                     .block
@@ -2421,33 +2459,37 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_transfer_after_local_was_consumed() {
-        let got = changed("fn main(){var x=1;let y=consume x;x=2;}", |f| {
-            let write = f
-                .block
-                .instructions
-                .iter_mut()
-                .filter(|i| {
-                    matches!(
-                        i.op,
-                        Op::WritePlace {
-                            local: super::super::model::LocalId(0),
-                            ..
-                        }
-                    )
-                })
-                .nth(1)
-                .unwrap();
-            write.op = Op::TransferValue(super::super::model::LocalId(0));
-            write.output = Some(TempId(3));
-            write.ty = Some(Ty::I64);
-            write.access = Access::Own;
-        });
+        let got = changed(
+            "fn Main() {\n    var x = 1;\n    let y = move x;\n    x = 2;\n}\n",
+            |f| {
+                let write = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .filter(|i| {
+                        matches!(
+                            i.op,
+                            Op::WritePlace {
+                                local: super::super::model::LocalId(0),
+                                ..
+                            }
+                        )
+                    })
+                    .nth(1)
+                    .unwrap();
+                write.op = Op::TransferValue(super::super::model::LocalId(0));
+                write.output = Some(TempId(3));
+                write.ty = Some(Ty::I64);
+                write.access = Access::Own;
+            },
+        );
         assert_eq!(got, Err("transfer consumed local"));
     }
     #[test]
     fn verifier_rejects_drop_of_read_parameter() {
-        let p = compile_scalar("v.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
-        let mut f = p.functions.function("f").unwrap().clone();
+        let p =
+            compile_scalar("v.nx", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
+        let mut f = p.functions.function("F").unwrap().clone();
         let unit = f
             .block
             .instructions
@@ -2460,8 +2502,8 @@ mod tests {
     }
     #[test]
     fn verifier_checks_call_scope_origin_and_source_span() {
-        let p = compile_scalar("v.nx", "fn f(){} fn main(){f();}").unwrap();
-        let original = p.functions.function("main").unwrap();
+        let p = compile_scalar("v.nx", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
+        let original = p.functions.function("Main").unwrap();
         let mut f = original.clone();
         let call = f
             .block
@@ -2493,12 +2535,13 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_call_when_callee_parameter_count_changed() {
-        let mut p = compile_scalar("v.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
+        let mut p =
+            compile_scalar("v.nx", "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n").unwrap();
         let f = p
             .functions
             .entries
             .iter_mut()
-            .find(|f| f.name == "f")
+            .find(|f| f.name == "F")
             .unwrap();
         let id = super::super::model::LocalId(1);
         f.locals.push(super::super::model::Local {
@@ -2520,20 +2563,27 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_call_when_callee_result_changed() {
-        let mut p = compile_scalar("v.nx", "fn f(){} fn main(){f();}").unwrap();
-        let donor = compile_scalar("v.nx", "fn f()->i64{return 1;} fn main(){f();}").unwrap();
-        p.functions.entries[0] = donor.functions.function("f").unwrap().clone();
+        let mut p = compile_scalar("v.nx", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
+        let donor = compile_scalar(
+            "v.nx",
+            "fn F() -> I64 {\n    return 1;\n}\nfn Main() {\n    F();\n}\n",
+        )
+        .unwrap();
+        p.functions.entries[0] = donor.functions.function("F").unwrap().clone();
         assert_eq!(verify_program(&p), Err("callee signature"));
     }
     #[test]
     fn verifier_rejects_call_result_instruction_type_mutation() {
-        let mut program =
-            compile_scalar("v.nx", "fn f()->i64{return 1;} fn main(){print(f());}").unwrap();
+        let mut program = compile_scalar(
+            "v.nx",
+            "fn F() -> I64 {\n    return 1;\n}\nfn Main() {\n    Print(F());\n}\n",
+        )
+        .unwrap();
         let caller = program
             .functions
             .entries
             .iter_mut()
-            .find(|f| f.name == "main")
+            .find(|f| f.name == "Main")
             .unwrap();
         let call = caller
             .block
@@ -2547,8 +2597,9 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_transfer_from_read_parameter() {
-        let p = compile_scalar("v.nx", "fn f(x:()){} fn main(){f(());}").unwrap();
-        let mut f = p.functions.function("f").unwrap().clone();
+        let p =
+            compile_scalar("v.nx", "fn F(x: view ()) {}\nfn Main() {\n    F(());\n}\n").unwrap();
+        let mut f = p.functions.function("F").unwrap().clone();
         let unit = f
             .block
             .instructions
@@ -2561,8 +2612,8 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_temporary_array_containing_resource() {
-        let p = compile_scalar("v.nx", "fn main(){drop(mock_open(1));}").unwrap();
-        let mut f = p.functions.function("main").unwrap().clone();
+        let p = compile_scalar("v.nx", "fn Main() {\n    Drop(MockOpen(1));\n}\n").unwrap();
+        let mut f = p.functions.function("Main").unwrap().clone();
         let drop = f
             .block
             .instructions
@@ -2584,24 +2635,28 @@ mod tests {
     }
     #[test]
     fn verifier_rejects_resource_array_in_local_layout() {
-        let p = compile_scalar("v.nx", "fn main(){let x=1;}").unwrap();
-        let mut f = p.functions.function("main").unwrap().clone();
+        let p = compile_scalar("v.nx", "fn Main() {\n    let x = 1;\n}\n").unwrap();
+        let mut f = p.functions.function("Main").unwrap().clone();
         f.locals[0].ty = Ty::Array(Box::new(Ty::MockResource));
         f.content_hash = super::super::model::content_hash(&f);
         assert_eq!(verify_function(&f), Err("resource array local"));
     }
     #[test]
     fn verifier_rejects_resource_array_in_result_layout() {
-        let p = compile_scalar("v.nx", "fn main(){}").unwrap();
-        let mut f = p.functions.function("main").unwrap().clone();
+        let p = compile_scalar("v.nx", "fn Main() {}\n").unwrap();
+        let mut f = p.functions.function("Main").unwrap().clone();
         f.result = Ty::Array(Box::new(Ty::MockResource));
         f.content_hash = super::super::model::content_hash(&f);
         assert_eq!(verify_function(&f), Err("resource array result"));
     }
     #[test]
     fn verifier_rejects_transfer_while_read_loan_remains_live() {
-        let p = compile_scalar("v.nx", "fn main(){let x=1;print(x);let y=consume x;}").unwrap();
-        let mut f = p.functions.function("main").unwrap().clone();
+        let p = compile_scalar(
+            "v.nx",
+            "fn Main() {\n    let x = 1;\n    Print(x);\n    let y = move x;\n}\n",
+        )
+        .unwrap();
+        let mut f = p.functions.function("Main").unwrap().clone();
         let call = f
             .block
             .instructions

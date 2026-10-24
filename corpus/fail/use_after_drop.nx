@@ -1,2 +1,2 @@
-// expect: E0202
-fn main() { let r = mock_open(1); drop(r); inspect(r); }
+// expect: NX-E0202/definitely_consumed
+fn Main() { let r = MockOpen(1); Drop(r); Inspect(r); }

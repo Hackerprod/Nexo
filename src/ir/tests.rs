@@ -2,6 +2,245 @@ use super::{CompileError, compile_scalar};
 use crate::frontend::parse;
 use crate::interp::{Outcome, run_scalar};
 
+#[test]
+fn nested_array_equality_reports_the_outermost_live_loan() {
+    let source = "fn Main(){var a=[1];let x=a == (if a == (if true then {a[0]=2;value:[1];} else [1]) then a else a);}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("loan-order.nx", source) else {
+        panic!("the nested write must conflict with the outer read loan");
+    };
+    let conflict = errors
+        .iter()
+        .find(|error| error.code == "NX-E1105")
+        .unwrap();
+    assert_eq!(conflict.subcause.as_deref(), Some("active_borrow_conflict"));
+    // Inserting the nested equality loan at position zero would make first()
+    // report its later origin instead of the already live outer loan.
+    let origin = conflict
+        .related_spans
+        .iter()
+        .find(|span| span.role.as_str() == "origin")
+        .unwrap();
+    assert_eq!((origin.span.start, origin.span.end), (26, 27));
+    assert_eq!(
+        conflict.cause_chain[0]
+            .span
+            .as_ref()
+            .map(|s| (s.start, s.end)),
+        Some((26, 27))
+    );
+    conflict.validate("loan-order.nx", source).unwrap();
+}
+
+#[test]
+fn isolated_edit_never_reaches_lowering() {
+    for body in [
+        "var b=edit r;",
+        "r=edit r;",
+        "[edit r];",
+        "edit r;",
+        "Print(1+edit r);",
+    ] {
+        let source = format!("fn Main(){{var r=1;{body}}}");
+        let Err(CompileError::Rejected(errors)) = compile_scalar("edit.nx", &source) else {
+            panic!("source must be rejected before lowering: {source}");
+        };
+        assert_eq!(errors[0].code, "NX-E0002", "{source}");
+        assert_eq!(errors[0].parser_context.as_deref(), Some("inout_place"));
+        errors[0].validate("edit.nx", &source).unwrap();
+    }
+    compile_scalar(
+        "edit.nx",
+        "fn F(x:edit I64){} fn Main(){var r=1;F(edit r);}",
+    )
+    .unwrap();
+}
+
+#[test]
+fn forged_exclusive_expression_hits_only_the_ir_guard() {
+    use crate::frontend::parse::{Expr, Mode, Statement};
+    let source = "fn Main(){var r=1;let b=move r;}";
+    let mut ast = parse::parse("guard.nx", source).unwrap();
+    let Statement::Let {
+        value: Expr::Unary { mode, .. },
+        ..
+    } = &mut ast.functions[0].body.statements[1]
+    else {
+        panic!("expected transfer")
+    };
+    *mode = Mode::Inout;
+    assert!(matches!(
+        super::lower::compile_ast(&ast, source),
+        Err(CompileError::InvalidIr(
+            "exclusive loans or result propagation"
+        ))
+    ));
+    let rejected = compile_scalar("guard.nx", "fn Main(){var r=1;let b=edit r;}");
+    assert!(matches!(rejected, Err(CompileError::Rejected(_))));
+}
+
+#[test]
+#[ignore = "directed prefix and expression-context campaign"]
+fn access_prefix_contexts_never_escape_as_invalid_ir() {
+    let contexts = [
+        "var b={p};",
+        "r={p};",
+        "[{p}];",
+        "{p};",
+        "var b=1+{p};",
+        "var b=({p})+1;",
+        "var b=[1][{p}];",
+        "var b=({p}).field;",
+        "return {p};",
+        "if {p} {}",
+        "F({p});",
+        "F(1+{p});",
+        "{{{p};}}",
+        "var b=if true then {p} else 1;",
+        "var b=({p})?;",
+        "F(x: {p});",
+    ];
+    let prefixes = ["edit r", "move r", "view r"];
+    for case in 0..20_160 {
+        let context = contexts[(case / 3) % contexts.len()];
+        let prefix = prefixes[case % prefixes.len()];
+        let fragment = context.replace("{p}", prefix);
+        let separator = ["", " ", "\n", "// gap\n"][case / 48 % 4];
+        let source = format!(
+            "fn F(x:edit I64){{}} fn G()->I64{{var r=1;let pad={};{separator}{fragment}return pad;}} fn Main(){{Print(G());}}",
+            case % 997
+        );
+        match compile_scalar("access.nx", &source) {
+            Ok(program) => {
+                let execution = run_scalar(&program);
+                assert!(
+                    !matches!(execution.outcome, Outcome::InternalError(_)),
+                    "{source}"
+                );
+                for error in execution.diagnostics {
+                    error.validate("access.nx", &source).unwrap();
+                }
+            }
+            Err(CompileError::Rejected(errors)) => {
+                for error in errors {
+                    error.validate("access.nx", &source).unwrap();
+                }
+            }
+            Err(CompileError::InvalidIr(reason)) => panic!("{source}: {reason}"),
+            Err(CompileError::Dependent) => panic!("dependent IR: {source}"),
+        }
+    }
+}
+
+#[test]
+#[ignore = "Unicode source and lowering campaign"]
+fn unicode_sources_never_reach_internal_failure() {
+    let templates = [
+        "fn Main(){var r=1;edit r;}",
+        "fn Main(){let a=[1,2];Print(a[0]);}",
+        "fn F(x:edit I64){} fn Main(){var r=1;F(edit r);}",
+        "fn Main(){let x=if true then 1 else 2;Print(x);}",
+        "fn Main(){let r=MockOpen(1);let s=move r;Drop(s);}",
+    ];
+    let insertions = [
+        "é", "中", "🙂", "\u{2028}", "\u{0085}", "\u{000c}", "//語\n",
+    ];
+    let mut state = 0x6e65_786f_6564_6974_u64;
+    for case in 0..100_000 {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        let base = templates[case % templates.len()];
+        let at = (state as usize) % (base.len() + 1);
+        let insertion = insertions[(state >> 32) as usize % insertions.len()];
+        let mut source = String::new();
+        source.push_str(&base[..at]);
+        source.push_str(insertion);
+        source.push_str(&base[at..]);
+        match compile_scalar("unicode.nx", &source) {
+            Ok(program) => {
+                let execution = run_scalar(&program);
+                assert!(
+                    !matches!(execution.outcome, Outcome::InternalError(_)),
+                    "{source}"
+                );
+                for error in execution.diagnostics {
+                    error.validate("unicode.nx", &source).unwrap();
+                }
+            }
+            Err(CompileError::Rejected(errors)) => {
+                for error in errors {
+                    error.validate("unicode.nx", &source).unwrap();
+                }
+            }
+            Err(CompileError::InvalidIr(reason)) => panic!("{source}: {reason}"),
+            Err(CompileError::Dependent) => panic!("dependent IR: {source}"),
+        }
+    }
+}
+
+#[test]
+fn function_assignment_rejects_before_lowering() {
+    for source in [
+        "fn M(){M=();}",
+        "fn Main(){Main=();}",
+        "fn F(){} fn Main(){F=();}",
+    ] {
+        let Err(CompileError::Rejected(errors)) = compile_scalar("fixture.nx", source) else {
+            panic!("expected published diagnostic for {source}")
+        };
+        assert_eq!(errors[0].code, "NX-E0006");
+        assert_eq!(errors[0].feature_id.as_deref(), Some("function_value"));
+        errors[0].validate("fixture.nx", source).unwrap();
+    }
+}
+
+#[test]
+#[ignore = "directed rejected-place campaign"]
+fn function_and_other_nonlocal_assignment_fuzz_has_no_internal_error() {
+    let targets = ["F", "(F)", "((F))", "F[0]", "Main", "(Main)"];
+    let values = ["()", "0", "true", "[0]", "if true then 1 else 2"];
+    for n in 0..20_000 {
+        let assignment = format!(
+            "{}={};",
+            targets[n % targets.len()],
+            values[(n / 7) % values.len()]
+        );
+        let body = match (n / 31) % 5 {
+            0 => assignment,
+            1 => format!("{{{assignment}}}"),
+            2 => format!("if true {{{assignment}}}"),
+            3 => format!("while false {{{assignment}}}"),
+            _ => format!("let x=0;{assignment}"),
+        };
+        let source = format!("fn F(){{}} fn Main(){{{body}}}");
+        match compile_scalar("nonlocal-place.nx", &source) {
+            Err(CompileError::Rejected(errors)) => {
+                assert!(!errors.is_empty(), "{source}");
+                for error in errors {
+                    error.validate("nonlocal-place.nx", &source).unwrap();
+                }
+            }
+            Err(CompileError::InvalidIr(error)) => panic!("{source}: {error}"),
+            Err(CompileError::Dependent) => panic!("{source}: dependent IR"),
+            Ok(_) => panic!("accepted assignment to function: {source}"),
+        }
+    }
+    for declaration in [
+        "type T=I64; fn Main(){T=();}",
+        "const C:I64=comptime 1; fn Main(){C=();}",
+        "mod m; fn Main(){m=();}",
+        "use m; fn Main(){m=();}",
+    ] {
+        assert!(
+            matches!(
+                compile_scalar("nonlocal-place.nx", declaration),
+                Err(CompileError::Rejected(_))
+            ),
+            "{declaration}"
+        );
+    }
+}
+
 fn execute(source: &str) -> crate::interp::Execution {
     let program = compile_scalar("fixture.nx", source).unwrap();
     let result = run_scalar(&program);
@@ -10,9 +249,227 @@ fn execute(source: &str) -> crate::interp::Execution {
     }
     result
 }
+
+#[test]
+fn indexed_place_rechecks_owner_after_index_evaluation() {
+    let prefix = "fn F(p:move Array<I64>)->I64{return 0;} fn Main(){var b=[1,2];";
+    for (body, subcause) in [
+        (
+            "var c=b[if true then {let t=move b;value:0;} else 0];",
+            "maybe_consumed",
+        ),
+        (
+            "Print(b[if false then {Drop(b);value:0;} else 0]);",
+            "maybe_consumed",
+        ),
+        ("Print(b[F(move b)]);", "definitely_consumed"),
+        (
+            "AssertEq(b[if false then {let t=move b;value:0;} else 0],1);",
+            "maybe_consumed",
+        ),
+        ("var x=b[Len(move b)];", "definitely_consumed"),
+        ("b[F(move b)]=3;", "definitely_consumed"),
+    ] {
+        let source = format!("{prefix}{body}}}");
+        let Err(CompileError::Rejected(errors)) = compile_scalar("index-owner.nx", &source) else {
+            panic!("expected source ownership diagnostic: {source}");
+        };
+        let error = errors
+            .iter()
+            .find(|error| error.code == "NX-E0202")
+            .unwrap_or_else(|| panic!("{source}: {errors:?}"));
+        assert_eq!(error.subcause.as_deref(), Some(subcause), "{source}");
+        let root = source.rfind("b[").unwrap() as u64;
+        assert_eq!(
+            error
+                .primary_span
+                .as_ref()
+                .map(|span| (span.start, span.end)),
+            Some((root, root + 1)),
+            "{source}"
+        );
+        for error in errors {
+            error.validate("index-owner.nx", &source).unwrap();
+        }
+    }
+}
+
+#[test]
+fn array_equality_releases_operand_loans_before_later_access() {
+    for source in [
+        "fn Main(){var a=[1];Print(a==[1]);a[0]=2;Print(a[0]);}",
+        "fn Main(){var a=[1];Print(a==[1]);let b=move a;Print(b[0]);}",
+        "fn B(x:edit Array<I64>){x[0]=2;} fn Main(){var a=[1];Print(a==[1]);B(edit a);Print(a[0]);}",
+        "fn Main(){var a=[1];var b=[1];Print(a==b);a[0]=2;b[0]=3;}",
+        "fn Main(){var a=[1];var b=[1];Print(a==b);let c=move b;Print(c[0]);}",
+        "fn B(x:edit Array<I64>){x[0]=2;} fn Main(){var a=[1];var b=[1];Print(a==b);B(edit b);}",
+        "fn Main(){var a=[1];Print((a==[1])==true);a[0]=2;}",
+        "fn Main(){var a=[1];if a==[1] {a[0]=2;} Print(a[0]);}",
+        "fn Main(){var a=[1];while a==[1] {a[0]=2;} Print(a[0]);}",
+    ] {
+        super::check_scalar("equality-loan.nx", source)
+            .unwrap_or_else(|error| panic!("check {source}: {error:?}"));
+        let program = compile_scalar("equality-loan.nx", source)
+            .unwrap_or_else(|error| panic!("{source}: {error:?}"));
+        let result = run_scalar(&program);
+        assert_eq!(result.outcome, Outcome::Unit, "{source}: {result:?}");
+        assert!(result.diagnostics.is_empty(), "{source}: {result:?}");
+    }
+}
+
+#[test]
+fn indexed_place_access_matrix_checks_root_after_every_index() {
+    let uses = [
+        "Print({p});",
+        "AssertEq({p},1);",
+        "let x={p};",
+        "Read({p});",
+        "Inc(edit {p});",
+        "{p}=3;",
+    ];
+    for (binding, place) in [
+        ("var b=[1,2];", "b[{index}]"),
+        ("var b=[[1,2]];", "b[0][{index}]"),
+    ] {
+        for effect in ["let t=move b;", "Drop(b);"] {
+            let index = format!("if true then {{{effect}value:0;}} else 0");
+            let selected = place.replace("{index}", &index);
+            for use_site in uses {
+                let body = use_site.replace("{p}", &selected);
+                let source = format!(
+                    "fn Read(x:view I64){{}} fn Inc(x:edit I64){{x=x+1;}} fn Main(){{{binding}{body}}}"
+                );
+                for result in [
+                    super::check_scalar("index-matrix.nx", &source),
+                    compile_scalar("index-matrix.nx", &source),
+                ] {
+                    let Err(CompileError::Rejected(errors)) = result else {
+                        panic!("expected source rejection: {source}: {result:?}");
+                    };
+                    assert!(
+                        errors.iter().any(|error| error.code == "NX-E0202"),
+                        "{source}: {errors:?}"
+                    );
+                    for error in errors {
+                        error.validate("index-matrix.nx", &source).unwrap();
+                    }
+                }
+            }
+        }
+    }
+}
+
+#[test]
+#[ignore = "structured indexed-place ownership campaign"]
+fn indexed_place_effects_never_escape_as_invalid_ir() {
+    let cases_per_seed = std::env::var("NEXO_INDEX_EFFECT_CASES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(100_000);
+    let uses = [
+        "Print({p});",
+        "AssertEq({p},1);",
+        "let x={p};",
+        "Read({p});",
+        "Inc(edit {p});",
+        "{p}=3;",
+        "Print({p}==1);",
+        "let x=[{p},1];",
+    ];
+    let effects = [
+        "if true then {let t=move b;value:0;} else 0",
+        "if false then {Drop(b);value:0;} else 0",
+        "Len(move b)",
+        "if true then {{write}value:0;} else 0",
+        "if false then {Touch(edit b);value:0;} else 0",
+        "if true then {Print({read});value:0;} else 0",
+    ];
+    let mut accepted_compilations = 0usize;
+    let mut rejected_compilations = 0usize;
+    for seed in 0..4_usize {
+        let mut state = 0x57a1_4b31_0d0e_0001_u64 ^ (seed as u64 * 0x10001);
+        for case in 0..cases_per_seed {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            let nested = (state & 1) != 0;
+            let (binding, ty, write, read, place) = if nested {
+                (
+                    "var b=[[1,2],[3,4]];",
+                    "Array<Array<I64>>",
+                    "b[0][0]=4;",
+                    "b[0][0]",
+                    "b[0][{index}]",
+                )
+            } else {
+                (
+                    "var b=[1,2];",
+                    "Array<I64>",
+                    "b[0]=4;",
+                    "b[0]",
+                    "b[{index}]",
+                )
+            };
+            let effect = effects[(state >> 8) as usize % effects.len()]
+                .replace("{write}", write)
+                .replace("{read}", read);
+            let selected = place.replace("{index}", &effect);
+            let body = uses[(case + seed) % uses.len()].replace("{p}", &selected);
+            let source = format!(
+                "fn Read(x:view I64){{}} fn Inc(x:edit I64){{x=x+1;}} fn Touch(x:edit {ty}){{}} fn Main(){{{binding}let pad={};{body}}}",
+                case % 997
+            );
+            for result in [
+                super::check_scalar("index-fuzz.nx", &source),
+                compile_scalar("index-fuzz.nx", &source),
+            ] {
+                match result {
+                    Ok(program) => {
+                        accepted_compilations += 1;
+                        let execution = run_scalar(&program);
+                        assert!(
+                            !matches!(execution.outcome, Outcome::InternalError(_)),
+                            "{source}: {execution:?}"
+                        );
+                        for error in execution.diagnostics {
+                            error.validate("index-fuzz.nx", &source).unwrap();
+                        }
+                    }
+                    Err(CompileError::Rejected(errors)) => {
+                        rejected_compilations += 1;
+                        assert!(!errors.is_empty(), "{source}");
+                        for error in errors {
+                            error.validate("index-fuzz.nx", &source).unwrap();
+                        }
+                    }
+                    Err(other) => panic!("{source}: {other:?}"),
+                }
+            }
+        }
+    }
+    assert_eq!(
+        accepted_compilations + rejected_compilations,
+        8 * cases_per_seed
+    );
+    println!(
+        "indexed sources: {}; check/compile calls: {}; executions: {}",
+        4 * cases_per_seed,
+        8 * cases_per_seed,
+        accepted_compilations
+    );
+}
+
+fn byte_span(source: &str, needle: &str, occurrence: usize) -> (u64, u64) {
+    let start = source
+        .match_indices(needle)
+        .nth(occurrence)
+        .unwrap_or_else(|| panic!("missing occurrence {occurrence} of {needle:?}"))
+        .0 as u64;
+    (start, start + needle.len() as u64)
+}
 #[test]
 fn integer_limits_execute_with_literal_expected_output() {
-    let source = "fn main(){assert_eq(-9223372036854775808+1,-9223372036854775807);assert_eq(9223372036854775806+1,9223372036854775807);assert_eq(true,true);print(25);}";
+    let source = "fn Main() {\n    AssertEq(-9223372036854775808 + 1, -9223372036854775807);\n    AssertEq(9223372036854775806 + 1, 9223372036854775807);\n    AssertEq(true, true);\n    Print(25);\n}\n";
     let execution = execute(source);
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(execution.observations.stdout(), vec!["25"]);
@@ -22,8 +479,9 @@ fn integer_limits_execute_with_literal_expected_output() {
     assert!(execution.diagnostics.is_empty());
 }
 #[test]
-fn published_integer_limits_corpus_runs_through_verified_ir() {
-    let source = include_str!("../../corpus/pass/integer_limits.nx");
+fn integer_limits_fixture_runs_through_verified_ir() {
+    // Exercise the corpus program's observations through verified IR.
+    let source = "fn Main() {\n    AssertEq(-9223372036854775808 + 1, -9223372036854775807);\n    AssertEq(9223372036854775806 + 1, 9223372036854775807);\n    AssertEq(true, true);\n    Print(25);\n}\n";
     let e = execute(source);
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.stdout(), vec!["25"]);
@@ -32,7 +490,7 @@ fn published_integer_limits_corpus_runs_through_verified_ir() {
 }
 #[test]
 fn signed_literal_outside_i64_is_a_types_diagnostic() {
-    let source = "fn main(){let x=9223372036854775808;}";
+    let source = "fn Main() {\n    let x = 9223372036854775808;\n}\n";
     let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
         panic!("expected rejection")
     };
@@ -49,18 +507,18 @@ fn signed_literal_outside_i64_is_a_types_diagnostic() {
     );
     assert_eq!(
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((16, 35))
+        Some(byte_span(source, "9223372036854775808", 0))
     );
     assert!(d.data.is_empty());
     d.validate("fixture.nx", source).unwrap();
     assert_eq!(
-        execute("fn main(){let x=9223372036854775807;}").outcome,
+        execute("fn Main() {\n    let x = 9223372036854775807;\n}\n").outcome,
         Outcome::Unit
     );
 }
 #[test]
 fn trailing_module_garbage_is_rejected_before_lowering() {
-    let source = "fn main(){} garbage";
+    let source = "fn Main(){} garbage";
     let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
         panic!("expected rejection")
     };
@@ -78,46 +536,54 @@ fn trailing_module_garbage_is_rejected_before_lowering() {
         Some("garbage")
     );
     d.validate("fixture.nx", source).unwrap();
-    assert_eq!(execute("fn main(){}").outcome, Outcome::Unit);
+    assert_eq!(execute("fn Main() {}\n").outcome, Outcome::Unit);
 }
 #[test]
-fn adr_gap_unmigrated_corpus_comments_and_crlf_keep_worktree_byte_offsets() {
-    for (source, code, start, end) in [
+fn b_corpus_comments_and_crlf_keep_original_byte_offsets() {
+    for (fixture, code, needle, published_lf, published_crlf) in [
         (
             include_str!("../../corpus/fail/overflow_literal.nx"),
             "NX-E0107",
-            42,
-            61,
+            "9223372036854775808",
+            Some((44, 63)),
+            Some((45, 64)),
         ),
         (
             include_str!("../../corpus/fail/trailing_garbage.nx"),
             "NX-E0002",
-            31,
-            38,
+            "ignored",
+            None,
+            None,
         ),
     ] {
-        // The offsets below are for CRLF line endings; normalize so the result
-        // does not depend on how the checkout converted the corpus files.
-        let source = source.replace("\r\n", "\n").replace('\n', "\r\n");
-        let source = source.as_str();
-        let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err()
-        else {
-            panic!("expected rejection")
-        };
-        assert_eq!(errors.len(), 1);
-        let d = &errors[0];
-        assert_eq!(d.code, code);
-        assert_eq!(
-            d.primary_span.as_ref().map(|s| (s.start, s.end)),
-            Some((start, end))
-        );
-        assert!(d.data.is_empty());
-        d.validate("fixture.nx", source).unwrap();
+        let lf = fixture.replace("\r\n", "\n");
+        for (source, published) in [
+            (lf.clone(), published_lf),
+            (lf.replace('\n', "\r\n"), published_crlf),
+        ] {
+            let (start, end) = byte_span(&source, needle, 0);
+            if let Some(expected) = published {
+                assert_eq!((start, end), expected);
+            }
+            let CompileError::Rejected(errors) = compile_scalar("fixture.nx", &source).unwrap_err()
+            else {
+                panic!("expected rejection")
+            };
+            assert_eq!(errors.len(), 1);
+            let d = &errors[0];
+            assert_eq!(d.code, code);
+            assert_eq!(
+                d.primary_span.as_ref().map(|s| (s.start, s.end)),
+                Some((start, end))
+            );
+            assert!(d.data.is_empty());
+            d.validate("fixture.nx", &source).unwrap();
+        }
     }
 }
 #[test]
 fn subtraction_overflow_has_published_runtime_fields_and_no_output() {
-    let source = "fn main(){print(-9223372036854775808-1);}";
+    let source = "fn Main() {\n    Print(-9223372036854775808 - 1);\n}\n";
     let e = execute(source);
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert!(e.observations.observations().is_empty());
@@ -136,17 +602,17 @@ fn subtraction_overflow_has_published_runtime_fields_and_no_output() {
     );
     assert_eq!(
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((16, 38))
+        Some(byte_span(source, "-9223372036854775808 - 1", 0))
     );
     assert!(d.data.is_empty());
-    let p = execute("fn main(){print(-9223372036854775808-0);}");
+    let p = execute("fn Main() {\n    Print(-9223372036854775808 - 0);\n}\n");
     assert_eq!(p.outcome, Outcome::Unit);
     assert_eq!(p.observations.stdout(), vec!["-9223372036854775808"]);
     assert_eq!(p.observations.bytes(), 21);
 }
 #[test]
 fn addition_overflow_and_assert_failure_keep_prior_output_in_order() {
-    let plus = "fn main(){print(7);print(9223372036854775807+1);}";
+    let plus = "fn Main() {\n    Print(7);\n    Print(9223372036854775807 + 1);\n}\n";
     let e = execute(plus);
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.observations.stdout(), vec!["7"]);
@@ -155,7 +621,7 @@ fn addition_overflow_and_assert_failure_keep_prior_output_in_order() {
     assert_eq!(e.diagnostics[0].stage.as_str(), "runtime");
     assert_eq!(e.diagnostics[0].operation.as_str(), "value.add");
     assert!(e.diagnostics[0].data.is_empty());
-    let assertion = execute("fn main(){print(7);assert_eq(1,2);print(9);}");
+    let assertion = execute("fn Main() {\n    Print(7);\n    AssertEq(1, 2);\n    Print(9);\n}\n");
     assert_eq!(assertion.outcome, Outcome::SimulatorFault);
     assert_eq!(assertion.observations.stdout(), vec!["7"]);
     assert_eq!(assertion.diagnostics[0].code, "R0201");
@@ -166,7 +632,9 @@ fn addition_overflow_and_assert_failure_keep_prior_output_in_order() {
 }
 #[test]
 fn scalar_drop_has_no_event_and_fail_faults_after_prior_output() {
-    let e = execute("fn main(){let x=3;drop(x);print(true);fail();print(9);}");
+    let e = execute(
+        "fn Main() {\n    let x = 3;\n    Drop(x);\n    Print(true);\n    Fail();\n    Print(9);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.observations.stdout(), vec!["true"]);
     assert!(e.observations.events().is_empty());
@@ -176,15 +644,15 @@ fn scalar_drop_has_no_event_and_fail_faults_after_prior_output() {
         ("R0301", "intrinsic.fail")
     );
     assert!(e.diagnostics[0].data.is_empty());
-    let p = execute("fn main(){drop(3);print(false);}");
+    let p = execute("fn Main() {\n    Drop(3);\n    Print(false);\n}\n");
     assert_eq!(p.outcome, Outcome::Unit);
     assert_eq!(p.observations.stdout(), vec!["false"]);
 }
 #[test]
 fn observation_quota_checks_complete_next_line_and_preserves_prior_lines() {
-    let mut source = String::from("fn main(){");
+    let mut source = String::from("fn Main(){");
     for _ in 0..32_769 {
-        source.push_str("print(0);")
+        source.push_str("Print(0);")
     }
     source.push('}');
     let e = execute(&source);
@@ -211,19 +679,19 @@ fn observation_quota_checks_complete_next_line_and_preserves_prior_lines() {
 }
 #[test]
 fn value_minus_one_spellings_share_ast_and_result() {
-    let a = "fn main(){\nlet value=2\nlet a=value -1\nlet b=value - 1\nassert_eq(a,b)\n}";
+    let a = "fn Main() {\n    let value = 2;\n    let a = value - 1;\n    let b = value - 1;\n    AssertEq(a, b);\n}\n";
     let b = a.replacen("value -1", "value - 1", 1);
     let ast_a = parse::parse("fixture.nx", a).unwrap();
     let ast_b = parse::parse("fixture.nx", &b).unwrap();
     assert_eq!(
-        crate::frontend::print::print_canonical(&ast_a),
-        crate::frontend::print::print_canonical(&ast_b)
+        crate::frontend::print::print_canonical(&ast_a).unwrap(),
+        crate::frontend::print::print_canonical(&ast_b).unwrap()
     );
     let pa = compile_scalar("fixture.nx", a).unwrap();
     let pb = compile_scalar("fixture.nx", &b).unwrap();
     assert_eq!(
-        pa.functions().function("main").unwrap().content_hash,
-        pb.functions().function("main").unwrap().content_hash
+        pa.functions().function("Main").unwrap().content_hash,
+        pb.functions().function("Main").unwrap().content_hash
     );
     for source in [a, b.as_str()] {
         let e = execute(source);
@@ -233,13 +701,13 @@ fn value_minus_one_spellings_share_ast_and_result() {
 }
 #[test]
 fn unicode_crlf_and_final_eof_binding_variants_execute_equally() {
-    let base = "// á🙂\nfn main(){\nlet missing=1;\nlet x=missing;\n}";
+    let base = "fn Main() {\n    let missing = 1;\n    let x = missing;\n}\n";
     let crlf = base.replace('\n', "\r\n");
     let final_lf = format!("{base}\n");
     let mut canonical = Vec::new();
     for source in [base, crlf.as_str(), final_lf.as_str()] {
         let ast = parse::parse("fixture.nx", source).unwrap();
-        canonical.push(crate::frontend::print::print_canonical(&ast));
+        canonical.push(crate::frontend::print::print_canonical(&ast).unwrap());
         let e = execute(source);
         assert_eq!(e.outcome, Outcome::Unit);
         assert!(e.diagnostics.is_empty());
@@ -251,32 +719,35 @@ fn unicode_crlf_and_final_eof_binding_variants_execute_equally() {
 #[test]
 fn scalar_positive_repairs_of_published_scope_rows_execute_without_observations() {
     let cases = [
-        ("S16", "fn main(){let b=0<1;}"),
-        ("S18", "fn main(){let b=1==1;}"),
-        ("S22", "fn main(){let match_value=1;}"),
-        ("S23", "fn main(){let x=1;let y=2;}"),
-        ("S27", "fn main(){let x=1+2;}"),
-        ("S28", "fn main(){let x=1==2;}"),
-        ("S31", "fn main(){let x=1;}"),
-        ("S32", "fn main(){let x=1<2;}"),
-        ("S33", "fn main(){let x=1<2;}"),
-        ("S34", "fn main(){let x=1<2;}"),
-        ("F03", "fn main(){let x=0;}"),
-        ("F04", "fn main(){let n=1;let x=0+n;}"),
-        ("F05", "fn main(){let x=(1);}"),
-        ("F06", "fn main(){}"),
-        ("F08", "fn main(){let f=();}"),
-        ("F16", "fn main(){}"),
-        ("F17", "fn main(){}"),
-        ("F18", "fn main(){}"),
-        ("F19", "fn main(){}"),
-        ("F21", "fn main(){}"),
-        ("F22", "fn main(){let x=1;}"),
-        ("F24", "fn main(){var x=1;x=x+1;}"),
-        ("F27", "fn g(){} fn main(){}"),
-        ("F28", "fn f(){} fn main(){}"),
-        ("F32", "fn main(){{}}"),
-        ("F33", "fn main(){let x=0;}"),
+        ("S16", "fn Main() {\n    let b = 0 < 1;\n}\n"),
+        ("S18", "fn Main() {\n    let b = 1 == 1;\n}\n"),
+        ("S22", "fn Main() {\n    let matchValue = 1;\n}\n"),
+        ("S23", "fn Main() {\n    let x = 1;\n    let y = 2;\n}\n"),
+        ("S27", "fn Main() {\n    let x = 1 + 2;\n}\n"),
+        ("S28", "fn Main() {\n    let x = 1 == 2;\n}\n"),
+        ("S31", "fn Main() {\n    let x = 1;\n}\n"),
+        ("S32", "fn Main() {\n    let x = 1 < 2;\n}\n"),
+        ("S33", "fn Main() {\n    let x = 1 < 2;\n}\n"),
+        ("S34", "fn Main() {\n    let x = 1 < 2;\n}\n"),
+        ("F03", "fn Main() {\n    let x = 0;\n}\n"),
+        (
+            "F04",
+            "fn Main() {\n    let n = 1;\n    let x = 0 + n;\n}\n",
+        ),
+        ("F05", "fn Main() {\n    let x = (1);\n}\n"),
+        ("F06", "fn Main() {}\n"),
+        ("F08", "fn Main() {\n    let f = ();\n}\n"),
+        ("F16", "fn Main() {}\n"),
+        ("F17", "fn Main() {}\n"),
+        ("F18", "fn Main() {}\n"),
+        ("F19", "fn Main() {}\n"),
+        ("F21", "fn Main() {}\n"),
+        ("F22", "fn Main() {\n    let x = 1;\n}\n"),
+        ("F24", "fn Main() {\n    var x = 1;\n    x = x + 1;\n}\n"),
+        ("F27", "fn G() {}\nfn Main() {}\n"),
+        ("F28", "fn F() {}\nfn Main() {}\n"),
+        ("F32", "fn Main() {\n    {}\n}\n"),
+        ("F33", "fn Main() {\n    let x = 0;\n}\n"),
     ];
     for (row, source) in cases {
         let e = execute(source);
@@ -289,36 +760,43 @@ fn scalar_positive_repairs_of_published_scope_rows_execute_without_observations(
 }
 #[test]
 fn shadowed_binding_and_complete_reassignment_use_current_slot() {
-    let e = execute("fn main(){var x=1;{let x=7;assert_eq(x,7);}x=x+2;assert_eq(x,3);print(x);}");
+    let e = execute(
+        "fn Main() {\n    var x = 1;\n    {\n        let x = 7;\n        AssertEq(x, 7);\n    }\n    x = x + 2;\n    AssertEq(x, 3);\n    Print(x);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.stdout(), vec!["3"]);
 }
 #[test]
 fn inner_assignment_targets_inner_binding_without_replacing_outer_value() {
-    let e = execute("fn main(){var x=1;{var x=7;x=8;assert_eq(x,8);}assert_eq(x,1);}");
+    let e = execute(
+        "fn Main() {\n    var x = 1;\n    {\n        var x = 7;\n        x = 8;\n        AssertEq(x, 8);\n    }\n    AssertEq(x, 1);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.observations.observations().is_empty());
 }
 #[test]
 fn scalar_relations_keep_strict_less_and_boolean_equality() {
     let e = execute(
-        "fn main(){assert_eq(1<2,true);assert_eq(2<2,false);assert_eq(3<2,false);assert_eq(true==false,false);}",
+        "fn Main() {\n    AssertEq(1 < 2, true);\n    AssertEq(2 < 2, false);\n    AssertEq(3 < 2, false);\n    AssertEq(true == false, false);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.observations.observations().is_empty());
 }
 #[test]
 fn scalar_work_tally_counts_expression_visits_and_intrinsic_entry() {
-    assert_eq!(execute("fn main(){print(1);}").work_consumed, 10);
-    assert_eq!(execute("fn main(){assert_eq(1<2,true);}").work_consumed, 19);
+    assert_eq!(execute("fn Main() {\n    Print(1);\n}\n").work_consumed, 10);
+    assert_eq!(
+        execute("fn Main() {\n    AssertEq(1 < 2, true);\n}\n").work_consumed,
+        19
+    );
 }
 #[test]
 fn repeated_complete_assignment_releases_replaced_cells() {
-    let mut source = String::from("fn main(){var x=0;");
+    let mut source = String::from("fn Main(){var x=0;");
     for _ in 0..66_000 {
         source.push_str("x=x+1;")
     }
-    source.push_str("assert_eq(x,66000);}");
+    source.push_str("AssertEq(x,66000);}");
     let e = execute(&source);
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.diagnostics.is_empty());
@@ -326,17 +804,21 @@ fn repeated_complete_assignment_releases_replaced_cells() {
 }
 #[test]
 fn function_identity_and_hash_ignore_unrelated_order_and_track_body() {
-    let one = compile_scalar("fixture.nx", "fn main(){print(1);}").unwrap();
+    let one = compile_scalar("fixture.nx", "fn Main() {\n    Print(1);\n}\n").unwrap();
     assert_eq!(
-        one.functions().function("main").unwrap().content_hash,
+        one.functions().function("Main").unwrap().content_hash,
         0x2429_2d7d_adf8_6fdf
     );
-    let a = compile_scalar("fixture.nx", "fn helper(){print(1);} fn main(){print(2);}").unwrap();
-    assert_eq!(a.functions().function("helper").unwrap().id.0, "helper");
-    assert_eq!(a.functions().function("main").unwrap().id.0, "main");
+    let a = compile_scalar(
+        "fixture.nx",
+        "fn Helper() {\n    Print(1);\n}\nfn Main() {\n    Print(2);\n}\n",
+    )
+    .unwrap();
+    assert_eq!(a.functions().function("Helper").unwrap().id.0, "Helper");
+    assert_eq!(a.functions().function("Main").unwrap().id.0, "Main");
     let b = compile_scalar(
         "fixture.nx",
-        "fn main(){ print(2); } fn helper(){print(1);}",
+        "fn Main() {\n    Print(2);\n}\nfn Helper() {\n    Print(1);\n}\n",
     )
     .unwrap();
     assert_eq!(
@@ -351,28 +833,31 @@ fn function_identity_and_hash_ignore_unrelated_order_and_track_body() {
             .map(|f| (&f.name, &f.id, f.content_hash))
             .collect::<Vec<_>>()
     );
-    let changed =
-        compile_scalar("fixture.nx", "fn helper(){print(1);} fn main(){print(3);}").unwrap();
+    let changed = compile_scalar(
+        "fixture.nx",
+        "fn Helper() {\n    Print(1);\n}\nfn Main() {\n    Print(3);\n}\n",
+    )
+    .unwrap();
     assert_ne!(
-        a.functions().function("main").unwrap().content_hash,
-        changed.functions().function("main").unwrap().content_hash
+        a.functions().function("Main").unwrap().content_hash,
+        changed.functions().function("Main").unwrap().content_hash
     );
     assert_eq!(
-        a.functions().function("helper").unwrap().content_hash,
-        changed.functions().function("helper").unwrap().content_hash
+        a.functions().function("Helper").unwrap().content_hash,
+        changed.functions().function("Helper").unwrap().content_hash
     );
-    let add = compile_scalar("fixture.nx", "fn main(){print(1+2);}").unwrap();
-    let sub = compile_scalar("fixture.nx", "fn main(){print(1-2);}").unwrap();
+    let add = compile_scalar("fixture.nx", "fn Main() {\n    Print(1 + 2);\n}\n").unwrap();
+    let sub = compile_scalar("fixture.nx", "fn Main() {\n    Print(1 - 2);\n}\n").unwrap();
     assert_ne!(
-        add.functions().function("main").unwrap().content_hash,
-        sub.functions().function("main").unwrap().content_hash
+        add.functions().function("Main").unwrap().content_hash,
+        sub.functions().function("Main").unwrap().content_hash
     );
 }
 #[test]
 fn function_ids_keep_names_while_table_indices_follow_canonical_order() {
     for source in [
-        "fn zeta(){} fn main(){} fn alpha(){}",
-        "fn main(){} fn alpha(){} fn zeta(){}",
+        "fn Zeta() {}\nfn Main() {}\nfn Alpha() {}\n",
+        "fn Main() {}\nfn Alpha() {}\nfn Zeta() {}\n",
     ] {
         let program = compile_scalar("fixture.nx", source).unwrap();
         let functions = program.functions().functions();
@@ -382,63 +867,72 @@ fn function_ids_keep_names_while_table_indices_follow_canonical_order() {
                 .map(|f| (f.name.as_str(), f.table_index, f.id.0.as_str()))
                 .collect::<Vec<_>>(),
             vec![
-                ("alpha", 0, "alpha"),
-                ("main", 1, "main"),
-                ("zeta", 2, "zeta")
+                ("Alpha", 0, "Alpha"),
+                ("Main", 1, "Main"),
+                ("Zeta", 2, "Zeta")
             ]
         );
     }
 }
 #[test]
 fn verified_function_table_substitution_changes_development_execution() {
-    let mut a = compile_scalar("fixture.nx", "fn main(){print(1);}").unwrap();
-    let b = compile_scalar("fixture.nx", "fn main(){print(2);}").unwrap();
+    let mut a = compile_scalar("fixture.nx", "fn Main() {\n    Print(1);\n}\n").unwrap();
+    let b = compile_scalar("fixture.nx", "fn Main() {\n    Print(2);\n}\n").unwrap();
     assert_eq!(run_scalar(&a).observations.stdout(), vec!["1"]);
-    a.substitute_for_development("main", &b).unwrap();
+    a.substitute_for_development("Main", &b).unwrap();
     assert_eq!(run_scalar(&a).observations.stdout(), vec!["2"]);
 }
 #[test]
 fn function_identity_survives_other_functions_and_substitution_checks_signature() {
-    let mut receiver = compile_scalar("fixture.nx", "fn helper(){} fn main(){print(1);}").unwrap();
-    let donor = compile_scalar(
+    let mut receiver = compile_scalar(
         "fixture.nx",
-        "fn aaa(){} fn helper(){} fn main(){print(2);}",
+        "fn Helper() {}\nfn Main() {\n    Print(1);\n}\n",
     )
     .unwrap();
-    let original = receiver.functions().function("main").unwrap();
-    let edited = donor.functions().function("main").unwrap();
+    let donor = compile_scalar(
+        "fixture.nx",
+        "fn Aaa() {}\nfn Helper() {}\nfn Main() {\n    Print(2);\n}\n",
+    )
+    .unwrap();
+    let original = receiver.functions().function("Main").unwrap();
+    let edited = donor.functions().function("Main").unwrap();
     assert_eq!(original.id, edited.id);
     assert_ne!(original.table_index, edited.table_index);
     assert_ne!(original.content_hash, edited.content_hash);
-    receiver.substitute_for_development("main", &donor).unwrap();
+    receiver.substitute_for_development("Main", &donor).unwrap();
     assert_eq!(run_scalar(&receiver).observations.stdout(), vec!["2"]);
 
-    let reordered = compile_scalar("fixture.nx", "fn main(){print(3);} fn zzz(){}").unwrap();
+    let reordered =
+        compile_scalar("fixture.nx", "fn Main() {\n    Print(3);\n}\nfn Zzz() {}\n").unwrap();
     assert_eq!(
-        reordered.functions().function("main").unwrap().id,
+        reordered.functions().function("Main").unwrap().id,
         edited.id
     );
     receiver
-        .substitute_for_development("main", &reordered)
+        .substitute_for_development("Main", &reordered)
         .unwrap();
     assert_eq!(run_scalar(&receiver).observations.stdout(), vec!["3"]);
 
-    let mut receiver = compile_scalar("fixture.nx", "fn helper(){} fn main(){}").unwrap();
-    let changed = compile_scalar("fixture.nx", "fn helper()->i64{return 1;} fn main(){}").unwrap();
+    let mut receiver = compile_scalar("fixture.nx", "fn Helper() {}\nfn Main() {}\n").unwrap();
+    let changed = compile_scalar(
+        "fixture.nx",
+        "fn Helper() -> I64 {\n    return 1;\n}\nfn Main() {}\n",
+    )
+    .unwrap();
     assert_eq!(
-        receiver.substitute_for_development("helper", &changed),
+        receiver.substitute_for_development("Helper", &changed),
         Err("signature mismatch")
     );
 }
 #[test]
 fn function_table_refuses_forged_development_identity() {
-    let mut program = compile_scalar("fixture.nx", "fn main(){}").unwrap();
-    let mut replacement = program.functions().function("main").unwrap().clone();
+    let mut program = compile_scalar("fixture.nx", "fn Main() {}\n").unwrap();
+    let mut replacement = program.functions().function("Main").unwrap().clone();
     replacement.id.0 = "other".into();
     assert_eq!(
         program
             .functions
-            .replace_for_development("main", replacement),
+            .replace_for_development("Main", replacement),
         Err("identity mismatch")
     );
 }
@@ -460,11 +954,11 @@ fn scalar_compilation_stays_within_small_calling_stacks_at_admitted_depths() {
                     comparison,
                 ];
                 for expr in expressions {
-                    let source = format!("fn main(){{print({expr});}}");
+                    let source = format!("fn Main(){{Print({expr});}}");
                     let result = execute(&source);
                     assert_eq!(result.outcome, Outcome::Unit, "{source}");
                 }
-                let source = format!("fn main(){{{}print(1);{}}}", "{".repeat(90), "}".repeat(90));
+                let source = format!("fn Main(){{{}Print(1);{}}}", "{".repeat(90), "}".repeat(90));
                 assert_eq!(execute(&source).outcome, Outcome::Unit);
             })
             .unwrap()
@@ -477,18 +971,18 @@ fn deepest_admitted_scalar_families_compile_on_small_caller_stacks() {
     fn source(family: usize, depth: usize) -> String {
         match family {
             0 => format!(
-                "fn main(){{print({}1{});}}",
+                "fn Main(){{Print({}1{});}}",
                 "(".repeat(depth),
                 ")".repeat(depth)
             ),
             1 => format!(
-                "fn main(){{{}print(1);{}}}",
+                "fn Main(){{{}Print(1);{}}}",
                 "{".repeat(depth),
                 "}".repeat(depth)
             ),
-            2 => format!("fn main(){{print({}1);}}", "1+".repeat(depth)),
+            2 => format!("fn Main(){{Print({}1);}}", "1+".repeat(depth)),
             3 => format!(
-                "fn main(){{print(1+{}1{});}}",
+                "fn Main(){{Print(1+{}1{});}}",
                 "(1+".repeat(depth),
                 ")".repeat(depth)
             ),
@@ -497,7 +991,7 @@ fn deepest_admitted_scalar_families_compile_on_small_caller_stacks() {
                 for _ in 0..depth {
                     expr = format!("({expr}==(1<2))");
                 }
-                format!("fn main(){{print({expr});}}")
+                format!("fn Main(){{Print({expr});}}")
             }
         }
     }
@@ -537,18 +1031,23 @@ fn deepest_admitted_scalar_families_compile_on_small_caller_stacks() {
 }
 #[test]
 fn arrays_and_user_calls_execute_only_after_verification() {
-    let arrays = compile_scalar("fixture.nx", "fn main(){print(1);let a=[2];}").unwrap();
+    let arrays = compile_scalar(
+        "fixture.nx",
+        "fn Main() {\n    Print(1);\n    let a = [2];\n}\n",
+    )
+    .unwrap();
     assert_eq!(run_scalar(&arrays).observations.stdout(), &["1"]);
-    let called = compile_scalar("fixture.nx", "fn f(){} fn main(){f();}").unwrap();
+    let called = compile_scalar("fixture.nx", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
     assert_eq!(run_scalar(&called).outcome, Outcome::Unit);
     assert!(matches!(
-        compile_scalar("fixture.nx", "fn main(){let x=1;x=2;}"),
+        compile_scalar("fixture.nx", "fn Main() {\n    let x = 1;\n    x = 2;\n}\n"),
         Err(CompileError::Rejected(_))
     ));
 }
 #[test]
 fn nested_copy_rebinds_physical_values_without_aliasing() {
-    let source = include_str!("../../corpus/pass/nested_copy.nx");
+    // Keep the corpus program's copy and output oracle here.
+    let source = "fn Main() {\n    var original = [[1, 2], [3, 4]];\n    var copy = original;\n    copy[0][1] = 9;\n    AssertEq(original[0][1], 2);\n    AssertEq(copy[0][1], 9);\n    var third = copy;\n    third[1] = [7, 8];\n    AssertEq(copy[1], [3, 4]);\n    original = third;\n    third[0][0] = 42;\n    AssertEq(original[0][0], 1);\n    Print(original);\n}\n";
     let e = execute(source);
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.stdout(), vec!["[[1, 9], [7, 8]]"]);
@@ -557,7 +1056,7 @@ fn nested_copy_rebinds_physical_values_without_aliasing() {
 }
 #[test]
 fn immutable_index_root_has_ownership_diagnostic_and_declaration_span() {
-    let source = "fn main(){let value=[[1]];value[0][0]=2;}";
+    let source = "fn Main() {\n    let value = [[1]];\n    value[0][0] = 2;\n}\n";
     let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
         panic!("ownership rejection")
     };
@@ -574,7 +1073,7 @@ fn immutable_index_root_has_ownership_diagnostic_and_declaration_span() {
     );
     assert_eq!(
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((26, 31))
+        Some(byte_span(source, "value", 1))
     );
     assert_eq!(d.related_spans.len(), 1);
     assert_eq!(
@@ -583,25 +1082,30 @@ fn immutable_index_root_has_ownership_diagnostic_and_declaration_span() {
             d.related_spans[0].span.start,
             d.related_spans[0].span.end
         ),
-        ("declaration", 14, 19)
+        {
+            let (start, end) = byte_span(source, "value", 0);
+            ("declaration", start, end)
+        }
     );
     assert!(d.data.is_empty());
     d.validate("fixture.nx", source).unwrap();
-    let e = execute("fn main(){var value=[[1]];value[0][0]=2;print(value);}");
+    let e = execute(
+        "fn Main() {\n    var value = [[1]];\n    value[0][0] = 2;\n    Print(value);\n}\n",
+    );
     assert_eq!(e.observations.stdout(), vec!["[[2]]"]);
 }
 #[test]
 fn independent_immutable_writes_report_each_site_in_source_order() {
     for (source, primary, declaration) in [
         (
-            "fn main(){let a=[1];let b=[2];a[0]=1;b[0]=2;}",
-            vec![(30, 31), (37, 38)],
-            vec![(14, 15), (24, 25)],
+            "fn Main() {\n    let a = [1];\n    let b = [2];\n    a[0] = 1;\n    b[0] = 2;\n}\n",
+            vec![("a[0]", 0), ("b[0]", 0)],
+            vec![("let a =", 0), ("let b =", 0)],
         ),
         (
-            "fn helper(){let q=[1];q[0]=2;} fn main(){let p=[1];p[0]=2;}",
-            vec![(22, 23), (51, 52)],
-            vec![(16, 17), (45, 46)],
+            "fn Helper() {\n    let q = [1];\n    q[0] = 2;\n}\nfn Main() {\n    let p = [1];\n    p[0] = 2;\n}\n",
+            vec![("q[0]", 0), ("p[0]", 0)],
+            vec![("let q =", 0), ("let p =", 0)],
         ),
     ] {
         let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err()
@@ -618,17 +1122,20 @@ fn independent_immutable_writes_report_each_site_in_source_order() {
                 ),
                 ("NX-E0105", "ownership", "place.write")
             );
-            assert_eq!(
-                error.primary_span.as_ref().map(|s| (s.start, s.end)),
-                Some(primary[index])
-            );
+            assert_eq!(error.primary_span.as_ref().map(|s| (s.start, s.end)), {
+                let start = byte_span(source, primary[index].0, primary[index].1).0;
+                Some((start, start + 1))
+            });
             assert_eq!(
                 error
                     .related_spans
                     .iter()
                     .map(|s| (s.span.start, s.span.end))
                     .collect::<Vec<_>>(),
-                vec![declaration[index]]
+                {
+                    let start = byte_span(source, declaration[index].0, declaration[index].1).0 + 4;
+                    vec![(start, start + 1)]
+                }
             );
             assert!(error.data.is_empty());
             error.validate("fixture.nx", source).unwrap();
@@ -638,7 +1145,7 @@ fn independent_immutable_writes_report_each_site_in_source_order() {
 
 #[test]
 fn immutable_write_does_not_emit_dependent_cascades() {
-    let source = "fn main(){let a=[1];a[0]=2;a[0]=3;let b=[4];b[0]=5;}";
+    let source = "fn Main() {\n    let a = [1];\n    a[0] = 2;\n    a[0] = 3;\n    let b = [4];\n    b[0] = 5;\n}\n";
     let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
         panic!("ownership rejection")
     };
@@ -648,7 +1155,11 @@ fn immutable_write_does_not_emit_dependent_cascades() {
             .iter()
             .map(|d| d.primary_span.as_ref().unwrap().start)
             .collect::<Vec<_>>(),
-        vec![20, 27, 44]
+        vec![
+            byte_span(source, "a[0]", 0).0,
+            byte_span(source, "a[0]", 1).0,
+            byte_span(source, "b[0]", 0).0,
+        ]
     );
     for error in errors {
         assert_eq!(error.code, "NX-E0105");
@@ -657,7 +1168,7 @@ fn immutable_write_does_not_emit_dependent_cascades() {
 }
 #[test]
 fn ownership_diagnostics_sort_by_source_span_across_canonical_function_order() {
-    let source = "fn z(){let a=[1];a[0]=2;} fn main(){let b=[1];b[0]=2;}";
+    let source = "fn Z() {\n    let a = [1];\n    a[0] = 2;\n}\nfn Main() {\n    let b = [1];\n    b[0] = 2;\n}\n";
     let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
         panic!("ownership rejection")
     };
@@ -666,12 +1177,15 @@ fn ownership_diagnostics_sort_by_source_span_across_canonical_function_order() {
             .iter()
             .map(|d| d.primary_span.as_ref().unwrap().start)
             .collect::<Vec<_>>(),
-        vec![17, 46]
+        vec![
+            byte_span(source, "a[0]", 0).0,
+            byte_span(source, "b[0]", 0).0
+        ]
     );
 }
 #[test]
 fn ownership_errors_in_nonunit_function_precede_lowering_of_later_functions() {
-    let source = "fn z()->i64{let a=[1];a[0]=2;} fn main(){let b=[1];b[0]=2;}";
+    let source = "fn Z() -> I64 {\n    let a = [1];\n    a[0] = 2;\n}\nfn Main() {\n    let b = [1];\n    b[0] = 2;\n}\n";
     let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err() else {
         panic!("ownership rejection")
     };
@@ -684,9 +1198,9 @@ fn ownership_errors_in_nonunit_function_precede_lowering_of_later_functions() {
 #[test]
 fn missing_return_at_normal_exit_uses_published_s11_and_l06_spans() {
     // F0-0002 §14.1 S11 and §14.8 L06: the closing brace is the primary span.
-    for (source, primary) in [
-        ("fn f()->i64 { } fn main(){}", (14, 15)),
-        ("fn f()->i64{\n1\n}\nfn main(){}", (15, 16)),
+    for source in [
+        "fn F() -> I64 {}\nfn Main() {}\n",
+        "fn F() -> I64 {\n    1;\n}\nfn Main() {}\n",
     ] {
         let CompileError::Rejected(errors) = compile_scalar("fixture.nx", source).unwrap_err()
         else {
@@ -701,26 +1215,34 @@ fn missing_return_at_normal_exit_uses_published_s11_and_l06_spans() {
         );
         assert_eq!(
             d.primary_span.as_ref().map(|s| (s.start, s.end)),
-            Some(primary)
+            Some(byte_span(source, "}", 0))
         );
         assert_eq!(d.related_spans.len(), 1);
         assert_eq!(d.related_spans[0].role.as_str(), "expected_type");
         assert_eq!(
             (d.related_spans[0].span.start, d.related_spans[0].span.end),
-            (8, 11)
+            byte_span(source, "I64", 0)
         );
         assert!(d.data.is_empty());
         assert!(d.cause_chain.is_empty());
         assert!(d.unexpected_token.is_none());
         d.validate("fixture.nx", source).unwrap();
     }
-    compile_scalar("fixture.nx", "fn f()->i64{return 1;} fn main(){}").unwrap();
-    compile_scalar("fixture.nx", "fn f()->i64{\nreturn 1\n}\nfn main(){}").unwrap();
+    compile_scalar(
+        "fixture.nx",
+        "fn F() -> I64 {\n    return 1;\n}\nfn Main() {}\n",
+    )
+    .unwrap();
+    compile_scalar(
+        "fixture.nx",
+        "fn F() -> I64 {\n    return 1;\n}\nfn Main() {}\n",
+    )
+    .unwrap();
 }
 
 #[test]
 fn cfg_statement_if_selects_one_branch() {
-    let source = "fn main(){var x=0;if true{x=1;}else{x=2;}assert_eq(x,1);}";
+    let source = "fn Main() {\n    var x = 0;\n    if true {\n        x = 1;\n    } else {\n        x = 2;\n    }\n    AssertEq(x, 1);\n}\n";
     let program = compile_scalar("if.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -731,7 +1253,7 @@ fn cfg_statement_if_selects_one_branch() {
 
 #[test]
 fn cfg_while_rechecks_condition_and_updates_local() {
-    let source = "fn main(){var x=0;while x<3{x=x+1;}assert_eq(x,3);}";
+    let source = "fn Main() {\n    var x = 0;\n    while x < 3 {\n        x = x + 1;\n    }\n    AssertEq(x, 3);\n}\n";
     let program = compile_scalar("while.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -743,7 +1265,7 @@ fn cfg_while_rechecks_condition_and_updates_local() {
 #[test]
 fn cfg_expression_if_delivers_explicit_unit() {
     // F0-0002 §14.8 L05.
-    let source = "fn main(){\nlet x=if true{value: ();}else{value: ();};\nassert_eq(x,());\n}";
+    let source = "fn Main() {\n    let x = if true then () else ();\n    AssertEq(x, ());\n}\n";
     let program = compile_scalar("value.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -755,7 +1277,7 @@ fn cfg_expression_if_delivers_explicit_unit() {
 #[test]
 fn cfg_join_reports_maybe_consumed_resource() {
     // F0-0002 §14.2 P08.
-    let source = "fn f(b:bool){let r=mock_open(1);if b{drop(r);}inspect(r);} fn main(){}";
+    let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
     let CompileError::Rejected(errors) = compile_scalar("p08.nx", source).unwrap_err() else {
         panic!("expected maybe consumed resource")
     };
@@ -769,25 +1291,32 @@ fn cfg_join_reports_maybe_consumed_resource() {
         (d.stage.as_str(), d.operation.as_str()),
         ("ownership", "ownership.use")
     );
-    assert_eq!(
-        d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((54, 55))
-    );
+    assert_eq!(d.primary_span.as_ref().map(|s| (s.start, s.end)), {
+        let start = byte_span(source, "Inspect(r)", 0).0 + "Inspect(".len() as u64;
+        Some((start, start + 1))
+    });
     assert_eq!(
         d.related_spans
             .iter()
             .map(|r| (r.role.as_str(), r.span.start, r.span.end))
             .collect::<Vec<_>>(),
-        [("declaration", 17, 18), ("consumption", 37, 44)]
+        {
+            let declaration = byte_span(source, "let r =", 0).0 + 4;
+            let consumption = byte_span(source, "Drop(r)", 0);
+            [
+                ("declaration", declaration, declaration + 1),
+                ("consumption", consumption.0, consumption.1),
+            ]
+        }
     );
     assert_eq!(d.cause_chain.len(), 1);
     assert_eq!(
         d.cause_chain[0].span.as_ref().map(|s| (s.start, s.end)),
-        Some((37, 44))
+        Some(byte_span(source, "Drop(r)", 0))
     );
     assert_eq!(
         d.cause_chain[0].entity.as_ref().map(|e| e.id.as_str()),
-        Some("binding:17")
+        Some(format!("binding:{}", byte_span(source, "let r =", 0).0 + 4).as_str())
     );
     assert!(d.data.is_empty());
     d.validate("p08.nx", source).unwrap();
@@ -795,7 +1324,7 @@ fn cfg_join_reports_maybe_consumed_resource() {
 
 #[test]
 fn cfg_returning_branch_does_not_poison_join() {
-    let source = "fn f(b:bool){let r=mock_open(1);if b{drop(r);return;}inspect(r);} fn main(){f(true);f(false);}";
+    let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n        return;\n    }\n    Inspect(r);\n}\nfn Main() {\n    F(true);\n    F(false);\n}\n";
     let program = compile_scalar("join.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -806,7 +1335,7 @@ fn cfg_returning_branch_does_not_poison_join() {
 
 #[test]
 fn cfg_first_value_arm_continues_when_else_returns() {
-    let source = "fn f(b:bool)->i64{return if b{value:2;}else{return 3;};} fn main(){assert_eq(f(true),2);assert_eq(f(false),3);}";
+    let source = "fn F(b: view Bool) -> I64 {\n    return if b then 2 else {\n        return 3;\n    };\n}\nfn Main() {\n    AssertEq(F(true), 2);\n    AssertEq(F(false), 3);\n}\n";
     let program = compile_scalar("first_arm.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -817,7 +1346,7 @@ fn cfg_first_value_arm_continues_when_else_returns() {
 
 #[test]
 fn cfg_returning_loop_body_excludes_consumption_from_false_exit() {
-    let source = "fn f(b:bool){let r=mock_open(1);while b{drop(r);return;}inspect(r);} fn main(){f(false);f(true);}";
+    let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Drop(r);\n        return;\n    }\n    Inspect(r);\n}\nfn Main() {\n    F(false);\n    F(true);\n}\n";
     let program = compile_scalar("loop_return_owner.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -839,7 +1368,7 @@ fn cfg_returning_loop_body_excludes_consumption_from_false_exit() {
 #[test]
 fn cfg_else_consumption_joins_as_maybe_consumed() {
     // Inverse of P08: the false continuation consumes the binding.
-    let source = "fn f(b:bool){let r=mock_open(1);if b{}else{drop(r);}inspect(r);} fn main(){}";
+    let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    if b {} else {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
     let CompileError::Rejected(errors) = compile_scalar("else_consumed.nx", source).unwrap_err()
     else {
         panic!("expected maybe consumed binding")
@@ -853,8 +1382,8 @@ fn cfg_else_consumption_joins_as_maybe_consumed() {
 fn cfg_only_continuing_arm_determines_consumed_state_in_both_orders() {
     // F0-0002 §6.2: returning arms do not contribute to an availability union.
     for source in [
-        "fn f(b:bool){let r=mock_open(1);if b{drop(r);}else{return;}inspect(r);} fn main(){}",
-        "fn f(b:bool){let r=mock_open(1);if b{return;}else{drop(r);}inspect(r);} fn main(){}",
+        "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n    } else {\n        return;\n    }\n    Inspect(r);\n}\nfn Main() {}\n",
+        "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        return;\n    } else {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n",
     ] {
         let CompileError::Rejected(errors) =
             compile_scalar("single_owner_arm.nx", source).unwrap_err()
@@ -870,8 +1399,7 @@ fn cfg_only_continuing_arm_determines_consumed_state_in_both_orders() {
 #[test]
 fn cfg_availability_merge_distinguishes_all_consumed_and_reinitialized() {
     // F0-0002 §6.2: the union contains only continuing paths.
-    let all_consumed =
-        "fn f(b:bool){let r=mock_open(1);if b{drop(r);}else{drop(r);}inspect(r);} fn main(){}";
+    let all_consumed = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n    } else {\n        Drop(r);\n    }\n    Inspect(r);\n}\nfn Main() {}\n";
     let CompileError::Rejected(errors) =
         compile_scalar("all_consumed.nx", all_consumed).unwrap_err()
     else {
@@ -881,7 +1409,7 @@ fn cfg_availability_merge_distinguishes_all_consumed_and_reinitialized() {
     assert_eq!(errors[0].code, "NX-E0202");
     assert_eq!(errors[0].subcause.as_deref(), Some("definitely_consumed"));
 
-    let restored = "fn f(b:bool){var r=mock_open(1);if b{drop(r);r=mock_open(2);}else{drop(r);r=mock_open(3);}inspect(r);} fn main(){f(true);f(false);}";
+    let restored = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    if b {\n        Drop(r);\n        r = MockOpen(2);\n    } else {\n        Drop(r);\n        r = MockOpen(3);\n    }\n    Inspect(r);\n}\nfn Main() {\n    F(true);\n    F(false);\n}\n";
     let program = compile_scalar("restored.nx", restored).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -896,52 +1424,52 @@ fn cfg_published_branch_negative_rows_keep_their_rule() {
     let rows = [
         (
             "B01",
-            "fn f(b:bool)->i64{return if b{value:1;};} fn main(){}",
+            "fn F(b:view Bool)->I64{return if b then {value:1;};} fn Main(){}",
             "NX-E1302",
             Some("missing_else"),
-            (25, 27),
+            (30, 32),
         ),
         (
             "B02",
-            "fn f()->i64{return if true{1;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {1;}else{value:2;};} fn Main(){}",
             "NX-E1302",
             Some("missing_branch_value"),
-            (29, 30),
+            (35, 36),
         ),
         (
             "B03",
-            "fn f(){let n=if true{value:1;}else{value:true;};} fn main(){}",
+            "fn F(){let n=if true then {value:1;}else{value:true;};} fn Main(){}",
             "NX-E1303",
             None,
-            (41, 45),
+            (47, 51),
         ),
         (
             "B04",
-            "fn main(){value:1;}",
+            "fn Main(){value:1;}",
             "NX-E1302",
             Some("invalid_value_target"),
             (10, 16),
         ),
         (
             "B05",
-            "fn f()->i64{return if true{value:}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {value:}else{value:2;};} fn Main(){}",
             "NX-E1302",
             Some("missing_value_operand"),
-            (27, 33),
+            (33, 39),
         ),
         (
             "B06",
-            "fn f()->i64{return if true{value:1;2;}else{value:2;};} fn main(){}",
+            "fn F()->I64{return if true then {value:1;2;}else{value:2;};} fn Main(){}",
             "NX-E1302",
             Some("non_final_branch_value"),
-            (27, 33),
+            (33, 39),
         ),
         (
             "B09",
-            "fn f()->i64{return if true{value:1;}else{value:true;};} fn main(){}",
+            "fn F()->I64{return if true then {value:1;}else{value:true;};} fn Main(){}",
             "NX-E0102",
             Some("type_mismatch"),
-            (47, 51),
+            (53, 57),
         ),
     ];
     for (row, source, code, subcause, primary) in rows {
@@ -967,7 +1495,7 @@ fn cfg_published_branch_negative_rows_keep_their_rule() {
 #[test]
 fn cfg_b08_missing_value_terminator_keeps_parser_fields() {
     // F0-0002 §14.3 B08: the closing brace is the offending token.
-    let source = "fn f()->i64{return if true{value:1 }else{value:2;};} fn main(){}";
+    let source = "fn F()->I64{return if true then {value:1 }else{value:2;};} fn Main(){}";
     let CompileError::Rejected(errors) = compile_scalar("b08.nx", source).unwrap_err() else {
         panic!("expected missing terminator")
     };
@@ -976,7 +1504,7 @@ fn cfg_b08_missing_value_terminator_keeps_parser_fields() {
     assert_eq!(d.code, "NX-E0005");
     assert_eq!(
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((35, 36))
+        Some((41, 42))
     );
     assert_eq!(
         d.unexpected_token.as_ref().and_then(|t| t.text.as_deref()),
@@ -994,10 +1522,10 @@ fn cfg_b08_missing_value_terminator_keeps_parser_fields() {
 fn cfg_published_branch_repairs_execute() {
     // F0-0002 §14.3 B01–B06, B08–B09 repairs; results are semantic observations.
     for source in [
-        "fn f(b:bool)->i64{return if b{value:1;}else{value:2;};} fn main(){assert_eq(f(true),1);assert_eq(f(false),2);}",
-        "fn f()->i64{return if true{value:1;}else{value:2;};} fn main(){assert_eq(f(),1);}",
-        "fn f(){let n=if true{value:1;}else{value:2;};assert_eq(n,1);} fn main(){f();}",
-        "fn main(){let value=1;assert_eq(value,1);}",
+        "fn F(b: view Bool) -> I64 {\n    return if b then 1 else 2;\n}\nfn Main() {\n    AssertEq(F(true), 1);\n    AssertEq(F(false), 2);\n}\n",
+        "fn F() -> I64 {\n    return if true then 1 else 2;\n}\nfn Main() {\n    AssertEq(F(), 1);\n}\n",
+        "fn F() {\n    let n = if true then 1 else 2;\n    AssertEq(n, 1);\n}\nfn Main() {\n    F();\n}\n",
+        "fn Main() {\n    let value = 1;\n    AssertEq(value, 1);\n}\n",
     ] {
         let program = compile_scalar("branch_repair.nx", source).unwrap();
         let execution = crate::interp::run_scalar(&program);
@@ -1010,24 +1538,22 @@ fn cfg_published_branch_repairs_execute() {
 
 #[test]
 fn cfg_hash_tracks_branch_contents_and_development_substitution() {
-    let original =
-        "fn f(b:bool)->i64{return if b{value:1;}else{value:2;};} fn main(){print(f(true));}";
-    let spaced = "fn f(b:bool)->i64 { return if b { value:1; } else { value:2; }; } fn main() { print(f(true)); }";
-    let changed =
-        "fn f(b:bool)->i64{return if b{value:3;}else{value:2;};} fn main(){print(f(true));}";
+    let original = "fn F(b: view Bool) -> I64 {\n    return if b then 1 else 2;\n}\nfn Main() {\n    Print(F(true));\n}\n";
+    let spaced = "fn F(b: view Bool) -> I64 {\n    return if b then 1 else 2;\n}\nfn Main() {\n    Print(F(true));\n}\n";
+    let changed = "fn F(b: view Bool) -> I64 {\n    return if b then 3 else 2;\n}\nfn Main() {\n    Print(F(true));\n}\n";
     let mut program = compile_scalar("cfg_hash.nx", original).unwrap();
     let same = compile_scalar("cfg_hash.nx", spaced).unwrap();
     let donor = compile_scalar("cfg_hash.nx", changed).unwrap();
-    let hash = program.functions.function("f").unwrap().content_hash;
-    assert_eq!(hash, same.functions.function("f").unwrap().content_hash);
-    assert_ne!(hash, donor.functions.function("f").unwrap().content_hash);
+    let hash = program.functions.function("F").unwrap().content_hash;
+    assert_eq!(hash, same.functions.function("F").unwrap().content_hash);
+    assert_ne!(hash, donor.functions.function("F").unwrap().content_hash);
     assert_eq!(
         crate::interp::run_scalar(&program).observations.stdout(),
         ["1"]
     );
     program
         .functions
-        .replace_for_development("f", donor.functions.function("f").unwrap().clone())
+        .replace_for_development("F", donor.functions.function("F").unwrap().clone())
         .unwrap();
     assert_eq!(
         crate::interp::run_scalar(&program).observations.stdout(),
@@ -1038,7 +1564,7 @@ fn cfg_hash_tracks_branch_contents_and_development_substitution() {
 #[test]
 fn cfg_loop_ownership_fixpoint_reports_p09() {
     // F0-0002 §6.3 and §17.2 P09 require a fixed point on the backedge.
-    let source = "fn f(b:bool){let r=mock_open(1);while b{drop(r);}} fn main(){}";
+    let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Drop(r);\n    }\n}\nfn Main() {}\n";
     let result = compile_scalar("loop.nx", source);
     let Err(CompileError::Rejected(errors)) = result else {
         panic!("{result:?}")
@@ -1047,10 +1573,10 @@ fn cfg_loop_ownership_fixpoint_reports_p09() {
     let d = &errors[0];
     assert_eq!(d.code, "NX-E0202");
     assert_eq!(d.subcause.as_deref(), Some("maybe_consumed"));
-    assert_eq!(
-        d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((45, 46))
-    );
+    assert_eq!(d.primary_span.as_ref().map(|s| (s.start, s.end)), {
+        let start = byte_span(source, "Drop(r)", 0).0 + "Drop(".len() as u64;
+        Some((start, start + 1))
+    });
     assert_eq!(d.data.len(), 0);
     assert_eq!(
         d.related_spans
@@ -1058,9 +1584,22 @@ fn cfg_loop_ownership_fixpoint_reports_p09() {
             .map(|r| (r.role, r.span.start, r.span.end))
             .collect::<Vec<_>>(),
         [
-            (crate::diagnostic::RelatedRole::Declaration, 17, 18),
-            (crate::diagnostic::RelatedRole::Consumption, 40, 47),
-            (crate::diagnostic::RelatedRole::Backedge, 48, 49),
+            {
+                let start = byte_span(source, "let r =", 0).0 + 4;
+                (
+                    crate::diagnostic::RelatedRole::Declaration,
+                    start,
+                    start + 1,
+                )
+            },
+            {
+                let (start, end) = byte_span(source, "Drop(r)", 0);
+                (crate::diagnostic::RelatedRole::Consumption, start, end)
+            },
+            {
+                let start = byte_span(source, "}", 0).0;
+                (crate::diagnostic::RelatedRole::Backedge, start, start + 1)
+            },
         ]
     );
     assert_eq!(
@@ -1081,14 +1620,18 @@ fn cfg_loop_ownership_fixpoint_reports_p09() {
             .iter()
             .map(|c| c.span.as_ref().map(|s| (s.start, s.end)))
             .collect::<Vec<_>>(),
-        [Some((48, 49)), Some((40, 47))]
+        [
+            Some(byte_span(source, "}", 0)),
+            Some(byte_span(source, "Drop(r)", 0)),
+        ]
     );
+    let binding = format!("binding:{}", byte_span(source, "let r =", 0).0 + 4);
     assert_eq!(
         d.cause_chain
             .iter()
             .map(|c| c.entity.as_ref().unwrap().id.as_str())
             .collect::<Vec<_>>(),
-        ["binding:17", "binding:17"]
+        [binding.as_str(), binding.as_str()]
     );
 }
 
@@ -1096,8 +1639,8 @@ fn cfg_loop_ownership_fixpoint_reports_p09() {
 fn cfg_missing_return_considers_every_normal_path() {
     // F0-0002 §6.2, §6.3, §17.1 and S11.
     for source in [
-        "fn f(b:bool)->i64{if b{return 1;}} fn main(){}",
-        "fn f(b:bool)->i64{while b{return 1;}} fn main(){}",
+        "fn F(b: view Bool) -> I64 {\n    if b {\n        return 1;\n    }\n}\nfn Main() {}\n",
+        "fn F(b: view Bool) -> I64 {\n    while b {\n        return 1;\n    }\n}\nfn Main() {}\n",
     ] {
         let CompileError::Rejected(errors) = compile_scalar("return.nx", source).unwrap_err()
         else {
@@ -1106,7 +1649,7 @@ fn cfg_missing_return_considers_every_normal_path() {
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "NX-E1317");
     }
-    let source = "fn f(b:bool)->i64{if b{return 1;}else{return 2;}} fn main(){assert_eq(f(true),1);assert_eq(f(false),2);}";
+    let source = "fn F(b: view Bool) -> I64 {\n    if b {\n        return 1;\n    } else {\n        return 2;\n    }\n}\nfn Main() {\n    AssertEq(F(true), 1);\n    AssertEq(F(false), 2);\n}\n";
     let program = compile_scalar("return.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1117,14 +1660,14 @@ fn cfg_missing_return_considers_every_normal_path() {
 
 #[test]
 fn cfg_expression_if_excludes_returning_continuations() {
-    let source = "fn f(b:bool)->i64{return if b{return 3;}else{value:2;};} fn main(){assert_eq(f(true),3);assert_eq(f(false),2);}";
+    let source = "fn F(b: view Bool) -> I64 {\n    return if b then {\n        return 3;\n    } else 2;\n}\nfn Main() {\n    AssertEq(F(true), 3);\n    AssertEq(F(false), 2);\n}\n";
     let program = compile_scalar("value_return.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
     );
-    let source = "fn f(b:bool)->i64{return if b{return 3;}else{return 2;};} fn main(){assert_eq(f(true),3);assert_eq(f(false),2);}";
+    let source = "fn F(b: view Bool) -> I64 {\n    return if b then {\n        return 3;\n    } else {\n        return 2;\n    };\n}\nfn Main() {\n    AssertEq(F(true), 3);\n    AssertEq(F(false), 2);\n}\n";
     let program = compile_scalar("value_return.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1135,7 +1678,7 @@ fn cfg_expression_if_excludes_returning_continuations() {
 
 #[test]
 fn cfg_else_if_expression_selects_each_value() {
-    let source = "fn f(x:i64)->i64{return if x<0{value:1;}else if x<2{value:2;}else{value:3;};} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let source = "fn F(x: view I64) -> I64 {\n    return if x < 0 then 1 else (if x < 2 then 2 else 3);\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1146,7 +1689,7 @@ fn cfg_else_if_expression_selects_each_value() {
 
 #[test]
 fn cfg_else_if_statement_selects_each_arm() {
-    let source = "fn f(x:i64)->i64{var y=0;if x<0{y=1;}else if x<2{y=2;}else{y=3;}return y;} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let source = "fn F(x: view I64) -> I64 {\n    var y = 0;\n    if x < 0 {\n        y = 1;\n    } else if x < 2 {\n        y = 2;\n    } else {\n        y = 3;\n    }\n    return y;\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1158,7 +1701,7 @@ fn cfg_else_if_statement_selects_each_arm() {
 #[test]
 fn cfg_nested_while_recreates_and_cleans_body_local_each_iteration() {
     // F0-0002 §6.3 and §6.4: each body entry owns a fresh resource instance.
-    let source = "fn main(){var x=0;while x<2{var y=0;while y<2{let r=mock_open(x+x+y);inspect(r);y=y+1;}x=x+1;}}";
+    let source = "fn Main() {\n    var x = 0;\n    while x < 2 {\n        var y = 0;\n        while y < 2 {\n            let r = MockOpen(x + x + y);\n            Inspect(r);\n            y = y + 1;\n        }\n        x = x + 1;\n    }\n}\n";
     let program = compile_scalar("nested.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1186,7 +1729,11 @@ fn cfg_nested_while_recreates_and_cleans_body_local_each_iteration() {
 
 #[test]
 fn cfg_infinite_loop_uses_work_quota_and_cleans_resource() {
-    let program = compile_scalar("quota.nx", "fn main(){let r=mock_open(1);while true{}}").unwrap();
+    let program = compile_scalar(
+        "quota.nx",
+        "fn Main() {\n    let r = MockOpen(1);\n    while true {}\n}\n",
+    )
+    .unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::SimulatorFault),
@@ -1199,7 +1746,7 @@ fn cfg_infinite_loop_uses_work_quota_and_cleans_resource() {
 #[test]
 fn cfg_l02_repaired_value_line_break_executes() {
     // F0-0002 §14.8 L02: grouping begins before the LF.
-    let source = "fn f()->i64{\nreturn if true{\nvalue: (\n1);\n}else{value:2;};\n}\nfn main(){assert_eq(f(),1);}";
+    let source = "fn F() -> I64 {\n    return if true then (1) else 2;\n}\nfn Main() {\n    AssertEq(F(), 1);\n}\n";
     let program = compile_scalar("l02.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1212,9 +1759,9 @@ fn cfg_l02_repaired_value_line_break_executes() {
 fn cfg_deferred_forms_have_executable_repairs() {
     // F0-0002 §14.6 F14, F25, F26.
     for (source, feature) in [
-        ("fn main(){match true{true=>{},false=>{}}}", "match"),
-        ("fn main(){for n in [1]{}}", "for_iteration"),
-        ("fn main(){while false{break;}}", "loop_control"),
+        ("fn Main(){match true{true=>{},false=>{}}}", "match"),
+        ("fn Main(){for n in [1]{}}", "for_iteration"),
+        ("fn Main(){while false{break;}}", "loop_control"),
     ] {
         let CompileError::Rejected(errors) = compile_scalar("feature.nx", source).unwrap_err()
         else {
@@ -1224,7 +1771,10 @@ fn cfg_deferred_forms_have_executable_repairs() {
         assert_eq!(errors[0].code, "NX-E0006");
         assert_eq!(errors[0].feature_id.as_deref(), Some(feature));
     }
-    for source in ["fn main(){if true{}else{}}", "fn main(){while false{}}"] {
+    for source in [
+        "fn Main() {\n    if true {} else {}\n}\n",
+        "fn Main() {\n    while false {}\n}\n",
+    ] {
         let program = compile_scalar("feature.nx", source).unwrap();
         let execution = crate::interp::run_scalar(&program);
         assert!(
@@ -1236,7 +1786,7 @@ fn cfg_deferred_forms_have_executable_repairs() {
 
 #[test]
 fn cfg_else_if_all_returning_paths_need_no_tail_return() {
-    let source = "fn f(x:i64)->i64{if x<0{return 1;}else if x<2{return 2;}else{return 3;}} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let source = "fn F(x: view I64) -> I64 {\n    if x < 0 {\n        return 1;\n    } else if x < 2 {\n        return 2;\n    } else {\n        return 3;\n    }\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain_return.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1247,7 +1797,7 @@ fn cfg_else_if_all_returning_paths_need_no_tail_return() {
 
 #[test]
 fn cfg_nested_expression_if_all_returning_paths_need_no_value_slot() {
-    let source = "fn f(x:i64)->i64{return if x<0{return 1;}else if x<2{return 2;}else{return 3;};} fn main(){assert_eq(f(0-1),1);assert_eq(f(1),2);assert_eq(f(3),3);}";
+    let source = "fn F(x: view I64) -> I64 {\n    return if x < 0 then {\n        return 1;\n    } else (if x < 2 then {\n        return 2;\n    } else {\n        return 3;\n    });\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain_return.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1258,7 +1808,7 @@ fn cfg_nested_expression_if_all_returning_paths_need_no_value_slot() {
 
 #[test]
 fn cfg_while_body_with_all_returning_arms_preserves_false_exit() {
-    let source = "fn f(b:bool)->i64{while b{if true{return 1;}else{return 2;}}return 3;} fn main(){assert_eq(f(true),1);assert_eq(f(false),3);}";
+    let source = "fn F(b: view Bool) -> I64 {\n    while b {\n        if true {\n            return 1;\n        } else {\n            return 2;\n        }\n    }\n    return 3;\n}\nfn Main() {\n    AssertEq(F(true), 1);\n    AssertEq(F(false), 3);\n}\n";
     let program = compile_scalar("loop_return.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1270,7 +1820,7 @@ fn cfg_while_body_with_all_returning_arms_preserves_false_exit() {
 #[test]
 fn cfg_unreachable_tail_still_checks_ownership_without_rejoining() {
     // F0-0002 §6.3: later statements use a separate hypothetical state.
-    let source = "fn f()->i64{if true{return 1;}else{return 2;}let r=mock_open(1);drop(r);inspect(r);} fn main(){}";
+    let source = "fn F() -> I64 {\n    if true {\n        return 1;\n    } else {\n        return 2;\n    }\n    let r = MockOpen(1);\n    Drop(r);\n    Inspect(r);\n}\nfn Main() {}\n";
     let CompileError::Rejected(errors) = compile_scalar("dead.nx", source).unwrap_err() else {
         panic!("expected dead-code ownership error")
     };
@@ -1283,7 +1833,7 @@ fn cfg_unreachable_tail_still_checks_ownership_without_rejoining() {
 
 #[test]
 fn cfg_value_union_transfers_resource_and_cleans_unselected_owner() {
-    let source = "fn f(b:bool)->MockResource{let a=mock_open(1);let c=mock_open(2);return if b{value:consume a;}else{value:consume c;};} fn main(){let x=f(true);inspect(x);}";
+    let source = "fn F(b: view Bool) -> MockResource {\n    let a = MockOpen(1);\n    let c = MockOpen(2);\n    return if b then move a else move c;\n}\nfn Main() {\n    let x = F(true);\n    Inspect(x);\n}\n";
     let program = compile_scalar("resource_union.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1304,7 +1854,7 @@ fn cfg_value_union_transfers_resource_and_cleans_unselected_owner() {
 
 #[test]
 fn cfg_branch_call_keeps_loan_permissions_and_writeback() {
-    let source = "fn bump(inout x:i64){x=x+1;} fn main(){var a=0;if true{bump(inout a);}else{}assert_eq(a,1);}";
+    let source = "fn Bump(x: edit I64) {\n    x = x + 1;\n}\nfn Main() {\n    var a = 0;\n    if true {\n        Bump(edit a);\n    } else {}\n    AssertEq(a, 1);\n}\n";
     let program = compile_scalar("branch_loan.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1316,7 +1866,7 @@ fn cfg_branch_call_keeps_loan_permissions_and_writeback() {
 #[test]
 fn cfg_return_from_loop_cleans_other_live_owners_before_result_delivery() {
     // F0-0002 §6.4: the result remains owned while callee locals close.
-    let source = "fn f()->MockResource{let r=mock_open(1);while true{let s=mock_open(2);return consume s;}return consume r;} fn main(){let x=f();inspect(x);}";
+    let source = "fn F() -> MockResource {\n    let r = MockOpen(1);\n    while true {\n        let s = MockOpen(2);\n        return move s;\n    }\n    return move r;\n}\nfn Main() {\n    let x = F();\n    Inspect(x);\n}\n";
     let program = compile_scalar("loop_return_resource.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1337,8 +1887,7 @@ fn cfg_return_from_loop_cleans_other_live_owners_before_result_delivery() {
 
 #[test]
 fn cfg_loop_drops_array_cells_each_iteration() {
-    let source =
-        "fn main(){var x=0;while x<1000{let a=[1,2,3,4,5,6,7,8];assert_eq(len(a),8);x=x+1;}}";
+    let source = "fn Main() {\n    var x = 0;\n    while x < 1000 {\n        let a = [1, 2, 3, 4, 5, 6, 7, 8];\n        AssertEq(Len(a), 8);\n        x = x + 1;\n    }\n}\n";
     let program = compile_scalar("loop_cells.nx", source).unwrap();
     let execution = crate::interp::run_scalar(&program);
     assert!(
@@ -1356,11 +1905,11 @@ fn zeros(count: usize) -> String {
 #[test]
 fn drop_binding_releases_cells_before_unit_and_next_array() {
     let first = zeros(32_768);
-    let e = execute(&format!("fn main(){{let a=[{first}];drop(a);}}"));
+    let e = execute(&format!("fn Main(){{let a=[{first}];Drop(a);}}"));
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.diagnostics.is_empty());
     let e = execute(&format!(
-        "fn main(){{let a=[{}];drop(a);let b=[{}];print(len(b));}}",
+        "fn Main(){{let a=[{}];Drop(a);let b=[{}];Print(Len(b));}}",
         zeros(30_000),
         zeros(40_000)
     ));
@@ -1370,19 +1919,23 @@ fn drop_binding_releases_cells_before_unit_and_next_array() {
 
 #[test]
 fn drop_releases_one_copy_without_invalidating_another_owner() {
-    let e = execute("fn main(){let a=[1,2];let b=a;drop(a);assert_eq(b,[1,2]);print(len(b));}");
+    let e = execute(
+        "fn Main() {\n    let a = [1, 2];\n    let b = a;\n    Drop(a);\n    AssertEq(b, [1, 2]);\n    Print(Len(b));\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.stdout(), vec!["2"]);
-    let e = execute("fn main(){{let a=[1,2];drop(a);}print(3);}");
+    let e = execute(
+        "fn Main() {\n    {\n        let a = [1, 2];\n        Drop(a);\n    }\n    Print(3);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.stdout(), vec!["3"]);
 }
 #[test]
 fn live_cell_boundary_is_exact_with_and_without_explicit_drop() {
     let data = zeros(65_535);
-    let dropped = execute(&format!("fn main(){{let a=[{data}];drop(a);}}"));
+    let dropped = execute(&format!("fn Main(){{let a=[{data}];Drop(a);}}"));
     assert_eq!(dropped.outcome, Outcome::Unit);
-    let retained = execute(&format!("fn main(){{let a=[{data}];}}"));
+    let retained = execute(&format!("fn Main(){{let a=[{data}];}}"));
     assert_eq!(retained.outcome, Outcome::SimulatorFault);
     assert_eq!(retained.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -1393,7 +1946,7 @@ fn live_cell_boundary_is_exact_with_and_without_explicit_drop() {
 #[test]
 fn dropped_binding_result_unit_is_counted_before_implicit_return() {
     let e = execute(&format!(
-        "fn main(){{let a=[{}];let b=[0];let u=drop(b);let c=0;}}",
+        "fn Main(){{let a=[{}];let b=[0];let u=Drop(b);let c=0;}}",
         zeros(65_533)
     ));
     assert_eq!(e.outcome, Outcome::SimulatorFault);
@@ -1408,18 +1961,18 @@ fn dropped_binding_result_unit_is_counted_before_implicit_return() {
 fn indexed_array_reads_borrow_selected_subtree_and_owner_context_copies() {
     let large = zeros(40_000);
     for tail in [
-        "print(len(a[0]));",
-        "assert_eq(a[0],a[0]);",
-        "assert_eq(a[0]==a[0],true);",
+        "Print(Len(a[0]));",
+        "AssertEq(a[0],a[0]);",
+        "AssertEq(a[0]==a[0],true);",
     ] {
-        let e = execute(&format!("fn main(){{let a=[[{large}],[1]];{tail}}}"));
+        let e = execute(&format!("fn Main(){{let a=[[{large}],[1]];{tail}}}"));
         assert_eq!(e.outcome, Outcome::Unit, "{tail}");
         assert!(e.diagnostics.is_empty());
         if tail.starts_with("print") {
             assert_eq!(e.observations.stdout(), vec!["40000"]);
         }
     }
-    let e = execute(&format!("fn main(){{let a=[[{large}],[1]];let b=a[0];}}"));
+    let e = execute(&format!("fn Main(){{let a=[[{large}],[1]];let b=a[0];}}"));
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -1429,11 +1982,15 @@ fn indexed_array_reads_borrow_selected_subtree_and_owner_context_copies() {
 }
 #[test]
 fn borrowed_index_reports_invalid_path_before_reading_selected_value() {
-    let e = execute("fn main(){let a=[[1]];print(len(a[2]));}");
+    let e = execute("fn Main() {\n    let a = [[1]];\n    Print(Len(a[2]));\n}\n");
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0102");
     assert_eq!(e.diagnostics[0].operation.as_str(), "value.index");
-    let mut p = compile_scalar("fixture.nx", "fn main(){let a=[[1]];print(len(a[2]));}").unwrap();
+    let mut p = compile_scalar(
+        "fixture.nx",
+        "fn Main() {\n    let a = [[1]];\n    Print(Len(a[2]));\n}\n",
+    )
+    .unwrap();
     let f = &mut p.functions.entries[0];
     f.block
         .instructions
@@ -1449,23 +2006,25 @@ fn borrowed_index_reports_invalid_path_before_reading_selected_value() {
 }
 #[test]
 fn indexed_assignment_evaluates_rhs_before_checking_bounds() {
-    let overflow = execute("fn main(){var a=[0];a[-1]=9223372036854775807+1;}");
+    let overflow =
+        execute("fn Main() {\n    var a = [0];\n    a[-1] = 9223372036854775807 + 1;\n}\n");
     assert_eq!(overflow.outcome, Outcome::SimulatorFault);
     assert_eq!(overflow.diagnostics[0].code, "R0101");
     assert!(overflow.observations.stdout().is_empty());
-    let invalid = execute("fn main(){var a=[0];a[-1]=2;}");
+    let invalid = execute("fn Main() {\n    var a = [0];\n    a[-1] = 2;\n}\n");
     assert_eq!(invalid.outcome, Outcome::SimulatorFault);
     assert_eq!(invalid.diagnostics[0].code, "R0102");
     assert_eq!(invalid.diagnostics[0].operation.as_str(), "value.index");
-    let valid = execute("fn main(){var a=[0];a[0]=2;print(a[0]);}");
+    let valid = execute("fn Main() {\n    var a = [0];\n    a[0] = 2;\n    Print(a[0]);\n}\n");
     assert_eq!(valid.outcome, Outcome::Unit);
     assert_eq!(valid.observations.stdout(), vec!["2"]);
-    let nested = execute("fn main(){var a=[[0]];a[-1][0]=9223372036854775807+1;}");
+    let nested =
+        execute("fn Main() {\n    var a = [[0]];\n    a[-1][0] = 9223372036854775807 + 1;\n}\n");
     assert_eq!(nested.diagnostics[0].code, "R0101");
     for source in [
-        "fn main(){let a:Array<i64>=[];print(a[0]);}",
-        "fn main(){let a=[1];print(a[9223372036854775807]);}",
-        "fn main(){print([1][-1]);}",
+        "fn Main() {\n    let a: Array<I64> = [];\n    Print(a[0]);\n}\n",
+        "fn Main() {\n    let a = [1];\n    Print(a[9223372036854775807]);\n}\n",
+        "fn Main() {\n    Print([1][-1]);\n}\n",
     ] {
         let e = execute(source);
         assert_eq!(e.outcome, Outcome::SimulatorFault, "{source}");
@@ -1483,10 +2042,11 @@ fn indexed_assignment_evaluates_rhs_before_checking_bounds() {
 }
 #[test]
 fn nested_read_checks_first_index_before_evaluating_later_index() {
-    let invalid = execute("fn main(){let a=[[1]];print(a[-1][9223372036854775807+1]);}");
+    let invalid =
+        execute("fn Main() {\n    let a = [[1]];\n    Print(a[-1][9223372036854775807 + 1]);\n}\n");
     assert_eq!(invalid.outcome, Outcome::SimulatorFault);
     assert_eq!(invalid.diagnostics[0].code, "R0102");
-    let valid = execute("fn main(){let a=[[1]];print(a[0][0]);}");
+    let valid = execute("fn Main() {\n    let a = [[1]];\n    Print(a[0][0]);\n}\n");
     assert_eq!(valid.outcome, Outcome::Unit);
     assert_eq!(valid.observations.stdout(), vec!["1"]);
 }
@@ -1496,37 +2056,37 @@ fn array_literals_and_indices_change_function_hash() {
         compile_scalar("h.nx", s)
             .unwrap()
             .functions()
-            .function("main")
+            .function("Main")
             .unwrap()
             .content_hash
     };
     assert_ne!(
-        hash("fn main(){let a=[1];print(a[0]);}"),
-        hash("fn main(){let a=[2];print(a[0]);}")
+        hash("fn Main() {\n    let a = [1];\n    Print(a[0]);\n}\n"),
+        hash("fn Main() {\n    let a = [2];\n    Print(a[0]);\n}\n")
     );
     assert_ne!(
-        hash("fn main(){let a=[1,2];print(a[0]);}"),
-        hash("fn main(){let a=[1,2];print(a[1]);}")
+        hash("fn Main() {\n    let a = [1, 2];\n    Print(a[0]);\n}\n"),
+        hash("fn Main() {\n    let a = [1, 2];\n    Print(a[1]);\n}\n")
     );
     assert_eq!(
-        hash("fn main(){let a=[1,2];print(a[0]);}"),
-        hash("fn main(){  let a = [1, 2]; print(a[0]); }")
+        hash("fn Main() {\n    let a = [1, 2];\n    Print(a[0]);\n}\n"),
+        hash("fn Main() {\n    let a = [1, 2];\n    Print(a[0]);\n}\n")
     );
 }
 #[test]
 fn binary_instruction_hash_matches_fixed_canonical_fnv_encoding() {
     // Independently encoded: Unit result, zero locals, six instructions
     // (1, 2, Add, Print, Drop, implicit Unit), empty cleanup, return temp 4.
-    let p = compile_scalar("h.nx", "fn main(){print(1+2);}").unwrap();
+    let p = compile_scalar("h.nx", "fn Main() {\n    Print(1 + 2);\n}\n").unwrap();
     assert_eq!(
-        p.functions().function("main").unwrap().content_hash,
+        p.functions().function("Main").unwrap().content_hash,
         0x20c7_71da_7f5d_f960
     );
 }
 #[test]
 fn ordinary_resource_parameter_borrows_across_frame_and_closes_once() {
     let e = execute(
-        "fn leer(r:MockResource){inspect(r);inspect(r);} fn main(){let r=mock_open(1);leer(r);inspect(r);}",
+        "fn Leer(r: view MockResource) {\n    Inspect(r);\n    Inspect(r);\n}\nfn Main() {\n    let r = MockOpen(1);\n    Leer(r);\n    Inspect(r);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
@@ -1544,7 +2104,7 @@ fn ordinary_resource_parameter_borrows_across_frame_and_closes_once() {
 #[test]
 fn consumed_resource_parameter_closes_at_callee_exit() {
     let e = execute(
-        "fn take(consume r:MockResource){inspect(r);} fn main(){let r=mock_open(4);take(consume r);}",
+        "fn Take(r: move MockResource) {\n    Inspect(r);\n}\nfn Main() {\n    let r = MockOpen(4);\n    Take(move r);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
@@ -1555,7 +2115,7 @@ fn consumed_resource_parameter_closes_at_callee_exit() {
 #[test]
 fn resource_result_is_transferred_out_of_callee_before_cleanup() {
     let e = execute(
-        "fn make()->MockResource{return mock_open(3);} fn main(){let r=make();inspect(r);}",
+        "fn Make() -> MockResource {\n    return MockOpen(3);\n}\nfn Main() {\n    let r = Make();\n    Inspect(r);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
@@ -1566,7 +2126,7 @@ fn resource_result_is_transferred_out_of_callee_before_cleanup() {
 #[test]
 fn later_argument_fault_cleans_earlier_resource_without_entering_callee() {
     let e = execute(
-        "fn f(consume r:MockResource,n:i64){print(n);} fn main(){f(mock_open(1),9223372036854775807+1);}",
+        "fn F(r: move MockResource, n: view I64) {\n    Print(n);\n}\nfn Main() {\n    F(MockOpen(1), 9223372036854775807 + 1);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0101");
@@ -1576,14 +2136,14 @@ fn later_argument_fault_cleans_earlier_resource_without_entering_callee() {
 #[test]
 fn named_arguments_evaluate_in_written_order() {
     let e = execute(
-        "fn mark(n:i64)->i64{print(n);return n;} fn f(a:i64,b:i64){} fn main(){f(b:mark(2),a:mark(1));}",
+        "fn Mark(n: view I64) -> I64 {\n    Print(n);\n    return n;\n}\nfn F(a: view I64, b: view I64) {}\nfn Main() {\n    F(b: Mark(2), a: Mark(1));\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.stdout(), ["2", "1"]);
 }
 #[test]
 fn resource_copy_is_rejected_and_explicit_transfer_runs() {
-    let negative = "fn main(){let r=mock_open(1);let s=r;}";
+    let negative = "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n}\n";
     let Err(CompileError::Rejected(errors)) = compile_scalar("p.nx", negative) else {
         panic!("expected ownership diagnostic")
     };
@@ -1598,12 +2158,13 @@ fn resource_copy_is_rejected_and_explicit_transfer_runs() {
         ),
         ("NX-E0201", None, "ownership", "value.copy")
     );
-    assert_eq!(
-        d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((35, 36))
-    );
+    assert_eq!(d.primary_span.as_ref().map(|s| (s.start, s.end)), {
+        let start = byte_span(negative, "let s = r", 0).0 + "let s = ".len() as u64;
+        Some((start, start + 1))
+    });
     d.validate("p.nx", negative).unwrap();
-    let e = execute("fn main(){let r=mock_open(1);let s=consume r;inspect(s);}");
+    let e =
+        execute("fn Main() {\n    let r = MockOpen(1);\n    let s = move r;\n    Inspect(s);\n}\n");
     assert_eq!(
         e.observations.events(),
         ["open:0:1", "inspect:0:1", "close:0:1"]
@@ -1613,11 +2174,15 @@ fn resource_copy_is_rejected_and_explicit_transfer_runs() {
 fn use_after_consume_or_drop_reports_consumption_site() {
     for (source, primary, consumption) in [
         (
-            "fn main(){let r=mock_open(1);let s=consume r;inspect(r);}",
-            (53, 54),
-            (35, 44),
+            "fn Main() {\n    let r = MockOpen(1);\n    let s = move r;\n    Inspect(r);\n}\n",
+            ("Inspect(r)", "r"),
+            "move r",
         ),
-        ("fn main(){let x=1;drop(x);print(x);}", (32, 33), (18, 25)),
+        (
+            "fn Main() {\n    let x = 1;\n    Drop(x);\n    Print(x);\n}\n",
+            ("Print(x)", "x"),
+            "Drop(x)",
+        ),
     ] {
         let Err(CompileError::Rejected(errors)) = compile_scalar("p.nx", source) else {
             panic!("expected ownership diagnostic")
@@ -1638,22 +2203,24 @@ fn use_after_consume_or_drop_reports_consumption_site() {
                 "ownership.use"
             )
         );
-        assert_eq!(
-            d.primary_span.as_ref().map(|s| (s.start, s.end)),
-            Some(primary)
-        );
+        assert_eq!(d.primary_span.as_ref().map(|s| (s.start, s.end)), {
+            let start =
+                byte_span(source, primary.0, 0).0 + (primary.0.len() - primary.1.len() - 1) as u64;
+            Some((start, start + 1))
+        });
         assert!(
             d.related_spans
                 .iter()
                 .any(|r| r.role == crate::diagnostic::RelatedRole::Consumption
-                    && (r.span.start, r.span.end) == consumption)
+                    && (r.span.start, r.span.end) == byte_span(source, consumption, 0))
         );
         d.validate("p.nx", source).unwrap();
     }
 }
 #[test]
 fn read_parameter_cannot_be_consumed() {
-    let source = "fn f(x:MockResource)->MockResource{return consume x;} fn main(){}";
+    let source =
+        "fn F(x: view MockResource) -> MockResource {\n    return move x;\n}\nfn Main() {}\n";
     let Err(CompileError::Rejected(errors)) = compile_scalar("p.nx", source) else {
         panic!("expected permission diagnostic")
     };
@@ -1675,7 +2242,7 @@ fn read_parameter_cannot_be_consumed() {
     );
     d.validate("p.nx", source).unwrap();
     let e = execute(
-        "fn f(consume x:MockResource)->MockResource{return consume x;} fn main(){let r=f(mock_open(1));inspect(r);}",
+        "fn F(x: move MockResource) -> MockResource {\n    return move x;\n}\nfn Main() {\n    let r = F(MockOpen(1));\n    Inspect(r);\n}\n",
     );
     assert_eq!(
         e.observations.events(),
@@ -1684,7 +2251,7 @@ fn read_parameter_cannot_be_consumed() {
 }
 #[test]
 fn adr_gap_call_frame_limit_primary_uses_rejected_call_span() {
-    let source = "fn down(){down();} fn main(){down();}";
+    let source = "fn Down() {\n    Down();\n}\nfn Main() {\n    Down();\n}\n";
     let e = execute(source);
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     let d = &e.diagnostics[0];
@@ -1703,26 +2270,28 @@ fn adr_gap_call_frame_limit_primary_uses_rejected_call_span() {
     );
     assert_eq!(
         d.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((10, 16))
+        Some(byte_span(source, "Down()", 1))
     );
     d.validate("fixture.nx", source).unwrap();
 }
 #[test]
 fn unreachable_tail_is_checked_without_emitting_its_instructions() {
-    let source = "fn main(){return;let a=[1];a[0]=2;}";
+    let source = "fn Main() {\n    return;\n    let a = [1];\n    a[0] = 2;\n}\n";
     let Err(CompileError::Rejected(errors)) = compile_scalar("dead.nx", source) else {
         panic!("expected ownership diagnostic")
     };
     assert_eq!(errors.len(), 1);
     assert_eq!(errors[0].code, "NX-E0105");
     errors[0].validate("dead.nx", source).unwrap();
-    let e = execute("fn main(){return;print(9);}");
+    let e = execute("fn Main() {\n    return;\n    Print(9);\n}\n");
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.observations.stdout().is_empty());
 }
 #[test]
 fn shadowed_resources_close_in_reverse_scope_order() {
-    let e = execute("fn main(){let r=mock_open(1);{let r=mock_open(2);inspect(r);}inspect(r);}");
+    let e = execute(
+        "fn Main() {\n    let r = MockOpen(1);\n    {\n        let r = MockOpen(2);\n        Inspect(r);\n    }\n    Inspect(r);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -1738,7 +2307,9 @@ fn shadowed_resources_close_in_reverse_scope_order() {
 }
 #[test]
 fn dropped_var_can_be_reinitialized_without_closing_twice() {
-    let e = execute("fn main(){var r=mock_open(1);drop(r);r=mock_open(2);inspect(r);}");
+    let e = execute(
+        "fn Main() {\n    var r = MockOpen(1);\n    Drop(r);\n    r = MockOpen(2);\n    Inspect(r);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -1754,15 +2325,14 @@ fn dropped_var_can_be_reinitialized_without_closing_twice() {
 #[test]
 fn ordinary_array_parameter_returns_deep_copy() {
     let e = execute(
-        "fn copia(a:Array<i64>)->Array<i64>{return a;} fn main(){var a=[1];let b=copia(a);a[0]=2;assert_eq(b,[1]);}",
+        "fn Copia(a: view Array<I64>) -> Array<I64> {\n    return a;\n}\nfn Main() {\n    var a = [1];\n    let b = Copia(a);\n    a[0] = 2;\n    AssertEq(b, [1]);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.observations.observations().is_empty());
 }
 #[test]
 fn call_target_named_value_continues_across_lf() {
-    let source =
-        "fn value(x:i64)->i64{return x;}\nfn main(){let x=7;let y=value\n(x);assert_eq(y,7);}";
+    let source = "fn Value(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    let x = 7;\n    let y = Value(x);\n    AssertEq(y, 7);\n}\n";
     let ast = parse::parse("fixture.nx", source).unwrap();
     let crate::frontend::parse::Statement::Let {
         value: crate::frontend::parse::Expr::Call { span, .. },
@@ -1770,31 +2340,33 @@ fn call_target_named_value_continues_across_lf() {
     } = &ast
         .functions
         .iter()
-        .find(|f| f.name == "main")
+        .find(|f| f.name == "Main")
         .unwrap()
         .body
         .statements[1]
     else {
         panic!("L03 call")
     };
-    assert_eq!((span.start, span.end), (56, 65));
+    assert_eq!((span.start, span.end), byte_span(source, "Value(x)", 0));
     let e = execute(source);
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.observations.observations().is_empty());
 }
 #[test]
 fn explicit_return_parenthesis_continues_across_lf() {
-    let source = "fn f()->i64{return (\n1);} fn main(){assert_eq(f(),1);}";
+    let source = "fn F() -> I64 {\n    return (1);\n}\nfn Main() {\n    AssertEq(F(), 1);\n}\n";
     let e = execute(source);
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.observations.observations().is_empty());
 }
 #[test]
 fn drop_destroys_complete_binding_or_temporary_and_rejects_projection() {
-    let e = execute("fn main(){let a=[1];drop(a);drop([1][0]);drop(mock_open(9));}");
+    let e = execute(
+        "fn Main() {\n    let a = [1];\n    Drop(a);\n    Drop([1][0]);\n    Drop(MockOpen(9));\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.events(), ["open:0:9", "close:0:9"]);
-    let source = "fn main(){let a=[1];drop(a[0]);}";
+    let source = "fn Main() {\n    let a = [1];\n    Drop(a[0]);\n}\n";
     let Err(CompileError::Rejected(errors)) = compile_scalar("drop.nx", source) else {
         panic!("expected partial transfer rejection")
     };
@@ -1815,33 +2387,54 @@ fn caller_hash_tracks_referenced_name_and_signature_but_not_unrelated_body() {
         compile_scalar("hash.nx", source)
             .unwrap()
             .functions()
-            .function("main")
+            .function("Main")
             .unwrap()
             .content_hash
     };
-    let base = hash("fn f(x:i64)->i64{return x;} fn main(){f(1);}");
-    assert_eq!(base, hash("fn f(x:i64)->i64{return x+1;} fn main(){f(1);}"));
-    assert_ne!(base, hash("fn g(x:i64)->i64{return x;} fn main(){g(1);}"));
-    assert_ne!(base, hash("fn f(y:i64)->i64{return y;} fn main(){f(1);}"));
-    assert_ne!(
+    let base = hash("fn F(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    F(1);\n}\n");
+    assert_eq!(
         base,
-        hash("fn f(x:i64)->bool{return true;} fn main(){f(1);}")
+        hash("fn F(x: view I64) -> I64 {\n    return x + 1;\n}\nfn Main() {\n    F(1);\n}\n")
     );
     assert_ne!(
         base,
-        hash("fn f(consume x:i64)->i64{return x;} fn main(){f(1);}")
+        hash("fn G(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    G(1);\n}\n")
+    );
+    assert_ne!(
+        base,
+        hash("fn F(y: view I64) -> I64 {\n    return y;\n}\nfn Main() {\n    F(1);\n}\n")
+    );
+    assert_ne!(
+        base,
+        hash("fn F(x: view I64) -> Bool {\n    return true;\n}\nfn Main() {\n    F(1);\n}\n")
+    );
+    assert_ne!(
+        base,
+        hash("fn F(x: move I64) -> I64 {\n    return x;\n}\nfn Main() {\n    F(1);\n}\n")
     );
 }
 #[test]
 fn parameter_name_and_argument_slot_are_encoded_in_canonical_hash() {
-    let a = compile_scalar("hash.nx", "fn f(x:i64)->i64{return 1;} fn main(){f(2);}").unwrap();
-    let b = compile_scalar("hash.nx", "fn f(y:i64)->i64{return 1;} fn main(){f(2);}").unwrap();
+    let a = compile_scalar(
+        "hash.nx",
+        "fn F(x: view I64) -> I64 {\n    return 1;\n}\nfn Main() {\n    F(2);\n}\n",
+    )
+    .unwrap();
+    let b = compile_scalar(
+        "hash.nx",
+        "fn F(y: view I64) -> I64 {\n    return 1;\n}\nfn Main() {\n    F(2);\n}\n",
+    )
+    .unwrap();
     assert_ne!(
-        a.functions().function("f").unwrap().content_hash,
-        b.functions().function("f").unwrap().content_hash
+        a.functions().function("F").unwrap().content_hash,
+        b.functions().function("F").unwrap().content_hash
     );
-    let p = compile_scalar("hash.nx", "fn f(a:i64,b:i64){} fn main(){f(a:1,b:2);}").unwrap();
-    let mut f = p.functions().function("main").unwrap().clone();
+    let p = compile_scalar(
+        "hash.nx",
+        "fn F(a: view I64, b: view I64) {}\nfn Main() {\n    F(a: 1, b: 2);\n}\n",
+    )
+    .unwrap();
+    let mut f = p.functions().function("Main").unwrap().clone();
     let original = super::model::content_hash(&f);
     let call = f
         .block
@@ -1853,7 +2446,7 @@ fn parameter_name_and_argument_slot_are_encoded_in_canonical_hash() {
         args.swap(0, 1);
     }
     assert_ne!(original, super::model::content_hash(&f));
-    let mut f = p.functions().function("main").unwrap().clone();
+    let mut f = p.functions().function("Main").unwrap().clone();
     let call = f
         .block
         .instructions
@@ -1867,8 +2460,12 @@ fn parameter_name_and_argument_slot_are_encoded_in_canonical_hash() {
 }
 #[test]
 fn canonical_hash_distinguishes_transfer_from_copy_on_same_slot() {
-    let p = compile_scalar("hash.nx", "fn main(){let x=1;let y=consume x;}").unwrap();
-    let mut f = p.functions().function("main").unwrap().clone();
+    let p = compile_scalar(
+        "hash.nx",
+        "fn Main() {\n    let x = 1;\n    let y = move x;\n}\n",
+    )
+    .unwrap();
+    let mut f = p.functions().function("Main").unwrap().clone();
     let original = super::model::content_hash(&f);
     let ins = f
         .block
@@ -1881,23 +2478,30 @@ fn canonical_hash_distinguishes_transfer_from_copy_on_same_slot() {
 }
 #[test]
 fn direct_call_hash_has_fixed_canonical_vector() {
-    let p = compile_scalar("hash.nx", "fn f(x:i64){} fn main(){f(1);}").unwrap();
+    // F0-D15 does not publish a hash vector. Pin the current semantic IR
+    // encoding for a direct call to the B-spelled function F.
+    let p = compile_scalar(
+        "hash.nx",
+        "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n",
+    )
+    .unwrap();
     assert_eq!(
-        p.functions().function("main").unwrap().content_hash,
-        0xdde0_95c7_2e5f_e0ca
+        p.functions().function("Main").unwrap().content_hash,
+        0x1dee_b608_6d9e_e0aa
     );
 }
 #[test]
 fn failed_development_substitution_restores_previous_function() {
-    let mut receiver = compile_scalar("r.nx", "fn extra(){} fn main(){print(1);}").unwrap();
-    let donor = compile_scalar("d.nx", "fn helper(){} fn main(){helper();}").unwrap();
-    let before = receiver.functions().function("main").unwrap().content_hash;
+    let mut receiver =
+        compile_scalar("r.nx", "fn Extra() {}\nfn Main() {\n    Print(1);\n}\n").unwrap();
+    let donor = compile_scalar("d.nx", "fn Helper() {}\nfn Main() {\n    Helper();\n}\n").unwrap();
+    let before = receiver.functions().function("Main").unwrap().content_hash;
     assert_eq!(
-        receiver.substitute_for_development("main", &donor),
+        receiver.substitute_for_development("Main", &donor),
         Err("unknown callee")
     );
     assert_eq!(
-        receiver.functions().function("main").unwrap().content_hash,
+        receiver.functions().function("Main").unwrap().content_hash,
         before
     );
     let e = run_scalar(&receiver);
@@ -1905,7 +2509,7 @@ fn failed_development_substitution_restores_previous_function() {
 }
 #[test]
 fn independent_ownership_errors_accumulate_in_source_order() {
-    let source = "fn main(){let a=mock_open(1);let b=mock_open(2);let x=a;let y=b;}";
+    let source = "fn Main() {\n    let a = MockOpen(1);\n    let b = MockOpen(2);\n    let x = a;\n    let y = b;\n}\n";
     let Err(CompileError::Rejected(errors)) = compile_scalar("multi.nx", source) else {
         panic!("expected two copies")
     };
@@ -1919,7 +2523,10 @@ fn independent_ownership_errors_accumulate_in_source_order() {
             .iter()
             .map(|d| d.primary_span.as_ref().unwrap().start)
             .collect::<Vec<_>>(),
-        [54, 62]
+        [
+            byte_span(source, "let x = a", 0).0 + 8,
+            byte_span(source, "let y = b", 0).0 + 8,
+        ]
     );
     for d in errors {
         d.validate("multi.nx", source).unwrap();
@@ -1927,22 +2534,23 @@ fn independent_ownership_errors_accumulate_in_source_order() {
 }
 #[test]
 fn user_function_named_drop_has_ordinary_read_semantics() {
-    let e = execute("fn drop(x:i64){} fn main(){let a=[1];drop(a[0]);assert_eq(a[0],1);}");
+    let e = execute(
+        "fn Drop(x: view I64) {}\nfn Main() {\n    let a = [1];\n    Drop(a[0]);\n    AssertEq(a[0], 1);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.observations.observations().is_empty());
 }
 #[test]
 fn consumed_temporary_borrowed_by_read_parameter_closes_after_call() {
     let e = execute(
-        "fn read(r:MockResource){inspect(r);} fn main(){let r=mock_open(5);read(consume r);}",
+        "fn Read(r: view MockResource) {\n    Inspect(r);\n}\nfn Main() {\n    let r = MockOpen(5);\n    Read(move r);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
         ["open:0:5", "inspect:0:5", "close:0:5"]
     );
-    let source =
-        "fn read(r:MockResource){} fn main(){let r=mock_open(5);read(consume r);inspect(r);}";
+    let source = "fn Read(r: view MockResource) {}\nfn Main() {\n    let r = MockOpen(5);\n    Read(move r);\n    Inspect(r);\n}\n";
     let Err(CompileError::Rejected(errors)) = compile_scalar("consume.nx", source) else {
         panic!("expected consumed use")
     };
@@ -1956,7 +2564,7 @@ fn consumed_temporary_borrowed_by_read_parameter_closes_after_call() {
 #[test]
 fn simulator_fault_cleans_callee_then_caller_resources() {
     let e = execute(
-        "fn failer(consume r:MockResource){let s=mock_open(2);fail();} fn main(){let r=mock_open(1);failer(consume r);}",
+        "fn Failer(r: move MockResource) {\n    let s = MockOpen(2);\n    Fail();\n}\nfn Main() {\n    let r = MockOpen(1);\n    Failer(move r);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0301");
@@ -1967,7 +2575,7 @@ fn simulator_fault_cleans_callee_then_caller_resources() {
 }
 #[test]
 fn blocking_resource_has_same_event_shapes_and_one_close() {
-    let e = execute("fn main(){let r=mock_blocking_open(7);inspect(r);}");
+    let e = execute("fn Main() {\n    let r = MockBlockingOpen(7);\n    Inspect(r);\n}\n");
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -1976,7 +2584,7 @@ fn blocking_resource_has_same_event_shapes_and_one_close() {
 }
 #[test]
 fn frame_limit_unwinds_shared_resource_once() {
-    let source = "fn f(r:MockResource){f(r);} fn main(){let r=mock_open(1);f(r);}";
+    let source = "fn F(r: view MockResource) {\n    F(r);\n}\nfn Main() {\n    let r = MockOpen(1);\n    F(r);\n}\n";
     let e = execute(source);
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
@@ -1988,7 +2596,7 @@ fn frame_limit_unwinds_shared_resource_once() {
 }
 #[test]
 fn sequential_calls_release_frames_before_the_next_entry() {
-    let source = format!("fn f(){{}} fn main(){{{}}}", "f();".repeat(300));
+    let source = format!("fn F(){{}} fn Main(){{{}}}", "F();".repeat(300));
     let e = execute(&source);
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.diagnostics.is_empty());
@@ -1996,7 +2604,7 @@ fn sequential_calls_release_frames_before_the_next_entry() {
 }
 #[test]
 fn frame_limit_denies_acquisition_in_frame_257() {
-    let e = execute("fn f(){let r=mock_open(1);f();} fn main(){f();}");
+    let e = execute("fn F() {\n    let r = MockOpen(1);\n    F();\n}\nfn Main() {\n    F();\n}\n");
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -2020,7 +2628,9 @@ fn frame_limit_denies_acquisition_in_frame_257() {
 }
 #[test]
 fn complete_resource_reassignment_closes_old_before_scope_exit() {
-    let e = execute("fn main(){var r=mock_open(1);r=mock_open(2);inspect(r);}");
+    let e = execute(
+        "fn Main() {\n    var r = MockOpen(1);\n    r = MockOpen(2);\n    Inspect(r);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -2035,13 +2645,15 @@ fn complete_resource_reassignment_closes_old_before_scope_exit() {
 }
 #[test]
 fn selected_array_copy_is_independent_of_mutable_root() {
-    let e = execute("fn main(){var a=[[1]];let b=a[0];a[0][0]=2;assert_eq(b,[1]);}");
+    let e = execute(
+        "fn Main() {\n    var a = [[1]];\n    let b = a[0];\n    a[0][0] = 2;\n    AssertEq(b, [1]);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.diagnostics.is_empty());
 }
 #[test]
 fn repeated_drop_reports_consumed_origin_without_second_close() {
-    let source = "fn main(){let r=mock_open(1);drop(r);drop(r);}";
+    let source = "fn Main() {\n    let r = MockOpen(1);\n    Drop(r);\n    Drop(r);\n}\n";
     let Err(CompileError::Rejected(errors)) = compile_scalar("drop.nx", source) else {
         panic!("expected consumed use")
     };
@@ -2055,8 +2667,14 @@ fn repeated_drop_reports_consumed_origin_without_second_close() {
 #[test]
 fn read_parameter_rejects_write_and_drop_without_execution() {
     for (source, access) in [
-        ("fn f(x:i64){x=2;} fn main(){}", "write"),
-        ("fn f(x:i64){drop(x);} fn main(){}", "drop"),
+        (
+            "fn F(x: view I64) {\n    x = 2;\n}\nfn Main() {}\n",
+            "write",
+        ),
+        (
+            "fn F(x: view I64) {\n    Drop(x);\n}\nfn Main() {}\n",
+            "drop",
+        ),
     ] {
         let Err(CompileError::Rejected(errors)) = compile_scalar("permission.nx", source) else {
             panic!("expected {access} rejection")
@@ -2076,14 +2694,16 @@ fn read_parameter_rejects_write_and_drop_without_execution() {
 #[test]
 fn consumed_nested_local_does_not_receive_second_cleanup() {
     let e = execute(
-        "fn take(consume r:MockResource){} fn main(){{let r=mock_open(1);take(consume r);}}",
+        "fn Take(r: move MockResource) {}\nfn Main() {\n    {\n        let r = MockOpen(1);\n        Take(move r);\n    }\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.events(), ["open:0:1", "close:0:1"]);
 }
 #[test]
 fn nested_drop_and_reinitialization_use_one_liveness_record() {
-    let e = execute("fn main(){{var r=mock_open(1);drop(r);r=mock_open(2);}}");
+    let e = execute(
+        "fn Main() {\n    {\n        var r = MockOpen(1);\n        Drop(r);\n        r = MockOpen(2);\n    }\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -2095,108 +2715,108 @@ fn i05_source_rows_have_isolated_rejections_and_executable_repairs() {
     let rows: &[(&str, &str, &str, Option<&str>, &str)] = &[
         (
             "S01",
-            "fn f(x:i64){} fn main(){f();}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F();\n}\n",
             "NX-E0111",
             Some("missing_argument"),
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n",
         ),
         (
             "S02",
-            "fn f(x:i64){} fn main(){f(1,2);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(1, 2);\n}\n",
             "NX-E0111",
             Some("excess_positional_argument"),
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n",
         ),
         (
             "S03",
-            "fn f(x:i64){} fn main(){f(y:1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(y: 1);\n}\n",
             "NX-E0111",
             Some("unknown_argument_label"),
-            "fn f(x:i64){} fn main(){f(x:1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(x: 1);\n}\n",
         ),
         (
             "S04",
-            "fn f(x:i64){} fn main(){f(x:1,x:2);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(x: 1, x: 2);\n}\n",
             "NX-E0111",
             Some("duplicate_argument"),
-            "fn f(x:i64){} fn main(){f(x:1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(x: 1);\n}\n",
         ),
         (
             "S05",
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,2);}",
+            "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(x: 1, 2);\n}\n",
             "NX-E0111",
             Some("positional_after_named"),
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,y:2);}",
+            "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(x: 1, y: 2);\n}\n",
         ),
         (
             "S07",
-            "fn main(){let f=1;f();}",
+            "fn Main() {\n    let f = 1;\n    f();\n}\n",
             "NX-E0111",
             Some("non_callable_target"),
-            "fn f(){} fn main(){f();}",
+            "fn F() {}\nfn Main() {\n    F();\n}\n",
         ),
         (
             "S12",
-            "fn f()->i64{return true;} fn main(){}",
+            "fn F() -> I64 {\n    return true;\n}\nfn Main() {}\n",
             "NX-E0102",
             Some("type_mismatch"),
-            "fn f()->i64{return 1;} fn main(){assert_eq(f(),1);}",
+            "fn F() -> I64 {\n    return 1;\n}\nfn Main() {\n    AssertEq(F(), 1);\n}\n",
         ),
         (
             "S13",
-            "fn f(){} fn f(){} fn main(){}",
+            "fn F() {}\nfn F() {}\nfn Main() {}\n",
             "NX-E0104",
             None,
-            "fn f(){} fn g(){} fn main(){}",
+            "fn F() {}\nfn G() {}\nfn Main() {}\n",
         ),
         (
             "S14",
-            "fn f(x:i64,x:i64){} fn main(){}",
+            "fn F(x: view I64, x: view I64) {}\nfn Main() {}\n",
             "NX-E0104",
             None,
-            "fn f(x:i64,y:i64){} fn main(){f(1,2);}",
+            "fn F(x: view I64, y: view I64) {}\nfn Main() {\n    F(1, 2);\n}\n",
         ),
         (
             "S15",
-            "fn main(){ausente();}",
+            "fn Main() {\n    ausente();\n}\n",
             "NX-E0101",
             None,
-            "fn ausente(){} fn main(){ausente();}",
+            "fn Ausente() {}\nfn Main() {\n    Ausente();\n}\n",
         ),
         (
             "S19",
-            "fn main(){let r=mock_open(1);let b=r==r;}",
+            "fn Main() {\n    let r = MockOpen(1);\n    let b = r == r;\n}\n",
             "NX-E0102",
             Some("type_mismatch"),
-            "fn main(){let r=mock_open(1);inspect(r);}",
+            "fn Main() {\n    let r = MockOpen(1);\n    Inspect(r);\n}\n",
         ),
         (
             "S24",
-            "fn f(x:i64){let x=1;} fn main(){}",
+            "fn F(x: view I64) {\n    let x = 1;\n}\nfn Main() {}\n",
             "NX-E0104",
             None,
-            "fn f(x:i64){{let x=1;}} fn main(){f(1);}",
+            "fn F(x: view I64) {\n    {\n        let x = 1;\n    }\n}\nfn Main() {\n    F(1);\n}\n",
         ),
         (
             "S26",
-            "fn main(){let x=1;inspect(x);}",
+            "fn Main() {\n    let x = 1;\n    Inspect(x);\n}\n",
             "NX-E0102",
             Some("resource_required"),
-            "fn main(){let x=mock_open(1);inspect(x);}",
+            "fn Main() {\n    let x = MockOpen(1);\n    Inspect(x);\n}\n",
         ),
         (
             "S29",
-            "fn main(){let a=[1];drop(a[0]);}",
+            "fn Main() {\n    let a = [1];\n    Drop(a[0]);\n}\n",
             "NX-E0006",
             None,
-            "fn main(){let a=[1];drop(a);}",
+            "fn Main() {\n    let a = [1];\n    Drop(a);\n}\n",
         ),
         (
             "B07",
-            "fn f()->i64{return 1 } fn main(){}",
+            "fn F()->I64{return 1 } fn Main(){}",
             "NX-E0005",
             None,
-            "fn f()->i64{return 1;} fn main(){assert_eq(f(),1);}",
+            "fn F() -> I64 {\n    return 1;\n}\nfn Main() {\n    AssertEq(F(), 1);\n}\n",
         ),
     ];
     for (id, negative, code, subcause, positive) in rows {
@@ -2221,89 +2841,114 @@ fn i05_source_rows_keep_published_primary_byte_spans_and_stages() {
     let rows = [
         (
             "S01",
-            "fn f(x:i64){} fn main(){⟦f⟧();}",
+            "fn F(x:view I64){} fn Main(){⟦F⟧();}",
             "arguments",
             "call.bind",
         ),
         (
             "S02",
-            "fn f(x:i64){} fn main(){f(1,⟦2⟧);}",
+            "fn F(x:view I64){} fn Main(){F(1,⟦2⟧);}",
             "arguments",
             "call.bind",
         ),
         (
             "S03",
-            "fn f(x:i64){} fn main(){f(⟦y⟧:1);}",
+            "fn F(x:view I64){} fn Main(){F(⟦y⟧:1);}",
             "arguments",
             "call.bind",
         ),
         (
             "S04",
-            "fn f(x:i64){} fn main(){f(x:1,⟦x⟧:2);}",
+            "fn F(x:view I64){} fn Main(){F(x:1,⟦x⟧:2);}",
             "arguments",
             "call.bind",
         ),
         (
             "S05",
-            "fn f(x:i64,y:i64){} fn main(){f(x:1,⟦2⟧);}",
+            "fn F(x:view I64,y:view I64){} fn Main(){F(x:1,⟦2⟧);}",
             "arguments",
             "call.bind",
         ),
-        ("S07", "fn main(){let f=1;⟦f⟧();}", "arguments", "call.bind"),
+        ("S07", "fn Main(){let f=1;⟦f⟧();}", "arguments", "call.bind"),
         (
             "S12",
-            "fn f()->i64{return ⟦true⟧;} fn main(){}",
+            "fn F()->I64{return ⟦true⟧;} fn Main(){}",
             "types",
             "types.check",
         ),
         (
             "S13",
-            "fn f(){} fn ⟦f⟧(){} fn main(){}",
+            "fn F(){} fn ⟦F⟧(){} fn Main(){}",
             "names",
             "names.declare",
         ),
         (
             "S14",
-            "fn f(x:i64,⟦x⟧:i64){} fn main(){}",
+            "fn F(x:view I64,⟦x⟧:view I64){} fn Main(){}",
             "names",
             "names.declare",
         ),
-        ("S15", "fn main(){⟦ausente⟧();}", "names", "names.resolve"),
+        ("S15", "fn Main(){⟦Ausente⟧();}", "names", "names.resolve"),
         (
             "S19",
-            "fn main(){let r=mock_open(1);let b=r⟦==⟧r;}",
+            "fn Main(){let r=MockOpen(1);let b=r⟦==⟧r;}",
             "types",
             "types.check",
         ),
         (
             "S24",
-            "fn f(x:i64){let ⟦x⟧=1;} fn main(){}",
+            "fn F(x:view I64){let ⟦x⟧=1;} fn Main(){}",
             "names",
             "names.declare",
         ),
         (
             "S26",
-            "fn main(){let x=1;inspect(⟦x⟧);}",
+            "fn Main(){let x=1;Inspect(⟦x⟧);}",
             "types",
             "types.check",
         ),
         (
             "S29",
-            "fn main(){let a=[1];drop(⟦a[0]⟧);}",
+            "fn Main(){let a=[1];Drop(⟦a[0]⟧);}",
             "arguments",
             "call.bind",
         ),
         (
             "B07",
-            "fn f()->i64{return 1 ⟦}⟧ fn main(){}",
+            "fn F()->I64{return 1 ⟦}⟧ fn Main(){}",
             "parse",
             "syntax.parse",
         ),
     ];
-    for (id, marked, stage, operation) in rows {
+    // Primary byte intervals and rule identities are literal F0-D15 §8 rows.
+    let published = [
+        (29, 30, "NX-E0111", Some("missing_argument")),
+        (33, 34, "NX-E0111", Some("excess_positional_argument")),
+        (31, 32, "NX-E0111", Some("unknown_argument_label")),
+        (35, 36, "NX-E0111", Some("duplicate_argument")),
+        (46, 47, "NX-E0111", Some("positional_after_named")),
+        (18, 19, "NX-E0111", Some("non_callable_target")),
+        (19, 23, "NX-E0102", Some("type_mismatch")),
+        (12, 13, "NX-E0104", None),
+        (16, 17, "NX-E0104", None),
+        (10, 17, "NX-E0101", None),
+        (35, 37, "NX-E0102", Some("type_mismatch")),
+        (21, 22, "NX-E0104", None),
+        (26, 27, "NX-E0102", Some("resource_required")),
+        (25, 29, "NX-E0006", None),
+        (21, 22, "NX-E0005", None),
+    ];
+    for ((id, marked, stage, operation), (start, end, code, subcause)) in
+        rows.into_iter().zip(published)
+    {
         let (before, rest) = marked.split_once('⟦').unwrap();
         let (primary, after) = rest.split_once('⟧').unwrap();
         let source = format!("{before}{primary}{after}");
+        assert_eq!(
+            (before.len() as u64, (before.len() + primary.len()) as u64),
+            (start, end),
+            "{id}"
+        );
         let Err(CompileError::Rejected(errors)) = compile_scalar("rows.nx", &source) else {
             panic!("{id} accepted")
         };
@@ -2311,7 +2956,12 @@ fn i05_source_rows_keep_published_primary_byte_spans_and_stages() {
         let d = &errors[0];
         assert_eq!(
             d.primary_span.as_ref().map(|s| (s.start, s.end)),
-            Some((before.len() as u64, (before.len() + primary.len()) as u64)),
+            Some((start, end)),
+            "{id}"
+        );
+        assert_eq!(
+            (d.code.as_str(), d.subcause.as_deref()),
+            (code, subcause),
             "{id}"
         );
         assert_eq!(
@@ -2324,72 +2974,71 @@ fn i05_source_rows_keep_published_primary_byte_spans_and_stages() {
 }
 #[test]
 fn i05_feature_exclusions_have_executable_repairs() {
+    // F2-F01 is accepted in B: move is the official transfer mode.
+    let transfer = "fn Main(){let r=MockOpen(1);let s=move r;}";
+    let result = execute(transfer);
+    assert_eq!(result.outcome, Outcome::Unit);
+    assert!(result.diagnostics.is_empty());
     let rows: &[(&str, &str, &str, &str)] = &[
         (
-            "F01",
-            "fn main(){let r=mock_open(1);let s=move r;}",
-            "legacy_move",
-            "fn main(){let r=mock_open(1);let s=consume r;}",
-        ),
-        (
             "F02",
-            "fn f(){return 1;} fn main(){}",
+            "fn F(){return 1;} fn Main(){}",
             "inferred_non_unit_result",
-            "fn f()->i64{return 1;} fn main(){assert_eq(f(),1);}",
+            "fn F() -> I64 {\n    return 1;\n}\nfn Main() {\n    AssertEq(F(), 1);\n}\n",
         ),
         (
             "F07",
-            "fn f(x:i64=1){} fn main(){f(1);}",
+            "fn F(x:view I64=1){} fn Main(){F(1);}",
             "default_argument",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n",
         ),
         (
             "F09",
-            "fn f(){} fn main(){let g=f;}",
+            "fn F(){} fn Main(){let g=F;}",
             "function_value",
-            "fn f(){} fn main(){f();}",
+            "fn F() {}\nfn Main() {\n    F();\n}\n",
         ),
         (
             "F10",
-            "fn f(){} fn main(){consume f();}",
+            "fn F(){} fn Main(){move F();}",
             "receiver_mode",
-            "fn f(){} fn main(){f();}",
+            "fn F() {}\nfn Main() {\n    F();\n}\n",
         ),
         (
             "F11",
-            "fn main(){let a=[1];let x=consume a[0];}",
+            "fn Main(){let a=[1];let x=move a[0];}",
             "partial_transfer",
-            "fn main(){let a=[1];let x=a[0];assert_eq(x,1);}",
+            "fn Main() {\n    let a = [1];\n    let x = a[0];\n    AssertEq(x, 1);\n}\n",
         ),
         (
             "F12",
-            "fn main(){let a=[mock_open(1)];}",
+            "fn Main(){let a=[MockOpen(1)];}",
             "resource_array",
-            "fn main(){let a=mock_open(1);inspect(a);}",
+            "fn Main() {\n    let a = MockOpen(1);\n    Inspect(a);\n}\n",
         ),
         (
             "F20",
-            "fn f(x:i64)->i64 from(x){return x;} fn main(){}",
+            "fn F(x:view I64)->I64 from(x){return x;} fn Main(){}",
             "provenance_clauses",
-            "fn f(x:i64)->i64{return x;} fn main(){assert_eq(f(1),1);}",
+            "fn F(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    AssertEq(F(1), 1);\n}\n",
         ),
         (
             "F29",
-            "fn f(x:u32){} fn main(){}",
+            "fn F(x:view U32){} fn Main(){}",
             "unsupported_type",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n",
         ),
         (
             "F30",
-            "fn f(x:String){} fn main(){}",
+            "fn F(x:view String){} fn Main(){}",
             "unsupported_type",
-            "fn f(x:Array<i64>){} fn main(){f([1]);}",
+            "fn F(x: view Array<I64>) {}\nfn Main() {\n    F([1]);\n}\n",
         ),
         (
             "F31",
-            "fn f(x:app.Error){} fn main(){}",
+            "fn F(x:view app.Error){} fn Main(){}",
             "unsupported_type",
-            "fn f(x:i64){} fn main(){f(1);}",
+            "fn F(x: view I64) {}\nfn Main() {\n    F(1);\n}\n",
         ),
     ];
     for (id, negative, feature, positive) in rows {
@@ -2408,11 +3057,11 @@ fn i05_feature_exclusions_have_executable_repairs() {
 #[test]
 fn hash_distinguishes_less_from_equal_with_same_operands() {
     let hash = |operator| {
-        let source = format!("fn main(){{print(1{operator}2);}}");
+        let source = format!("fn Main(){{Print(1{operator}2);}}");
         compile_scalar("h.nx", &source)
             .unwrap()
             .functions()
-            .function("main")
+            .function("Main")
             .unwrap()
             .content_hash
     };
@@ -2424,13 +3073,13 @@ fn function_hash_includes_local_mutability() {
         compile_scalar("h.nx", source)
             .unwrap()
             .functions()
-            .function("main")
+            .function("Main")
             .unwrap()
             .content_hash
     };
     assert_ne!(
-        hash("fn main(){let x=1;print(x);}"),
-        hash("fn main(){var x=1;print(x);}")
+        hash("fn Main() {\n    let x = 1;\n    Print(x);\n}\n"),
+        hash("fn Main() {\n    var x = 1;\n    Print(x);\n}\n")
     );
 }
 
@@ -2438,10 +3087,10 @@ fn function_hash_includes_local_mutability() {
 fn hash_includes_write_index_root_and_read_index_path() {
     let program = compile_scalar(
         "h.nx",
-        "fn main(){var a=[1,2];var b=[3,4];a[0]=5;let c=a[1];}",
+        "fn Main() {\n    var a = [1, 2];\n    var b = [3, 4];\n    a[0] = 5;\n    let c = a[1];\n}\n",
     )
     .unwrap();
-    let original = program.functions().function("main").unwrap().clone();
+    let original = program.functions().function("Main").unwrap().clone();
     let baseline = super::model::content_hash(&original);
     let mut changed = original.clone();
     let write = changed
@@ -2468,7 +3117,11 @@ fn hash_includes_write_index_root_and_read_index_path() {
 }
 #[test]
 fn read_index_without_optional_early_probe_still_checks_bounds() {
-    let mut p = compile_scalar("h.nx", "fn main(){let a=[0];print(a[2]);}").unwrap();
+    let mut p = compile_scalar(
+        "h.nx",
+        "fn Main() {\n    let a = [0];\n    Print(a[2]);\n}\n",
+    )
+    .unwrap();
     let f = &mut p.functions.entries[0];
     f.block
         .instructions
@@ -2490,14 +3143,16 @@ fn read_index_without_optional_early_probe_still_checks_bounds() {
 }
 #[test]
 fn true_array_equality_and_nonempty_length_are_observed() {
-    let e = execute("fn main(){assert_eq([1,2]==[1,2],true);assert_eq(len([1,2]),2);}");
+    let e = execute(
+        "fn Main() {\n    AssertEq([1, 2] == [1, 2], true);\n    AssertEq(Len([1, 2]), 2);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.diagnostics.is_empty());
 }
 #[test]
 fn annotated_empty_array_len_and_array_comparison_are_executable() {
-    let source = "fn main(){let empty:Array<i64>=[];assert_eq(len(empty),0);let a=[1,2];assert_eq(a==[1,2],true);assert_eq(a<[1],false);}";
-    let valid = source.replace("assert_eq(a<[1],false);", "assert_eq(len(a),2);");
+    let source = "fn Main() {\n    let empty: Array<I64> = [];\n    AssertEq(Len(empty), 0);\n    let a = [1, 2];\n    AssertEq(a == [1, 2], true);\n    AssertEq(a < [1], false);\n}\n";
+    let valid = source.replace("AssertEq(a < [1], false);", "AssertEq(Len(a), 2);");
     let e = execute(&valid);
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.diagnostics.is_empty());
@@ -2507,7 +3162,7 @@ fn annotated_empty_array_len_and_array_comparison_are_executable() {
     ));
 }
 fn doubling_array_source(last: usize, tail: &str) -> String {
-    let mut source = String::from("fn main(){let a0=[0];");
+    let mut source = String::from("fn Main(){let a0=[0];");
     for k in 1..=last {
         source.push_str(&format!("let a{k}=[a{},a{}];", k - 1, k - 1));
     }
@@ -2519,7 +3174,7 @@ fn doubling_array_source(last: usize, tail: &str) -> String {
 fn ordinary_array_arguments_and_equality_borrow_without_live_cell_growth() {
     let source = doubling_array_source(
         13,
-        "assert_eq(a13,a13);assert_eq(a13==a13,true);assert_eq(len(a13),2);print(a13);",
+        "AssertEq(a13,a13);AssertEq(a13==a13,true);AssertEq(Len(a13),2);Print(a13);",
     );
     let e = execute(&source);
     assert_eq!(e.outcome, Outcome::Unit);
@@ -2530,7 +3185,7 @@ fn ordinary_array_arguments_and_equality_borrow_without_live_cell_growth() {
 fn indexed_read_copies_selected_subtree_without_copying_whole_root() {
     let e = execute(&doubling_array_source(
         13,
-        "let selected=a13[0];assert_eq(len(selected),2);",
+        "let selected=a13[0];AssertEq(Len(selected),2);",
     ));
     assert_eq!(e.outcome, Outcome::Unit);
     assert!(e.diagnostics.is_empty());
@@ -2557,13 +3212,15 @@ fn second_selected_subtree_copy_hits_live_cell_limit_without_partial_installatio
 }
 #[test]
 fn annotated_empty_array_can_replace_indexed_array_element() {
-    let e = execute("fn main(){var a=[[1]];a[0]=[];assert_eq(len(a[0]),0);}");
+    let e = execute(
+        "fn Main() {\n    var a = [[1]];\n    a[0] = [];\n    AssertEq(Len(a[0]), 0);\n}\n",
+    );
     assert_eq!(e.outcome, Outcome::Unit);
 }
 #[test]
 fn nested_replacement_updates_cached_cell_sizes_and_preserves_copies() {
     let e = execute(
-        "fn main(){var a=[[[1]]];a[0][0]=[2,3];let b=a;a[0]=[[4]];assert_eq(b,[[[2,3]]]);print(a);}",
+        "fn Main() {\n    var a = [[[1]]];\n    a[0][0] = [2, 3];\n    let b = a;\n    a[0] = [[4]];\n    AssertEq(b, [[[2, 3]]]);\n    Print(a);\n}\n",
     );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(e.observations.stdout(), vec!["[[[4]]]"]);
@@ -2596,8 +3253,9 @@ fn live_value_cells_count_nested_headers_and_elements_before_copying() {
     assert!(e.observations.stdout().is_empty());
 }
 #[test]
-fn corpus_immutable_write_uses_current_worktree_byte_span() {
-    let source = include_str!("../../corpus/fail/immutable_write.nx");
+fn immutable_write_fixture_uses_current_source_byte_span() {
+    // Keep the corpus program's ownership oracle here.
+    let source = "// expect: E0105\nfn Main() { let value = [[1]]; value[0][0] = 2; }\n";
     let CompileError::Rejected(errors) = compile_scalar("immutable_write.nx", source).unwrap_err()
     else {
         panic!("ownership rejection")
@@ -2640,16 +3298,16 @@ fn heterogeneous_array_rejection_has_homogeneous_positive() {
         ("NX-E0102", Some("type_mismatch"), "types")
     );
     errors[0].validate("mixed_array.nx", source).unwrap();
-    let e = execute("fn main(){let a=[1,2];assert_eq(a,[1,2]);}");
+    let e = execute("fn Main() {\n    let a = [1, 2];\n    AssertEq(a, [1, 2]);\n}\n");
     assert_eq!(e.outcome, Outcome::Unit);
 }
 #[test]
 fn array_fixtures_for_empty_array_comparison_index_and_len_have_complete_positives() {
     for source in [
-        "fn main(){let xs:Array<i64>=[];assert_eq(len(xs),0);}",
-        "fn main(){let b=[1]==[2];assert_eq(b,false);}",
-        "fn main(){let x=[1][0];assert_eq(x,1);}",
-        "fn main(){let a=[1];len(a);}",
+        "fn Main() {\n    let xs: Array<I64> = [];\n    AssertEq(Len(xs), 0);\n}\n",
+        "fn Main() {\n    let b = [1] == [2];\n    AssertEq(b, false);\n}\n",
+        "fn Main() {\n    let x = [1][0];\n    AssertEq(x, 1);\n}\n",
+        "fn Main() {\n    let a = [1];\n    Len(a);\n}\n",
     ] {
         let e = execute(source);
         assert_eq!(e.outcome, Outcome::Unit, "{source}");
@@ -2660,10 +3318,11 @@ fn array_fixtures_for_empty_array_comparison_index_and_len_have_complete_positiv
 #[test]
 fn lexical_operator_repair_pairs_execute_for_lx01_through_lx05() {
     for symbol in ['/', '%', '!', '&', '|'] {
-        let negative = format!("fn main(){{let x=1{symbol}2;}}");
+        let syntax_operator = matches!(symbol, '/' | '%');
+        let negative = format!("fn Main(){{let x=1{symbol}2;}}");
         let CompileError::Rejected(errors) = compile_scalar("fixture.nx", &negative).unwrap_err()
         else {
-            panic!("lexical rejection {symbol}")
+            panic!("operator rejection {symbol}")
         };
         assert_eq!(errors.len(), 1);
         let d = &errors[0];
@@ -2674,7 +3333,11 @@ fn lexical_operator_repair_pairs_execute_for_lx01_through_lx05() {
                 d.stage.as_str(),
                 d.operation.as_str()
             ),
-            ("NX-E0001", None, "lex", "syntax.lex")
+            if syntax_operator {
+                ("NX-E0002", None, "parse", "syntax.parse")
+            } else {
+                ("NX-E0001", None, "lex", "syntax.lex")
+            }
         );
         assert_eq!(
             d.primary_span.as_ref().map(|s| (s.start, s.end)),
@@ -2689,47 +3352,72 @@ fn lexical_operator_repair_pairs_execute_for_lx01_through_lx05() {
                 token.span.start,
                 token.span.end
             ),
-            ("invalid", Some(spelling.as_str()), 17, 18)
+            (
+                if syntax_operator { "symbol" } else { "invalid" },
+                Some(spelling.as_str()),
+                17,
+                18,
+            )
         );
-        assert_eq!(d.parser_context.as_deref(), Some("lexical_token"));
-        assert_eq!(d.expected_tokens, ["valid_token"]);
+        assert_eq!(
+            d.parser_context.as_deref(),
+            Some(if syntax_operator {
+                "unsupported_binary_operator"
+            } else {
+                "lexical_token"
+            })
+        );
+        assert_eq!(
+            d.expected_tokens,
+            if syntax_operator {
+                &["+", "-", "<", "=="][..]
+            } else {
+                &["valid_token"][..]
+            }
+        );
         assert_eq!(
             d.expected_tokens_kind.map(|x| x.as_str()),
-            Some("lexical_category")
+            Some(if syntax_operator {
+                "admissible_set"
+            } else {
+                "lexical_category"
+            })
         );
         assert_eq!(
             d.recognized_prefix.as_ref().map(|s| (s.start, s.end)),
-            Some((0, 17))
+            Some((if syntax_operator { 10 } else { 0 }, 17))
         );
         assert!(d.data.is_empty());
         d.validate("fixture.nx", &negative).unwrap();
-        let e = execute("fn main(){let x=1+2;}");
+        let e = execute("fn Main() {\n    let x = 1 + 2;\n}\n");
         assert_eq!(e.outcome, Outcome::Unit);
         assert!(e.diagnostics.is_empty());
         assert!(e.observations.observations().is_empty());
     }
-    let value = execute("fn main(){let x=1+2;assert_eq(x,3);}");
+    let value = execute("fn Main() {\n    let x = 1 + 2;\n    AssertEq(x, 3);\n}\n");
     assert_eq!(value.outcome, Outcome::Unit);
 }
 #[test]
 fn adr_gap_runtime_index_primary_tracks_whole_index_operation() {
-    let read = execute("fn main(){let a=[0];print(a[2]);}");
+    let read_source = "fn Main() {\n    let a = [0];\n    Print(a[2]);\n}\n";
+    let read = execute(read_source);
     assert_eq!(read.diagnostics[0].code, "R0102");
     assert_eq!(
         read.diagnostics[0]
             .primary_span
             .as_ref()
             .map(|s| (s.start, s.end)),
-        Some((26, 30))
+        Some(byte_span(read_source, "a[2]", 0))
     );
-    let write = execute("fn main(){var a=[0];a[2]=1;}");
+    let write_source = "fn Main() {\n    var a = [0];\n    a[2] = 1;\n}\n";
+    let write = execute(write_source);
     assert_eq!(write.diagnostics[0].code, "R0102");
     assert_eq!(
         write.diagnostics[0]
             .primary_span
             .as_ref()
             .map(|s| (s.start, s.end)),
-        Some((20, 27))
+        Some(byte_span(write_source, "a[2] = 1;", 0))
     );
 }
 #[test]
@@ -2749,7 +3437,7 @@ fn generated_array_copies_and_writes_match_independent_matrix_model() {
         let replacement = draw();
         copy[row][col] = replacement;
         let source = format!(
-            "fn main(){{var a=[[{},{}],[{},{}]];var b=a;b[{row}][{col}]={replacement};print(a);print(b);}}",
+            "fn Main(){{var a=[[{},{}],[{},{}]];var b=a;b[{row}][{col}]={replacement};Print(a);Print(b);}}",
             original[0][0], original[0][1], original[1][0], original[1][1]
         );
         let expected =
@@ -2765,10 +3453,10 @@ fn generated_array_copies_and_writes_match_independent_matrix_model() {
 #[test]
 fn array_sources_with_mutated_syntax_never_panic_and_validate_rejections() {
     let templates = [
-        "fn main(){var a=[[1,2],[3,4]];a[0][1]=9;print(a[0][1]);}",
-        "fn main(){let a:Array<Array<i64>>=[[1],[2]];print(len(a));}",
-        "fn main(){let a=[true,false];assert_eq(a,[true,false]);}",
-        "fn main(){var a=[0];a[-1]=9223372036854775807+1;}",
+        "fn Main() {\n    var a = [[1, 2], [3, 4]];\n    a[0][1] = 9;\n    Print(a[0][1]);\n}\n",
+        "fn Main() {\n    let a: Array<Array<I64>> = [[1], [2]];\n    Print(Len(a));\n}\n",
+        "fn Main() {\n    let a = [true, false];\n    AssertEq(a, [true, false]);\n}\n",
+        "fn Main() {\n    var a = [0];\n    a[-1] = 9223372036854775807 + 1;\n}\n",
     ];
     for k in 0..20_000usize {
         let base = templates[k % templates.len()];
@@ -2789,7 +3477,6 @@ fn array_sources_with_mutated_syntax_never_panic_and_validate_rejections() {
                     d.validate("fuzz.nx", &source).unwrap();
                 }
             }
-            Err(CompileError::OutsideScalarSlice(_)) => {}
             Err(CompileError::InvalidIr(e)) => panic!("invalid IR from source {source}: {e}"),
             Err(CompileError::Dependent) => panic!("escaped dependent error: {source}"),
         }
@@ -2803,7 +3490,7 @@ fn nested_arrays_compile_and_run_from_small_calling_stacks() {
             .spawn(move || {
                 for depth in [1usize, 32, 64, 96, 120, 128, 129] {
                     let source = format!(
-                        "fn main(){{let a={}1{};print(len(a));}}",
+                        "fn Main(){{let a={}1{};Print(Len(a));}}",
                         "[".repeat(depth),
                         "]".repeat(depth)
                     );
@@ -2818,11 +3505,7 @@ fn nested_arrays_compile_and_run_from_small_calling_stacks() {
                                 d.validate("stack.nx", &source).unwrap();
                             }
                         }
-                        Err(CompileError::OutsideScalarSlice(_)) if depth > 120 => {}
                         Err(CompileError::Rejected(ds)) => panic!("admitted depth {depth}: {ds:?}"),
-                        Err(CompileError::OutsideScalarSlice(reason)) => {
-                            panic!("admitted depth {depth}: {reason}")
-                        }
                         Err(CompileError::InvalidIr(e)) => panic!("depth {depth}: {e}"),
                         Err(CompileError::Dependent) => {
                             panic!("depth {depth}: escaped dependent error")
@@ -2838,22 +3521,23 @@ fn nested_arrays_compile_and_run_from_small_calling_stacks() {
 #[test]
 #[ignore = "explicit array lowering scale measurement"]
 fn array_ir_lowering_scales_across_ten_source_families() {
+    let _campaign = crate::test_alloc::campaign_guard();
     let patterns = [
         "a[0][0]=1;",
         "a[1]=[3,4];",
-        "assert_eq(a[0],[1,2]);",
-        "assert_eq(a,a);",
-        "assert_eq(len(a),2);",
-        "print(a[0][1]);",
+        "AssertEq(a[0],[1,2]);",
+        "AssertEq(a,a);",
+        "AssertEq(Len(a),2);",
+        "Print(a[0][1]);",
         "[1,2,3];",
         "a[0][1]=a[1][0];",
         "{let b=a;}",
-        "print(len(a));",
+        "Print(Len(a));",
     ];
     for (family, pattern) in patterns.iter().enumerate() {
         let mut traffic = Vec::new();
         for size in [262_144usize, 1_048_576] {
-            let mut source = String::from("fn main(){var a=[[1,2],[3,4]];");
+            let mut source = String::from("fn Main(){var a=[[1,2],[3,4]];");
             while source.len() + pattern.len() + 3 <= size {
                 source.push_str(pattern);
             }
@@ -2898,7 +3582,7 @@ fn generated_scalar_programs_match_independent_decimal_model() {
         seed ^= seed << 17;
         let start = (seed % 20_001) as i64 - 10_000;
         let mut steps = Vec::new();
-        let mut source = format!("fn main(){{var x={start};");
+        let mut source = format!("fn Main(){{var x={start};");
         for index in 0..3 {
             seed ^= seed << 13;
             seed ^= seed >> 7;
@@ -2908,11 +3592,11 @@ fn generated_scalar_programs_match_independent_decimal_model() {
             steps.push((add, operand));
             source.push_str(&format!("x=x{}{operand};", if add { "+" } else { "-" }));
             if index == 1 {
-                source.push_str("{let x=true;assert_eq(x,true);}")
+                source.push_str("{let x=true;AssertEq(x,true);}")
             }
         }
         let expected = reference_linear(start, &steps);
-        source.push_str(&format!("assert_eq(x,{expected});print(x);}}"));
+        source.push_str(&format!("AssertEq(x,{expected});Print(x);}}"));
         let e = execute(&source);
         assert_eq!(e.outcome, Outcome::Unit, "{source}");
         assert_eq!(
@@ -2930,7 +3614,7 @@ fn generated_scalar_programs_match_independent_decimal_model() {
 }
 #[test]
 fn malformed_source_campaign_never_panics_and_all_diagnostics_validate() {
-    let alphabet = b"fn main(){let x=1;print(x);}/%!?\n\r[]<>=abc019 ";
+    let alphabet = b"fn Main(){let x=1;Print(x);}/%!?\n\r[]<>=abc019 ";
     let mut seed = 0xA73D_8013_017B_459Eu64;
     for _case in 0..20_000 {
         seed ^= seed << 13;
@@ -2956,7 +3640,6 @@ fn malformed_source_campaign_never_panics_and_all_diagnostics_validate() {
                     d.validate("fuzz.nx", &source).unwrap()
                 }
             }
-            Err(CompileError::OutsideScalarSlice(_)) => {}
             Err(CompileError::InvalidIr(e)) => panic!("invalid generated IR: {e} for {source:?}"),
             Err(CompileError::Dependent) => panic!("escaped dependent error: {source:?}"),
         }
@@ -2969,7 +3652,7 @@ fn scalar_lowering_and_machine_run_on_a_512_kib_caller_stack() {
         .spawn(|| {
             for depth in [1, 16, 48, 80] {
                 let source = format!(
-                    "fn main(){{print({}1{});}}",
+                    "fn Main(){{Print({}1{});}}",
                     "(".repeat(depth),
                     ")".repeat(depth)
                 );
@@ -2985,27 +3668,28 @@ fn scalar_lowering_and_machine_run_on_a_512_kib_caller_stack() {
 #[test]
 #[ignore = "explicit scaling measurement; run separately with --ignored --nocapture"]
 fn scalar_ir_lowering_scales_across_fifteen_source_families() {
+    let _campaign = crate::test_alloc::campaign_guard();
     let patterns = [
         "x=x+1;",
         "x=x-1;",
-        "print(x);",
-        "assert_eq(x,x);",
-        "assert_eq(true,true);",
+        "Print(x);",
+        "AssertEq(x,x);",
+        "AssertEq(true,true);",
         "{let y=1;}",
         "{var y=1;y=2;}",
         "{let y=true;}",
         "x=1;",
         "x=(x+1);",
         "x=1+2-3;",
-        "assert_eq(1<2,true);",
-        "print(());",
-        "print(false);",
+        "AssertEq(1<2,true);",
+        "Print(());",
+        "Print(false);",
         "{}",
     ];
     for (family, pattern) in patterns.iter().enumerate() {
         let mut measurements = Vec::new();
         for size in [262_144usize, 1_048_576] {
-            let mut source = String::from("fn main(){var x=0;");
+            let mut source = String::from("fn Main(){var x=0;");
             while source.len() + pattern.len() + 3 <= size {
                 source.push_str(pattern)
             }

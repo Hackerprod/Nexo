@@ -32,7 +32,7 @@ En cada paso terminado se guarda un commit en este repositorio y se verifica el
 estado remoto. No se publica información privada, credenciales ni registros ajenos
 al proyecto. Los hitos parciales deben declararse parciales.
 
-## Primer corte ejecutable (experimental)
+## Corte ejecutable actual (experimental)
 
 Rust 1.99.1, sin dependencias externas. Se necesita `rustfmt` y `clippy` para
 validación. La cadena está fijada en `rust-toolchain.toml`.
@@ -40,21 +40,24 @@ validación. La cadena está fijada en `rust-toolchain.toml`.
 ```sh
 cargo run --locked --offline -- check corpus/pass/nested_copy.nx
 cargo run --locked --offline -- run corpus/pass/nested_copy.nx
-./scripts/validate.sh
+sh scripts/validate.sh
 ```
 
 Salida del segundo comando: `[[1, 9], [7, 8]]`. El programa comprueba también
 que cambiar una copia anidada no modifica su original.
 
-El corte incluye parser, tipos/propiedad secuenciales, intérprete y CLI. Los
-recursos son simulados y su rastro se escribe a stderr; no abre archivos Nexo ni
-sockets. Los códigos de salida son 0 éxito, 1 diagnóstico y 2 error de invocación
-(o lectura). `check` no ejecuta efectos. No hay backend nativo, IR bajada, préstamos,
-efectos, closures, generadores ni biblioteca real. Los puntos y coma son obligatorios
-en este corte; las características no implementadas se rechazan.
+La sintaxis oficial es B, descrita en [F0-D15](docs/adr/F0-D15-sintaxis-oficial.md).
+`check` analiza una biblioteca sin exigir `Main` y verifica la IR sin ejecutar
+efectos. `run` exige `Main`, compila la IR verificada y ejecuta el subconjunto
+disponible. Los recursos son simulados y su rastro se escribe a stderr; no abre
+archivos Nexo ni sockets. Los códigos de salida son 0 éxito, 1 diagnóstico y 2
+error de invocación, lectura o fallo interno controlado. Las opciones de
+`check` y `run` todavía no están disponibles. Result, contratos de efectos y
+la interfaz mock integrada reciben `NX-E0006/implementation_limit` con el
+ámbito pendiente correspondiente. No hay compilador de producción.
 
-- [Contrato y límites del corte](docs/adr/F0-0001-first-slice.md)
-- [Revisión independiente](docs/validation/F0-0001-review.md)
+- [Contrato y límites actuales](docs/adr/F0-0002-second-slice.md)
+- [Sintaxis oficial y límites de la migración](docs/adr/F0-D15-sintaxis-oficial.md)
 
-Este resultado aporta evidencia parcial a T01/T02/T07/T08/T25, no su aprobación
-completa. Ningún resultado de este intérprete es una medida competitiva de Nexo.
+El intérprete sigue siendo evidencia parcial de F0. Ningún resultado suyo es
+una medida competitiva de Nexo ni aprueba una fase.

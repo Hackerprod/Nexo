@@ -1,10 +1,10 @@
-fn main() {
-    let source = mock_open(10);
+fn Main() {
+    let source = MockOpen(10);
     let owner = move source;
-    inspect(owner);
+    Inspect(owner);
     {
-        let inner = mock_open(20);
-        inspect(inner);
+        let inner = MockOpen(20);
+        Inspect(inner);
     }
-    drop(owner);
+    Drop(owner);
 }

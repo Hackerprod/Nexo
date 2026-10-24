@@ -1,2 +1,2 @@
-// expect: E0002
-fn main() {} ignored
+// expect: NX-E0002
+fn Main() {} ignored

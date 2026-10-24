@@ -155,46 +155,46 @@ Para comparaciones de F0-0002, tipos concretos de operandos distintos producen N
 
 DG06–DG08 fijan sus primarios, relaciones y cadenas literalmente en F0-0002 §14.11. DG04/DG07/DG08 divergen del código actual: disponibilidad causal y origen del tipo esperado deben corregirse, respectivamente, en I07b e I07c. DG05/DG06 se cierran con propiedad en I07b; no se pospone esta obligación a cuotas de ejecución.
 
-### Feature IDs de NX-E0006 para f0-0002-v2
+### Feature IDs de NX-E0006 para f0-0002-b-v2
 
-Esta tabla conserva los 30 identificadores documentales de F0-0002. En la superficie B única, F0-D15 §§3.6, 6.1 y 7.1 retira legacy_move y lo sustituye por implementation_limit: siguen siendo 30, sin añadir un código NX-E. Este último usa stage types, operation types.check y pending_scope I08/I09/I10a/I10b/I11a para las capacidades pendientes; sus demás campos y fuente de explain están fijados literalmente allí. Los 29 identificadores restantes conservan su significado. El esquema B admite esos cinco valores únicamente para implementation_limit; migration deja de emitirse.
+El conjunto cerrado contiene **30 feature_id**: 29 exclusiones de alcance de B y `implementation_limit`, frontera temporal de capacidades pendientes. Todos conservan `subcause = null`. La tabla enumera los identificadores en orden por bytes. Procedencia: [F0-D15 §§3.6, 6.1, 6.5 y 7.1](F0-D15-sintaxis-oficial.md).
 
 Procedencia: [F0-0002 §§2.2, 3.4, 6.6, 13.6 y 14.6](F0-0002-second-slice.md).
 
 Los feature_id siguientes son identificadores cerrados del perfil, no subcausas de NX-E0006. Los perfiles reducidos publicados en F0-0002 §11 heredan esta misma lista.
 
-| feature_id | Construcción diferida o migración |
+| feature_id | Construcción diferida o capacidad pendiente |
 |---|---|
-| legacy_move | Operador provisional move de F0-0001; consume es la migración documental de este perfil, sujeta a la superficie oficial F0-D15 y a recomprobación. |
-| inferred_non_unit_result | Función sin anotación de resultado que requiere inferir un resultado distinto de unidad. |
-| float_literal | Literal decimal reconocido; semántica flotante no implementada. |
-| range | Rango reconocido mediante .., sin ejecución de rangos en el perfil. |
-| tuple | Tipo, expresión o patrón de producto distinto de unidad/agrupación. |
-| attributes | Atributos, incluido @derive. |
-| default_argument | Valor por defecto de parámetro. |
-| closure | Literal de closure y sus capturas. |
-| function_value | Uso almacenado, retornado o pasado de una función como valor. |
-| receiver_mode | Prefijo inout/consume aplicado al receptor de una llamada completa. |
-| partial_transfer | Transferencia o destrucción de una proyección de un propietario existente, en vez de un binding completo (§6.6). |
-| resource_array | Array cuyo elemento contiene transitivamente un recurso. |
-| no_heap_alloc | Contrato reconocido, fuera del conjunto implementado por este perfil. |
-| match | Selección por patrones; `pending_scope = F0-0003` identifica el diseño de la selección necesaria para `next`/`Option`, sin prometer toda la selección por patrones de la base en ese corte. |
-| option | Tipo o constructores intrínsecos de Option. |
-| user_types | Struct, enum o alias declarado por el usuario. |
-| traits_generics | Traits, impl, genéricos, where o despacho dinámico. |
-| modules_visibility | Mod, use, pub o rutas de módulos adicionales fuera del contexto de tipo descrito abajo. |
-| extensions | Extend, use extension o llamada cualificada de extensión. |
-| provenance_clauses | From, result_from o retains escritos. |
-| comptime | Evaluación o constantes de módulo mediante comptime. |
-| text | Cadenas e interpolación. |
-| methods | Selección o invocación de métodos/campos fuera de las proyecciones indexadas del perfil; `self` como expresión de receptor reconocida, con span de ese token y etapa `parse`. En posición que exige Name, `self` conserva NX-E0002. |
-| compound_assignment | Asignación compuesta, incluido +=. |
-| for_iteration | For y su protocolo de iteración. |
-| loop_control | Break o continue. |
-| generator | Gen fn, yield y operaciones de generador. |
 | async | Async, await y tipos u operaciones reconocidos de tareas/futuros. |
+| attributes | Atributos, incluido @derive. |
+| closure | Literal de closure y sus capturas. |
+| compound_assignment | Asignación compuesta, incluido +=. |
+| comptime | Evaluación o constantes de módulo mediante comptime. |
+| default_argument | Valor por defecto de parámetro. |
+| extensions | Extend, use extension o llamada cualificada de extensión. |
+| float_literal | Literal decimal reconocido; semántica flotante no implementada. |
+| for_iteration | For y su protocolo de iteración. |
+| function_value | Uso almacenado, retornado o pasado de una función como valor. |
+| generator | Gen fn, yield y operaciones de generador. |
+| implementation_limit | Capacidad pendiente de implementación en I08, I09, I10a, I10b o I11a; frontera sobre AST/tipos resueltos, no prohibición del lenguaje (F0-D15 §7.1). |
+| inferred_non_unit_result | Función sin anotación de resultado que requiere inferir un resultado distinto de unidad. |
+| loop_control | Break o continue. |
+| match | Selección por patrones; `pending_scope = F0-0003` identifica el diseño de la selección necesaria para `next`/`Option`, sin prometer toda la selección por patrones de la base en ese corte. |
+| methods | Selección o invocación de métodos/campos fuera de las proyecciones indexadas del perfil; `self` como expresión de receptor reconocida, con span de ese token y etapa `parse`. En posición que exige Name, `self` conserva NX-E0002. |
+| modules_visibility | Mod, use, pub o rutas de módulos adicionales fuera del contexto de tipo descrito abajo. |
+| no_heap_alloc | Contrato reconocido, fuera del conjunto implementado por este perfil. |
+| option | Tipo o constructores intrínsecos de Option. |
+| partial_transfer | Transferencia con `move` o destrucción con `Drop` de una proyección de un propietario existente, en vez de un binding completo (F0-0002 §6.6; F0-D15 §§6.1 y 6.5). |
+| provenance_clauses | From, result_from o retains escritos. |
+| range | Rango reconocido mediante `..<` o `..=`, sin ejecución de rangos en el perfil. |
+| receiver_mode | Prefijo `edit`/`move` aplicado al receptor de una llamada completa. |
 | region | Regiones y su grupo de tareas. |
-| unsupported_type | Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye u32, u64, f32, String y app.Error. |
+| resource_array | Array cuyo elemento contiene transitivamente un recurso. |
+| text | Cadenas e interpolación. |
+| traits_generics | Traits, impl, genéricos, where o despacho dinámico. |
+| tuple | Tipo, expresión o patrón de producto distinto de unidad/agrupación. |
+| unsupported_type | Ruta de tipo reconocida que no pertenece a la lista aceptada ni tiene una exclusión más específica; incluye `U32`, `U64`, `F32`, `String` y `app.Error`. |
+| user_types | Struct, enum o alias declarado por el usuario. |
 
 `indirect_call` se retira de la lista emitible propuesta para este perfil. No existe un valor invocable aceptado que permita aislar esa causa: la introducción de ese valor falla antes por closure o function_value. Un valor aceptado no invocable usa NX-E0111/non_callable_target. No se exige una fixture imposible ni se acredita soporte indirecto.
 
@@ -411,14 +411,14 @@ Una IR inválida o transición imposible se informa como fallo interno de implem
 
 Procedencia: [F0-0002 §§13.2–13.5](F0-0002-second-slice.md).
 
-NX-E0203 permanece en el catálogo con sus cuatro subcausas históricas, pero no se emite bajo los perfiles de F0-0002:
+NX-E0203 permanece en el catálogo con sus cuatro subcausas históricas, pero no se emite bajo los perfiles de F0-0002. F0-D15 §§6.1 y 6.5 no eliminan ni renombran estas subcausas; en explain conservan `availability = historical` y `example_profile_id = null`. F2-F01 deja de ser negativa porque `move` es oficial en B. Procedencia: [F0-D15 §§6.1, 6.4–6.5 y 7.3](F0-D15-sintaxis-oficial.md).
 
 | Subcausa histórica | Destino en F0-0002 |
 |---|---|
-| unsupported_move_position | La grafía move usa NX-E0006, feature_id = legacy_move. Tras migrar a consume, los bindings completos se transfieren en contextos propietarios; proyecciones y receptores prefijados conservan sus exclusiones específicas partial_transfer y receiver_mode. |
+| unsupported_move_position | Subcausa histórica no emitible. El binding completo se transfiere con `move` en contextos propietarios; proyecciones y receptores prefijados conservan partial_transfer y receiver_mode (F0-D15 §6.5). |
 | unsupported_resource_position | Temporales, argumentos, retornos y Result con recursos pasan a estar admitidos. Arrays que contienen recursos usan NX-E0006, feature_id = resource_array. |
 | unsupported_resource_rebinding | Retirada: se permite reasignación completa de var con limpieza. Un binding inmutable conserva NX-E0105. |
-| unsupported_transfer_kind | Retirada: consume y drop de datos propietarios están permitidos. Move continúa rechazado como grafía legada, independientemente del tipo. |
+| unsupported_transfer_kind | Subcausa histórica no emitible: `move` y `Drop` de datos propietarios están permitidos en B (F0-D15 §§6.1 y 6.5). |
 
 La restricción E0002 «única fn main» también se retira del perfil nuevo. Varias funciones son válidas; check admite biblioteca sin main; run usa NX-E0112 para su entrada. La sintaxis inválida conserva NX-E0002, los terminadores reconocidos NX-E0005 y las características reconocidas diferidas NX-E0006.
 
@@ -558,7 +558,11 @@ nexo explain NX-Edddd
 nexo explain NX-Edddd --subcause nombre
 ```
 
-La explicación describe regla, causa, ejemplo negativo, positivo y consecuencias de las reparaciones. `nexo explain NX-E0006` devuelve 30 entradas, una por feature_id, con lista `feature_ids` unitaria, `subcause = null` y ejemplos propios de la primera fila F2-F01–F2-F33 correspondiente, según F0-0002 §13.10; no devuelve una única fuente para las 30 exclusiones. Una consulta con código o subcausa inexistentes devuelve un error de uso; no fabrica documentación. Las etiquetas locales de fixtures de F0-0002 se citan fuera de ese ADR con prefijo `F2-`, sin renombrar las fixtures de D11, D13 o del catálogo.
+La explicación describe regla, causa, ejemplo negativo, positivo y consecuencias de las reparaciones. `nexo explain NX-E0006` devuelve **30 entradas**, una por feature_id de la tabla cerrada, en el mismo orden por bytes, con `feature_ids = [ID]`, `subcause = null`, `explanation_id = NX-E0006`, `availability = in_profile` y `example_profile_id = f0-0002-b-v2`. Los ejemplos negativo/positivo son la primera fila B por número de F0-D15 §8.7 para ese ID y su edición completa; `unsupported_type` usa F2-F29 y `methods` F2-F23. Procedencia: [F0-0002 §13.10](F0-0002-second-slice.md), enmendado por [F0-D15 §§3.6, 6.1 y 6.4](F0-D15-sintaxis-oficial.md).
+
+Para `implementation_limit`, la explicación enumera I08, I09, I10a, I10b e I11a como capacidades pendientes, sin atribuir una prohibición al lenguaje. El negativo es `fn Main()->Result<(),I64>{return Ok(());}` y el positivo `fn Main(){}`; el negativo exige `pending_scope = I08` y primario `Result<(),I64>` en `[11,25)`. Al implementar I08 se sustituye por una capacidad aún pendiente; cuando no quede ninguna, el ejemplo pasa a histórico (F0-D15 §§6.1 y 7.1). NX-E1301 conserva `availability = historical`, `example_profile_id = null` y ejemplos históricos, no fuentes B aceptables (F0-D15 §6.1).
+
+Una consulta con código o subcausa inexistentes devuelve un error de uso; no fabrica documentación. Las etiquetas locales de fixtures de F0-0002 se citan fuera de ese ADR con prefijo `F2-`, sin renombrar las fixtures de D11, D13 o del catálogo (F0-0002 §13.10).
 
 Los diagnósticos de alcance incluyen feature_id. Los de efectos incluyen effect_model, contract_origin, operation, effect_evidence y cause_chain. NX-E1105 usa exclusivamente las claves y combinaciones de permiso/acceso de la tabla por subcausa de F0-0002 §13.6, incluidas las expectativas completas de F2-P04–F2-P07; `borrow_inout` identifica la solicitud de préstamo exclusivo y no crea un préstamo si se rechaza. `callee` no se emite en `data`; las otras identidades y permisos de esa tabla están ausentes en códigos distintos de NX-E1105. Las ubicaciones sintéticas de limpieza relacionan el binding propietario y la salida; no inventan un drop escrito.
 
@@ -581,6 +585,22 @@ La comparación de observaciones exige salida, eventos, intercalación, bytes vi
 Procedencia: [F0-0002 §§13.6–13.10](F0-0002-second-slice.md).
 
 Para schema_version = 1 de este perfil, se incorpora por referencia la definición completa de **F0-0002 §§13.6–13.10**: tipos literales de Diagnostic, Span, RelatedSpan, Cause, Token, Repair y Data; obligatoriedad; orden de listas; ejemplos completos; presentación textual; cardinalidad de diagnósticos y formato de explain.
+
+Para NX-E0006, `data.pending_scope` es obligatorio y queda cerrado a la tabla siguiente; no admite `migration`, `I10` ni `I11b`. Procedencia: [F0-0002 §13.6](F0-0002-second-slice.md), enmendado por [F0-D15 §§3.6, 6.1 (fila «§13.6 feature_id y pending_scope») y 7.1](F0-D15-sintaxis-oficial.md).
+
+| feature_id | pending_scope | Regla |
+|---|---|---|
+| closure, generator, option, match | F0-0003 | Diseño diferido de estas construcciones. |
+| Los otros 25 identificadores de alcance | later_adr | Alcance diferido; excluye implementation_limit. |
+| implementation_limit | I08 | Result, Ok/Err, `?`, TryAdd y firmas Result de entrada; primario sobre el tipo o construcción correspondiente. Main con resultado unidad puede ejecutarse; firmas incompatibles conservan NX-E0112. |
+| implementation_limit | I09 | Contratos y comprobación transitiva de efectos: cláusula with escrita o primitiva que exige el manifiesto pendiente, incluida MockUnknown. No se acepta un contrato sin verificarlo. |
+| implementation_limit | I10a | Perfiles reducidos y garantías completas de análisis: solicitud explícita del arnés interno de un perfil no disponible; no rechaza programas ordinarios ni sustituye fallos de cuotas/metadatos. La opción CLI se rechaza con exit 2. |
+| implementation_limit | I10b | Cuotas completas de ejecución, contabilidad y reservas de observación: solicitud del arnés interno de un perfil o protocolo no disponible. El subconjunto ordinario conserva sus guardas; no sustituye discrepancias de ticks/reservas. La opción CLI se rechaza con exit 2. |
+| implementation_limit | I11a | Interfaz mock de entrada y tres flujos integrados: primera llamada aún no ejecutable a MockReadRecords, MockWriteI64, MockRequest o MockReply, aunque I08 ya admita Result. I11b integra evidencia, no añade una capacidad que justifique rechazo. |
+
+`implementation_limit` usa `stage = types`, `operation = types.check`, `rule = explanation_id = NX-E0006`, `subcause = null`, namespace Nexo-proposed-v1, severity error y perfil B vigente. El primario señala la primera construcción que necesita la capacidad o EOF vacío para una petición del arnés sin construcción fuente. `data` contiene únicamente `pending_scope`; related_spans, cause_chain, repair y expected_tokens están vacíos; unexpected_token, parser_context, recognized_prefix y expected_tokens_kind son null. El mensaje literal es `Capacidad pendiente de implementación en {pending_scope}.`, con el valor sustituido; exit 1, sin salida de programa ni eventos. Entre varias capacidades se elige el menor inicio fuente y, a igualdad de sitio, I08, I09, I10a, I10b, I11a; una barrera anterior conserva prioridad. No se reconoce por patrones de fuente ni convierte fallos internos en diagnósticos de programa (F0-D15 §7.1).
+
+El rechazo temporal no acredita conformidad ni sustituye los esperados semánticos, de inferencia/procedencia, presupuestos/metadatos o ticks/spans/reservas de F0-0002 §17.2. Cada capacidad deja de emitir su rechazo cuando se implementa (F0-D15 §§6.1, 7.1 y 7.3).
 
 En particular:
 

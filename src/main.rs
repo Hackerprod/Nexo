@@ -1,4 +1,10 @@
 use std::{env, ffi::OsStr, fs, process::ExitCode};
+
+use nexo::diagnostic::{
+    self, DataValue, Diagnostic, InputError, Namespace, Operation, Severity, SourceView, Span,
+    Stage,
+};
+
 fn main() -> ExitCode {
     let args_os: Vec<_> = env::args_os().skip(1).collect();
     if args_os
@@ -11,7 +17,7 @@ fn main() -> ExitCode {
                 return explain_error(
                     None,
                     None,
-                    nexo::diagnostic::ExplainError::InvalidArguments,
+                    diagnostic::ExplainError::InvalidArguments,
                     pre_scan_format_os(&args_os[1..]),
                 );
             };
@@ -19,67 +25,242 @@ fn main() -> ExitCode {
         }
         return explain_command(&args);
     }
-    let args: Vec<_> = env::args().skip(1).collect();
-    if args.len() != 2 || !["check", "run"].contains(&args[0].as_str()) {
-        eprintln!(
-            "usage: nexo <check|run> <file.nx>\nF0 slice 1; unsupported Nexo features are rejected."
-        );
+    // Reject every option and malformed invocation before opening the source.
+    if args_os.len() != 2 || !(args_os[0] == OsStr::new("check") || args_os[0] == OsStr::new("run"))
+    {
+        eprintln!("nexo-driver:invalid_arguments");
         return ExitCode::from(2);
     }
-    // Bound the read itself, rather than allocating an arbitrarily large file
-    // before the parser can enforce its source-size limit.
-    let bytes = match fs::File::open(&args[1]) {
-        Ok(file) => match nexo::diagnostic::read_bounded(file) {
+    let Some(file) = args_os[1].to_str() else {
+        eprintln!("nexo-driver:invalid_arguments");
+        return ExitCode::from(2);
+    };
+    if file.starts_with("--") {
+        eprintln!("nexo-driver:invalid_arguments");
+        return ExitCode::from(2);
+    }
+    let bytes = match fs::File::open(file) {
+        Ok(handle) => match diagnostic::read_bounded(handle) {
             Ok(bytes) => bytes,
-            Err(nexo::diagnostic::InputError::TooLarge { .. }) => {
-                eprintln!("E0003:1:1: F0 source limit is 1 MiB");
-                return ExitCode::FAILURE;
-            }
-            Err(nexo::diagnostic::InputError::Unreadable(error)) => {
-                eprintln!("E0004: cannot read UTF-8 source: {error}");
-                return ExitCode::from(2);
-            }
-            Err(error) => unreachable!("unexpected bounded-read error: {error:?}"),
+            Err(error) => return input_failure(file, error, 0),
         },
-        Err(e) => {
-            eprintln!("E0004: cannot read UTF-8 source: {e}");
-            return ExitCode::from(2);
-        }
+        Err(error) => return input_failure(file, InputError::Unreadable(error.to_string()), 0),
     };
-    let source = match nexo::diagnostic::decode_utf8(bytes) {
+    let bytes_len = bytes.len();
+    let source = match diagnostic::decode_utf8(bytes) {
         Ok(source) => source,
-        Err(nexo::diagnostic::InputError::InvalidUtf8 { message, .. }) => {
-            eprintln!("E0004: cannot read UTF-8 source: {message}");
-            return ExitCode::from(2);
-        }
-        Err(e) => {
-            eprintln!("E0004: cannot read UTF-8 source: {e:?}");
-            return ExitCode::from(2);
-        }
+        Err(error) => return input_failure(file, error, bytes_len),
     };
-    let program = match nexo::compile(&source) {
-        Ok(p) => p,
-        Err(e) => {
-            eprintln!("{}", e.render(&source));
+    let compiled = if args_os[0] == OsStr::new("check") {
+        nexo::ir::check_scalar(file, &source)
+    } else {
+        nexo::ir::compile_scalar(file, &source)
+    };
+    let program = match compiled {
+        Ok(program) => program,
+        Err(nexo::ir::CompileError::Rejected(errors)) => {
+            for error in errors {
+                if render_error(
+                    &error,
+                    file,
+                    SourceView {
+                        bytes_len,
+                        text: Some(&source),
+                    },
+                )
+                .is_err()
+                {
+                    return ExitCode::from(2);
+                }
+            }
             return ExitCode::FAILURE;
         }
+        Err(_) => {
+            eprintln!("nexo-driver:internal_error");
+            return ExitCode::from(2);
+        }
     };
-    if args[0] == "check" {
-        println!("checked: F0 slice 1 (not full-language validation)");
+    if args_os[0] == OsStr::new("check") {
+        println!("nexo-check:ok");
         return ExitCode::SUCCESS;
     }
-    let result = nexo::runtime::execute(&program);
-    for line in result.output {
-        println!("{line}")
+    // run_scalar verifies the program immediately before execution.
+    let execution = nexo::interp::run_scalar(&program);
+    for observation in execution.observations.observations() {
+        match observation.channel {
+            nexo::interp::observation::Channel::Stdout => println!("{}", observation.text),
+            nexo::interp::observation::Channel::Event => {
+                eprintln!("mock-resource:{}", observation.text)
+            }
+        }
     }
-    for event in result.events {
-        eprintln!("mock-resource:{event}")
+    for error in &execution.diagnostics {
+        if render_error(
+            error,
+            file,
+            SourceView {
+                bytes_len,
+                text: Some(&source),
+            },
+        )
+        .is_err()
+        {
+            return ExitCode::from(2);
+        }
     }
-    if let Some(error) = result.error {
-        eprintln!("{}", error.render(&source));
-        ExitCode::FAILURE
-    } else {
-        ExitCode::SUCCESS
+    match execution.outcome {
+        nexo::interp::Outcome::Unit => {
+            eprintln!("nexo-result:()");
+            ExitCode::SUCCESS
+        }
+        nexo::interp::Outcome::SimulatorFault => ExitCode::FAILURE,
+        nexo::interp::Outcome::InternalError(_) => {
+            eprintln!("nexo-driver:internal_error");
+            ExitCode::from(2)
+        }
+    }
+}
+
+fn render_error(error: &Diagnostic, file: &str, view: SourceView<'_>) -> Result<(), ()> {
+    match error.render_text_view(file, view) {
+        Ok(text) => {
+            eprint!("{text}");
+            Ok(())
+        }
+        Err(_) => {
+            eprintln!("nexo-driver:internal_error");
+            Err(())
+        }
+    }
+}
+
+fn input_failure(file: &str, error: InputError, bytes_len: usize) -> ExitCode {
+    let (diagnostic, status, view) = match error {
+        InputError::Unreadable(_) => {
+            let mut d = diagnostic_base(
+                "NX-E0004",
+                Some("source_unreadable"),
+                Stage::Input,
+                Operation::InputRead,
+                None,
+                "No se puede leer la fuente.",
+            );
+            d.data
+                .insert("input_path".into(), DataValue::String(file.into()));
+            (
+                d,
+                2,
+                SourceView {
+                    bytes_len: 0,
+                    text: None,
+                },
+            )
+        }
+        InputError::TooLarge { limit, observed } => {
+            let mut d = diagnostic_base(
+                "NX-E0003",
+                None,
+                Stage::Input,
+                Operation::AnalysisLimit,
+                Some(Span {
+                    file: file.into(),
+                    start: limit as u64,
+                    end: observed as u64,
+                }),
+                "Fuente excede el límite de bytes.",
+            );
+            d.data.insert(
+                "budget_kind".into(),
+                DataValue::String("source_bytes".into()),
+            );
+            d.data.insert(
+                "budget_scope".into(),
+                DataValue::String("compilation".into()),
+            );
+            d.data.insert(
+                "incomplete_analysis".into(),
+                DataValue::String("input".into()),
+            );
+            d.data.insert("limit".into(), DataValue::UInt(limit as u64));
+            d.data
+                .insert("observed".into(), DataValue::UInt(observed as u64));
+            (
+                d,
+                1,
+                SourceView {
+                    bytes_len: observed,
+                    text: None,
+                },
+            )
+        }
+        InputError::InvalidUtf8 {
+            start,
+            end,
+            bytes_hex,
+            ..
+        } => {
+            let mut d = diagnostic_base(
+                "NX-E0004",
+                Some("invalid_utf8"),
+                Stage::Input,
+                Operation::InputDecode,
+                Some(Span {
+                    file: file.into(),
+                    start: start as u64,
+                    end: end as u64,
+                }),
+                "La fuente no es UTF-8 válido.",
+            );
+            d.data
+                .insert("invalid_bytes_hex".into(), DataValue::String(bytes_hex));
+            (
+                d,
+                2,
+                SourceView {
+                    bytes_len,
+                    text: None,
+                },
+            )
+        }
+    };
+    if render_error(&diagnostic, file, view).is_err() {
+        return ExitCode::from(2);
+    }
+    ExitCode::from(status)
+}
+
+fn diagnostic_base(
+    code: &str,
+    subcause: Option<&str>,
+    stage: Stage,
+    operation: Operation,
+    primary_span: Option<Span>,
+    message: &str,
+) -> Diagnostic {
+    let rule = subcause.map_or_else(|| code.to_owned(), |s| format!("{code}/{s}"));
+    Diagnostic {
+        schema_version: diagnostic::SCHEMA_VERSION,
+        diagnostic_namespace: Namespace::NexoProposedV1,
+        profile_id: diagnostic::PROFILE_ID.into(),
+        code: code.into(),
+        subcause: subcause.map(str::to_owned),
+        rule: rule.clone(),
+        explanation_id: Some(rule),
+        severity: Severity::Error,
+        stage,
+        message: message.into(),
+        operation,
+        primary_span,
+        related_spans: vec![],
+        cause_chain: vec![],
+        feature_id: None,
+        unexpected_token: None,
+        expected_tokens: vec![],
+        expected_tokens_kind: None,
+        parser_context: None,
+        recognized_prefix: None,
+        repair: vec![],
+        data: Default::default(),
     }
 }
 
