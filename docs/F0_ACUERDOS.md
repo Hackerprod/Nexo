@@ -333,3 +333,18 @@ componentes son funciones del estado, se recargan sin perder el estado.
 
 **Fases propuestas** (sin aprobar): H0 en F2 (ya planificado); H1 en el intérprete de desarrollo
 poco después de F2; H2 al cerrar el backend nativo de desarrollo; H3 solo con ADR propio.
+
+**Decisión del propietario (2026-10-25).** Nexo debe tener recarga en caliente NATIVA de primera
+clase, no solo en el intérprete. Consecuencias registradas:
+- La regla 3 se enmienda: los marcos de llamada ya activos terminan con el código anterior, SALVO los
+  bucles permanentes (por ejemplo, el bucle de eventos o el cuerpo de una aplicación interactiva) que el
+  compilador pueda transformar de forma comprobable para trasladar su ejecución al código nuevo (nivel
+  H1b, posterior a H1). El contrato de elegibilidad, estado transportado, equivalencia y salidas se
+  fija en un ADR propio; sin elegibilidad demostrada, la regla 3 sigue vigente.
+- Las ideas de la arquitectura externa del compilador (`docs/proposals/compilador-maestro-recarga-r3-1.md`)
+  se evalúan por su MÉRITO para Nexo. No se descartan por ser difíciles ni por contradecir una
+  decisión previa: si benefician al lenguaje, se portan mediante una enmienda explícita y razonada a
+  la regla o al ADR que contradicen; el registro de qué se adopta, adapta o difiere está en
+  `docs/proposals/compilador-maestro-recarga-evaluacion.md`.
+- Las reglas 4 (generadores y tareas suspendidas) y 7 (equivalencia con ejecución limpia) se revisan
+  en el mismo ADR con ese criterio, con el arnés diferencial como mínimo obligatorio.
