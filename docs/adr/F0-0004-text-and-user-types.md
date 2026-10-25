@@ -1,6 +1,6 @@
 # F0-0004 — Texto UTF-8 y tipos de usuario
 
-Estado: **decisiones de arquitectura; pendiente de revisión independiente**.
+Estado: **decisiones de arquitectura revisadas de forma independiente; sin implementación ni aprobación de fase**.
 
 ## 1. Autoridad, producto y frontera
 

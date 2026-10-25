@@ -1,15 +1,17 @@
 # Nexo — Flujo de trabajo de agentes
 
-Objetivo permanente: un lenguaje que tome lo mejor de los demás (ver roadmap §2) y sea
-**agent friendly**. Autoridad documental: `docs/baseline/` (rev 0.2, intacta) y
-`docs/F0_ACUERDOS.md`. No se crea una rev 0.3.
+Objetivo permanente: un lenguaje de propósito general que tome lo mejor de los demás (ver roadmap §2),
+facilite el desarrollo y permita control progresivo de la máquina, con herramientas útiles para
+personas y agentes (**agent friendly**, sin que ello sea el único criterio). Visión y principios en
+`docs/VISION.md`. Autoridad documental: `docs/baseline/` (rev 0.2, intacta) y `docs/F0_ACUERDOS.md`.
+No se crea una rev 0.3.
 
 ## Roles
 
 - **Coordinador (Claude, juez):** no implementa. Lanza a los demás, relaciona veredictos,
   decide la siguiente fase, verifica commits y estado remoto. Su rol es que todo fluya.
 - **Codex (modelo Astra):** diseña arquitectura/ADR cuando algo no está en el roadmap.
-- **Codex (modelo GPT 6 Luna):** implementa (opción barata).
+- **Codex (modelo GPT 6 Sol; Luna como opción barata):** implementa.
 - **Subagente Sonnet 5.5 (esfuerzo medium):** valida, vía `.claude/agents/nexo-validator.md`. Nunca implementa ni rebaja requisitos para aprobar.
 
 ## Flujo A — Fases o mecánicas no planteadas en el roadmap
@@ -22,7 +24,7 @@ Objetivo permanente: un lenguaje que tome lo mejor de los demás (ver roadmap §
 
 ## Flujo B — Cuando ya no hay nada por diseñar, solo construir
 
-1. Codex (GPT 6 Luna) implementa.
+1. Codex (GPT 6 Sol o Luna) implementa.
 2. Subagente Sonnet 5.5 valida robustez y detecta desvíos (respecto del ADR, el roadmap y
    la idea central).
 3. Si da **PASS**, se comienza la siguiente fase. Si no, el coordinador especifica el motivo
@@ -32,6 +34,9 @@ Objetivo permanente: un lenguaje que tome lo mejor de los demás (ver roadmap §
 
 - Implementador y validador siempre distintos. Al validador se le da el código y los
   criterios, no la opinión previa del coordinador.
+- Las observaciones de una revisión se clasifican según el contrato del corte, no según el número de
+  rondas: un incumplimiento obligatorio bloquea siempre; una mejora fuera del compromiso se registra sin
+  bloquear.
 - Veredicto de cada requisito: PASA / FALLA / NO EVALUADO / INCONCLUSO, con evidencia.
   Cada fallo corregido deja una regresión. Un negativo que falla por sintaxis accidental
   no cuenta.
@@ -90,6 +95,7 @@ las decisiones.
   especificada de forma normativa en `docs/adr/F0-D15-sintaxis-oficial.md`. No hay competencia entre
   candidatas, ni modo de compatibilidad, ni dos sintaxis vivas en el repositorio.
 - Sin adaptadores permanentes, sin parches por patrón de fuente y sin flujos duplicados. Si una corrección
-  exige tocar la causa de raíz (representación, modelo de datos, diseño), se hace en la raíz.
+  exige tocar la causa de raíz (representación, modelo de datos, diseño), se hace en la raíz. Un defecto
+  local se corrige localmente; solo varios fallos con una causa estructural común justifican rediseñar.
 - Una migración se hace en un solo corte: el código y las fixtures nuevas sustituyen a las antiguas, sin
   dejar rastro de la versión anterior salvo en documentos históricos.

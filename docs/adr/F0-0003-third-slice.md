@@ -1,6 +1,6 @@
 # F0-0003 — Option, selección, closures locales y generadores propietarios
 
-Estado: **decisiones de arquitectura; pendiente de revisión independiente**.
+Estado: **decisiones de arquitectura revisadas de forma independiente; sin implementación ni aprobación de fase**.
 Fecha: 2026-10-25. Perfil objetivo: `f0-0003-b-v1`.
 
 ## 1. Autoridad y compromiso

@@ -1,6 +1,6 @@
 # F0-0005 — Operadores, control y colecciones para programas de consola
 
-Estado: **decisiones de arquitectura; pendiente de revisión independiente**.
+Estado: **decisiones de arquitectura revisadas de forma independiente; sin implementación ni aprobación de fase**.
 
 ## 1. Autoridad, alcance y orden
 
