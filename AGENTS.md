@@ -35,8 +35,11 @@ No se crea una rev 0.3.
 - Implementador y validador siempre distintos. Al validador se le da el código y los
   criterios, no la opinión previa del coordinador.
 - Las observaciones de una revisión se clasifican según el contrato del corte, no según el número de
-  rondas: un incumplimiento obligatorio bloquea siempre; una mejora fuera del compromiso se registra sin
-  bloquear.
+  rondas: un incumplimiento obligatorio bloquea siempre, por pequeño que sea (una cifra errónea, una
+  cita inexacta, una ambigüedad que deja una decisión abierta o una contradicción entre documentos);
+  los bloqueantes menores acumulados degradan el lenguaje y son difíciles de corregir después. Solo se
+  registra sin bloquear lo realmente leve: una mejora de redacción o una nota que no cambia ninguna regla,
+  cifra ni cita.
 - Veredicto de cada requisito: PASA / FALLA / NO EVALUADO / INCONCLUSO, con evidencia.
   Cada fallo corregido deja una regresión. Un negativo que falla por sintaxis accidental
   no cuenta.
