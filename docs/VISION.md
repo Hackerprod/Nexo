@@ -52,6 +52,14 @@ después de validar sintaxis, motor y concurrencia.
 - Una sola implementación en el árbol final: sin adaptadores permanentes, sin parches por patrón de
   fuente y sin flujos duplicados. Un defecto local se corrige localmente; si varios fallos revelan una
   causa estructural, se rediseña la causa.
+- Superficie mínima: toda característica nueva debe justificar el problema que resuelve y qué
+  elimina o simplifica; Nexo no crece por acumulación. Lo que no puede explicarse con las reglas del
+  núcleo (valores, recursos, estado compartido declarado, efectos) se rechaza o se difiere.
+- El rendimiento se mide pronto: se compara con programas equivalentes en Rust en cuanto exista un
+  camino de ejecución que lo permita, y ninguna afirmación de velocidad se presenta sin medida.
+- La verificación crece por capas: primero las garantías del núcleo (propiedad, efectos, enteros
+  comprobados); después, si el núcleo lo justifica, contratos verificables opcionales, sin sacrificar la
+  facilidad de uso.
 - Las observaciones de una revisión se clasifican según el contrato del corte, no según el número de
   rondas: un incumplimiento obligatorio bloquea; una mejora fuera del compromiso se registra sin
   bloquear.
