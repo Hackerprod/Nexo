@@ -1,0 +1,341 @@
+{
+  "name": "head_acceptance",
+  "mode": "REPLAY",
+  "programs": 44,
+  "checks": 88,
+  "summary": {
+    "acceptance_differences": 44,
+    "unexpected": 0,
+    "families": [
+      "annot_divergent",
+      "array_divergent",
+      "assert_empty",
+      "assign_divergent",
+      "boolean_comparison_alias",
+      "constructor_unresolved",
+      "divergent_index",
+      "empty_array_context",
+      "if_divergent",
+      "index_divergent",
+      "index_if_divergent",
+      "indexed_write_dv_array",
+      "len_divergent",
+      "less_divergent",
+      "pending_one_element",
+      "print_dv_array"
+    ]
+  },
+  "seed": 0,
+  "threads": 1,
+  "informative": false,
+  "cases": [
+    {
+      "id": "s7001_00160.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[-3]=false;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_00622.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];a =  (if q[42] then 42 else -3);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_00982.n",
+      "kind": "pending_one_element",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];b=  true; AssertEq([  (if true then {return;}else{return;})],true);}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "s7001_01036.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[0]=-3;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_01423.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];while (if true then {return;}else{return;}) {q[a+ 42]=F((if true then {return;}else{return;}));}}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_02445.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];F(q[-3]);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_03908.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];F(q[0]);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_04953.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];if b {x1=q[(1)];}}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_05135.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[q[-3]]=-3;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_05349.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[-3]=0;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_05572.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[0]=a;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_05689.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[0]=0;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_06786.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[0]=c[42];}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_07478.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];F(q[-3]);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_08900.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];b  =q[c[0]];}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_09996.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];while true {var a=-3;var q=q[-3];}}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_10255.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}  fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];F(q[0]);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_10317.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[42]=0;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_10731.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[( 0  )]=(  true  );}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_11499.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];x1[0]=x1[q[-3]];}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_11657.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){} fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];AssertEq(q[a],F(c[-3]));}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_11784.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[a]=(if false then 0< 42 else (if true then {return;}else{return;}));}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "s7001_11874.n",
+      "kind": "divergent_index",
+      "source": "fn F(p:view I64){}fn Main(){var a=0;var b=true;var c=[1];var q=(if true then {return;}else{return;});var x1=[true];q[(  a )]=42;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "print_dv_array",
+      "kind": "print_dv_array",
+      "source": "fn Main(){Print([(if true then {return;}else{return;})]);}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "indexed_write_dv_array",
+      "kind": "indexed_write_dv_array",
+      "source": "fn Main(){var x1=[true];x1[[(if true then {return;}else{return;})]]=(if true then {return;}else{return;});}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "assign_divergent",
+      "kind": "assign_divergent",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});var c=[];c=q;q=[1];}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "len_divergent",
+      "kind": "len_divergent",
+      "source": "fn Main(){let n=Len((if true then {return;}else{return;}));}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "assert_empty",
+      "kind": "assert_empty",
+      "source": "fn Main(){let y=[1];AssertEq([],y);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "if_divergent",
+      "kind": "if_divergent",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let x=(if q then {value:q;}else {value:1;});q=true;}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "index_divergent",
+      "kind": "index_divergent",
+      "source": "fn Main(){let x=(if true then {return;}else{return;})[0];}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "index_if_divergent",
+      "kind": "index_if_divergent",
+      "source": "fn Main(){let x=(if true then (if true then {return;}else{return;}) else (if true then {return;}else{return;}))[0];}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "less_divergent",
+      "kind": "less_divergent",
+      "source": "fn Main(){let x=[(if true then {return;}else{return;})]<(if true then {return;}else{return;});}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "annot_divergent",
+      "kind": "annot_divergent",
+      "source": "fn Main(){let a:I64=[(if true then {return;}else{return;})];}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "array_divergent",
+      "kind": "array_divergent",
+      "source": "fn Main(){let a=[(if true then {return;}else{return;})];}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "rd127_q",
+      "kind": "constructor_unresolved",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});let r=[q];}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "later_less_than_result_assignment",
+      "kind": "boolean_comparison_alias",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});q=q<q;}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "later_equality_result_assignment",
+      "kind": "boolean_comparison_alias",
+      "source": "fn Main(){var q=(if true then {return;}else{return;});q=1==q;}",
+      "base_accepts": true,
+      "current_accepts": false
+    },
+    {
+      "id": "empty_array_comparison_under_print",
+      "kind": "empty_array_context",
+      "source": "fn Main(){Print([]==[48]);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "empty_array_alias_annotated_bool",
+      "kind": "empty_array_context",
+      "source": "fn Main(){var q=[];let r:Array<Bool>=q;}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "empty_array_if_arm",
+      "kind": "empty_array_context",
+      "source": "fn Main(){var q=(if true then [] else [false]);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "empty_array_value_block_arm",
+      "kind": "empty_array_context",
+      "source": "fn Main(){let q=(if true then {value:[67];} else {value:[];});}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "empty_array_nested_element",
+      "kind": "empty_array_context",
+      "source": "fn Main(){var q=[[],[true,true,false]];}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "empty_array_comparison_used_by_len",
+      "kind": "empty_array_context",
+      "source": "fn Main(){var q=[65]==[];var r=Len([q,q]);}",
+      "base_accepts": false,
+      "current_accepts": true
+    },
+    {
+      "id": "empty_array_index_context",
+      "kind": "empty_array_context",
+      "source": "fn Main(){var q=[];let r=12;let a:Array<I64>=q[r];}",
+      "base_accepts": false,
+      "current_accepts": true
+    }
+  ]
+}

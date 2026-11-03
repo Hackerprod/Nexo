@@ -1,0 +1,1 @@
+fn Main(){let x=1;var r=[];let a0=[r,0,x];r=[3];}

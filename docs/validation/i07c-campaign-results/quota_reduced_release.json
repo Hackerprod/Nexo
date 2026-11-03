@@ -1,0 +1,30 @@
+{
+  "name": "quota_reduced_release",
+  "mode": "QUOTA_PROPERTY",
+  "programs": 4800,
+  "checks": 268800,
+  "summary": {
+    "programs": 4800,
+    "skipped": 0,
+    "with_quota_checks": 230710,
+    "multi_diag_full": 4800,
+    "checks": 268800,
+    "violations": 0
+  },
+  "seed": [
+    101,
+    102,
+    103,
+    104,
+    105,
+    106,
+    107,
+    108,
+    109,
+    110,
+    111,
+    112
+  ],
+  "threads": 1,
+  "informative": true
+}

@@ -1,0 +1,1 @@
+fn Main(){let x=1;let ar=[1];var q1=ar;var q2=q1;var q3=[];if false {let a4=((if q2 then {value:q1;} else [1])[q2]+[][(if true then ar else 29)]);let a5:I64=(if true then q3 else ar);let a6=Len(x);}}

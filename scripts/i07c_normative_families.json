@@ -1,0 +1,298 @@
+[
+  {
+    "family": "quota_01",
+    "source": "fn Main(){var q1=(if true then {return;} else {return;});var q2=(if true then {return;} else {return;});q2=q1;let a4=[q1]==q2[0][0];q2=[1];}"
+  },
+  {
+    "family": "quota_02",
+    "source": "fn Main(){let x=1;var q1=[];q1=[[1],[true]];q1[0][0]=[x];q1=[[1]];}"
+  },
+  {
+    "family": "quota_03",
+    "source": "fn Main(){ var q2=(if true then {return;} else {return; });q2[0]=(if true then 1 else true);let a6=q2[[q2]];}"
+  },
+  {
+    "family": "quota_04",
+    "source": "fn Main(){var q=(if true then {return;} else {return;});let a=q[q[0]];}"
+  },
+  {
+    "family": "quota_05",
+    "source": "fn F1(p:view Array<I64>){}fn Main(){let v3=(if true then {return;} else {return;});Print(v3[v3][29]);F1(v3);}"
+  },
+  {
+    "family": "quota_06",
+    "source": "fn Main(){let x=1;var q2=(if true then {return;} else {return;});let a4=(q2)[true];q2=[true];q2[0]=x;}"
+  },
+  {
+    "family": "quota_07",
+    "source": "fn Main(){var q3=[];q3[0][0]=q3;q3[0]=[];}"
+  },
+  {
+    "family": "quota_08",
+    "source": "fn Main(){ var q2=(if true then {return;} else {return; });let a5=1 < q2[0];q2=[[1]];}"
+  },
+  {
+    "family": "quota_09",
+    "source": "fn Main(){let q1=[]; var q2=(if true then {return;} else {return; });let a5=1 < q2[0];q2=[[1]];}"
+  },
+  {
+    "family": "quota_10",
+    "source": "fn Main(){ var q2=(if true then {return;} else {return; });let a5=1 < q2[0];q2=[[1]];}"
+  },
+  {
+    "family": "quota_11",
+    "source": "fn Main(){var q1=(if true then {return;} else {return;});q1[0]=MockOpen(1);q1=[];}"
+  },
+  {
+    "family": "quota_12",
+    "source": "fn Main(){var q1=[]; let a2=q1-q1; q1=[1];}"
+  },
+  {
+    "family": "quota_13",
+    "source": "fn Main(){let c=true;var q2=[];if false {let a3=[q2,true];q2=[1,true];let a4=c+[q2];}AssertEq(q2,[1]);}"
+  },
+  {
+    "family": "quota_14",
+    "source": "fn Main(){var q1=(if true then {return;} else {return;});q1[0][0]=MockOpen(1);q1=[];let a3=[0,q1];}"
+  },
+  {
+    "family": "quota_15",
+    "source": "fn G()->I64{var q0=(if true then {return 0;} else {return 0; });return q0;}fn Main(){let ar=[1];var q1=24;let a3=[(if q1 then [[1],[2]] else (if true then {return;} else {return;})),ar];}"
+  },
+  {
+    "family": "quota_16",
+    "source": "fn Main(){let x=1;var q1=(if true then {return;} else {return;});q1[0]=[[1]];let a3=x==[1];}"
+  },
+  {
+    "family": "quota_17",
+    "source": "fn Main(){ var q2=(if true then {return;} else {return; });let a5=1 < q2[0];q2=[[1]];}"
+  },
+  {
+    "family": "quota_18",
+    "source": "fn Main(){let v2=(if (if false then [[1],[2]] else {value:[[1]];}) then ((if false then 16 else {value:29;})) else (if 17 then [false,true] else {value:[true];})[[false]]);}"
+  },
+  {
+    "family": "quota_19",
+    "source": "fn Main(){let v2=(if (if false then [[1],[2]] else {value:[[1]];}) then ((if false then 16 else {value:29;})) else (if 17 then [false,true] else {value:[true];})[[false]]);}"
+  },
+  {
+    "family": "quota_20",
+    "source": "fn F1(p:view Array < I64>){}fn Main(){let v2=2;var v4=false;var v5=(v2);let v6=[false];F1([(if v5 then v5 else {value:v4;})[(v5-11)],v6]);}"
+  },
+  {
+    "family": "quota_21",
+    "source": "fn Main(){let q1=[];let a2=[q1[0],q1];}"
+  },
+  {
+    "family": "quota_22",
+    "source": "fn Main(){var q1=[];let a2=[q1[0],q1];q1[0]=true;}"
+  },
+  {
+    "family": "quota_23",
+    "source": "fn Main(){var q1=[(if true then {return;} else {return;})];let a8=q1+1;q1=[[]];q1=[q1];}"
+  },
+  {
+    "family": "quota_24",
+    "source": "fn Main(){var q1=[];var q2=(q1-26);q2[0][0]=(if true then [1] else [true]);}"
+  },
+  {
+    "family": "quota_25",
+    "source": "fn Main(){var q1=[];var q2=(q1-26);q2[0][0]=(if true then [1] else [true]);}"
+  },
+  {
+    "family": "quota_26",
+    "source": "fn Main(){ var v2=(if true then {return;} else {return; });AssertEq((if ((if v2 then 20 else v2) < 15) then {value:[2,3];} else [1]),([[3,4]]));}"
+  },
+  {
+    "family": "quota_27",
+    "source": "fn Main(){let x=1;let q2=([[]]);let a4:I64=(x==q2);}"
+  },
+  {
+    "family": "quota_28",
+    "source": "fn F2(p:view I64){}fn Main(){ let v2=(if [true] then [[1]] else {value:[[1],[2]];});F2([19,v2[[false,true]]]);}"
+  },
+  {
+    "family": "quota_29",
+    "source": "fn Main(){var v3=true;var v4=(if v3 then v3 else {value:[2,3];})[(v3-9)];}"
+  },
+  {
+    "family": "quota_30",
+    "source": "fn F1(p:view Array < I64>){}fn Main(){let v2=2;var v4=false;var v5=(v2);let v6=[false];F1([(if v5 then v5 else {value:v4;})[(v5-11)],v6]);}"
+  },
+  {
+    "family": "quota_31",
+    "source": "fn Main(){let v3=false;let v5:Bool=[false,(v3)[(if true then v3 else {value:17;})]];}"
+  },
+  {
+    "family": "quota_32",
+    "source": "fn Main(){let c=true;let x=1;let ar=[1];let q1=(if (x==c) then [1] else [2,3]);let a2=ar[(if true then q1[0][0] else true)];}"
+  },
+  {
+    "family": "quota_33",
+    "source": "fn Main(){AssertEq([(if (if true then {value:[false,true];} else true) then {value:(if true then {return;} else {return;});} else ([7]))],([]));}"
+  },
+  {
+    "family": "quota_34",
+    "source": "fn Main(){let c=true;let x=1;let ar=[1];let q1=(if (x==c) then [1] else [2,3]);let a2=ar[(if true then q1[0][0] else true)];}"
+  },
+  {
+    "family": "quota_35",
+    "source": "fn F2(p:view I64){}fn Main(){F2((if false then {value:(if true then ([0,1,2]) else {value:[1];});} else []));}"
+  },
+  {
+    "family": "quota_36",
+    "source": "fn Main(){let x=1;let ar=[1];var q1=ar;var q2=q1;var q3=[];if false {let a4=((if q2 then {value:q1;} else [1])[q2]+[][(if true then ar else 29)]);let a5:I64=(if true then q3 else ar);let a6=Len(x);}}"
+  },
+  {
+    "family": "quota_37",
+    "source": "fn Main(){var v3=[2,3];AssertEq((([false]+9)<(if [true] then {value:v3;} else 21)),false);}"
+  },
+  {
+    "family": "quota_38",
+    "source": "fn Main(){let c=true;let x=1; var q1=[];if c {let a2=((c) + 1) < q1;let a3=c + (x);}q1=[];}"
+  },
+  {
+    "family": "quota_39",
+    "source": "fn Main(){ let a2=(if ((19 + 13) < [true]) then {value:true; } else Len((if true then {return;} else {return;})));}"
+  },
+  {
+    "family": "quota_40",
+    "source": "fn Main(){var q1=(if true then (if true then {return;} else {return;}) else {value:Len((if true then {return;} else {return;}));});q1=[1];}"
+  },
+  {
+    "family": "quota_41",
+    "source": "fn Main(){let q2=[Len((if true then {return;} else {return;}))];}"
+  },
+  {
+    "family": "types_42",
+    "source": "fn Main(){let ar=[1];var r=[];let a=ar==[r,ar];r=[3];}"
+  },
+  {
+    "family": "types_43",
+    "source": "fn Main(){let ar=[1];let r=[3];let a=ar==[r,ar];}"
+  },
+  {
+    "family": "types_44",
+    "source": "fn Main(){var q=(if true then {return;} else {return;});let y=q<(true+1);q=true;}"
+  },
+  {
+    "family": "types_45",
+    "source": "fn Main(){var q=(if true then {return;} else {return;});let y=(true+1)<q;q=true;}"
+  },
+  {
+    "family": "types_46",
+    "source": "fn Main(){let p=true;var r=[];let a=(if p then r else 1-r);r=[3];}"
+  },
+  {
+    "family": "types_47",
+    "source": "fn Main(){let p=true;let r=[3];let a=(if p then r else 1-r);}"
+  },
+  {
+    "family": "types_48",
+    "source": "fn Main(){let i0=[1];i0[0]=(if true then {return;} else {return;});}"
+  },
+  {
+    "family": "types_49",
+    "source": "fn Main(){var r=[];let a=[r,[r==r]];r=[3];}"
+  },
+  {
+    "family": "types_50",
+    "source": "fn Main(){let r=[3];let a=[r,[r==r]];}"
+  },
+  {
+    "family": "types_51",
+    "source": "fn Main(){let x=1;var r=[];let a=[r<r,x<x,r];r=[[true]];}"
+  },
+  {
+    "family": "types_52",
+    "source": "fn Main(){let x=1;let r=[[true]];let a=[r<r,x<x,r];}"
+  },
+  {
+    "family": "array_pending_selector",
+    "source": "fn Main(){let x=1;var q=$DV;let a=[q[(if true then $N else x)],q];q=[[1]];}"
+  },
+  {
+    "family": "nested_pending_selector",
+    "source": "fn Main(){var q=$DV;let a=q[q[0]][$N];q=[[1]];}"
+  },
+  {
+    "family": "indexed_assignment_tainted",
+    "source": "fn Main(){let x=1;var q=$DV;q[0]=(if true then [x] else [true]);q=[[1]];let census=$N;}"
+  },
+  {
+    "family": "len_divergent_array",
+    "source": "fn Main(){let a=[Len($DV),$N];}"
+  },
+  {
+    "family": "resource_array_projection",
+    "source": "fn Main(){var q=$DV;q[0]=MockOpen($N);q=[];}"
+  },
+  {
+    "family": "union_divergent_array",
+    "source": "fn Main(){var q=$DV;let a=(if true then [q,$N] else [[true]]);q=[1];}"
+  },
+  {
+    "family": "array_contextual_equality",
+    "source": "fn Main(){let ar=[$N];var r=[];let a=ar==[r,ar];r=[3];}"
+  },
+  {
+    "family": "array_leaf_same_binding",
+    "source": "fn Main(){var r=[];let a=[r,[r==r],$N];r=[3];}"
+  },
+  {
+    "family": "comparison_contaminated_left",
+    "source": "fn Main(){var q=$DV;let y=q<(true+$N);q=true;}"
+  },
+  {
+    "family": "independent_array_sites",
+    "source": "fn Main(){let x=$N;var r=[];let a=[r<r,x<x,r];r=[[true]];}"
+  },
+  {
+    "family": "undecided_less_domain",
+    "source": "fn Main(){var q=$DV;let a=q<$N;q=[true];}"
+  },
+  {
+    "family": "undecided_print_annotation",
+    "source": "fn Main(){var q=$DV;let a:I64=Print(q);let nonce=$N;}"
+  },
+  {
+    "family": "undecided_len_assertion",
+    "source": "fn Main(){let p=true;var q=$DV;AssertEq(Len(q)-$N,p);}"
+  },
+  {
+    "family": "undecided_len_selector",
+    "source": "fn G(a:view I64){}fn Main(){let x=$N;let ar=[1];var q=$DV;G(ar[x+(Len(q)+x)]);}"
+  },
+  {
+    "family": "undecided_len_selector_failure",
+    "source": "fn G(a:view Array<Array<I64>>){}fn Main(){let ar=[1];var q=$DV;G(ar[Len(q)+$N]);}"
+  },
+  {
+    "family": "undecided_join_array",
+    "source": "fn Main(){let p=true;var q=$DV;let a=(if p then [$N,(q==q)] else p);}"
+  },
+  {
+    "family": "undecided_array_first",
+    "source": "fn Main(){var q=$DV;let a=[Len(q)-$N,true];}"
+  },
+  {
+    "family": "alias_join_array",
+    "source": "fn Main(){let ar=[$N];let b0=ar;let b2=ar;var b4=(if b0==[] then ar else b2);}"
+  },
+  {
+    "family": "nested_assignment_block",
+    "source": "fn Main(){var q=[];let a=[((q==q)==false)];{q=[$N];}}"
+  },
+  {
+    "family": "nested_assignment_if",
+    "source": "fn Main(){var q=[];let a=[((q==q)==false)];if true {q=[$N];}}"
+  },
+  {
+    "family": "nested_assignment_while",
+    "source": "fn Main(){var q=[];let a=[((q==q)==false)];while false {q=[$N];}}"
+  },
+  {
+    "family": "failed_numeric_selector",
+    "source": "fn Main(){let c=true;var q=$DV;let a=(Len(q)-c)[$N];}"
+  }
+]

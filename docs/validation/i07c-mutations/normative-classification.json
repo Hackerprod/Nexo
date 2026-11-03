@@ -1,0 +1,19 @@
+{
+  "base": "b506d7d",
+  "programs": 507000,
+  "unique_programs": 503297,
+  "corpus_sha256": "b6adb3f2dba48cc4095338f2c8d3abd3eef6b987f915cdf91c2435ff11a620a7",
+  "projection_mode": "projection_full",
+  "base_projection_sha256": "e3126a87cdd4340632bcafba01d2ed1620c550e7dd187f6a00cae192ddeb0c1f",
+  "accepted_programs": 46607,
+  "accepted_corpus_sha256": "0837f4b64347873bc9a279fa035393e5dcf328d927690a51941e4df68c981dd4",
+  "runtime_baseline_sha256": "c2c834984b5cf0f36e414d2e5546a7217a1cd72aac7e84bd99e369a148bf5504",
+  "survivors_measured": 309,
+  "informative": 305,
+  "equivalent": 4,
+  "i10a": 0,
+  "survivor_normative_differences": 0,
+  "survivors_with_informative_differences": 5,
+  "informative_changed_programs": 14079,
+  "runtime_failures": 0
+}

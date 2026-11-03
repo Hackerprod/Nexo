@@ -1,0 +1,1 @@
+fn Main(){let x=1;let ar=[1];var w=(if false then {return;} else {return;});let a=1<(if 1 then w[w] else x);let b:Array<Bool>=if false then 1-[w,ar] else 1;}

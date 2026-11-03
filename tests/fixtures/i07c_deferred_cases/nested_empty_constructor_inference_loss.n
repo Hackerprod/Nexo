@@ -1,0 +1,1 @@
+fn Main(){Print((if Len(a: 1) then (if 1 then [] else []) else 1)[1]);}

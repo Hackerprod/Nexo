@@ -1,0 +1,1 @@
+fn Main(){var r=[];let a:Array<Bool>=(if true then (if true then r else r) else 5);r=[true];}

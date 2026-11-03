@@ -1,0 +1,1 @@
+fn Main(){let x=1;let br=[true];var r=[];let e=(if true then r else x)==br;r=[[1]];}

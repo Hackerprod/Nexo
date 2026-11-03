@@ -1,0 +1,11 @@
+[package]
+name = "i07c-campaign-harness"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "i07c-campaign-harness"
+path = "main.rs"
+
+[dependencies]
+nexo = { path = "../.." }

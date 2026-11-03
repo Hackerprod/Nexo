@@ -53,7 +53,7 @@ Ejecutar `cargo test --locked --offline`, `sh scripts/validate.sh` y `sh scripts
 - §4.3 y §13.15: `adr_gap_inout_to_ordinary_parameter_uses_place_primary` fija el lugar del argumento como primario.
 - §4.2 y §13.15: `adr_gap_non_name_call_target_uses_whole_target_span` fija el destino completo como primario.
 - §4.1 y §8.4: `adr_gap_result_constructor_payload_label_is_v` fija la etiqueta actual del payload.
-- §4.7 y §13.17: `adr_gap_empty_array_without_array_context_reports_inference_error` fija NX-E0103 cuando falta contexto de elemento.
+- §§4.1.2.2 y 13.17: `unresolved_array_obligations_follow_each_causal_constructor` comprueba la obligación NX-E0103 de cada constructor cuyo elemento siga irresuelto.
 - §4.5 y §13.15: `adr_gap_grouped_absent_target_keeps_call_target_use_kind` fija `call_target` para un destino agrupado no declarado.
 - §13.15 y §14.8: `adr_gap_explicit_empty_return_uses_keyword_primary` fija el primario de `return;`; L01 con salto conserva el primario publicado.
 - §11: `adr_gap_parser_depth_bounds_semantic_guard_for_accepted_blocks` fija que la familia de bloques aceptada no alcanza la guarda defensiva del checker. Los retornos vacíos con CR suelto se comprueban junto con LF y CRLF.

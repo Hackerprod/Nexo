@@ -1,0 +1,24 @@
+{
+  "name": "groups_debug",
+  "mode": "GRP",
+  "programs": 40000,
+  "checks": 40000,
+  "summary": {
+    "pairs": 20000,
+    "programs": 40000,
+    "parse_or_names_skipped": 0,
+    "accepted": 2543,
+    "rejected": 17457,
+    "diags": 36173,
+    "sig_diffs": 0,
+    "cardinality_diffs": 0,
+    "group_spans": 0,
+    "raw_spans": 0,
+    "strict_dup_programs": 0,
+    "same_site_programs": 0,
+    "bugs": 0
+  },
+  "seed": 7310102,
+  "threads": 8,
+  "informative": false
+}

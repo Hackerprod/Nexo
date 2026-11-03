@@ -371,14 +371,6 @@ fn projected_named_place(expr: &Expr) -> bool {
     }
 }
 
-fn place_root(expr: &Expr) -> Option<&Span> {
-    match expr {
-        Expr::Name(_, span) => Some(span),
-        Expr::Group(inner, _) | Expr::Index { target: inner, .. } => place_root(inner),
-        _ => None,
-    }
-}
-
 #[allow(clippy::vec_box)] // Public semantic result keeps boxed diagnostics.
 struct Resolver {
     tokens: Vec<Token>,
@@ -480,26 +472,6 @@ impl Resolver {
             }
             Statement::Assign { place, value, .. } => {
                 self.expr(place, false)?;
-                if let Some(root) = place_root(place)
-                    && matches!(
-                        self.resolved.uses.get(&root.start),
-                        Some(ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
-                    )
-                {
-                    let mut d = diagnostic(
-                        "NX-E0006",
-                        None,
-                        Stage::Names,
-                        Operation::NamesResolve,
-                        root.clone(),
-                    );
-                    d.feature_id = Some("function_value".into());
-                    d.data.insert(
-                        "pending_scope".into(),
-                        DataValue::String("later_adr".into()),
-                    );
-                    return Err(d);
-                }
                 self.expr(value, false)
             }
             Statement::Return { value, .. } | Statement::Value { value, .. } => {
@@ -556,7 +528,9 @@ impl Resolver {
                 let found = self
                     .lookup(name)
                     .ok_or_else(|| unknown(span.clone(), kind))?;
-                if !call_target && matches!(found, ResolvedUse::Intrinsic(_)) {
+                if !call_target
+                    && matches!(found, ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
+                {
                     let mut d = diagnostic(
                         "NX-E0006",
                         None,

@@ -1,0 +1,1 @@
+fn Main(){let x=1;let ar=[1];let a=(if true then (if true then x else (true+1)) else ar);}

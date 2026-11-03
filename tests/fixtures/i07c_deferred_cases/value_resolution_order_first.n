@@ -1,0 +1,1 @@
+fn Main(){var r=[];var q=(if true then {return;} else {return;});let a=[[q]] == r;q=[true];r=[true];}

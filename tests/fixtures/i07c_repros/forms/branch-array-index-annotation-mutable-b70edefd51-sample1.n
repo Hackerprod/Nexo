@@ -1,0 +1,1 @@
+fn Main(){var r=[];let a:Bool=(if true then r[0] else 1);r=[3];}

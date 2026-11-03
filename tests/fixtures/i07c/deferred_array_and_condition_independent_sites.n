@@ -1,0 +1,1 @@
+fn Main(){let c=true;var q2=[];if false {let a3=[q2,true];q2=[1,true];let a4=c+[q2];}AssertEq(q2,[1]);}

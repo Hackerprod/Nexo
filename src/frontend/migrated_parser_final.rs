@@ -363,7 +363,7 @@ fn b_erroneous_tokens_keep_literal_first_sets_of_committed_states() {
         );
         d.validate("first.n", source).unwrap();
     }
-    // D15 §2.2.3: bare edit/move are Names, so A's Postfix FIRST row is retired.
+    // D15 §2.2: bare edit/move are Names, so A's Postfix FIRST row is retired.
     for source in ["fn Main(){let x=edit ;}", "fn Main(){let x=move ;}"] {
         let ast = parse("first.n", source).unwrap();
         assert!(matches!(
@@ -411,7 +411,7 @@ fn b_first_sets_follow_the_committed_production() {
         assert_eq!(d.expected_tokens, expected, "{source}");
         d.validate("first.n", source).unwrap();
     }
-    // The former mode-first Postfix rows have no B counterpart (§2.2.3).
+    // The former mode-first Postfix rows have no B counterpart (§2.2).
 }
 
 #[test]

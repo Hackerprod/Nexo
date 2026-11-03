@@ -86,8 +86,6 @@ struct Node {
     right: Option<Rc<Node>>,
     fact: Option<Fact>,
     lazy: Lazy,
-    facts: u64,
-    sites: u64,
     definite: u64,
 }
 
@@ -110,8 +108,6 @@ impl Node {
         Self::allocated(Self {
             left: None,
             right: None,
-            facts: 1,
-            sites: fact.sites.len() as u64,
             definite: u64::from(fact.definite),
             fact: Some(fact),
             lazy: Lazy::default(),
@@ -122,8 +118,6 @@ impl Node {
         if left.is_none() && right.is_none() {
             return None;
         }
-        let facts = left.as_ref().map_or(0, |n| n.facts) + right.as_ref().map_or(0, |n| n.facts);
-        let sites = left.as_ref().map_or(0, |n| n.sites) + right.as_ref().map_or(0, |n| n.sites);
         let definite = left.as_ref().map_or(0, |n| n.effective_definite())
             + right.as_ref().map_or(0, |n| n.effective_definite());
         Some(Self::allocated(Self {
@@ -131,8 +125,6 @@ impl Node {
             right,
             fact: None,
             lazy: Lazy::default(),
-            facts,
-            sites,
             definite,
         }))
     }
@@ -216,6 +208,9 @@ fn set_node(
             left = left.map(|child| Node::with_lazy(&child, &n.lazy));
         }
         if !n.lazy.is_empty() && right.is_some() {
+            // checking right.is_some() alone is observationally equivalent:
+            // with_lazy returns the same Rc when lazy is empty. The explicit
+            // guard only avoids that redundant call and preserves sharing.
             right = right.map(|child| Node::with_lazy(&child, &n.lazy));
         }
     }
@@ -545,6 +540,7 @@ pub(in crate::ir) fn analyze(
             .any(|ins| matches!(ins.op, Op::TransferValue(_) | Op::DropBinding(_)))
     }) {
         let mut budget = Budget { used: *used };
+        let mut errors = Vec::new();
         for (index, block) in blocks.enumerate() {
             if index > 0 {
                 let terminator_span = match &block.terminator {
@@ -556,10 +552,18 @@ pub(in crate::ir) fn analyze(
             }
             for ins in &block.instructions {
                 budget.charge(&ins.span)?;
+                if let Op::WriteIndex { local, .. } = ins.op
+                    && !function.locals[local.0].mutable
+                {
+                    errors.push(immutable_index_diagnostic(
+                        function, name_spans, tokens, local, ins,
+                    ));
+                }
             }
         }
         *used = budget.used;
-        return Ok(Vec::new());
+        canonicalize(&mut errors);
+        return Ok(errors);
     }
     let mut observed = Vec::new();
     let result = analyze_inner(function, name_spans, tokens, used, &mut observed);
@@ -633,10 +637,10 @@ fn collect_diagnostics(
         };
         for ins in &block.instructions {
             if let Some(local) = use_local(&ins.op)
-                && !function.locals[local.0].name.is_empty()
-                && let Some(fact) = state.get(local.0)
+                && let Some(d) =
+                    use_diagnostic(function, name_spans, tokens, local, ins, state.get(local.0))
             {
-                errors.push(diagnostic(function, name_spans, tokens, local, ins, &fact));
+                errors.push(d);
             }
             sparse_transfer(&mut state, ins, function);
         }
@@ -681,12 +685,13 @@ fn analyze_inner(
                 sparse_transfer(&mut state, ins, function);
             }
             let mut propagate = |target: usize| -> Result<(), CompileError> {
-                // Targets are allocated from the current function's block
-                // table. The guards remain for forged CFGs tested by the
-                // verifier; accepted while/if sources exercise this closure.
+                // Ownership analysis can run before IR verification. Reject
+                // an invalid successor here to keep indexing within blocks.
                 if target >= blocks.len() {
                     return Err(CompileError::InvalidIr("invalid jump target"));
                 }
+                // generated CFGs have no block that jumps to itself;
+                // every loop backedge points to an earlier preheader.
                 let mut edge_state = state.clone();
                 if target <= index {
                     if backedges[index].is_none() {
@@ -765,10 +770,10 @@ fn analyze_inner(
                 return Err(error);
             }
             if let Some(local) = use_local(&ins.op)
-                && !function.locals[local.0].name.is_empty()
-                && let Some(fact) = state.get(local.0)
+                && let Some(d) =
+                    use_diagnostic(function, name_spans, tokens, local, ins, state.get(local.0))
             {
-                errors.push(diagnostic(function, name_spans, tokens, local, ins, &fact));
+                errors.push(d);
             }
             sparse_transfer(&mut state, ins, function);
         }
@@ -792,11 +797,20 @@ mod tests {
     use super::*;
 
     fn span(start: u64) -> Span {
-        Span {
+        let result = Span {
             file: "sparse_witness.n".into(),
             start,
             end: start + 1,
-        }
+        };
+        assert_eq!(result.end, start + 1, "forged IR uses nonempty spans");
+        result
+    }
+
+    #[test]
+    fn state_count_guard_disables_counting_when_dropped() {
+        FLOW_STATE_COUNT_ENABLED.with(|enabled| enabled.set(true));
+        drop(StateCountGuard);
+        FLOW_STATE_COUNT_ENABLED.with(|enabled| assert!(!enabled.get()));
     }
 
     fn consumed(start: u64) -> Fact {
@@ -810,6 +824,25 @@ mod tests {
             definite: true,
             sites: BTreeMap::from([((start, start + 1, true), site)]),
         }
+    }
+
+    #[test]
+    fn branch_excludes_definite_facts_under_a_conditional_lazy_child() {
+        // A conditional edge makes every descendant consumption optional.
+        // The aggregate count must stay zero when that child is attached to
+        // another branch, even before its leaf is materialized.
+        let leaf = Node::leaf(consumed(1));
+        let conditional = Node::with_lazy(
+            &leaf,
+            &Lazy {
+                maybe: true,
+                ..Lazy::default()
+            },
+        );
+        assert_eq!(conditional.definite, 1);
+        assert_eq!(conditional.effective_definite(), 0);
+        let parent = Node::branch(Some(conditional), None).unwrap();
+        assert_eq!(parent.definite, 0);
     }
 
     #[test]
@@ -827,6 +860,75 @@ mod tests {
         let site = fact.sites.values().next().unwrap();
         assert_eq!(site.distance, 1);
         assert_eq!(site.backedges, [span(10)]);
+    }
+
+    #[test]
+    fn conditional_child_does_not_make_parent_definite_on_missing_join_side() {
+        // A may-consumed child contributes no definite fact to its parent.
+        // Joining the parent with an absent path is already conditional and
+        // must not schedule another fixed-point visit.
+        let leaf = Node::leaf(consumed(1));
+        let conditional = Node::with_lazy(
+            &leaf,
+            &Lazy {
+                maybe: true,
+                ..Lazy::default()
+            },
+        );
+        let parent = Node::branch(Some(conditional), None).unwrap();
+        let mut budget = Budget { used: 0 };
+        let (_, changed) = join_node(
+            Some(&parent),
+            None,
+            1,
+            &Lazy::default(),
+            &Lazy::default(),
+            &mut budget,
+            &span(3),
+        )
+        .unwrap();
+        assert!(!changed);
+        assert_eq!(budget.used, 1);
+    }
+
+    #[test]
+    fn sparse_analysis_rejects_successor_at_block_count_before_indexing() {
+        // Ownership analysis precedes the IR verifier. A forged successor
+        // equal to the block count must produce InvalidIr here without a
+        // panic or an out-of-range incoming-state access.
+        let source = "fn Main(){let r=MockOpen(1);Drop(r);}";
+        let program = super::super::super::compile_scalar("sparse_witness.n", source).unwrap();
+        let mut function = program.functions().function("Main").unwrap().clone();
+        let count = 1 + function.blocks.len();
+        function.block.terminator = Terminator::Jump {
+            target: super::super::super::model::BlockId(count),
+            span: span(2),
+        };
+        let names = vec![span(1); function.locals.len()];
+        let tokens = crate::frontend::lex::lex("sparse_witness.n", source).unwrap();
+        let error = analyze(&function, &names, &tokens, &mut 0).unwrap_err();
+        assert!(
+            matches!(error, CompileError::InvalidIr("invalid jump target")),
+            "{error:?}"
+        );
+    }
+
+    #[test]
+    fn sparse_analysis_rejects_self_loop_before_reading_backedge_state() {
+        let source = "fn Main(){let r=MockOpen(1);Drop(r);}";
+        let program = super::super::super::compile_scalar("sparse_witness.n", source).unwrap();
+        let mut function = program.functions().function("Main").unwrap().clone();
+        function.block.terminator = Terminator::Jump {
+            target: super::super::super::model::BlockId(0),
+            span: span(2),
+        };
+        let names = vec![span(1); function.locals.len()];
+        let tokens = crate::frontend::lex::lex("sparse_witness.n", source).unwrap();
+        let error = analyze(&function, &names, &tokens, &mut 0).unwrap_err();
+        assert!(
+            matches!(error, CompileError::InvalidIr("invalid control-flow cycle")),
+            "{error:?}"
+        );
     }
 
     #[test]
@@ -860,8 +962,10 @@ mod tests {
 
     #[test]
     fn shared_trie_nodes_keep_the_shortest_of_twenty_unequal_paths() {
+        let mut checked_both_directions = [false; 2];
         for gap in 1..=20 {
             for incoming_is_shorter in [false, true] {
+                checked_both_directions[incoming_is_shorter as usize] = true;
                 let root = Node::leaf(consumed(1));
                 let (old_distance, new_distance) = if incoming_is_shorter {
                     (gap + 1, 1)
@@ -910,6 +1014,7 @@ mod tests {
                 );
             }
         }
+        assert!(checked_both_directions.into_iter().all(|checked| checked));
     }
 
     #[test]
@@ -949,7 +1054,35 @@ mod tests {
     }
 
     #[test]
+    fn conditional_edge_on_nondefinite_shared_node_does_not_enqueue_work() {
+        // a shared node with no definite fact is already conditional;
+        // adding another maybe edge must not claim a fixed-point change.
+        let root = Node::leaf(Fact {
+            definite: false,
+            sites: BTreeMap::new(),
+        });
+        let mut budget = Budget { used: 0 };
+        let (joined, changed) = join_node(
+            Some(&root),
+            Some(&root),
+            0,
+            &Lazy::default(),
+            &Lazy {
+                maybe: true,
+                ..Lazy::default()
+            },
+            &mut budget,
+            &span(17),
+        )
+        .unwrap();
+        assert!(!changed);
+        assert!(Rc::ptr_eq(&joined.unwrap(), &root));
+    }
+
+    #[test]
     fn quota_discards_intermediate_loop_observations() {
+        // the pending queue chooses its smallest block index, so the
+        // recorded quota site is the first denied charge in that order.
         use super::super::super::model::Op;
         let mut source = String::from(
             "fn F(b:view Bool){var s=MockOpen(1);Inspect(s);Drop(s);while b{s=MockOpen(2);}",
@@ -970,6 +1103,25 @@ mod tests {
             .unwrap()
             .id;
         let inspect_at = source.find("Inspect(s)").unwrap() as u64;
+        let source_inspection = function
+            .block
+            .instructions
+            .iter()
+            .find(|ins| {
+                inspect_at <= ins.span.start
+                    && inspect_at + "Inspect(s)".len() as u64 >= ins.span.end
+                    && use_local(&ins.op) == Some(s)
+            })
+            .expect("source inspection instruction")
+            .clone();
+        let mut preceding_overlap = source_inspection.clone();
+        preceding_overlap.span.start = inspect_at - 1;
+        preceding_overlap.span.end = inspect_at + 1;
+        let mut following_overlap = source_inspection.clone();
+        following_overlap.span.start = inspect_at;
+        following_overlap.span.end = inspect_at + "Inspect(s)".len() as u64 + 1;
+        function.block.instructions.insert(0, preceding_overlap);
+        function.block.instructions.insert(1, following_overlap);
         let inspected = function
             .block
             .instructions
@@ -981,7 +1133,16 @@ mod tests {
             })
             .expect("source inspection instruction")
             .clone();
+        assert_eq!(inspected.span, source_inspection.span);
+        function.block.instructions.drain(0..2);
         let loop_at = source.find("while b{s=").unwrap() as u64;
+        let mut decoy_block = function.blocks[0].clone();
+        decoy_block.instructions.clear();
+        let mut decoy_use = inspected.clone();
+        decoy_use.span.start = loop_at + 1;
+        decoy_use.span.end = loop_at + 2;
+        decoy_block.instructions.push(decoy_use);
+        function.blocks.insert(0, decoy_block);
         let body = function
             .blocks
             .iter_mut()
@@ -992,7 +1153,13 @@ mod tests {
                 })
             })
             .expect("loop body");
+        assert!(
+            body.instructions
+                .iter()
+                .any(|ins| { matches!(ins.op, Op::WritePlace { local, .. } if local == s) })
+        );
         body.instructions.insert(0, inspected);
+        function.blocks.remove(0);
         let blocks: Vec<_> = std::iter::once(&function.block)
             .chain(&function.blocks)
             .collect();
@@ -1011,14 +1178,25 @@ mod tests {
             stable_prefix(&blocks, first_backedge, &vec![false; blocks.len()]),
             header
         );
+        let mut queued = vec![false; blocks.len()];
+        queued[0] = true;
+        queued[1] = true;
+        assert_eq!(stable_prefix(&blocks, first_backedge, &queued), 0);
         let names: Vec<_> = function
             .locals
             .iter()
             .map(|local| {
-                tokens
+                let name_span = tokens
                     .iter()
                     .find(|token| token.text == local.name && !local.name.is_empty())
-                    .map_or_else(|| span(0), |token| token.span.clone())
+                    .map_or_else(|| span(0), |token| token.span.clone());
+                if !local.name.is_empty() {
+                    assert_eq!(
+                        &source[name_span.start as usize..name_span.end as usize],
+                        local.name
+                    );
+                }
+                name_span
             })
             .collect();
         let mut used = 0;
@@ -1111,6 +1289,29 @@ mod tests {
                         .unwrap()
                         .id;
                     let at = source.find(&format!("Inspect({name})")).unwrap() as u64;
+                    let original_inspected = std::iter::once(&function.block)
+                        .chain(&function.blocks)
+                        .flat_map(|block| &block.instructions)
+                        .find(|ins| {
+                            at <= ins.span.start
+                                && at + 8 + name.len() as u64 >= ins.span.end
+                                && use_local(&ins.op).is_some_and(|candidate| candidate == local)
+                        })
+                        .unwrap()
+                        .clone();
+                    let other_local = function
+                        .locals
+                        .iter()
+                        .find(|candidate| candidate.id != local && !candidate.name.is_empty())
+                        .unwrap()
+                        .id;
+                    let mut wrong_local = original_inspected.clone();
+                    wrong_local.span.start = at + 1;
+                    wrong_local.op = super::super::super::model::Op::TransferValue(other_local);
+                    let mut exact_start = original_inspected.clone();
+                    exact_start.span.start = at;
+                    function.block.instructions.insert(0, wrong_local);
+                    function.block.instructions.insert(1, exact_start);
                     let inspected = std::iter::once(&function.block)
                         .chain(&function.blocks)
                         .flat_map(|block| &block.instructions)
@@ -1121,6 +1322,10 @@ mod tests {
                         })
                         .unwrap()
                         .clone();
+                    assert_eq!(inspected.span.start, at);
+                    assert_eq!(use_local(&inspected.op), Some(local));
+                    function.block.instructions.drain(0..2);
+                    let inspected = original_inspected;
                     let loop_at = source
                         .find(&format!(
                             "while b{{{}s{index}=",
@@ -1292,6 +1497,10 @@ mod tests {
                 declared_here: true,
             }],
         };
+        assert!(
+            !edge.touched[0].kill,
+            "scope kill is independent of assignment"
+        );
         edge.cross(&mut state);
         assert!(state.get(0).is_none());
     }

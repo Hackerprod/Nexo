@@ -1,0 +1,1 @@
+fn Main(){var t=true+1;t=Len([1]<1);}

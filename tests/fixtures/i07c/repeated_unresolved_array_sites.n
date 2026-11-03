@@ -1,0 +1,1 @@
+fn Main(){let q1=[];let a2=[q1[0],q1];}

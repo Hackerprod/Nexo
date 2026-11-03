@@ -1,0 +1,1 @@
+fn Main(){var r=[];AssertEq(r<1,1);r=[3];}

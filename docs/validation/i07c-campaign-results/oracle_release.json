@@ -1,0 +1,20 @@
+{
+  "name": "oracle_release",
+  "mode": "ORACLE",
+  "programs": 2912268,
+  "checks": 2912268,
+  "summary": {
+    "seeds": 295606,
+    "distinct_sources": 1456134,
+    "compile_runs": 2912268,
+    "impl_accepted": 852371,
+    "oracle_disagreements": 0,
+    "order_dependent_programs": 0,
+    "check_run_incoherent": 0,
+    "strict_dups": 0,
+    "bugs": 0
+  },
+  "seed": 7310106,
+  "threads": 8,
+  "informative": false
+}

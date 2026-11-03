@@ -1,0 +1,1 @@
+fn Main(){AssertEq([(if (if true then {value:[false,true];} else true) then {value:(if true then {return;} else {return;});} else ([7]))],([]));}

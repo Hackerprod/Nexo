@@ -52,6 +52,8 @@ pub(super) fn first_pending(
                     && t.span.end <= function.body.span.start
             })
         {
+            // `with` itself precedes the body, so `last()` always
+            // finds at least that token; the map_or fallback is unreachable.
             let end = tokens
                 .iter()
                 .take_while(|t| t.span.start < function.body.span.start)
@@ -115,12 +117,16 @@ fn collect_result_annotation(
     marker: &str,
     found: &mut Vec<Candidate>,
 ) {
+    // `start` is an AST token boundary. A marker cannot straddle it;
+    // comparing its start or end against that boundary selects the same token.
     let Some(marker_at) = tokens
         .iter()
         .position(|t| t.text == marker && t.span.start >= start && t.span.end <= end)
     else {
         return;
     };
+    // a parsed Result annotation contains its type arguments, so its
+    // name token ends strictly before the annotation boundary.
     let Some(result_at) = tokens
         .iter()
         .enumerate()
@@ -132,6 +138,9 @@ fn collect_result_annotation(
     let token = &tokens[result_at];
     let mut level = 0_usize;
     let mut type_end = token.span.end;
+    // scanning the Result name as well would leave `level` unchanged;
+    // only `<` and `>`/`>=` affect it. `end` is a token boundary, and
+    // the closing `>` is consumed before any token beginning there.
     for next in tokens
         .iter()
         .skip(result_at + 1)

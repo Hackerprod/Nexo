@@ -1,0 +1,1 @@
+fn Main(){let p=true;let ar=[1];let q=[3];while (if p then ar else q) {}}

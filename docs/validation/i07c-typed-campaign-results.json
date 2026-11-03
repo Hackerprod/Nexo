@@ -1,0 +1,60 @@
+{
+  "source_sha256": "82df3aa936ad84444446558a6aec347398c0a5687a7daeb0fcbf0afb0635dd92",
+  "adjudication_sha256": "09615792065f2b58952d0b95eebe6691c9d14542dc0de23918d1f5720c7890d5",
+  "campaigns": [
+    {
+      "profile": "release",
+      "seed": 17021,
+      "programs": 300000,
+      "reduced_signatures": 17,
+      "adjudicated": 17,
+      "bugs": 0,
+      "duplicates": 0
+    },
+    {
+      "profile": "debug",
+      "seed": 17022,
+      "programs": 300000,
+      "reduced_signatures": 20,
+      "adjudicated": 20,
+      "bugs": 0,
+      "duplicates": 0
+    },
+    {
+      "profile": "release",
+      "seed": 17401,
+      "programs": 300000,
+      "reduced_signatures": 21,
+      "adjudicated": 21,
+      "bugs": 0,
+      "duplicates": 0
+    },
+    {
+      "profile": "debug",
+      "seed": 17402,
+      "programs": 300000,
+      "reduced_signatures": 16,
+      "adjudicated": 16,
+      "bugs": 0,
+      "duplicates": 0
+    },
+    {
+      "profile": "release",
+      "seed": 28501,
+      "programs": 300000,
+      "reduced_signatures": 20,
+      "adjudicated": 20,
+      "bugs": 0,
+      "duplicates": 0
+    },
+    {
+      "profile": "debug",
+      "seed": 28502,
+      "programs": 300000,
+      "reduced_signatures": 22,
+      "adjudicated": 22,
+      "bugs": 0,
+      "duplicates": 0
+    }
+  ]
+}

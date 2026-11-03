@@ -1,0 +1,192 @@
+{
+  "runs": [
+    {
+      "threads": 4,
+      "profile": "release",
+      "tests": [
+        "check::types::i07c_quota_property::reduced_quota_property",
+        "check::types::quota_tests::generated_multifunction_quota_has_one_denied_charge_and_exact_prefix",
+        "frontend::tests::accepted_commented_sources_keep_run_result_after_format",
+        "frontend::tests::consecutive_comment_gaps_preserve_canonical_properties",
+        "frontend::tests::every_concrete_gap_preserves_comments_and_tree",
+        "frontend::tests::generated_assignment_places_and_comments_preserve_canonical_tree",
+        "frontend::tests::generated_comment_positions_preserve_ast_order_and_idempotence",
+        "frontend::tests::generated_valid_programs_round_trip",
+        "frontend::tests::mutated_bytes_and_tokens_never_panic_or_emit_invalid_diagnostics",
+        "frontend::tests::omitted_else_parenthesis_comment_gaps_stabilize",
+        "frontend::tests::omitted_token_generated_programs",
+        "frontend::tests::printer_and_formatter_scale_in_emitted_and_allocated_bytes",
+        "frontend::tests::token_sequence_mutations_never_panic_and_accepted_asts_reparse",
+        "ir::i05_tests::generated_calls_resources_and_early_returns_match_independent_reference",
+        "ir::i05_tests::i05_call_and_resource_source_families_scale_linearly",
+        "ir::i05_tests::i05_large_signature_and_many_functions_scale_linearly",
+        "ir::i05_tests::i05_unreachable_and_dense_declarations_scale_across_twelve_families",
+        "ir::i06_tests::dense_loan_and_call_sources_scale_across_twelve_families",
+        "ir::i06_tests::generated_inout_and_copy_programs_match_independent_integer_model",
+        "ir::i06_tests::loan_source_fuzz_validates_diagnostics_and_never_panics",
+        "ir::i06_tests::semantic_loan_fuzz_never_constructs_invalid_ir",
+        "ir::i06_tests::sequential_operands_never_escape_as_invalid_ir",
+        "ir::i07a_tests::cfg_dense_sources_have_bounded_deterministic_work",
+        "ir::i07a_tests::cfg_later_operands_scale_linearly_in_work_and_allocation",
+        "ir::i07a_tests::directed_divergence_positions_match_reference_acceptance_and_diagnostics",
+        "ir::i07a_tests::divergent_and_live_sources_scale_in_work_bytes_and_allocations",
+        "ir::i07a_tests::generated_cfg_programs_match_independent_integer_model",
+        "ir::i07a_tests::injected_divergence_matches_live_twin_diagnostics",
+        "ir::i07a_tests::loop_backedges_scale_in_steps_allocation_and_time",
+        "ir::i07a_tests::semantic_cfg_sources_never_create_invalid_ir",
+        "ir::i07b_tests::consumed_prefix_loop_suffix_scales_across_source_budget",
+        "ir::i07b_tests::extensive_nested_loop_ownership_matches_source_ast_model",
+        "ir::i07b_tests::generated_sparse_ownership_matches_dense_reference_exactly",
+        "ir::i07b_tests::loop_fixpoint_scales_by_steps_and_allocation_traffic",
+        "ir::i07b_tests::ownership_quota_large_source_keeps_converged_loop_diagnostic",
+        "ir::i07b_tests::shared_node_nested_condition_matches_dense_reference",
+        "ir::i07b_tests::sparse_ownership_scales_across_fourteen_adversarial_families",
+        "ir::i07c_tests::deferred_unification_scale_is_linear_in_steps_and_allocations",
+        "ir::i07c_tests::extensive_monomorphic_constraints_match_independent_graph_oracle",
+        "ir::i07c_tests::extensive_structured_deferred_check_and_run_match_live_twins",
+        "ir::i07c_tests::generated_expected_context_matches_recursive_leaf_model",
+        "ir::i07c_tests::generated_type_permutations_preserve_acceptance",
+        "ir::i07c_tests::nested_assert_eq_unification_scale_tracks_depth_and_source_bytes",
+        "ir::i07c_tests::statement_permutations_match_independent_constraint_oracle",
+        "ir::tests::access_prefix_contexts_never_escape_as_invalid_ir",
+        "ir::tests::array_ir_lowering_scales_across_ten_source_families",
+        "ir::tests::function_and_other_nonlocal_assignment_fuzz_has_no_internal_error",
+        "ir::tests::indexed_place_effects_never_escape_as_invalid_ir",
+        "ir::tests::scalar_ir_lowering_scales_across_fifteen_source_families",
+        "ir::tests::unicode_sources_never_reach_internal_failure",
+        "later_array_assignment_and_concrete_initializer_have_identical_causes",
+        "poisoned_assignment_and_independent_let_have_identical_rhs_causes",
+        "resolved_projection_does_not_repartition_unrelated_pending_constraints"
+      ],
+      "informative_tests": [
+        "check::types::i07c_quota_property::reduced_quota_property",
+        "check::types::quota_tests::generated_multifunction_quota_has_one_denied_charge_and_exact_prefix"
+      ],
+      "passed": 53,
+      "failed": 0,
+      "input_sha256": "be13b0132160aac3cee902cc3cf1b17aca0da90517fe964f7d47c6c0f681e326",
+      "max_scale_ratio": 4.417,
+      "max_clock_ratio": 4.352,
+      "components": [
+        {
+          "tests": 50,
+          "max_scale_ratio": 4.417,
+          "max_clock_ratio": 4.352
+        },
+        {
+          "tests": 1,
+          "max_scale_ratio": 0.0,
+          "max_clock_ratio": 0.0
+        },
+        {
+          "tests": 1,
+          "max_scale_ratio": 0.0,
+          "max_clock_ratio": 0.0
+        },
+        {
+          "tests": 1,
+          "max_scale_ratio": 0.0,
+          "max_clock_ratio": 0.0
+        }
+      ],
+      "campaign_programs": {
+        "rhs": 50000,
+        "twins": 300000
+      }
+    },
+    {
+      "threads": 1,
+      "profile": "release",
+      "tests": [
+        "check::types::i07c_quota_property::reduced_quota_property",
+        "check::types::quota_tests::generated_multifunction_quota_has_one_denied_charge_and_exact_prefix",
+        "frontend::tests::accepted_commented_sources_keep_run_result_after_format",
+        "frontend::tests::consecutive_comment_gaps_preserve_canonical_properties",
+        "frontend::tests::every_concrete_gap_preserves_comments_and_tree",
+        "frontend::tests::generated_assignment_places_and_comments_preserve_canonical_tree",
+        "frontend::tests::generated_comment_positions_preserve_ast_order_and_idempotence",
+        "frontend::tests::generated_valid_programs_round_trip",
+        "frontend::tests::mutated_bytes_and_tokens_never_panic_or_emit_invalid_diagnostics",
+        "frontend::tests::omitted_else_parenthesis_comment_gaps_stabilize",
+        "frontend::tests::omitted_token_generated_programs",
+        "frontend::tests::printer_and_formatter_scale_in_emitted_and_allocated_bytes",
+        "frontend::tests::token_sequence_mutations_never_panic_and_accepted_asts_reparse",
+        "ir::i05_tests::generated_calls_resources_and_early_returns_match_independent_reference",
+        "ir::i05_tests::i05_call_and_resource_source_families_scale_linearly",
+        "ir::i05_tests::i05_large_signature_and_many_functions_scale_linearly",
+        "ir::i05_tests::i05_unreachable_and_dense_declarations_scale_across_twelve_families",
+        "ir::i06_tests::dense_loan_and_call_sources_scale_across_twelve_families",
+        "ir::i06_tests::generated_inout_and_copy_programs_match_independent_integer_model",
+        "ir::i06_tests::loan_source_fuzz_validates_diagnostics_and_never_panics",
+        "ir::i06_tests::semantic_loan_fuzz_never_constructs_invalid_ir",
+        "ir::i06_tests::sequential_operands_never_escape_as_invalid_ir",
+        "ir::i07a_tests::cfg_dense_sources_have_bounded_deterministic_work",
+        "ir::i07a_tests::cfg_later_operands_scale_linearly_in_work_and_allocation",
+        "ir::i07a_tests::directed_divergence_positions_match_reference_acceptance_and_diagnostics",
+        "ir::i07a_tests::divergent_and_live_sources_scale_in_work_bytes_and_allocations",
+        "ir::i07a_tests::generated_cfg_programs_match_independent_integer_model",
+        "ir::i07a_tests::injected_divergence_matches_live_twin_diagnostics",
+        "ir::i07a_tests::loop_backedges_scale_in_steps_allocation_and_time",
+        "ir::i07a_tests::semantic_cfg_sources_never_create_invalid_ir",
+        "ir::i07b_tests::consumed_prefix_loop_suffix_scales_across_source_budget",
+        "ir::i07b_tests::extensive_nested_loop_ownership_matches_source_ast_model",
+        "ir::i07b_tests::generated_sparse_ownership_matches_dense_reference_exactly",
+        "ir::i07b_tests::loop_fixpoint_scales_by_steps_and_allocation_traffic",
+        "ir::i07b_tests::ownership_quota_large_source_keeps_converged_loop_diagnostic",
+        "ir::i07b_tests::shared_node_nested_condition_matches_dense_reference",
+        "ir::i07b_tests::sparse_ownership_scales_across_fourteen_adversarial_families",
+        "ir::i07c_tests::deferred_unification_scale_is_linear_in_steps_and_allocations",
+        "ir::i07c_tests::extensive_monomorphic_constraints_match_independent_graph_oracle",
+        "ir::i07c_tests::extensive_structured_deferred_check_and_run_match_live_twins",
+        "ir::i07c_tests::generated_expected_context_matches_recursive_leaf_model",
+        "ir::i07c_tests::generated_type_permutations_preserve_acceptance",
+        "ir::i07c_tests::nested_assert_eq_unification_scale_tracks_depth_and_source_bytes",
+        "ir::i07c_tests::statement_permutations_match_independent_constraint_oracle",
+        "ir::tests::access_prefix_contexts_never_escape_as_invalid_ir",
+        "ir::tests::array_ir_lowering_scales_across_ten_source_families",
+        "ir::tests::function_and_other_nonlocal_assignment_fuzz_has_no_internal_error",
+        "ir::tests::indexed_place_effects_never_escape_as_invalid_ir",
+        "ir::tests::scalar_ir_lowering_scales_across_fifteen_source_families",
+        "ir::tests::unicode_sources_never_reach_internal_failure",
+        "later_array_assignment_and_concrete_initializer_have_identical_causes",
+        "poisoned_assignment_and_independent_let_have_identical_rhs_causes",
+        "resolved_projection_does_not_repartition_unrelated_pending_constraints"
+      ],
+      "informative_tests": [
+        "check::types::i07c_quota_property::reduced_quota_property",
+        "check::types::quota_tests::generated_multifunction_quota_has_one_denied_charge_and_exact_prefix"
+      ],
+      "passed": 53,
+      "failed": 0,
+      "input_sha256": "be13b0132160aac3cee902cc3cf1b17aca0da90517fe964f7d47c6c0f681e326",
+      "max_scale_ratio": 4.417,
+      "max_clock_ratio": 4.522,
+      "components": [
+        {
+          "tests": 50,
+          "max_scale_ratio": 4.417,
+          "max_clock_ratio": 4.522
+        },
+        {
+          "tests": 1,
+          "max_scale_ratio": 0.0,
+          "max_clock_ratio": 0.0
+        },
+        {
+          "tests": 1,
+          "max_scale_ratio": 0.0,
+          "max_clock_ratio": 0.0
+        },
+        {
+          "tests": 1,
+          "max_scale_ratio": 0.0,
+          "max_clock_ratio": 0.0
+        }
+      ],
+      "campaign_programs": {
+        "rhs": 50000,
+        "twins": 300000
+      }
+    }
+  ]
+}

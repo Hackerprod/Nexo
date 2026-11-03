@@ -51,14 +51,14 @@ El registro vigente contiene **70 códigos NX-E** y siete códigos experimentale
 | NX-E0006 | F0-0002/alcance del prototipo | Construcción reconocida pero fuera del perfil experimental solicitado. Subcause = null. Exige profile_id y feature_id registrado para ese perfil; no acredita una prohibición del lenguaje completo ni una regla semántica todavía no implementada. Procedencia: [F0-0002 §§2.2, 3.4 y 14.6](F0-0002-second-slice.md). |
 | NX-E0101 | F0-0001/tipos; ampliación de resolución F0-0002 | Nombre de valor no declarado, incluido un binding usado como expresión o un destino de llamada no declarado. Subcause = null. En F0-0002, use_kind distingue value y call_target; un nombre resuelto a valor no invocable usa NX-E0111/non_callable_target. Procedencia: [F0-0002 §4.5](F0-0002-second-slice.md). |
 | NX-E0102 | F0-0001/tipos | `type_mismatch`: tipo incompatible; `not_indexable`: indexación no aplicable; `resource_required`: operación que requiere recurso; `field_requires_grouped_call`: miembro campo usado en forma de llamada de método x.m(); la invocación del campo se escribe (x.m)() (D13 G.1, C52d/C52c). |
-| NX-E0103 | F0-0001/tipos | Elemento de array vacío no inferible sin anotación. |
+| NX-E0103 | F0-0001/tipos | Array vacío o constructor Array cuyo elemento sigue sin resolver al cierre de la función. |
 | NX-E0104 | F0-0001/nombres; ampliación de declaraciones F0-0002 | Declaración duplicada en el mismo ámbito: binding, función o parámetro. Subcause = null. En F0-0002 exige declaration_kind = binding, function o parameter, span de la segunda declaración y primera declaración relacionada. Procedencia: [F0-0002 §4.5](F0-0002-second-slice.md). |
 | NX-E0105 | F0-0001/acceso | Acceso de modificación solicitado sobre binding inmutable, incluida asignación, receptor inout y match inout. |
 | NX-E0107 | F0-0001/números | Literal fuera del rango i64 del corte. |
 | NX-E0110 | Propiedades selladas, mantenimiento D11 | Una impl o derivación de usuario intenta afirmar una propiedad/protocolo reservado al compilador (incluidos Call* y SuspendSafe). |
 | NX-E0111 | F0-0002/llamadas | Asociación o destino de llamada inválidos: `missing_argument`, `excess_positional_argument`, `unknown_argument_label`, `duplicate_argument`, `positional_after_named`, `argument_mode_mismatch`, `non_callable_target`. Una incompatibilidad de tipos con asociación válida conserva NX-E0102/type_mismatch; copiar un argumento no copiable conserva NX-E0201. Procedencia: [F0-0002 §§4.2 y 13.9](F0-0002-second-slice.md). |
 | NX-E0112 | F0-0002/entrada ejecutable | Entrada solicitada no disponible: `missing_main`, `invalid_main_signature`. No se emite por ausencia de main al comprobar un módulo de biblioteca. Procedencia: [F0-0002 §4.4](F0-0002-second-slice.md). |
-| NX-E0113 | F0-0002/inferencia local | No existe una determinación única de los tipos requeridos por un constructor de valor del subconjunto, después de aplicar el contexto local disponible. Subcause = null. No se inventa un tipo comodín. El array vacío conserva NX-E0103 y la firma de closure conserva NX-E1111. Procedencia: [F0-0002 §§4.1.1 y 13.17](F0-0002-second-slice.md). |
+| NX-E0113 | F0-0002/inferencia local | No existe una determinación única de los tipos requeridos por un constructor de valor del subconjunto, después de aplicar el contexto local disponible. Subcause = null. No se inventa un tipo comodín. El array vacío o constructor Array cuyo elemento sigue sin resolver al cierre de la función conserva NX-E0103 y la firma de closure conserva NX-E1111. Procedencia: [F0-0002 §§4.1.1 y 13.17](F0-0002-second-slice.md). |
 | NX-E0201 | Propiedad común, mantenimiento D11 | Intento de copia lógica de valor no copiable, sea recurso, closure, futuro o agregado. |
 | NX-E0202 | Propiedad común, mantenimiento D11 | Uso que exige valor disponible tras consumo: `definitely_consumed` si se consumió en todos los caminos pertinentes; `maybe_consumed` si al menos una continuación lo consumió. Transferencia, drop y extracción consumidora son orígenes, no códigos diferentes. |
 | NX-E0203 | F0-0001/alcance | Limitación experimental: `unsupported_move_position`, `unsupported_resource_position`, `unsupported_resource_rebinding`, `unsupported_transfer_kind`. No acredita una prohibición del lenguaje completo. |
@@ -342,7 +342,7 @@ para una migración futura, no un renombrado implementado.
 | E0102, indexación | NX-E0102/not_indexable | check::expr sobre no-array o check::block al agotar dimensiones del destino antes de agotar índices. |
 | E0102, inspect | NX-E0102/resource_required | check::block: inspect de un binding disponible que no es Resource. |
 | E0102, consume | NX-E0203/unsupported_transfer_kind | check::consume, llamado por move/drop sobre datos: restricción experimental a Resource. D11 admite transferencia/destrucción de otros valores; no migrar esta limitación como prohibición general de tipos. |
-| E0103 | NX-E0103 | check::expr: literal array sin primer elemento; anotaciones no soportadas en el corte. |
+| E0103 | NX-E0103 | Array vacío o constructor Array cuyo elemento sigue sin resolver al cierre de la función. |
 | E0104 | NX-E0104 | check::block: otro binding del mismo nombre en el ámbito actual. |
 | E0105 | NX-E0105 | check::block: asignación cuyo binding raíz no es mutable. |
 | E0107 | NX-E0107 | syntax::atom: literal positivo o negativo no representable como i64. |
@@ -470,7 +470,7 @@ corte no se anuncian como prohibiciones del lenguaje completo.
 | K05b | K05 sustituyendo `1[0]` por `[1][0]`. | PASS | —; array indexable. |
 | K06 | `fn main() { let x = 1; inspect(x); }` | FAIL | E0102 → NX-E0102/resource_required; nombre sí resuelto. |
 | K06b | K06 sustituyendo el inicializador 1 por mock_open(1). | PASS | —; inspect presta recurso disponible. |
-| K07 | `fn main() { let x = []; }` | FAIL | E0103 → NX-E0103; restricción del corte, array vacío sin anotación soportada. |
+| K07 | `fn main() { let x = []; }` | FAIL | E0103 → NX-E0103; array vacío o constructor Array cuyo elemento sigue sin resolver al cierre de la función. |
 | K07b | K07 sustituyendo [] por [1]. | PASS | —; elemento inferible. |
 | K08 | `fn main() { let x = 1; let x = 2; }` | FAIL | E0104 → NX-E0104. |
 | K08b | K08 renombrando solo el segundo x a y. | PASS | —; nombres distintos. |

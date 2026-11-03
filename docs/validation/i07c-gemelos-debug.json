@@ -1,0 +1,40 @@
+{
+  "informative": true,
+  "profile": "debug",
+  "seed": 51002,
+  "stride": 1,
+  "threads": 4,
+  "programs": 300000,
+  "comparable_twins": 74405,
+  "deferred_resolution_exemptions": 86130,
+  "deferred_resolution_differences": 14552,
+  "exemption_families": [
+    {
+      "reason": "array elements checked against a deferred element type",
+      "programs": 2709,
+      "differences": 0,
+      "adr": "§4.1.2.7, RD01/RD02"
+    },
+    {
+      "reason": "deferred binding mismatch",
+      "programs": 21481,
+      "differences": 0,
+      "adr": "§4.1.2.7, RD07/RD08"
+    },
+    {
+      "reason": "later assignment conflicts with accepted prefix equality",
+      "programs": 61619,
+      "differences": 14552,
+      "adr": "§4.1.2.7, RD07/RD08"
+    },
+    {
+      "reason": "r elem-level mismatch",
+      "programs": 321,
+      "differences": 0,
+      "adr": "§4.1.2.7, RD17/RD18"
+    }
+  ],
+  "differences": 0,
+  "duplicates": 0,
+  "bugs": 0
+}

@@ -1,0 +1,149 @@
+{
+  "source_sha256": "82df3aa936ad84444446558a6aec347398c0a5687a7daeb0fcbf0afb0635dd92",
+  "rules": {
+    "A": "F0-0002 §4.1.2.7: the advanced initializer changes an incompatible accepted prefix",
+    "D": "F0-0002 §4.1.2.4: additional leaf of the same inferred equality",
+    "V": "F0-0002 §4.1.2.5: dependent result after a failed operand or guard"
+  },
+  "campaigns": [
+    {
+      "profile": "release",
+      "seed": 23901,
+      "programs": 100000,
+      "comparable": 100000,
+      "accepted": 80524,
+      "rejected": 19476,
+      "skipped": 0,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:V": 135
+      },
+      "log_sha256": "ed0d132ad644ef66f6961f5f7705c895c8ac4d7cfcdd93f212ae859dd4a680c4"
+    },
+    {
+      "profile": "release",
+      "seed": 23902,
+      "programs": 100000,
+      "comparable": 63367,
+      "accepted": 41641,
+      "rejected": 21726,
+      "skipped": 36633,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:A": 229,
+        "extra_in_deferred:V": 179,
+        "missing_in_deferred:A": 168,
+        "missing_in_deferred:D": 1,
+        "missing_in_deferred:V": 2
+      },
+      "log_sha256": "48aa9dbd9295d2d2093ba17374287b6a504d806f0930605b48c942deaee6d337"
+    },
+    {
+      "profile": "release",
+      "seed": 23903,
+      "programs": 100000,
+      "comparable": 100000,
+      "accepted": 80675,
+      "rejected": 19325,
+      "skipped": 0,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:A": 1,
+        "extra_in_deferred:V": 134
+      },
+      "log_sha256": "c8a98b679602f35b455b157b46e61fb93cd6c63e8790f50f82d352acb85f6e62"
+    },
+    {
+      "profile": "release",
+      "seed": 23904,
+      "programs": 100000,
+      "comparable": 63657,
+      "accepted": 41707,
+      "rejected": 21950,
+      "skipped": 36343,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:A": 195,
+        "extra_in_deferred:D": 8,
+        "extra_in_deferred:V": 167,
+        "missing_in_deferred:A": 144,
+        "missing_in_deferred:D": 2,
+        "missing_in_deferred:V": 4
+      },
+      "log_sha256": "2097b111f97db79314ace5d3b1593b9897fb3f35606f4507673803903ff50a36"
+    },
+    {
+      "profile": "debug",
+      "seed": 23905,
+      "programs": 100000,
+      "comparable": 100000,
+      "accepted": 80437,
+      "rejected": 19563,
+      "skipped": 0,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:V": 130
+      },
+      "log_sha256": "f066e58ad877a2c0d058b9f951fe1e98d8d05a0f3c75d2924e54bfd6ecf1d193"
+    },
+    {
+      "profile": "debug",
+      "seed": 23906,
+      "programs": 100000,
+      "comparable": 63674,
+      "accepted": 41729,
+      "rejected": 21945,
+      "skipped": 36326,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:A": 165,
+        "extra_in_deferred:D": 2,
+        "extra_in_deferred:V": 156,
+        "missing_in_deferred:A": 115,
+        "missing_in_deferred:D": 2,
+        "missing_in_deferred:V": 4
+      },
+      "log_sha256": "72c79392e672899b6dd3df748bb63bf7bb4808e2fd209ef3deefd0b669a0a773"
+    },
+    {
+      "profile": "debug",
+      "seed": 23907,
+      "programs": 100000,
+      "comparable": 100000,
+      "accepted": 80674,
+      "rejected": 19326,
+      "skipped": 0,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:V": 122
+      },
+      "log_sha256": "78e4818f2365e2da038471c9b2bb879c141f6def5b915e26bfb2e7b50adb1c15"
+    },
+    {
+      "profile": "debug",
+      "seed": 23908,
+      "programs": 100000,
+      "comparable": 63722,
+      "accepted": 41811,
+      "rejected": 21911,
+      "skipped": 36278,
+      "bugs": 0,
+      "duplicates": 0,
+      "classes": {
+        "extra_in_deferred:A": 174,
+        "extra_in_deferred:D": 3,
+        "extra_in_deferred:V": 167,
+        "missing_in_deferred:A": 129,
+        "missing_in_deferred:V": 1
+      },
+      "log_sha256": "751391978e47b0751d2c989d98e23524f2cc51567945ef17de3154c2f7d38752"
+    }
+  ]
+}

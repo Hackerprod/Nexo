@@ -1,0 +1,18 @@
+{
+  "name": "fuzz_debug",
+  "mode": "FUZZ",
+  "programs": 100000,
+  "checks": 200000,
+  "summary": {
+    "programs": 100000,
+    "accepted": 10,
+    "run_unit": 8,
+    "bugs_panic_invalidir_internal": 0,
+    "check_run_incoherent": 0,
+    "strict_dup_programs": 0,
+    "same_site_programs": 0
+  },
+  "seed": 7310108,
+  "threads": 8,
+  "informative": false
+}

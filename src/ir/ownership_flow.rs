@@ -20,6 +20,9 @@ const FLOW_LIMIT: u64 = 1_000_000;
 #[cfg(test)]
 pub(super) static FLOW_WORK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 #[cfg(test)]
+pub(super) static QUEUE_FLOW_WORK: std::sync::atomic::AtomicU64 =
+    std::sync::atomic::AtomicU64::new(0);
+#[cfg(test)]
 pub(super) static SPARSE_FLOW_WORK: std::sync::atomic::AtomicU64 =
     std::sync::atomic::AtomicU64::new(0);
 #[cfg(test)]
@@ -76,6 +79,10 @@ impl Budget {
             "flow_short_scale.n" | "cfg_scale_counter.n"
         ) {
             FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        }
+        #[cfg(test)]
+        if span.file == "queue_once.n" {
+            QUEUE_FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         #[cfg(test)]
         if span.file == "sparse_scale.n" {
@@ -327,6 +334,49 @@ fn diagnostic(
     d
 }
 
+fn immutable_index_diagnostic(
+    function: &Function,
+    name_spans: &[Span],
+    tokens: &[Token],
+    local: LocalId,
+    ins: &super::model::Instruction,
+) -> Diagnostic {
+    let mut d = *crate::check::names::diagnostic(
+        "NX-E0105",
+        None,
+        diagnostic::Stage::Ownership,
+        diagnostic::Operation::PlaceWrite,
+        primary_span(function, tokens, local, ins),
+    );
+    d.related_spans.push(RelatedSpan {
+        role: RelatedRole::Declaration,
+        span: name_spans[local.0].clone(),
+    });
+    d
+}
+
+fn use_diagnostic(
+    function: &Function,
+    name_spans: &[Span],
+    tokens: &[Token],
+    local: LocalId,
+    ins: &super::model::Instruction,
+    fact: Option<Fact>,
+) -> Option<Diagnostic> {
+    if function.locals[local.0].name.is_empty() {
+        return None;
+    }
+    if let Some(fact) = fact {
+        return Some(diagnostic(function, name_spans, tokens, local, ins, &fact));
+    }
+    if matches!(ins.op, Op::WriteIndex { .. }) && !function.locals[local.0].mutable {
+        return Some(immutable_index_diagnostic(
+            function, name_spans, tokens, local, ins,
+        ));
+    }
+    None
+}
+
 #[cfg(test)]
 fn analyze_dense(
     function: &Function,
@@ -393,10 +443,16 @@ fn analyze_dense(
         for ins in &block.instructions {
             budget.charge(&ins.span)?;
             if let Some(local) = use_local(&ins.op)
-                && !function.locals[local.0].name.is_empty()
-                && let Some(fact) = state.get(&local.0)
+                && let Some(d) = use_diagnostic(
+                    function,
+                    name_spans,
+                    tokens,
+                    local,
+                    ins,
+                    state.get(&local.0).cloned(),
+                )
             {
-                errors.push(diagnostic(function, name_spans, tokens, local, ins, fact));
+                errors.push(d);
             }
             transfer(&mut state, ins, function);
         }
@@ -487,12 +543,14 @@ mod tests {
     }
 
     fn site(at: u64) -> Site {
-        Site {
+        let site = Site {
             span: span(at, at + 1),
             is_drop: true,
             backedges: Vec::new(),
             distance: 0,
-        }
+        };
+        assert_eq!(site.span.end, at + 1, "synthetic sites are nonempty");
+        site
     }
 
     fn fact(at: u64, definite: bool) -> Fact {
@@ -521,6 +579,11 @@ mod tests {
         transfer(&mut state, &drop_r, function);
         let dropped = state.get(&0).unwrap();
         assert!(dropped.definite);
+        assert!(
+            dropped
+                .sites
+                .contains_key(&(drop_r.span.start, drop_r.span.end, true))
+        );
         assert!(dropped.sites.values().next().unwrap().is_drop);
         assert_eq!(dropped.sites.values().next().unwrap().distance, 0);
         let mut consumed_s = ins.clone();
@@ -569,9 +632,38 @@ mod tests {
     }
 
     #[test]
+    fn dense_oracle_rejects_successor_at_block_count_before_indexing() {
+        let program = super::super::compile_scalar("flow_state.n", "fn Main(){}").unwrap();
+        let function = program.functions.function("Main").unwrap();
+        let blocks = [&function.block];
+        let mut incoming = vec![None];
+        let mut queued = vec![false];
+        let mut queue = VecDeque::new();
+        let mut budget = Budget { used: 0 };
+        let error = propagate(
+            0,
+            blocks.len(),
+            &State::new(),
+            &blocks,
+            &mut incoming,
+            &mut queue,
+            &mut queued,
+            &mut budget,
+            &[],
+        )
+        .unwrap_err();
+        assert!(matches!(
+            error,
+            CompileError::InvalidIr("invalid jump target")
+        ));
+    }
+
+    #[test]
     fn join_is_a_may_union_and_preserves_both_consumption_origins() {
         let mut left = State::from([(0, fact(2, true))]);
         let right = State::from([(0, fact(4, false))]);
+        assert!(left[&0].definite);
+        assert!(!right[&0].definite);
         let mut budget = Budget { used: 0 };
         assert!(join(&mut left, &right, &mut budget, &span(1, 2)).unwrap());
         assert!(!left[&0].definite);
@@ -625,6 +717,7 @@ mod tests {
         let mut long = fact(7, true);
         long.sites.get_mut(&(7, 8, true)).unwrap().distance = 9;
         let mut short = fact(7, true);
+        assert!(short.definite, "both paths begin with definite facts");
         short.sites.get_mut(&(7, 8, true)).unwrap().distance = 3;
         let mut into = State::from([(0, long)]);
         let from = State::from([(0, short)]);
@@ -636,6 +729,7 @@ mod tests {
     #[test]
     fn backedge_restarts_loop_local_but_retains_external_witness() {
         let mut state = State::from([(0, fact(2, true)), (1, fact(22, true))]);
+        assert!(state[&0].definite && state[&1].definite);
         let names = [span(2, 3), span(22, 23)];
         crossed_backedge(&mut state, &span(20, 39), &span(10, 40), &names);
         assert_eq!(state.len(), 1);
@@ -643,6 +737,14 @@ mod tests {
         let witness = state[&0].sites.values().next().unwrap();
         assert_eq!(witness.distance, 1);
         assert_eq!(witness.backedges, [span(38, 39)]);
+    }
+
+    #[test]
+    fn backedge_retains_a_fact_whose_declaration_crosses_the_loop_end() {
+        let mut state = State::from([(0, fact(15, true))]);
+        let names = [span(15, 41)];
+        crossed_backedge(&mut state, &span(20, 39), &span(10, 40), &names);
+        assert!(state.contains_key(&0));
     }
 
     #[test]

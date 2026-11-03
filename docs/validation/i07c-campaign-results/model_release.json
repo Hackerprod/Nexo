@@ -1,0 +1,26 @@
+{
+  "name": "model_release",
+  "mode": "MODEL",
+  "programs": 250000,
+  "checks": 250000,
+  "summary": {
+    "programs": 250000,
+    "abstained": 24593,
+    "compared": 225407,
+    "agree": 225407,
+    "accept_diff": 0,
+    "count_diff": 0,
+    "field_diff": 0,
+    "origin_diff": 145,
+    "accepted": 177819,
+    "model_diags": 54360,
+    "impl_diags": 54360,
+    "dups": 0,
+    "bugs": 0,
+    "run_unit": 0,
+    "run_other": 0
+  },
+  "seed": 7310103,
+  "threads": 8,
+  "informative": false
+}

@@ -1,0 +1,1 @@
+fn value(){var x=1;let p=true;let ar=[1];let br=[true];let aar=[[1]];var s0:Array<I64>=[0];s0=[x];let i1:Array<Bool>=[false];i1[0]=(x)<(x+x);}

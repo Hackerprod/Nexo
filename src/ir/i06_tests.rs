@@ -615,6 +615,7 @@ fn inout_owner_is_restored_on_fault_and_frame_limit() {
 }
 
 #[test]
+#[ignore = "campaña extensa de edit y copia; ejecutar en batería medida"]
 fn generated_inout_and_copy_programs_match_independent_integer_model() {
     let prefix = "fn Inc(x:edit I64){x=x+1;} fn Twice(x:edit I64){Inc(edit x);Inc(edit x);} fn Retinc(x:edit I64)->I64{x=x+1;return x;} fn Copy(a:view Array<I64>)->Array<I64>{return a;} fn Main(){var x=0;var a=[0,0];";
     let mut seed = 0x5129_1234u64;
@@ -673,6 +674,7 @@ fn generated_inout_and_copy_programs_match_independent_integer_model() {
 }
 
 #[test]
+#[ignore = "campaña extensa de préstamos semánticos; ejecutar en batería medida"]
 fn semantic_loan_fuzz_never_constructs_invalid_ir() {
     let programs = [
         "fn G(x: edit I64) {}\nfn Main() {\n    var x = 1;\n    G(edit x);\n}\n",
@@ -713,6 +715,7 @@ fn semantic_loan_fuzz_never_constructs_invalid_ir() {
 }
 
 #[test]
+#[ignore = "campaña extensa de fuentes con préstamos; ejecutar en batería medida"]
 fn loan_source_fuzz_validates_diagnostics_and_never_panics() {
     let arguments = [
         "edit x",

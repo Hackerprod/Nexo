@@ -710,6 +710,7 @@ fn source(actions: &[Action]) -> String {
 }
 
 #[test]
+#[ignore = "campaña extensa de llamadas y recursos; ejecutar en batería medida"]
 fn generated_calls_resources_and_early_returns_match_independent_reference() {
     for n in 0..8_000usize {
         let label = (n % 107) as i64 - 31;

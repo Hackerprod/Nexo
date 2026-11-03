@@ -1,0 +1,1 @@
+fn Main(){let ar=1;let a1=(if 1 then ar else 1)[1]<false;}

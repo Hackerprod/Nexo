@@ -1,0 +1,1 @@
+fn Main(){let q=3;let a:Bool=(if true then 1 else q);}

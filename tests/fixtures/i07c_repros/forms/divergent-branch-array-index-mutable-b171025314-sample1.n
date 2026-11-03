@@ -1,0 +1,1 @@
+fn Main(){var v0=[];var v1=[];var v2=(if true then {return;} else {return;});v2=[[1]];let r1=v1[0];v1=[1];v2=[[1]];v1=v1;v2=[v2];}

@@ -1,0 +1,1 @@
+fn Main(){var v0=[];var v1=(if true then {return;} else {return;});var v2=[];v0=v1;v2=[v0];let e3=v1==v2;v0[0]=[1];AssertEq(v1,v2);}

@@ -1,0 +1,175 @@
+{
+  "corpus_programs": 507000,
+  "accepted_runtime_programs": 46607,
+  "cases": {
+    "M00178": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.2–4.1.2.5",
+      "reason": "El resultado nominal de Len no borra la incompatibilidad con el array de dominio pendiente.",
+      "test": "i07c_causal_obligations: unresolved_array_domain_keeps_known_len_result_equality"
+    },
+    "M00183": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.3–4.1.2.5",
+      "reason": "El operando numerico derecho conserva su causa independiente tras una comparacion fallida.",
+      "test": "i07c_causal_obligations: failed_comparison_keeps_independent_numeric_right_operand, pending_comparison_keeps_independent_numeric_rhs_domain"
+    },
+    "M00185": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.3–4.1.2.5",
+      "reason": "El fallo tardio de dominio no borra el argumento posterior de AssertEq.",
+      "test": "i07c_causal_obligations: late_binary_domain_failure_does_not_erase_later_argument_mismatch, unresolved_comparison_does_not_erase_later_assert_argument"
+    },
+    "M00205": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "La busqueda nominal alternativa solo se usa si el tipo sintetizado del operando ya esta contaminado; conserva los dominios C y puede variar unicamente la comparacion consumidora.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00274": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.2, 13.15",
+      "reason": "La asignacion recursiva conserva el origen de tipo de la primera igualdad.",
+      "test": "i07c_causal_obligations: recursive_array_assignment_keeps_expected_source_origin"
+    },
+    "M00414": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.3, 4.1.2.5 N(j)",
+      "reason": "La inicializacion de usable solo permite un resultado nominal tras una cadena de dominio sin testigo valido; la causa del dominio o constructor permanece y cualquier consumidor es derivado.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00469": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del resultado de una rama con causa interna previa; conserva todos los C.",
+      "projection_full_differences": 3,
+      "accepted_runtime_differences": 0
+    },
+    "M00501": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.3, 4.1.2.5 N(j)",
+      "reason": "Agrega not_indexable sobre una base if ya fallida; conserva los C de condicion y ramas.",
+      "projection_full_differences": 1,
+      "accepted_runtime_differences": 0
+    },
+    "M00518": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del elemento que consume un if cuya condicion I64 ya falla frente a Bool.",
+      "projection_full_differences": 4674,
+      "accepted_runtime_differences": 0
+    },
+    "M00592": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.4, 13.15",
+      "reason": "Omitir la restauracion del dueno numerico exterior solo puede cambiar procedencia tras un resultado fallido; cada operacion numerica siguiente fija su propio dueno y dominio.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00632": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.4, 4.6",
+      "reason": "La operacion numerica denuncia una sola vez su dominio incompatible.",
+      "test": "i07c_causal_obligations: numeric_operation_keeps_one_domain_rejection"
+    },
+    "M00699": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.2, 4.1.2.5 N(j)",
+      "reason": "El indicador invalid cambia despues de registrar el primer conflicto; solo cambia el valor parcial del array consumidor.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00700": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.2, 4.1.2.5 N(j)",
+      "reason": "El indicador invalid cambia despues de registrar el primer conflicto; solo cambia el valor parcial del array consumidor.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00726": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.4, 13.15",
+      "reason": "La operacion izquierda recibe I64 por contexto explicito; el dueno numerico omitido solo afecta la procedencia de un resultado derivado.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00734": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "La contaminacion anticipada afecta la combinacion tras el fallo izquierdo; la comprobacion independiente del operando derecho conserva sus C.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00821": {
+      "level": "C",
+      "adr": "F0-0002 §4.1.2.5 N(d)",
+      "reason": "La comparacion anidada conserva el dominio independiente del operando derecho.",
+      "test": "i07c_causal_obligations: nested_comparison_keeps_right_independent_domain_site"
+    },
+    "M00827": {
+      "level": "C",
+      "adr": "F0-0002 §4.1.2.5 N(d)",
+      "reason": "El constructor derecho fallido no borra el dominio de comparacion izquierdo.",
+      "test": "i07c_causal_obligations: failed_right_constructor_preserves_independent_left_comparison_domain"
+    },
+    "M00858": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.3, 4.1.2.5 N(j)",
+      "reason": "La base no Array emite el mismo not_indexable despues de comprobar el selector; el indicador de contaminacion solo alcanza resultados dependientes.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00859": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.3, 4.1.2.5 N(j)",
+      "reason": "La base no Array emite el mismo not_indexable despues de comprobar el selector; el indicador de contaminacion solo alcanza resultados dependientes.",
+      "projection_full_differences": 0,
+      "accepted_runtime_differences": 0
+    },
+    "M00876": {
+      "level": "C",
+      "adr": "F0-0002 §4.1.2.5",
+      "reason": "La union exterior conserva el primer brazo valido aunque falle una union interior.",
+      "test": "i07c_causal_obligations: failed_inner_join_preserves_first_valid_branch_for_outer_join"
+    },
+    "M00883": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.2, 4.1.2.5 N(d)",
+      "reason": "La condicion fallida de una union no descarga el constructor [] independiente.",
+      "test": "i07c_causal_obligations: unresolved_constructor_survives_failed_nested_union_condition"
+    },
+    "M00914": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.2, 4.1.2.5 N(d)",
+      "reason": "La condicion fallida de una union no descarga el constructor [] independiente.",
+      "test": "i07c_causal_obligations: unresolved_constructor_survives_failed_nested_union_condition"
+    },
+    "M00964": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.2, 4.1.2.5 N(d)",
+      "reason": "La condicion fallida de una union no descarga el constructor [] independiente.",
+      "test": "i07c_causal_obligations: unresolved_constructor_survives_failed_nested_union_condition"
+    },
+    "M00974": {
+      "level": "C",
+      "adr": "F0-0002 §4.1.2.5 N(d)",
+      "reason": "La union interior fallida conserva el conflicto de forma exterior.",
+      "test": "i07c_causal_obligations: nested_failed_union_keeps_its_outer_shape_conflict"
+    },
+    "M01004": {
+      "level": "C",
+      "adr": "F0-0002 §§4.1.2.2, 4.1.2.5",
+      "reason": "El brazo valido de la union interior conserva el testigo del constructor exterior.",
+      "test": "i07c_causal_obligations: failed_inner_union_preserves_outer_empty_constructor_witness"
+    },
+    "M01042": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del operando derecho cuando el izquierdo numerico ya tiene una causa; conserva el C izquierdo.",
+      "projection_full_differences": 4900,
+      "accepted_runtime_differences": 0
+    }
+  }
+}

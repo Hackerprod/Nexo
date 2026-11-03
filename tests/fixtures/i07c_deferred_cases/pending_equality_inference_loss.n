@@ -1,0 +1,1 @@
+fn Main(){let c=true;var v=(if true then {return;} else {return;});if c{let a=v[true]==1;}let b=v==[];}

@@ -1,0 +1,1 @@
+fn Main(){let p=true;let x=1;var r=[];while (if p then 2 - 1 else r[x]) {}r=[3];}

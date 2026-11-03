@@ -1,0 +1,1 @@
+fn Main(){let p=true;let r=[[true]];let a=[(r<r),(if p then true else r)];}

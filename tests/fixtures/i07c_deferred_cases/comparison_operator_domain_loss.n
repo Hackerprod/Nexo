@@ -1,0 +1,1 @@
+fn Main(){let c=true;AssertEq(c<1[1],1);}

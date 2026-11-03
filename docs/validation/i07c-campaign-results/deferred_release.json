@@ -1,0 +1,22 @@
+{
+  "name": "deferred_release",
+  "mode": "DEFER",
+  "programs": 417372,
+  "checks": 417372,
+  "summary": {
+    "programs": 417372,
+    "q_involved_skipped": 6280,
+    "uses_deferred_name": 47567,
+    "identical_independent_sets": 202386,
+    "missing_leaf_programs": 18,
+    "extra_diag_programs": 6,
+    "acceptance_diff": 0,
+    "q_lost": 0,
+    "strict_dup_programs": 0,
+    "same_site_programs": 0,
+    "bugs": 0
+  },
+  "seed": 7310105,
+  "threads": 8,
+  "informative": true
+}

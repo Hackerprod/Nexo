@@ -1,0 +1,17 @@
+[package]
+name = "i07c-domain-campaign"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "i07c-domain-campaign"
+path = "main.rs"
+
+[dependencies]
+nexo = { path = "../.." }
+
+[profile.release]
+debug = false
+
+[profile.dev]
+opt-level = 1

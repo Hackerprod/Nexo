@@ -1,0 +1,593 @@
+{
+  "rule": "F0-0002 §4.1.2.7: the concrete initializer is not an equivalent twin when an earlier accepted constraint requires an incompatible type or shape",
+  "profiles": {
+    "17021": "release",
+    "17022": "debug",
+    "17401": "release",
+    "17402": "debug",
+    "28501": "release",
+    "28502": "debug"
+  },
+  "cases": [
+    {
+      "seed": 17021,
+      "index": 5784,
+      "prefix": "r is required as Bool by earlier if conditions, but the moved initializer makes r an Array<I64>; the later branch conflict is evaluated under a different valid prefix."
+    },
+    {
+      "seed": 17021,
+      "index": 41312,
+      "prefix": "the annotated indexed result requires deeper q and r arrays than their later assignments"
+    },
+    {
+      "seed": 17021,
+      "index": 43238,
+      "prefix": "the earlier nested union constrains r at a deeper array shape than its later Array<I64> assignment; moving that assignment before the union changes which branch first supplies the concrete anchor."
+    },
+    {
+      "seed": 17021,
+      "index": 60196,
+      "prefix": "the nested [q]/r union requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 70995,
+      "prefix": "the array [[q],r] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 89396,
+      "prefix": "the array containing r and [q] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 120195,
+      "prefix": "the nested [q]/[r] union establishes an incompatible Array prefix"
+    },
+    {
+      "seed": 17021,
+      "index": 125508,
+      "prefix": "the outer union's Array<Array<I64>> result requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 176158,
+      "prefix": "the [s]/r branch join requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 195918,
+      "prefix": "r == [q] requires more Array layers than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 198141,
+      "prefix": "the condition array [[q],r[0]] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 218521,
+      "prefix": "[q] < r first equates its operands and requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 229957,
+      "prefix": "the earlier union compares q with [q] and aar under an Array<I64> context, but q is assigned Array<I64> only afterward; moving that assignment changes the first branch anchor while the independent numeric and condition errors remain."
+    },
+    {
+      "seed": 17021,
+      "index": 230643,
+      "prefix": "q < r and q == s relate components before s=[[3]], conflicting with flat q/r assignments"
+    },
+    {
+      "seed": 17021,
+      "index": 249388,
+      "prefix": "q is required as Bool by two earlier if conditions, but the moved initializer makes q an Array<I64>; the branch comparison and unresolved constructor therefore have different causal inputs."
+    },
+    {
+      "seed": 17021,
+      "index": 263301,
+      "prefix": "the annotated indexed result requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17021,
+      "index": 290607,
+      "prefix": "the array [r,[q]] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 649,
+      "prefix": "s < q[0] relates q's element to an Array, requiring a deeper q than q=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 6263,
+      "prefix": "the q/ar branch join requires a shallower q than q=[[3]]"
+    },
+    {
+      "seed": 17022,
+      "index": 7839,
+      "prefix": "the r/[q] branch join requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 51382,
+      "prefix": "the [q]/r branch join requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 54993,
+      "prefix": "the earlier union compares r with [r] and [ar], imposing an incompatible recursive array shape before the later r=[3] assignment; moving the assignment changes the first concrete branch anchor."
+    },
+    {
+      "seed": 17022,
+      "index": 84331,
+      "prefix": "the earlier nested union compares r with [r] and [ar] while two conditions already fail; the later r=[3] assignment cannot satisfy the recursive shape, so moving it changes the first concrete branch anchor."
+    },
+    {
+      "seed": 17022,
+      "index": 92353,
+      "prefix": "[r[x],q] first relates q to r's projected element, requiring a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 97678,
+      "prefix": "[r,[q]] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 111388,
+      "prefix": "the earlier nested union compares [[s]] with [[[2]]], constraining s more deeply than the later s=ar assignment; moving the assignment changes the first concrete branch anchor."
+    },
+    {
+      "seed": 17022,
+      "index": 119666,
+      "prefix": "the [[s]]/q branch join requires a deeper q than q=[true]"
+    },
+    {
+      "seed": 17022,
+      "index": 123671,
+      "prefix": "the q/r union conflicts with the different later Array element types"
+    },
+    {
+      "seed": 17022,
+      "index": 169500,
+      "prefix": "the nested branch context requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 190209,
+      "prefix": "the outer r/[r] union requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 196345,
+      "prefix": "the r/[q] branch join requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 198184,
+      "prefix": "[[q],r] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 217889,
+      "prefix": "the [r,[q]] array requires a deeper r than r=[x]"
+    },
+    {
+      "seed": 17022,
+      "index": 220356,
+      "prefix": "[r,[q]] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 275855,
+      "prefix": "[q] == r requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 279397,
+      "prefix": "the r/[q] branch join requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17022,
+      "index": 289652,
+      "prefix": "[r,[q]] requires a deeper r than r=[3]"
+    },
+    {
+      "seed": 17401,
+      "index": 4738,
+      "prefix": "r < [q] relates r to an Array containing q before r=[3] fixes a flat element"
+    },
+    {
+      "seed": 17401,
+      "index": 6603,
+      "prefix": "[r,[q]] relates r to an Array containing q before flat r=[3]"
+    },
+    {
+      "seed": 17401,
+      "index": 10486,
+      "prefix": "r == 0 constrains r to I64 before r=br fixes Array<Bool>"
+    },
+    {
+      "seed": 17401,
+      "index": 15027,
+      "prefix": "the array [r,...,[q]] relates r to a deeper Array than r=[3]; r is also a condition"
+    },
+    {
+      "seed": 17401,
+      "index": 18078,
+      "prefix": "s[0][q[x]] requires an I64 selector, while q=[ar] supplies Array<I64>; assignment order fixes the origin"
+    },
+    {
+      "seed": 17401,
+      "index": 24314,
+      "prefix": "r < [q] relates r to an Array containing q before the flat r=[3] assignment"
+    },
+    {
+      "seed": 17401,
+      "index": 32168,
+      "prefix": "the r[0]/q branch relates q to an element of r before flat r and q assignments"
+    },
+    {
+      "seed": 17401,
+      "index": 37679,
+      "prefix": "the earlier union compares r[0] and r with [2] under an I64 anchor; the later r=[3] cannot satisfy that branch shape, so moving it changes the first conflict site."
+    },
+    {
+      "seed": 17401,
+      "index": 45253,
+      "prefix": "the condition r requires Bool before r=[3] fixes an Array"
+    },
+    {
+      "seed": 17401,
+      "index": 48895,
+      "prefix": "the [q]/r branch relates r to an Array containing q before flat r=[3]"
+    },
+    {
+      "seed": 17401,
+      "index": 49493,
+      "prefix": "the inner s/p branch relates s to Bool before s=[3] fixes an Array"
+    },
+    {
+      "seed": 17401,
+      "index": 49539,
+      "prefix": "q is a condition and an Array base before q=[3] fixes its type"
+    },
+    {
+      "seed": 17401,
+      "index": 97570,
+      "prefix": "the outer r/[q] branch can use the first assigned Array shape: r=ar first blames [q], while q=[3] first anchors [q] and rejects r=ar"
+    },
+    {
+      "seed": 17401,
+      "index": 137453,
+      "prefix": "[[q],r] relates r to a deeper Array than r=[3], before q and r are assigned"
+    },
+    {
+      "seed": 17401,
+      "index": 182378,
+      "prefix": "aar[s] and r[x] == s require an I64 selector s before s=ar fixes Array<I64>"
+    },
+    {
+      "seed": 17401,
+      "index": 188684,
+      "prefix": "r == [q] relates r to an Array containing q before flat r=[3]"
+    },
+    {
+      "seed": 17401,
+      "index": 197483,
+      "prefix": "the condition r requires Bool while r=[3] later fixes an Array; [q,[s]] also relates pending elements"
+    },
+    {
+      "seed": 17401,
+      "index": 272609,
+      "prefix": "r is both the Array base and an index in r[r], preceding its Array assignment"
+    },
+    {
+      "seed": 17401,
+      "index": 275867,
+      "prefix": "r == [q] requires a deeper r than r=[3], and a later branch uses r as a condition"
+    },
+    {
+      "seed": 17401,
+      "index": 286309,
+      "prefix": "the earlier nested union compares r, [r], and aar while the outer condition already rejects I64; the later r=[3] is incompatible with the recursive branch shape, so moving it changes the first conflict site."
+    },
+    {
+      "seed": 17401,
+      "index": 289648,
+      "prefix": "the r/[q] branch relates r to an Array containing q before flat r=[3]"
+    },
+    {
+      "seed": 17402,
+      "index": 12661,
+      "prefix": "q < [r] relates q to an Array containing r before flat q=[3]"
+    },
+    {
+      "seed": 17402,
+      "index": 24135,
+      "prefix": "r is a condition in the r/[q] branch before r=[3] fixes an Array"
+    },
+    {
+      "seed": 17402,
+      "index": 73581,
+      "prefix": "the earlier union compares r[x] with r and [2] under an I64 anchor; the later r=[3] cannot satisfy that branch shape, so moving it changes the first conflict site."
+    },
+    {
+      "seed": 17402,
+      "index": 89985,
+      "prefix": "r is required as Bool by an earlier if condition, but the moved initializer gives r the incompatible Array<I64> type; the branch diagnostic on x is therefore evaluated under a different prefix."
+    },
+    {
+      "seed": 17402,
+      "index": 112873,
+      "prefix": "the earlier nested union compares r with [r] and [ar] while its condition already rejects I64; the later r=[3] cannot satisfy the recursive array shape, so moving it changes the first branch anchor."
+    },
+    {
+      "seed": 17402,
+      "index": 113917,
+      "prefix": "AssertEq(r,[q]) relates r to an Array containing q before flat r=[3]"
+    },
+    {
+      "seed": 17402,
+      "index": 155231,
+      "prefix": "the earlier union compares r with [r] and aar, imposing a recursive array shape incompatible with the later r=[3] assignment; moving it changes the first branch anchor."
+    },
+    {
+      "seed": 17402,
+      "index": 158864,
+      "prefix": "the earlier union compares s with [s] and aar under an Array<I64> anchor, while later s=[3] cannot satisfy the deeper branch shape; moving it changes the first conflict site."
+    },
+    {
+      "seed": 17402,
+      "index": 184922,
+      "prefix": "r+r requires I64 while r=[true] fixes Array; q is also a condition before q=[3]"
+    },
+    {
+      "seed": 17402,
+      "index": 187903,
+      "prefix": "the [2]/r branch constrains r to Array<I64> before r=[true] fixes Array<Bool>"
+    },
+    {
+      "seed": 17402,
+      "index": 199979,
+      "prefix": "r[x] == q relates q to I64 before q=[3] fixes an Array"
+    },
+    {
+      "seed": 17402,
+      "index": 202280,
+      "prefix": "the 1/s branch constrains s to I64 before s=[3]; [[q],r] also relates pending shapes"
+    },
+    {
+      "seed": 17402,
+      "index": 216625,
+      "prefix": "[r,[q]] requires a deeper r than flat r=[3]"
+    },
+    {
+      "seed": 17402,
+      "index": 235899,
+      "prefix": "the q/x branch constrains q to I64 before q=[3]; q/s selector also relates their components"
+    },
+    {
+      "seed": 17402,
+      "index": 273602,
+      "prefix": "the q/r[Len(ar)] branch relates q to an element of r before q=[3] fixes an Array"
+    },
+    {
+      "seed": 17402,
+      "index": 288003,
+      "prefix": "AssertEq relates r to an Array containing [s] before r=[[true]] and s=[x] fix incompatible elements"
+    },
+    {
+      "seed": 28501,
+      "index": 9693,
+      "prefix": "the earlier outer union compares the element r of [r][x] with the inner [r]/aar array, requiring an impossible recursive array shape; moving the later r=ar assignment changes the first branch conflict site."
+    },
+    {
+      "seed": 28501,
+      "index": 14632,
+      "prefix": "r is a condition before r=[3], while p<q constrains q before q=[ar]"
+    },
+    {
+      "seed": 28501,
+      "index": 16187,
+      "prefix": "the r[x]/q branch relates q to an element of r before q=[3] fixes an Array"
+    },
+    {
+      "seed": 28501,
+      "index": 28684,
+      "prefix": "the r[x]/q branch relates q to an element of r before q=[3] fixes an Array"
+    },
+    {
+      "seed": 28501,
+      "index": 49611,
+      "prefix": "q is a condition before q=[3], and the r/[r] branch relates incompatible Array depths"
+    },
+    {
+      "seed": 28501,
+      "index": 63333,
+      "prefix": "r[q[x][r]] uses r as both an Array base and an I64 selector before r=[3]"
+    },
+    {
+      "seed": 28501,
+      "index": 65238,
+      "prefix": "[[q],r] requires a deeper r than r=[true]; H1(r) later requires Array<I64>"
+    },
+    {
+      "seed": 28501,
+      "index": 81789,
+      "prefix": "r == [q] requires a deeper r than flat r=[3]"
+    },
+    {
+      "seed": 28501,
+      "index": 83432,
+      "prefix": "r[[r,p]] uses r as both an Array base and an element equated with Bool p before r=br"
+    },
+    {
+      "seed": 28501,
+      "index": 87551,
+      "prefix": "the earlier union compares r with [r] and aar under AssertEq, requiring a recursive array shape that the later r=[3] assignment cannot satisfy; moving it changes the first branch conflict site."
+    },
+    {
+      "seed": 28501,
+      "index": 106080,
+      "prefix": "q == r[0] relates q to an element of r before q=[3] fixes an Array"
+    },
+    {
+      "seed": 28501,
+      "index": 154365,
+      "prefix": "the r/p branch relates r to Bool before r=[[true]] fixes a nested Array"
+    },
+    {
+      "seed": 28501,
+      "index": 172506,
+      "prefix": "the r/x branch relates r to I64 before r=[3] fixes an Array"
+    },
+    {
+      "seed": 28501,
+      "index": 206199,
+      "prefix": "r and q are conditions before their later Array assignments"
+    },
+    {
+      "seed": 28501,
+      "index": 230515,
+      "prefix": "[q] == r requires a deeper r than flat r=[3], while q is also a condition"
+    },
+    {
+      "seed": 28501,
+      "index": 253821,
+      "prefix": "r == [q] requires a deeper r than flat r=[3]"
+    },
+    {
+      "seed": 28501,
+      "index": 266009,
+      "prefix": "true == r constrains r to Bool before r=[true] fixes an Array"
+    },
+    {
+      "seed": 28501,
+      "index": 267194,
+      "prefix": "q is required as Bool by an earlier if condition, while its later q=[[3]] assignment is an incompatible nested array; moving it changes the first concrete branch anchor."
+    },
+    {
+      "seed": 28501,
+      "index": 271681,
+      "prefix": "the earlier union inside Len compares r with [r] and aar, requiring a recursive array shape incompatible with the later r=[3] assignment; moving it changes the first branch conflict site."
+    },
+    {
+      "seed": 28501,
+      "index": 290059,
+      "prefix": "the AssertEq result constrains q to I64 before q=[3], and r is a condition before r=[true]"
+    },
+    {
+      "seed": 28502,
+      "index": 860,
+      "prefix": "r[0] and x+r[0] relate the unresolved r element to I64 before the later r=[3]; the internal if also offers r versus [2] at different Array depth"
+    },
+    {
+      "seed": 28502,
+      "index": 13709,
+      "prefix": "AssertEq relates the branch containing r to Bool p before r=[3] fixes an Array"
+    },
+    {
+      "seed": 28502,
+      "index": 49259,
+      "prefix": "[q] == r requires a deeper r than flat r=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 65833,
+      "prefix": "the r condition requires Bool while r[0] and the r/aar union require incompatible Array depths before r=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 73133,
+      "prefix": "r == [s] requires a deeper r than flat r=[3], while s is a condition before s=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 81801,
+      "prefix": "[s] < q requires a deeper q than flat q=[3], while s is a condition before s=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 86086,
+      "prefix": "r < [q] requires a deeper r than flat r=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 103208,
+      "prefix": "r is a condition before r=[3], and [r,[q]] relates Array depths"
+    },
+    {
+      "seed": 28502,
+      "index": 108509,
+      "prefix": "s[0], [s] and aar constrain the nested join before s=ar; moving that assignment changes the first incompatible branch"
+    },
+    {
+      "seed": 28502,
+      "index": 120699,
+      "prefix": "r is both a condition and an Array base before r=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 132071,
+      "prefix": "[r,[s]] requires a deeper r than flat r=[3], and [q,false] constrains q to Bool"
+    },
+    {
+      "seed": 28502,
+      "index": 142704,
+      "prefix": "r == [s] relates r to an Array containing s before flat r=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 152799,
+      "prefix": "the [r]/aar join fixes a nested Array shape before r=[3] fixes r as a flat Array, so the first branch conflict changes"
+    },
+    {
+      "seed": 28502,
+      "index": 158227,
+      "prefix": "the arithmetic branch constrains r to I64 before r=[3] fixes an Array"
+    },
+    {
+      "seed": 28502,
+      "index": 165391,
+      "prefix": "the r/false branch constrains r to Bool before r=ar fixes Array<I64>"
+    },
+    {
+      "seed": 28502,
+      "index": 178065,
+      "prefix": "[r,[q]] requires a deeper r than flat r=[3]"
+    },
+    {
+      "seed": 28502,
+      "index": 203226,
+      "prefix": "r[x] and the r/ar join constrain r before r=[3]; moving the assignment changes which nested branch supplies the first conflict"
+    },
+    {
+      "seed": 28502,
+      "index": 212512,
+      "prefix": "x-r constrains r to I64 before r=[3], while q is a condition before q=[true]"
+    },
+    {
+      "seed": 28502,
+      "index": 224493,
+      "prefix": "the r/x branch relates r to I64 before r=[3], while q is a condition before q=[true]"
+    },
+    {
+      "seed": 28502,
+      "index": 226268,
+      "prefix": "r is a condition and an outer join branch before r=[3] fixes an Array, changing the first incompatible inner branch"
+    },
+    {
+      "seed": 28502,
+      "index": 246479,
+      "prefix": "the [s]/q branch relates q to an Array containing s before q=ar fixes a flat Array"
+    },
+    {
+      "seed": 28502,
+      "index": 278630,
+      "prefix": "q[1][r[1]] requires an I64 selector but r=[[3]] supplies Array<I64> at r[1]"
+    }
+  ]
+}

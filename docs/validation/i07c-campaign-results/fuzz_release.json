@@ -1,0 +1,18 @@
+{
+  "name": "fuzz_release",
+  "mode": "FUZZ",
+  "programs": 400000,
+  "checks": 800000,
+  "summary": {
+    "programs": 400000,
+    "accepted": 54,
+    "run_unit": 42,
+    "bugs_panic_invalidir_internal": 0,
+    "check_run_incoherent": 0,
+    "strict_dup_programs": 0,
+    "same_site_programs": 0
+  },
+  "seed": 7310107,
+  "threads": 8,
+  "informative": false
+}

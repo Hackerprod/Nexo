@@ -1,0 +1,1 @@
+fn Main(){let q2=[Len((if true then {return;} else {return;}))];}

@@ -1,0 +1,121 @@
+[
+  {
+    "name": "groups_release",
+    "result_file": "docs/validation/i07c-campaign-results/groups_release.json",
+    "programs": 300000,
+    "checks": 300000,
+    "informative": false
+  },
+  {
+    "name": "groups_debug",
+    "result_file": "docs/validation/i07c-campaign-results/groups_debug.json",
+    "programs": 40000,
+    "checks": 40000,
+    "informative": false
+  },
+  {
+    "name": "model_release",
+    "result_file": "docs/validation/i07c-campaign-results/model_release.json",
+    "programs": 250000,
+    "checks": 250000,
+    "informative": false
+  },
+  {
+    "name": "model_newseed_release",
+    "result_file": "docs/validation/i07c-campaign-results/model_newseed_release.json",
+    "programs": 120000,
+    "checks": 120000,
+    "informative": false
+  },
+  {
+    "name": "deferred_release",
+    "result_file": "docs/validation/i07c-campaign-results/deferred_release.json",
+    "programs": 417372,
+    "checks": 417372,
+    "informative": true
+  },
+  {
+    "name": "oracle_release",
+    "result_file": "docs/validation/i07c-campaign-results/oracle_release.json",
+    "programs": 2912268,
+    "checks": 2912268,
+    "informative": false
+  },
+  {
+    "name": "fuzz_release",
+    "result_file": "docs/validation/i07c-campaign-results/fuzz_release.json",
+    "programs": 400000,
+    "checks": 800000,
+    "informative": false
+  },
+  {
+    "name": "fuzz_debug",
+    "result_file": "docs/validation/i07c-campaign-results/fuzz_debug.json",
+    "programs": 100000,
+    "checks": 200000,
+    "informative": false
+  },
+  {
+    "name": "types_release",
+    "result_file": "docs/validation/i07c-campaign-results/types_release.json",
+    "programs": 200000,
+    "checks": 400000,
+    "informative": false
+  },
+  {
+    "name": "stacks_release_128",
+    "result_file": "docs/validation/i07c-campaign-results/stacks_release_128.json",
+    "programs": 312,
+    "checks": 624,
+    "informative": false
+  },
+  {
+    "name": "stacks_release_256",
+    "result_file": "docs/validation/i07c-campaign-results/stacks_release_256.json",
+    "programs": 312,
+    "checks": 624,
+    "informative": false
+  },
+  {
+    "name": "stacks_release_512",
+    "result_file": "docs/validation/i07c-campaign-results/stacks_release_512.json",
+    "programs": 312,
+    "checks": 624,
+    "informative": false
+  },
+  {
+    "name": "stacks_debug_128",
+    "result_file": "docs/validation/i07c-campaign-results/stacks_debug_128.json",
+    "programs": 312,
+    "checks": 624,
+    "informative": false
+  },
+  {
+    "name": "stacks_debug_256",
+    "result_file": "docs/validation/i07c-campaign-results/stacks_debug_256.json",
+    "programs": 312,
+    "checks": 624,
+    "informative": false
+  },
+  {
+    "name": "stacks_debug_512",
+    "result_file": "docs/validation/i07c-campaign-results/stacks_debug_512.json",
+    "programs": 312,
+    "checks": 624,
+    "informative": false
+  },
+  {
+    "name": "head_acceptance",
+    "result_file": "docs/validation/i07c-campaign-results/head_acceptance.json",
+    "programs": 44,
+    "checks": 88,
+    "informative": false
+  },
+  {
+    "name": "quota_reduced_release",
+    "result_file": "docs/validation/i07c-campaign-results/quota_reduced_release.json",
+    "programs": 4800,
+    "checks": 268800,
+    "informative": true
+  }
+]

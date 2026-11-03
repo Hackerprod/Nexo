@@ -1,0 +1,171 @@
+{
+  "profiles": {
+    "debug": {
+      "command": [
+        "cargo",
+        "test",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "log_sha256": "3f185ba9b4e652a903541fff89292d87248713dd27f138025a8067e2c634d1b0",
+      "binaries": {
+        "src/lib.rs": {
+          "passed": 969,
+          "ignored": 50
+        },
+        "src/main.rs": {
+          "passed": 0,
+          "ignored": 0
+        },
+        "canonical_print": {
+          "passed": 3,
+          "ignored": 0
+        },
+        "cli": {
+          "passed": 20,
+          "ignored": 0
+        },
+        "corpus": {
+          "passed": 28,
+          "ignored": 0
+        },
+        "i01_diagnostic": {
+          "passed": 37,
+          "ignored": 0
+        },
+        "i07c_causal_obligations": {
+          "passed": 60,
+          "ignored": 0
+        },
+        "i07c_deferred_group_regressions": {
+          "passed": 3,
+          "ignored": 0
+        },
+        "i07c_deferred_metamorphic": {
+          "passed": 0,
+          "ignored": 2
+        },
+        "i07c_deferred_mutation_cases": {
+          "passed": 24,
+          "ignored": 0
+        },
+        "i07c_deferred_twins": {
+          "passed": 14,
+          "ignored": 0
+        },
+        "i07c_mutant_projection_scale": {
+          "passed": 0,
+          "ignored": 1
+        },
+        "i07c_mutation_depth": {
+          "passed": 4,
+          "ignored": 0
+        },
+        "i07c_mutation_regressions": {
+          "passed": 67,
+          "ignored": 0
+        },
+        "i07c_normative_survivors": {
+          "passed": 7,
+          "ignored": 0
+        },
+        "i07c_pending_nominal_domain": {
+          "passed": 38,
+          "ignored": 0
+        },
+        "i07c_rd_conformidad": {
+          "passed": 1,
+          "ignored": 0
+        }
+      },
+      "rd": "152/152 check/run pairs normativos"
+    },
+    "release": {
+      "command": [
+        "cargo",
+        "test",
+        "--release",
+        "--all-targets",
+        "--locked",
+        "--offline",
+        "--quiet"
+      ],
+      "exit_code": 0,
+      "log_sha256": "5db4bfb8d6dd1f27372e7d4bebf8279508f40ae22764d0b6eda4b7567b0311a4",
+      "binaries": {
+        "src/lib.rs": {
+          "passed": 971,
+          "ignored": 50
+        },
+        "src/main.rs": {
+          "passed": 0,
+          "ignored": 0
+        },
+        "canonical_print": {
+          "passed": 3,
+          "ignored": 0
+        },
+        "cli": {
+          "passed": 20,
+          "ignored": 0
+        },
+        "corpus": {
+          "passed": 28,
+          "ignored": 0
+        },
+        "i01_diagnostic": {
+          "passed": 37,
+          "ignored": 0
+        },
+        "i07c_causal_obligations": {
+          "passed": 60,
+          "ignored": 0
+        },
+        "i07c_deferred_group_regressions": {
+          "passed": 3,
+          "ignored": 0
+        },
+        "i07c_deferred_metamorphic": {
+          "passed": 0,
+          "ignored": 2
+        },
+        "i07c_deferred_mutation_cases": {
+          "passed": 24,
+          "ignored": 0
+        },
+        "i07c_deferred_twins": {
+          "passed": 14,
+          "ignored": 0
+        },
+        "i07c_mutant_projection_scale": {
+          "passed": 0,
+          "ignored": 1
+        },
+        "i07c_mutation_depth": {
+          "passed": 4,
+          "ignored": 0
+        },
+        "i07c_mutation_regressions": {
+          "passed": 67,
+          "ignored": 0
+        },
+        "i07c_normative_survivors": {
+          "passed": 7,
+          "ignored": 0
+        },
+        "i07c_pending_nominal_domain": {
+          "passed": 38,
+          "ignored": 0
+        },
+        "i07c_rd_conformidad": {
+          "passed": 1,
+          "ignored": 0
+        }
+      },
+      "rd": "152/152 check/run pairs normativos"
+    }
+  }
+}

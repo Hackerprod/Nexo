@@ -1,0 +1,1 @@
+fn R0(){var v0=[];var v1=[[]];var q0=(if true then {return;}else{return;});var q1=(if true then {return;}else{return;});var a0=[1];var m0=MockOpen(1);var m1=MockOpen(2);Drop(m0);Drop(q0);AssertEq(v1,([q0]));}fn Main(){}

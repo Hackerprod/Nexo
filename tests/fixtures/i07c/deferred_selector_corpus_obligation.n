@@ -1,0 +1,1 @@
+fn Main(){var q=(if true then {return;} else {return;});let a=q[(if true then 1 else true)];q=[1];}

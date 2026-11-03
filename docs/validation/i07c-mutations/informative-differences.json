@@ -1,0 +1,52 @@
+{
+  "M00469": {
+    "generated_mix": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del resultado de una rama con causa interna previa; conserva todos los C."
+    }
+  },
+  "M00501": {
+    "generated_mix": {
+      "level": "V",
+      "adr": "F0-0002 §§4.1.2.3, 4.1.2.5 N(j)",
+      "reason": "Agrega not_indexable sobre una base if ya fallida; conserva los C de condicion y ramas."
+    }
+  },
+  "M00518": {
+    "quota_15": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del elemento que consume un if cuya condicion I64 ya falla frente a Bool."
+    },
+    "generated_mix": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del elemento que consume un if cuya condicion I64 ya falla frente a Bool."
+    }
+  },
+  "M00639": {
+    "undecided_join_array": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j), I(a)",
+      "reason": "La unión exterior recibe un diagnóstico derivado después de que el elemento Bool ya falló; todos los C internos permanecen."
+    },
+    "generated_mix": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2 I(b), N(i)",
+      "reason": "Conserva código, subcausa y primario de los C; cambia solo el sitio relacionado expected_type entre dos orígenes fuente reales de una comparación ya rechazada."
+    }
+  },
+  "M01042": {
+    "quota_37": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del operando derecho cuando el izquierdo numerico ya tiene una causa; conserva el C izquierdo."
+    },
+    "generated_mix": {
+      "level": "V",
+      "adr": "F0-0002 §4.1.2.5 N(j)",
+      "reason": "Agrega un mismatch del operando derecho cuando el izquierdo numerico ya tiene una causa; conserva el C izquierdo."
+    }
+  }
+}

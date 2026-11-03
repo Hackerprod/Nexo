@@ -56,6 +56,164 @@ fn cli_check_and_run_use_official_b_pipeline() {
 }
 
 #[test]
+fn hypothetical_unresolved_index_write_has_no_internal_error() {
+    // F0-0002 §4.1.2.3: without an Array constructor, the selector's
+    // conditional I64 context is inactive in hypothetical code.
+    let source = b"fn Main(){var q=(if true then {return;}else{return;});q[true]=1;}";
+    for command in ["check", "run"] {
+        let output = checked(command, source);
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{command}: {}",
+            text(&output.stderr)
+        );
+        assert!(!text(&output.stderr).contains("internal_error"));
+    }
+    let non_array = b"fn Main(){var q=(if true then {return;}else{return;});let a=q[q<q];}";
+    for command in ["check", "run"] {
+        let output = checked(command, non_array);
+        assert_eq!(
+            output.status.code(),
+            Some(1),
+            "{command}: {}",
+            text(&output.stderr)
+        );
+        assert!(text(&output.stderr).contains("subcause: not_indexable"));
+        assert!(!text(&output.stderr).contains("internal_error"));
+    }
+}
+
+#[test]
+fn deferred_array_branch_conflict_rejects_before_driver_lowering() {
+    // F0-0002 §4.1.2.4–5: the deferred element context reaches both
+    // branches and reports their incompatible values before IR lowering.
+    let source = b"fn Main(){var a1=[];var aar=[[1]];let a=[a1,[117],(if true then {value:aar;} else {value:false;})];}";
+    for command in ["check", "run"] {
+        let output = checked(command, source);
+        let stderr = text(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{command}: {stderr}");
+        assert_eq!(
+            stderr.matches("NX-E0102:").count(),
+            2,
+            "{command}: {stderr}"
+        );
+        assert!(!stderr.contains("internal_error"), "{command}: {stderr}");
+    }
+}
+
+#[test]
+fn adr_gap_distributed_branch_consumes_outer_add_domain() {
+    // F0-0002 §4.1.2.4–5 distributes I64 but does not identify whether
+    // the enclosing + domain must also diagnose the already failed branch.
+    let source = b"fn Main(){let p=true;let ar=[1];let x=1;let a=(if p then ar else x)+true;}";
+    for command in ["check", "run"] {
+        let output = checked(command, source);
+        let stderr = text(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{command}: {stderr}");
+        assert_eq!(
+            stderr.matches("NX-E0102:").count(),
+            1,
+            "{command}: {stderr}"
+        );
+        assert!(stderr.contains("at: {\"end\":59,"), "{command}: {stderr}");
+        assert!(stderr.contains("\"start\":57}"), "{command}: {stderr}");
+        assert!(stderr.contains("\"expected_type\":\"I64\",\"found_type\":\"Array<I64>\""));
+    }
+}
+
+#[test]
+fn adr_gap_deferred_less_than_bool_uses_operator_primary() {
+    // F0-0002 §4.1.2.4–5 leaves this operator versus operand attribution open.
+    let source = b"fn Main(){var q=(if true then {return;}else{return;});let b=q<true;}";
+    for command in ["check", "run"] {
+        let output = checked(command, source);
+        let stderr = text(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{command}: {stderr}");
+        assert_eq!(
+            stderr.matches("NX-E0102:").count(),
+            1,
+            "{command}: {stderr}"
+        );
+        assert!(stderr.contains("at: {\"end\":62,"), "{command}: {stderr}");
+        assert!(stderr.contains("\"start\":61}"), "{command}: {stderr}");
+        assert!(stderr.contains("\"expected_type\":\"I64\",\"found_type\":\"Bool\""));
+    }
+}
+
+#[test]
+fn adr_gap_direct_never_comparison_preserves_operator_primary() {
+    // F0-0002 §§4.1.2.4–5 fix the I64 domain; attribution for an
+    // intrinsically divergent left operand and Bool right operand is open.
+    let source = b"fn Main(){let x=(if true then {return;} else {return;})<true;}";
+    assert_eq!(&source[55..56], b"<");
+    for command in ["check", "run"] {
+        let output = checked(command, source);
+        let stderr = text(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{command}: {stderr}");
+        assert_eq!(
+            stderr.matches("NX-E0102:").count(),
+            1,
+            "{command}: {stderr}"
+        );
+        assert!(stderr.contains("at: {\"end\":56,"), "{command}: {stderr}");
+        assert!(stderr.contains("\"start\":55}"), "{command}: {stderr}");
+        assert!(stderr.contains("stage: types"), "{command}: {stderr}");
+        assert!(
+            stderr.contains("operation: types.check"),
+            "{command}: {stderr}"
+        );
+        assert!(
+            stderr.contains("subcause: type_mismatch"),
+            "{command}: {stderr}"
+        );
+        assert_eq!(stderr.matches("related:").count(), 1, "{command}: {stderr}");
+        assert!(
+            stderr.contains("\"role\":\"found_type\""),
+            "{command}: {stderr}"
+        );
+        let related = stderr
+            .lines()
+            .find(|line| line.trim_start().starts_with("related: "))
+            .unwrap();
+        assert!(related.contains("\"end\":60,"), "{command}: {stderr}");
+        assert!(related.contains("\"start\":56}}"), "{command}: {stderr}");
+        assert!(stderr.contains("\"expected_type\":\"I64\",\"found_type\":\"Bool\""));
+    }
+    let valid = b"fn Main(){let x=(if true then {return;} else {return;})<1;}";
+    for command in ["check", "run"] {
+        let output = checked(command, valid);
+        assert_eq!(
+            output.status.code(),
+            Some(0),
+            "{command}: {}",
+            text(&output.stderr)
+        );
+    }
+}
+
+#[test]
+fn adr_gap_deferred_resource_array_uses_copyable_domain() {
+    // F0-0002 §4.1.2.3–5 fixes the domain but leaves its late attribution open.
+    let source = b"fn Main(){var q=(if true then {return;}else{return;});let a=[q];q=MockOpen(1);}";
+    for command in ["check", "run"] {
+        let output = checked(command, source);
+        let stderr = text(&output.stderr);
+        assert_eq!(output.status.code(), Some(1), "{command}: {stderr}");
+        assert_eq!(
+            stderr.matches("NX-E0102:").count(),
+            1,
+            "{command}: {stderr}"
+        );
+        assert!(stderr.contains("at: {\"end\":77,"), "{command}: {stderr}");
+        assert!(stderr.contains("\"start\":66}"), "{command}: {stderr}");
+        assert!(stderr.contains(
+            "\"expected_type\":\"domain:copyable_data\",\"found_type\":\"MockResource\""
+        ));
+    }
+}
+
+#[test]
 fn cli_check_and_run_ignore_source_extension() {
     let official = source_file(b"fn Main(){Print(7);}");
     let without_extension = official.with_extension("");
@@ -92,6 +250,58 @@ fn cli_function_assignment_is_a_source_diagnostic() {
             assert!(stderr.starts_with("NX-E0006:"), "{stderr}");
             assert!(stderr.contains("feature_id: function_value"), "{stderr}");
             assert!(!stderr.contains("internal_error"), "{stderr}");
+        }
+    }
+}
+
+#[test]
+fn cli_nested_function_values_reject_in_check_and_run() {
+    for source in [
+        "fn Main(){var v0=0;v0=(if false then Main else v0);v0=0;}",
+        "fn Main(){var v=[1];v[Main]=1;}",
+        "fn F(){} fn Main(){var v=0;v=(if true then F else v);}",
+    ] {
+        for command in ["check", "run"] {
+            let output = checked(command, source.as_bytes());
+            assert_eq!(output.status.code(), Some(1), "{command}: {source}");
+            assert!(output.stdout.is_empty());
+            let stderr = text(&output.stderr);
+            assert!(stderr.starts_with("NX-E0006:"), "{source}: {stderr}");
+            assert!(
+                stderr.contains("feature_id: function_value"),
+                "{source}: {stderr}"
+            );
+            assert!(!stderr.contains("internal_error"), "{source}: {stderr}");
+        }
+    }
+}
+
+#[test]
+fn cli_type_conflicts_with_divergent_arrays_exit_as_source_errors() {
+    let dv = "(if true then {return;}else{return;})";
+    for source in [
+        "fn Main(){let a=([1]==[0,true]);}".to_owned(),
+        format!("fn Main(){{var v={dv};v=[false,{dv}];v=[4];}}"),
+        format!("fn Main(){{var v=[false,{dv}];v=[4];}}"),
+        format!("fn Main(){{var a=0;a=[0,{dv}];}}"),
+        format!("fn Main(){{var v={dv};v=[4];v=[v[0],[v]];}}"),
+    ] {
+        for command in ["check", "run"] {
+            let output = checked(command, source.as_bytes());
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{command}: {source}: {output:?}"
+            );
+            let stderr = text(&output.stderr);
+            assert!(
+                stderr.starts_with("NX-E01"),
+                "{command}: {source}: {stderr}"
+            );
+            assert!(
+                !stderr.contains("internal_error"),
+                "{command}: {source}: {stderr}"
+            );
         }
     }
 }

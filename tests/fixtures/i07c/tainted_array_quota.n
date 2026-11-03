@@ -1,0 +1,1 @@
+fn F0() with  no_io<NL>{let a=[1];let x0=Ok(MockReadRecords(1));AssertEq(TryAdd(a:1,b:2)?,1);}fn F1(p0<NL>: view I64,<NL>p1<NL>:view Array<Array<I64>>)->  I64 <NL> {let a=[1];if [TryAdd(a:1,b:2),Ok(true)] {let y0=[TryAdd(a:1,b:2),(Ok)(true)];}}fn Main(){}

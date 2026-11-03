@@ -1,0 +1,1 @@
+fn Main(){let ar=[1];let p=true;var q=(if true then {return;} else {return;});let a1=ar[(if p then {value:ar;} else q)];q=true;}

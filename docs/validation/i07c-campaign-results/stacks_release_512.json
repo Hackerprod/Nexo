@@ -1,0 +1,15 @@
+{
+  "name": "stacks_release_512",
+  "mode": "DEEP",
+  "programs": 312,
+  "checks": 624,
+  "summary": {
+    "cases": 312,
+    "coherent": 312,
+    "duplicates": 0,
+    "bugs": 0
+  },
+  "seed": 0,
+  "threads": 8,
+  "informative": false
+}

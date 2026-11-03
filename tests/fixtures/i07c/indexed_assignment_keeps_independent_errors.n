@@ -1,0 +1,1 @@
+fn Main(){var w8=[true];var w10=w8;var w11=(if true then {return;} else {return;});w11[0]=[1,2];w8=[w10];AssertEq([w8],[w11,[[true]]]);}

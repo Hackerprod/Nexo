@@ -1,0 +1,11 @@
+[package]
+name = "i07c-typed-campaign"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "i07c-typed-campaign"
+path = "main.rs"
+
+[dependencies]
+nexo = { path = "../.." }

@@ -6,6 +6,7 @@ use super::model::{
     Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId, Parameter, ParameterMode,
     Program, ScopeId, TempId, Terminator, Ty,
 };
+use crate::check::types::ResolvedType;
 use crate::diagnostic::{self, Diagnostic, PROFILE_ID, Span};
 use crate::frontend::lex;
 use crate::frontend::parse::{self, Ast, Expr, Mode, Statement, Type};
@@ -52,61 +53,6 @@ pub enum CompileError {
     Dependent,
 }
 
-fn binary_result_type(op: &str) -> Result<Ty, CompileError> {
-    match op {
-        "+" | "-" => Ok(Ty::I64),
-        "<" | "==" => Ok(Ty::Bool),
-        _ => Err(CompileError::InvalidIr("binary operation")),
-    }
-}
-
-fn type_label(ty: &Ty) -> String {
-    match ty {
-        Ty::I64 => "I64".into(),
-        Ty::Bool => "Bool".into(),
-        Ty::Unit => "()".into(),
-        Ty::Array(inner) => format!("Array<{}>", type_label(inner)),
-        Ty::MockResource => "MockResource".into(),
-        Ty::MockBlockingResource => "MockBlockingResource".into(),
-        Ty::Never => "Never".into(),
-    }
-}
-
-fn type_mismatch(
-    span: &Span,
-    expected: &Ty,
-    found: &Ty,
-    expected_span: Option<&Span>,
-) -> CompileError {
-    let mut d = crate::check::names::diagnostic(
-        "NX-E0102",
-        Some("type_mismatch"),
-        diagnostic::Stage::Types,
-        diagnostic::Operation::TypesCheck,
-        span.clone(),
-    );
-    d.data.insert(
-        "expected_type".into(),
-        diagnostic::DataValue::String(type_label(expected)),
-    );
-    d.data.insert(
-        "found_type".into(),
-        diagnostic::DataValue::String(type_label(found)),
-    );
-    if let Some(span) = expected_span {
-        d.related_spans.push(diagnostic::RelatedSpan {
-            role: diagnostic::RelatedRole::ExpectedType,
-            span: span.clone(),
-        });
-    }
-    d.related_spans.push(diagnostic::RelatedSpan {
-        role: diagnostic::RelatedRole::FoundType,
-        span: span.clone(),
-    });
-    crate::check::names::sort_related(&mut d);
-    CompileError::Rejected(vec![d])
-}
-
 /// Produces an opaque, verified artifact. No interpreter entry accepts an AST.
 pub fn compile_scalar(file: &str, source: &str) -> Result<Program, CompileError> {
     compile_scalar_with_entry(file, source, true)
@@ -123,23 +69,52 @@ fn compile_scalar_with_entry(
     run_entry: bool,
 ) -> Result<Program, CompileError> {
     let ast = parse::parse(file, source).map_err(|d| CompileError::Rejected(vec![d]))?;
+    // A capability limit exits check_ast with exactly one
+    // implementation_limit diagnostic and no inferred types. On the normal
+    // path below, any nonempty checker error set is returned after lowering;
+    // that early exit only avoids doing unusable lowering work.
     let checked = crate::check::check_for_compilation(file, source, &ast, run_entry);
-    if let Err(errors) = &checked
-        && errors
+    if !checked.errors.is_empty()
+        && checked
+            .errors
             .iter()
             .any(|d| d.feature_id.as_deref() == Some("implementation_limit"))
     {
-        return Err(CompileError::Rejected(errors.clone()));
+        return Err(CompileError::Rejected(checked.errors));
     }
+    let inferred = &checked.inferred;
+    #[cfg(test)]
+    let measure_cfg = super::cfg_measure_active();
     let lowered = std::thread::scope(|scope| {
         std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
-            .spawn_scoped(scope, || compile_ast(&ast, source))
+            .spawn_scoped(scope, || {
+                #[cfg(test)]
+                if measure_cfg {
+                    return super::measure_cfg_thread_work(|| {
+                        compile_ast_with_inference(&ast, source, inferred)
+                    });
+                }
+                #[cfg(test)]
+                {
+                    (compile_ast_with_inference(&ast, source, inferred), 0)
+                }
+                #[cfg(not(test))]
+                {
+                    compile_ast_with_inference(&ast, source, inferred)
+                }
+            })
             .map_err(|_| CompileError::InvalidIr("lowering worker unavailable"))?
             .join()
-            .map_err(|_| CompileError::InvalidIr("lowering worker panicked"))?
-    });
-    if let Err(errors) = checked {
+            .map_err(|_| CompileError::InvalidIr("lowering worker panicked"))
+    })?;
+    #[cfg(test)]
+    let lowered = {
+        let (result, steps) = lowered;
+        super::cfg_forward_work(steps);
+        result
+    };
+    if !checked.errors.is_empty() {
         // Branch value structure precedes type errors, even when a later
         // independent operand already failed in the checker.
         if let Err(CompileError::Rejected(lower_errors)) = lowered {
@@ -153,12 +128,51 @@ fn compile_scalar_with_entry(
                 return Err(CompileError::Rejected(missing));
             }
         }
-        return Err(CompileError::Rejected(errors));
+        return Err(CompileError::Rejected(checked.errors));
     }
     lowered
 }
 
+#[cfg(test)]
 pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, CompileError> {
+    // this test-only entry ignores checker errors and forwards only
+    // inferred types. The run-entry flag affects only an emitted entry-point
+    // diagnostic, not the inference consumed by this helper.
+    let checked = crate::check::check_for_compilation(&ast.span.file, source_text, ast, false);
+    compile_ast_with_inference(ast, source_text, &checked.inferred)
+}
+
+#[cfg(test)]
+static CAPABILITY_LOWER_ATTEMPTS: std::sync::atomic::AtomicUsize =
+    std::sync::atomic::AtomicUsize::new(0);
+
+#[cfg(test)]
+#[inline(never)]
+fn stack_policy_probe(depth: usize) -> usize {
+    let slab = [0u8; 4096];
+    std::hint::black_box(&slab);
+    let result = if depth == 0 {
+        1
+    } else {
+        stack_policy_probe(depth - 1) + 1
+    };
+    std::hint::black_box(&slab);
+    result
+}
+
+fn compile_ast_with_inference(
+    ast: &Ast,
+    source_text: &str,
+    inferred: &crate::check::types::InferredTypes,
+) -> Result<Program, CompileError> {
+    #[cfg(test)]
+    if ast.span.file == "cap_limit_early_exit.n" {
+        CAPABILITY_LOWER_ATTEMPTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+    }
+    #[cfg(test)]
+    if ast.span.file == "stack_policy_probe.n" {
+        assert_eq!(stack_policy_probe(384), 385);
+    }
     #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(&ast.span.file);
     let source_text: std::sync::Arc<str> = std::sync::Arc::from(source_text);
@@ -211,6 +225,7 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             result: result.clone(),
             terminated: None,
             user_functions: &user_functions,
+            inferred_bindings: inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -247,6 +262,8 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
             let name_span = lower.tokens[token_index..]
                 .iter()
                 .take_while(|t| t.span.start < p.span.end)
+                // the parameter-name token is parsed from within the
+                // parameter span; its full token ends within that span.
                 .find(|t| {
                     t.span.start >= p.span.start && t.span.end <= p.span.end && t.text == p.name
                 })
@@ -262,12 +279,21 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
         }
         let before_body = diagnostics.len();
         lower.block(&source.body.statements, 0, &mut diagnostics)?;
+        #[cfg(test)]
+        if diagnostics.len() == before_body {
+            assert_eq!(
+                lower.dead_depth, 0,
+                "hypothetical-flow depth must balance before a valid function ends"
+            );
+        }
         let missing_branch_value = diagnostics[before_body..]
             .iter()
             .any(|d| d.code == "NX-E1302" && d.subcause.as_deref() == Some("missing_branch_value"));
         if missing_branch_value {
             diagnostics.retain(|d| d.stage != diagnostic::Stage::Types);
         }
+        // with no new diagnostic, a terminal return has already set
+        // `terminated`; this flag then cannot affect the missing-return path.
         let invalid_terminal_return = diagnostics.len() > before_body
             && matches!(
                 source.body.statements.last(),
@@ -283,6 +309,8 @@ pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, Compi
                 start: source.body.span.end - 1,
                 end: source.body.span.end,
             };
+            // the arrow follows the complete parameter list, so it
+            // cannot begin at the end of the function name token.
             let after_arrow = tokens
                 .iter()
                 .position(|t| t.span.start >= source.name_span.end && t.text == "->")
@@ -460,6 +488,7 @@ struct Lower<'a> {
     result: Ty,
     terminated: Option<Termination>,
     user_functions: &'a HashMap<String, FunctionSignature>,
+    inferred_bindings: &'a crate::check::types::InferredTypes,
     name_spans: Vec<Span>,
     consumed_at: HashMap<LocalId, Vec<(Span, bool)>>,
     maybe_consumed_at: HashMap<LocalId, Vec<(Span, bool)>>,
@@ -472,6 +501,28 @@ struct Lower<'a> {
     active_loans: HashMap<LocalId, Vec<ActiveLoan>>,
     live_temps: HashSet<TempId>,
     temp_undo: Vec<(TempId, bool)>,
+}
+
+impl Lower<'_> {
+    fn resolved_type(&self, resolved: &ResolvedType) -> Result<Ty, CompileError> {
+        match resolved {
+            ResolvedType::Concrete(ty) => lower_type(ty),
+            // Neither state may create a live slot in an accepted program:
+            // Never has no normal continuation; Unresolved appears only in
+            // hypothetical/tainted paths that prevent executable output
+            // (§4.1.1). Both therefore use the existing no-value IR marker.
+            ResolvedType::Never | ResolvedType::Unresolved => Ok(Ty::Never),
+        }
+    }
+
+    fn resolved_expr(&self, expr: &Expr) -> Result<Ty, CompileError> {
+        let ty = self
+            .inferred_bindings
+            .expressions
+            .get(&(expr.span().start, expr.span().end))
+            .ok_or(CompileError::InvalidIr("missing checker expression type"))?;
+        self.resolved_type(ty)
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum EmissionMode {
@@ -604,21 +655,6 @@ impl Lower<'_> {
         let temp = self.emit(op, ty.clone(), span, access, effect_io);
         Flow::Value { temp, ty }
     }
-    fn place_ty(&self, expr: &Expr) -> Option<Ty> {
-        match expr {
-            Expr::Name(name, _) => self
-                .visible
-                .get(name)
-                .and_then(|ids| ids.last())
-                .map(|id| self.locals[id.0].ty.clone()),
-            Expr::Group(inner, _) => self.place_ty(inner),
-            Expr::Index { target, .. } => match self.place_ty(target)? {
-                Ty::Array(item) => Some(*item),
-                _ => None,
-            },
-            _ => None,
-        }
-    }
     fn temp_live(&mut self, id: TempId, live: bool) {
         let was = self.live_temps.contains(&id);
         if was != live {
@@ -680,23 +716,21 @@ impl Lower<'_> {
         &mut self,
         slot: &mut Option<LocalId>,
         value: TempId,
-        ty: Ty,
+        branch_ty: Ty,
+        resolved: &Ty,
         span: &Span,
     ) -> Result<(), CompileError> {
+        if branch_ty != *resolved && branch_ty != Ty::Never {
+            return Err(CompileError::InvalidIr("branch value type"));
+        }
         let id = if let Some(id) = slot {
-            if self.locals[id.0].ty != ty && self.locals[id.0].ty != Ty::Never && ty != Ty::Never {
-                return Err(CompileError::InvalidIr("branch value type"));
-            }
-            if self.locals[id.0].ty == Ty::Never {
-                self.locals[id.0].ty = ty;
-            }
             *id
         } else {
             let id = LocalId(self.locals.len());
             self.locals.push(Local {
                 id,
                 name: String::new(),
-                ty,
+                ty: resolved.clone(),
                 mutable: true,
                 scope: self.scope,
                 parameter_mode: None,
@@ -723,6 +757,9 @@ impl Lower<'_> {
         expected: Option<&Ty>,
     ) -> Result<Flow, CompileError> {
         let Some(otherwise) = otherwise else {
+            // source parsing already emits missing_else at the `if`
+            // token and stops before lowering. This fallback is reachable
+            // only from an AST fabricated inside a test.
             let primary = Span {
                 file: span.file.clone(),
                 start: span.start,
@@ -740,6 +777,9 @@ impl Lower<'_> {
         };
         let test_flow = self.expr(condition, depth + 1, Some(&Ty::Bool))?;
         let condition_diverges = test_flow.diverged();
+        // expr() already enforces the Bool expectation for a live value;
+        // Never is the only non-Bool flow admitted here. This guard is a
+        // defensive invariant check and cannot change a source diagnostic.
         if test_flow
             .ty()
             .is_some_and(|ty| *ty != Ty::Bool && *ty != Ty::Never)
@@ -773,7 +813,9 @@ impl Lower<'_> {
         let mut diagnostics = Vec::new();
         let mut dependent = false;
         let mut slot = None;
-        let mut inferred_ty = expected.cloned();
+        let inferred_ty = expected
+            .cloned()
+            .ok_or(CompileError::InvalidIr("missing checker branch type"))?;
         self.dead_depth += 1;
         let then_value =
             match self.scoped_value_block(then_block, expected, span, depth, &mut diagnostics) {
@@ -789,13 +831,12 @@ impl Lower<'_> {
                 Err(error) => return Err(branch_error(error, diagnostics)),
             };
         self.emission = branch_mode;
-        if let Some(Flow::Value { temp, ty }) = then_value {
-            if inferred_ty.as_ref().is_none_or(|prior| *prior == Ty::Never) {
-                inferred_ty = Some(ty.clone());
-            }
-            if let Some(temp) = temp {
-                self.union_slot(&mut slot, temp, ty, &then_block.span)?;
-            }
+        if let Some(Flow::Value {
+            temp: Some(temp),
+            ty,
+        }) = then_value
+        {
+            self.union_slot(&mut slot, temp, ty, &inferred_ty, &then_block.span)?;
         }
         let then_continues = self.terminated.is_none();
         let return_value = self.terminated.take();
@@ -851,13 +892,12 @@ impl Lower<'_> {
             parse::Else::Block(block) => &block.span,
             parse::Else::If(expr) => expr.span(),
         };
-        if let Some(Flow::Value { temp, ty }) = else_value {
-            if inferred_ty.as_ref().is_none_or(|prior| *prior == Ty::Never) {
-                inferred_ty = Some(ty.clone());
-            }
-            if let Some(temp) = temp {
-                self.union_slot(&mut slot, temp, ty, else_span)?;
-            }
+        if let Some(Flow::Value {
+            temp: Some(temp),
+            ty,
+        }) = else_value
+        {
+            self.union_slot(&mut slot, temp, ty, &inferred_ty, else_span)?;
         }
         let else_continues = self.terminated.is_none();
         let return_value = self.terminated.take();
@@ -913,19 +953,19 @@ impl Lower<'_> {
             self.terminated = Some(Termination::Diverged);
             self.emission = EmissionMode::Analyze;
             return Ok(Flow::Diverged {
-                ty: inferred_ty.filter(|ty| *ty != Ty::Never),
+                ty: (inferred_ty != Ty::Never).then_some(inferred_ty),
             });
         }
         let Some(slot) = slot else {
             if self.emission == EmissionMode::Analyze {
                 return Ok(Flow::Value {
                     temp: None,
-                    ty: inferred_ty.unwrap_or(Ty::Never),
+                    ty: inferred_ty,
                 });
             }
             return Err(CompileError::InvalidIr("branch value slot"));
         };
-        let ty = self.locals[slot.0].ty.clone();
+        let ty = inferred_ty;
         if self.emission == EmissionMode::Analyze {
             return Ok(Flow::Value { temp: None, ty });
         }
@@ -1009,6 +1049,8 @@ impl Lower<'_> {
             self.terminated = condition_diverges.then_some(Termination::Diverged);
             return Ok(());
         }
+        // The live path was checked by expr(condition, Some(Bool)); the
+        // explicit check asserts that invariant before emitting BranchBool.
         if test_flow.ty() != Some(&Ty::Bool) {
             return Err(CompileError::InvalidIr("while condition type"));
         }
@@ -1033,7 +1075,6 @@ impl Lower<'_> {
         }
         self.scoped_block(body, depth, diagnostics)?;
         self.emission = entry_emission;
-        let body_continues = self.terminated.is_none();
         let body_return = self.terminated.take();
         let body_end = if body_return == Some(Termination::Diverged) {
             None
@@ -1056,7 +1097,6 @@ impl Lower<'_> {
                 self.set_availability(id, state);
             }
         }
-        let _ = (prior_locals, body_continues);
         let exit = BlockId(self.blocks.len());
         if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
             *no = exit;
@@ -1094,6 +1134,9 @@ impl Lower<'_> {
         let entry_emission = self.emission;
         let condition_flow = self.expr(condition, 0, Some(&Ty::Bool))?;
         let condition_diverges = condition_flow.diverged();
+        // expr() already checks every live condition against Bool. A
+        // different live type here is unreachable; this guard only checks
+        // that lowering received the checker's invariant (§4.1.1).
         if condition_flow
             .ty()
             .is_some_and(|ty| *ty != Ty::Bool && *ty != Ty::Never)
@@ -1359,6 +1402,12 @@ impl Lower<'_> {
         if self.emission == EmissionMode::Analyze {
             return BlockId(usize::MAX);
         }
+        // a return value is excluded from pending drops above. After this
+        // point finish_block does not inspect live_temps: a final return has
+        // no successor, while branch lowering restores its temp checkpoint
+        // before lowering another block. Therefore marking this value live
+        // instead of dead below cannot change emitted IR or diagnostics;
+        // the dead mark keeps the local bookkeeping precise.
         if let Terminator::Return {
             value: Some(value),
             span,
@@ -1826,6 +1875,22 @@ impl Lower<'_> {
             && let Some(name) = place_name(root)
         {
             let local = self.get(name)?;
+            // F0-0002 §4.1.2.3, RD121: a read loan from a hypothetical
+            // projection has no place to lend. Delegate to the ordinary
+            // expression path, which analyzes the selector without the
+            // conditional I64 context when the base is still unresolved.
+            if mode == ParameterMode::Read
+                && matches!(
+                    self.inferred_bindings
+                        .expressions
+                        .get(&(root.span().start, root.span().end)),
+                    Some(ResolvedType::Unresolved)
+                )
+            {
+                return self
+                    .expr_mode(&arg.value, depth + 1, None, true)
+                    .map(|flow| (flow, None));
+            }
             let indexed_place = !index_exprs.is_empty();
             if mode == ParameterMode::Inout {
                 if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
@@ -1842,13 +1907,13 @@ impl Lower<'_> {
             };
             // ADR §14.2 marks the complete selected place in P07 (`a[1]`).
             let mut indexes = Vec::with_capacity(index_exprs.len());
-            let mut ty = self.locals[local.0].ty.clone();
+            let ty = self.resolved_expr(&arg.value)?;
             for index_expr in index_exprs {
                 let index_flow = self.expr(index_expr, depth + 1, Some(&Ty::I64))?;
                 if index_flow.diverged() {
                     return Ok((
                         Flow::Diverged {
-                            ty: Some(expected.clone()),
+                            ty: (ty != Ty::Never).then_some(ty),
                         },
                         None,
                     ));
@@ -1856,24 +1921,13 @@ impl Lower<'_> {
                 if index_flow.ty() != Some(&Ty::I64) {
                     return Err(CompileError::InvalidIr("loan index type"));
                 }
-                ty = match ty {
-                    Ty::Array(child) => *child,
-                    Ty::Never => Ty::Never,
-                    _ => return Err(CompileError::InvalidIr("loan target type")),
-                };
                 if let Some(id) = index_flow.temp() {
                     indexes.push(id);
                 }
             }
             self.check_place_access(local, root, place, requested, indexed_place)?;
-            if ty == Ty::Never {
-                return Ok((
-                    Flow::Value {
-                        temp: None,
-                        ty: expected.clone(),
-                    },
-                    None,
-                ));
+            if self.locals[local.0].ty == Ty::Never {
+                return Ok((Flow::Value { temp: None, ty }, None));
             }
             let permission = if mode == ParameterMode::Inout {
                 LoanPermission::Inout
@@ -2125,12 +2179,6 @@ impl Lower<'_> {
                             result
                         },
                     )?;
-                    if let (Some(expected), Some(actual)) = (expected, evaluated.ty())
-                        && *actual != *expected
-                        && *actual != Ty::Never
-                    {
-                        return Err(type_mismatch(value.span(), expected, actual, None));
-                    }
                     Some(evaluated)
                 }
                 _ => {
@@ -2325,24 +2373,26 @@ impl Lower<'_> {
             Statement::Let {
                 mutable,
                 name,
-                annotation,
+                annotation: _,
                 value,
                 ..
             } => {
-                let expected = annotation.as_ref().map(lower_type).transpose()?;
-                let flow = match self.expr(value, 0, expected.as_ref()) {
+                let binding_span = self.name_span(statement, name, value.span().start)?;
+                let expected = self.resolved_type(
+                    self.inferred_bindings
+                        .bindings
+                        .get(&binding_span.start)
+                        .ok_or(CompileError::InvalidIr("missing checker binding type"))?,
+                )?;
+                let flow = match self.expr(value, 0, Some(&expected)) {
                     Ok(value) => value,
                     Err(error @ (CompileError::Rejected(_) | CompileError::Dependent)) => {
                         let id = LocalId(self.locals.len());
-                        self.name_spans.push(self.name_span(
-                            statement,
-                            name,
-                            value.span().start,
-                        )?);
+                        self.name_spans.push(binding_span.clone());
                         self.locals.push(Local {
                             id,
                             name: name.clone(),
-                            ty: expected.unwrap_or(Ty::Never),
+                            ty: expected,
                             mutable: *mutable,
                             scope: self.scope,
                             parameter_mode: None,
@@ -2358,14 +2408,11 @@ impl Lower<'_> {
                     Err(error) => return Err(error),
                 };
                 let id = LocalId(self.locals.len());
-                self.name_spans
-                    .push(self.name_span(statement, name, value.span().start)?);
+                self.name_spans.push(binding_span);
                 self.locals.push(Local {
                     id,
                     name: name.clone(),
-                    ty: expected
-                        .clone()
-                        .unwrap_or_else(|| flow.ty().cloned().unwrap_or(Ty::Never)),
+                    ty: expected,
                     mutable: *mutable,
                     scope: self.scope,
                     parameter_mode: None,
@@ -2399,32 +2446,39 @@ impl Lower<'_> {
                 if self.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
                     return Err(self.permission_error(id, root.span().clone(), "write"));
                 }
-                if !self.locals[id.0].mutable {
+                if !indexed_place && !self.locals[id.0].mutable {
                     return Err(self.immutable_write(root, id));
                 }
                 let mut indexes = Vec::with_capacity(index_exprs.len());
-                let mut target_ty = self.locals[id.0].ty.clone();
+                let target_ty = self.resolved_expr(place)?;
+                // §4.1.2.3: an index on an unresolved hypothetical base
+                // retains a conditional I64 selector obligation. When no
+                // Array constructor is established, the checker leaves that
+                // obligation inactive and lowering must do the same.
+                let base_unresolved = matches!(
+                    self.inferred_bindings
+                        .expressions
+                        .get(&(root.span().start, root.span().end)),
+                    Some(ResolvedType::Unresolved)
+                );
+                let selector_expected = (!base_unresolved).then_some(&Ty::I64);
                 let mut diverged = false;
                 for e in index_exprs {
                     if diverged {
                         self.terminated = None;
                     }
-                    let index_flow = self.expr(e, 0, Some(&Ty::I64))?;
+                    let index_flow = self.expr(e, 0, selector_expected)?;
                     if index_flow.diverged() {
                         diverged = true;
                         self.emission = EmissionMode::Analyze;
                     }
-                    if index_flow
-                        .ty()
-                        .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
+                    if selector_expected.is_some()
+                        && index_flow
+                            .ty()
+                            .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
                     {
                         return Err(CompileError::InvalidIr("index type"));
                     }
-                    target_ty = match target_ty {
-                        Ty::Array(child) => *child,
-                        Ty::Never if self.emission == EmissionMode::Analyze => Ty::Never,
-                        _ => return Err(CompileError::InvalidIr("index target type")),
-                    };
                     if let Some(index) = index_flow.temp() {
                         indexes.push(index);
                     }
@@ -2434,13 +2488,16 @@ impl Lower<'_> {
                 }
                 let value_flow =
                     self.expr(value, 0, (target_ty != Ty::Never).then_some(&target_ty))?;
-                if !indexed_place
-                    && target_ty == Ty::Never
-                    && !value_flow.diverged()
-                    && let Some(ty) = value_flow.ty().filter(|ty| **ty != Ty::Never)
-                {
-                    self.locals[id.0].ty = ty.clone();
-                    target_ty = ty.clone();
+                if indexed_place {
+                    // The indexed destination reads its root even when a
+                    // selector or RHS diverges. Its write permission is an
+                    // independent obligation of the assignment site.
+                    self.check_available(id, root.span().clone())?;
+                    if !self.locals[id.0].mutable
+                        && !(self.defer_ownership && self.emission == EmissionMode::Live)
+                    {
+                        return Err(self.immutable_write(root, id));
+                    }
                 }
                 if diverged {
                     self.terminated = Some(Termination::Diverged);
@@ -2554,21 +2611,27 @@ impl Lower<'_> {
         &mut self,
         e: &Expr,
         depth: usize,
-        expected: Option<&Ty>,
+        _expected: Option<&Ty>,
         borrow: bool,
     ) -> Result<Flow, CompileError> {
+        // This threaded AST depth is not
+        // read by lowering or serialized into IR. The checker owns the
+        // source-depth limit before lowering starts, so changing one caller's
+        // depth increment alone cannot change an accepted program.
+        let inferred = self.resolved_expr(e)?;
+        let expected = Some(&inferred);
         match e {
             Expr::Integer(n, s) => {
                 let n = n
                     .parse::<i64>()
                     .map_err(|_| CompileError::InvalidIr("unvalidated integer"))?;
-                Ok(self.emitted(Op::ConstI64(n), Ty::I64, s.clone(), Access::Own, false))
+                Ok(self.emitted(Op::ConstI64(n), inferred, s.clone(), Access::Own, false))
             }
             Expr::Bool(v, s) => {
-                Ok(self.emitted(Op::ConstBool(*v), Ty::Bool, s.clone(), Access::Own, false))
+                Ok(self.emitted(Op::ConstBool(*v), inferred, s.clone(), Access::Own, false))
             }
             Expr::Unit(s) => {
-                Ok(self.emitted(Op::ConstUnit, Ty::Unit, s.clone(), Access::Own, false))
+                Ok(self.emitted(Op::ConstUnit, inferred, s.clone(), Access::Own, false))
             }
             Expr::Name(name, s) => {
                 let id = self.get(name)?;
@@ -2579,11 +2642,11 @@ impl Lower<'_> {
                     // containing branch diverge a second time.
                     return Ok(Flow::Value {
                         temp: None,
-                        ty: expected.cloned().unwrap_or(Ty::Never),
+                        ty: inferred,
                     });
                 }
                 self.conflict(id, s.clone(), "read")?;
-                let ty = self.locals[id.0].ty.clone();
+                let ty = inferred;
                 if !borrow && !ty.copyable() {
                     return Err(self.copy_error(id, s.clone()));
                 }
@@ -2604,34 +2667,14 @@ impl Lower<'_> {
                 // Scalar equality reads independent values. Array equality
                 // borrows its operands to avoid deep copies and retains the
                 // loan across evaluation of the right operand.
-                let borrow_left = op == "=="
-                    && self
-                        .place_ty(left)
-                        .is_some_and(|ty| matches!(ty, Ty::Array(_)));
-                let numeric_operand = matches!(op.as_str(), "+" | "-" | "<");
-                let left_flow = self.expr_mode(
-                    left,
-                    depth + 1,
-                    numeric_operand.then_some(&Ty::I64),
-                    borrow_left,
-                )?;
+                let borrow_left = op == "==" && matches!(self.resolved_expr(left)?, Ty::Array(_));
+                let left_flow = self.expr_mode(left, depth + 1, None, borrow_left)?;
                 let left_diverged = left_flow.diverged();
-                let left_ty = left_flow.ty().cloned();
-                // This repeats the I64 expectation passed to expr_mode. Keep
-                // the local check as a defensive invariant for flows that
-                // return a type without consuming their expected type.
-                if numeric_operand
-                    && let Some(actual) = left_ty.as_ref()
-                    && *actual != Ty::I64
-                    && *actual != Ty::Never
-                {
-                    return Err(type_mismatch(left.span(), &Ty::I64, actual, None));
-                }
                 if left_diverged {
                     self.emission = EmissionMode::Analyze;
                     self.terminated = None;
                 }
-                let borrow_right = op == "==" && matches!(left_ty, Some(Ty::Array(_)));
+                let borrow_right = op == "==" && matches!(self.resolved_expr(right)?, Ty::Array(_));
                 let left_root = if borrow_left {
                     place_parts(left)
                         .ok()
@@ -2651,12 +2694,7 @@ impl Lower<'_> {
                         parent: None,
                     });
                 }
-                let right_expected = if numeric_operand {
-                    Some(&Ty::I64)
-                } else {
-                    left_ty.as_ref().filter(|ty| **ty != Ty::Never)
-                };
-                let right_result = self.expr_mode(right, depth + 1, right_expected, borrow_right);
+                let right_result = self.expr_mode(right, depth + 1, None, borrow_right);
                 if let Some(root) = left_root {
                     self.active_loans
                         .get_mut(&root)
@@ -2664,26 +2702,6 @@ impl Lower<'_> {
                 }
                 let right_flow = right_result?;
                 let right_diverged = right_flow.diverged();
-                let right_ty = right_flow.ty();
-                if let Some(rt) = right_ty.filter(|ty| **ty != Ty::Never) {
-                    let expected_right = if numeric_operand {
-                        Ty::I64
-                    } else {
-                        left_ty
-                            .as_ref()
-                            .filter(|ty| **ty != Ty::Never)
-                            .cloned()
-                            .unwrap_or_else(|| rt.clone())
-                    };
-                    if *rt != expected_right {
-                        return Err(type_mismatch(
-                            right.span(),
-                            &expected_right,
-                            rt,
-                            matches!(op.as_str(), "<" | "==").then_some(left.span()),
-                        ));
-                    }
-                }
                 let operator = match op.as_str() {
                     "+" => Binary::Add,
                     "-" => Binary::Sub,
@@ -2691,7 +2709,7 @@ impl Lower<'_> {
                     "==" => Binary::Equal,
                     _ => return Err(CompileError::InvalidIr("binary operation")),
                 };
-                let ty = binary_result_type(op)?;
+                let ty = inferred;
                 if left_diverged || right_diverged {
                     self.terminated = Some(Termination::Diverged);
                     self.emission = EmissionMode::Analyze;
@@ -2723,7 +2741,7 @@ impl Lower<'_> {
                         "non-callable target passed checker",
                     ));
                 }
-                if let Some((params, result)) = self.user_functions.get(name).cloned() {
+                if let Some((params, _result)) = self.user_functions.get(name).cloned() {
                     if args.len() != params.len() {
                         return Err(CompileError::InvalidIr("call arity passed checker"));
                     }
@@ -2731,12 +2749,12 @@ impl Lower<'_> {
                         self.prepare_call_arguments(args, &params, depth, true, true)?;
                     self.release_call_loans(&acquired);
                     if diverged {
-                        return Ok(Flow::Diverged { ty: Some(result) });
+                        return Ok(Flow::Diverged { ty: Some(inferred) });
                     }
                     if self.emission == EmissionMode::Analyze {
                         return Ok(Flow::Value {
                             temp: None,
-                            ty: result,
+                            ty: inferred,
                         });
                     }
                     let signature = params;
@@ -2746,7 +2764,7 @@ impl Lower<'_> {
                             args: prepared,
                             signature,
                         },
-                        result.clone(),
+                        inferred,
                         span.clone(),
                         Access::Own,
                         false,
@@ -2785,7 +2803,7 @@ impl Lower<'_> {
                     self.mark_consumed(local, Some((span.clone(), true)));
                     return Ok(self.emitted(
                         Op::DropBinding(local),
-                        Ty::Unit,
+                        inferred,
                         span.clone(),
                         Access::Own,
                         false,
@@ -2834,18 +2852,12 @@ impl Lower<'_> {
                 if args.len() != arity {
                     return Err(CompileError::InvalidIr("intrinsic arity"));
                 }
-                let ty = match intrinsic {
-                    Intrinsic::Len => Ty::I64,
-                    Intrinsic::MockOpen => Ty::MockResource,
-                    Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
-                    _ => Ty::Unit,
-                };
                 let result_flow = self.emitted(
                     Op::CallIntrinsic {
                         intrinsic,
                         args: ids,
                     },
-                    ty,
+                    inferred,
                     span.clone(),
                     Access::Own,
                     matches!(
@@ -2860,12 +2872,7 @@ impl Lower<'_> {
                 Ok(result_flow)
             }
             Expr::Array(items, span) => {
-                let element_expected = expected.and_then(|ty| match ty {
-                    Ty::Array(t) => Some(t.as_ref()),
-                    _ => None,
-                });
                 let mut ids = Vec::with_capacity(items.len());
-                let mut element_ty = element_expected.cloned();
                 let mut diverged = false;
                 let mut item_errors = Vec::new();
                 let mut dependent = false;
@@ -2873,7 +2880,7 @@ impl Lower<'_> {
                     if diverged {
                         self.terminated = None;
                     }
-                    let item_flow = match self.expr(item, depth + 1, element_ty.as_ref()) {
+                    let item_flow = match self.expr(item, depth + 1, None) {
                         Ok(value) => value,
                         Err(CompileError::Rejected(errors)) => {
                             item_errors.extend(errors);
@@ -2890,19 +2897,6 @@ impl Lower<'_> {
                         self.emission = EmissionMode::Analyze;
                         continue;
                     }
-                    let Some(ty) = item_flow.ty().cloned() else {
-                        continue;
-                    };
-                    if ty == Ty::Never {
-                        continue;
-                    }
-                    if let Some(old) = &element_ty {
-                        if old != &ty {
-                            return Err(CompileError::InvalidIr("array element type"));
-                        }
-                    } else {
-                        element_ty = Some(ty);
-                    }
                     if let Some(id) = item_flow.temp() {
                         ids.push(id);
                     }
@@ -2913,36 +2907,58 @@ impl Lower<'_> {
                 if dependent {
                     return Err(CompileError::Dependent);
                 }
-                let inferred_element = element_ty.unwrap_or(Ty::Never);
-                if inferred_element == Ty::Never {
-                    if diverged {
-                        self.terminated = Some(Termination::Diverged);
-                        return Ok(Flow::Diverged { ty: None });
-                    }
-                    return Ok(Flow::Value {
-                        temp: None,
-                        ty: Ty::Never,
-                    });
-                }
                 if diverged {
                     self.terminated = Some(Termination::Diverged);
                     return Ok(Flow::Diverged {
-                        ty: Some(Ty::Array(Box::new(inferred_element))),
+                        ty: (inferred != Ty::Never).then_some(inferred),
                     });
                 }
-                let ty = Ty::Array(Box::new(inferred_element));
-                Ok(self.emitted(Op::BuildArray(ids), ty, span.clone(), Access::Own, false))
+                if inferred == Ty::Never {
+                    if self.emission == EmissionMode::Live {
+                        return Err(CompileError::InvalidIr("unresolved checker array type"));
+                    }
+                    return Ok(Flow::Value {
+                        temp: None,
+                        ty: inferred,
+                    });
+                }
+                Ok(self.emitted(
+                    Op::BuildArray(ids),
+                    inferred,
+                    span.clone(),
+                    Access::Own,
+                    false,
+                ))
             }
             Expr::Index {
                 target,
                 index,
                 span,
             } => {
+                // F0-0002 §4.1.2.3, RD121: a projection of a base whose
+                // Array constructor was never established has no executable
+                // value. Its selector is still checked independently, but
+                // the conditional I64 context is not activated.
+                if matches!(
+                    self.inferred_bindings
+                        .expressions
+                        .get(&(target.span().start, target.span().end)),
+                    Some(ResolvedType::Unresolved)
+                ) {
+                    if self.emission == EmissionMode::Live {
+                        return Err(CompileError::InvalidIr("live unresolved index base"));
+                    }
+                    self.expr(target, depth + 1, None)?;
+                    self.expr(index, depth + 1, None)?;
+                    return Ok(Flow::Value {
+                        temp: None,
+                        ty: inferred,
+                    });
+                }
                 if let Ok((root, index_exprs)) = place_parts(e)
                     && let Some(name) = place_name(root)
                 {
                     let local = self.get(name)?;
-                    let mut ty = self.locals[local.0].ty.clone();
                     let mut ids = Vec::with_capacity(index_exprs.len());
                     let mut diverged = false;
                     for index_expr in index_exprs {
@@ -2961,11 +2977,6 @@ impl Lower<'_> {
                         {
                             return Err(CompileError::InvalidIr("index type"));
                         }
-                        ty = match ty {
-                            Ty::Array(child) => *child,
-                            Ty::Never => Ty::Never,
-                            _ => return Err(CompileError::InvalidIr("index target type")),
-                        };
                         if let Some(id) = index_flow.temp() {
                             ids.push(id);
                         }
@@ -2985,13 +2996,13 @@ impl Lower<'_> {
                     if diverged {
                         self.terminated = Some(Termination::Diverged);
                         return Ok(Flow::Diverged {
-                            ty: expected.cloned(),
+                            ty: (inferred != Ty::Never).then_some(inferred),
                         });
                     }
-                    if ty == Ty::Never {
+                    if inferred == Ty::Never {
                         return Ok(Flow::Value {
                             temp: None,
-                            ty: expected.cloned().unwrap_or(Ty::Never),
+                            ty: inferred,
                         });
                     }
                     return Ok(self.emitted(
@@ -3006,7 +3017,7 @@ impl Lower<'_> {
                                 indexes: ids,
                             }
                         },
-                        ty,
+                        inferred,
                         span.clone(),
                         Access::Read,
                         false,
@@ -3019,26 +3030,25 @@ impl Lower<'_> {
                     self.expr(index, depth + 1, Some(&Ty::I64))?;
                     self.terminated = Some(Termination::Diverged);
                     return Ok(Flow::Diverged {
-                        ty: expected.cloned(),
+                        ty: (inferred != Ty::Never).then_some(inferred),
                     });
                 }
                 let index_flow = self.expr(index, depth + 1, Some(&Ty::I64))?;
                 if index_flow.diverged() {
                     return Ok(Flow::Diverged {
-                        ty: expected.cloned(),
+                        ty: (inferred != Ty::Never).then_some(inferred),
                     });
                 }
+                // The checker has already required I64 at this index. Never
+                // exits through diverged() above, and a tainted value blocks
+                // lowering. This guard protects only a forged internal flow.
                 if index_flow
                     .ty()
                     .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
                 {
                     return Err(CompileError::InvalidIr("index type"));
                 }
-                let ty = match base_flow.ty() {
-                    Some(Ty::Array(child)) => *child.clone(),
-                    Some(Ty::Never) => expected.cloned().unwrap_or(Ty::Never),
-                    _ => return Err(CompileError::InvalidIr("index target type")),
-                };
+                let ty = inferred;
                 if self.emission == EmissionMode::Analyze {
                     return Ok(Flow::Value { temp: None, ty });
                 }
@@ -3071,12 +3081,9 @@ impl Lower<'_> {
                 }
                 self.conflict(id, value.span().clone(), "consume")?;
                 self.mark_consumed(id, Some((span.clone(), false)));
-                let ty = self.locals[id.0].ty.clone();
+                let ty = inferred;
                 if ty == Ty::Never {
-                    return Ok(Flow::Value {
-                        temp: None,
-                        ty: expected.cloned().unwrap_or(Ty::Never),
-                    });
+                    return Ok(Flow::Value { temp: None, ty });
                 }
                 Ok(self.emitted(Op::TransferValue(id), ty, span.clone(), Access::Own, false))
             }
@@ -3181,9 +3188,166 @@ fn statement_span(stmt: &Statement) -> Span {
 mod tests {
     use super::*;
 
+    #[test]
+    fn capability_limit_returns_before_lowering_an_uninferred_ast() {
+        CAPABILITY_LOWER_ATTEMPTS.store(0, std::sync::atomic::Ordering::Relaxed);
+        let source = "fn Main() with no_io {let x=1;Print(x);}";
+        let Err(CompileError::Rejected(errors)) = compile_scalar("cap_limit_early_exit.n", source)
+        else {
+            panic!("capability limit must reject the source");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].feature_id.as_deref(),
+            Some("implementation_limit")
+        );
+        assert_eq!(
+            CAPABILITY_LOWER_ATTEMPTS.load(std::sync::atomic::Ordering::Relaxed),
+            0
+        );
+    }
+
+    #[test]
+    fn lowering_worker_preserves_the_configured_stack_margin() {
+        compile_scalar("stack_policy_probe.n", "fn Main(){}").unwrap();
+    }
+
+    #[test]
+    fn lowering_requires_checker_binding_and_expression_entries() {
+        let source =
+            "fn Main(){var a=(if true then {return;}else{return;});a=[3];let b=a[0];Print(b);}";
+        let ast = parse::parse("resolved_types.n", source).unwrap();
+        let mut report =
+            crate::check::check_for_compilation("resolved_types.n", source, &ast, true);
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
+        let signatures = HashMap::new();
+        let lower = analyzed_lower(source, &signatures, &report.inferred, ("a", Ty::Never));
+        assert_eq!(
+            lower.resolved_type(&ResolvedType::Never).unwrap(),
+            Ty::Never
+        );
+        assert_eq!(
+            lower.resolved_type(&ResolvedType::Unresolved).unwrap(),
+            Ty::Never
+        );
+        assert!(compile_ast_with_inference(&ast, source, &report.inferred).is_ok());
+
+        let binding = source.find("a=(if").unwrap() as u64;
+        let original = report.inferred.bindings.remove(&binding).unwrap();
+        assert!(matches!(
+            compile_ast_with_inference(&ast, source, &report.inferred),
+            Err(CompileError::InvalidIr("missing checker binding type"))
+        ));
+        report.inferred.bindings.insert(binding, original);
+
+        let index = source.find("a[0]").unwrap() as u64;
+        let key = (index, index + 4);
+        let original = report.inferred.expressions.remove(&key).unwrap();
+        assert!(matches!(
+            compile_ast_with_inference(&ast, source, &report.inferred),
+            Err(CompileError::InvalidIr("missing checker expression type"))
+        ));
+        report.inferred.expressions.insert(key, original);
+        assert!(compile_ast_with_inference(&ast, source, &report.inferred).is_ok());
+
+        let live_source = "fn Main(){let a=[3];Print(a[0]);}";
+        let live_ast = parse::parse("resolved_live.n", live_source).unwrap();
+        let mut live =
+            crate::check::check_for_compilation("resolved_live.n", live_source, &live_ast, true);
+        assert!(live.errors.is_empty());
+        let binding = live_source.find("a=[3]").unwrap() as u64;
+        let saved = live
+            .inferred
+            .bindings
+            .insert(binding, ResolvedType::Concrete(Type::Bool))
+            .unwrap();
+        assert!(matches!(
+            compile_ast_with_inference(&live_ast, live_source, &live.inferred),
+            Err(CompileError::InvalidIr(_) | CompileError::Rejected(_))
+        ));
+        live.inferred.bindings.insert(binding, saved);
+        let literal = live_source.find('3').unwrap() as u64;
+        let original = live
+            .inferred
+            .expressions
+            .insert((literal, literal + 1), ResolvedType::Concrete(Type::Bool))
+            .unwrap();
+        assert!(matches!(
+            compile_ast_with_inference(&live_ast, live_source, &live.inferred),
+            Err(CompileError::InvalidIr(_))
+        ));
+        live.inferred
+            .expressions
+            .insert((literal, literal + 1), original);
+        assert!(compile_ast_with_inference(&live_ast, live_source, &live.inferred).is_ok());
+
+        let unit_source = "fn Main(){let u=();}";
+        let unit_ast = parse::parse("resolved_unit.n", unit_source).unwrap();
+        let unit =
+            crate::check::check_for_compilation("resolved_unit.n", unit_source, &unit_ast, true);
+        assert!(unit.errors.is_empty());
+        assert!(compile_ast_with_inference(&unit_ast, unit_source, &unit.inferred).is_ok());
+    }
+
+    #[test]
+    fn lowering_consumes_operator_index_and_branch_types() {
+        // F0-0002 §4.1.1 gives lowering only the checker's resolved table.
+        // Each expression family must reject both a missing and forged entry.
+        for (source, expression) in [
+            ("fn Main(){let x=1+2;Print(x);}", "1+2"),
+            ("fn Main(){let x=[3][0];Print(x);}", "[3][0]"),
+            (
+                "fn Main(){let x=if true then 1 else 2;Print(x);}",
+                "if true then 1 else 2",
+            ),
+        ] {
+            let ast = parse::parse("table_consumption.n", source).unwrap();
+            let mut report =
+                crate::check::check_for_compilation("table_consumption.n", source, &ast, true);
+            assert!(report.errors.is_empty(), "{source}: {:?}", report.errors);
+            assert!(
+                compile_ast_with_inference(&ast, source, &report.inferred).is_ok(),
+                "{source}"
+            );
+            let start = source.find(expression).unwrap() as u64;
+            let key = (start, start + expression.len() as u64);
+            let original = report.inferred.expressions.remove(&key).expect(expression);
+            assert!(
+                matches!(
+                    compile_ast_with_inference(&ast, source, &report.inferred),
+                    Err(CompileError::InvalidIr(_))
+                ),
+                "missing {expression}"
+            );
+            report
+                .inferred
+                .expressions
+                .insert(key, ResolvedType::Concrete(Type::Bool));
+            assert!(
+                matches!(
+                    compile_ast_with_inference(&ast, source, &report.inferred),
+                    Err(CompileError::InvalidIr(_) | CompileError::Rejected(_))
+                ),
+                "forged {expression}"
+            );
+            report.inferred.expressions.insert(key, original);
+            assert!(compile_ast_with_inference(&ast, source, &report.inferred).is_ok());
+        }
+    }
+
+    #[test]
+    fn lowering_has_no_result_type_derivation_api() {
+        let source = include_str!("lower.rs");
+        assert!(!source.contains(concat!("fn binary_", "result_type(")));
+        assert!(!source.contains(concat!("fn place_", "ty(")));
+        assert!(!source.contains(concat!("let mut element_", "ty =")));
+        assert!(!source.contains(concat!("let mut inferred_", "ty =")));
+    }
+
     fn analyzed_lower<'a>(
         source: &str,
         signatures: &'a HashMap<String, FunctionSignature>,
+        inferred: &'a crate::check::types::InferredTypes,
         binding: (&str, Ty),
     ) -> Lower<'a> {
         let (name, ty) = binding;
@@ -3212,6 +3376,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: signatures,
+            inferred_bindings: inferred,
             name_spans: vec![span],
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3228,9 +3393,33 @@ mod tests {
     }
 
     #[test]
+    fn indexed_write_consumes_index_and_value_temporaries() {
+        let signatures = HashMap::new();
+        let inferred = crate::check::types::InferredTypes::default();
+        let mut lower = analyzed_lower(
+            "fn Main(){let a=1;}",
+            &signatures,
+            &inferred,
+            ("a", Ty::I64),
+        );
+        let index = TempId(1);
+        let value = TempId(2);
+        lower.live_temps.extend([index, value]);
+        lower.consume_op_temps(&Op::WriteIndex {
+            local: LocalId(0),
+            indexes: vec![index],
+            value,
+        });
+        assert!(!lower.live_temps.contains(&index));
+        assert!(!lower.live_temps.contains(&value));
+    }
+
+    #[test]
     fn analyzed_binding_loan_and_index_preserve_flow_type() {
         let source = "fn Main() {\n    h(v);\n    h(a[(if true then {\n        return;\n    } else {\n        return;\n    })]);\n}\n";
         let ast = parse::parse("flow_contract.n", source).unwrap();
+        let mut inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let statements = &ast.functions[0].body.statements;
         let Statement::Expr {
@@ -3240,7 +3429,40 @@ mod tests {
         else {
             panic!("call")
         };
-        let mut binding = analyzed_lower(source, &signatures, ("v", Ty::Never));
+        inferred.expressions.insert(
+            (first[0].value.span().start, first[0].value.span().end),
+            ResolvedType::Concrete(Type::I64),
+        );
+        let Statement::Expr {
+            value: Expr::Call { args: second, .. },
+            ..
+        } = &statements[1]
+        else {
+            panic!("second call")
+        };
+        let Expr::Index { index, .. } = &second[0].value else {
+            panic!("index")
+        };
+        inferred.expressions.insert(
+            (second[0].value.span().start, second[0].value.span().end),
+            ResolvedType::Concrete(Type::I64),
+        );
+        let Expr::Group(inner, _) = index.as_ref() else {
+            panic!("group")
+        };
+        let Expr::If { condition, .. } = inner.as_ref() else {
+            panic!("if")
+        };
+        for expr in [index.as_ref(), inner.as_ref()] {
+            inferred
+                .expressions
+                .insert((expr.span().start, expr.span().end), ResolvedType::Never);
+        }
+        inferred.expressions.insert(
+            (condition.span().start, condition.span().end),
+            ResolvedType::Concrete(Type::Bool),
+        );
+        let mut binding = analyzed_lower(source, &signatures, &inferred, ("v", Ty::Never));
         let (flow, loan) = binding
             .call_argument(&first[0], ParameterMode::Read, &Ty::I64, 0, true)
             .unwrap();
@@ -3253,14 +3475,12 @@ mod tests {
         ));
         assert_eq!(loan, None);
 
-        let Statement::Expr {
-            value: Expr::Call { args: second, .. },
-            ..
-        } = &statements[1]
-        else {
-            panic!("call")
-        };
-        let mut indexed = analyzed_lower(source, &signatures, ("a", Ty::Array(Box::new(Ty::I64))));
+        let mut indexed = analyzed_lower(
+            source,
+            &signatures,
+            &inferred,
+            ("a", Ty::Array(Box::new(Ty::I64))),
+        );
         let (flow, _) = indexed
             .call_argument(&second[0], ParameterMode::Read, &Ty::I64, 0, true)
             .unwrap();
@@ -3271,8 +3491,10 @@ mod tests {
     fn analyzed_branch_retains_type_of_only_continuing_value() {
         let source = "fn Main() {\n    let w = if true then 1 else {\n        return;\n    };\n}\n";
         let ast = parse::parse("flow_contract.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
-        let mut lower = analyzed_lower(source, &signatures, ("unused", Ty::Never));
+        let mut lower = analyzed_lower(source, &signatures, &inferred, ("unused", Ty::Never));
         let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
             panic!("binding")
         };
@@ -3290,6 +3512,8 @@ mod tests {
     fn hypothetical_bottom_read_preserves_rhs_flow_and_branch_join_type() {
         let source = "fn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    let w = v == (if true then {\n        return;\n    } else {\n        return;\n    });\n}\n";
         let ast = parse::parse("bottom_flow.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let declaration = &ast.functions[0].body.statements[0];
         let Statement::Let { value, .. } = declaration else {
@@ -3320,6 +3544,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: vec![name_span],
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3344,10 +3569,10 @@ mod tests {
         assert_eq!(lower.terminated, Some(Termination::Diverged));
         let mut slot = None;
         lower
-            .union_slot(&mut slot, TempId(0), Ty::Never, value.span())
+            .union_slot(&mut slot, TempId(0), Ty::Never, &Ty::I64, value.span())
             .unwrap();
         lower
-            .union_slot(&mut slot, TempId(0), Ty::I64, value.span())
+            .union_slot(&mut slot, TempId(0), Ty::I64, &Ty::I64, value.span())
             .unwrap();
         assert_eq!(lower.locals[slot.unwrap().0].ty, Ty::I64);
     }
@@ -3356,6 +3581,8 @@ mod tests {
     fn divergent_call_argument_does_not_leave_orphan_call_instruction() {
         let source = "fn H(a: view I64, b: view I64) {}\nfn Main() {\n    H(1, if true then {\n        return;\n    } else {\n        return;\n    });\n}\n";
         let ast = parse::parse("orphan_call.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let mut signatures = HashMap::new();
         signatures.insert(
             "H".into(),
@@ -3380,6 +3607,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3427,6 +3655,8 @@ mod tests {
     fn scoped_block_error_pops_scope_and_restores_parent() {
         let source = "fn Main() {\n    {\n        let x = TryAdd(1, 2)?;\n    }\n}\n";
         let ast = parse::parse("scope_error.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3441,6 +3671,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3467,6 +3698,8 @@ mod tests {
     fn rejected_while_condition_restores_statement_checkpoint() {
         let source = "fn Main() {\n    while (if true then true else {}) {}\n    let x = 1;\n}\n";
         let ast = parse::parse("while_error_checkpoint.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3481,6 +3714,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3507,10 +3741,35 @@ mod tests {
         assert_eq!(lower.terminated, None);
         assert_eq!(lower.scopes.len(), 1);
         assert!(lower.visible.contains_key("x"));
+        let x = lower.visible["x"][0];
+        let at = |start, end| Span {
+            file: "while_error_checkpoint.n".into(),
+            start,
+            end,
+        };
+        let CompileError::Rejected(errors) = lower.ownership_error(
+            "NX-E0202",
+            Some("consumed"),
+            diagnostic::Operation::OwnershipAccess,
+            at(30, 31),
+            x,
+            Some(vec![(at(8, 9), false), (at(4, 20), false)]),
+        ) else {
+            panic!("expected ownership diagnostic");
+        };
+        let consumption: Vec<_> = errors[0]
+            .related_spans
+            .iter()
+            .filter(|related| related.role == diagnostic::RelatedRole::Consumption)
+            .map(|related| (related.span.start, related.span.end))
+            .collect();
+        assert_eq!(consumption, vec![(4, 20), (8, 9)]);
     }
 
     #[test]
     fn merged_consumption_sites_keep_both_sides_sorted_without_duplicates() {
+        // Identical sites deduplicate, while independent starts remain in
+        // source order, including overlapping spans.
         let at = |start| Span {
             file: "merge.n".into(),
             start,
@@ -3522,12 +3781,32 @@ mod tests {
             merge_sites(left, right),
             vec![(at(2), true), (at(5), false), (at(8), false)]
         );
+        let nested = |start| Span {
+            file: "merge.n".into(),
+            start,
+            end: 12,
+        };
+        assert_eq!(
+            merge_sites(vec![(nested(9), false)], vec![(nested(3), false)]),
+            vec![(nested(3), false), (nested(9), false)]
+        );
+        let same_start = |end| Span {
+            file: "merge.n".into(),
+            start: 4,
+            end,
+        };
+        assert_eq!(
+            merge_sites(vec![(same_start(11), false)], vec![(same_start(7), false)]),
+            vec![(same_start(7), false), (same_start(11), false)]
+        );
     }
 
     #[test]
     fn branch_local_consumption_does_not_escape_its_scope() {
         let source = "fn Main() {\n    if true {\n        let r = MockOpen(1);\n        Drop(r);\n    } else {}\n}\n";
         let ast = parse::parse("branch_scope.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3542,6 +3821,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3566,6 +3846,8 @@ mod tests {
     fn pending_read_loan_rejects_assignment_with_write_access() {
         let source = "fn Main() {\n    var x = 1;\n    x = 2;\n}\n";
         let ast = parse::parse("loan_write.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3580,6 +3862,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3629,6 +3912,8 @@ mod tests {
     fn dead_declaration_and_reinitialization_restore_all_lowering_state() {
         let source = "fn Main() {\n    var r = MockOpen(1);\n    Drop(r);\n    {\n        return;\n        let s = r;\n        let x = 1;\n        r = MockOpen(2);\n        return;\n    }\n    Inspect(r);\n}\n";
         let ast = parse::parse("dead_state.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3643,6 +3928,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3699,6 +3985,8 @@ mod tests {
         let source =
             "fn Main() {\n    {\n        let r = MockOpen(1);\n        let s = r;\n    }\n}\n";
         let ast = parse::parse("poison.n", source).unwrap();
+        let inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3713,6 +4001,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),
@@ -3745,6 +4034,45 @@ mod tests {
     fn poisoned_call_target_preserves_original_lowering_diagnostic() {
         let source = "fn Main() {\n    let r = MockOpen(1);\n    let s = r;\n    s();\n}\n";
         let ast = parse::parse("poison.n", source).unwrap();
+        let mut inferred =
+            crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;
+        let statements = &ast.functions[0].body.statements;
+        let Statement::Let { value: first, .. } = &statements[0] else {
+            panic!("first")
+        };
+        let Statement::Let { value: second, .. } = &statements[1] else {
+            panic!("second")
+        };
+        let Statement::Expr { value: third, .. } = &statements[2] else {
+            panic!("third")
+        };
+        inferred.bindings.insert(
+            source.find("r =").unwrap() as u64,
+            ResolvedType::Concrete(Type::MockResource),
+        );
+        inferred.bindings.insert(
+            source.find("s =").unwrap() as u64,
+            ResolvedType::Concrete(Type::MockResource),
+        );
+        inferred.expressions.insert(
+            (first.span().start, first.span().end),
+            ResolvedType::Concrete(Type::MockResource),
+        );
+        inferred.expressions.insert(
+            (second.span().start, second.span().end),
+            ResolvedType::Concrete(Type::MockResource),
+        );
+        inferred.expressions.insert(
+            (third.span().start, third.span().end),
+            ResolvedType::Unresolved,
+        );
+        let Expr::Call { args, .. } = first else {
+            panic!("open")
+        };
+        inferred.expressions.insert(
+            (args[0].value.span().start, args[0].value.span().end),
+            ResolvedType::Concrete(Type::I64),
+        );
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
@@ -3759,6 +4087,7 @@ mod tests {
             result: Ty::Unit,
             terminated: None,
             user_functions: &signatures,
+            inferred_bindings: &inferred,
             name_spans: Vec::new(),
             consumed_at: HashMap::new(),
             maybe_consumed_at: HashMap::new(),

@@ -1,0 +1,1 @@
+fn F0(b:view Bool){var r0=MockOpen(1);var r1=MockOpen(2);Drop(r1);var r2=MockOpen(3);Drop(r2);let t383=24;let v34=if b then {return;} else {value:2;};AssertEq(0,1);while b{r1=MockOpen(1);Drop(r0);while b{Drop(r1);}}r2=MockOpen(3);Drop(r0);Drop(r1);Drop(r2);}fn Main(){}

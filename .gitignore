@@ -1,1 +1,7 @@
 /target/
+/.scratch/
+/scripts/i07c_gemelos/target/
+/scripts/__pycache__/
+/scripts/**/target/
+/scripts/**/__pycache__/
+/Claude Agent.cmd

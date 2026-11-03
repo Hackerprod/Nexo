@@ -1,0 +1,1 @@
+fn Main(){var q1=(if true then (if true then {return;} else {return;}) else {value:Len((if true then {return;} else {return;}));});q1=[1];}

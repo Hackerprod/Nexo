@@ -1,0 +1,1 @@
+fn Main(){let p=true;let x=1;var r=[3];var q=(if true then {return;} else {return;});let a=(if p then 1 else (if p then (r + x) else q));q=[3];}

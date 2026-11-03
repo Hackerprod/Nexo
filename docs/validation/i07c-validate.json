@@ -1,0 +1,6 @@
+{
+  "command": "sh scripts/validate.sh",
+  "clean_copy_without_scratch": true,
+  "fresh_target": true,
+  "exit_code": 0
+}

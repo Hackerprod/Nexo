@@ -1,0 +1,1 @@
+fn R0(){var v0=[];var v1=[[]];var q0=(if true then {return;}else{return;});var q1=(if true then {return;}else{return;});var a0=[1];var m0=MockOpen(1);var m1=MockOpen(2);let x0=MockOpen(3);Drop(m0);q0=[[[m0]],(if (if q1 then {value:v1;} else 1) then {value:([m0]<q1);} else (MockOpen(3)))];}fn Main(){}

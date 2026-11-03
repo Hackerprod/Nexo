@@ -1,0 +1,26 @@
+{
+  "name": "model_newseed_release",
+  "mode": "MODEL",
+  "programs": 120000,
+  "checks": 120000,
+  "summary": {
+    "programs": 120000,
+    "abstained": 11826,
+    "compared": 108174,
+    "agree": 108174,
+    "accept_diff": 0,
+    "count_diff": 0,
+    "field_diff": 0,
+    "origin_diff": 65,
+    "accepted": 85309,
+    "model_diags": 26178,
+    "impl_diags": 26178,
+    "dups": 0,
+    "bugs": 0,
+    "run_unit": 0,
+    "run_other": 0
+  },
+  "seed": 7310104,
+  "threads": 8,
+  "informative": false
+}

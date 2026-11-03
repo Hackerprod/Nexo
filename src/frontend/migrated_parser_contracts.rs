@@ -45,7 +45,7 @@ fn b_incomplete_control_and_postfix_contexts_keep_current_result() {
         );
         d.validate("gap.n", source).unwrap();
     }
-    // D15 §2.2.3 makes the bare contextual names ordinary Name expressions.
+    // D15 §2.2 makes the bare contextual names ordinary Name expressions.
     for source in ["fn F(){let x=move", "fn F(){let x=edit"] {
         let d = parse("gap.n", source).unwrap_err();
         assert_eq!(d.code, "NX-E0005", "{source}");

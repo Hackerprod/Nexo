@@ -11,7 +11,18 @@ pub fn check_proposed(
     run_entry: bool,
 ) -> Result<(), Vec<Box<crate::diagnostic::Diagnostic>>> {
     let ast = crate::frontend::parse::parse(file, source).map_err(|d| vec![d])?;
-    check_ast(file, source, &ast, run_entry, false)
+    let report = check_ast(file, source, &ast, run_entry, false);
+    if report.errors.is_empty() {
+        Ok(())
+    } else {
+        Err(report.errors)
+    }
+}
+
+#[allow(clippy::vec_box)] // Diagnostics keep the shared boxed representation.
+pub(crate) struct CompilationCheck {
+    pub inferred: types::InferredTypes,
+    pub errors: Vec<Box<crate::diagnostic::Diagnostic>>,
 }
 
 #[allow(clippy::vec_box)] // Diagnostics share the boxed representation across stages.
@@ -20,7 +31,7 @@ pub(crate) fn check_for_compilation(
     source: &str,
     ast: &crate::frontend::parse::Ast,
     run_entry: bool,
-) -> Result<(), Vec<Box<crate::diagnostic::Diagnostic>>> {
+) -> CompilationCheck {
     check_ast(file, source, ast, run_entry, true)
 }
 
@@ -31,24 +42,41 @@ fn check_ast(
     ast: &crate::frontend::parse::Ast,
     run_entry: bool,
     enforce_capabilities: bool,
-) -> Result<(), Vec<Box<crate::diagnostic::Diagnostic>>> {
+) -> CompilationCheck {
     std::thread::scope(|scope| {
         let worker = std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
             .spawn_scoped(scope, move || {
                 #[cfg(test)]
                 let _allocation_capture = crate::test_alloc::capture_for(file);
-                let resolved = names::resolve(file, source, ast)?;
+                let resolved = match names::resolve(file, source, ast) {
+                    Ok(resolved) => resolved,
+                    Err(errors) => {
+                        return CompilationCheck {
+                            inferred: types::InferredTypes::default(),
+                            errors,
+                        };
+                    }
+                };
                 if enforce_capabilities
                     && let Some(limit) = limits::first_pending(file, source, ast, &resolved)
                 {
-                    return Err(vec![limit]);
+                    return CompilationCheck {
+                        inferred: types::InferredTypes::default(),
+                        errors: vec![limit],
+                    };
                 }
-                types::check(file, source, ast, &resolved)?;
-                if run_entry {
-                    names::entry(file, source, &resolved, ast).map_err(|d| vec![d])?;
+                let types::TypeCheckReport {
+                    inferred,
+                    mut errors,
+                } = types::check_with_partial(file, source, ast, &resolved);
+                if errors.is_empty()
+                    && run_entry
+                    && let Err(error) = names::entry(file, source, &resolved, ast)
+                {
+                    errors.push(error);
                 }
-                Ok(())
+                CompilationCheck { inferred, errors }
             });
         match worker {
             Ok(worker) => match worker.join() {
@@ -74,7 +102,10 @@ fn check_ast(
                 );
                 d.data.insert("limit".into(), DataValue::UInt(1_000_000));
                 d.data.insert("observed".into(), DataValue::UInt(1_000_001));
-                Err(vec![d])
+                CompilationCheck {
+                    inferred: types::InferredTypes::default(),
+                    errors: vec![d],
+                }
             }
         }
     })

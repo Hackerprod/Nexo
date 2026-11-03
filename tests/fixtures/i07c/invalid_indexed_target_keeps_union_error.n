@@ -1,0 +1,1 @@
+fn Main(){var q1=[];var q2=(q1-26);q2[0][0]=(if true then [1] else [true]);}

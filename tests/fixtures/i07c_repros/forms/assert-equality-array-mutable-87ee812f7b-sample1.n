@@ -1,0 +1,1 @@
+fn Main(){let ar=[1];var r=[];AssertEq(ar,[r]);r=[3];}

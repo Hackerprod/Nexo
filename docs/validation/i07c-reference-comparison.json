@@ -1,0 +1,974 @@
+{
+  "reference": "b506d7d",
+  "cases": {
+    "array_branch_group": {
+      "category": "identical",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            56,
+            61
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            71,
+            76
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[28,38)\", \"found_type=false[56,61)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[28,38)\", \"found_type=false[71,76)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            56,
+            61
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            71,
+            76
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[28,38)\", \"found_type=false[56,61)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[28,38)\", \"found_type=false[71,76)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      }
+    },
+    "array_independent_elements": {
+      "category": "normative_relations",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            56,
+            59
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            62,
+            65
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            114,
+            117
+          ]
+        ],
+        "snapshot": [
+          [
+            "Bool",
+            "I64",
+            "[\"expected_type=Array<Bool>[28,39)\", \"found_type=451[56,59)\"]"
+          ],
+          [
+            "Bool",
+            "I64",
+            "[\"expected_type=(451)[55,60)\", \"found_type=769[62,65)\"]"
+          ],
+          [
+            "Bool",
+            "I64",
+            "[\"expected_type=true[79,83)\", \"found_type=705[114,117)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            56,
+            59
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            62,
+            65
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            114,
+            117
+          ]
+        ],
+        "snapshot": [
+          [
+            "Bool",
+            "I64",
+            "[\"expected_type=Array<Bool>[28,39)\", \"found_type=451[56,59)\"]"
+          ],
+          [
+            "Bool",
+            "I64",
+            "[\"expected_type=Array<Bool>[28,39)\", \"found_type=769[62,65)\"]"
+          ],
+          [
+            "Bool",
+            "I64",
+            "[\"expected_type=Array<Bool>[28,39)\", \"found_type=705[114,117)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      }
+    },
+    "block_value_nested_branch": {
+      "category": "normative_relations",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            68,
+            73
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            90,
+            95
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            96,
+            101
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            124,
+            129
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=(428)[62,67)\", \"found_type=false[68,73)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[29,39)\", \"found_type=false[90,95)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=false[90,95)\", \"found_type=false[96,101)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=false[90,95)\", \"found_type=false[124,129)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102",
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            68,
+            73
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            90,
+            95
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            96,
+            101
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            124,
+            129
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[29,39)\", \"found_type=false[68,73)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[29,39)\", \"found_type=false[90,95)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[29,39)\", \"found_type=false[96,101)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[29,39)\", \"found_type=false[124,129)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102",
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      }
+    },
+    "group_nested_continuation": {
+      "category": "identical",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            69,
+            74
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            80,
+            85
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=I64[29,32)\", \"found_type=false[69,74)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=I64[29,32)\", \"found_type=false[80,85)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            69,
+            74
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            80,
+            85
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=I64[29,32)\", \"found_type=false[69,74)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=I64[29,32)\", \"found_type=false[80,85)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      }
+    },
+    "boolean_comparison_alias_less": {
+      "category": "acceptance",
+      "base": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            58,
+            61
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"found_type=q<q[58,61)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102"
+        ]
+      }
+    },
+    "boolean_comparison_alias_equal": {
+      "category": "acceptance",
+      "base": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            58,
+            62
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=1[58,59)\", \"found_type=1==q[58,62)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102"
+        ]
+      }
+    },
+    "selector_internal_union": {
+      "category": "diagnostics",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "not_indexable",
+            24,
+            25
+          ]
+        ],
+        "snapshot": [
+          [
+            "domain:array",
+            "I64",
+            "[\"found_type=q[24,25)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "not_indexable",
+            24,
+            25
+          ],
+          [
+            "NX-E1303",
+            null,
+            47,
+            51
+          ]
+        ],
+        "snapshot": [
+          [
+            "domain:array",
+            "I64",
+            "[\"found_type=q[24,25)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=1[40,41)\", \"found_type=true[47,51)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E1303"
+        ]
+      }
+    },
+    "array_annotated_elements": {
+      "category": "normative_relations",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            28,
+            32
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            33,
+            38
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[16,26)\", \"found_type=true[28,32)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=true[28,32)\", \"found_type=false[33,38)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "type_mismatch",
+            28,
+            32
+          ],
+          [
+            "NX-E0102",
+            "type_mismatch",
+            33,
+            38
+          ]
+        ],
+        "snapshot": [
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[16,26)\", \"found_type=true[28,32)\"]"
+          ],
+          [
+            "I64",
+            "Bool",
+            "[\"expected_type=Array<I64>[16,26)\", \"found_type=false[33,38)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102",
+          "NX-E0102"
+        ]
+      }
+    },
+    "later_array_assignment": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            16,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "immutable_indexed_write_without_entry": {
+      "category": "identical",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0105",
+            null,
+            125,
+            127
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[\"declaration=i1[102,104)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0112"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0105",
+            null,
+            125,
+            127
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[\"declaration=i1[102,104)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0112"
+        ]
+      }
+    },
+    "missing_entry_preempts_immutable_element_write": {
+      "category": "identical",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0105",
+            null,
+            17,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[\"declaration=a[11,12)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0112"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0105",
+            null,
+            17,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[\"declaration=a[11,12)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0112"
+        ]
+      }
+    },
+    "empty_array_comparison_under_print": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            16,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "empty_array_alias_annotated_bool": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            16,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "empty_array_if_arm": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            30,
+            32
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "empty_array_value_block_arm": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            56,
+            58
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "empty_array_nested_element": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            17,
+            19
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "empty_array_comparison_used_by_len": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            22,
+            24
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "empty_array_index_context": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            16,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "divergent_len_operand": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0102",
+            "not_indexable",
+            20,
+            57
+          ]
+        ],
+        "snapshot": [
+          [
+            "domain:array",
+            "()",
+            "[\"found_type=(if true then {return;}else{return;})[20,57)\"]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0102"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "empty_array_assert_argument": {
+      "category": "acceptance",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            29,
+            31
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": true,
+        "diagnostics": [],
+        "snapshot": [],
+        "run_codes": []
+      }
+    },
+    "unresolved_empty_array_index": {
+      "category": "identical",
+      "base": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            16,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      },
+      "current": {
+        "accepts": false,
+        "diagnostics": [
+          [
+            "NX-E0103",
+            null,
+            16,
+            18
+          ]
+        ],
+        "snapshot": [
+          [
+            "",
+            "",
+            "[]"
+          ]
+        ],
+        "run_codes": [
+          "NX-E0103"
+        ]
+      }
+    }
+  }
+}

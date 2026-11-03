@@ -1,0 +1,1 @@
+fn Main(){let x=1;let ar=[1];let a=(if false then (if x<158 then x else {value:(if true then false else 111)+(105-185);}) else ar);}

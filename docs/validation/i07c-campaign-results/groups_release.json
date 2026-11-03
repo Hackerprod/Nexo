@@ -1,0 +1,24 @@
+{
+  "name": "groups_release",
+  "mode": "GRP",
+  "programs": 300000,
+  "checks": 300000,
+  "summary": {
+    "pairs": 150000,
+    "programs": 300000,
+    "parse_or_names_skipped": 0,
+    "accepted": 19243,
+    "rejected": 130757,
+    "diags": 273006,
+    "sig_diffs": 0,
+    "cardinality_diffs": 0,
+    "group_spans": 0,
+    "raw_spans": 0,
+    "strict_dup_programs": 0,
+    "same_site_programs": 0,
+    "bugs": 0
+  },
+  "seed": 7310101,
+  "threads": 8,
+  "informative": false
+}

@@ -1,0 +1,1 @@
+fn Main(){let x=1;var w2=((if true then [] else 1)==x);let a4=Len(a: (if x then {value:w2;} else 1));}

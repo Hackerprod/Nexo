@@ -1,0 +1,1 @@
+fn Main(){let p=true;let x=1;var r=[];let a=(if p then (if p then (r < r) else x) else r);r=[[3]];}

@@ -1,0 +1,15 @@
+{
+  "name": "types_release",
+  "mode": "TYPES",
+  "programs": 200000,
+  "checks": 400000,
+  "summary": {
+    "programs": 200000,
+    "field_diff": 0,
+    "duplicates": 0,
+    "bugs": 0
+  },
+  "seed": 7310109,
+  "threads": 8,
+  "informative": false
+}

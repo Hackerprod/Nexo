@@ -3690,6 +3690,7 @@ fn canonical_printer_preserves_full_b_ast_across_body_and_signature_matrix() {
 }
 
 #[test]
+#[ignore = "campaña extensa de ida y vuelta; ejecutar en batería medida"]
 fn generated_valid_programs_round_trip() {
     // Seed 0x4e45_584f_5eed_2026, fixed before inspecting results.
     let mut state = 0x4e45_584f_5eed_2026_u64;
@@ -3895,6 +3896,7 @@ fn adr_large_compact_source_obeys_canonical_reparse_budget() {
 }
 
 #[test]
+#[ignore = "campaña extensa de bytes y tokens; ejecutar en batería medida"]
 fn mutated_bytes_and_tokens_never_panic_or_emit_invalid_diagnostics() {
     let seeds = [
         b"fn Main(){let x=1;}".as_slice(),
@@ -3977,6 +3979,7 @@ fn mutated_bytes_and_tokens_never_panic_or_emit_invalid_diagnostics() {
 }
 
 #[test]
+#[ignore = "campaña extensa de secuencias de tokens; ejecutar en batería medida"]
 fn token_sequence_mutations_never_panic_and_accepted_asts_reparse() {
     // Independent token-sequence fuzz, seed 0x4e45_584f_70ce_2026.
     let seeds = [
@@ -4111,6 +4114,7 @@ fn lexer_and_parser_scale_linearly_across_surface_families() {
 }
 
 #[test]
+#[ignore = "escala extensa de impresor y formateador; ejecutar en batería medida"]
 fn printer_and_formatter_scale_in_emitted_and_allocated_bytes() {
     fn source(fragment: &str, target: usize) -> String {
         let mut text = String::from("fn Main(){");

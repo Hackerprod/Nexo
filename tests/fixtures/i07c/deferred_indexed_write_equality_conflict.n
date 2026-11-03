@@ -1,0 +1,1 @@
+fn Main(){let x=1;var q1=(if true then {return;} else {return;});q1[0]=[[1]];let a3=x==[1];}

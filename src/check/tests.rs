@@ -4,7 +4,57 @@ use crate::diagnostic::{
 };
 use crate::frontend::parse;
 
+#[test]
+fn nested_pending_nominal_result_has_executable_binding_type() {
+    let source = "fn Main(){let p=true;var r=[];let a=((p == (r == r)) == p);r=[3];}";
+    let ast = parse::parse("nested_nominal.n", source).unwrap();
+    let report = super::check_for_compilation("nested_nominal.n", source, &ast, false);
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    let binding = source.find("a=((").unwrap();
+    assert_eq!(
+        report.inferred.bindings.get(&(binding as u64)),
+        Some(&super::types::ResolvedType::Concrete(parse::Type::Bool))
+    );
+    assert!(crate::ir::check_scalar("nested_nominal.n", source).is_ok());
+}
+
+#[test]
+fn pending_projection_call_result_has_executable_binding_type() {
+    let source = "fn Main(){let x=1;var q=[];let a0=(Len(q[x]) + 1);q=[[3]];}";
+    let ast = parse::parse("projection_nominal.n", source).unwrap();
+    let report = super::check_for_compilation("projection_nominal.n", source, &ast, false);
+    assert!(report.errors.is_empty(), "{:?}", report.errors);
+    let binding = source.find("a0=(").unwrap();
+    assert_eq!(
+        report.inferred.bindings.get(&(binding as u64)),
+        Some(&super::types::ResolvedType::Concrete(parse::Type::I64))
+    );
+    assert!(crate::ir::check_scalar("projection_nominal.n", source).is_ok());
+}
+
 const FILE: &str = "i03.n";
+
+#[test]
+fn direct_checker_checks_child_of_unavailable_try_operator() {
+    let source = "fn Main(){let x=(1+true)?;}";
+    let diagnostics = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    let d = &diagnostics[0];
+    assert_eq!(d.code, "NX-E0102");
+    assert_eq!(d.subcause.as_deref(), Some("type_mismatch"));
+    assert_eq!(
+        d.primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((19, 23))
+    );
+    assert_eq!(
+        d.data.get("expected_type"),
+        Some(&DataValue::String("I64".into()))
+    );
+    assert_eq!(
+        d.data.get("found_type"),
+        Some(&DataValue::String("Bool".into()))
+    );
+}
 
 fn byte_span(source: &str, needle: &str, occurrence: usize) -> (u64, u64) {
     let mut offset = 0;
@@ -176,26 +226,30 @@ fn sp(start: u64, end: u64) -> Span {
 #[test]
 fn divergent_left_keeps_independent_numeric_operand_sites() {
     let dv = "(if true then {return;} else {return;})";
-    for body in [
-        "let a=@+();let b:I64=();",
-        "let b:I64=();let a=@-();",
-        "let a=@<();let b:I64=();",
-        "let a=(@+())-();let b:I64=();",
+    for (body, expected_count) in [
+        ("let a=@+();let b:I64=();", 2),
+        ("let b:I64=();let a=@-();", 2),
+        ("let a=@<();let b:I64=();", 2),
+        // §4.1.2.4–5: the outer subtraction's right operand is
+        // independent of the failed inner sum and the later binding.
+        ("let a=(@+())-();let b:I64=();", 3),
     ] {
         let source = format!("fn Main(){{{}}}", body.replacen('@', dv, 1));
         let errors = check_proposed(FILE, &source, true).expect_err(&source);
-        assert_eq!(errors.len(), 2, "{source}: {errors:?}");
+        assert_eq!(errors.len(), expected_count, "{source}: {errors:?}");
         if body.contains("@<()") {
-            let unit = source.find("<()").unwrap() as u64 + 1;
+            let operator = source.find("<()").unwrap() as u64;
             let comparison = errors
                 .iter()
-                .find(|d| d.primary_span.as_ref().is_some_and(|s| s.start == unit))
-                .unwrap();
+                .find(|d| d.primary_span.as_ref().is_some_and(|s| s.start == operator))
+                .unwrap_or_else(|| panic!("{source}: {errors:?}"));
+            // F0-0002 §4.1.2.4: < uses the operator as primary after
+            // equality, and its intrinsic domain has no source origin.
             assert!(
                 comparison
                     .related_spans
                     .iter()
-                    .any(|s| s.role == RelatedRole::ExpectedType)
+                    .all(|s| s.role != RelatedRole::ExpectedType)
             );
         }
         for error in errors {
@@ -309,6 +363,190 @@ fn adr_gap_function_name_is_not_an_assignable_place() {
             d.primary_span.as_ref().map(|s| (s.start, s.end)),
             Some((root, root + if source.contains("Main=()") { 4 } else { 1 }))
         );
+    }
+}
+
+#[test]
+fn nested_function_and_intrinsic_values_reject_during_name_resolution() {
+    for source in [
+        "fn Main(){let x=(Main);}",
+        "fn Main(){let x=[Main];}",
+        "fn Main(){var a=[1];a[Main]=2;}",
+        "fn Main(){Print=1;}",
+        "fn Main(){AssertEq=1;}",
+    ] {
+        let d = error(source, true);
+        assert_eq!(
+            (d.code.as_str(), d.feature_id.as_deref()),
+            ("NX-E0006", Some("function_value")),
+            "{source}: {d:?}"
+        );
+        assert_eq!(
+            (d.stage, d.operation),
+            (Stage::Names, Operation::NamesResolve)
+        );
+        assert_eq!(
+            d.data.get("pending_scope"),
+            Some(&DataValue::String("later_adr".into()))
+        );
+    }
+}
+
+#[test]
+fn resolver_rejects_function_values_inside_arrays_and_indexes() {
+    for source in [
+        "fn Main(){let x=[Print];}",
+        "fn Main(){var a=[1];a[Print]=2;}",
+    ] {
+        let ast = parse::parse(FILE, source).unwrap();
+        let errors = match names::resolve(FILE, source, &ast) {
+            Ok(_) => panic!("function value resolved: {source}"),
+            Err(errors) => errors,
+        };
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+        assert_eq!(errors[0].code, "NX-E0006");
+        assert_eq!(errors[0].feature_id.as_deref(), Some("function_value"));
+        assert_eq!(errors[0].stage, Stage::Names);
+        errors[0].validate(FILE, source).unwrap();
+    }
+}
+
+#[test]
+fn array_conflict_types_keep_the_outer_constructor_in_checker_diagnostics() {
+    for (source, expected, found) in [
+        (
+            "fn Main(){let x=[false]==[1];}",
+            "Array<Bool>",
+            "Array<I64>",
+        ),
+        (
+            "fn Main(){var a=[false];var b=[1];b=a;}",
+            "Array<I64>",
+            "Array<Bool>",
+        ),
+        (
+            "fn Main(){let a=[false];let b=[1];let x=if true then a else b;}",
+            "Array<Bool>",
+            "Array<I64>",
+        ),
+    ] {
+        let d = error(source, true);
+        assert!(
+            matches!(d.code.as_str(), "NX-E0102" | "NX-E1303"),
+            "{source}: {d:?}"
+        );
+        assert_eq!(
+            d.data.get("expected_type"),
+            Some(&DataValue::String(expected.into())),
+            "{source}: {d:?}"
+        );
+        assert_eq!(
+            d.data.get("found_type"),
+            Some(&DataValue::String(found.into())),
+            "{source}: {d:?}"
+        );
+    }
+}
+
+#[test]
+fn deferred_array_binding_reports_the_incompatible_leaf_and_concrete_origin() {
+    // F0-0002 §§13.15, 13.17: found_type is the type of the leaf at the
+    // primary span; the concrete prior constraint remains the type origin.
+    let source = "fn Main(){var a=[];var b=[];b=[[1]];a=b;a=[[true]];}";
+    let d = error(source, true);
+    assert_eq!(d.code, "NX-E0102");
+    assert_eq!(
+        d.data.get("expected_type"),
+        Some(&DataValue::String("I64".into()))
+    );
+    assert_eq!(
+        d.data.get("found_type"),
+        Some(&DataValue::String("Bool".into()))
+    );
+    assert!(
+        d.related_spans
+            .iter()
+            .any(|r| r.role == RelatedRole::ExpectedType && (r.span.start, r.span.end) == (30, 35)),
+        "{d:?}"
+    );
+
+    let source = "fn Main(){var v=(if true then {return;}else{return;});v=[false];v=[1];}";
+    let d = error(source, true);
+    assert_eq!(d.code, "NX-E0102");
+    assert_eq!(
+        d.data.get("expected_type"),
+        Some(&DataValue::String("Bool".into()))
+    );
+    assert_eq!(
+        d.data.get("found_type"),
+        Some(&DataValue::String("I64".into()))
+    );
+}
+
+#[test]
+fn all_never_array_keeps_constructor_and_live_index_remains_concrete() {
+    let source = "fn Main(){var a=0;a=[(if true then {return;}else{return;})];}";
+    let d = error(source, true);
+    assert_eq!(d.code, "NX-E0103");
+    let source = "fn Main(){let x=[1][0];Print(x);}";
+    check_proposed(FILE, source, true).unwrap();
+}
+
+#[test]
+fn deferred_equality_preserves_the_left_concrete_origin() {
+    let source = "fn Main(){var v=(if true then {return;}else{return;});let x=3==v;v=true;}";
+    let d = error(source, true);
+    assert_eq!(
+        (d.code.as_str(), d.subcause.as_deref()),
+        ("NX-E0102", Some("type_mismatch"))
+    );
+    assert_eq!(
+        d.data.get("expected_type"),
+        Some(&DataValue::String("I64".into()))
+    );
+    assert_eq!(
+        d.data.get("found_type"),
+        Some(&DataValue::String("Bool".into()))
+    );
+    let concrete = byte_span(source, "3", 0);
+    assert!(
+        d.related_spans
+            .iter()
+            .any(|r| r.role == RelatedRole::ExpectedType && (r.span.start, r.span.end) == concrete),
+        "{d:?}"
+    );
+}
+
+#[test]
+fn failed_resource_array_constructor_does_not_cascade() {
+    let source = "fn Main(){var a=[];var m=MockOpen(1);var b=[];b=[m];AssertEq(a,b);}";
+    let ds = check_proposed(FILE, source, true).expect_err(source);
+    assert_eq!(ds.len(), 1, "{ds:?}");
+    assert_eq!(ds[0].code, "NX-E0006");
+    assert_eq!(ds[0].feature_id.as_deref(), Some("resource_array"));
+    ds[0].validate(FILE, source).unwrap();
+}
+
+#[test]
+fn indexed_empty_array_element_requires_copyable_data() {
+    let source = "fn Main(){var a=[];a[0]=MockOpen(1);}";
+    let ds = check_proposed(FILE, source, true).expect_err(source);
+    assert_eq!(ds.len(), 2, "{ds:?}");
+    assert_eq!(ds[0].code, "NX-E0103");
+    assert_eq!(
+        (ds[1].code.as_str(), ds[1].subcause.as_deref()),
+        ("NX-E0102", Some("type_mismatch"))
+    );
+    assert_eq!(
+        ds[1].data.get("expected_type"),
+        Some(&DataValue::String("domain:copyable_data".into()))
+    );
+    assert_eq!(
+        ds[1].data.get("found_type"),
+        Some(&DataValue::String("MockResource".into()))
+    );
+    for d in ds {
+        d.validate(FILE, source).unwrap();
     }
 }
 
@@ -863,8 +1101,15 @@ fn branch_restores_dependency_taint_after_invalid_return_expression() {
     let errors = check_proposed(FILE,
         "fn F(c: view Bool) -> I64 {\n    let bad: I64 = true;\n    let x: I64 = if c then {\n        return bad + true;\n    } else 1;\n    let y: Bool = x;\n    return 1;\n}\n", false)
         .unwrap_err();
-    assert_eq!(errors.len(), 1, "{errors:?}");
+    // F0-0002 §4.1.2.5: the invalid binding contaminates its read;
+    // the independent true operand of + still fails I64.
+    assert_eq!(errors.len(), 2, "{errors:?}");
     assert_eq!(errors[0].code, "NX-E0102");
+    assert_eq!(errors[1].code, "NX-E0102");
+    assert_eq!(
+        errors[1].primary_span.as_ref().map(|s| (s.start, s.end)),
+        Some((103, 107))
+    );
 }
 
 #[test]
@@ -917,6 +1162,295 @@ fn independent_call_arguments_are_reported_without_dependent_binding_cascades() 
     assert_eq!(errors.len(), 1);
     let mismatch = byte_span(source, "true", 0);
     assert_eq!(errors[0].primary_span, Some(sp(mismatch.0, mismatch.1)));
+}
+
+#[test]
+fn invalid_first_call_argument_preserves_independent_second_argument() {
+    // ADR §4.1.2.5: an invalid binary result cannot taint a sibling argument.
+    let source = "fn F(a: view I64, b: view I64){} fn Main(){F(1 + true, true);}";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    for (error, span) in errors.iter().zip([(49, 53), (55, 59)]) {
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+        assert_eq!(error.primary_span, Some(sp(span.0, span.1)));
+    }
+}
+
+#[test]
+fn divergent_binding_read_preserves_unresolved_inference() {
+    // ADR §4.1.2.2: a read of a deferred value remains an inference
+    // obligation even when another branch contributes a concrete type.
+    let source = "fn Main(){var d=(if true then {return;} else {return;});let x=((if true then {value:d;} else 5)+46);}";
+    check_proposed(FILE, source, false).unwrap();
+}
+
+#[test]
+fn selector_internal_errors_survive_non_array_base() {
+    // ADR §4.1.2.3 and RD117: the base fails its Array domain, while the
+    // selector is checked independently without an I64 context.
+    let source = "fn Main(){let q=3;let a=q[(if true then 1 else true)];}";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    assert_eq!(errors[0].code, "NX-E0102");
+    assert_eq!(errors[0].subcause.as_deref(), Some("not_indexable"));
+    assert_eq!(errors[0].primary_span, Some(sp(24, 25)));
+    assert_eq!(errors[1].code, "NX-E1303");
+    assert_eq!(errors[1].primary_span, Some(sp(47, 51)));
+}
+
+#[test]
+fn selector_equality_error_survives_non_array_base() {
+    // F0-0002 §§4.1.2.3, 4.1.2.5 and 13.9: the base and the selector
+    // own independent constraints. The selector has no I64 context after
+    // the base fails its Array domain.
+    let source = "fn Main(){let q=3;let a=q[true==1];}";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    for (error, subcause, primary, expected, found, related) in [
+        (
+            &errors[0],
+            "not_indexable",
+            (24, 25),
+            "domain:array",
+            "I64",
+            vec![(RelatedRole::FoundType, 24, 25)],
+        ),
+        (
+            &errors[1],
+            "type_mismatch",
+            (32, 33),
+            "Bool",
+            "I64",
+            vec![
+                (RelatedRole::ExpectedType, 26, 30),
+                (RelatedRole::FoundType, 32, 33),
+            ],
+        ),
+    ] {
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(error.subcause.as_deref(), Some(subcause));
+        assert_eq!(error.primary_span, Some(sp(primary.0, primary.1)));
+        assert_eq!(error.stage, Stage::Types);
+        assert_eq!(error.operation, Operation::TypesCheck);
+        assert_eq!(error.diagnostic_namespace, Namespace::NexoProposedV1);
+        assert_eq!(error.unexpected_token, None);
+        assert!(error.expected_tokens.is_empty());
+        assert_eq!(error.feature_id, None);
+        assert!(error.repair.is_empty());
+        assert!(error.cause_chain.is_empty());
+        assert_eq!(
+            error
+                .related_spans
+                .iter()
+                .map(|site| (site.role, site.span.start, site.span.end))
+                .collect::<Vec<_>>(),
+            related
+        );
+        assert_eq!(error.data.len(), 2);
+        assert_eq!(
+            error.data.get("expected_type"),
+            Some(&DataValue::String(expected.into()))
+        );
+        assert_eq!(
+            error.data.get("found_type"),
+            Some(&DataValue::String(found.into()))
+        );
+        error.validate(FILE, source).unwrap();
+    }
+    let base_only = "fn Main(){let q=3;let a=q[0];}";
+    let selector_only = "fn Main(){let q=[3];let a=q[true==1];}";
+    for (source, subcause) in [
+        (base_only, "not_indexable"),
+        (selector_only, "type_mismatch"),
+    ] {
+        let errors = check_proposed(FILE, source, false).unwrap_err();
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+        assert_eq!(errors[0].code, "NX-E0102");
+        assert_eq!(errors[0].subcause.as_deref(), Some(subcause));
+        errors[0].validate(FILE, source).unwrap();
+    }
+    assert!(check_proposed(FILE, "fn Main(){let q=[3];let a=q[0];}", false).is_ok());
+}
+
+#[test]
+fn pending_projections_reach_a_fixed_point_across_source_order() {
+    // ADR §§4.1.1, 4.1.2.3: the later Array constructor activates an
+    // earlier selector, which then determines the base of a still earlier
+    // projection. A source permutation must reach the same domain failure.
+    let divergent = "(if true then {return;} else {return;})";
+    for body in [
+        format!("var v0={divergent};var v1={divergent};let t0=v1[0];let t3=v0[v1];v0=[1];"),
+        format!("var v0={divergent};var v1={divergent};let t3=v0[v1];let t0=v1[0];v0=[1];"),
+    ] {
+        let source = format!("fn Main(){{{body}}}");
+        let errors = check_proposed(FILE, &source, false).unwrap_err();
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+        assert_eq!(errors[0].code, "NX-E0102");
+        assert_eq!(errors[0].subcause.as_deref(), Some("not_indexable"));
+        let at = byte_span(&source, "v1[0]", 0);
+        assert_eq!(errors[0].primary_span, Some(sp(at.0, at.0 + 2)));
+        assert_eq!(
+            errors[0].data.get("expected_type"),
+            Some(&datum("domain:array"))
+        );
+        assert_eq!(errors[0].data.get("found_type"), Some(&datum("I64")));
+    }
+}
+
+#[test]
+fn conditional_selector_constraint_blames_the_later_conflicting_value() {
+    // ADR §4.1.2.3, RD92/RD114: the index requirement activates when
+    // the base becomes Array; its source occurrence still precedes either
+    // ordering of the later assignments.
+    let divergent = "(if true then {return;} else {return;})";
+    for tail in ["v0=[1];v1=true;", "v1=true;v0=[1];"] {
+        let source =
+            format!("fn Main(){{var v0={divergent};var v1={divergent};let t=v0[v1];{tail}}}");
+        let errors = check_proposed(FILE, &source, false).unwrap_err();
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+        let at = byte_span(&source, "true", 2);
+        assert_eq!(errors[0].primary_span, Some(sp(at.0, at.1)));
+        assert_eq!(errors[0].code, "NX-E0102");
+        assert_eq!(errors[0].data.get("expected_type"), Some(&datum("I64")));
+        assert_eq!(errors[0].data.get("found_type"), Some(&datum("Bool")));
+    }
+    let positive =
+        format!("fn Main(){{var v0={divergent};var v1={divergent};let t=v0[v1];v1=0;v0=[1];}}");
+    check_proposed(FILE, &positive, false).unwrap();
+}
+
+#[test]
+fn later_boolean_comparison_cannot_replace_an_intrinsically_fixed_integer_alias() {
+    // ADR §4.1.1 and §4.1.2.2: the I64 constraint from < or from the
+    // integer operand of == remains after the Bool result is assigned.
+    // The earlier implementation accepted both forms; the accepted
+    // comparison alone is the positive pair for each assignment.
+    let divergent = "(if true then {return;} else {return;})";
+    for (comparison, assignment) in [("q<q", "q=q<q"), ("1==q", "q=1==q")] {
+        let positive = format!("fn Main(){{var q={divergent};let b={comparison};}}");
+        check_proposed(FILE, &positive, false).unwrap();
+        let negative = format!("fn Main(){{var q={divergent};{assignment};}}");
+        let errors = check_proposed(FILE, &negative, false).unwrap_err();
+        assert_eq!(errors.len(), 1, "{negative}: {errors:?}");
+        assert_eq!(errors[0].code, "NX-E0102");
+        assert_eq!(errors[0].subcause.as_deref(), Some("type_mismatch"));
+    }
+}
+
+#[test]
+fn deferred_array_conflicts_keep_the_complete_source_operand_type() {
+    // ADR §4.1.2.6, RD05/RD06: decomposition of Array equality may not
+    // serialize its element type with the whole array operand's span.
+    let source = "fn Main(){let ar=[1];var r=[];let a1=ar==[r];r=[3];}";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let at = byte_span(source, "[r]", 0);
+    assert_eq!(errors[0].primary_span, Some(sp(at.0, at.1)));
+    assert_eq!(
+        errors[0].data.get("expected_type"),
+        Some(&datum("Array<I64>"))
+    );
+    assert_eq!(
+        errors[0].data.get("found_type"),
+        Some(&datum("Array<Array<I64>>"))
+    );
+
+    // ADR §4.1.2.3/.6 and RD89: the indexed destination cannot be the
+    // expected-type witness of its own deferred RHS occurrence.
+    let source = "fn Main(){var r=[];r[0]=r;r=[[3]];}";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let at = byte_span(source, "=r;", 0);
+    assert_eq!(errors[0].primary_span, Some(sp(at.0 + 1, at.0 + 2)));
+    assert!(
+        errors[0]
+            .related_spans
+            .iter()
+            .all(|r| r.role != RelatedRole::ExpectedType)
+    );
+
+    // ADR §4.1.2.4/.6: a determined Array root distributes its pending
+    // element context to both later sibling occurrences in source order.
+    let source = "fn Main(){var r=[];let a0=[r,[r,r,4]];r=[3];}";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    let first = source.find("[r,r,4]").unwrap() as u64 + 1;
+    for (error, start) in errors.iter().zip([first, first + 2]) {
+        assert_eq!(error.primary_span, Some(sp(start, start + 1)));
+        assert_eq!(error.data.get("expected_type"), Some(&datum("I64")));
+        assert_eq!(error.data.get("found_type"), Some(&datum("Array<I64>")));
+    }
+}
+
+#[test]
+fn unresolved_array_obligations_follow_each_causal_constructor() {
+    // ADR §4.1.2.2, RD122/RD127: an outer consequence is suppressed for
+    // a directly nested unresolved constructor, while a projection owns
+    // its separate unresolved element obligation.
+    let divergent = "(if true then {return;} else {return;})";
+    let inner = format!("[{divergent}]");
+    let source = format!("fn Main(){{let p=true;let a=(if p then [{inner}] else 1);}}");
+    let errors = check_proposed(FILE, &source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let at = byte_span(&source, &inner, 0);
+    assert_eq!(errors[0].code, "NX-E0103");
+    assert_eq!(errors[0].primary_span, Some(sp(at.0, at.1)));
+
+    let source = "fn Main(){let b=[];let c=[b[0]];}";
+    let errors = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    for (error, needle) in errors.iter().zip(["[]", "[b[0]]"]) {
+        let at = byte_span(source, needle, 0);
+        assert_eq!(error.code, "NX-E0103");
+        assert_eq!(error.primary_span, Some(sp(at.0, at.1)));
+    }
+}
+
+#[test]
+fn unresolved_heterogeneous_array_cannot_offer_a_type_to_its_annotation() {
+    // ADR §4.1.2.5, RD101/RD119: the pending heterogeneity contaminates
+    // the array result, so its scalar annotation adds no derived mismatch.
+    let divergent = "(if true then {return;} else {return;})";
+    let inner = format!("[{divergent}]");
+    let source = format!("fn Main(){{let a:I64=[1,{inner},2];}}");
+    let errors = check_proposed(FILE, &source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let at = byte_span(&source, &inner, 0);
+    assert_eq!(errors[0].code, "NX-E0103");
+    assert_eq!(errors[0].primary_span, Some(sp(at.0, at.1)));
+}
+
+#[test]
+fn failed_pending_domain_withholds_its_nominal_result_from_consumers() {
+    // ADR §4.1.2.5: a domain failure of < or Print invalidates the
+    // operation result before array homogeneity or + can use it.
+    for (source, expected_type, found_type) in [
+        (
+            "fn Main(){var r=[];let a=[r<r,1];r=[3];}",
+            "I64",
+            "Array<I64>",
+        ),
+        (
+            "fn Main(){var r=[];let a=(r<r)+1;r=[3];}",
+            "I64",
+            "Array<I64>",
+        ),
+        (
+            "fn Main(){var q=(if true then {return;} else {return;});let a=[Print(q),1];q=MockOpen(1);}",
+            "domain:copyable_data",
+            "MockResource",
+        ),
+    ] {
+        let errors = check_proposed(FILE, source, false).unwrap_err();
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+        assert_eq!(errors[0].code, "NX-E0102");
+        assert_eq!(
+            errors[0].data.get("expected_type"),
+            Some(&datum(expected_type))
+        );
+        assert_eq!(errors[0].data.get("found_type"), Some(&datum(found_type)));
+    }
 }
 
 #[test]
@@ -1646,17 +2180,16 @@ fn adr_gap_result_constructor_payload_label_is_v() {
 }
 
 #[test]
-fn adr_gap_empty_array_without_array_context_reports_inference_error() {
+fn empty_array_needs_a_resolvable_element_context() {
+    // ADR §4.1.2.2/RD122: equality with a known Array fixes the element
+    // of the empty constructor; an unrelated scalar context cannot.
     let source = "fn Main() {\n    let x: I64 = [];\n}\n";
     let d = error(source, false);
     assert_eq!(d.code, "NX-E0103");
     let primary = byte_span(source, "[]", 0);
     assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
     let source = "fn Main() {\n    let a = [1];\n    let b = [] == a;\n}\n";
-    let d = error(source, false);
-    assert_eq!(d.code, "NX-E0103");
-    let primary = byte_span(source, "[]", 0);
-    assert_eq!(d.primary_span, Some(sp(primary.0, primary.1)));
+    check_proposed(FILE, source, false).unwrap();
 }
 
 #[test]
@@ -2650,6 +3183,9 @@ fn inferred_type_depth_enforces_array_priority_and_result_value_limit() {
 #[cfg(not(debug_assertions))]
 #[test]
 fn semantic_passes_scale_with_source_bytes() {
+    // This fixture shares the type-work and allocation counters with I07c
+    // scale tests. Serialize their measurements, not unrelated tests.
+    let _campaign = crate::test_alloc::campaign_guard();
     fn source_for(family: usize, target: usize) -> String {
         let mut source = String::new();
         if family == 18 {

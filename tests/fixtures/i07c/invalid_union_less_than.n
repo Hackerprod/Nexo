@@ -1,0 +1,1 @@
+fn Main(){let x=(if 1 then 2 else 3)<(if true then true else 4);}

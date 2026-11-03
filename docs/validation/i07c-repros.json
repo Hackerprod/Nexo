@@ -1,0 +1,919 @@
+{
+  "programs": 88,
+  "rows": [
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-0c00290d0d-sample1.n",
+      "source_sha256": "0c00290d0d07edceb60e9ed8641a19616caf5ca2c2adb537bff3b8fdad972b42",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-525f495470-sample1.n",
+      "source_sha256": "525f4954706c6e616a3eac32aa88f0698418de5eb6a974d2a7ac100af57200ff",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-588481f8a4-sample1.n",
+      "source_sha256": "588481f8a4ccc4776578f74bb123d44955ef080adccb595b4a4c25b515174446",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-848d77f38f-sample1.n",
+      "source_sha256": "848d77f38fdf83f63edc959448a2dc90fe935de5825a11035d081b9b096056e9",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-8eeac3d761-sample1.n",
+      "source_sha256": "8eeac3d76187dafda697ccf547ac75b9a6795cc0d32cb25e627b149322961eb7",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-annotation-3bfbe664da-sample1.n",
+      "source_sha256": "3bfbe664da67d4ff39ff94abb7c5df306e95a1f4c5e915d5136af9b9e2b82057",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-annotation-7eac69313b-sample1.n",
+      "source_sha256": "7eac69313b61c88889cdeb97486f18e970f720dcd731759019b428e593ba80cd",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-annotation-da213b77d9-sample1.n",
+      "source_sha256": "da213b77d901bff65c917897812aaffc101411a12178a12716556ee948de46ef",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-annotation-mutable-0ad4cef9a0-sample1.n",
+      "source_sha256": "0ad4cef9a0fef76bbfcbc083e72d12258b925060ec9ea12f753a2e8127ef5de8",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-annotation-mutable-763bb3c545-sample1.n",
+      "source_sha256": "763bb3c545cf986c687c6a953f502f0e8add7021b63783fad24034c9b7f00027",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-annotation-mutable-a24e9206e1-sample1.n",
+      "source_sha256": "a24e9206e1bb70cfe10f258e27d83ea408d8e7b91889ee0cb7e80532d2261bd0",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-baf783d44f-sample1.n",
+      "source_sha256": "baf783d44f3ad8a256b86a88898dc53a17c1b46753c950aea23168269575af2e",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-e17c11bf3c-sample1.n",
+      "source_sha256": "e17c11bf3c040a9c837e0506aedebcae65c17a600db6c42f0f0d07ab010f3ae3",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-f0400e65bc-sample1.n",
+      "source_sha256": "f0400e65bc3120f537e2982416485ed2ba0bda5493a05406e46cb91ebce25968",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-f8be97d17a-sample1.n",
+      "source_sha256": "f8be97d17a773b275eb96c54cc0fcc81eda6944e79735ad7257b227d45df3ba5",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-35c1e9302a-sample1.n",
+      "source_sha256": "35c1e9302a9ba49eb34544cbd33c95aae252c833deb322c03218d60fd2259dfc",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-55411a1687-sample1.n",
+      "source_sha256": "55411a16874f399273b61aee50d2c22130d0d08c8627ef1d7fa2cb6c24f33eb6",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-annotation-be817b7fd6-sample1.n",
+      "source_sha256": "be817b7fd60e176f829e89291597f5b027d8460f27eafc69d3064cc730a54ce1",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-annotation-mutable-35bde81a00-sample1.n",
+      "source_sha256": "35bde81a00b598e493ef9f594709b76b4f33dc6503d4879266efd08f16c3d18c",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-annotation-mutable-81effdc7d6-sample1.n",
+      "source_sha256": "81effdc7d61e128d4e7f0d0ea55a558a875423a8f5f46b616a4f6abd17bec7ca",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-annotation-mutable-83af11fad2-sample1.n",
+      "source_sha256": "83af11fad28f92445a165ea18f369caad1ef4ef67e5292b2edb37cd7fc615b52",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-arithmetic-annotation-mutable-a25bb94d97-sample1.n",
+      "source_sha256": "a25bb94d970ec13b57b0e86d1ff53844feb8d51600cac473ab50fdac5d7587d8",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-mutable-7084e49ce6-sample1.n",
+      "source_sha256": "7084e49ce6e46a5a6a169342cdf607ad2b0c39d2ee06860aa7bf3b4bbda1944e",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-index-mutable-a589521b2e-sample1.n",
+      "source_sha256": "a589521b2e5e131c07e64ff592a4daf3c77657ebf36353b0f784f3c6fa80fd64",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-20b450c80b-sample1.n",
+      "source_sha256": "20b450c80b12603e9bceef40e2a5386f248d50219acc1785cab041491312c407",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-2981e07f7b-sample1.n",
+      "source_sha256": "2981e07f7bfa702549803c667cb6aac47b8a842fdb6344fb612ca9aaff825c07",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-5a6a865c22-sample1.n",
+      "source_sha256": "5a6a865c224421e17331fb1a720c0b7f56eeada1c591ff82957a6338bcc57103",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-60641c7d02-sample1.n",
+      "source_sha256": "60641c7d026ec505eaef782f022591a06572e0891bf088a9e69f92a89c3a6b1b",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-a062d9ebdb-sample1.n",
+      "source_sha256": "a062d9ebdb58891d94cb00028b0f15b259f78d9389a57a07eb797b11e823b5c2",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-a404cbf9db-sample1.n",
+      "source_sha256": "a404cbf9db720ced48b844358bac5fc6af73c98359996307b1bf64c7e65331e4",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-a4070636da-sample1.n",
+      "source_sha256": "a4070636dae07dd3f6560ada79d0f56826583ee01bce1bfd635892ebeca6c3f1",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-c3ae369757-sample1.n",
+      "source_sha256": "c3ae3697574f9fe59ee6932e18394b3d5237969f12b189086b5b1199f7e55458",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/array-mutable-cdbc0da296-sample1.n",
+      "source_sha256": "cdbc0da296f60241f647f29a03be25a7dc1eed53a61808d233660f6da24945d4",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/assert-equality-array-05597feb89-sample1.n",
+      "source_sha256": "05597feb8962616f9ec96cbfa4b5ce3a4167697fdd829b7dc2817771beaf857d",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/assert-equality-array-527cdb0200-sample1.n",
+      "source_sha256": "527cdb0200a4a9c7543b3bd44f14ffdb5d4ab6b34da38e9e5ff5b12ef044a3c5",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/assert-equality-array-mutable-56303b5010-sample1.n",
+      "source_sha256": "56303b50109eaedf63290ea4ccb8333a6dcb5ffadd5427f81058b32a8c364874",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/assert-equality-array-mutable-87ee812f7b-sample1.n",
+      "source_sha256": "87ee812f7b166740c41fe6c30af5a406c1dc60a2654c68915b39acf7a345c2d1",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-annotation-ba67338763-sample1.n",
+      "source_sha256": "ba673387636498dab7f3a42c3e421a417e53a8827e2e35e86504c949a8b27db3",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-4924b09088-sample1.n",
+      "source_sha256": "4924b09088afab8090f6a1e8d3bbce4a5664cdf1e0cbecf18b4100d5cc0bd1aa",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-8ef5ceb274-sample1.n",
+      "source_sha256": "8ef5ceb2746787f8813b036de62fa237439d22bb40f6793f8bd996c69b9e3be2",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-annotation-e98e90b983-sample1.n",
+      "source_sha256": "e98e90b98303d4379680290c63dbb8761ab037749b28d6bdcfed13cae91e00c2",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0103",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-annotation-mutable-445d604bea-sample1.n",
+      "source_sha256": "445d604bea7c89f09336077d8c1f646c7f58e13044c6c25090b0f1709bdf6f75",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-annotation-mutable-53b855c059-sample1.n",
+      "source_sha256": "53b855c0596daa0a746db5e0749dd81bc38e5c81c12ec8647ac6a983c860a799",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-annotation-mutable-66ba8ee07d-sample1.n",
+      "source_sha256": "66ba8ee07d22ce02add3aead35176d48f76d541b5088ff577263ffd310a48fdd",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-annotation-mutable-7339481cd9-sample1.n",
+      "source_sha256": "7339481cd9837e52e6b92b6eed1e80c412f09b9bc74ecc0166d6b671f829d7f9",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-annotation-mutable-8587a693cf-sample1.n",
+      "source_sha256": "8587a693cf686cc36f41ec8388bd3ce6a74b01a637bca3b91c34a4113016583d",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-annotation-mutable-c448dbd604-sample1.n",
+      "source_sha256": "c448dbd6043b9b50053982907c267594598a0046efc9932f3191796a7e732163",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-arithmetic-74f77a9c45-sample1.n",
+      "source_sha256": "74f77a9c453ac331cd32a2b1c448188b20fe39a0fc505807c8dda880fe3eb051",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-arithmetic-9e5786958e-sample1.n",
+      "source_sha256": "9e5786958e723686a116c9a8c2cfc3ad19e98ced76fa685b73af2865285c327e",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-annotation-6306fe73fc-sample1.n",
+      "source_sha256": "6306fe73fcc18e6b7cc769ca715e58b6248f90eed0ab04b45cde3e7a1519bb34",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-annotation-mutable-5746dab5d8-sample1.n",
+      "source_sha256": "5746dab5d8de5ca0ddd35eb5e844120563cedfbf27a204f991f725768874dae4",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-annotation-mutable-ae0563d3fe-sample1.n",
+      "source_sha256": "ae0563d3fe92cf2209f2266dbe55383cf79ddafae929453c78aef47da3cf066a",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-annotation-mutable-b70edefd51-sample1.n",
+      "source_sha256": "b70edefd51a91d56731568f3ee9aec142256fb5385b30c75ccfea6c9a78f2920",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-annotation-mutable-e8f1e0e1e0-sample1.n",
+      "source_sha256": "e8f1e0e1e0185e91bb2f68a5fc19221188d193c892e856e990e7f62bd3d13f23",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-arithmetic-loop-797023519f-sample1.n",
+      "source_sha256": "797023519f3fdcdcf21d572a5806e75739da809508d492f7e865506e48a38c27",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-arithmetic-mutable-68e093a372-sample1.n",
+      "source_sha256": "68e093a3729ae2a37d71f58aa4a279280c70cd756c8389f4530a81e61df97586",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-ed673b392a-sample1.n",
+      "source_sha256": "ed673b392adf1d3b546cf68626b65454b0cc234a6cb75137dc3e867dce9c68a1",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-index-mutable-c5124bf40b-sample1.n",
+      "source_sha256": "c5124bf40bb1f6e3e8eab5990bcd193fa2e1a25c703e80e614ad62c9bcb90b84",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-loop-6ece933b46-sample1.n",
+      "source_sha256": "6ece933b463ff096e033a820e50dd47c8c3328fc1a061aeaa4942679daa7b331",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-mutable-68d9b24c62-sample1.n",
+      "source_sha256": "68d9b24c62f17fe6cc385ea0840c7ebbb477e63c34eb554c48f0922fea17ee2a",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-array-mutable-ec186a1089-sample1.n",
+      "source_sha256": "ec186a10896cc65a977155c7077368b006b11b1e745144e36099b788b467a88e",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-assert-equality-array-arithmetic-mutable-46a8555396-sample1.n",
+      "source_sha256": "46a8555396d957f19fefdafcaa46645fa6710d4f6889b50ae4ab6142d2a90f20",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E1303",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-assert-equality-array-index-mutable-5db331ae6f-sample1.n",
+      "source_sha256": "5db331ae6fde0fc6c137b915a61369cd87ec4ded11282d7f15f50fcfaab81da3",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-comparison-array-10d97f89bb-sample1.n",
+      "source_sha256": "10d97f89bb110b4add1718a5d2cba27f1c783c1745ffc1befa8838fbacfc5119",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-comparison-array-mutable-84978df503-sample1.n",
+      "source_sha256": "84978df5035df3a58a460e3e7fcab50a26ca18dc8c3dffbf093eda98edfd0ad5",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-equality-array-annotation-21c36a3fbd-sample1.n",
+      "source_sha256": "21c36a3fbd3c58f21daec55fd6725d040424dda38e1990c5f3a963918a7f7e84",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102",
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-equality-array-bc0a204071-sample1.n",
+      "source_sha256": "bc0a2040717bcd251cf9c1b90200eaf2b718267d21a2a740761a50ce24ff18db",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E1303",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-equality-array-befc699115-sample1.n",
+      "source_sha256": "befc6991150b1792382686f875044d9e57c914fbfb5d28cc1cec6e7a04428afb",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-equality-array-dc591ada04-sample1.n",
+      "source_sha256": "dc591ada041b477230cc288bb31d9f4daf5515304792010b4f18052d73139509",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-equality-array-mutable-34b3faecfe-sample1.n",
+      "source_sha256": "34b3faecfef78d04fa78533896dd4bcbd2f7ba1aca5e68653d3c5e12760eddc7",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/branch-equality-array-mutable-6f1bbfeb40-sample1.n",
+      "source_sha256": "6f1bbfeb407f8260f89db166445cfb81e8cbdf20ac03ff03f96350166e5f57fb",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E1303"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/comparison-array-8fa4e3eaa3-sample1.n",
+      "source_sha256": "8fa4e3eaa37c5d94220eb0aa69f7fa68a9e8ea57dd4327173c321ce630949a23",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/comparison-array-f70a26b807-sample1.n",
+      "source_sha256": "f70a26b8075b86717fd25f1df31c7ce97d241fbdae1a07c603d7e22239b045ee",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/comparison-array-mutable-1eac4def51-sample1.n",
+      "source_sha256": "1eac4def518f3793899bf7919ce12c362c1958a1550a80c561842de13ced2822",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/comparison-array-mutable-95482c6526-sample1.n",
+      "source_sha256": "95482c652691cee465e58a7f7682fc1098c16344a5a0f946edb665f8a26a94ad",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-annotation-mutable-30ca00db7c-sample1.n",
+      "source_sha256": "30ca00db7c232ccf94a9fb147cf339390aa20bbba80ec30f5583cac3aac388c8",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-annotation-mutable-4b88edc0ab-sample1.n",
+      "source_sha256": "4b88edc0ab3bc4bfcfaeab8b83f8045f1f9b7b22f5ba80bbedfcd849642753ae",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-annotation-mutable-f80dd19b9c-sample1.n",
+      "source_sha256": "f80dd19b9c635d0d9806fe235f2e2f3c8ba9d83370c42e0ad00e2f51582c54a9",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-array-index-mutable-8d9d168f12-sample1.n",
+      "source_sha256": "8d9d168f124366f5f9b2c81073983eb5ffd55612e68b687dd66ed0f9da3e3bfb",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-array-index-mutable-b171025314-sample1.n",
+      "source_sha256": "b17102531408b138c652c9593146406f669ec9a028630909ee16fc67d6c7ba0b",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0103",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-array-index-mutable-c3824d3d68-sample1.n",
+      "source_sha256": "c3824d3d68b9b2b240740618ee40c6ad4bc85cd79dd99b163572b9298cfa206f",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-array-index-mutable-f2eb3a8b71-sample1.n",
+      "source_sha256": "f2eb3a8b7151a3b7e15bffd767f6e6c89f1503de68cdcc7106f5ea98a4f5ed72",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-array-mutable-loop-f8ee6ac76a-sample1.n",
+      "source_sha256": "f8ee6ac76a5d7e400112a45d1e46f98dffdfb05fa6af7d71165f7ecdb99d5529",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/divergent-branch-assert-equality-array-index-4ab40c8289-sample1.n",
+      "source_sha256": "4ab40c8289a56cd21e6b48970c52482c9de4900de9ee9438aaf9f84e0e37ac5a",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102",
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/equality-array-annotation-749e8461b2-sample1.n",
+      "source_sha256": "749e8461b2cbe3bc3350b68d5affcaf5ef5dccef479e89eedd88130eb5e87694",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/equality-array-annotation-d339dea27f-sample1.n",
+      "source_sha256": "d339dea27f513470dd8e5650166f7feaae8ef302d4c61f63bc80dae1b4ff40f8",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/equality-array-annotation-mutable-9188bf9218-sample1.n",
+      "source_sha256": "9188bf921838553c240f534039af9c31b3e8028fa21fcd4fddca0ad8cde203dd",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    },
+    {
+      "file": "tests/fixtures/i07c_repros/forms/equality-array-annotation-mutable-f2bef984ea-sample1.n",
+      "source_sha256": "f2bef984eaaa037fa9728121f65c1f8a674659c0e7cc653b7a1795990e2c3264",
+      "check_exit": 1,
+      "run_exit": 1,
+      "diagnostic_codes": [
+        "NX-E0102"
+      ],
+      "same_diagnostics": true
+    }
+  ]
+}

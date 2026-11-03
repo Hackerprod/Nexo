@@ -1,0 +1,1 @@
+fn Main(){var q1=(if true then {return;} else {return;});var q2=(if true then {return;} else {return;});q2=q1;let a4=[q1]==q2[0][0];q2=[1];}

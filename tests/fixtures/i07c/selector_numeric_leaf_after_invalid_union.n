@@ -1,0 +1,1 @@
+fn Main(){var v3=true;var v4=(if v3 then v3 else {value:[2,3];})[(v3-9)];}

@@ -1,0 +1,36 @@
+{
+  "base": "b506d7d",
+  "algorithm": "SHA-256 over LF-normalized bytes",
+  "files": [
+    {
+      "file": "src/check/names.rs",
+      "before": "1276d9009c7d854f524c7c931ff086c5be3b29ac5411f675fe1f3fb9a0227efe",
+      "after": "1276d9009c7d854f524c7c931ff086c5be3b29ac5411f675fe1f3fb9a0227efe",
+      "copy_after": "1276d9009c7d854f524c7c931ff086c5be3b29ac5411f675fe1f3fb9a0227efe"
+    },
+    {
+      "file": "src/check/types.rs",
+      "before": "82df3aa936ad84444446558a6aec347398c0a5687a7daeb0fcbf0afb0635dd92",
+      "after": "82df3aa936ad84444446558a6aec347398c0a5687a7daeb0fcbf0afb0635dd92",
+      "copy_after": "82df3aa936ad84444446558a6aec347398c0a5687a7daeb0fcbf0afb0635dd92"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "before": "0647f081f86c0f6f2122b7f682fc60113b81874ab76ff76ce7c4ee5386718593",
+      "after": "0647f081f86c0f6f2122b7f682fc60113b81874ab76ff76ce7c4ee5386718593",
+      "copy_after": "0647f081f86c0f6f2122b7f682fc60113b81874ab76ff76ce7c4ee5386718593"
+    },
+    {
+      "file": "src/ir/ownership_flow.rs",
+      "before": "c25f9b7ae1216630b9a04a18075bc644b4cb557ce58f9d84e4797bd2b0a48b99",
+      "after": "c25f9b7ae1216630b9a04a18075bc644b4cb557ce58f9d84e4797bd2b0a48b99",
+      "copy_after": "c25f9b7ae1216630b9a04a18075bc644b4cb557ce58f9d84e4797bd2b0a48b99"
+    },
+    {
+      "file": "src/ir/ownership_flow/sparse.rs",
+      "before": "63a9e0448108182c5e776fc877213fa3a6bed1d83e30f359b939776b3794fc13",
+      "after": "63a9e0448108182c5e776fc877213fa3a6bed1d83e30f359b939776b3794fc13",
+      "copy_after": "63a9e0448108182c5e776fc877213fa3a6bed1d83e30f359b939776b3794fc13"
+    }
+  ]
+}

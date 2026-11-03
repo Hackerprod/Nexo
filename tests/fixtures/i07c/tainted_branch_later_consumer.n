@@ -1,0 +1,1 @@
+fn Main(){let x=(if 1 then {let a=2;value:1;} else 1);AssertEq(x,true);}

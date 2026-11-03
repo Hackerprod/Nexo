@@ -1,0 +1,1 @@
+fn Main(){let p=true;var r=[];let a:I64=(r==p);r=[1];}

@@ -1,0 +1,1 @@
+fn Main(){var q0=[];var q1=[[]];let z=(if true then q1 else q0);AssertEq([q0],[q0,true]);}

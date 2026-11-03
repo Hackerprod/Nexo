@@ -1,0 +1,1 @@
+fn Main(){let c=true;let x=1; var q1=[];if c {let a2=((c) + 1) < q1;let a3=c + (x);}q1=[];}
