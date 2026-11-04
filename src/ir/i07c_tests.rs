@@ -4941,19 +4941,9 @@ fn deferred_assignment_checks_the_last_independent_constructor() {
 }
 
 #[test]
-fn nested_result_annotation_limit_uses_whole_type_primary() {
+fn nested_result_annotation_is_now_accepted() {
     let source = "fn F(x: view Result<Array<I64>, I64>){}fn Main(){}";
-    let diagnostics = rejected(source);
-    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
-    assert_eq!(diagnostics[0].code, "NX-E0006");
-    let start = source.find("Result<").unwrap() as u64;
-    assert_eq!(
-        diagnostics[0]
-            .primary_span
-            .as_ref()
-            .map(|s| (s.start, s.end)),
-        Some((start, start + "Result<Array<I64>, I64>".len() as u64))
-    );
+    super::compile_scalar("fixture.n", source).unwrap();
 }
 
 #[test]

@@ -1883,17 +1883,17 @@ fn empty_return_keeps_written_result_origin() {
 }
 
 #[test]
-fn try_operator_stops_before_deferred_type_state() {
-    // F0-D15 §7.1 assigns postfix ? to I08 in the current profile.
+fn try_operator_rejects_non_result_operand() {
+    // F0-0002 §7.1 requires a Result operand.
     let source = "fn Main(){let a=1?;}";
     let errors = match check_scalar("pending_try.n", source) {
         Err(CompileError::Rejected(errors)) => errors,
-        other => panic!("expected capability rejection: {other:?}"),
+        other => panic!("expected type rejection: {other:?}"),
     };
     assert_eq!(errors.len(), 1, "{errors:?}");
     let error = &errors[0];
-    assert_eq!(error.code, "NX-E0006");
-    assert_eq!(error.feature_id.as_deref(), Some("implementation_limit"));
+    assert_eq!(error.code, "NX-E0102");
+    assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
     assert_eq!(
         error
             .primary_span
@@ -1902,8 +1902,8 @@ fn try_operator_stops_before_deferred_type_state() {
         Some((17, 18))
     );
     assert_eq!(
-        error.data.get("pending_scope"),
-        Some(&DataValue::String("I08".into()))
+        error.data.get("expected_type"),
+        Some(&DataValue::String("domain:result".into()))
     );
 }
 

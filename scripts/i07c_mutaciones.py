@@ -27,6 +27,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = "b506d7d"
 OUTPUT = ROOT / "docs/validation/i07c-mutations/population.json"
 DIRECTORIES = ("src/check/", "src/ir/")
+DEFAULT_ONLY = "all"
+TARGETED_TEST: str | None = None
 SKIP_FILES: set[str] = set()
 
 TOKENS = (
@@ -53,7 +55,8 @@ def git(*args: str) -> str:
 
 
 def changed_lines(base: str) -> dict[str, set[int]]:
-    diff = git("diff", "--unified=0", base, "--", "src/check", "src/ir")
+    paths = tuple(path.removesuffix("/") for path in DIRECTORIES)
+    diff = git("diff", "--unified=0", base, "--", *paths)
     changed: dict[str, set[int]] = {}
     path = ""
     for line in diff.splitlines():
@@ -65,7 +68,7 @@ def changed_lines(base: str) -> dict[str, set[int]]:
                 start = int(match.group(1))
                 count = int(match.group(2) or 1)
                 changed.setdefault(path, set()).update(range(start, start + count))
-    for path in git("ls-files", "--others", "--exclude-standard", "--", "src/check", "src/ir").splitlines():
+    for path in git("ls-files", "--others", "--exclude-standard", "--", *paths).splitlines():
         if path.endswith(".rs"):
             changed[path] = set(range(1, len((ROOT / path).read_text(encoding="utf-8").splitlines()) + 1))
     return {path: lines for path, lines in changed.items()
@@ -325,6 +328,11 @@ def test_only_regions(path: str) -> tuple[tuple[int, int], ...]:
             elif ch == ";" and parens == brackets == braces == 0:
                 end = pos + 1
                 break
+            elif ch == "," and not braced and parens == brackets == braces == 0:
+                # cfg(test) also gates struct fields and match arms, whose
+                # item delimiter is a comma rather than a semicolon.
+                end = pos + 1
+                break
             assert parens >= 0 and brackets >= 0 and braces >= 0, path
         assert end is not None, f"{path}: unclosed cfg(test) item"
         regions.append((attribute.start(), end))
@@ -393,7 +401,7 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                  for path in {item["file"] for item in population}}
     (ROOT / ".scratch").mkdir(exist_ok=True)
     temporary_context = (contextlib.nullcontext(str(reuse_tree)) if reuse_tree else
-                         contextlib.nullcontext(Path(tempfile.mkdtemp(prefix="i07c-mutations-", dir=ROOT / ".scratch"))))
+                         tempfile.TemporaryDirectory(prefix="i07c-mutations-", dir=ROOT / ".scratch"))
     with temporary_context as temporary:
         tree = Path(temporary) / "tree"
         if reuse_tree:
@@ -437,6 +445,19 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                 assert row["mutation_sha256"] == hashlib.sha256(json.dumps(item, sort_keys=True).encode()).hexdigest(), "results no corresponden a la población"
                 assert row["id"] not in completed, "resultado duplicado"
                 completed[row["id"]] = row
+        targeted_baseline: dict[str, float] = {}
+        if TARGETED_TEST:
+            for profile in (["release", "debug"] if debug_sample else ["release"]):
+                baseline_command = ["cargo", "test", "--locked", "--offline"]
+                if profile == "release":
+                    baseline_command.append("--release")
+                baseline_command.extend(["--test", TARGETED_TEST, "--", "--quiet"])
+                built = run_limited(baseline_command, tree, env, 180)
+                assert built is not None and built[0] == 0, "prueba dirigida base fallida"
+                start = time.monotonic()
+                measured = run_limited(baseline_command, tree, env, 180)
+                assert measured is not None and measured[0] == 0, "prueba dirigida base fallida"
+                targeted_baseline[profile] = time.monotonic() - start
         with output.open("a" if resume else "w", encoding="utf-8", newline="\n") as log:
             for index, item in enumerate(population):
                 if item["id"] in completed:
@@ -483,10 +504,29 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                         if profile == "release":
                             command.append("--release")
                         results[profile] = "superviviente"
+                        if TARGETED_TEST:
+                            targeted = ["cargo", "test", "--locked", "--offline"]
+                            if profile == "release":
+                                targeted.append("--release")
+                            targeted.extend(["--test", TARGETED_TEST, "--", "--quiet"])
+                            done = run_limited(targeted, tree, env, 60)
+                            if done is None:
+                                quick_base = targeted_baseline[profile] < 10
+                                results[profile] = "detectada" if quick_base else "inconclusa"
+                                witnesses[profile] = (f"{TARGETED_TEST}: no termina en 60 s; "
+                                                      f"base {targeted_baseline[profile]:.2f} s"
+                                                      if quick_base else f"{TARGETED_TEST}: plazo de 60 s agotado")
+                            elif done[0]:
+                                output_text = done[1].decode("utf-8", "replace")
+                                results[profile] = "no_compila" if "could not compile" in output_text else "detectada"
+                                failed = re.findall(r"(?m)^---- (.+?) stdout ----$", output_text)
+                                witnesses[profile] = failed[0] if failed else TARGETED_TEST
                         # Once a test kills a mutation, the remaining suite
                         # cannot change its classification. Survivors continue
                         # through every test binary below.
                         for filter_name in filters:
+                            if results[profile] != "superviviente":
+                                break
                             timeout = 60 if filter_name == "quota_tests" else (80 if filter_name == "i07c_tests" else 100)
                             done = run_limited(command + [filter_name, "--quiet"], tree, env, timeout)
                             if done is None:
@@ -779,7 +819,7 @@ def main() -> None:
     parser.add_argument("--mutant-timeout", type=int, default=180,
                         help="plazo por mutante en reejecuciones dirigidas")
     parser.add_argument("--normalize-timeouts", action="store_true")
-    parser.add_argument("--only", choices=("all", "test", "production"), default="all")
+    parser.add_argument("--only", choices=("all", "test", "production"), default=DEFAULT_ONLY)
     args = parser.parse_args()
     assert args.full_suite_timeout > 0
     target = None

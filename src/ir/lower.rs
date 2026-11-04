@@ -40,7 +40,7 @@ fn count_loan_work() {}
 // return flow, branch value type/slot, if/while condition flow (all sites),
 // else if form, scope stack/name (all sites), availability undo, scope restore
 // length, binding/assignment/expression/return value flow, control flow,
-// binary/index operand flow, exclusive loans or result propagation.
+// binary/index operand flow, exclusive loan expression.
 // Infrastructure/verified-IR invariants: lowering worker unavailable/panicked,
 // verify_function and verify_program adapters. Tests: semantic_cfg_sources_
 // never_create_invalid_ir, semantic_loan_fuzz_never_constructs_invalid_ir,
@@ -73,7 +73,7 @@ fn compile_scalar_with_entry(
     // implementation_limit diagnostic and no inferred types. On the normal
     // path below, any nonempty checker error set is returned after lowering;
     // that early exit only avoids doing unusable lowering work.
-    let checked = crate::check::check_for_compilation(file, source, &ast, run_entry);
+    let checked = crate::check::check_for_compilation(file, source, &ast, false);
     if !checked.errors.is_empty()
         && checked
             .errors
@@ -130,7 +130,16 @@ fn compile_scalar_with_entry(
         }
         return Err(CompileError::Rejected(checked.errors));
     }
-    lowered
+    let program = lowered?;
+    if run_entry {
+        let resolved = checked
+            .resolved
+            .as_ref()
+            .ok_or(CompileError::InvalidIr("resolved names unavailable"))?;
+        crate::check::names::entry(file, source, resolved, &ast)
+            .map_err(|error| CompileError::Rejected(vec![error]))?;
+    }
+    Ok(program)
 }
 
 #[cfg(test)]
@@ -693,6 +702,8 @@ impl Lower<'_> {
                 self.temp_live(*base, false);
                 self.temp_live(*index, false);
             }
+            Op::BuildResult { payload, .. } => self.temp_live(*payload, false),
+            Op::BranchResult { value, .. } => self.temp_live(*value, false),
             Op::Binary { left, right, .. } => {
                 self.temp_live(*left, false);
                 self.temp_live(*right, false);
@@ -2772,6 +2783,34 @@ impl Lower<'_> {
                     self.end_call_loans(acquired);
                     return Ok(result_flow);
                 }
+                if matches!(name, "Ok" | "Err") {
+                    if args.len() != 1 {
+                        return Err(CompileError::InvalidIr("result constructor arity"));
+                    }
+                    let payload = self.expr(&args[0].value, depth + 1, None)?;
+                    if payload.diverged() {
+                        return Ok(Flow::Diverged { ty: Some(inferred) });
+                    }
+                    if self.emission == EmissionMode::Analyze {
+                        return Ok(Flow::Value {
+                            temp: None,
+                            ty: inferred,
+                        });
+                    }
+                    let payload = payload
+                        .temp()
+                        .ok_or(CompileError::InvalidIr("result payload"))?;
+                    return Ok(self.emitted(
+                        Op::BuildResult {
+                            ok: name == "Ok",
+                            payload,
+                        },
+                        inferred,
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    ));
+                }
                 let intrinsic = match name {
                     "Print" => Intrinsic::Print,
                     "AssertEq" => Intrinsic::AssertEq,
@@ -2781,6 +2820,7 @@ impl Lower<'_> {
                     "MockOpen" => Intrinsic::MockOpen,
                     "MockBlockingOpen" => Intrinsic::MockBlockingOpen,
                     "Inspect" => Intrinsic::Inspect,
+                    "TryAdd" => Intrinsic::TryAdd,
                     _ => return Err(CompileError::InvalidIr("user or deferred call")),
                 };
                 if intrinsic == Intrinsic::DropData
@@ -2828,6 +2868,10 @@ impl Lower<'_> {
                     Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
                         vec![("label".into(), ParameterMode::Consume, Ty::I64)]
                     }
+                    Intrinsic::TryAdd => vec![
+                        ("a".into(), ParameterMode::Consume, Ty::I64),
+                        ("b".into(), ParameterMode::Consume, Ty::I64),
+                    ],
                     Intrinsic::Fail => vec![],
                 };
                 let (prepared, acquired, diverged) =
@@ -2846,7 +2890,7 @@ impl Lower<'_> {
                     | Intrinsic::MockOpen
                     | Intrinsic::MockBlockingOpen
                     | Intrinsic::Inspect => 1,
-                    Intrinsic::AssertEq => 2,
+                    Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
                     Intrinsic::Fail => 0,
                 };
                 if args.len() != arity {
@@ -3087,14 +3131,40 @@ impl Lower<'_> {
                 }
                 Ok(self.emitted(Op::TransferValue(id), ty, span.clone(), Access::Own, false))
             }
+            Expr::Unary {
+                mode: Mode::Read,
+                value,
+                span,
+            } => {
+                let operand = self.expr(value, depth + 1, None)?;
+                if operand.diverged() {
+                    return Ok(Flow::Diverged { ty: Some(inferred) });
+                }
+                if self.emission == EmissionMode::Analyze {
+                    return Ok(Flow::Value {
+                        temp: None,
+                        ty: inferred,
+                    });
+                }
+                let value = operand
+                    .temp()
+                    .ok_or(CompileError::InvalidIr("propagation operand"))?;
+                Ok(self.emitted(
+                    Op::BranchResult {
+                        value,
+                        result: self.result.clone(),
+                    },
+                    inferred,
+                    span.clone(),
+                    Access::Own,
+                    false,
+                ))
+            }
             // parse::unadmitted_edit_in_expr rejects an exclusive prefix except
             // as an immediate call argument; lower_call handles that argument.
-            // limits::first_pending rejects result propagation before lowering.
             // The source-level witnesses live in isolated_edit_never_reaches_lowering
             // and access_prefix_contexts_never_escape_as_invalid_ir.
-            Expr::Unary { .. } => Err(CompileError::InvalidIr(
-                "exclusive loans or result propagation",
-            )),
+            Expr::Unary { .. } => Err(CompileError::InvalidIr("exclusive loan expression")),
             Expr::If {
                 condition,
                 then_block,
@@ -3137,39 +3207,15 @@ fn place_parts(expr: &Expr) -> Result<(&Expr, Vec<&Expr>), CompileError> {
     }
 }
 fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
-    let mut node = ty;
-    let mut depth = 0;
-    loop {
-        match node {
-            Type::Array(child) => {
-                depth += 1;
-                node = child;
-            }
-            Type::I64 | Type::Bool | Type::Unit => {
-                let mut result = match node {
-                    Type::I64 => Ty::I64,
-                    Type::Bool => Ty::Bool,
-                    _ => Ty::Unit,
-                };
-                for _ in 0..depth {
-                    result = Ty::Array(Box::new(result));
-                }
-                return Ok(result);
-            }
-            Type::MockResource | Type::MockBlockingResource => {
-                let mut result = if matches!(node, Type::MockResource) {
-                    Ty::MockResource
-                } else {
-                    Ty::MockBlockingResource
-                };
-                for _ in 0..depth {
-                    result = Ty::Array(Box::new(result));
-                }
-                return Ok(result);
-            }
-            _ => return Err(CompileError::InvalidIr("resource or result type")),
-        }
-    }
+    Ok(match ty {
+        Type::I64 => Ty::I64,
+        Type::Bool => Ty::Bool,
+        Type::Unit => Ty::Unit,
+        Type::MockResource => Ty::MockResource,
+        Type::MockBlockingResource => Ty::MockBlockingResource,
+        Type::Array(child) => Ty::Array(Box::new(lower_type(child)?)),
+        Type::Result(ok, err) => Ty::Result(Box::new(lower_type(ok)?), Box::new(lower_type(err)?)),
+    })
 }
 fn statement_span(stmt: &Statement) -> Span {
     match stmt {
@@ -3653,7 +3699,7 @@ mod tests {
 
     #[test]
     fn scoped_block_error_pops_scope_and_restores_parent() {
-        let source = "fn Main() {\n    {\n        let x = TryAdd(1, 2)?;\n    }\n}\n";
+        let source = "fn Main() {\n    {\n        let x = MockUnknown();\n    }\n}\n";
         let ast = parse::parse("scope_error.n", source).unwrap();
         let inferred =
             crate::check::check_for_compilation(&ast.span.file, source, &ast, false).inferred;

@@ -373,7 +373,6 @@ fn invalid_assignment_root_and_deferred_selector_reject_before_lowering() {
 #[test]
 fn pending_capabilities_have_exact_diagnostic_fields_and_valid_inverse() {
     for (source, scope, span) in [
-        ("fn Main()->Result<(),I64>{return Ok(());}", "I08", (11, 25)),
         ("fn Main() with no_io{}", "I09", (10, 20)),
         ("fn Main(){MockRequest();}", "I11a", (10, 21)),
         ("fn Main(){MockReadRecords(MockOpen(1));}", "I11a", (10, 25)),
@@ -419,75 +418,41 @@ fn pending_capabilities_have_exact_diagnostic_fields_and_valid_inverse() {
 }
 
 #[test]
-fn pending_construction_precedes_later_type_error_in_compiler() {
+fn result_annotation_exposes_independent_type_error_in_compiler() {
     let source = "fn Main()->Result<(),I64>{let x=true+1;return Ok(());}";
     let errors = rejected(source);
     assert_eq!(errors.len(), 1);
     let error = &errors[0];
-    assert_eq!(error.code, "NX-E0006");
-    assert_eq!(error.feature_id.as_deref(), Some("implementation_limit"));
-    assert_eq!(
-        error.data.get("pending_scope"),
-        Some(&DataValue::String("I08".into()))
-    );
-    assert_eq!(
-        error.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((11, 25))
-    );
+    assert_eq!(error.code, "NX-E0102");
+    assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
     error.validate(FILE, source).unwrap();
     compile("fn Main(){let x=1+1;}").unwrap();
 }
 
 #[test]
-fn pending_result_annotation_uses_type_span_even_after_user_function_named_result() {
+fn result_annotation_is_accepted_after_user_function_named_result() {
     let source =
         "fn Result()->I64{return 1;}fn Main(){let x=Result();let y:Result<I64,I64>=Ok(1);}";
-    let errors = rejected(source);
-    assert_eq!(errors.len(), 1);
-    let error = &errors[0];
-    assert_eq!(error.code, "NX-E0006");
-    assert_eq!(error.feature_id.as_deref(), Some("implementation_limit"));
-    let type_start = source.find("Result<I64,I64>").unwrap() as u64;
-    assert_eq!(
-        error.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((type_start, type_start + "Result<I64,I64>".len() as u64))
-    );
-    error.validate(FILE, source).unwrap();
+    compile(source).unwrap();
 }
 
 #[test]
-fn pending_nested_result_parameter_uses_inner_written_type_span() {
+fn nested_result_parameter_is_accepted() {
     let source = "fn F(xs:view Array<Result<I64,I64>>){} fn Main(){}";
-    let errors = rejected(source);
-    assert_eq!(errors.len(), 1);
-    let error = &errors[0];
-    assert_eq!(error.code, "NX-E0006");
-    assert_eq!(error.feature_id.as_deref(), Some("implementation_limit"));
-    let type_start = source.find("Result<I64,I64>").unwrap() as u64;
-    assert_eq!(
-        error.primary_span.as_ref().map(|s| (s.start, s.end)),
-        Some((type_start, type_start + "Result<I64,I64>".len() as u64))
-    );
-    error.validate(FILE, source).unwrap();
+    compile(source).unwrap();
 }
 
 #[test]
-fn pending_i08_expression_forms_reject_at_their_own_tokens() {
-    for (source, span) in [
-        ("fn Main(){let x=Ok(1);}", (16, 18)),
-        ("fn Main(){let x=Err(1);}", (16, 19)),
-        ("fn Main(){let x=1?;}", (17, 18)),
-        ("fn Main(){let x=TryAdd(1,2);}", (16, 22)),
+fn result_expression_forms_use_semantic_rules() {
+    for (source, code, span) in [
+        ("fn Main(){let x=Ok(1);}", "NX-E0113", (16, 21)),
+        ("fn Main(){let x=Err(1);}", "NX-E0113", (16, 22)),
+        ("fn Main(){let x=1?;}", "NX-E0102", (17, 18)),
     ] {
         let errors = rejected(source);
         assert_eq!(errors.len(), 1, "{source}");
         let error = &errors[0];
-        assert_eq!(error.code, "NX-E0006", "{source}");
-        assert_eq!(error.feature_id.as_deref(), Some("implementation_limit"));
-        assert_eq!(
-            error.data.get("pending_scope"),
-            Some(&DataValue::String("I08".into()))
-        );
+        assert_eq!(error.code, code, "{source}");
         assert_eq!(
             error.primary_span.as_ref().map(|s| (s.start, s.end)),
             Some(span),
@@ -495,6 +460,7 @@ fn pending_i08_expression_forms_reject_at_their_own_tokens() {
         );
         error.validate(FILE, source).unwrap();
     }
+    compile("fn Main(){let x=TryAdd(1,2);}").unwrap();
     compile("fn Main(){let x=1;}").unwrap();
 }
 

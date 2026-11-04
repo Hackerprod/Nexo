@@ -543,11 +543,6 @@ fn cli_preserves_corpus_semantics_and_events() {
 fn cli_pending_capabilities_report_scope_and_source_site() {
     for (source, scope, first_line) in [
         (
-            "fn Main()->Result<(),I64>{return Ok(());}",
-            "I08",
-            "NX-E0006:1:12: Capacidad pendiente de implementación en I08.\n",
-        ),
-        (
             "fn Main() with no_io{}",
             "I09",
             "NX-E0006:1:11: Capacidad pendiente de implementación en I09.\n",
@@ -561,11 +556,6 @@ fn cli_pending_capabilities_report_scope_and_source_site() {
             "fn Main(){MockUnknown();}",
             "I09",
             "NX-E0006:1:11: Capacidad pendiente de implementación en I09.\n",
-        ),
-        (
-            "fn Main(){let x=TryAdd(1,2);}",
-            "I08",
-            "NX-E0006:1:17: Capacidad pendiente de implementación en I08.\n",
         ),
     ] {
         let output = checked("run", source.as_bytes());
@@ -582,4 +572,20 @@ fn cli_pending_capabilities_report_scope_and_source_site() {
             "{rendered}"
         );
     }
+}
+
+#[test]
+fn cli_result_outcomes_keep_err_separate_from_runtime_faults() {
+    let success = checked("run", b"fn Main()->Result<(),I64>{return Ok(());}");
+    assert_eq!(success.status.code(), Some(0));
+    assert!(success.stdout.is_empty());
+    assert_eq!(text(&success.stderr), "nexo-result:Ok(())\n");
+
+    let error = checked(
+        "run",
+        b"fn Main()->Result<(),I64>{let x=TryAdd(9223372036854775807,1)?;return Ok(());}",
+    );
+    assert_eq!(error.status.code(), Some(1));
+    assert!(error.stdout.is_empty());
+    assert_eq!(text(&error.stderr), "nexo-result:Err(30)\n");
 }

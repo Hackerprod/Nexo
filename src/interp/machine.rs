@@ -7,6 +7,8 @@ use crate::ir::model::{Binary, Function, Intrinsic, Op, ParameterMode, Program, 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
     Unit,
+    Ok,
+    Err(i64),
     SimulatorFault,
     InternalError(&'static str),
 }
@@ -25,15 +27,27 @@ enum Value {
     Bool(bool),
     Unit,
     Array(Arc<Vec<Value>>, u64),
+    Result { ok: bool, payload: Box<Value> },
     Resource { id: u64, label: i64, blocking: bool },
 }
 impl Value {
+    fn owns_resource(&self) -> bool {
+        let mut node = self;
+        while let Self::Result { payload, .. } = node {
+            node = payload;
+        }
+        matches!(node, Self::Resource { .. })
+    }
     fn deep_copy(&self) -> Self {
         match self {
             Self::Array(items, cells) => Self::Array(
                 Arc::new(items.iter().map(Self::deep_copy).collect()),
                 *cells,
             ),
+            Self::Result { ok, payload } => Self::Result {
+                ok: *ok,
+                payload: Box::new(payload.deep_copy()),
+            },
             _ => self.clone(),
         }
     }
@@ -46,6 +60,9 @@ impl Value {
                 "[{}]",
                 xs.iter().map(Self::text).collect::<Vec<_>>().join(", ")
             ),
+            Self::Result { ok, payload } => {
+                format!("{}({})", if *ok { "Ok" } else { "Err" }, payload.text())
+            }
             Self::Resource { .. } => "<resource>".into(),
         }
     }
@@ -53,6 +70,9 @@ impl Value {
         match (self, ty) {
             (Self::Int(_), Ty::I64) | (Self::Bool(_), Ty::Bool) | (Self::Unit, Ty::Unit) => true,
             (Self::Array(xs, _), Ty::Array(element)) => xs.iter().all(|x| x.has_ty(element)),
+            (Self::Result { ok, payload }, Ty::Result(success, error)) => {
+                payload.has_ty(if *ok { success } else { error })
+            }
             (
                 Self::Resource {
                     blocking: false, ..
@@ -66,6 +86,7 @@ impl Value {
     fn cells(&self) -> u64 {
         match self {
             Self::Array(_, n) => *n,
+            Self::Result { payload, .. } => 1 + payload.cells(),
             _ => 1,
         }
     }
@@ -202,6 +223,24 @@ fn run_verified(program: &Program) -> Execution {
             state.cells = state.cells.saturating_sub(1);
             Outcome::Unit
         }
+        Ok(FrameReturn {
+            value: Some(Value::Result { ok: true, payload }),
+            ..
+        }) if *payload == Value::Unit => {
+            state.cells = state.cells.saturating_sub(2);
+            Outcome::Ok
+        }
+        Ok(FrameReturn {
+            value: Some(Value::Result { ok: false, payload }),
+            ..
+        }) => {
+            if let Value::Int(error) = *payload {
+                state.cells = state.cells.saturating_sub(2);
+                Outcome::Err(error)
+            } else {
+                Outcome::InternalError("main error type")
+            }
+        }
         Ok(FrameReturn { value: None, .. }) => Outcome::Unit,
         Ok(FrameReturn {
             value: Some(other), ..
@@ -242,7 +281,11 @@ impl Machine {
             self.disposals += 1;
         }
         self.cells = self.cells.saturating_sub(value.cells());
-        if let Value::Resource { id, label, .. } = value {
+        let mut active = value;
+        while let Value::Result { payload, .. } = active {
+            active = *payload;
+        }
+        if let Value::Resource { id, label, .. } = active {
             self.log
                 .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
         }
@@ -595,6 +638,32 @@ impl Machine {
                         }
                         Some(Value::Array(Arc::new(xs), total))
                     }
+                    Op::BuildResult { ok, payload } => {
+                        if !self.tick(3, &ins.span) || !self.cell(&ins.span) {
+                            break;
+                        }
+                        let payload = Self::take(&mut temps, *payload)?.into_owned()?;
+                        Some(Value::Result {
+                            ok: *ok,
+                            payload: Box::new(payload),
+                        })
+                    }
+                    Op::BranchResult { value, .. } => {
+                        if !self.tick(1, &ins.span) {
+                            break;
+                        }
+                        let source = Self::take(&mut temps, *value)?.into_owned()?;
+                        let Value::Result { ok, payload } = source else {
+                            return Err("propagation value type");
+                        };
+                        if ok {
+                            self.cells = self.cells.saturating_sub(1);
+                            Some(*payload)
+                        } else {
+                            returned = Some(Value::Result { ok: false, payload });
+                            break 'cfg;
+                        }
+                    }
                     Op::ReadIndex { local, indexes } => {
                         let mut path = Vec::with_capacity(indexes.len());
                         for id in indexes {
@@ -762,10 +831,8 @@ impl Machine {
                         let mut values = Vec::with_capacity(args.len());
                         for id in args {
                             values.push(Self::take(&mut temps, *id)?);
-                            if !matches!(
-                                values.last(),
-                                Some(TempValue::Own(Value::Resource { .. }))
-                            ) {
+                            if !matches!(values.last(), Some(TempValue::Own(value)) if value.owns_resource())
+                            {
                                 self.cells = self.cells.saturating_sub(
                                     values.last().map_or(0, TempValue::owned_cells),
                                 );
@@ -868,7 +935,8 @@ impl Machine {
                                 let text = format!("inspect:{id}:{label}");
                                 if !self.cell(&ins.span) {
                                     for v in values.drain(..).rev() {
-                                        if matches!(&v, TempValue::Own(Value::Resource { .. })) {
+                                        if matches!(&v, TempValue::Own(value) if value.owns_resource())
+                                        {
                                             self.dispose(v.into_owned()?)?;
                                         }
                                     }
@@ -879,7 +947,8 @@ impl Machine {
                                     self.cells -= 1;
                                     self.observation_fault(&ins.span, observed);
                                     for v in values.drain(..).rev() {
-                                        if matches!(&v, TempValue::Own(Value::Resource { .. })) {
+                                        if matches!(&v, TempValue::Own(value) if value.owns_resource())
+                                        {
                                             self.dispose(v.into_owned()?)?;
                                         }
                                     }
@@ -887,9 +956,31 @@ impl Machine {
                                 }
                                 Value::Unit
                             }
+                            Intrinsic::TryAdd => {
+                                let (Value::Int(a), Value::Int(b)) =
+                                    (values[0].as_value(&locals)?, values[1].as_value(&locals)?)
+                                else {
+                                    return Err("try_add argument type");
+                                };
+                                let result = match a.checked_add(*b) {
+                                    Some(sum) => Value::Result {
+                                        ok: true,
+                                        payload: Box::new(Value::Int(sum)),
+                                    },
+                                    None => Value::Result {
+                                        ok: false,
+                                        payload: Box::new(Value::Int(30)),
+                                    },
+                                };
+                                if !self.reserve_cells(2, &ins.span) {
+                                    break;
+                                }
+                                pre_reserved_output = true;
+                                result
+                            }
                         };
                         for v in values.into_iter().rev() {
-                            if matches!(&v, TempValue::Own(Value::Resource { .. })) {
+                            if matches!(&v, TempValue::Own(value) if value.owns_resource()) {
                                 self.dispose(v.into_owned()?)?;
                             }
                         }

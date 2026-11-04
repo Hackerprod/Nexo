@@ -1328,7 +1328,7 @@ fn feature_explanations_match_literal_f01_f33_fixtures() {
         ),
         (
             "implementation_limit",
-            "fn Main()->Result<(),I64>{return Ok(());}",
+            "fn Main() with no_io{}",
             "fn Main(){}",
         ),
         (

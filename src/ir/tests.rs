@@ -66,9 +66,7 @@ fn forged_exclusive_expression_hits_only_the_ir_guard() {
     *mode = Mode::Inout;
     assert!(matches!(
         super::lower::compile_ast(&ast, source),
-        Err(CompileError::InvalidIr(
-            "exclusive loans or result propagation"
-        ))
+        Err(CompileError::InvalidIr("exclusive loan expression"))
     ));
     let rejected = compile_scalar("guard.n", "fn Main(){var r=1;let b=edit r;}");
     assert!(matches!(rejected, Err(CompileError::Rejected(_))));
@@ -2482,6 +2480,72 @@ fn direct_call_hash_has_fixed_canonical_vector() {
     assert_eq!(
         p.functions().function("Main").unwrap().content_hash,
         0x1dee_b608_6d9e_e0aa
+    );
+}
+#[test]
+fn result_hash_tracks_both_type_arms_and_result_operations() {
+    let program = compile_scalar(
+        "hash.n",
+        "fn F()->Result<I64,I64>{return Ok(1);}fn Main()->Result<(),I64>{let x=F()?;return Ok(());}",
+    )
+    .unwrap();
+    let function = program.functions().function("Main").unwrap();
+    let original = super::model::content_hash(function);
+    assert_eq!(original, 0x0ede_81db_643c_609c);
+
+    let mut changed = function.clone();
+    changed.result = super::model::Ty::Result(
+        Box::new(super::model::Ty::Bool),
+        Box::new(super::model::Ty::I64),
+    );
+    assert_ne!(original, super::model::content_hash(&changed));
+    changed.result = super::model::Ty::Result(
+        Box::new(super::model::Ty::I64),
+        Box::new(super::model::Ty::Bool),
+    );
+    assert_ne!(original, super::model::content_hash(&changed));
+
+    let mut changed = function.clone();
+    let instruction = changed
+        .block
+        .instructions
+        .iter_mut()
+        .chain(
+            changed
+                .blocks
+                .iter_mut()
+                .flat_map(|block| &mut block.instructions),
+        )
+        .find(|instruction| matches!(instruction.op, super::model::Op::BuildResult { .. }))
+        .unwrap();
+    if let super::model::Op::BuildResult { ok, .. } = &mut instruction.op {
+        *ok = !*ok;
+    }
+    assert_ne!(original, super::model::content_hash(&changed));
+
+    let mut changed = function.clone();
+    let instruction = changed
+        .block
+        .instructions
+        .iter_mut()
+        .chain(
+            changed
+                .blocks
+                .iter_mut()
+                .flat_map(|block| &mut block.instructions),
+        )
+        .find(|instruction| matches!(instruction.op, super::model::Op::BranchResult { .. }))
+        .unwrap();
+    if let super::model::Op::BranchResult { result, .. } = &mut instruction.op {
+        *result = super::model::Ty::Bool;
+    }
+    assert_ne!(original, super::model::content_hash(&changed));
+
+    let array =
+        compile_scalar("hash.n", "fn Main(){let a:Array<Result<I64,I64>>=[Ok(1)];}").unwrap();
+    assert_eq!(
+        array.functions().function("Main").unwrap().content_hash,
+        0x18b3_b900_a56f_5f3a
     );
 }
 #[test]

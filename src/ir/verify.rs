@@ -286,6 +286,47 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 ins.ty.clone()
             }
+            Op::BuildResult { ok, payload } => {
+                let Some(Ty::Result(success, error)) = &ins.ty else {
+                    return Err("result type");
+                };
+                if borrowed.get(payload.0) == Some(&true) {
+                    return Err("borrowed result payload");
+                }
+                let actual = take(
+                    *payload,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?;
+                if actual != **(if *ok { success } else { error }) {
+                    return Err("result payload type");
+                }
+                ins.ty.clone()
+            }
+            Op::BranchResult { value, result } => {
+                let Ty::Result(_, function_error) = &function.result else {
+                    return Err("propagation function type");
+                };
+                if borrowed.get(value.0) == Some(&true) {
+                    return Err("borrowed propagation operand");
+                }
+                let Ty::Result(success, error) = take(
+                    *value,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?
+                else {
+                    return Err("propagation operand type");
+                };
+                if *error != **function_error || *result != function.result {
+                    return Err("propagation error type");
+                }
+                Some(*success)
+            }
             Op::ReadIndex { local, indexes } | Op::BorrowIndex { local, indexes } => {
                 let local = function.locals.get(local.0).ok_or("read index local")?;
                 if active_exclusive[local.id.0] != 0 {
@@ -399,7 +440,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                             Ty::I64
                         })
                     }
-                    Binary::Equal => Some(Ty::Bool),
+                    Binary::Equal if l.copyable() => Some(Ty::Bool),
                     _ => return Err("binary domain"),
                 }
             }
@@ -485,7 +526,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     | Intrinsic::MockOpen
                     | Intrinsic::MockBlockingOpen
                     | Intrinsic::Inspect => 1,
-                    Intrinsic::AssertEq => 2,
+                    Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
                     Intrinsic::Fail => 0,
                 };
                 if args.len() != arity {
@@ -536,12 +577,28 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         {
                             return Err("assert type");
                         }
+                        if !first.copyable() {
+                            return Err("assert domain");
+                        }
+                    }
+                    if *intrinsic == Intrinsic::TryAdd
+                        && (first != Ty::I64
+                            || take(
+                                args[1],
+                                &temps,
+                                &mut live,
+                                &borrow_sources,
+                                &mut active_borrows,
+                            )? != Ty::I64)
+                    {
+                        return Err("try_add argument type");
                     }
                 }
                 Some(match intrinsic {
                     Intrinsic::Len => Ty::I64,
                     Intrinsic::MockOpen => Ty::MockResource,
                     Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
+                    Intrinsic::TryAdd => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
                     _ => Ty::Unit,
                 })
             }
@@ -911,6 +968,8 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
             visit(*base);
             visit(*index);
         }
+        Op::BuildResult { payload, .. } => visit(*payload),
+        Op::BranchResult { value, .. } => visit(*value),
         Op::Binary { left, right, .. } => {
             visit(*left);
             visit(*right);
@@ -1470,6 +1529,37 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     ins.ty.clone()
                 }
+                Op::BuildResult { ok, payload } => {
+                    let Some(Ty::Result(success, error)) = &ins.ty else {
+                        return Err("result type");
+                    };
+                    if temps.info(*payload)?.borrowed_from.is_some()
+                        || temps.info(*payload)?.exclusive_root.is_some()
+                    {
+                        return Err("borrowed result payload");
+                    }
+                    if temps.read(*payload, true)? != **(if *ok { success } else { error }) {
+                        return Err("result payload type");
+                    }
+                    ins.ty.clone()
+                }
+                Op::BranchResult { value, result } => {
+                    let Ty::Result(_, function_error) = &function.result else {
+                        return Err("propagation function type");
+                    };
+                    if temps.info(*value)?.borrowed_from.is_some()
+                        || temps.info(*value)?.exclusive_root.is_some()
+                    {
+                        return Err("borrowed propagation operand");
+                    }
+                    let Ty::Result(success, error) = temps.read(*value, true)? else {
+                        return Err("propagation operand type");
+                    };
+                    if *error != **function_error || *result != function.result {
+                        return Err("propagation error type");
+                    }
+                    Some(*success)
+                }
                 Op::ReadIndex { local, indexes }
                 | Op::BorrowIndex { local, indexes }
                 | Op::CheckIndex { local, indexes } => {
@@ -1518,7 +1608,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     Some(match op {
                         Binary::Add | Binary::Sub if left == Ty::I64 => Ty::I64,
                         Binary::Less if left == Ty::I64 => Ty::Bool,
-                        Binary::Equal => Ty::Bool,
+                        Binary::Equal if left.copyable() => Ty::Bool,
                         _ => return Err("binary domain"),
                     })
                 }
@@ -1584,7 +1674,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         | Intrinsic::MockOpen
                         | Intrinsic::MockBlockingOpen
                         | Intrinsic::Inspect => 1,
-                        Intrinsic::AssertEq => 2,
+                        Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
                         Intrinsic::Fail => 0,
                     };
                     if args.len() != arity {
@@ -1610,6 +1700,14 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         if temps.read(args[1], true)? != first.clone().unwrap() {
                             return Err("assert type");
                         }
+                        if !first.as_ref().is_some_and(Ty::copyable) {
+                            return Err("assert domain");
+                        }
+                    }
+                    if *intrinsic == Intrinsic::TryAdd
+                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)
+                    {
+                        return Err("try_add argument type");
                     }
                     if *intrinsic == Intrinsic::Len && !matches!(first.as_ref(), Some(Ty::Array(_)))
                     {
@@ -1637,6 +1735,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         Intrinsic::Len => Ty::I64,
                         Intrinsic::MockOpen => Ty::MockResource,
                         Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
+                        Intrinsic::TryAdd => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
                         _ => Ty::Unit,
                     })
                 }
@@ -2189,6 +2288,139 @@ mod tests {
         edit(&mut f);
         f.content_hash = super::super::model::content_hash(&f);
         verify_function(&f)
+    }
+    #[test]
+    fn verifier_rejects_result_payload_and_propagation_mutations() {
+        let constructor = "fn Main()->Result<(),I64>{return Ok(());}";
+        assert_eq!(
+            changed_main(constructor, |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::BuildResult { .. }))
+                    .unwrap();
+                if let Op::BuildResult { ok, .. } = &mut i.op {
+                    *ok = false;
+                }
+            }),
+            Err("result payload type")
+        );
+        assert_eq!(
+            changed_main(constructor, |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::BuildResult { .. }))
+                    .unwrap();
+                if let Op::BuildResult { payload, .. } = &mut i.op {
+                    *payload = TempId(99);
+                }
+            }),
+            Err("undefined temporary")
+        );
+        let propagation = "fn Main()->Result<(),I64>{let n=TryAdd(1,2)?;return Ok(());}";
+        assert_eq!(
+            changed_main(propagation, |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::BranchResult { .. }))
+                    .unwrap();
+                if let Op::BranchResult { result, .. } = &mut i.op {
+                    *result = Ty::Unit;
+                }
+            }),
+            Err("propagation error type")
+        );
+        assert_eq!(
+            changed_main(propagation, |f| {
+                let i = f
+                    .block
+                    .instructions
+                    .iter_mut()
+                    .find(|i| matches!(i.op, Op::BranchResult { .. }))
+                    .unwrap();
+                if let Op::BranchResult { value, .. } = &mut i.op {
+                    *value = TempId(0);
+                }
+            }),
+            Err("temporary used twice")
+        );
+    }
+    #[test]
+    fn verifier_rejects_resource_arrays_through_both_result_variants() {
+        for ty in [
+            Ty::Result(Box::new(Ty::MockResource), Box::new(Ty::I64)),
+            Ty::Result(Box::new(Ty::I64), Box::new(Ty::MockResource)),
+        ] {
+            let array = Ty::Array(Box::new(ty));
+            assert_eq!(
+                changed("fn Main(){let a=[1];}", |f| f.locals[0].ty = array.clone()),
+                Err("resource array local")
+            );
+            assert_eq!(
+                changed("fn Main(){}", |f| f.result = array.clone()),
+                Err("resource array result")
+            );
+        }
+    }
+    #[test]
+    fn cfg_verifier_rejects_borrowed_result_payload_and_propagation() {
+        let constructor =
+            "fn Main(){let x=1;let r:Result<I64,I64>=if true then Ok(x) else Err(2);}";
+        assert_eq!(
+            changed_main(constructor, |f| {
+                assert!(!f.blocks.is_empty());
+                let instruction = std::iter::once(&mut f.block)
+                    .chain(&mut f.blocks)
+                    .flat_map(|block| &mut block.instructions)
+                    .find(|instruction| matches!(instruction.op, Op::CopyValue(_)))
+                    .unwrap();
+                let Op::CopyValue(local) = instruction.op else {
+                    unreachable!()
+                };
+                instruction.op = Op::BorrowValue(local);
+                instruction.access = Access::Read;
+            }),
+            Err("borrowed result payload")
+        );
+        let propagation = "fn Main()->Result<(),I64>{let r:Result<I64,I64>=Ok(1);let x=if true then r? else 2;return Ok(());}";
+        assert_eq!(
+            changed_main(propagation, |f| {
+                assert!(!f.blocks.is_empty());
+                let result_local = f
+                    .locals
+                    .iter()
+                    .find(|local| matches!(local.ty, Ty::Result(..)))
+                    .unwrap()
+                    .id;
+                let instruction = std::iter::once(&mut f.block)
+                    .chain(&mut f.blocks)
+                    .flat_map(|block| &mut block.instructions)
+                    .find(|instruction| matches!(instruction.op, Op::CopyValue(id) if id == result_local))
+                    .unwrap();
+                instruction.op = Op::BorrowValue(result_local);
+                instruction.access = Access::Read;
+            }),
+            Err("borrowed propagation operand")
+        );
+        assert_eq!(
+            changed_main(propagation, |f| {
+                assert!(!f.blocks.is_empty());
+                let instruction = std::iter::once(&mut f.block)
+                    .chain(&mut f.blocks)
+                    .flat_map(|block| &mut block.instructions)
+                    .find(|instruction| matches!(instruction.op, Op::BranchResult { .. }))
+                    .unwrap();
+                if let Op::BranchResult { result, .. } = &mut instruction.op {
+                    *result = Ty::Unit;
+                }
+            }),
+            Err("propagation error type")
+        );
     }
     #[test]
     fn verifier_rejects_array_element_type_mismatch() {

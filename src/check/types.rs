@@ -4298,12 +4298,53 @@ impl Checker<'_> {
                 value,
                 span,
             } => {
-                // This postfix `?` belongs to I08. The active profile
-                // rejects the construct before types; evaluating its child
-                // here is defensive for a direct checker invocation.
-                self.expr(value, None, None)?;
-                self.deferred_exprs.insert(span_key(span));
-                Ok(Type::Tainted) // `?` belongs to I08.
+                let operand = self.expr(value, None, None)?;
+                if self.tainted || operand == Type::Tainted {
+                    return Ok(Type::Tainted);
+                }
+                if operand == Type::Never {
+                    return Ok(Type::Never);
+                }
+                let Type::Result(ok, err) = operand else {
+                    return Err(mismatch(
+                        Span {
+                            file: span.file.clone(),
+                            start: span.end - 1,
+                            end: span.end,
+                        },
+                        Self::primary_span(value),
+                        None,
+                        "domain:result",
+                        &operand,
+                    ));
+                };
+                let Type::Result(_, function_err) = &self.result else {
+                    return Err(mismatch(
+                        Span {
+                            file: span.file.clone(),
+                            start: span.end - 1,
+                            end: span.end,
+                        },
+                        self.result_span.clone().unwrap_or_else(|| span.clone()),
+                        None,
+                        "domain:result",
+                        &self.result,
+                    ));
+                };
+                if err != *function_err {
+                    return Err(mismatch(
+                        Span {
+                            file: span.file.clone(),
+                            start: span.end - 1,
+                            end: span.end,
+                        },
+                        Self::primary_span(value),
+                        self.result_span.clone(),
+                        &pretty(function_err).unwrap_or_default(),
+                        &err,
+                    ));
+                }
+                Ok(ok.as_ref().clone())
             }
             Expr::Unary { value, .. } => {
                 *context_use = ContextUse::Propagated;
@@ -6098,8 +6139,21 @@ impl Checker<'_> {
             }
             "TryAdd" => {
                 // Type checking is in written order even when labels permute slots.
+                let mut failed = false;
                 for arg in args {
-                    self.expr(&arg.value, Some(&Type::I64), None)?;
+                    match self.expr(&arg.value, Some(&Type::I64), None) {
+                        Ok(_) => {}
+                        Err(error) if error.operation == Operation::AnalysisLimit => {
+                            return Err(error);
+                        }
+                        Err(error) => {
+                            self.record_error(error);
+                            failed = true;
+                        }
+                    }
+                }
+                if failed {
+                    return Ok(Type::Tainted);
                 }
                 Ok(declared_result.clone())
             }
@@ -6335,7 +6389,15 @@ impl Checker<'_> {
                 };
                 let payload_expected =
                     expected_result.map(|(ok, err)| if name == "Ok" { ok } else { err });
-                let payload = self.expr(ordered(0), payload_expected, expected_span)?;
+                let prior_taint = self.tainted;
+                self.tainted = false;
+                let payload_result = self.expr(ordered(0), payload_expected, expected_span);
+                let payload_tainted = self.tainted;
+                self.tainted = prior_taint || payload_tainted;
+                let payload = payload_result?;
+                if payload_tainted || payload == Type::Tainted {
+                    return Ok(Type::Tainted);
+                }
                 if let Some((ok, err)) = expected_result {
                     return Ok(Type::Result(Arc::new(ok.clone()), Arc::new(err.clone())));
                 }
@@ -7517,7 +7579,7 @@ mod quota_tests {
     }
 
     #[test]
-    fn internal_tainted_state_is_recorded_at_the_expression_boundary() {
+    fn non_result_try_is_rejected_at_the_expression_boundary() {
         let resolved = Resolved {
             signatures: HashMap::new(),
             uses: HashMap::new(),
@@ -7529,8 +7591,9 @@ mod quota_tests {
             value: Box::new(Expr::Bool(true, site(1))),
             span: site(0),
         };
-        assert_eq!(checker.expr(&expr, None, None).unwrap(), Type::Tainted);
-        assert!(checker.tainted);
+        let error = checker.expr(&expr, None, None).unwrap_err();
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(error.primary_span, Some(site(0)));
     }
 
     #[test]

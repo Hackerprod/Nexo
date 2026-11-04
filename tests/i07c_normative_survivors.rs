@@ -73,7 +73,7 @@ fn deferred_projection_and_constructor_programs_finish_with_causal_results() {
         ),
         (
             "projection_rhs",
-            include_str!("fixtures/i07c/deferred_projection_rhs_conflict.n"),
+            include_str!("fixtures/i07c/deferred_projection_comparison_domain.n"),
             &[("NX-E0102", Some("type_mismatch"), 70, 75)],
         ),
         (

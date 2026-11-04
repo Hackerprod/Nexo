@@ -27,6 +27,7 @@ pub enum Ty {
     Bool,
     Unit,
     Array(Box<Ty>),
+    Result(Box<Ty>, Box<Ty>),
     MockResource,
     MockBlockingResource,
 }
@@ -35,22 +36,24 @@ impl Ty {
         match self {
             Self::MockResource | Self::MockBlockingResource => false,
             Self::Array(inner) => inner.copyable(),
+            Self::Result(ok, err) => ok.copyable() && err.copyable(),
             _ => true,
         }
     }
     pub fn invalid_resource_array(&self) -> bool {
-        let mut node = self;
-        let mut within_array = false;
-        loop {
+        let mut pending = vec![(self, false)];
+        while let Some((node, within_array)) = pending.pop() {
             match node {
-                Self::Array(inner) => {
-                    within_array = true;
-                    node = inner;
+                Self::Array(inner) => pending.push((inner, true)),
+                Self::Result(ok, err) => {
+                    pending.push((ok, within_array));
+                    pending.push((err, within_array));
                 }
-                Self::MockResource | Self::MockBlockingResource => return within_array,
-                _ => return false,
+                Self::MockResource | Self::MockBlockingResource if within_array => return true,
+                _ => {}
             }
         }
+        false
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -76,6 +79,7 @@ pub enum Intrinsic {
     MockOpen,
     MockBlockingOpen,
     Inspect,
+    TryAdd,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParameterMode {
@@ -114,6 +118,16 @@ pub enum Op {
     /// Marks the end of the callee cleanup and release of a call argument loan.
     EndLoan(LoanId),
     BuildArray(Vec<TempId>),
+    BuildResult {
+        ok: bool,
+        payload: TempId,
+    },
+    /// Selects the active variant. On Err the current frame returns
+    /// Result<U,E> through its ordinary cleanup path.
+    BranchResult {
+        value: TempId,
+        result: Ty,
+    },
     ReadIndex {
         local: LocalId,
         indexes: Vec<TempId>,
@@ -312,36 +326,30 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
         bytes.extend_from_slice(&(n as u64).to_le_bytes())
     }
     fn ty(bytes: &mut Vec<u8>, t: &Ty) {
-        let mut node = t;
-        loop {
-            match node {
-                Ty::Never => {
-                    bytes.push(7);
-                    break;
-                }
-                Ty::I64 => {
-                    bytes.push(1);
-                    break;
-                }
-                Ty::Bool => {
-                    bytes.push(2);
-                    break;
-                }
-                Ty::Unit => {
-                    bytes.push(3);
-                    break;
-                }
-                Ty::Array(child) => {
+        enum Item<'a> {
+            Type(&'a Ty),
+            End,
+        }
+        let mut pending = vec![Item::Type(t)];
+        while let Some(item) = pending.pop() {
+            match item {
+                Item::End => bytes.push(0),
+                Item::Type(Ty::Never) => bytes.push(7),
+                Item::Type(Ty::I64) => bytes.push(1),
+                Item::Type(Ty::Bool) => bytes.push(2),
+                Item::Type(Ty::Unit) => bytes.push(3),
+                Item::Type(Ty::MockResource) => bytes.push(5),
+                Item::Type(Ty::MockBlockingResource) => bytes.push(6),
+                Item::Type(Ty::Array(child)) => {
                     bytes.push(4);
-                    node = child;
+                    pending.push(Item::End);
+                    pending.push(Item::Type(child));
                 }
-                Ty::MockResource => {
-                    bytes.push(5);
-                    break;
-                }
-                Ty::MockBlockingResource => {
-                    bytes.push(6);
-                    break;
+                Item::Type(Ty::Result(ok, err)) => {
+                    bytes.push(8);
+                    pending.push(Item::End);
+                    pending.push(Item::Type(err));
+                    pending.push(Item::Type(ok));
                 }
             }
         }
@@ -434,6 +442,16 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         number(&mut bytes, id.0);
                     }
                 }
+                Op::BuildResult { ok, payload } => {
+                    bytes.push(22);
+                    bytes.push(u8::from(*ok));
+                    number(&mut bytes, payload.0);
+                }
+                Op::BranchResult { value, result } => {
+                    bytes.push(23);
+                    number(&mut bytes, value.0);
+                    ty(&mut bytes, result);
+                }
                 Op::ReadIndex { local, indexes } => {
                     bytes.push(11);
                     number(&mut bytes, local.0);
@@ -503,6 +521,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Intrinsic::MockOpen => 6,
                         Intrinsic::MockBlockingOpen => 7,
                         Intrinsic::Inspect => 8,
+                        Intrinsic::TryAdd => 9,
                     });
                     number(&mut bytes, args.len());
                     for id in args {

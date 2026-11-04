@@ -3,7 +3,7 @@ use crate::check::names::{self, Resolved, ResolvedUse};
 use crate::diagnostic::{DataValue, Diagnostic, Operation, Span, Stage};
 use crate::frontend::{
     lex,
-    parse::{Ast, Block, Else, Expr, Mode, Statement, Type},
+    parse::{Ast, Block, Else, Expr, Statement},
 };
 
 #[derive(Clone)]
@@ -22,14 +22,6 @@ impl Candidate {
             _ => unreachable!(),
         };
         (self.span.start, rank)
-    }
-}
-
-fn has_result(ty: &Type) -> bool {
-    match ty {
-        Type::Result(..) => true,
-        Type::Array(inner) => has_result(inner),
-        _ => false,
     }
 }
 
@@ -68,26 +60,6 @@ pub(super) fn first_pending(
                 scope: "I09",
             });
         }
-        for param in &function.params {
-            if has_result(&param.ty) {
-                collect_result_annotation(
-                    &tokens,
-                    param.span.start,
-                    param.span.end,
-                    ":",
-                    &mut found,
-                );
-            }
-        }
-        if function.result.as_ref().is_some_and(has_result) {
-            collect_result_annotation(
-                &tokens,
-                function.name_span.end,
-                function.body.span.start,
-                "->",
-                &mut found,
-            );
-        }
         collect_block(&function.body, &tokens, resolved, &mut found);
     }
     let candidate = found.into_iter().min_by_key(Candidate::order)?;
@@ -110,61 +82,6 @@ pub(super) fn first_pending(
     Some(d)
 }
 
-fn collect_result_annotation(
-    tokens: &[lex::Token],
-    start: u64,
-    end: u64,
-    marker: &str,
-    found: &mut Vec<Candidate>,
-) {
-    // `start` is an AST token boundary. A marker cannot straddle it;
-    // comparing its start or end against that boundary selects the same token.
-    let Some(marker_at) = tokens
-        .iter()
-        .position(|t| t.text == marker && t.span.start >= start && t.span.end <= end)
-    else {
-        return;
-    };
-    // a parsed Result annotation contains its type arguments, so its
-    // name token ends strictly before the annotation boundary.
-    let Some(result_at) = tokens
-        .iter()
-        .enumerate()
-        .skip(marker_at + 1)
-        .find_map(|(i, t)| (t.text == "Result" && t.span.end <= end).then_some(i))
-    else {
-        return;
-    };
-    let token = &tokens[result_at];
-    let mut level = 0_usize;
-    let mut type_end = token.span.end;
-    // scanning the Result name as well would leave `level` unchanged;
-    // only `<` and `>`/`>=` affect it. `end` is a token boundary, and
-    // the closing `>` is consumed before any token beginning there.
-    for next in tokens
-        .iter()
-        .skip(result_at + 1)
-        .take_while(|t| t.span.start < end)
-    {
-        if next.text == "<" {
-            level += 1;
-        } else if next.text == ">" || next.text == ">=" {
-            level = level.saturating_sub(1);
-            if level == 0 {
-                type_end = next.span.start + 1;
-                break;
-            }
-        }
-    }
-    found.push(Candidate {
-        span: Span {
-            file: token.span.file.clone(),
-            start: token.span.start,
-            end: type_end,
-        },
-        scope: "I08",
-    });
-}
 fn collect_block(
     block: &Block,
     tokens: &[lex::Token],
@@ -182,15 +99,7 @@ fn collect_statement(
     found: &mut Vec<Candidate>,
 ) {
     match statement {
-        Statement::Let {
-            annotation,
-            value,
-            span,
-            ..
-        } => {
-            if annotation.as_ref().is_some_and(has_result) {
-                collect_result_annotation(tokens, span.start, value.span().start, ":", found);
-            }
+        Statement::Let { value, .. } => {
             collect_expr(value, tokens, resolved, found);
         }
         Statement::Return {
@@ -241,17 +150,7 @@ fn collect_expr(
             }
         }
         Expr::Group(inner, _) => collect_expr(inner, tokens, resolved, found),
-        Expr::Unary { mode, value, span } => {
-            if *mode == Mode::Read {
-                found.push(Candidate {
-                    span: Span {
-                        file: span.file.clone(),
-                        start: span.end - 1,
-                        end: span.end,
-                    },
-                    scope: "I08",
-                });
-            }
+        Expr::Unary { value, .. } => {
             collect_expr(value, tokens, resolved, found);
         }
         Expr::Binary { left, right, .. } => {
@@ -265,7 +164,6 @@ fn collect_expr(
             }
             if let Expr::Name(name, span) = unwrapped {
                 let scope = match name.as_str() {
-                    "Ok" | "Err" | "TryAdd" => Some("I08"),
                     "MockUnknown" => Some("I09"),
                     "MockReadRecords" | "MockWriteI64" | "MockRequest" | "MockReply" => {
                         Some("I11a")

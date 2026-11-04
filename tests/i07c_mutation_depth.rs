@@ -3,9 +3,7 @@ use nexo::diagnostic::{DataValue, RelatedRole};
 
 #[test]
 fn inferred_array_wrappers_preserve_both_result_component_depths() {
-    // The public diagnostic API can inspect Result while the official
-    // executable defers Result expressions to I08. Its inferred wrappers
-    // still obey the value-depth limit of F0-0002 §13.13.
+    // Inferred Result wrappers obey the value-depth limit of F0-0002 §13.13.
     for left in [true, false] {
         let mut ty = "I64".to_owned();
         for _ in 0..127 {

@@ -1,0 +1,894 @@
+{
+  "base": "ce3f1da",
+  "operators": [
+    "eq",
+    "ne",
+    "lt",
+    "le",
+    "and",
+    "or",
+    "true",
+    "false",
+    "continue",
+    "break",
+    "increment",
+    "decrement",
+    "drop_record",
+    "drop_state",
+    "drop_assignment",
+    "swap_primary",
+    "swap_unify"
+  ],
+  "mutations": [
+    {
+      "file": "src/check/types.rs",
+      "line": 4302,
+      "column": 33,
+      "operator": "or",
+      "literal": "                if self.tainted || operand == Type::Tainted {",
+      "replacement": "                if self.tainted && operand == Type::Tainted {",
+      "site_count": 1,
+      "id": "M00001"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4302,
+      "column": 44,
+      "operator": "eq",
+      "literal": "                if self.tainted || operand == Type::Tainted {",
+      "replacement": "                if self.tainted || operand != Type::Tainted {",
+      "site_count": 1,
+      "id": "M00002"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4305,
+      "column": 28,
+      "operator": "eq",
+      "literal": "                if operand == Type::Never {",
+      "replacement": "                if operand != Type::Never {",
+      "site_count": 1,
+      "id": "M00003"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4328,
+      "column": 65,
+      "operator": "or",
+      "literal": "                        self.result_span.clone().unwrap_or_else(|| span.clone()),",
+      "replacement": "                        self.result_span.clone().unwrap_or_else(&& span.clone()),",
+      "site_count": 1,
+      "id": "M00004"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4334,
+      "column": 24,
+      "operator": "ne",
+      "literal": "                if err != *function_err {",
+      "replacement": "                if err == *function_err {",
+      "site_count": 1,
+      "id": "M00005"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6142,
+      "column": 34,
+      "operator": "false",
+      "literal": "                let mut failed = false;",
+      "replacement": "                let mut failed = true;",
+      "site_count": 1,
+      "id": "M00006"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6146,
+      "column": 55,
+      "operator": "eq",
+      "literal": "                        Ok(_) => {}\n                        Err(error) if error.operation == Operation::AnalysisLimit => {\n                            return Err(error);",
+      "replacement": "                        Ok(_) => {}\n                        Err(error) if error.operation != Operation::AnalysisLimit => {\n                            return Err(error);",
+      "site_count": 1,
+      "id": "M00007"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6150,
+      "column": 29,
+      "operator": "drop_record",
+      "literal": "                        Err(error) => {\n                            self.record_error(error);\n                            failed = true;",
+      "replacement": "                        Err(error) => {\n                            \n                            failed = true;",
+      "site_count": 1,
+      "id": "M00008"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6151,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            failed = true;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00009"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6151,
+      "column": 38,
+      "operator": "true",
+      "literal": "                            failed = true;",
+      "replacement": "                            failed = false;",
+      "site_count": 1,
+      "id": "M00010"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6393,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                let prior_taint = self.tainted;\n                self.tainted = false;\n                let payload_result = self.expr(ordered(0), payload_expected, expected_span);",
+      "replacement": "                let prior_taint = self.tainted;\n\n                let payload_result = self.expr(ordered(0), payload_expected, expected_span);",
+      "site_count": 1,
+      "id": "M00011"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6393,
+      "column": 32,
+      "operator": "false",
+      "literal": "                let prior_taint = self.tainted;\n                self.tainted = false;\n                let payload_result = self.expr(ordered(0), payload_expected, expected_span);",
+      "replacement": "                let prior_taint = self.tainted;\n                self.tainted = true;\n                let payload_result = self.expr(ordered(0), payload_expected, expected_span);",
+      "site_count": 1,
+      "id": "M00012"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6396,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                self.tainted = prior_taint || payload_tainted;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00013"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6396,
+      "column": 44,
+      "operator": "or",
+      "literal": "                self.tainted = prior_taint || payload_tainted;",
+      "replacement": "                self.tainted = prior_taint && payload_tainted;",
+      "site_count": 1,
+      "id": "M00014"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6398,
+      "column": 36,
+      "operator": "or",
+      "literal": "                if payload_tainted || payload == Type::Tainted {",
+      "replacement": "                if payload_tainted && payload == Type::Tainted {",
+      "site_count": 1,
+      "id": "M00015"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6398,
+      "column": 47,
+      "operator": "eq",
+      "literal": "                if payload_tainted || payload == Type::Tainted {",
+      "replacement": "                if payload_tainted || payload != Type::Tainted {",
+      "site_count": 1,
+      "id": "M00016"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 37,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            node = payload;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00017"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 227,
+      "column": 45,
+      "operator": "true",
+      "literal": "            value: Some(Value::Result { ok: true, payload }),",
+      "replacement": "            value: Some(Value::Result { ok: false, payload }),",
+      "site_count": 1,
+      "id": "M00018"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 229,
+      "column": 24,
+      "operator": "eq",
+      "literal": "        }) if *payload == Value::Unit => {",
+      "replacement": "        }) if *payload != Value::Unit => {",
+      "site_count": 1,
+      "id": "M00019"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 230,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "        }) if *payload == Value::Unit => {\n            state.cells = state.cells.saturating_sub(2);\n            Outcome::Ok",
+      "replacement": "        }) if *payload == Value::Unit => {\n\n            Outcome::Ok",
+      "site_count": 1,
+      "id": "M00020"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 234,
+      "column": 45,
+      "operator": "false",
+      "literal": "            value: Some(Value::Result { ok: false, payload }),",
+      "replacement": "            value: Some(Value::Result { ok: true, payload }),",
+      "site_count": 1,
+      "id": "M00021"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 238,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                state.cells = state.cells.saturating_sub(2);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00022"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 286,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            active = *payload;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00023"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 642,
+      "column": 53,
+      "operator": "or",
+      "literal": "                        if !self.tick(3, &ins.span) || !self.cell(&ins.span) {",
+      "replacement": "                        if !self.tick(3, &ins.span) && !self.cell(&ins.span) {",
+      "site_count": 1,
+      "id": "M00024"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 643,
+      "column": 29,
+      "operator": "break",
+      "literal": "                        if !self.tick(3, &ins.span) || !self.cell(&ins.span) {\n                            break;\n                        }",
+      "replacement": "                        if !self.tick(3, &ins.span) || !self.cell(&ins.span) {\n                            continue;\n                        }",
+      "site_count": 1,
+      "id": "M00025"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 653,
+      "column": 29,
+      "operator": "break",
+      "literal": "                    Op::BranchResult { value, .. } => {\n                        if !self.tick(1, &ins.span) {\n                            break;\n                        }\n                        let source = Self::take(&mut temps, *value)?.into_owned()?;",
+      "replacement": "                    Op::BranchResult { value, .. } => {\n                        if !self.tick(1, &ins.span) {\n                            continue;\n                        }\n                        let source = Self::take(&mut temps, *value)?.into_owned()?;",
+      "site_count": 1,
+      "id": "M00026"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 660,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        if ok {\n                            self.cells = self.cells.saturating_sub(1);\n                            Some(*payload)",
+      "replacement": "                        if ok {\n\n                            Some(*payload)",
+      "site_count": 1,
+      "id": "M00027"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 663,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            returned = Some(Value::Result { ok: false, payload });",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00028"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 663,
+      "column": 65,
+      "operator": "false",
+      "literal": "                            returned = Some(Value::Result { ok: false, payload });",
+      "replacement": "                            returned = Some(Value::Result { ok: true, payload });",
+      "site_count": 1,
+      "id": "M00029"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 664,
+      "column": 29,
+      "operator": "break",
+      "literal": "                            break 'cfg;",
+      "replacement": "                            continue 'cfg;",
+      "site_count": 1,
+      "id": "M00030"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 967,
+      "column": 45,
+      "operator": "true",
+      "literal": "                                        ok: true,",
+      "replacement": "                                        ok: false,",
+      "site_count": 1,
+      "id": "M00031"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 971,
+      "column": 45,
+      "operator": "false",
+      "literal": "                                        ok: false,",
+      "replacement": "                                        ok: true,",
+      "site_count": 1,
+      "id": "M00032"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 976,
+      "column": 37,
+      "operator": "break",
+      "literal": "                                if !self.reserve_cells(2, &ins.span) {\n                                    break;\n                                }",
+      "replacement": "                                if !self.reserve_cells(2, &ins.span) {\n                                    continue;\n                                }",
+      "site_count": 1,
+      "id": "M00033"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 978,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                }\n                                pre_reserved_output = true;\n                                result",
+      "replacement": "                                }\n\n                                result",
+      "site_count": 1,
+      "id": "M00034"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 978,
+      "column": 55,
+      "operator": "true",
+      "literal": "                                }\n                                pre_reserved_output = true;\n                                result",
+      "replacement": "                                }\n                                pre_reserved_output = false;\n                                result",
+      "site_count": 1,
+      "id": "M00035"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 76,
+      "column": 75,
+      "operator": "false",
+      "literal": "    let checked = crate::check::check_for_compilation(file, source, &ast, false);",
+      "replacement": "    let checked = crate::check::check_for_compilation(file, source, &ast, true);",
+      "site_count": 1,
+      "id": "M00036"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 705,
+      "column": 73,
+      "operator": "false",
+      "literal": "            Op::BuildResult { payload, .. } => self.temp_live(*payload, false),",
+      "replacement": "            Op::BuildResult { payload, .. } => self.temp_live(*payload, true),",
+      "site_count": 1,
+      "id": "M00037"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 706,
+      "column": 70,
+      "operator": "false",
+      "literal": "            Op::BranchResult { value, .. } => self.temp_live(*value, false),",
+      "replacement": "            Op::BranchResult { value, .. } => self.temp_live(*value, true),",
+      "site_count": 1,
+      "id": "M00038"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 2787,
+      "column": 35,
+      "operator": "ne",
+      "literal": "                    if args.len() != 1 {",
+      "replacement": "                    if args.len() == 1 {",
+      "site_count": 1,
+      "id": "M00039"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 2794,
+      "column": 38,
+      "operator": "eq",
+      "literal": "                    if payload.diverged() {\n                        return Ok(Flow::Diverged { ty: Some(inferred) });\n                    }\n                    if self.emission == EmissionMode::Analyze {\n                        return Ok(Flow::Value {\n                            temp: None,\n                            ty: inferred,",
+      "replacement": "                    if payload.diverged() {\n                        return Ok(Flow::Diverged { ty: Some(inferred) });\n                    }\n                    if self.emission != EmissionMode::Analyze {\n                        return Ok(Flow::Value {\n                            temp: None,\n                            ty: inferred,",
+      "site_count": 1,
+      "id": "M00040"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 2805,
+      "column": 38,
+      "operator": "eq",
+      "literal": "                            ok: name == \"Ok\",",
+      "replacement": "                            ok: name != \"Ok\",",
+      "site_count": 1,
+      "id": "M00041"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 2811,
+      "column": 25,
+      "operator": "false",
+      "literal": "                        inferred,\n                        span.clone(),\n                        Access::Own,\n                        false,\n                    ));\n                }\n                let intrinsic = match name {",
+      "replacement": "                        inferred,\n                        span.clone(),\n                        Access::Own,\n                        true,\n                    ));\n                }\n                let intrinsic = match name {",
+      "site_count": 1,
+      "id": "M00042"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 3143,
+      "column": 34,
+      "operator": "eq",
+      "literal": "                    return Ok(Flow::Diverged { ty: Some(inferred) });\n                }\n                if self.emission == EmissionMode::Analyze {\n                    return Ok(Flow::Value {\n                        temp: None,",
+      "replacement": "                    return Ok(Flow::Diverged { ty: Some(inferred) });\n                }\n                if self.emission != EmissionMode::Analyze {\n                    return Ok(Flow::Value {\n                        temp: None,",
+      "site_count": 1,
+      "id": "M00043"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 3160,
+      "column": 21,
+      "operator": "false",
+      "literal": "                    inferred,\n                    span.clone(),\n                    Access::Own,\n                    false,\n                ))\n            }\n            // parse::unadmitted_edit_in_expr rejects an exclusive prefix except",
+      "replacement": "                    inferred,\n                    span.clone(),\n                    Access::Own,\n                    true,\n                ))\n            }\n            // parse::unadmitted_edit_in_expr rejects an exclusive prefix except",
+      "site_count": 1,
+      "id": "M00044"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 39,
+      "column": 52,
+      "operator": "and",
+      "literal": "            Self::Result(ok, err) => ok.copyable() && err.copyable(),",
+      "replacement": "            Self::Result(ok, err) => ok.copyable() || err.copyable(),",
+      "site_count": 1,
+      "id": "M00045"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 44,
+      "column": 39,
+      "operator": "false",
+      "literal": "        let mut pending = vec![(self, false)];",
+      "replacement": "        let mut pending = vec![(self, true)];",
+      "site_count": 1,
+      "id": "M00046"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 47,
+      "column": 60,
+      "operator": "true",
+      "literal": "                Self::Array(inner) => pending.push((inner, true)),",
+      "replacement": "                Self::Array(inner) => pending.push((inner, false)),",
+      "site_count": 1,
+      "id": "M00047"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 49,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    pending.push((ok, within_array));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00048"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 50,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    pending.push((err, within_array));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00049"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 52,
+      "column": 91,
+      "operator": "true",
+      "literal": "                Self::MockResource | Self::MockBlockingResource if within_array => return true,",
+      "replacement": "                Self::MockResource | Self::MockBlockingResource if within_array => return false,",
+      "site_count": 1,
+      "id": "M00050"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 56,
+      "column": 9,
+      "operator": "false",
+      "literal": "        false",
+      "replacement": "        true",
+      "site_count": 1,
+      "id": "M00051"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 345,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    bytes.push(4);\n                    pending.push(Item::End);\n                    pending.push(Item::Type(child));",
+      "replacement": "                    bytes.push(4);\n                    \n                    pending.push(Item::Type(child));",
+      "site_count": 1,
+      "id": "M00052"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 346,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    pending.push(Item::Type(child));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00053"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 349,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                Item::Type(Ty::Result(ok, err)) => {\n                    bytes.push(8);\n                    pending.push(Item::End);",
+      "replacement": "                Item::Type(Ty::Result(ok, err)) => {\n                    \n                    pending.push(Item::End);",
+      "site_count": 1,
+      "id": "M00054"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 350,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    bytes.push(8);\n                    pending.push(Item::End);\n                    pending.push(Item::Type(err));",
+      "replacement": "                    bytes.push(8);\n                    \n                    pending.push(Item::Type(err));",
+      "site_count": 1,
+      "id": "M00055"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 351,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    pending.push(Item::Type(err));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00056"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 352,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    pending.push(Item::Type(ok));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00057"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 446,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    bytes.push(22);",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00058"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 447,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    bytes.push(u8::from(*ok));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00059"
+    },
+    {
+      "file": "src/ir/model.rs",
+      "line": 451,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    bytes.push(23);",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00060"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 293,
+      "column": 44,
+      "operator": "eq",
+      "literal": "                if borrowed.get(payload.0) == Some(&true) {",
+      "replacement": "                if borrowed.get(payload.0) != Some(&true) {",
+      "site_count": 1,
+      "id": "M00061"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 293,
+      "column": 53,
+      "operator": "true",
+      "literal": "                if borrowed.get(payload.0) == Some(&true) {",
+      "replacement": "                if borrowed.get(payload.0) == Some(&false) {",
+      "site_count": 1,
+      "id": "M00062"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 303,
+      "column": 27,
+      "operator": "ne",
+      "literal": "                if actual != **(if *ok { success } else { error }) {",
+      "replacement": "                if actual == **(if *ok { success } else { error }) {",
+      "site_count": 1,
+      "id": "M00063"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 312,
+      "column": 42,
+      "operator": "eq",
+      "literal": "                };\n                if borrowed.get(value.0) == Some(&true) {\n                    return Err(\"borrowed propagation operand\");",
+      "replacement": "                };\n                if borrowed.get(value.0) != Some(&true) {\n                    return Err(\"borrowed propagation operand\");",
+      "site_count": 1,
+      "id": "M00064"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 312,
+      "column": 51,
+      "operator": "true",
+      "literal": "                };\n                if borrowed.get(value.0) == Some(&true) {\n                    return Err(\"borrowed propagation operand\");",
+      "replacement": "                };\n                if borrowed.get(value.0) == Some(&false) {\n                    return Err(\"borrowed propagation operand\");",
+      "site_count": 1,
+      "id": "M00065"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 325,
+      "column": 27,
+      "operator": "ne",
+      "literal": "                };\n                if *error != **function_error || *result != function.result {\n                    return Err(\"propagation error type\");",
+      "replacement": "                };\n                if *error == **function_error || *result != function.result {\n                    return Err(\"propagation error type\");",
+      "site_count": 1,
+      "id": "M00066"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 325,
+      "column": 47,
+      "operator": "or",
+      "literal": "                };\n                if *error != **function_error || *result != function.result {\n                    return Err(\"propagation error type\");",
+      "replacement": "                };\n                if *error != **function_error && *result != function.result {\n                    return Err(\"propagation error type\");",
+      "site_count": 1,
+      "id": "M00067"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 325,
+      "column": 58,
+      "operator": "ne",
+      "literal": "                };\n                if *error != **function_error || *result != function.result {\n                    return Err(\"propagation error type\");",
+      "replacement": "                };\n                if *error != **function_error || *result == function.result {\n                    return Err(\"propagation error type\");",
+      "site_count": 1,
+      "id": "M00068"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 584,
+      "column": 35,
+      "operator": "eq",
+      "literal": "                    }\n                    if *intrinsic == Intrinsic::TryAdd\n                        && (first != Ty::I64",
+      "replacement": "                    }\n                    if *intrinsic != Intrinsic::TryAdd\n                        && (first != Ty::I64",
+      "site_count": 1,
+      "id": "M00069"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 585,
+      "column": 25,
+      "operator": "and",
+      "literal": "                        && (first != Ty::I64",
+      "replacement": "                        || (first != Ty::I64",
+      "site_count": 1,
+      "id": "M00070"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 585,
+      "column": 35,
+      "operator": "ne",
+      "literal": "                        && (first != Ty::I64",
+      "replacement": "                        && (first == Ty::I64",
+      "site_count": 1,
+      "id": "M00071"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 586,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || take(",
+      "replacement": "                            && take(",
+      "site_count": 1,
+      "id": "M00072"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 592,
+      "column": 32,
+      "operator": "ne",
+      "literal": "                            )? != Ty::I64)",
+      "replacement": "                            )? == Ty::I64)",
+      "site_count": 1,
+      "id": "M00073"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1537,
+      "column": 25,
+      "operator": "or",
+      "literal": "                        || temps.info(*payload)?.exclusive_root.is_some()",
+      "replacement": "                        && temps.info(*payload)?.exclusive_root.is_some()",
+      "site_count": 1,
+      "id": "M00074"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1541,
+      "column": 45,
+      "operator": "true",
+      "literal": "                    if temps.read(*payload, true)? != **(if *ok { success } else { error }) {",
+      "replacement": "                    if temps.read(*payload, false)? != **(if *ok { success } else { error }) {",
+      "site_count": 1,
+      "id": "M00075"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1541,
+      "column": 52,
+      "operator": "ne",
+      "literal": "                    if temps.read(*payload, true)? != **(if *ok { success } else { error }) {",
+      "replacement": "                    if temps.read(*payload, true)? == **(if *ok { success } else { error }) {",
+      "site_count": 1,
+      "id": "M00076"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1551,
+      "column": 25,
+      "operator": "or",
+      "literal": "                        || temps.info(*value)?.exclusive_root.is_some()",
+      "replacement": "                        && temps.info(*value)?.exclusive_root.is_some()",
+      "site_count": 1,
+      "id": "M00077"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1555,
+      "column": 73,
+      "operator": "true",
+      "literal": "                    let Ty::Result(success, error) = temps.read(*value, true)? else {",
+      "replacement": "                    let Ty::Result(success, error) = temps.read(*value, false)? else {",
+      "site_count": 1,
+      "id": "M00078"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1558,
+      "column": 31,
+      "operator": "ne",
+      "literal": "                    if *error != **function_error || *result != function.result {",
+      "replacement": "                    if *error == **function_error || *result != function.result {",
+      "site_count": 1,
+      "id": "M00079"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1558,
+      "column": 51,
+      "operator": "or",
+      "literal": "                    if *error != **function_error || *result != function.result {",
+      "replacement": "                    if *error != **function_error && *result != function.result {",
+      "site_count": 1,
+      "id": "M00080"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1558,
+      "column": 62,
+      "operator": "ne",
+      "literal": "                    if *error != **function_error || *result != function.result {",
+      "replacement": "                    if *error != **function_error || *result == function.result {",
+      "site_count": 1,
+      "id": "M00081"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1707,
+      "column": 35,
+      "operator": "eq",
+      "literal": "                    }\n                    if *intrinsic == Intrinsic::TryAdd\n                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "replacement": "                    }\n                    if *intrinsic != Intrinsic::TryAdd\n                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "site_count": 1,
+      "id": "M00082"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1708,
+      "column": 25,
+      "operator": "and",
+      "literal": "                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "replacement": "                        || (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "site_count": 1,
+      "id": "M00083"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1708,
+      "column": 35,
+      "operator": "ne",
+      "literal": "                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "replacement": "                        && (first == Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "site_count": 1,
+      "id": "M00084"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1708,
+      "column": 52,
+      "operator": "or",
+      "literal": "                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "replacement": "                        && (first != Some(Ty::I64) && temps.read(args[1], true)? != Ty::I64)",
+      "site_count": 1,
+      "id": "M00085"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1708,
+      "column": 75,
+      "operator": "true",
+      "literal": "                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "replacement": "                        && (first != Some(Ty::I64) || temps.read(args[1], false)? != Ty::I64)",
+      "site_count": 1,
+      "id": "M00086"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1708,
+      "column": 82,
+      "operator": "ne",
+      "literal": "                        && (first != Some(Ty::I64) || temps.read(args[1], true)? != Ty::I64)",
+      "replacement": "                        && (first != Some(Ty::I64) || temps.read(args[1], true)? == Ty::I64)",
+      "site_count": 1,
+      "id": "M00087"
+    }
+  ]
+}

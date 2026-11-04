@@ -113,6 +113,14 @@ fn main() -> ExitCode {
             eprintln!("nexo-result:()");
             ExitCode::SUCCESS
         }
+        nexo::interp::Outcome::Ok => {
+            eprintln!("nexo-result:Ok(())");
+            ExitCode::SUCCESS
+        }
+        nexo::interp::Outcome::Err(error) => {
+            eprintln!("nexo-result:Err({error})");
+            ExitCode::FAILURE
+        }
         nexo::interp::Outcome::SimulatorFault => ExitCode::FAILURE,
         nexo::interp::Outcome::InternalError(_) => {
             eprintln!("nexo-driver:internal_error");

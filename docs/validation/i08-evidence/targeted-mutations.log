@@ -1,0 +1,5 @@
+Mutaciones ejecutadas en <copia>\tree; cada fuente fue restaurada y comparada por SHA-256.
+M00036-entry detected; test b_order_run_matches_check_after_lowering_error; run regresó NX-E0112 en [63,63) frente a NX-E0201 [60,61); exit 101; sha256 lower.rs 94EDBE2D347473F379129BB800104B43585391CAF32F3931CEED6532FFE2DD8D.
+M00037-build detected; test result_build_and_branch_transfer_temporaries_once; panicked al compilar el programa k5 por temporal usado dos veces; exit 101; sha256 lower.rs 94EDBE2D347473F379129BB800104B43585391CAF32F3931CEED6532FFE2DD8D.
+M00038-branch detected; test result_build_and_branch_transfer_temporaries_once; panicked al compilar el programa k4 por temporal usado dos veces; exit 101; sha256 lower.rs 94EDBE2D347473F379129BB800104B43585391CAF32F3931CEED6532FFE2DD8D.
+M00025-quota detected; test result_array_quota_uses_expanded_source_and_releases_payload; evento real observado solo open:0:1, falta close:0:1; exit 101; sha256 machine.rs DE33731FD4156D708B79A4D898E84C8FBACDF2963C7258FE44C018C4068F6553.

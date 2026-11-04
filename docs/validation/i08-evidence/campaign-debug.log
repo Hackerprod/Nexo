@@ -1,0 +1,16 @@
+cargo :     Finished `test` profile [unoptimized + debuginfo] target(s) in 0.00s
+En línea: 2 Carácter: 1
++ cargo test --locked --offline --test i08_campaign -- --ignored --noca ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Finished `t...get(s) in 0.00s:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+     Running tests\i08_campaign.rs (target\debug\deps\i08_campaign-97da060440d2ddcf.exe)
+
+running 1 test
+test generated_result_programs_preserve_check_run_and_cleanup has been running for over 60 seconds
+i08 campaign seed=9306578997655527858 count=100000 negative=9005
+test generated_result_programs_preserve_check_run_and_cleanup ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 201.66s
+

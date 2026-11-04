@@ -2039,9 +2039,9 @@ struct FeatureFixture {
 static FEATURE_FIXTURES: &[FeatureFixture] = &[
     FeatureFixture {
         id: "implementation_limit",
-        description: "Capacidad pendiente de implementación en I08, I09, I10a, I10b o I11a.",
-        negative: "fn Main()->Result<(),I64>{return Ok(());}",
-        repair: "Usar una función sin Result hasta completar I08",
+        description: "Capacidad pendiente de implementación en I09, I10a, I10b o I11a.",
+        negative: "fn Main() with no_io{}",
+        repair: "Quitar la cláusula with hasta completar I09",
     },
     FeatureFixture {
         id: "inferred_non_unit_result",

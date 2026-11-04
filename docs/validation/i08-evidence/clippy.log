@@ -1,0 +1,8 @@
+cargo :     Checking nexo v0.0.1 (<raiz>)
+En línea: 2 Carácter: 1
++ cargo clippy --locked --offline --all-targets -- -D warnings *> .scra ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (    Checking ne...\projects\Nexo):String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 3.75s

@@ -11,7 +11,13 @@ pub fn check_proposed(
     run_entry: bool,
 ) -> Result<(), Vec<Box<crate::diagnostic::Diagnostic>>> {
     let ast = crate::frontend::parse::parse(file, source).map_err(|d| vec![d])?;
-    let report = check_ast(file, source, &ast, run_entry, false);
+    let report = check_with_entry(
+        file,
+        source,
+        &ast,
+        run_entry,
+        check_ast(file, source, &ast, false),
+    );
     if report.errors.is_empty() {
         Ok(())
     } else {
@@ -22,6 +28,7 @@ pub fn check_proposed(
 #[allow(clippy::vec_box)] // Diagnostics keep the shared boxed representation.
 pub(crate) struct CompilationCheck {
     pub inferred: types::InferredTypes,
+    pub resolved: Option<names::Resolved>,
     pub errors: Vec<Box<crate::diagnostic::Diagnostic>>,
 }
 
@@ -32,7 +39,30 @@ pub(crate) fn check_for_compilation(
     ast: &crate::frontend::parse::Ast,
     run_entry: bool,
 ) -> CompilationCheck {
-    check_ast(file, source, ast, run_entry, true)
+    check_with_entry(
+        file,
+        source,
+        ast,
+        run_entry,
+        check_ast(file, source, ast, true),
+    )
+}
+
+fn check_with_entry(
+    file: &str,
+    source: &str,
+    ast: &crate::frontend::parse::Ast,
+    run_entry: bool,
+    mut report: CompilationCheck,
+) -> CompilationCheck {
+    if report.errors.is_empty()
+        && run_entry
+        && let Some(resolved) = report.resolved.as_ref()
+        && let Err(error) = names::entry(file, source, resolved, ast)
+    {
+        report.errors.push(error);
+    }
+    report
 }
 
 #[allow(clippy::vec_box)] // Diagnostics share the boxed representation across stages.
@@ -40,7 +70,6 @@ fn check_ast(
     file: &str,
     source: &str,
     ast: &crate::frontend::parse::Ast,
-    run_entry: bool,
     enforce_capabilities: bool,
 ) -> CompilationCheck {
     std::thread::scope(|scope| {
@@ -54,6 +83,7 @@ fn check_ast(
                     Err(errors) => {
                         return CompilationCheck {
                             inferred: types::InferredTypes::default(),
+                            resolved: None,
                             errors,
                         };
                     }
@@ -63,20 +93,17 @@ fn check_ast(
                 {
                     return CompilationCheck {
                         inferred: types::InferredTypes::default(),
+                        resolved: Some(resolved),
                         errors: vec![limit],
                     };
                 }
-                let types::TypeCheckReport {
+                let types::TypeCheckReport { inferred, errors } =
+                    types::check_with_partial(file, source, ast, &resolved);
+                CompilationCheck {
                     inferred,
-                    mut errors,
-                } = types::check_with_partial(file, source, ast, &resolved);
-                if errors.is_empty()
-                    && run_entry
-                    && let Err(error) = names::entry(file, source, &resolved, ast)
-                {
-                    errors.push(error);
+                    resolved: Some(resolved),
+                    errors,
                 }
-                CompilationCheck { inferred, errors }
             });
         match worker {
             Ok(worker) => match worker.join() {
@@ -104,6 +131,7 @@ fn check_ast(
                 d.data.insert("observed".into(), DataValue::UInt(1_000_001));
                 CompilationCheck {
                     inferred: types::InferredTypes::default(),
+                    resolved: None,
                     errors: vec![d],
                 }
             }

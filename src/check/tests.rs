@@ -1125,19 +1125,22 @@ fn expression_if_with_only_returning_branches_has_no_invented_unit_type() {
 }
 
 #[test]
-fn deferred_try_operator_causes_no_type_mismatch_in_this_slice() {
-    check_proposed(FILE,
-        "fn TryAdd(x: view I64, y: view I64) -> Result<I64, I64> {\n    return Ok(x + y);\n}\nfn F() -> I64 {\n    let x: I64 = TryAdd(1, 2)?;\n    return x;\n}\n", false).unwrap();
+fn try_operator_requires_result_function() {
+    let errors = check_proposed(FILE,
+        "fn TryAdd(x: view I64, y: view I64) -> Result<I64, I64> {\n    return Ok(x + y);\n}\nfn F() -> I64 {\n    let x: I64 = TryAdd(1, 2)?;\n    return x;\n}\n", false).unwrap_err();
+    assert_eq!(errors[0].code, "NX-E0102");
 }
 
 #[test]
-fn adr_gap_try_result_type_is_deferred_until_result_semantics() {
+fn try_result_type_requires_result_context() {
     for source in [
         "fn F() -> Result<I64, I64> {\n    return Ok(1);\n}\nfn Main() {\n    let x: I64 = F()?;\n}\n",
         "fn F() -> Result<I64, I64> {\n    return Ok(1);\n}\nfn Main() {\n    let x: I64 = F()? + 1;\n}\n",
         "fn F() -> Result<I64, I64> {\n    return Ok(1);\n}\nfn Main() {\n    let x: I64 = 1 + F()?;\n}\n",
     ] {
-        check_proposed(FILE, source, false).unwrap();
+        let errors = check_proposed(FILE, source, false).unwrap_err();
+        assert_eq!(errors[0].code, "NX-E0102");
+        assert_eq!(errors[0].subcause.as_deref(), Some("type_mismatch"));
     }
 }
 
