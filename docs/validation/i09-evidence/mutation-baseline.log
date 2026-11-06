@@ -1,0 +1,5 @@
+Base `ir::effects::tests`: ok; 0.06 s.
+Base `i01_diagnostic`: ok; 0.35 s.
+Base `interp::machine::tests::mock_unknown_is_runtime_unit_without_events_or_faults`: ok; 0.21 s.
+
+The independent regressions pass before mutation. A disposable copy and target isolate each run; mutation source bytes are restored and SHA-256 checked afterward.

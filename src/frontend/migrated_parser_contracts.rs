@@ -906,13 +906,17 @@ fn b_with_clause_rows_and_accepted_forms_keep_exact_diagnostics() {
         assert!(ast.functions[0].with_clause.is_some());
     }
     let simple = parse("with.n", "fn Main() with no_io{}").unwrap();
+    let Some(WithClause::Simple(items)) = &simple.functions[0].with_clause else {
+        panic!("simple with")
+    };
+    assert_eq!(items[0].name, "no_io");
     assert_eq!(
-        simple.functions[0].with_clause,
-        Some(WithClause::Simple(vec!["no_io".into()]))
+        (items[0].span.start, items[0].span.end),
+        unique_bytes("fn Main() with no_io{}", "no_io")
     );
     let map = parse("with.n", "fn Main() with {call(no_alloc,no_io)}{}").unwrap();
     assert!(
-        matches!(&map.functions[0].with_clause, Some(WithClause::Operations(ops)) if ops.len()==1 && ops[0].name=="call" && ops[0].restrictions==["no_alloc","no_io"] && (ops[0].span.start,ops[0].span.end)==unique_bytes("fn Main() with {call(no_alloc,no_io)}{}", "call(no_alloc,no_io)"))
+        matches!(&map.functions[0].with_clause, Some(WithClause::Operations(ops)) if ops.len()==1 && ops[0].name=="call" && ops[0].restrictions.iter().map(|r| r.name.as_str()).collect::<Vec<_>>()==["no_alloc","no_io"] && (ops[0].span.start,ops[0].span.end)==unique_bytes("fn Main() with {call(no_alloc,no_io)}{}", "call(no_alloc,no_io)"))
     );
     for source in [
         "fn Main() with {call(no_io)}{}",

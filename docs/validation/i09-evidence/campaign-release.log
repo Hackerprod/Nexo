@@ -1,0 +1,10 @@
+    Finished `release` profile [optimized] target(s) in 13.78s
+     Running tests\i09_campaign.rs (target\release\deps\i09_campaign-cccadbe5d0516486.exe)
+
+running 1 test
+test typed_effect_programs_keep_contracts_and_transitive_summaries has been running for over 60 seconds
+seed=10495373245766874321 count=300000 negative=259905 families=[20156, 20024, 19863, 20090, 19997, 20048, 19937, 20191, 20081, 19785, 20050, 19862, 20090, 19939, 19887]
+test typed_effect_programs_keep_contracts_and_transitive_summaries ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 83.60s
+

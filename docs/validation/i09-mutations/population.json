@@ -1,0 +1,1554 @@
+{
+  "base": "d9853c8",
+  "operators": [
+    "eq",
+    "ne",
+    "lt",
+    "le",
+    "and",
+    "or",
+    "true",
+    "false",
+    "continue",
+    "break",
+    "increment",
+    "decrement",
+    "drop_record",
+    "drop_state",
+    "drop_assignment",
+    "swap_primary",
+    "swap_unify"
+  ],
+  "mutations": [
+    {
+      "file": "src/ir/effects.rs",
+      "line": 38,
+      "column": 56,
+      "operator": "or",
+      "literal": "        .take_while(|(_, c)| c.is_ascii_alphanumeric() || *c == '_')",
+      "replacement": "        .take_while(|(_, c)| c.is_ascii_alphanumeric() && *c == '_')",
+      "site_count": 1,
+      "id": "M00001"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 38,
+      "column": 62,
+      "operator": "eq",
+      "literal": "        .take_while(|(_, c)| c.is_ascii_alphanumeric() || *c == '_')",
+      "replacement": "        .take_while(|(_, c)| c.is_ascii_alphanumeric() || *c != '_')",
+      "site_count": 1,
+      "id": "M00002"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 59,
+      "column": 25,
+      "operator": "true",
+      "literal": "        Ty::Array(_) => true,",
+      "replacement": "        Ty::Array(_) => false,",
+      "site_count": 1,
+      "id": "M00003"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 60,
+      "column": 49,
+      "operator": "or",
+      "literal": "        Ty::Result(ok, err) => copies_array(ok) || copies_array(err),",
+      "replacement": "        Ty::Result(ok, err) => copies_array(ok) && copies_array(err),",
+      "site_count": 1,
+      "id": "M00004"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 61,
+      "column": 14,
+      "operator": "false",
+      "literal": "        Ty::Result(ok, err) => copies_array(ok) || copies_array(err),\n        _ => false,\n    }",
+      "replacement": "        Ty::Result(ok, err) => copies_array(ok) || copies_array(err),\n        _ => true,\n    }",
+      "site_count": 1,
+      "id": "M00005"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 80,
+      "column": 34,
+      "operator": "true",
+      "literal": "        (Ty::Result(ok, _), Some(true)) => resource_effect(ok),",
+      "replacement": "        (Ty::Result(ok, _), Some(false)) => resource_effect(ok),",
+      "site_count": 1,
+      "id": "M00006"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 81,
+      "column": 35,
+      "operator": "false",
+      "literal": "        (Ty::Result(_, err), Some(false)) => resource_effect(err),",
+      "replacement": "        (Ty::Result(_, err), Some(true)) => resource_effect(err),",
+      "site_count": 1,
+      "id": "M00007"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 90,
+      "column": 34,
+      "operator": "true",
+      "literal": "        (Ty::Result(ok, _), Some(true)) => resource_types(ok, None),",
+      "replacement": "        (Ty::Result(ok, _), Some(false)) => resource_types(ok, None),",
+      "site_count": 1,
+      "id": "M00008"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 91,
+      "column": 35,
+      "operator": "false",
+      "literal": "        (Ty::Result(_, err), Some(false)) => resource_types(err, None),",
+      "replacement": "        (Ty::Result(_, err), Some(true)) => resource_types(err, None),",
+      "site_count": 1,
+      "id": "M00009"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 129,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            temp_types[id.0] = Some(ty.clone());",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00010"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 135,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            temp_variants[id.0] = Some(*ok);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00011"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 144,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            owned_temps[id.0] = true;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00012"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 144,
+      "column": 33,
+      "operator": "true",
+      "literal": "            owned_temps[id.0] = true;",
+      "replacement": "            owned_temps[id.0] = false;",
+      "site_count": 1,
+      "id": "M00013"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 153,
+      "column": 60,
+      "operator": "and",
+      "literal": "                        if f.locals[local.0].ty.copyable() && copies_array(&f.locals[local.0].ty) {",
+      "replacement": "                        if f.locals[local.0].ty.copyable() || copies_array(&f.locals[local.0].ty) {",
+      "site_count": 1,
+      "id": "M00014"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 176,
+      "column": 52,
+      "operator": "and",
+      "literal": "                        .filter(|ty| ty.copyable() && copies_array(ty))",
+      "replacement": "                        .filter(|ty| ty.copyable() || copies_array(ty))",
+      "site_count": 1,
+      "id": "M00015"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 207,
+      "column": 35,
+      "operator": "eq",
+      "literal": "                    if *intrinsic == super::model::Intrinsic::DropData {",
+      "replacement": "                    if *intrinsic != super::model::Intrinsic::DropData {",
+      "site_count": 1,
+      "id": "M00016"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 234,
+      "column": 33,
+      "operator": "eq",
+      "literal": "                        e.block == block.id",
+      "replacement": "                        e.block != block.id",
+      "site_count": 1,
+      "id": "M00017"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 262,
+      "column": 32,
+      "operator": "ne",
+      "literal": "            if known | unknown != 0 {",
+      "replacement": "            if known | unknown == 0 {",
+      "site_count": 1,
+      "id": "M00018"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 266,
+      "column": 41,
+      "operator": "or",
+      "literal": "                    if known & bit != 0 || unknown & bit != 0 {",
+      "replacement": "                    if known & bit != 0 && unknown & bit != 0 {",
+      "site_count": 1,
+      "id": "M00019"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 412,
+      "column": 60,
+      "operator": "ne",
+      "literal": "                                evidence: if unknown & bit != 0 {",
+      "replacement": "                                evidence: if unknown & bit == 0 {",
+      "site_count": 1,
+      "id": "M00020"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 424,
+      "column": 19,
+      "operator": "or",
+      "literal": "                ) || matches!(ins.op, Op::DropBinding(_) | Op::DropValue(_))",
+      "replacement": "                ) && matches!(ins.op, Op::DropBinding(_) | Op::DropValue(_))",
+      "site_count": 1,
+      "id": "M00021"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 435,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        unique_chain.push(cause);",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00022"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 464,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            } = &ins.op\n            else {\n                continue;\n            };\n            for (slot, temp) in args {",
+      "replacement": "            } = &ins.op\n            else {\n                break;\n            };\n            for (slot, temp) in args {",
+      "site_count": 1,
+      "id": "M00023"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 469,
+      "column": 54,
+      "operator": "ne",
+      "literal": "                    .is_none_or(|(_, mode, _)| *mode != super::model::ParameterMode::Read)",
+      "replacement": "                    .is_none_or(|(_, mode, _)| *mode == super::model::ParameterMode::Read)",
+      "site_count": 1,
+      "id": "M00024"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 470,
+      "column": 21,
+      "operator": "or",
+      "literal": "                    || !owned_temps.get(temp.0).copied().unwrap_or(false)",
+      "replacement": "                    && !owned_temps.get(temp.0).copied().unwrap_or(false)",
+      "site_count": 1,
+      "id": "M00025"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 470,
+      "column": 68,
+      "operator": "false",
+      "literal": "                    || !owned_temps.get(temp.0).copied().unwrap_or(false)",
+      "replacement": "                    || !owned_temps.get(temp.0).copied().unwrap_or(true)",
+      "site_count": 1,
+      "id": "M00026"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 472,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                {\n                    continue;\n                }",
+      "replacement": "                {\n                    break;\n                }",
+      "site_count": 1,
+      "id": "M00027"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 475,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                let Some(ty) = temp_types.get(temp.0).and_then(Option::as_ref) else {\n                    continue;\n                };",
+      "replacement": "                let Some(ty) = temp_types.get(temp.0).and_then(Option::as_ref) else {\n                    break;\n                };",
+      "site_count": 1,
+      "id": "M00028"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 480,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                let Some(span) = temp_spans.get(temp.0).and_then(Option::as_ref) else {\n                    continue;\n                };",
+      "replacement": "                let Some(span) = temp_spans.get(temp.0).and_then(Option::as_ref) else {\n                    break;\n                };",
+      "site_count": 1,
+      "id": "M00029"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 482,
+      "column": 27,
+      "operator": "eq",
+      "literal": "                if effect == 0 {",
+      "replacement": "                if effect != 0 {",
+      "site_count": 1,
+      "id": "M00030"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 483,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                if effect == 0 {\n                    continue;\n                }",
+      "replacement": "                if effect == 0 {\n                    break;\n                }",
+      "site_count": 1,
+      "id": "M00031"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 511,
+      "column": 11,
+      "operator": "or",
+      "literal": "        ) || std::iter::once(&f.block)",
+      "replacement": "        ) && std::iter::once(&f.block)",
+      "site_count": 1,
+      "id": "M00032"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 513,
+      "column": 27,
+      "operator": "eq",
+      "literal": "            .any(|b| b.id == e.block && e.index == b.instructions.len())",
+      "replacement": "            .any(|b| b.id != e.block && e.index == b.instructions.len())",
+      "site_count": 1,
+      "id": "M00033"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 513,
+      "column": 49,
+      "operator": "eq",
+      "literal": "            .any(|b| b.id == e.block && e.index == b.instructions.len())",
+      "replacement": "            .any(|b| b.id == e.block && e.index != b.instructions.len())",
+      "site_count": 1,
+      "id": "M00034"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 521,
+      "column": 23,
+      "operator": "eq",
+      "literal": "            let effect = resource_effect(ty);\n            if effect == 0 {\n                continue;",
+      "replacement": "            let effect = resource_effect(ty);\n            if effect != 0 {\n                continue;",
+      "site_count": 1,
+      "id": "M00035"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 522,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            if effect == 0 {\n                continue;\n            }",
+      "replacement": "            if effect == 0 {\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00036"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 604,
+      "column": 60,
+      "operator": "eq",
+      "literal": "                        .iter()\n                        .position(|candidate| candidate.id == *function)\n                {",
+      "replacement": "                        .iter()\n                        .position(|candidate| candidate.id != *function)\n                {",
+      "site_count": 1,
+      "id": "M00037"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 620,
+      "column": 25,
+      "operator": "false",
+      "literal": "    let mut seen = vec![false; functions.len()];",
+      "replacement": "    let mut seen = vec![true; functions.len()];",
+      "site_count": 1,
+      "id": "M00038"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 624,
+      "column": 13,
+      "operator": "continue",
+      "literal": "        if seen[root] {\n            continue;\n        }",
+      "replacement": "        if seen[root] {\n            break;\n        }",
+      "site_count": 1,
+      "id": "M00039"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 626,
+      "column": 37,
+      "operator": "false",
+      "literal": "        let mut stack = vec![(root, false)];",
+      "replacement": "        let mut stack = vec![(root, true)];",
+      "site_count": 1,
+      "id": "M00040"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 630,
+      "column": 17,
+      "operator": "continue",
+      "literal": "                finish.push(node);\n                continue;\n            }",
+      "replacement": "                finish.push(node);\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00041"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 632,
+      "column": 51,
+      "operator": "true",
+      "literal": "            if std::mem::replace(&mut seen[node], true) {",
+      "replacement": "            if std::mem::replace(&mut seen[node], false) {",
+      "site_count": 1,
+      "id": "M00042"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 635,
+      "column": 13,
+      "operator": "drop_state",
+      "literal": "            stack.push((node, true));",
+      "replacement": "            ",
+      "site_count": 1,
+      "id": "M00043"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 635,
+      "column": 31,
+      "operator": "true",
+      "literal": "            stack.push((node, true));",
+      "replacement": "            stack.push((node, false));",
+      "site_count": 1,
+      "id": "M00044"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 638,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    stack.push((*target, false));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00045"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 638,
+      "column": 42,
+      "operator": "false",
+      "literal": "                    stack.push((*target, false));",
+      "replacement": "                    stack.push((*target, true));",
+      "site_count": 1,
+      "id": "M00046"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 644,
+      "column": 15,
+      "operator": "false",
+      "literal": "    seen.fill(false);",
+      "replacement": "    seen.fill(true);",
+      "site_count": 1,
+      "id": "M00047"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 649,
+      "column": 47,
+      "operator": "true",
+      "literal": "        if std::mem::replace(&mut seen[root], true) {",
+      "replacement": "        if std::mem::replace(&mut seen[root], false) {",
+      "site_count": 1,
+      "id": "M00048"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 655,
+      "column": 13,
+      "operator": "drop_state",
+      "literal": "            component.push(node);",
+      "replacement": "            ",
+      "site_count": 1,
+      "id": "M00049"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 657,
+      "column": 59,
+      "operator": "true",
+      "literal": "                if !std::mem::replace(&mut seen[*caller], true) {",
+      "replacement": "                if !std::mem::replace(&mut seen[*caller], false) {",
+      "site_count": 1,
+      "id": "M00050"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 658,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    stack.push(*caller);",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00051"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 663,
+      "column": 9,
+      "operator": "drop_state",
+      "literal": "        components.push(component);",
+      "replacement": "        ",
+      "site_count": 1,
+      "id": "M00052"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 696,
+      "column": 68,
+      "operator": "eq",
+      "literal": "                                .position(|candidate| candidate.id == *function)",
+      "replacement": "                                .position(|candidate| candidate.id != *function)",
+      "site_count": 1,
+      "id": "M00053"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 709,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                next[*index] = summary;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00054"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 711,
+      "column": 58,
+      "operator": "eq",
+      "literal": "            if component.iter().all(|index| next[*index] == old[*index]) {",
+      "replacement": "            if component.iter().all(|index| next[*index] != old[*index]) {",
+      "site_count": 1,
+      "id": "M00055"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 713,
+      "column": 17,
+      "operator": "break",
+      "literal": "                break;",
+      "replacement": "                continue;",
+      "site_count": 1,
+      "id": "M00056"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 715,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            }\n            summaries = next;\n        }",
+      "replacement": "            }\n\n        }",
+      "site_count": 1,
+      "id": "M00057"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 719,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "        f.effects = Some(*summary);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00058"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 724,
+      "column": 84,
+      "operator": "eq",
+      "literal": "        let Some(source_function) = ast.functions.iter().find(|source| source.name == f.name)",
+      "replacement": "        let Some(source_function) = ast.functions.iter().find(|source| source.name != f.name)",
+      "site_count": 1,
+      "id": "M00059"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 732,
+      "column": 38,
+      "operator": "eq",
+      "literal": "                .filter(|op| op.name == \"call\")",
+      "replacement": "                .filter(|op| op.name != \"call\")",
+      "site_count": 1,
+      "id": "M00060"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 738,
+      "column": 33,
+      "operator": "eq",
+      "literal": "            if restriction.name == \"unrestricted\" {",
+      "replacement": "            if restriction.name != \"unrestricted\" {",
+      "site_count": 1,
+      "id": "M00061"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 743,
+      "column": 62,
+      "operator": "eq",
+      "literal": "                EFFECTS.iter().find(|(_, effect, _)| *effect == required)",
+      "replacement": "                EFFECTS.iter().find(|(_, effect, _)| *effect != required)",
+      "site_count": 1,
+      "id": "M00062"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 745,
+      "column": 17,
+      "operator": "continue",
+      "literal": "                EFFECTS.iter().find(|(_, effect, _)| *effect == required)\n            else {\n                continue;\n            };\n            let summary = summaries[index];",
+      "replacement": "                EFFECTS.iter().find(|(_, effect, _)| *effect == required)\n            else {\n                break;\n            };\n            let summary = summaries[index];",
+      "site_count": 1,
+      "id": "M00063"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 748,
+      "column": 56,
+      "operator": "eq",
+      "literal": "            if (summary.known | summary.unknown) & bit == 0 {",
+      "replacement": "            if (summary.known | summary.unknown) & bit != 0 {",
+      "site_count": 1,
+      "id": "M00064"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 749,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            if (summary.known | summary.unknown) & bit == 0 {\n                continue;\n            }",
+      "replacement": "            if (summary.known | summary.unknown) & bit == 0 {\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00065"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 751,
+      "column": 47,
+      "operator": "eq",
+      "literal": "            let unknown = summary.known & bit == 0;",
+      "replacement": "            let unknown = summary.known & bit != 0;",
+      "site_count": 1,
+      "id": "M00066"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 761,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                d.primary_span = Some(w.primary.clone());",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00067"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 762,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                d.cause_chain = w.chain.clone();",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00068"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 802,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            d.message = format!(\"La función {} infringe no_{}.\", f.name, effect);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00069"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 853,
+      "column": 53,
+      "operator": "ne",
+      "literal": "        if (summary.known | summary.unknown) & !ALL != 0 {",
+      "replacement": "        if (summary.known | summary.unknown) & !ALL == 0 {",
+      "site_count": 1,
+      "id": "M00070"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 856,
+      "column": 48,
+      "operator": "ne",
+      "literal": "        if local[index].known & !summary.known != 0 || local[index].unknown & !summary.unknown != 0",
+      "replacement": "        if local[index].known & !summary.known == 0 || local[index].unknown & !summary.unknown != 0",
+      "site_count": 1,
+      "id": "M00071"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 856,
+      "column": 53,
+      "operator": "or",
+      "literal": "        if local[index].known & !summary.known != 0 || local[index].unknown & !summary.unknown != 0",
+      "replacement": "        if local[index].known & !summary.known != 0 && local[index].unknown & !summary.unknown != 0",
+      "site_count": 1,
+      "id": "M00072"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 856,
+      "column": 96,
+      "operator": "ne",
+      "literal": "        if local[index].known & !summary.known != 0 || local[index].unknown & !summary.unknown != 0",
+      "replacement": "        if local[index].known & !summary.known != 0 || local[index].unknown & !summary.unknown == 0",
+      "site_count": 1,
+      "id": "M00073"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 865,
+      "column": 40,
+      "operator": "eq",
+      "literal": "                        .find(|g| g.id == *function)",
+      "replacement": "                        .find(|g| g.id != *function)",
+      "site_count": 1,
+      "id": "M00074"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 868,
+      "column": 62,
+      "operator": "ne",
+      "literal": "                    if callee_summary.known & !summary.known != 0",
+      "replacement": "                    if callee_summary.known & !summary.known == 0",
+      "site_count": 1,
+      "id": "M00075"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 869,
+      "column": 25,
+      "operator": "or",
+      "literal": "                        || callee_summary.unknown & !summary.unknown != 0",
+      "replacement": "                        && callee_summary.unknown & !summary.unknown != 0",
+      "site_count": 1,
+      "id": "M00076"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 869,
+      "column": 70,
+      "operator": "ne",
+      "literal": "                        || callee_summary.unknown & !summary.unknown != 0",
+      "replacement": "                        || callee_summary.unknown & !summary.unknown == 0",
+      "site_count": 1,
+      "id": "M00077"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 881,
+      "column": 21,
+      "operator": "and",
+      "literal": "                    && matches!(block.instructions[index - 1].op, Op::DropLocal(_))",
+      "replacement": "                    || matches!(block.instructions[index - 1].op, Op::DropLocal(_))",
+      "site_count": 1,
+      "id": "M00078"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 882,
+      "column": 21,
+      "operator": "and",
+      "literal": "                    && block.instructions[index - 1].span == ins.span;",
+      "replacement": "                    || block.instructions[index - 1].span == ins.span;",
+      "site_count": 1,
+      "id": "M00079"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 882,
+      "column": 59,
+      "operator": "eq",
+      "literal": "                    && block.instructions[index - 1].span == ins.span;",
+      "replacement": "                    && block.instructions[index - 1].span != ins.span;",
+      "site_count": 1,
+      "id": "M00080"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 883,
+      "column": 56,
+      "operator": "and",
+      "literal": "                if (matches!(ins.op, Op::DropLocal(_)) && !prior_same_exit)",
+      "replacement": "                if (matches!(ins.op, Op::DropLocal(_)) || !prior_same_exit)",
+      "site_count": 1,
+      "id": "M00081"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 884,
+      "column": 21,
+      "operator": "or",
+      "literal": "                    || matches!(",
+      "replacement": "                    && matches!(",
+      "site_count": 1,
+      "id": "M00082"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 893,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    expected_sites.insert((block.id.0, index));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00083"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 897,
+      "column": 17,
+      "operator": "drop_state",
+      "literal": "                expected_sites.insert((block.id.0, block.instructions.len()));",
+      "replacement": "                ",
+      "site_count": 1,
+      "id": "M00084"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 903,
+      "column": 32,
+      "operator": "eq",
+      "literal": "                .find(|b| b.id == exit.block)",
+      "replacement": "                .find(|b| b.id != exit.block)",
+      "site_count": 1,
+      "id": "M00085"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 905,
+      "column": 54,
+      "operator": "or",
+      "literal": "            if exit.index > block.instructions.len() || !sites.insert((exit.block.0, exit.index)) {",
+      "replacement": "            if exit.index > block.instructions.len() && !sites.insert((exit.block.0, exit.index)) {",
+      "site_count": 1,
+      "id": "M00086"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 923,
+      "column": 42,
+      "operator": "lt",
+      "literal": "            let anchored = if exit.index < block.instructions.len() {",
+      "replacement": "            let anchored = if exit.index <= block.instructions.len() {",
+      "site_count": 1,
+      "id": "M00087"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 934,
+      "column": 34,
+      "operator": "eq",
+      "literal": "                instruction.span == exit.span && expected_class == Some(exit.class)",
+      "replacement": "                instruction.span != exit.span && expected_class == Some(exit.class)",
+      "site_count": 1,
+      "id": "M00088"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 934,
+      "column": 47,
+      "operator": "and",
+      "literal": "                instruction.span == exit.span && expected_class == Some(exit.class)",
+      "replacement": "                instruction.span == exit.span || expected_class == Some(exit.class)",
+      "site_count": 1,
+      "id": "M00089"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 934,
+      "column": 65,
+      "operator": "eq",
+      "literal": "                instruction.span == exit.span && expected_class == Some(exit.class)",
+      "replacement": "                instruction.span == exit.span && expected_class != Some(exit.class)",
+      "site_count": 1,
+      "id": "M00090"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 938,
+      "column": 65,
+      "operator": "true",
+      "literal": "                        super::model::ExitClass::Fallthrough => true,",
+      "replacement": "                        super::model::ExitClass::Fallthrough => false,",
+      "site_count": 1,
+      "id": "M00091"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 940,
+      "column": 40,
+      "operator": "le",
+      "literal": "                            span.start <= exit.span.start && exit.span.end <= span.end",
+      "replacement": "                            span.start < exit.span.start && exit.span.end <= span.end",
+      "site_count": 1,
+      "id": "M00092"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 940,
+      "column": 59,
+      "operator": "and",
+      "literal": "                            span.start <= exit.span.start && exit.span.end <= span.end",
+      "replacement": "                            span.start <= exit.span.start || exit.span.end <= span.end",
+      "site_count": 1,
+      "id": "M00093"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 940,
+      "column": 76,
+      "operator": "le",
+      "literal": "                            span.start <= exit.span.start && exit.span.end <= span.end",
+      "replacement": "                            span.start <= exit.span.start && exit.span.end < span.end",
+      "site_count": 1,
+      "id": "M00094"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 942,
+      "column": 89,
+      "operator": "false",
+      "literal": "                        super::model::ExitClass::Try | super::model::ExitClass::Fail => false,",
+      "replacement": "                        super::model::ExitClass::Try | super::model::ExitClass::Fail => true,",
+      "site_count": 1,
+      "id": "M00095"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 944,
+      "column": 26,
+      "operator": "false",
+      "literal": "                    _ => false,",
+      "replacement": "                    _ => true,",
+      "site_count": 1,
+      "id": "M00096"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 950,
+      "column": 27,
+      "operator": "eq",
+      "literal": "            if exit.class == super::model::ExitClass::Fallthrough",
+      "replacement": "            if exit.class != super::model::ExitClass::Fallthrough",
+      "site_count": 1,
+      "id": "M00097"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 951,
+      "column": 17,
+      "operator": "and",
+      "literal": "                && (exit.span.start >= f.source_text.len() as u64",
+      "replacement": "                || (exit.span.start >= f.source_text.len() as u64",
+      "site_count": 1,
+      "id": "M00098"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 952,
+      "column": 21,
+      "operator": "or",
+      "literal": "                    || f.source_text.as_bytes().get(exit.span.start as usize) != Some(&b'}'))",
+      "replacement": "                    && f.source_text.as_bytes().get(exit.span.start as usize) != Some(&b'}'))",
+      "site_count": 1,
+      "id": "M00099"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 952,
+      "column": 79,
+      "operator": "ne",
+      "literal": "                    || f.source_text.as_bytes().get(exit.span.start as usize) != Some(&b'}'))",
+      "replacement": "                    || f.source_text.as_bytes().get(exit.span.start as usize) == Some(&b'}'))",
+      "site_count": 1,
+      "id": "M00100"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 957,
+      "column": 18,
+      "operator": "ne",
+      "literal": "        if sites != expected_sites {",
+      "replacement": "        if sites == expected_sites {",
+      "site_count": 1,
+      "id": "M00101"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 970,
+      "column": 64,
+      "operator": "eq",
+      "literal": "    let source_function = ast.functions.iter().find(|f| f.name == function.name);",
+      "replacement": "    let source_function = ast.functions.iter().find(|f| f.name != function.name);",
+      "site_count": 1,
+      "id": "M00102"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 999,
+      "column": 25,
+      "operator": "lt",
+      "literal": "                if id.0 < count {",
+      "replacement": "                if id.0 <= count {",
+      "site_count": 1,
+      "id": "M00103"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1000,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    preds[id.0].push(i);",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00104"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1001,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    successors[i].push(id.0);",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00105"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1016,
+      "column": 31,
+      "operator": "eq",
+      "literal": "            if parameter.mode == super::model::ParameterMode::Consume",
+      "replacement": "            if parameter.mode != super::model::ParameterMode::Consume",
+      "site_count": 1,
+      "id": "M00106"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1017,
+      "column": 17,
+      "operator": "and",
+      "literal": "                && tracked.contains(&parameter.local.0)",
+      "replacement": "                || tracked.contains(&parameter.local.0)",
+      "site_count": 1,
+      "id": "M00107"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1025,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            queued[bi] = false;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00108"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1025,
+      "column": 26,
+      "operator": "false",
+      "literal": "            queued[bi] = false;",
+      "replacement": "            queued[bi] = true;",
+      "site_count": 1,
+      "id": "M00109"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1026,
+      "column": 19,
+      "operator": "ne",
+      "literal": "            if bi != 0 {",
+      "replacement": "            if bi == 0 {",
+      "site_count": 1,
+      "id": "M00110"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1041,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                may_in[bi] = next_may;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00111"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1042,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                gone_in[bi] = next_gone;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00112"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1064,
+      "column": 35,
+      "operator": "ne",
+      "literal": "            let out_changed = may != may_out[bi] || gone != gone_out[bi];",
+      "replacement": "            let out_changed = may == may_out[bi] || gone != gone_out[bi];",
+      "site_count": 1,
+      "id": "M00113"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1064,
+      "column": 50,
+      "operator": "or",
+      "literal": "            let out_changed = may != may_out[bi] || gone != gone_out[bi];",
+      "replacement": "            let out_changed = may != may_out[bi] && gone != gone_out[bi];",
+      "site_count": 1,
+      "id": "M00114"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1064,
+      "column": 58,
+      "operator": "ne",
+      "literal": "            let out_changed = may != may_out[bi] || gone != gone_out[bi];",
+      "replacement": "            let out_changed = may != may_out[bi] || gone == gone_out[bi];",
+      "site_count": 1,
+      "id": "M00115"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1065,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            may_out[bi] = may;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00116"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1066,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            gone_out[bi] = gone;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00117"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1091,
+      "column": 17,
+      "operator": "and",
+      "literal": "                && matches!(block.instructions[ii - 1].op, Op::DropLocal(_))",
+      "replacement": "                || matches!(block.instructions[ii - 1].op, Op::DropLocal(_))",
+      "site_count": 1,
+      "id": "M00118"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1092,
+      "column": 17,
+      "operator": "and",
+      "literal": "                && block.instructions[ii - 1].span == ins.span;",
+      "replacement": "                || block.instructions[ii - 1].span == ins.span;",
+      "site_count": 1,
+      "id": "M00119"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1092,
+      "column": 52,
+      "operator": "eq",
+      "literal": "                && block.instructions[ii - 1].span == ins.span;",
+      "replacement": "                && block.instructions[ii - 1].span != ins.span;",
+      "site_count": 1,
+      "id": "M00120"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1138,
+      "column": 17,
+      "operator": "and",
+      "literal": "                && source_function.is_some_and(|source| span == &source.body.span);",
+      "replacement": "                || source_function.is_some_and(|source| span == &source.body.span);",
+      "site_count": 1,
+      "id": "M00121"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1138,
+      "column": 62,
+      "operator": "eq",
+      "literal": "                && source_function.is_some_and(|source| span == &source.body.span);",
+      "replacement": "                && source_function.is_some_and(|source| span != &source.body.span);",
+      "site_count": 1,
+      "id": "M00122"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1160,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "    function.exit_info = records;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00123"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1177,
+      "column": 30,
+      "operator": "eq",
+      "literal": "                if remaining == 0 {",
+      "replacement": "                if remaining != 0 {",
+      "site_count": 1,
+      "id": "M00124"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1201,
+      "column": 86,
+      "operator": "eq",
+      "literal": "            if span.end > span.start && source.as_bytes().get(span.end as usize - 1) == Some(&b';')",
+      "replacement": "            if span.end > span.start && source.as_bytes().get(span.end as usize - 1) != Some(&b';')",
+      "site_count": 1,
+      "id": "M00125"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1203,
+      "column": 26,
+      "operator": "decrement",
+      "literal": "                span.end -= 1;",
+      "replacement": "                span.end += 1;",
+      "site_count": 1,
+      "id": "M00126"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2776,
+      "column": 41,
+      "operator": "ne",
+      "literal": "            if leaf.summary.known & bit != 0 || leaf.summary.unknown & bit != 0 {",
+      "replacement": "            if leaf.summary.known & bit == 0 || leaf.summary.unknown & bit != 0 {",
+      "site_count": 1,
+      "id": "M00127"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2776,
+      "column": 46,
+      "operator": "or",
+      "literal": "            if leaf.summary.known & bit != 0 || leaf.summary.unknown & bit != 0 {",
+      "replacement": "            if leaf.summary.known & bit != 0 && leaf.summary.unknown & bit != 0 {",
+      "site_count": 1,
+      "id": "M00128"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2776,
+      "column": 76,
+      "operator": "ne",
+      "literal": "            if leaf.summary.known & bit != 0 || leaf.summary.unknown & bit != 0 {",
+      "replacement": "            if leaf.summary.known & bit != 0 || leaf.summary.unknown & bit == 0 {",
+      "site_count": 1,
+      "id": "M00129"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2780,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                witness.chain = chain;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00130"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2782,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    witness.primary = prefix[0].span.clone().unwrap_or(witness.primary);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00131"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2783,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    witness.operation = CauseOperation::FunctionCall;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00132"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2797,
+      "column": 46,
+      "operator": "eq",
+      "literal": "                    leaf.summary.known & bit == 0,",
+      "replacement": "                    leaf.summary.known & bit != 0,",
+      "site_count": 1,
+      "id": "M00133"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2809,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                let Op::CallDirect { function, .. } = &ins.op else {\n                    continue;\n                };",
+      "replacement": "                let Op::CallDirect { function, .. } = &ins.op else {\n                    break;\n                };",
+      "site_count": 1,
+      "id": "M00134"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2813,
+      "column": 56,
+      "operator": "eq",
+      "literal": "                    .iter()\n                    .position(|candidate| candidate.id == *function)\n                else {",
+      "replacement": "                    .iter()\n                    .position(|candidate| candidate.id != *function)\n                else {",
+      "site_count": 1,
+      "id": "M00135"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2818,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                if path.contains(&target) {\n                    continue;\n                }",
+      "replacement": "                if path.contains(&target) {\n                    break;\n                }",
+      "site_count": 1,
+      "id": "M00136"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2824,
+      "column": 44,
+      "operator": "eq",
+      "literal": "                    .find(|decl| decl.name == functions[target].name);",
+      "replacement": "                    .find(|decl| decl.name != functions[target].name);",
+      "site_count": 1,
+      "id": "M00137"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2839,
+      "column": 17,
+      "operator": "drop_state",
+      "literal": "                next_path.push(target);",
+      "replacement": "                ",
+      "site_count": 1,
+      "id": "M00138"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2844,
+      "column": 1,
+      "operator": "X01_prefer_more_edges",
+      "literal": "    candidates.sort_by(|a, b| (&a.0, &a.1, &a.2, &a.3).cmp(&(&b.0, &b.1, &b.2, &b.3)));",
+      "replacement": "    candidates.sort_by(|a,b| (&a.0, std::cmp::Reverse(a.1), &a.2, &a.3).cmp(&(&b.0, std::cmp::Reverse(b.1), &b.2, &b.3)));",
+      "site_count": 1,
+      "id": "M00139"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 226,
+      "column": 1,
+      "operator": "explicit_drop_shape",
+      "literal": "                Op::DropBinding(local) => (",
+      "replacement": "                Op::DropLocal(local) => (",
+      "site_count": 1,
+      "id": "M00140"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 52,
+      "column": 1,
+      "operator": "result_variant_union",
+      "literal": "        Ty::Result(ok, err) => resource_effect(ok) | resource_effect(err),",
+      "replacement": "        Ty::Result(_ok, err) => resource_effect(err),",
+      "site_count": 1,
+      "id": "M00141"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 238,
+      "column": 1,
+      "operator": "droplocal_effect",
+      "literal": "                        resource_effect(&f.locals[local.0].ty)",
+      "replacement": "                        0",
+      "site_count": 1,
+      "id": "M00142"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2844,
+      "column": 1,
+      "operator": "X02_reverse_offsets",
+      "literal": "    candidates.sort_by(|a, b| (&a.0, &a.1, &a.2, &a.3).cmp(&(&b.0, &b.1, &b.2, &b.3)));",
+      "replacement": "    candidates.sort_by(|a,b| a.0.cmp(&b.0).then_with(|| a.1.cmp(&b.1)).then_with(|| b.2.cmp(&a.2)).then_with(|| a.3.cmp(&b.3)));",
+      "site_count": 1,
+      "id": "M00143"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 510,
+      "column": 1,
+      "operator": "X09_remove_fail_exit",
+      "literal": "            super::model::ExitClass::Try | super::model::ExitClass::Fail\n",
+      "replacement": "            super::model::ExitClass::Try\n",
+      "site_count": 1,
+      "id": "M00144"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 80,
+      "column": 1,
+      "operator": "variant_evidence_wrong_branch",
+      "literal": "        (Ty::Result(ok, _), Some(true)) => resource_effect(ok),",
+      "replacement": "        (Ty::Result(_, err), Some(true)) => resource_effect(err),",
+      "site_count": 1,
+      "id": "M00145"
+    },
+    {
+      "file": "src/frontend/parse.rs",
+      "line": 1235,
+      "column": 1,
+      "operator": "restriction_span_off_by_one",
+      "literal": "                span: token.span,",
+      "replacement": "                span: Span { file: token.span.file.clone(), start: token.span.start, end: token.span.end + 1 },",
+      "site_count": 1,
+      "id": "M00146"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 55,
+      "column": 1,
+      "operator": "skip_effect_metadata_verification",
+      "literal": "        .any(|f| f.effects.is_some())",
+      "replacement": "        .any(|f| f.effects.is_none())",
+      "site_count": 1,
+      "id": "M00147"
+    },
+    {
+      "file": "src/diagnostic.rs",
+      "line": 2043,
+      "column": 1,
+      "operator": "implementation_limit_fixture_positive",
+      "literal": "        negative: \"fn Main(){MockRequest();}\",",
+      "replacement": "        negative: \"fn Main(){}\",",
+      "site_count": 1,
+      "id": "M00148"
+    },
+    {
+      "file": "src/interp/machine.rs",
+      "line": 884,
+      "column": 1,
+      "operator": "mock_unknown_runtime_fault",
+      "literal": "                            Intrinsic::DropData | Intrinsic::MockUnknown => Value::Unit,",
+      "replacement": "                            Intrinsic::DropData => Value::Unit, Intrinsic::MockUnknown => { self.fault(\"R0301\", &ins.span, vec![]); break; },",
+      "site_count": 1,
+      "id": "M00149"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1016,
+      "column": 1,
+      "operator": "parameter_mode_owns_only_move",
+      "literal": "            if parameter.mode == super::model::ParameterMode::Consume",
+      "replacement": "            if true",
+      "site_count": 1,
+      "id": "M00150"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 130,
+      "column": 1,
+      "operator": "temporary_source_span_is_retained",
+      "literal": "            temp_spans[id.0] = Some(ins.span.clone());",
+      "replacement": "            temp_spans[id.0] = Some(Span { file: ins.span.file.clone(), start: ins.span.start, end: ins.span.start });",
+      "site_count": 1,
+      "id": "M00151"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 278,
+      "column": 1,
+      "operator": "temporary_drop_span_covers_call",
+      "literal": "                                let temp_span = arg\n                                    .and_then(|id| temp_spans.get(id.0).and_then(Option::as_ref));\n                                chain.push(Cause {\n                                    kind: CauseKind::Drop,\n                                    operation: CauseOperation::ValueDrop,\n                                    span: Some(ins.span.clone()),",
+      "replacement": "                                let temp_span = arg\n                                    .and_then(|id| temp_spans.get(id.0).and_then(Option::as_ref));\n                                chain.push(Cause {\n                                    kind: CauseKind::Drop,\n                                    operation: CauseOperation::ValueDrop,\n                                    span: temp_span.cloned().or_else(|| Some(ins.span.clone())),",
+      "site_count": 1,
+      "id": "M00152"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 325,
+      "column": 1,
+      "operator": "binding_drop_span_covers_call",
+      "literal": "                        } else if let Op::DropBinding(local) = ins.op {\n                            chain.push(Cause {\n                                kind: CauseKind::Drop,\n                                operation: CauseOperation::ValueDrop,\n                                span: Some(ins.span.clone()),",
+      "replacement": "                        } else if let Op::DropBinding(local) = ins.op {\n                            chain.push(Cause {\n                                kind: CauseKind::Drop,\n                                operation: CauseOperation::ValueDrop,\n                                span: Some(call_head(&ins.span, &f.source_text)),",
+      "site_count": 1,
+      "id": "M00153"
+    }
+  ]
+}

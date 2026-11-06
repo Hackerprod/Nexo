@@ -1,0 +1,142 @@
+cargo :    Compiling nexo v0.0.1 (C:\projects\Nexo)
+ 
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 6.73s
+     Running unittests src\lib.rs (target\debug\deps\nexo-ae65c584bd3eb2e6.exe)
+
+running 10 tests
+test ir::effects::tests::result_payload_from_try_is_transferred_without_a_false_drop ... ok
+test ir::effects::tests::known_effect_precedes_shorter_unknown_witness ... ok
+test ir::effects::tests::implicit_droplocal_violates_no_block_at_owner_and_records_cfg_exit ... ok
+test ir::effects::tests::explicit_drop_is_not_counted_as_an_implicit_droplocal ... ok
+test ir::effects::tests::unknown_effects_fail_each_written_restriction_in_code_order ... ok
+test ir::effects::tests::recursive_call_components_converge_and_keep_known_leaf_witnesses ... ok
+test ir::effects::tests::try_exit_reports_the_owner_contract_and_constructed_exit_spans ... ok
+test ir::effects::tests::conditional_explicit_drop_does_not_dominate_function_exit ... ok
+test ir::effects::tests::result_bindings_keep_the_union_of_destructor_effects ... ok
+test ir::effects::tests::distinct_constraints_emit_once_each_and_print_does_not_imply_alloc ... ok
+
+test result: ok. 10 passed; 0 failed; 0 ignored; 0 measured; 1023 filtered out; finished in 0.01s
+
+     Running unittests src\main.rs (target\debug\deps\nexo-f57febf133373fc4.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\canonical_print.rs (target\debug\deps\canonical_print-dbaf4ad1a9802721.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests\cli.rs (target\debug\deps\cli-8e1336b796a79802.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+     Running tests\corpus.rs (target\debug\deps\corpus-67eb91930715e912.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 28 filtered out; finished in 0.00s
+
+     Running tests\i01_diagnostic.rs (target\debug\deps\i01_diagnostic-2a6211568fa77cf9.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 37 filtered out; finished in 0.00s
+
+     Running tests\i07c_causal_obligations.rs (target\debug\deps\i07c_causal_obligations-9643048e54dcc9b3.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 60 filtered out; finished in 0.00s
+
+     Running tests\i07c_deferred_group_regressions.rs 
+(target\debug\deps\i07c_deferred_group_regressions-f08152c4aaa28e23.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+     Running tests\i07c_deferred_metamorphic.rs (target\debug\deps\i07c_deferred_metamorphic-8e182c13727ef8d3.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests\i07c_deferred_mutation_cases.rs 
+(target\debug\deps\i07c_deferred_mutation_cases-48b406ae5736a080.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 24 filtered out; finished in 0.00s
+
+     Running tests\i07c_deferred_twins.rs (target\debug\deps\i07c_deferred_twins-f8f7b6e90cd5a448.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.00s
+
+     Running tests\i07c_mutant_projection_scale.rs 
+(target\debug\deps\i07c_mutant_projection_scale-c411fe63465cb7df.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests\i07c_mutation_depth.rs (target\debug\deps\i07c_mutation_depth-30530e989262ce41.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+     Running tests\i07c_mutation_regressions.rs (target\debug\deps\i07c_mutation_regressions-237bce3c94067c7f.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 67 filtered out; finished in 0.00s
+
+     Running tests\i07c_normative_survivors.rs (target\debug\deps\i07c_normative_survivors-9f48af6e93333265.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 7 filtered out; finished in 0.00s
+
+     Running tests\i07c_pending_nominal_domain.rs (target\debug\deps\i07c_pending_nominal_domain-4c192fd27d148028.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 38 filtered out; finished in 0.00s
+
+     Running tests\i07c_rd_conformidad.rs (target\debug\deps\i07c_rd_conformidad-887692741c14f09e.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests\i08.rs (target\debug\deps\i08-6d243feb64792fcc.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 22 filtered out; finished in 0.00s
+
+     Running tests\i08_campaign.rs (target\debug\deps\i08_campaign-97da060440d2ddcf.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+     Running tests\i08_robustness.rs (target\debug\deps\i08_robustness-a1e2ea7adc17cd73.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+     Running tests\i09_campaign.rs (target\debug\deps\i09_campaign-12146aa208f60968.exe)
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+

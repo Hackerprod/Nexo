@@ -180,19 +180,25 @@ pub enum Type {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WithClause {
-    Simple(Vec<String>),
+    Simple(Vec<Restriction>),
     Operations(Vec<OperationLimit>),
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Restriction {
+    pub name: String,
+    pub span: Span,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct OperationLimit {
     pub name: String,
-    pub restrictions: Vec<String>,
+    pub restrictions: Vec<Restriction>,
     pub span: Span,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Block {
     pub statements: Vec<Statement>,
     pub span: Span,
+    pub close_span: Span,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement {
@@ -1189,7 +1195,7 @@ impl Parser<'_> {
             Ok(WithClause::Simple(restrictions))
         }
     }
-    fn restrictions(&mut self) -> Result<Vec<String>, Box<Diagnostic>> {
+    fn restrictions(&mut self) -> Result<Vec<Restriction>, Box<Diagnostic>> {
         let start = self.peek().span.start as usize;
         let mut items: Vec<Token> = Vec::new();
         loop {
@@ -1222,7 +1228,13 @@ impl Parser<'_> {
         if items.len() > 1 && items.iter().any(|x| x.text == "unrestricted") {
             return Err(self.with_error("unrestricted_mixed", self.span(start, self.prev_end())));
         }
-        Ok(items.into_iter().map(|x| x.text).collect())
+        Ok(items
+            .into_iter()
+            .map(|token| Restriction {
+                name: token.text,
+                span: token.span,
+            })
+            .collect())
     }
     fn with_error(&self, subcause: &str, span: Span) -> Box<Diagnostic> {
         let mut d = self.base("NX-E0417", Stage::Parse, span, "Invalid with clause.");
@@ -1367,13 +1379,15 @@ impl Parser<'_> {
         if self.eof() && ss.is_empty() {
             return Err(self.err("block_item", BLOCK_NEXT, st, None));
         }
-        let end = self.peek().span.end as usize;
+        let close = self.peek().span.clone();
+        let end = close.end as usize;
         self.expect("}", "grammar.Block", BLOCK_NEXT, st)?;
         self.depth -= 1;
         self.local_scopes.pop();
         Ok(Block {
             statements: ss,
             span: self.span(st, end),
+            close_span: close,
         })
     }
     fn statement(
@@ -2088,7 +2102,12 @@ impl Parser<'_> {
                             value: Some(operand),
                             span: span.clone(),
                         }],
-                        span,
+                        span: span.clone(),
+                        close_span: Span {
+                            file: span.file.clone(),
+                            start: span.end,
+                            end: span.end,
+                        },
                     })
                 }
             };
@@ -2163,7 +2182,12 @@ impl Parser<'_> {
                 value: Some(operand),
                 span: span.clone(),
             }],
-            span,
+            span: span.clone(),
+            close_span: Span {
+                file: span.file.clone(),
+                start: span.end,
+                end: span.end,
+            },
         })
     }
     fn check_expression_height(&self, expr: &Expr) -> Result<(), Box<Diagnostic>> {

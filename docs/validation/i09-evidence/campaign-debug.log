@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.87s
+     Running tests\i09_campaign.rs (target\debug\deps\i09_campaign-12146aa208f60968.exe)
+
+running 1 test
+test typed_effect_programs_keep_contracts_and_transitive_summaries has been running for over 60 seconds
+seed=10495373245766874321 count=100000 negative=86473 families=[6785, 6638, 6554, 6725, 6707, 6714, 6656, 6663, 6674, 6579, 6669, 6582, 6728, 6742, 6584]
+test typed_effect_programs_keep_contracts_and_transitive_summaries ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 60.83s
+

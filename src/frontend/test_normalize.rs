@@ -75,6 +75,9 @@ fn erase_block_spans(block: &mut Block) {
     block.span.file.clear();
     block.span.start = 0;
     block.span.end = 0;
+    block.close_span.file.clear();
+    block.close_span.start = 0;
+    block.close_span.end = 0;
     for statement in &mut block.statements {
         erase_statement_spans(statement);
     }
@@ -144,12 +147,27 @@ pub(crate) fn ast_without_spans(mut ast: Ast) -> Ast {
             parameter.span.start = 0;
             parameter.span.end = 0;
         }
-        if let Some(WithClause::Operations(operations)) = &mut function.with_clause {
-            for operation in operations {
-                operation.span.file.clear();
-                operation.span.start = 0;
-                operation.span.end = 0;
+        match &mut function.with_clause {
+            Some(WithClause::Simple(items)) => {
+                for item in items {
+                    item.span.file.clear();
+                    item.span.start = 0;
+                    item.span.end = 0;
+                }
             }
+            Some(WithClause::Operations(operations)) => {
+                for operation in operations {
+                    operation.span.file.clear();
+                    operation.span.start = 0;
+                    operation.span.end = 0;
+                    for restriction in &mut operation.restrictions {
+                        restriction.span.file.clear();
+                        restriction.span.start = 0;
+                        restriction.span.end = 0;
+                    }
+                }
+            }
+            None => {}
         }
         erase_block_spans(&mut function.body);
     }

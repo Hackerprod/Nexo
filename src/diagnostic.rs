@@ -2039,9 +2039,9 @@ struct FeatureFixture {
 static FEATURE_FIXTURES: &[FeatureFixture] = &[
     FeatureFixture {
         id: "implementation_limit",
-        description: "Capacidad pendiente de implementación en I09, I10a, I10b o I11a.",
-        negative: "fn Main() with no_io{}",
-        repair: "Quitar la cláusula with hasta completar I09",
+        description: "Capacidad pendiente de implementación en I10a, I10b o I11a.",
+        negative: "fn Main(){MockRequest();}",
+        repair: "Quitar MockRequest() mientras I11a siga pendiente",
     },
     FeatureFixture {
         id: "inferred_non_unit_result",
@@ -3694,6 +3694,10 @@ mod tests {
         assert!(!ids.contains(&"legacy_move"));
         assert!(ids.contains(&"implementation_limit"));
         assert!(ids.windows(2).all(|pair| pair[0] != pair[1]));
+        assert_eq!(
+            feature_negative_source("implementation_limit"),
+            "fn Main(){MockRequest();}"
+        );
         let mut d = sample();
         d.profile_id = PROFILE_ID.into();
         d.feature_id = Some("legacy_move".into());

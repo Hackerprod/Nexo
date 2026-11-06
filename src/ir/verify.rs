@@ -48,6 +48,14 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
             }
         }
     }
+    if program
+        .functions
+        .entries
+        .iter()
+        .any(|f| f.effects.is_some())
+    {
+        super::effects::verify_metadata(program)?;
+    }
     Ok(())
 }
 pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
@@ -145,6 +153,12 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             active[local.0] = active[local.0].checked_sub(1).ok_or("borrow count")?;
         }
         Ok(ty)
+    };
+    let peek = |id: TempId, defined: &[Ty], live: &[bool]| -> Result<Ty, &'static str> {
+        if !live.get(id.0).copied().ok_or("temporary liveness")? {
+            return Err("temporary used twice");
+        }
+        defined.get(id.0).cloned().ok_or("undefined temporary")
     };
     let valid_span = |span: &crate::diagnostic::Span| {
         span.file == function.source_file
@@ -527,7 +541,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     | Intrinsic::MockBlockingOpen
                     | Intrinsic::Inspect => 1,
                     Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
-                    Intrinsic::Fail => 0,
+                    Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                 };
                 if args.len() != arity {
                     return Err("intrinsic arity");
@@ -540,13 +554,20 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     if let Some(Some(loan)) = loan_id_by_temp.get(first_id.0) {
                         pending_end.push(loan.0);
                     }
-                    let first = take(
-                        *first_id,
-                        &temps,
-                        &mut live,
-                        &borrow_sources,
-                        &mut active_borrows,
-                    )?;
+                    let first_is_read = *intrinsic == Intrinsic::Inspect
+                        && !borrowed.get(first_id.0).copied().unwrap_or(false)
+                        && temps[first_id.0].has_resource_destructor();
+                    let first = if first_is_read {
+                        peek(*first_id, &temps, &live)?
+                    } else {
+                        take(
+                            *first_id,
+                            &temps,
+                            &mut live,
+                            &borrow_sources,
+                            &mut active_borrows,
+                        )?
+                    };
                     if *intrinsic == Intrinsic::Len && !matches!(first, Ty::Array(_)) {
                         return Err("len domain");
                     }
@@ -567,14 +588,14 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         if let Some(Some(loan)) = loan_id_by_temp.get(args[1].0) {
                             pending_end.push(loan.0);
                         }
-                        if take(
+                        let second = take(
                             args[1],
                             &temps,
                             &mut live,
                             &borrow_sources,
                             &mut active_borrows,
-                        )? != first
-                        {
+                        )?;
+                        if second != first {
                             return Err("assert type");
                         }
                         if !first.copyable() {
@@ -1675,7 +1696,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         | Intrinsic::MockBlockingOpen
                         | Intrinsic::Inspect => 1,
                         Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
-                        Intrinsic::Fail => 0,
+                        Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                     };
                     if args.len() != arity {
                         return Err("intrinsic arity");
@@ -1689,7 +1710,12 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         if let Some(loan) = temps.info(*id)?.loan {
                             temps.pending_end.push(loan);
                         }
-                        Some(temps.read(*id, true)?)
+                        let borrowed = temps.info(*id)?.borrowed_from.is_some()
+                            || temps.info(*id)?.exclusive_root.is_some();
+                        let owned_resource_read = *intrinsic == Intrinsic::Inspect
+                            && !borrowed
+                            && temps.info(*id)?.ty.has_resource_destructor();
+                        Some(temps.read(*id, !owned_resource_read)?)
                     } else {
                         None
                     };
@@ -2776,6 +2802,7 @@ mod tests {
         f.locals.push(super::super::model::Local {
             id,
             name: "y".into(),
+            name_span: f.locals[0].name_span.clone(),
             ty: Ty::I64,
             mutable: false,
             scope: super::super::model::ScopeId(0),

@@ -373,12 +373,10 @@ fn invalid_assignment_root_and_deferred_selector_reject_before_lowering() {
 #[test]
 fn pending_capabilities_have_exact_diagnostic_fields_and_valid_inverse() {
     for (source, scope, span) in [
-        ("fn Main() with no_io{}", "I09", (10, 20)),
         ("fn Main(){MockRequest();}", "I11a", (10, 21)),
         ("fn Main(){MockReadRecords(MockOpen(1));}", "I11a", (10, 25)),
         ("fn Main(){MockWriteI64(1);}", "I11a", (10, 22)),
         ("fn Main(){MockReply(1);}", "I11a", (10, 19)),
-        ("fn Main(){MockUnknown();}", "I09", (10, 21)),
     ] {
         let errors = rejected(source);
         assert_eq!(errors.len(), 1, "{source}");

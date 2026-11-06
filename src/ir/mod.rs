@@ -1,4 +1,5 @@
 //! Isolated F0-0002 IR and scalar lowering.
+mod effects;
 mod lower;
 pub mod model;
 mod ownership_flow;

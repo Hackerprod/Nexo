@@ -32,6 +32,15 @@ pub enum Ty {
     MockBlockingResource,
 }
 impl Ty {
+    pub fn has_resource_destructor(&self) -> bool {
+        match self {
+            Self::MockResource | Self::MockBlockingResource => true,
+            Self::Result(ok, err) => ok.has_resource_destructor() || err.has_resource_destructor(),
+            Self::Array(inner) => inner.has_resource_destructor(),
+            Self::Never | Self::I64 | Self::Bool | Self::Unit => false,
+        }
+    }
+
     pub fn copyable(&self) -> bool {
         match self {
             Self::MockResource | Self::MockBlockingResource => false,
@@ -80,6 +89,7 @@ pub enum Intrinsic {
     MockBlockingOpen,
     Inspect,
     TryAdd,
+    MockUnknown,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParameterMode {
@@ -211,6 +221,7 @@ pub struct BasicBlock {
 pub struct Local {
     pub id: LocalId,
     pub name: String,
+    pub name_span: Span,
     pub ty: Ty,
     pub mutable: bool,
     pub scope: ScopeId,
@@ -233,6 +244,35 @@ pub struct Function {
     pub blocks: Vec<BasicBlock>,
     pub result: Ty,
     pub cleanup: Vec<LocalId>,
+    /// Filled by the post-ownership effects pass before an artifact is sealed.
+    pub effects: Option<EffectSummary>,
+    /// Control-flow exits recorded by lowering and consumed by effect analysis.
+    pub exit_info: Vec<ExitInfo>,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct EffectSummary {
+    pub known: u8,
+    pub unknown: u8,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ExitClass {
+    Fallthrough,
+    Return,
+    Try,
+    Fail,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ExitInfo {
+    pub class: ExitClass,
+    pub block: BlockId,
+    /// Instruction index for operation exits; `instructions.len()` for terminators.
+    pub index: usize,
+    pub span: Span,
+    pub live_locals: Vec<LocalId>,
+    pub definitely_dropped: Vec<LocalId>,
 }
 #[derive(Clone, Debug)]
 pub struct FunctionTable {
@@ -522,6 +562,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Intrinsic::MockBlockingOpen => 7,
                         Intrinsic::Inspect => 8,
                         Intrinsic::TryAdd => 9,
+                        Intrinsic::MockUnknown => 10,
                     });
                     number(&mut bytes, args.len());
                     for id in args {

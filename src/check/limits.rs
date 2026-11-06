@@ -15,10 +15,9 @@ impl Candidate {
     fn order(&self) -> (u64, u8) {
         let rank = match self.scope {
             "I08" => 0,
-            "I09" => 1,
-            "I10a" => 2,
-            "I10b" => 3,
-            "I11a" => 4,
+            "I10a" => 1,
+            "I10b" => 2,
+            "I11a" => 3,
             _ => unreachable!(),
         };
         (self.span.start, rank)
@@ -37,29 +36,6 @@ pub(super) fn first_pending(
     };
     let mut found = Vec::new();
     for function in &ast.functions {
-        if function.with_clause.is_some()
-            && let Some(with) = tokens.iter().find(|t| {
-                t.text == "with"
-                    && t.span.start >= function.name_span.end
-                    && t.span.end <= function.body.span.start
-            })
-        {
-            // `with` itself precedes the body, so `last()` always
-            // finds at least that token; the map_or fallback is unreachable.
-            let end = tokens
-                .iter()
-                .take_while(|t| t.span.start < function.body.span.start)
-                .last()
-                .map_or(with.span.end, |t| t.span.end);
-            found.push(Candidate {
-                span: Span {
-                    file: file.into(),
-                    start: with.span.start,
-                    end,
-                },
-                scope: "I09",
-            });
-        }
         collect_block(&function.body, &tokens, resolved, &mut found);
     }
     let candidate = found.into_iter().min_by_key(Candidate::order)?;
@@ -164,7 +140,6 @@ fn collect_expr(
             }
             if let Expr::Name(name, span) = unwrapped {
                 let scope = match name.as_str() {
-                    "MockUnknown" => Some("I09"),
                     "MockReadRecords" | "MockWriteI64" | "MockRequest" | "MockReply" => {
                         Some("I11a")
                     }

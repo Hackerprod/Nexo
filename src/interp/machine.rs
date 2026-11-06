@@ -828,6 +828,7 @@ impl Machine {
                         if !self.tick(2, &ins.span) {
                             break;
                         } // resolved target name and intrinsic entry
+                        let argument_ids = args.clone();
                         let mut values = Vec::with_capacity(args.len());
                         for id in args {
                             values.push(Self::take(&mut temps, *id)?);
@@ -880,7 +881,7 @@ impl Machine {
                                 }
                                 Value::Unit
                             }
-                            Intrinsic::DropData => Value::Unit,
+                            Intrinsic::DropData | Intrinsic::MockUnknown => Value::Unit,
                             Intrinsic::Fail => {
                                 self.fault("R0301", &ins.span, vec![]);
                                 break;
@@ -979,9 +980,14 @@ impl Machine {
                                 result
                             }
                         };
-                        for v in values.into_iter().rev() {
-                            if matches!(&v, TempValue::Own(value) if value.owns_resource()) {
-                                self.dispose(v.into_owned()?)?;
+                        for (id, value) in argument_ids.into_iter().zip(values).rev() {
+                            if *intrinsic == Intrinsic::Inspect
+                                && matches!(&value, TempValue::Own(owned) if owned.owns_resource())
+                            {
+                                temps.insert(id.0, Some(value));
+                            } else if matches!(&value, TempValue::Own(owned) if owned.owns_resource())
+                            {
+                                self.dispose(value.into_owned()?)?;
                             }
                         }
                         if *intrinsic != Intrinsic::Print
@@ -1591,5 +1597,17 @@ mod tests {
         assert!(m.log.events().is_empty());
         assert_eq!(m.log.reserved_bytes(), 0);
         assert_eq!(m.cells, 0);
+    }
+
+    #[test]
+    fn mock_unknown_is_runtime_unit_without_events_or_faults() {
+        let program = crate::ir::compile_scalar("limits.n", "fn Main(){MockUnknown();}").unwrap();
+        let mut machine = machine();
+        machine
+            .run(program.functions().function("Main").unwrap())
+            .unwrap();
+        assert!(machine.fault.is_none());
+        assert!(machine.log.events().is_empty());
+        assert_eq!(machine.cells, 0);
     }
 }

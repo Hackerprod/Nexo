@@ -1,0 +1,1572 @@
+    Finished `release` profile [optimized] target(s) in 0.01s
+     Running unittests src\lib.rs 
+([clon/target aislado])
+
+running 1078 tests
+test check::names::tests::function_scope_restores_preexisting_resolver_state ... ok
+test check::tests::both_result_variants_must_be_copyable_for_equality ... ok
+test check::tests::adr_gap_explicit_empty_return_uses_keyword_primary ... ok
+test check::tests::adr_gap_inout_to_ordinary_parameter_uses_place_primary ... ok
+test check::tests::adr_gap_array_element_mismatch_uses_element_primary_and_whole_annotation_context ... ok
+test check::tests::adr_gap_duplicate_named_after_positional_relates_first_value ... ok
+test check::tests::adr_gap_non_name_call_target_uses_whole_target_span ... ok
+test check::tests::adr_gap_primitive_domain_primary_is_first_offending_argument ... ok
+test check::tests::branch_restores_dependency_taint_after_invalid_return_expression ... ok
+test check::tests::all_preparsed_names_are_resolved_by_lexical_position ... ok
+test check::tests::adr_gap_grouped_absent_target_keeps_call_target_use_kind ... ok
+test check::tests::array_visits_second_element_after_first_type_error ... ok
+test check::tests::array_conflict_types_keep_the_outer_constructor_in_checker_diagnostics ... ok
+test check::tests::adr_gap_result_constructor_payload_label_is_v ... ok
+test check::tests::branch_without_value_waits_for_flow_analysis ... ok
+test check::tests::array_element_context_and_empty_array_inference_are_independent ... ok
+test check::tests::annotation_parameter_and_assignment_contexts_report_concrete_types ... ok
+test check::tests::argument_labels_select_types_without_changing_written_diagnostic_order ... ok
+test check::tests::adr_gap_parser_depth_bounds_semantic_guard_for_accepted_blocks ... ok
+test check::tests::absent_value_and_call_target_use_distinct_kinds ... ok
+test check::tests::contextual_move_name_and_reserved_async_have_distinct_results ... ok
+test check::tests::all_never_array_keeps_constructor_and_live_index_remains_concrete ... ok
+test check::tests::deferred_equality_preserves_the_left_concrete_origin ... ok
+test check::tests::annotation_closing_angles_exclude_assignment_equals ... ok
+test check::tests::adr_gap_function_name_is_not_an_assignable_place ... ok
+test check::tests::direct_checker_checks_child_of_unavailable_try_operator ... ok
+test check::tests::conditions_require_bool_and_assignment_keeps_written_type_origin ... ok
+test check::tests::deferred_equality_does_not_force_numeric_right_operand ... ok
+test check::tests::duplicate_function_body_is_not_resolved_but_other_functions_are ... ok
+test check::tests::branch_values_synthesize_without_context_and_use_written_return_context ... ok
+test check::tests::conditional_selector_constraint_blames_the_later_conflicting_value ... ok
+test check::tests::a_returning_if_branch_does_not_contribute_a_value_type ... ok
+test check::tests::arithmetic_and_intrinsic_arguments_fail_in_written_order ... ok
+test check::tests::deferred_array_binding_reports_the_incompatible_leaf_and_concrete_origin ... ok
+test check::tests::binary_and_collection_siblings_keep_both_independent_type_errors ... ok
+test check::tests::else_if_type_union_uses_first_normal_continuation ... ok
+test check::tests::divergent_binding_read_preserves_unresolved_inference ... ok
+test check::tests::expression_if_checks_value_context_after_an_independent_binding_error ... ok
+test check::tests::expression_if_resets_taint_before_independent_branch_value ... ok
+test check::tests::comparisons_use_right_operand_for_mismatch_and_operator_for_domain ... ok
+test check::tests::duplicate_binding_and_inner_shadowing_are_lexical ... ok
+test check::tests::deferred_array_conflicts_keep_the_complete_source_operand_type ... ok
+test check::tests::empty_array_needs_a_resolvable_element_context ... ok
+test check::tests::failed_resource_array_constructor_does_not_cascade ... ok
+test check::tests::expression_if_keeps_independent_later_type_error_after_branch_binding_error ... ok
+test check::tests::expression_if_restores_taint_from_outer_invalid_binding ... ok
+test check::tests::expression_if_collects_independent_statement_type_errors ... ok
+test check::tests::entry_check_is_separate_from_module_check ... ok
+test check::tests::expression_if_condition_requires_bool ... ok
+test check::tests::heterogeneous_array_uses_first_element_as_expected_type_origin ... ok
+test check::tests::divergent_left_keeps_independent_numeric_operand_sites ... ok
+test check::tests::indexed_empty_array_element_requires_copyable_data ... ok
+test check::tests::comparison_with_divergent_right_marks_operator_for_invalid_bool_left ... ok
+test check::tests::invalid_binding_suppresses_dependent_type_cascade ... ok
+test check::tests::function_signatures_are_registered_before_bodies_and_duplicates_keep_first_site ... ok
+test check::tests::index_and_intrinsic_domains_are_typed_after_resolution ... ok
+test check::tests::expression_if_with_only_returning_branches_has_no_invented_unit_type ... ok
+test check::tests::if_else_scope_does_not_erase_outer_binding ... ok
+test check::tests::independent_call_arguments_are_reported_without_dependent_binding_cascades ... ok
+test check::tests::isolated_edit_is_a_parse_diagnostic_in_check ... ok
+test check::tests::failed_pending_domain_withholds_its_nominal_result_from_consumers ... ok
+test check::tests::invalid_first_call_argument_preserves_independent_second_argument ... ok
+test check::tests::inner_scopes_restore_outer_types_and_callability ... ok
+test check::tests::len_uses_manifest_label_a ... ok
+test check::tests::empty_written_return_uses_keyword_and_terminating_newline_delimiter ... ok
+test check::tests::integer_boundaries_are_signed_i64 ... ok
+test check::tests::intrinsic_data_and_index_domains_reject_wrong_types ... ok
+test check::tests::main_signature_context_ends_at_last_signature_token ... ok
+test check::tests::main_result_is_unit_or_result_unit_i64 ... ok
+test check::tests::independent_diagnostics_are_sorted_and_invalid_call_descendants_are_skipped ... ok
+test check::tests::missing_argument_points_to_target_after_other_written_arguments ... ok
+test check::tests::intrinsic_drop_rejects_projected_owner_but_user_drop_can_read_it ... ok
+test check::tests::later_boolean_comparison_cannot_replace_an_intrinsically_fixed_integer_alias ... ok
+test check::tests::missing_arguments_follow_declaration_order_and_point_to_missing_parameter ... ok
+test check::tests::mode_uses_associated_parameter_not_first_parameter ... ok
+test check::tests::local_shadowing_blocks_calls_to_module_and_prelude_functions ... ok
+test check::tests::names_inside_statement_then_and_expression_else_if_are_resolved ... ok
+test check::tests::mode_defect_precedes_missing_or_excess_arguments ... ok
+test check::tests::names_errors_precede_arguments_and_independent_sites_accumulate ... ok
+test check::tests::non_callable_expression_target_has_no_binding_declaration ... ok
+test check::tests::mode_is_checked_during_left_to_right_association ... ok
+test check::tests::operand_and_operator_spans_survive_trivia ... ok
+test check::tests::operator_span_ignores_matching_text_in_comments ... ok
+test check::tests::nested_function_and_intrinsic_values_reject_during_name_resolution ... ok
+test check::tests::ordinary_parameters_reject_explicit_inout_mode ... ok
+test check::tests::nested_pending_nominal_result_has_executable_binding_type ... ok
+test check::tests::pending_projection_call_result_has_executable_binding_type ... ok
+test check::tests::pending_projections_reach_a_fixed_point_across_source_order ... ok
+test check::tests::positional_after_multiple_named_arguments_relates_first_label ... ok
+test check::tests::nested_calls_and_arrays_collect_each_independent_type_site ... ok
+test check::tests::resolver_rejects_function_values_inside_arrays_and_indexes ... ok
+test check::tests::parameter_and_body_binding_share_initial_scope_but_child_block_shadows ... ok
+test check::tests::prelude_functions_cannot_be_read_as_values ... ok
+test check::tests::selector_internal_errors_survive_non_array_base ... ok
+test check::tests::returning_if_binding_can_flow_into_arithmetic_and_nested_arms ... ok
+test check::tests::registration_errors_keep_independent_body_errors_in_names_stage ... ok
+test check::tests::resource_arrays_are_rejected_after_alias_resolution_and_in_written_types ... ok
+test check::tests::semantic_passes_run_on_a_512_kib_caller_stack ... ok
+test check::tests::resource_primitive_domains_match_manifest ... ok
+test check::tests::published_comparison_diagnostics_have_exact_related_locations_and_data ... ok
+test check::tests::selector_equality_error_survives_non_array_base ... ok
+test check::tests::tainted_left_does_not_suppress_direct_error_on_right ... ok
+test check::tests::try_operator_requires_result_function ... ok
+test check::tests::try_result_type_requires_result_context ... ok
+test check::tests::structural_binding_checks_missing_excess_unknown_duplicate_and_order ... ok
+test check::tests::type_errors_sort_across_operands_statements_arguments_and_functions ... ok
+test check::tests::unit_function_accepts_empty_return_and_written_unit ... ok
+test check::tests::unresolved_heterogeneous_array_cannot_offer_a_type_to_its_annotation ... ok
+test check::tests::unresolved_result_constructor_uses_whole_call_and_known_context ... ok
+test check::tests::unresolved_array_obligations_follow_each_causal_constructor ... ok
+test check::types::i07c_quota_property::reduced_quota_property ... ignored
+test check::tests::written_result_types_remain_whole_for_comparison_domains ... ok
+test check::types::quota_tests::adr_gap_shape_walk_charge_per_constructor_link ... ok
+test check::types::quota_tests::cached_arrays_charge_every_logical_pair_at_the_reduced_limit ... ok
+test check::types::quota_tests::concrete_array_cache_keys_both_operands_and_charges_a_cached_constraint ... ok
+test check::types::quota_tests::concrete_arrays_record_divergence_only_from_never_elements ... ok
+test check::types::quota_tests::adr_gap_union_charge_at_the_exact_reduced_boundary ... ok
+test check::tests::written_parameter_result_and_assignment_type_spans_exclude_trivia ... ok
+test check::types::quota_tests::concrete_deferred_branch_join_reports_branch_mismatch ... ok
+test check::tests::written_argument_defects_precede_missing_slots ... ok
+test check::tests::written_return_and_empty_return_newline_use_expected_type ... ok
+test check::types::quota_tests::conflicting_union_reports_the_earliest_concrete_origin ... ok
+test check::tests::unicode_comment_and_crlf_preserve_absent_name_byte_spans ... ok
+test check::types::quota_tests::constructor_walk_keeps_exact_depth_boundaries ... ok
+test check::types::quota_tests::contextual_array_charges_each_leaf_once_at_the_reduced_boundary ... ok
+test check::tests::manifest_primitives_accept_only_their_written_labels_and_results ... ok
+test check::tests::written_unit_annotation_checks_unit_literal_type ... ok
+test check::types::quota_tests::contextual_all_divergent_if_retains_expected_type_and_divergence ... ok
+test check::types::quota_tests::contextual_group_and_if_charge_only_their_value_operands ... ok
+test check::tests::written_type_spans_end_at_type_tokens_after_trivia ... ok
+test check::types::quota_tests::deferred_alias_union_charges_the_written_conflict_site ... ok
+test check::types::quota_tests::deferred_array_selector_keeps_exact_quota_charge_site ... ok
+test check::types::quota_tests::deferred_assert_eq_copyability_uses_first_operand_at_quota_boundary ... ok
+test check::types::quota_tests::deferred_if_join_charges_the_reduced_boundary ... ok
+test check::types::quota_tests::deferred_result_components_and_structural_array_elements_resolve_separately ... ok
+test check::types::quota_tests::deferred_visible_conversion_and_constructor_walk_stop_at_their_boundaries ... ok
+test check::types::quota_tests::existing_array_domain_and_occurs_walk_charge_at_the_reduced_limit ... ok
+test check::types::quota_tests::diagnostic_site_ownership_survives_distinct_causes_and_preserves_siblings ... ok
+test check::types::quota_tests::failed_deferred_array_element_keeps_constraint_for_later_elements ... ok
+test check::types::quota_tests::generated_multifunction_quota_has_one_denied_charge_and_exact_prefix ... ignored, three-function reduced type-solver quota campaign
+test check::types::quota_tests::failed_branch_join_keeps_reduced_quota_error_prefix ... ok
+test check::types::quota_tests::inferred_array_depth_accepts_127_and_128_and_rejects_129 ... ok
+test check::types::quota_tests::inferred_array_root_retains_depth_origin_after_later_constraint ... ok
+test check::types::quota_tests::monomorphic_solution_is_invariant_under_constraint_permutations ... ok
+test check::types::quota_tests::inout_value_delegates_one_contextual_pair_to_its_operand ... ok
+test check::types::quota_tests::nested_array_value_keeps_one_global_quota_error ... ok
+test check::types::quota_tests::nested_copyable_check_charges_each_recursive_child ... ok
+test check::types::quota_tests::non_result_try_is_rejected_at_the_expression_boundary ... ok
+test check::types::quota_tests::nested_unification_charges_each_array_pair_at_the_reduced_boundary ... ok
+test check::types::quota_tests::operand_evidence_survives_nested_pending_repartition ... ok
+test check::types::quota_tests::overlapping_type_origins_choose_the_earlier_start ... ok
+test check::types::quota_tests::nested_divergent_branch_contributes_no_normal_type_under_context ... ok
+test check::types::quota_tests::partial_type_table_preserves_never_and_taint_states ... ok
+test check::types::quota_tests::right_hand_bottom_and_taint_keep_their_algebraic_states ... ok
+test check::types::quota_tests::reduced_quota_withholds_consumer_of_unclosed_binary_domain ... ok
+test check::types::quota_tests::reduced_type_solver_profile_keeps_exact_converged_subset ... ok
+test check::types::quota_tests::solver_charges_the_final_granted_unit_and_reports_one_rejected_unit ... ok
+test check::types::quota_tests::solver_states_and_representatives_keep_their_distinct_rules ... ok
+test check::types::quota_tests::union_reports_resolved_array_constructor_in_both_root_orders ... ok
+test check::types::quota_tests::union_retains_earliest_concrete_origin_and_copyable_domain ... ok
+test check::types::quota_tests::unresolved_constructor_pair_is_rechecked_after_its_child_resolves ... ok
+test check::types::quota_tests::union_preserves_bottom_marker_from_either_representative ... ok
+test check::types::quota_tests::union_selects_earlier_origin_by_start_even_when_spans_overlap ... ok
+test check::types::quota_tests::unresolved_expected_type_waits_and_unchecked_group_preserves_its_leaf ... ok
+test check::types::quota_tests::tainted_array_stops_after_the_first_denied_charge ... ok
+test check::types::quota_tests::visible_conversion_keeps_internal_states_out_of_diagnostics ... ok
+test diagnostic::tests::b_feature_catalog_excludes_legacy_and_validates_limit_scope ... ok
+test diagnostic::tests::b_profiles_are_official_and_exact ... ok
+test diagnostic::tests::json_key_order_is_fixed_by_the_serialized_schema ... ok
+test diagnostic::tests::json_strings_escape_required_controls_but_keep_del_and_c1_unicode ... ok
+test diagnostic::tests::missing_terminator_text_uses_published_lines_and_canonical_json ... ok
+test diagnostic::tests::nx_json_matches_published_fixture_and_has_all_keys ... ok
+test diagnostic::tests::rejects_invalid_unicode_boundary_and_unregistered_vocab ... ok
+test diagnostic::tests::runtime_schema_uses_its_closed_namespace_and_vocabulary ... ok
+test diagnostic::tests::text_uses_lexicographic_json_keys_for_related_cause_and_data ... ok
+test diagnostic::tests::invalid_byte_spans_use_original_input_length ... ok
+test diagnostic::tests::bounded_read_checks_size_before_utf8_and_reports_invalid_byte_range ... ok
+test diagnostic::tests::text_columns_count_unicode_scalars_and_crlf_as_one_line_break ... ok
+test check::types::quota_tests::quota_does_not_hide_converged_later_capability_error ... ok
+test frontend::lex::tests::adr_gap_digit_letter_boundary_is_integer_then_name ... ok
+test check::tests::inferred_type_depth_enforces_array_priority_and_result_value_limit ... ok
+test frontend::lex::tests::adr_gap_whitespace_includes_tab_and_nonbreaking_space ... ok
+test frontend::lex::tests::adr_gap_unclosed_string_stops_before_lf ... ok
+test frontend::lex::tests::block_comment_spelling_is_tokenized_as_b_operators ... ok
+test frontend::lex::tests::comment_ends_at_cr_and_crlf_span_keeps_both_bytes ... ok
+test frontend::lex::tests::decimal_and_single_digit_integer_boundaries_have_exact_sequences ... ok
+test frontend::lex::tests::dot_without_following_digit_stays_a_symbol ... ok
+test frontend::lex::tests::emitted_nx_e0001_has_literal_lexical_contract_and_byte_spans ... ok
+test frontend::lex::tests::incomplete_string_reports_the_full_consumed_lexeme ... ok
+test frontend::lex::tests::minus_is_always_a_separate_symbol_token ... ok
+test frontend::lex::tests::only_published_horizontal_whitespace_is_trivia ... ok
+test frontend::lex::tests::quoted_text_is_opaque_but_escapes_are_closed ... ok
+test frontend::lex::tests::complete_symbol_inventory_and_longest_match_are_tokenized ... ok
+test frontend::lex::tests::reserved_contextual_symbols_and_byte_spans ... ok
+test frontend::lex::tests::identifiers_keywords_literals_comments_and_line_endings_preserve_spans ... ok
+test frontend::lex::tests::arbitrary_bytes_and_truncated_utf8_never_panic ... ok
+test frontend::lex::tests::reserved_word_classes_match_the_closed_adr_lists ... ok
+test frontend::lex::tests::trivia_gap_requires_line_comment_to_end_at_line_or_eof ... ok
+test frontend::lex::tests::migrated_k01_lexical_error_has_literal_fields_and_byte_spans ... ok
+test frontend::lex::tests::underscores_and_contextual_names_are_single_name_tokens ... ok
+test frontend::lex::tests::unicode_digits_and_letters_are_rejected_as_single_utf8_tokens ... ok
+test frontend::lex::tests::decimal_range_and_separated_dot_follow_profile_boundaries ... ok
+test frontend::lex::tests::published_reserved_words_are_keywords_and_modes_stay_contextual ... ok
+test frontend::lex::tests::published_symbol_inventory_uses_longest_match ... ok
+test frontend::migrated_parser_contracts::b_branch_marker_and_scope_repairs_keep_current_boundaries ... ok
+test frontend::migrated_parser_contracts::b_branch_value_negatives_keep_codes_spans_and_related_locations ... ok
+test frontend::lex::tests::lx01_to_lx05_follow_b_lexical_and_parse_boundaries ... ok
+test frontend::migrated_parser_contracts::b_excluded_operators_keep_diagnostic_across_line_breaks ... ok
+test frontend::migrated_parser_contracts::b_empty_operation_list_first_is_independent_of_bad_token ... ok
+test frontend::migrated_parser_contracts::b_function_body_opening_and_structural_closure_follow_production ... ok
+test frontend::migrated_parser_contracts::b_excluded_binary_operator_is_not_repaired_as_terminator ... ok
+test frontend::migrated_parser_contracts::b_feature_recognition_follows_position_and_function_scope ... ok
+test frontend::migrated_parser_contracts::b_incomplete_control_and_postfix_contexts_keep_current_result ... ok
+test frontend::migrated_parser_contracts::b_l05_l06_l07_keep_unit_discard_and_utf8_offsets ... ok
+test frontend::migrated_parser_contracts::b_multiple_signatures_written_types_and_nested_expressions ... ok
+test frontend::migrated_parser_contracts::b_nonterminating_subexpression_follow_keeps_current_result ... ok
+test frontend::migrated_parser_contracts::b_missing_terminator_reports_literal_fields_and_repair ... ok
+test frontend::migrated_parser_contracts::b_nested_if_conditions_finish_on_a_small_debug_stack ... ok
+test frontend::migrated_parser_contracts::b_prefix_place_reports_first_non_place_token ... ok
+test frontend::migrated_parser_contracts::b_nullable_continuations_and_else_if_depth_keep_current_results ... ok
+test frontend::migrated_parser_contracts::b_published_first_table_is_ordered_unique_and_applied ... ok
+test frontend::lex::tests::generated_inputs_preserve_token_span_and_eof_invariants ... ok
+test frontend::migrated_parser_contracts::b_l01_l03_l04_keep_parse_trees_and_byte_spans ... ok
+test frontend::migrated_parser_contracts::feature_scanner_respects_b_token_boundaries_and_comments ... ok
+test frontend::migrated_parser_contracts::b_signature_suffix_has_exact_expected_tokens ... ok
+test frontend::migrated_parser_contracts::b_terminator_repair_uses_expression_end_and_exact_inserted_text ... ok
+test frontend::migrated_parser_contracts::expression_statement_has_no_extra_outer_depth_charge_in_b ... ok
+test frontend::migrated_parser_contracts::b_repeated_and_grouped_modes_classify_after_the_whole_postfix ... ok
+test frontend::migrated_parser_contracts::local_bindings_and_parameters_shadow_function_names_in_b ... ok
+test frontend::migrated_parser_contracts::committed_rhs_keeps_the_inner_first_production_in_b ... ok
+test frontend::migrated_parser_contracts::grouping_does_not_increase_expression_tree_height_in_b ... ok
+test frontend::migrated_parser_contracts::function_value_and_later_syntax_error_priority_stays_explicit_in_b ... ok
+test frontend::migrated_parser_contracts::missing_else_inside_delimiters_precedes_a_later_b_terminator ... ok
+test frontend::migrated_parser_contracts::b_syntax_nesting_limit_has_published_fields ... ok
+test frontend::migrated_parser_contracts::b_split_type_close_and_first_states_have_regressions ... ok
+test frontend::migrated_parser_contracts::nested_while_condition_uses_its_own_b_statement_start ... ok
+test frontend::migrated_parser_contracts::member_selection_keeps_its_feature_across_a_line_break ... ok
+test frontend::migrated_parser_contracts::nullable_return_and_complete_try_at_eof_need_b_terminators ... ok
+test frontend::migrated_parser_contracts::place_requires_a_name_root_through_grouping_and_indexing_in_b ... ok
+test frontend::migrated_parser_contracts::try_after_access_has_no_postfix_continuation_in_b ... ok
+test frontend::migrated_parser_contracts::repeated_mode_prefix_reports_non_place_in_b ... ok
+test frontend::migrated_parser_contracts::else_block_and_else_if_keep_distinct_ast_and_printed_shapes_in_b ... ok
+test frontend::migrated_parser_contracts::statement_local_newlines_do_not_invent_b_source_tokens ... ok
+test frontend::migrated_parser_contracts::unsupported_operator_prefix_starts_at_the_active_b_statement ... ok
+test frontend::migrated_parser_contracts::type_unit_terminal_and_lexical_priority_stay_explicit_in_b ... ok
+test frontend::migrated_parser_final::b_erroneous_tokens_keep_literal_first_sets_of_committed_states ... ok
+test frontend::migrated_parser_contracts::value_colon_uses_one_token_lookahead_at_b_statement_start ... ok
+test frontend::migrated_parser_contracts::b_structural_closures_and_commented_crlf_obey_terminator_boundaries ... ok
+test frontend::migrated_parser_final::b_first_sets_follow_the_committed_production ... ok
+test frontend::migrated_parser_contracts::b_hostile_nesting_in_parens_blocks_arrays_and_types_is_bounded ... ok
+test frontend::migrated_parser_final::b_grammar_first_truncation_rows_keep_sorted_sets_and_byte_prefixes ... ok
+test frontend::migrated_parser_final::b_expression_height_counts_composition_without_precedence_entries ... ok
+test frontend::migrated_parser_final::b_grammar_rejects_trailing_commas_chained_comparisons_and_if_operands ... ok
+test frontend::migrated_parser_contracts::signed_literals_and_operator_precedence_keep_their_ast_shape_in_b ... ok
+test frontend::migrated_parser_final::b_grammar_truncations_cover_nested_production_boundaries ... ok
+test frontend::migrated_parser_contracts::b_with_clause_rows_and_accepted_forms_keep_exact_diagnostics ... ok
+test frontend::migrated_parser_final::b_nested_place_roots_and_program_alternatives_keep_inner_first ... ok
+test frontend::migrated_parser_final::b_published_feature_rows_have_isolated_positive_repairs ... ok
+test frontend::migrated_parser_final::b_published_first_rows_keep_all_literal_diagnostic_fields ... ok
+test frontend::migrated_parser_final::b_related_locations_use_first_duplicate_and_full_crlf_delimiter ... ok
+test frontend::migrated_parser_final::b_logical_syntax_entries_have_boundaries_in_each_operand_position ... ok
+test frontend::migrated_parser_final::b_with_clause_truncations_keep_inner_productions ... ok
+test frontend::parse::b_tests::b_scope_and_syntax_diagnostics_validate ... ok
+test frontend::migrated_parser_final::b_terminator_statement_cases_have_isolated_crlf_and_repair_pairs ... ok
+test frontend::parse::b_tests::b_statement_start_scope_restores_on_success_and_error ... ok
+test frontend::parse::b_tests::type_close_ge_splits_only_inside_a_type ... ok
+test frontend::parse::tests::contextual_value_name_stays_an_ordinary_identifier ... ok
+test frontend::parse::tests::unavailable_parser_worker_has_a_structural_budget_diagnostic ... ok
+test frontend::parse::tests::non_unit_returns_are_found_in_source_order_through_all_branches ... ok
+test frontend::parse::b_tests::parses_shared_ast_and_prints_official_spelling ... ok
+test frontend::migrated_parser_final::b_structural_budgets_have_literal_boundaries_and_diagnostic_fields ... ok
+test frontend::migrated_parser_final::b_excluded_operator_after_nested_statement_keeps_outer_prefix ... ok
+test frontend::tests::accepted_commented_sources_keep_run_result_after_format ... ignored, large accepted commented execution equivalence campaign
+test frontend::rows::later_stage_supplement_rows_keep_the_expected_ast_roots ... ok
+test frontend::rows::literal_branch_and_contract_rows_have_complete_parser_diagnostics ... ok
+test frontend::rows::literal_line_break_row_has_complete_parser_diagnostic ... ok
+test frontend::rows::literal_terminator_rows_and_supplements_have_complete_parser_diagnostics ... ok
+test frontend::rows::partial_transfer_argument_row_has_indexed_ast_pending_cp3 ... ok
+test frontend::parse::tests::lexer_comment_scan_scales_with_source_bytes ... ok
+test frontend::tests::adr_gap_documentary_comment_effect_is_cst_flag_and_cr_association ... ok
+test frontend::tests::adr_gap_public_lexer_emits_one_crlf_newline_token ... ok
+test frontend::tests::adr_gap_edit_outside_admitted_context ... ok
+test frontend::tests::adr_gap_grouped_non_place_points_at_inner_operand ... ok
+test frontend::tests::adr_gap_receiver_call_group_and_try_line_continuation_keep_current_diagnostics ... ok
+test frontend::tests::adr_gap_nested_move_edit_points_at_edit ... ok
+test frontend::tests::adr_gap_return_at_eof_is_missing_terminator ... ok
+test frontend::tests::adr_gap_try_followed_by_index_is_try_expr_syntax ... ok
+test frontend::migrated_parser_contracts::ordinary_names_stay_clear_of_deferred_feature_recognition_in_b ... ok
+test frontend::tests::adr_literal_f2_table_rows_reach_the_published_frontend_boundary ... ok
+test frontend::tests::adr_literal_program_blocks_are_all_accounted_for_at_parse_boundary ... ok
+test frontend::tests::adr_missing_terminators_use_published_byte_offsets ... ok
+test frontend::tests::adr_line_endings_contextual_names_and_branch_values ... ok
+test frontend::tests::adr_scope_rows_use_literal_b_sources_and_offsets ... ok
+test frontend::tests::adr_terminator_diagnostic_matches_complete_published_json ... ok
+test frontend::tests::canonical_printer_groups_a_constructed_lower_precedence_child ... ok
+test frontend::migrated_parser_final::b_excluded_operator_prefix_tracks_active_statement_across_terminators_and_blocks ... ok
+test frontend::migrated_parser_final::b_generated_nested_statements_restore_the_outer_operator_prefix ... ok
+test frontend::tests::commented_crlf_terminators_match_explicit_b_programs ... ok
+test frontend::tests::canonical_structure_keeps_block_boundary_and_comparison_precedence ... ok
+test frontend::migrated_parser_final::b_first_consistency_across_nested_grammar_positions ... ok
+test check::types::quota_tests::generated_constraint_orders_have_the_same_acceptance ... ok
+test frontend::tests::canonical_roles_keep_suffix_contract_and_else_structure ... ok
+test frontend::tests::consecutive_comment_gaps_preserve_canonical_properties ... ignored, consecutive comments across omitted-token gaps
+test frontend::tests::composite_expression_depth_uses_the_published_source_boundary ... ok
+test frontend::tests::comments_after_large_token_prefix_keep_canonical_branch_structure ... ok
+test frontend::tests::adr_large_compact_source_obeys_canonical_reparse_budget ... ok
+test frontend::tests::commented_format_regressions_do_not_panic_or_change_ast ... ok
+test frontend::tests::contextual_modes_labels_and_else_if_keep_distinct_ast_shapes ... ok
+test frontend::tests::adr_inference_and_placement_rows_parse_the_literal_b_sources ... ok
+test frontend::tests::edit_cannot_become_a_call_or_index_target ... ok
+test frontend::tests::every_concrete_gap_preserves_comments_and_tree ... ignored, systematic F0 comment gap campaign
+test frontend::tests::every_terminated_statement_ends_at_its_last_token_before_trivia ... ok
+test frontend::tests::comments_in_branches_and_blocks_reparse_and_stabilize ... ok
+test frontend::tests::canonical_assignment_places_nested_branches_and_written_groups ... ok
+test frontend::tests::constructed_selection_operand_gets_required_parentheses ... ok
+test frontend::tests::canonical_formatter_keeps_branch_terminators_and_structural_spacing ... ok
+test frontend::tests::first_sets_and_excluded_operators_match_published_literals ... ok
+test frontend::tests::cst_token_identity_owns_each_comment_once ... ok
+test frontend::tests::cst_formatter_keeps_comments_and_normalized_ast ... ok
+test frontend::tests::constructed_binary_children_and_selection_statement_are_grouped ... ok
+test frontend::tests::formatter_preserves_comments_after_compact_if_expansion ... ok
+test frontend::tests::formatter_moves_intertoken_comment_without_trailing_spaces ... ok
+test frontend::tests::generated_assignment_places_and_comments_preserve_canonical_tree ... ignored, large assignment and comment matrix
+test frontend::tests::generated_comment_positions_preserve_ast_order_and_idempotence ... ignored, large directed comment campaign
+test frontend::tests::generated_valid_programs_round_trip ... ignored, campaña extensa de ida y vuelta; ejecutar en batería medida
+test frontend::tests::formatter_abbreviates_only_branches_without_attached_comments ... ok
+test frontend::tests::explicit_surface_boundaries_and_printer_rules ... ok
+test frontend::tests::accepted_b_ast_round_trips_without_source_spans ... ok
+test frontend::tests::b_terminator_productions_and_continuations_keep_their_line_boundaries ... ok
+test frontend::tests::independent_comment_trims_only_horizontal_tail ... ok
+test frontend::tests::mutated_bytes_and_tokens_never_panic_or_emit_invalid_diagnostics ... ignored, campaña extensa de bytes y tokens; ejecutar en batería medida
+test frontend::parse::tests::adversarial_inputs_preserve_parser_diagnostic_validity ... ok
+test frontend::tests::non_final_value_span_ends_at_actual_colon_with_unicode_space ... ok
+test frontend::tests::line_endings_and_utf8_comments_preserve_byte_coordinates ... ok
+test frontend::tests::inserted_terminator_span_stops_before_comment_and_newline ... ok
+test frontend::tests::omitted_else_parenthesis_comment_gaps_stabilize ... ignored, else parentheses and comment gap campaign
+test frontend::tests::omitted_token_generated_programs ... ignored, generated token-origin campaign
+test frontend::tests::consecutive_comments_at_omitted_else_parentheses_keep_source_order ... ok
+test frontend::tests::omitted_token_close_keeps_two_comments_in_source_order ... ok
+test frontend::tests::fused_sign_digit_comments_stay_after_return_and_value ... ok
+test frontend::tests::omitted_token_comments_keep_selection_and_terminator ... ok
+test frontend::tests::function_and_parameter_families_scale_linearly ... ok
+test frontend::tests::printer_and_formatter_scale_in_emitted_and_allocated_bytes ... ignored, escala extensa de impresor y formateador; ejecutar en batería medida
+test frontend::tests::published_syntax_rows_have_exact_tokens_spans_and_prefixes ... ok
+test frontend::tests::omitted_else_parentheses_and_comment_order_reach_a_fixed_point ... ok
+test frontend::tests::signed_name_points_at_name_after_minus ... ok
+test frontend::tests::small_stack_child_probe ... ok
+test frontend::tests::signed_integer_cst_identities_keep_adjacent_comments ... ok
+test frontend::tests::split_type_close_keeps_independent_comment_before_assignment ... ok
+test frontend::tests::structural_budget_boundaries_are_exact ... ok
+test frontend::parse::tests::parser_small_source_worker_cost_is_measured ... ok
+test frontend::tests::standalone_comments_before_delimiters_and_eof_keep_following_tokens ... ok
+test frontend::tests::token_sequence_mutations_never_panic_and_accepted_asts_reparse ... ignored, campaña extensa de secuencias de tokens; ejecutar en batería medida
+test frontend::tests::omitted_token_output_contracts ... ok
+test frontend::tests::structural_format_rules_keep_binary_spaces_statement_lines_and_branch_anchors ... ok
+test frontend::tests::type_close_split_and_contextual_delimiters ... ok
+test frontend::tests::unavailable_printer_worker_returns_a_valid_budget_diagnostic ... ok
+test frontend::tests::unicode_horizontal_spaces_separate_b_tokens_without_newline_terminators ... ok
+test interp::machine::tests::cell_boundary_rejects_proposed_occupation_without_committing_it ... ok
+test interp::machine::tests::cell_quota_accepts_occupancy_above_sixty_thousand_below_limit ... ok
+test interp::machine::tests::denied_frame_tick_releases_prepared_owners_in_reverse_and_preserves_borrow ... ok
+test interp::machine::tests::drop_binding_disarms_runtime_slot_before_later_instruction ... ok
+test interp::machine::tests::failed_indexed_write_releases_rhs_and_root_cells ... ok
+test interp::machine::tests::failed_inspection_of_temporary_resource_still_emits_reserved_close ... ok
+test interp::machine::tests::indexed_array_growth_uses_exact_cached_cell_count ... ok
+test interp::machine::tests::indexed_edit_loan_checks_each_index_before_entering_callee ... ok
+test interp::machine::tests::indexed_inout_and_read_have_same_exact_cell_boundary ... ok
+test interp::machine::tests::mock_unknown_is_runtime_unit_without_events_or_faults ... ok
+test interp::machine::tests::ordinary_array_read_shares_storage_but_owner_copy_is_deep ... ok
+test interp::machine::tests::rejected_array_copy_releases_prepared_values_and_all_bindings ... ok
+test interp::machine::tests::rejected_array_header_restores_prepared_element_cell ... ok
+test frontend::tests::explicit_branch_comment_search_scales_by_comparison_count ... ok
+test interp::machine::tests::rejected_close_reservation_restores_new_resource_cell ... ok
+test interp::machine::tests::rejected_open_does_not_emit_acquisition_or_leave_cell ... ok
+test interp::machine::tests::rejected_open_event_releases_prepared_close_reservation ... ok
+test interp::machine::tests::rejected_print_releases_prepared_result_cell_before_cleanup ... ok
+test frontend::tests::written_terminator_after_discarded_else_groups_keeps_its_comment ... ok
+test interp::machine::tests::work_boundary_grants_limit_and_rejects_next_unit_with_exact_fields ... ok
+test interp::observation::tests::output_bytes_include_lf_and_rejected_line_is_atomic ... ok
+test interp::observation::tests::rejected_acquisition_releases_its_close_reservation_exactly ... ok
+test interp::observation::tests::reserved_closure_converts_bytes_without_growth ... ok
+test ir::effects::tests::borrowed_user_call_counts_the_argument_temporary_in_the_caller ... ok
+test frontend::tests::parser_and_printer_survive_small_stacks ... ok
+test ir::effects::tests::borrowed_user_call_skips_borrowed_bindings_but_visits_later_temporaries ... ok
+test ir::effects::tests::call_components_are_strong_and_order_callee_before_caller ... ok
+test ir::effects::tests::borrowed_user_parameter_does_not_own_the_resource ... ok
+test frontend::tests::adr_accepted_corpus_formats_idempotently_with_the_same_normalized_ast ... ok
+test ir::effects::tests::call_restrictions_use_transitive_effect_summaries ... ok
+test ir::effects::tests::caller_component_waits_until_a_later_declared_callee_is_solved ... ok
+test ir::effects::tests::conditional_explicit_drop_does_not_dominate_function_exit ... ok
+test ir::effects::tests::canonical_effect_witness_prefers_shorter_path_and_ascending_offsets ... ok
+test ir::effects::tests::consumed_user_call_does_not_drop_the_transferred_temporary_in_the_caller ... ok
+test ir::effects::tests::definite_drop_propagates_to_nested_cfg_exits ... ok
+test ir::effects::tests::definite_drop_state_propagates_across_cfg_predecessors ... ok
+test ir::effects::tests::exit_info_uses_the_matching_ast_function_for_implicit_returns ... ok
+test ir::effects::tests::exit_population_ignores_out_of_range_cfg_predecessors_without_panicking ... ok
+test ir::effects::tests::distinct_constraints_emit_once_each_and_print_does_not_imply_alloc ... ok
+test ir::effects::tests::explicit_drop_is_not_counted_as_an_implicit_droplocal ... ok
+test ir::effects::tests::explicit_drop_of_result_binding_step_covers_the_whole_call ... ok
+test ir::effects::tests::explicit_temporary_drop_step_covers_the_whole_call ... ok
+test ir::effects::tests::explicit_return_exit_spans_match_their_own_ast_returns ... ok
+test ir::effects::tests::fail_exit_contributes_live_resource_destructor_effects ... ok
+test frontend::tests::unicode_trivia_diagnostic_spans_stay_on_utf8_boundaries ... ok
+test ir::effects::tests::intrinsic_cause_chain_does_not_add_a_duplicate_temporary_destructor ... ok
+test ir::effects::tests::implicit_droplocals_do_not_mark_non_io_cleanup_as_io ... ok
+test ir::effects::tests::known_effect_precedes_shorter_unknown_witness ... ok
+test ir::effects::tests::multiple_droplocals_share_one_verified_block_exit ... ok
+test ir::effects::tests::implicit_droplocal_violates_no_block_at_owner_and_records_cfg_exit ... ok
+test ir::effects::tests::ownership_liveness_propagates_across_cfg_predecessors ... ok
+test ir::effects::tests::no_alloc_counts_array_copies_from_index_and_result_bindings ... ok
+test ir::effects::tests::recursive_call_components_converge_and_keep_known_leaf_witnesses ... ok
+test ir::effects::tests::no_block_counts_owned_temporary_destroyed_after_intrinsic_read ... ok
+test ir::effects::tests::published_effect_fixture_fields_match_the_literal_contract ... ok
+test ir::effects::tests::resource_parameters_are_owned_at_entry_and_dropped_on_exit ... ok
+test ir::effects::tests::result_bindings_keep_the_union_of_destructor_effects ... ok
+test ir::effects::tests::result_resource_drop_uses_the_type_entity_not_a_fallback_value ... ok
+test ir::effects::tests::result_payload_from_try_is_transferred_without_a_false_drop ... ok
+test ir::effects::tests::return_exit_may_start_at_the_return_terminator ... ok
+test ir::effects::tests::scalar_droplocals_share_one_exit_without_ownership_liveness ... ok
+test ir::effects::tests::temporary_destructor_and_dead_tail_have_source_regressions ... ok
+test ir::effects::tests::try_exit_reports_the_owner_contract_and_constructed_exit_spans ... ok
+test ir::effects::tests::try_and_fail_exit_classes_require_operation_anchors ... ok
+test ir::effects::tests::transitive_witness_preserves_call_chain_and_diagnostic_operation ... ok
+test ir::effects::tests::typed_result_temporary_drop_uses_its_ir_variant_evidence ... ok
+test ir::effects::tests::verifier_rejects_a_return_exit_on_a_non_return_terminator ... ok
+test ir::effects::tests::verifier_rejects_a_fallthrough_span_at_source_end ... ok
+test ir::effects::tests::unknown_effects_fail_each_written_restriction_in_code_order ... ok
+test ir::effects::tests::verifier_rejects_an_exit_anchored_to_another_closing_brace ... ok
+test ir::effects::tests::verifier_rejects_an_exit_local_as_both_maybe_owned_and_gone ... ok
+test ir::effects::tests::verify_program_checks_effect_metadata_after_summaries_are_attached ... ok
+test ir::effects::tests::verifier_rejects_missing_known_or_unknown_local_effect_bits ... ok
+test ir::effects::tests::verifier_rejects_missing_known_or_unknown_callee_effect_bits ... ok
+test frontend::tests::origin_and_relocation_guards ... ok
+test frontend::tests::systematic_statement_and_branch_terminators_use_the_canonical_emitter ... ok
+test frontend::migrated_parser_final::b_hostile_chains_return_diagnostics_on_a_small_stack ... ok
+test ir::effects::tests::with_restriction_origin_uses_the_identifier_token_span ... ok
+test ir::i05_tests::adr_gap_index_read_checks_root_before_evaluating_index ... ok
+test ir::effects::tests::witness_search_keeps_small_repeated_call_ladder_canonical ... ok
+test ir::i05_tests::borrowed_owner_temporaries_close_in_reverse_written_order ... ok
+test ir::i05_tests::consumed_and_dropped_binding_causes_use_binding_entity ... ok
+test ir::i05_tests::dead_declaration_keeps_live_name_span_for_later_error ... ok
+test ir::i05_tests::dead_block_consumption_reports_each_later_use ... ok
+test ir::i05_tests::dead_consumed_index_reads_keep_sequential_diagnostics ... ok
+test ir::i05_tests::consumed_index_reads_use_the_actual_local_after_scalars_shadowing_and_parameters ... ok
+test ir::i05_tests::dead_transfer_does_not_change_later_diagnostic_or_execution ... ok
+test ir::i05_tests::dead_reinitialization_keeps_prior_consumption_diagnostic ... ok
+test ir::i05_tests::generated_calls_resources_and_early_returns_match_independent_reference ... ignored, campaña extensa de llamadas y recursos; ejecutar en batería medida
+test ir::i05_tests::i05_call_and_resource_source_families_scale_linearly ... ignored, explicit 256 KiB to 1 MiB measurement
+test ir::i05_tests::i05_large_signature_and_many_functions_scale_linearly ... ignored, explicit 256 KiB to 1 MiB lowering measurement
+test ir::i05_tests::i05_unreachable_and_dense_declarations_scale_across_twelve_families ... ignored, explicit dead-code and dense-declaration compilation measurement
+test ir::i05_tests::entity_ids_follow_declared_kind_and_name_offset ... ok
+test ir::i05_tests::consumed_index_reads_keep_the_complete_ownership_diagnostic ... ok
+test ir::i05_tests::mixed_argument_modes_use_each_declared_slot ... ok
+test ir::i05_tests::failed_argument_cleans_prepared_temporaries_before_locals_in_reverse_order ... ok
+test ir::i05_tests::consumed_bindings_in_every_read_form_never_become_invalid_ir ... ok
+test ir::i05_tests::named_owner_arguments_keep_parameter_slots_and_reverse_callee_cleanup ... ok
+test ir::i05_tests::shadowed_resource_declaration_uses_the_later_token ... ok
+test ir::i05_tests::rejected_frame_entry_closes_two_transfers_in_reverse_argument_order ... ok
+test ir::i06_tests::adr_gap_reborrow_parent_uses_formal_declaration_without_caller_argument ... ok
+test ir::i05_tests::failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors ... ok
+test ir::i05_tests::rejected_frame_entry_does_not_close_borrowed_argument ... ok
+test frontend::tests::long_identifiers_deep_blocks_and_strings_have_linear_work ... ok
+test ir::i06_tests::dense_loan_and_call_sources_scale_across_twelve_families ... ignored, explicit 256 KiB to 1 MiB compilation measurement
+test ir::i06_tests::development_substitution_executes_new_inout_body ... ok
+test ir::i06_tests::conflict_uses_earliest_read_loan_and_releases_nested_loans_only ... ok
+test ir::i05_tests::call_lowering_and_execution_survive_small_caller_stacks ... ok
+test ir::i06_tests::generated_inout_and_copy_programs_match_independent_integer_model ... ignored, campaña extensa de edit y copia; ejecutar en batería medida
+test ir::i06_tests::indexed_assignment_rechecks_owner_consumed_by_rhs ... ok
+test ir::i06_tests::independent_argument_errors_are_collected_without_dependent_cascades ... ok
+test ir::i06_tests::indexed_inout_replacement_restores_nested_value_and_owner ... ok
+test ir::i06_tests::indexed_conflict_primary_covers_complete_place_across_line_endings ... ok
+test ir::i06_tests::indexed_destination_rechecks_after_rhs_call_modifies_root ... ok
+test ir::i06_tests::indexed_write_runs_the_disposal_path_for_replaced_value ... ok
+test ir::i06_tests::indexed_inout_owner_survives_each_callee_runtime_fault ... ok
+test ir::i06_tests::inout_owner_is_restored_on_fault_and_frame_limit ... ok
+test ir::i06_tests::inout_reborrow_returns_modified_value ... ok
+test ir::i06_tests::inout_resource_replacement_preserves_single_owner_and_cleanup_order ... ok
+test ir::i06_tests::loan_permission_is_part_of_function_content_hash ... ok
+test ir::i06_tests::loan_source_fuzz_validates_diagnostics_and_never_panics ... ignored, campaña extensa de fuentes con préstamos; ejecutar en batería medida
+test ir::i06_tests::named_exclusive_loan_keeps_full_argument_origin_in_verified_ir ... ok
+test ir::i06_tests::loan_hash_ignores_source_offsets_and_tracks_permission_and_callee_signature ... ok
+test ir::i06_tests::named_loan_identity_starts_at_argument_label ... ok
+test ir::i06_tests::ordinary_parameter_cannot_grant_an_exclusive_reborrow ... ok
+test ir::i06_tests::loan_compiler_and_interpreter_work_from_small_caller_stacks ... ok
+test ir::i06_tests::published_conflicts_have_exact_identity_data ... ok
+test ir::i06_tests::semantic_loan_fuzz_never_constructs_invalid_ir ... ignored, campaña extensa de préstamos semánticos; ejecutar en batería medida
+test ir::i06_tests::same_call_independent_name_and_type_sites_are_reported ... ok
+test ir::i06_tests::sequential_operands_never_escape_as_invalid_ir ... ignored, structured sequential-operand ownership campaign
+test ir::i06_tests::syntax_mode_and_immutable_place_pairs ... ok
+test ir::i06_tests::reading_during_argument_loans_reports_source_conflict ... ok
+test ir::i06_tests::two_read_loans_of_the_same_root_remain_compatible ... ok
+test ir::i06_tests::verifier_rejects_forged_loan_permissions_and_lifecycle ... ok
+test ir::i06_tests::indexed_inout_does_not_add_live_cells ... ok
+test ir::i06_tests::verifier_rejects_forged_overlapping_roots ... ok
+test ir::i06_tests::indexed_inout_replacement_updates_root_cell_count ... ok
+test ir::i06_tests::verifier_rejects_unavailable_and_misplaced_loans ... ok
+test ir::i07a_tests::adr_gap_missing_final_else_in_chain_marks_nested_if_keyword ... ok
+test ir::i06_tests::verifier_requires_reverse_loan_release_and_parameter_permissions ... ok
+test ir::i07a_tests::all_paths_consumed_reports_every_reaching_site ... ok
+test ir::i07a_tests::all_reaching_consumptions_are_reported_in_source_order ... ok
+test ir::i06_tests::sequential_intrinsic_arguments_hold_place_loans ... ok
+test ir::i07a_tests::analyzed_binary_assignment_records_intrinsic_result_type ... ok
+test ir::i07a_tests::annotated_divergent_binding_reports_its_declared_type ... ok
+test ir::i07a_tests::a_returning_branch_coerces_to_the_other_branch_value_type ... ok
+test ir::i07a_tests::array_of_deferred_reads_preserves_its_array_constructor ... ok
+test ir::i07a_tests::annotated_divergent_bindings_and_binary_results_keep_declared_types ... ok
+test ir::i07a_tests::branch_false_target_and_instruction_type_affect_semantic_hash ... ok
+test ir::i07a_tests::branch_diagnostic_restores_nested_scope_state ... ok
+test ir::i07a_tests::binary_result_type_survives_divergent_operand ... ok
+test ir::i07a_tests::branch_union_type_is_rejected_by_the_checker_before_lowering ... ok
+test ir::i07a_tests::cfg_dense_sources_have_bounded_deterministic_work ... ignored, explicit 256 KiB to 1 MiB CFG work measurement
+test ir::i07a_tests::branch_structure_precedes_type_mismatch_with_divergent_operand ... ok
+test ir::i07a_tests::cfg_later_operands_scale_linearly_in_work_and_allocation ... ignored, explicit 256 KiB to 1 MiB later-operand CFG scale measurement
+test frontend::tests::multi_token_construct_comment_gaps_preserve_execution ... ok
+test ir::i07a_tests::cfg_conditions_are_typed_by_the_checker ... ok
+test ir::i07a_tests::cfg_jump_to_entry_keeps_work_quota_active ... ok
+test ir::i06_tests::valid_pairs_and_permissions ... ok
+test ir::i07a_tests::cfg_verifier_queue_avoids_duplicate_work_for_pending_blocks ... ok
+test ir::i07a_tests::cfg_verifier_rejects_block_identity_exact_end_target_and_unreachable_arm ... ok
+test ir::i07a_tests::cfg_verifier_rejects_bad_edges_branch_type_and_missing_join_definition ... ok
+test ir::i07a_tests::cfg_verifier_rejects_cross_block_temp_duplicate_and_wrong_join_type ... ok
+test ir::i07a_tests::cfg_verifier_rejects_loan_metadata_and_unreleased_loan ... ok
+test ir::i07a_tests::cfg_verifier_rejects_operand_consumed_on_only_one_predecessor ... ok
+test ir::i07a_tests::cfg_verifier_revisits_loop_header_after_backedge_consumes_owner ... ok
+test ir::i07a_tests::cfg_verifier_rejects_orphan_output_on_a_branch ... ok
+test ir::i07a_tests::consumed_divergent_binding_is_checked_when_used_as_read_argument ... ok
+test ir::i07a_tests::consumed_scoped_binding_has_no_second_cleanup_instruction ... ok
+test ir::i07a_tests::dead_binary_placeholder_does_not_change_branch_flow ... ok
+test ir::i07a_tests::dead_analysis_reports_branch_structure_across_expression_positions ... ok
+test ir::i07a_tests::dead_value_call_after_return_does_not_mutate_emitted_tick ... ok
+test ir::i07a_tests::dead_code_after_all_returning_branch_does_not_reuse_live_temp_ids ... ok
+test ir::i07a_tests::dead_declaration_in_returning_branch_does_not_break_later_value ... ok
+test ir::i07a_tests::branch_value_contract_covers_divergent_expression_positions ... ok
+test ir::i07a_tests::deferred_left_equality_value_branch_keeps_never_internal ... ok
+test ir::i07a_tests::deferred_numeric_operands_pass_expected_type_into_branch_values ... ok
+test ir::i07a_tests::deferred_var_aliases_unify_types ... ok
+test ir::i07a_tests::deferred_binding_takes_first_concrete_assignment_type ... ok
+test ir::i07a_tests::direct_call_keeps_declared_result_type_after_divergent_argument ... ok
+test ir::i07a_tests::directed_divergence_positions_match_reference_acceptance_and_diagnostics ... ignored, explicit 200000-program divergence campaign with template oracle
+test ir::i07a_tests::direct_lowering_discards_divergent_composite_index_operands ... ok
+test ir::i07a_tests::divergent_and_live_sources_scale_in_work_bytes_and_allocations ... ignored, explicit 256 KiB to 1 MiB divergent and live scale measurement
+test frontend::tests::formatter_preserves_ast_under_inserted_line_comments ... ok
+test ir::i07a_tests::divergence_in_argument_and_index_checks_later_values ... ok
+test ir::i07a_tests::divergent_binary_result_types_allow_matching_annotations ... ok
+test ir::i07a_tests::divergent_condition_checks_unreachable_branch_ownership ... ok
+test check::tests::semantic_passes_use_bounded_wide_stack_for_nested_forms ... ok
+test ir::i07a_tests::divergent_else_if_and_deferred_call_argument_keep_branch_structure ... ok
+test ir::i07a_tests::divergent_bindings_allow_unreachable_assignments_and_indexes ... ok
+test ir::i07a_tests::deferred_var_assignment_accepts_value_branches_and_fixes_type_once ... ok
+test ir::i07a_tests::divergent_if_condition_checks_both_hypothetical_branches ... ok
+test ir::i07a_tests::divergent_index_of_borrowed_argument_is_checked_without_ir_operand ... ok
+test ir::i07a_tests::divergent_intrinsic_and_array_elements_check_later_branches ... ok
+test ir::i07a_tests::divergent_left_addition_still_checks_the_right_operand_domain ... ok
+test ir::i07a_tests::divergent_condition_operands_do_not_create_unreachable_cfg_blocks ... ok
+test ir::i07a_tests::divergent_later_argument_releases_pending_read_and_inout_loans ... ok
+test ir::i07a_tests::deferred_binding_reads_preserve_bottom_type_across_uses ... ok
+test ir::i06_tests::large_indexed_inout_uses_existing_owner_cells ... ok
+test ir::i07a_tests::divergent_if_operands_and_bindings_do_not_form_invalid_ir ... ok
+test ir::i07a_tests::divergent_while_condition_checks_body ... ok
+test ir::i07a_tests::divergent_left_binary_operand_still_checks_numeric_right_type ... ok
+test ir::i07a_tests::divergent_left_operand_still_checks_later_branch_and_ownership ... ok
+test ir::i07a_tests::divergent_left_less_than_checks_numeric_right_operand ... ok
+test ir::i07a_tests::divergent_left_operands_reject_unit_with_numeric_expected_type ... ok
+test ir::i07a_tests::generated_cfg_programs_match_independent_integer_model ... ignored, campaña extensa de CFG; ejecutar en batería medida
+test ir::i07a_tests::failed_while_condition_restores_lowering_mode_for_later_errors ... ok
+test ir::i07a_tests::dominator_of_loop_header_includes_nonentry_preheader ... ok
+test ir::i07a_tests::fault_in_branch_argument_releases_earlier_live_read_loan_and_owner ... ok
+test ir::i07a_tests::diverging_if_value_does_not_create_an_ir_temporary ... ok
+test ir::i07a_tests::independent_branch_ownership_errors_accumulate_in_live_and_dead_modes ... ok
+test ir::i07a_tests::independent_array_elements_accumulate_ownership_errors_in_dead_mode ... ok
+test ir::i07a_tests::hypothetical_bottom_values_in_both_arms_need_no_ir_slot ... ok
+test ir::i07a_tests::if_values_after_other_operands_remain_available_across_cfg_edges ... ok
+test ir::i07a_tests::injected_divergence_matches_live_twin_diagnostics ... ignored, explicit 300000-program differential divergence campaign
+test ir::i07a_tests::independent_missing_return_and_consumed_use_are_both_reported ... ok
+test ir::i07a_tests::equality_copies_indexed_left_value_before_rhs_write ... ok
+test ir::i07a_tests::independent_branch_value_errors_keep_exact_contract_after_divergence ... ok
+test ir::i07a_tests::independent_intrinsic_arguments_accumulate_ownership_errors_in_dead_mode ... ok
+test ir::i07a_tests::later_divergent_arguments_preserve_branch_value_diagnostics ... ok
+test ir::i07a_tests::left_divergent_binary_keeps_result_type_in_lowered_local ... ok
+test ir::i07a_tests::loop_backedges_scale_in_steps_allocation_and_time ... ignored, explicit 256 KiB to 1 MiB verifier loop scale measurement
+test ir::i07a_tests::intrinsic_binary_type_is_independent_of_divergent_operand_position ... ok
+test ir::i07a_tests::missing_branch_value_in_one_function_does_not_hide_later_missing_return ... ok
+test ir::i07a_tests::later_uses_of_divergent_bindings_keep_structural_diagnostics ... ok
+test ir::i07a_tests::long_value_branch_chain_obeys_published_expression_height ... ok
+test ir::i07a_tests::missing_else_is_the_first_parse_failure_across_functions ... ok
+test ir::i07a_tests::missing_branch_value_precedes_deferred_binding_type ... ok
+test ir::i07a_tests::missing_branch_value_suppresses_dependent_missing_return ... ok
+test ir::i07a_tests::nested_binary_operand_error_precedes_enclosing_type_error ... ok
+test ir::i07a_tests::nested_branch_error_keeps_later_independent_ownership_error ... ok
+test ir::i07a_tests::nested_and_transferred_consumption_sites_reach_the_final_use ... ok
+test ir::i07a_tests::nested_divergent_left_keeps_missing_branch_value ... ok
+test ir::i07a_tests::nested_branch_values_work_in_later_arguments_indexes_and_assignments ... ok
+test ir::i07a_tests::never_coerces_branch_value_without_a_visible_unit_type ... ok
+test ir::i07a_tests::numeric_branch_value_uses_checker_origin ... ok
+test ir::i07a_tests::numeric_left_operand_uses_checker_diagnostic ... ok
+test ir::i07a_tests::published_branch_structure_diagnostics_identify_exact_marker_and_context ... ok
+test ir::i07a_tests::independent_right_operand_errors_survive_divergence_and_other_errors ... ok
+test ir::i07a_tests::read_loan_survives_branch_value_in_later_call_argument ... ok
+test ir::i07a_tests::reading_deferred_binding_does_not_diverge_branch ... ok
+test ir::i07a_tests::semantic_cfg_sources_never_create_invalid_ir ... ignored, campaña extensa de fuentes CFG; ejecutar en batería medida
+test ir::i07a_tests::terminator_operand_stays_live_across_jump ... ok
+test ir::i07a_tests::nested_cfg_compiles_and_runs_from_small_caller_stacks ... ok
+test ir::i07a_tests::never_is_bottom_for_equality_and_array_inference ... ok
+test ir::i07a_tests::value_after_return_is_checked_in_dead_branch ... ok
+test ir::i07a_tests::true_branch_and_instruction_scope_have_distinct_hash_roles ... ok
+test ir::i07a_tests::valid_unreachable_siblings_do_not_create_ir_and_independent_errors_accumulate ... ok
+test ir::i07a_tests::value_immediately_after_return_is_checked_without_emission ... ok
+test ir::i07a_tests::divergent_values_cover_branch_shapes_operand_positions_and_annotations ... ok
+test ir::i07a_tests::verifier_bounded_on_exhaustive_small_cfg_destinations ... ok
+test ir::i07a_tests::verifier_rejects_temporary_dropped_on_only_one_branch ... ok
+test ir::i07a_tests::verifier_rejects_a_forged_unreachable_branch_block ... ok
+test ir::i07a_tests::wholly_deferred_array_cannot_be_used_as_a_scalar ... ok
+test ir::i07b_tests::adr_gap_ownership_flow_quota_scope ... ok
+test ir::i07b_tests::body_local_conditional_drop_is_cleaned_per_iteration ... ok
+test ir::i07a_tests::while_condition_consuming_external_resource_needs_flow_fixpoint ... ok
+test ir::i07a_tests::while_backedge_rechecks_complete_branching_condition ... ok
+test ir::i07b_tests::boolean_condition_keeps_its_true_and_false_ownership_exits_separate ... ok
+test ir::i07b_tests::condition_arm_consumption_has_exact_joined_exit_diagnostic ... ok
+test ir::i07b_tests::condition_effects_match_single_iteration_unrolled_twins ... ok
+test ir::i07b_tests::condition_value_forms_share_joined_ownership_state ... ok
+test ir::i07b_tests::conditional_consumption_and_loop_exit_keep_backedge_witnesses ... ok
+test ir::i07b_tests::condition_arm_outcomes_keep_consumption_and_reinitialization_on_their_edges ... ok
+test ir::i07b_tests::consumed_prefix_loop_suffix_scales_across_source_budget ... ignored, explicit 256 KiB to 1 MiB consumed-prefix loop-suffix scale measurement
+test ir::i07b_tests::consumed_parameter_across_backedge_keeps_parameter_identity ... ok
+test ir::i07b_tests::exhausted_flow_budget_keeps_earlier_independent_diagnostics ... ok
+test ir::i07a_tests::repeated_while_preheaders_compile_at_two_source_sizes ... ok
+test ir::i07b_tests::extensive_nested_loop_ownership_matches_source_ast_model ... ignored, explicit 200000-program source-AST ownership campaign
+test ir::i07b_tests::flow_budget_resets_for_each_function ... ok
+test ir::i07b_tests::false_condition_arm_consumption_reaches_next_header ... ok
+test ir::i07b_tests::forward_and_backedge_errors_accumulate_at_independent_uses ... ok
+test ir::i07b_tests::generated_sparse_ownership_matches_dense_reference_exactly ... ignored, explicit 100000-program sparse versus dense ownership comparison
+test ir::i07b_tests::consumed_bindings_before_many_small_loops_keep_sparse_state_linear ... ok
+test ir::i07b_tests::independent_backedge_consumptions_keep_two_diagnostics ... ok
+test ir::i07b_tests::independent_functions_keep_each_backedge_diagnostic ... ok
+test ir::i07b_tests::live_and_unreachable_loop_use_the_same_ownership_rules ... ok
+test ir::i07b_tests::loop_exit_lists_all_reaching_consumptions_and_backedge ... ok
+test ir::i07b_tests::loop_fixpoint_scales_by_steps_and_allocation_traffic ... ignored, explicit 15-family 256-KiB to 1-MiB CFG scale measurement
+test ir::i07b_tests::loop_join_distinguishes_maybe_from_definite_consumption ... ok
+test ir::i07b_tests::loop_loan_origin_is_checked_after_a_prior_iteration_consumes_it ... ok
+test ir::i07b_tests::loop_reinitialization_and_read_borrows_reach_a_stable_state ... ok
+test ir::i07b_tests::nested_loop_witness_runs_from_use_through_outer_and_inner_backedges ... ok
+test ir::i07b_tests::nested_loops_compile_on_small_calling_stacks ... ok
+test ir::i07b_tests::ownership_queue_enqueues_each_changed_target_once ... ok
+test ir::i07b_tests::ownership_quota_large_source_keeps_converged_loop_diagnostic ... ignored, explicit declarations-first 820 KiB diagnostic-pass quota regression
+test frontend::migrated_parser_final::b_first_state_is_independent_of_the_offending_token ... ok
+test ir::i07b_tests::repeated_loop_analysis_has_linear_step_growth ... ok
+test ir::i07b_tests::shared_node_join_keeps_conditional_subcause_at_source_use ... ok
+test ir::i07b_tests::shared_node_nested_condition_matches_dense_reference ... ignored, explicit 100000-program shared-node nested-condition sparse/dense comparison
+test ir::i07b_tests::shared_node_shortest_path_preserves_source_cause ... ok
+test ir::i07b_tests::shortest_backedge_witness_uses_fewer_cfg_edges ... ok
+test ir::i07b_tests::sparse_join_skips_unchanged_definite_fact_work ... ok
+test ir::i07b_tests::condition_arm_effects_cover_values_branches_and_use_positions ... ok
+test ir::i07b_tests::sparse_ownership_scales_across_fourteen_adversarial_families ... ignored, explicit adversarial 256-KiB to 1-MiB sparse-state measurement
+test ir::i07b_tests::unreachable_loop_backedge_witness_marks_its_closing_brace ... ok
+test ir::i07b_tests::transferred_binding_across_backedge_keeps_consume_cause ... ok
+test ir::i07b_tests::unreachable_loop_still_checks_later_iteration ... ok
+test ir::i07b_tests::while_condition_effects_reach_body_and_false_exit ... ok
+test ir::i07c_tests::adr_gap_nested_empty_arrays_resolve_from_outer_branch_in_both_orders ... ok
+test ir::i07c_tests::adr_gap_never_index_projection_keeps_current_resolution ... ok
+test ir::i07c_tests::adr_gap_recursive_array_unification_reports_inference_error ... ok
+test ir::i07c_tests::adr_gap_resolved_variable_within_element_keeps_current_union_site ... ok
+test frontend::tests::omitted_token_neighbor_matrix ... ok
+test ir::i07c_tests::annotated_empty_array_keeps_its_written_element_type ... ok
+test ir::i07c_tests::all_never_array_elements_reject_without_inventing_an_element_type ... ok
+test ir::i07c_tests::array_constructor_survives_union_into_larger_alias_group ... ok
+test ir::i07c_tests::array_equality_lowers_both_operands_as_borrows ... ok
+test ir::i07c_tests::array_conflicts_report_the_complete_expression_type ... ok
+test ir::i07c_tests::array_wrapping_keeps_independent_invalid_index_base ... ok
+test ir::i07c_tests::bad_binary_left_still_checks_independent_right_branch ... ok
+test check::tests::generated_valid_mutations_return_valid_diagnostics_without_panics ... ok
+test ir::i07c_tests::bottom_equality_arrays_and_alias_copies_keep_types_and_data_independent ... ok
+test ir::i07c_tests::adr_gap_grouped_scalar_operand_primary ... ok
+test ir::i07c_tests::branch_join_uses_the_concrete_type_acquired_during_later_continuation ... ok
+test ir::i07c_tests::bottom_never_hides_independent_operator_or_array_mismatch ... ok
+test ir::i07c_tests::branch_permutation_rejects_scalar_array_conflicts ... ok
+test ir::i07c_tests::comparison_domains_hold_with_concrete_and_deferred_right_operands ... ok
+test ir::i07c_tests::complete_replacement_after_drop_still_checks_immutability ... ok
+test ir::i07c_tests::concrete_branch_join_reports_the_later_value ... ok
+test ir::i07c_tests::constructed_array_child_retains_copyable_domain_after_divergent_element ... ok
+test ir::i07c_tests::concrete_equality_and_branch_values_fix_deferred_origins ... ok
+test ir::i07c_tests::contaminated_comparison_sibling_keeps_left_numeric_domain ... ok
+test ir::i07c_tests::contaminated_index_base_keeps_selector_error ... ok
+test ir::i07c_tests::deferred_array_branch_conflict_keeps_first_operand_as_expected ... ok
+test ir::i07c_tests::deferred_array_branch_order_uses_later_incompatible_value_and_branch_code ... ok
+test ir::i07c_tests::contextual_origins_follow_first_array_element_annotation_return_and_formal ... ok
+test ir::i07c_tests::deferred_array_comparison_diagnostic_follows_first_incompatible_constraint ... ok
+test ir::i07c_tests::deferred_array_conflict_uses_concrete_type_found_later_in_either_statement_order ... ok
+test ir::i07c_tests::deferred_array_domain_is_constrained_before_later_assignment ... ok
+test ir::i07c_tests::deferred_array_conflict_keeps_whole_operand_types ... ok
+test ir::i07c_tests::deferred_array_element_domain_result_resolves_leaf_context ... ok
+test ir::i07c_tests::deferred_array_equality_obeys_left_operand_expected_type_in_both_orders ... ok
+test ir::i07c_tests::deferred_array_shape_conflict_reports_its_array_site ... ok
+test ir::i07c_tests::deferred_assignment_checks_the_last_independent_constructor ... ok
+test ir::i07c_tests::deferred_array_equality_uses_complete_right_operand_type ... ok
+test ir::i07c_tests::deferred_branch_assignment_retains_previous_origin ... ok
+test ir::i07c_tests::deferred_binding_with_concrete_constraint_checks_branch_context ... ok
+test ir::i07c_tests::deferred_branch_inference_uses_later_binding_before_reporting_each_operand ... ok
+test ir::i07c_tests::deferred_branch_join_suppresses_derived_equality_error ... ok
+test ir::i07c_tests::deferred_copyable_domains_reject_later_resource_bindings ... ok
+test ir::i07c_tests::deferred_constraints_cross_branches_loops_arrays_and_equality ... ok
+test ir::i07c_tests::deferred_constructor_conflict_and_resolved_sibling_keep_one_causal_error ... ok
+test ir::i07c_tests::deferred_equality_error_suppresses_outer_annotation_error ... ok
+test ir::i07c_tests::deferred_equality_requires_copyable_left_operand ... ok
+test ir::i07c_tests::deferred_equality_preserves_rhs_literal_origin ... ok
+test ir::i07c_tests::deferred_failed_left_preserves_independent_arithmetic_error_on_right ... ok
+test ir::i07c_tests::deferred_if_inside_array_reports_each_site_once ... ok
+test ir::i07c_tests::deferred_failed_array_element_does_not_fix_sibling_type ... ok
+test ir::i07c_tests::deferred_if_result_uses_first_normal_branch_for_array_resolution ... ok
+test ir::i07c_tests::deferred_intrinsic_domain_has_no_self_expected_origin ... ok
+test ir::i07c_tests::deferred_intrinsic_left_suppresses_independent_domain_consequence ... ok
+test frontend::tests::parser_small_stack_matrix_retains_nested_b_forms ... ok
+test ir::i07c_tests::deferred_index_element_constraints_survive_later_array_binding ... ok
+test ir::i07c_tests::deferred_join_has_one_diagnostic_per_source_site ... ok
+test ir::i07c_tests::deferred_less_than_alias_reports_one_operator_domain_error ... ok
+test ir::i07c_tests::deferred_less_than_blames_right_operand_after_resolution ... ok
+test ir::i07c_tests::deferred_never_alias_array_rejects_unresolved_element ... ok
+test ir::i07c_tests::deferred_never_element_has_unresolved_array_constructor ... ok
+test ir::i07c_tests::deferred_nested_branch_uses_outer_expected_type_at_first_operand ... ok
+test ir::i07c_tests::deferred_right_shape_conflict_suppresses_derived_operator_domain ... ok
+test ir::i07c_tests::deferred_sibling_array_constraints_keep_element_diagnostic ... ok
+test ir::i07c_tests::deferred_unification_scale_is_linear_in_steps_and_allocations ... ignored, exact 15-family 256 KiB to 1 MiB deterministic scale campaign
+test ir::i07c_tests::dependent_consumed_value_stays_rejected_without_internal_error ... ok
+test ir::i07c_tests::divergent_array_child_keeps_its_constructor_constraint ... ok
+test ir::i07c_tests::divergent_array_element_retains_copyable_domain_on_later_index_write ... ok
+test ir::i07c_tests::deferred_resolution_changes_the_first_incompatible_source_constraint ... ok
+test ir::i07c_tests::divergent_array_elements_retain_the_array_constraint ... ok
+test ir::i07c_tests::deferred_sites_emit_once_and_keep_independent_siblings ... ok
+test ir::i07c_tests::divergent_while_condition_keeps_reachable_resource_drop ... ok
+test ir::i07c_tests::else_block_value_retains_written_expected_origin ... ok
+test ir::i07c_tests::divergent_branch_constraints_do_not_create_unresolved_array_errors ... ok
+test ir::i07c_tests::divergent_initializer_and_array_operand_follow_their_distinct_constraints ... ok
+test ir::i07c_tests::empty_return_uses_its_own_function_keyword ... ok
+test ir::i07c_tests::empty_array_element_is_resolved_by_later_local_assignment ... ok
+test ir::i07c_tests::equality_accepts_bool_operands_without_numeric_context ... ok
+test ir::i07b_tests::ownership_trie_addresses_resource_after_65536_locals ... ok
+test ir::i07c_tests::equality_outer_context_does_not_replace_the_branch_join ... ok
+test ir::i07c_tests::expected_context_reaches_else_block_value_with_and_without_deferred_alias ... ok
+test ir::i07c_tests::expected_context_accepts_matching_independent_operands ... ok
+test ir::i07c_tests::expected_nested_array_reports_scalar_leaf_type ... ok
+test ir::i07c_tests::expected_scalar_checks_each_concrete_array_branch ... ok
+test ir::i07c_tests::expected_type_origins_survive_binding_group_index_and_union_paths ... ok
+test ir::i07c_tests::extensive_monomorphic_constraints_match_independent_graph_oracle ... ignored, exact 200000-pair constraint graph campaign; run explicitly
+test ir::i07c_tests::extensive_structured_deferred_check_and_run_match_live_twins ... ignored, 750000-source structured check/run live/dead/array campaign
+test ir::i07c_tests::failed_array_constructor_follows_its_union_class ... ok
+test ir::i07c_tests::empty_array_resolves_from_seven_later_context_forms ... ok
+test ir::i07c_tests::expected_context_reports_each_independent_branch_and_element ... ok
+test ir::i07c_tests::failed_array_element_keeps_annotation_for_later_independent_errors ... ok
+test ir::i07c_tests::failed_array_element_keeps_independent_sibling_error ... ok
+test ir::i07c_tests::failed_constructor_does_not_add_a_dependent_inference_error ... ok
+test ir::i07c_tests::failed_else_value_does_not_supply_an_outer_operand_type ... ok
+test ir::i07c_tests::generated_expected_context_matches_recursive_leaf_model ... ignored, 100000 unique expected-type programs checked against an independent leaf model
+test ir::i07c_tests::expected_context_reaches_every_value_position_with_deferred_alias ... ok
+test ir::i07c_tests::generated_type_permutations_preserve_acceptance ... ignored, 300000 generated sources with branch, equality, array, declaration and alias permutations
+test ir::i07c_tests::function_values_in_nested_expression_positions_reject_before_lowering ... ok
+test ir::i07c_tests::failed_numeric_branch_does_not_supply_a_union_type ... ok
+test ir::i07c_tests::distinct_constraint_order_pairs_keep_code_and_primary ... ok
+test ir::i07c_tests::heterogeneous_array_keeps_first_concrete_element_and_independent_errors ... ok
+test ir::i07c_tests::independent_index_temporaries_leave_return_paths_valid ... ok
+test ir::i07c_tests::independent_consumption_and_immutable_write_both_survive ... ok
+test ir::i07c_tests::indexed_write_retains_immutable_root_with_divergent_children ... ok
+test ir::i07c_tests::indexed_assignment_uses_annotation_or_inferred_initializer_origin ... ok
+test ir::i07c_tests::intrinsic_domain_does_not_fabricate_an_expected_type_span ... ok
+test ir::i07c_tests::head_acceptance_families_keep_their_current_check_and_compile_results ... ok
+test ir::i07c_tests::invalid_comparison_result_does_not_feed_an_enclosing_union ... ok
+test ir::i07c_tests::grouped_operands_keep_diagnostic_identity_in_deferred_and_domain_paths ... ok
+test ir::i07c_tests::late_scalar_projection_keeps_the_selector_domain_site ... ok
+test ir::i07c_tests::invalid_name_barrier_and_tainted_alias_do_not_cascade ... ok
+test ir::i07c_tests::nested_array_conflicts_are_source_rejections ... ok
+test ir::i07c_tests::nested_assert_eq_unification_scale_tracks_depth_and_source_bytes ... ignored, nested AssertEq depth and 256 KiB to 1 MiB deterministic scale campaign
+test ir::i07c_tests::monomorphic_aliases_keep_the_first_concrete_origin ... ok
+test ir::i07c_tests::late_array_constructor_obeys_the_inferred_root_depth_limit ... ok
+test ir::i07c_tests::nested_branch_anchor_reports_the_first_incompatible_leaf_once ... ok
+test ir::i07c_tests::nested_comparison_uses_inner_operator_at_same_type_domain_failure ... ok
+test ir::i07c_tests::nested_branch_uses_the_first_deferred_value_as_its_anchor ... ok
+test ir::i07c_tests::nested_deferred_branch_join_waits_for_the_full_array_type ... ok
+test ir::i07c_tests::nested_else_if_keeps_first_normal_branch_as_expected_origin ... ok
+test ir::i07c_tests::nested_failed_join_supplies_only_its_first_valid_witness_to_outer_join ... ok
+test ir::i07c_tests::nested_result_annotation_is_now_accepted ... ok
+test ir::i07c_tests::nested_empty_array_element_remains_resolvable_after_index_write ... ok
+test ir::i07c_tests::nested_deferred_arrays_compile_from_small_caller_stacks ... ok
+test ir::i07c_tests::nested_synthesized_if_uses_the_written_value_operand_as_origin ... ok
+test ir::i07c_tests::outer_bool_context_preserves_distinct_branch_operand_sites ... ok
+test ir::i07c_tests::pending_comparison_domain_suppresses_dependent_result_annotation ... ok
+test ir::i07c_tests::pending_array_conflict_preserves_independent_numeric_rhs ... ok
+test ir::i07c_tests::pending_less_than_fixes_operand_before_later_assignment ... ok
+test ir::i07c_tests::permission_escalation_cause_matches_the_parameter_permission ... ok
+test ir::i07c_tests::plus_distributed_left_failure_suppresses_second_domain_error ... ok
+test ir::i07c_tests::resolved_deferred_array_preserves_distinct_bad_assignment_sites ... ok
+test ir::i07c_tests::scalar_array_with_inconsistent_elements_reports_only_leaf ... ok
+test ir::i07c_tests::self_referential_deferred_assignment_uses_the_resolved_full_type ... ok
+test ir::i07c_tests::inferred_array_depth_has_a_deterministic_analysis_limit ... ok
+test ir::i07c_tests::statement_permutations_match_independent_constraint_oracle ... ignored, 150000 constraint programs in four statement orders
+test ir::i07c_tests::separate_concrete_roots_and_pending_array_members_cannot_disagree ... ok
+test ir::i07c_tests::non_value_names_are_rejected_in_every_expression_context ... ok
+test ir::i07c_tests::subtraction_passes_intrinsic_i64_context_through_branch_values ... ok
+test ir::i07c_tests::tainted_array_constructor_does_not_add_a_parent_shape_error ... ok
+test ir::i07c_tests::tainted_array_element_does_not_repeat_its_branch_join_error ... ok
+test ir::i07c_tests::tainted_array_element_retains_independent_constraint_error ... ok
+test ir::i07c_tests::tainted_binary_right_keeps_left_error_without_parent_cascade ... ok
+test ir::i07c_tests::tainted_comparison_keeps_the_other_operands_deferred_domain ... ok
+test ir::i07c_tests::tainted_expected_context_retains_independent_sibling_errors ... ok
+test ir::i07c_tests::tainted_if_condition_suppresses_dependent_nested_array_errors ... ok
+test ir::i07c_tests::tainted_left_operand_preserves_independent_right_join ... ok
+test ir::i07c_tests::then_value_relates_the_written_expected_type ... ok
+test ir::i07c_tests::unavailable_index_root_precedes_derived_immutable_write ... ok
+test ir::i07c_tests::union_origin_tie_uses_first_child_in_source_order ... ok
+test ir::i07c_tests::unresolved_array_alias_cycle_keeps_both_constructor_obligations ... ok
+test ir::i07c_tests::unresolved_array_alias_does_not_duplicate_its_causal_error ... ok
+test ir::i07c_tests::unresolved_array_condition_reports_inference_only ... ok
+test ir::i07c_tests::unresolved_array_constructor_keeps_its_cause_without_a_cascade ... ok
+test ir::i07c_tests::unresolved_array_outer_shape_is_checked_in_scalar_contexts ... ok
+test ir::i07c_tests::unresolved_branch_constructor_reports_the_operand ... ok
+test ir::i07c_tests::unresolved_constructors_in_distinct_functions_report_independently ... ok
+test ir::i07c_tests::unresolved_hypothetical_index_write_remains_lowerable ... ok
+test ir::i07c_tests::unresolved_inner_array_suppresses_outer_constructor_consequence ... ok
+test ir::i07c_tests::valid_later_element_witness_preserves_independent_site ... ok
+test ir::i07c_tests::value_if_restores_hypothetical_depth_before_following_statement ... ok
+test ir::i07c_tests::with_clause_is_no_longer_an_implementation_limit ... ok
+test ir::lower::tests::analyzed_binding_loan_and_index_preserve_flow_type ... ok
+test ir::lower::tests::analyzed_branch_retains_type_of_only_continuing_value ... ok
+test ir::lower::tests::branch_local_consumption_does_not_escape_its_scope ... ok
+test ir::lower::tests::capability_limit_returns_before_lowering_an_uninferred_ast ... ok
+test ir::lower::tests::dead_declaration_and_reinitialization_restore_all_lowering_state ... ok
+test ir::lower::tests::divergent_call_argument_does_not_leave_orphan_call_instruction ... ok
+test ir::lower::tests::hypothetical_bottom_read_preserves_rhs_flow_and_branch_join_type ... ok
+test ir::lower::tests::indexed_write_consumes_index_and_value_temporaries ... ok
+test ir::lower::tests::lowering_consumes_operator_index_and_branch_types ... ok
+test ir::lower::tests::lowering_has_no_result_type_derivation_api ... ok
+test ir::lower::tests::lowering_requires_checker_binding_and_expression_entries ... ok
+test ir::lower::tests::lowering_worker_preserves_the_configured_stack_margin ... ok
+test ir::lower::tests::merged_consumption_sites_keep_both_sides_sorted_without_duplicates ... ok
+test ir::lower::tests::pending_read_loan_rejects_assignment_with_write_access ... ok
+test ir::lower::tests::poisoned_binding_in_rejected_block_has_no_cleanup_instruction ... ok
+test ir::i07c_tests::source_array_depth_reports_the_complete_excessive_expression ... ok
+test ir::lower::tests::poisoned_call_target_preserves_original_lowering_diagnostic ... ok
+test ir::lower::tests::rejected_while_condition_restores_statement_checkpoint ... ok
+test ir::i07c_tests::structurally_distinct_expected_context_pairs_keep_leaf_primary ... ok
+test ir::ownership_flow::sparse::tests::backedge_discards_the_previous_iteration_local_generation ... ok
+test ir::ownership_flow::sparse::tests::branch_excludes_definite_facts_under_a_conditional_lazy_child ... ok
+test ir::ownership_flow::sparse::tests::conditional_child_does_not_make_parent_definite_on_missing_join_side ... ok
+test ir::lower::tests::scoped_block_error_pops_scope_and_restores_parent ... ok
+test ir::ownership_flow::sparse::tests::deferred_backedges_keep_traversal_order_after_other_binding_changes ... ok
+test ir::ownership_flow::sparse::tests::conditional_edge_on_nondefinite_shared_node_does_not_enqueue_work ... ok
+test ir::ownership_flow::sparse::tests::deferred_maybe_flag_weakens_a_definite_fact ... ok
+test ir::ownership_flow::sparse::tests::joining_a_repeated_site_keeps_its_shorter_witness ... ok
+test ir::ownership_flow::sparse::tests::joining_an_empty_path_weakens_a_consumed_fact ... ok
+test ir::ownership_flow::sparse::tests::leaf_lazy_is_materialized_when_read_after_an_edge ... ok
+test ir::ownership_flow::sparse::tests::newly_reaching_consumption_is_conditional_at_loop_header ... ok
+test ir::ownership_flow::sparse::tests::loop_summary_indexes_local_consumption_and_scope_kill ... ok
+test ir::ownership_flow::sparse::tests::right_subtree_retains_deferred_edge_when_left_is_rewritten ... ok
+test ir::ownership_flow::sparse::tests::root_deferred_edge_is_read_before_descending ... ok
+test ir::ownership_flow::sparse::tests::same_source_use_prefers_joined_subcause_and_matching_cause ... ok
+test ir::ownership_flow::sparse::tests::shared_trie_nodes_keep_the_shortest_of_twenty_unequal_paths ... ok
+test ir::ownership_flow::sparse::tests::shared_trie_nodes_preserve_conditional_definiteness ... ok
+test ir::ownership_flow::sparse::tests::diagnostic_pass_quota_preserves_one_to_three_independent_loop_uses ... ok
+test ir::ownership_flow::sparse::tests::sparse_analysis_rejects_self_loop_before_reading_backedge_state ... ok
+test ir::ownership_flow::sparse::tests::state_count_guard_disables_counting_when_dropped ... ok
+test ir::ownership_flow::tests::backedge_restarts_loop_local_but_retains_external_witness ... ok
+test ir::ownership_flow::tests::backedge_retains_a_fact_whose_declaration_crosses_the_loop_end ... ok
+test ir::ownership_flow::sparse::tests::sparse_analysis_rejects_successor_at_block_count_before_indexing ... ok
+test ir::ownership_flow::tests::changed_successors_enter_the_fifo_in_construction_order ... ok
+test ir::ownership_flow::sparse::tests::quota_discards_intermediate_loop_observations ... ok
+test ir::ownership_flow::tests::join_is_a_may_union_and_preserves_both_consumption_origins ... ok
+test ir::ownership_flow::tests::dense_oracle_rejects_successor_at_block_count_before_indexing ... ok
+test ir::ownership_flow::tests::ownership_flow_budget_rejects_exactly_first_excess_step ... ok
+test ir::ownership_flow::tests::full_write_kills_only_its_root_and_transfer_keeps_source_kind ... ok
+test ir::ownership_flow::tests::repeated_origin_keeps_the_shortest_reaching_path ... ok
+test ir::tests::access_prefix_contexts_never_escape_as_invalid_ir ... ignored, directed prefix and expression-context campaign
+test ir::ownership_flow::tests::ownership_flow_counts_summary_instruction_once ... ok
+test ir::ownership_flow::tests::synthetic_union_slot_does_not_become_a_source_owner ... ok
+test ir::tests::addition_overflow_and_assert_failure_keep_prior_output_in_order ... ok
+test ir::tests::adr_gap_call_frame_limit_primary_uses_rejected_call_span ... ok
+test ir::tests::annotated_empty_array_can_replace_indexed_array_element ... ok
+test ir::tests::adr_gap_runtime_index_primary_tracks_whole_index_operation ... ok
+test ir::tests::annotated_empty_array_len_and_array_comparison_are_executable ... ok
+test ir::tests::array_ir_lowering_scales_across_ten_source_families ... ignored, explicit array lowering scale measurement
+test ir::tests::array_literals_and_indices_change_function_hash ... ok
+test ir::tests::array_fixtures_for_empty_array_comparison_index_and_len_have_complete_positives ... ok
+test ir::tests::arrays_and_user_calls_execute_only_after_verification ... ok
+test ir::tests::b_corpus_comments_and_crlf_keep_original_byte_offsets ... ok
+test ir::tests::array_equality_releases_operand_loans_before_later_access ... ok
+test ir::tests::binary_instruction_hash_matches_fixed_canonical_fnv_encoding ... ok
+test ir::tests::blocking_resource_has_same_event_shapes_and_one_close ... ok
+test ir::tests::call_target_named_value_continues_across_lf ... ok
+test ir::tests::borrowed_index_reports_invalid_path_before_reading_selected_value ... ok
+test ir::tests::canonical_hash_distinguishes_transfer_from_copy_on_same_slot ... ok
+test ir::tests::cfg_availability_merge_distinguishes_all_consumed_and_reinitialized ... ok
+test ir::tests::caller_hash_tracks_referenced_name_and_signature_but_not_unrelated_body ... ok
+test ir::tests::cfg_b08_missing_value_terminator_keeps_parser_fields ... ok
+test ir::tests::cfg_branch_call_keeps_loan_permissions_and_writeback ... ok
+test ir::tests::cfg_else_consumption_joins_as_maybe_consumed ... ok
+test ir::tests::cfg_deferred_forms_have_executable_repairs ... ok
+test ir::tests::cfg_else_if_all_returning_paths_need_no_tail_return ... ok
+test ir::tests::cfg_else_if_expression_selects_each_value ... ok
+test ir::tests::cfg_expression_if_delivers_explicit_unit ... ok
+test ir::tests::cfg_else_if_statement_selects_each_arm ... ok
+test ir::tests::cfg_first_value_arm_continues_when_else_returns ... ok
+test ir::tests::cfg_expression_if_excludes_returning_continuations ... ok
+test ir::tests::cfg_hash_tracks_branch_contents_and_development_substitution ... ok
+test ir::tests::cfg_infinite_loop_uses_work_quota_and_cleans_resource ... ok
+test ir::tests::cfg_inspect_keeps_owned_resource_temporary_live_until_drop ... ok
+test ir::tests::cfg_join_reports_maybe_consumed_resource ... ok
+test ir::tests::cfg_l02_repaired_value_line_break_executes ... ok
+test ir::tests::cfg_loop_ownership_fixpoint_reports_p09 ... ok
+test ir::tests::cfg_loop_drops_array_cells_each_iteration ... ok
+test ir::tests::cfg_nested_expression_if_all_returning_paths_need_no_value_slot ... ok
+test ir::tests::cfg_missing_return_considers_every_normal_path ... ok
+test ir::tests::cfg_nested_while_recreates_and_cleans_body_local_each_iteration ... ok
+test ir::tests::cfg_only_continuing_arm_determines_consumed_state_in_both_orders ... ok
+test ir::tests::cfg_published_branch_negative_rows_keep_their_rule ... ok
+test ir::tests::cfg_return_from_loop_cleans_other_live_owners_before_result_delivery ... ok
+test ir::tests::cfg_returning_branch_does_not_poison_join ... ok
+test ir::tests::cfg_published_branch_repairs_execute ... ok
+test ir::tests::cfg_statement_if_selects_one_branch ... ok
+test ir::tests::cfg_returning_loop_body_excludes_consumption_from_false_exit ... ok
+test ir::tests::cfg_unreachable_tail_still_checks_ownership_without_rejoining ... ok
+test ir::tests::cfg_value_union_transfers_resource_and_cleans_unselected_owner ... ok
+test ir::tests::cfg_while_body_with_all_returning_arms_preserves_false_exit ... ok
+test ir::tests::cfg_while_rechecks_condition_and_updates_local ... ok
+test ir::tests::complete_resource_reassignment_closes_old_before_scope_exit ... ok
+test ir::tests::consumed_nested_local_does_not_receive_second_cleanup ... ok
+test ir::tests::consumed_resource_parameter_closes_at_callee_exit ... ok
+test ir::tests::consumed_temporary_borrowed_by_read_parameter_closes_after_call ... ok
+test ir::tests::direct_call_hash_has_fixed_canonical_vector ... ok
+test ir::i07a_tests::cfg_local_branch_scale_uses_sparse_temp_counters ... ok
+test ir::tests::drop_destroys_complete_binding_or_temporary_and_rejects_projection ... ok
+test ir::tests::drop_releases_one_copy_without_invalidating_another_owner ... ok
+test ir::tests::dropped_binding_result_unit_is_counted_before_implicit_return ... ok
+test ir::tests::dropped_var_can_be_reinitialized_without_closing_twice ... ok
+test ir::tests::explicit_return_parenthesis_continues_across_lf ... ok
+test ir::tests::failed_development_substitution_restores_previous_function ... ok
+test ir::tests::forged_exclusive_expression_hits_only_the_ir_guard ... ok
+test ir::tests::frame_limit_denies_acquisition_in_frame_257 ... ok
+test ir::tests::frame_limit_unwinds_shared_resource_once ... ok
+test ir::tests::function_and_other_nonlocal_assignment_fuzz_has_no_internal_error ... ignored, directed rejected-place campaign
+test ir::tests::drop_binding_releases_cells_before_unit_and_next_array ... ok
+test ir::tests::function_hash_includes_local_mutability ... ok
+test ir::tests::function_assignment_rejects_before_lowering ... ok
+test ir::tests::function_identity_and_hash_ignore_unrelated_order_and_track_body ... ok
+test ir::tests::function_identity_survives_other_functions_and_substitution_checks_signature ... ok
+test ir::tests::function_ids_keep_names_while_table_indices_follow_canonical_order ... ok
+test ir::tests::function_table_refuses_forged_development_identity ... ok
+test ir::i07a_tests::later_operand_dominance_verification_has_no_quadratic_allocation ... ok
+test ir::tests::hash_distinguishes_less_from_equal_with_same_operands ... ok
+test ir::tests::hash_includes_write_index_root_and_read_index_path ... ok
+test ir::tests::heterogeneous_array_rejection_has_homogeneous_positive ... ok
+test ir::tests::i05_feature_exclusions_have_executable_repairs ... ok
+test ir::tests::i05_source_rows_have_isolated_rejections_and_executable_repairs ... ok
+test ir::tests::i05_source_rows_keep_published_primary_byte_spans_and_stages ... ok
+test ir::tests::immutable_index_root_has_ownership_diagnostic_and_declaration_span ... ok
+test ir::tests::immutable_write_does_not_emit_dependent_cascades ... ok
+test ir::tests::immutable_write_fixture_uses_current_source_byte_span ... ok
+test ir::tests::independent_immutable_writes_report_each_site_in_source_order ... ok
+test ir::tests::independent_ownership_errors_accumulate_in_source_order ... ok
+test ir::tests::indexed_array_reads_borrow_selected_subtree_and_owner_context_copies ... ok
+test ir::tests::indexed_assignment_evaluates_rhs_before_checking_bounds ... ok
+test ir::tests::indexed_place_access_matrix_checks_root_after_every_index ... ok
+test ir::tests::indexed_place_effects_never_escape_as_invalid_ir ... ignored, structured indexed-place ownership campaign
+test ir::tests::indexed_place_rechecks_owner_after_index_evaluation ... ok
+test ir::tests::indexed_read_copies_selected_subtree_without_copying_whole_root ... ok
+test ir::tests::inner_assignment_targets_inner_binding_without_replacing_outer_value ... ok
+test ir::tests::integer_limits_execute_with_literal_expected_output ... ok
+test ir::tests::integer_limits_fixture_runs_through_verified_ir ... ok
+test ir::tests::intrinsic_read_returns_owned_temporary_for_immediate_drop ... ok
+test ir::tests::isolated_edit_never_reaches_lowering ... ok
+test ir::tests::later_argument_fault_cleans_earlier_resource_without_entering_callee ... ok
+test frontend::tests::lexer_and_parser_scale_linearly_across_surface_families ... ok
+test ir::tests::lexical_operator_repair_pairs_execute_for_lx01_through_lx05 ... ok
+test ir::tests::live_value_cells_count_nested_headers_and_elements_before_copying ... ok
+test ir::i07c_tests::generated_monomorphic_constraints_match_independent_graph_oracle ... ok
+test ir::tests::missing_return_at_normal_exit_uses_published_s11_and_l06_spans ... ok
+test ir::tests::named_arguments_evaluate_in_written_order ... ok
+test ir::tests::nested_array_equality_reports_the_outermost_live_loan ... ok
+test ir::tests::live_cell_boundary_is_exact_with_and_without_explicit_drop ... ok
+test ir::tests::nested_copy_rebinds_physical_values_without_aliasing ... ok
+test ir::tests::nested_drop_and_reinitialization_use_one_liveness_record ... ok
+test ir::tests::nested_read_checks_first_index_before_evaluating_later_index ... ok
+test ir::tests::nested_replacement_updates_cached_cell_sizes_and_preserves_copies ... ok
+test ir::i07c_tests::structured_deferred_check_and_run_match_live_twins ... ok
+test ir::tests::ordinary_array_arguments_and_equality_borrow_without_live_cell_growth ... ok
+test ir::tests::ordinary_array_parameter_returns_deep_copy ... ok
+test ir::tests::ordinary_resource_parameter_borrows_across_frame_and_closes_once ... ok
+test ir::tests::ownership_diagnostics_sort_by_source_span_across_canonical_function_order ... ok
+test ir::tests::nested_arrays_compile_and_run_from_small_calling_stacks ... ok
+test ir::tests::ownership_errors_in_nonunit_function_precede_lowering_of_later_functions ... ok
+test ir::tests::read_index_without_optional_early_probe_still_checks_bounds ... ok
+test ir::tests::parameter_name_and_argument_slot_are_encoded_in_canonical_hash ... ok
+test ir::tests::read_parameter_rejects_write_and_drop_without_execution ... ok
+test ir::tests::read_parameter_cannot_be_consumed ... ok
+test ir::tests::repeated_drop_reports_consumed_origin_without_second_close ... ok
+test ir::tests::resource_copy_is_rejected_and_explicit_transfer_runs ... ok
+test ir::tests::resource_result_is_transferred_out_of_callee_before_cleanup ... ok
+test ir::tests::result_hash_tracks_both_type_arms_and_result_operations ... ok
+test ir::tests::scalar_compilation_stays_within_small_calling_stacks_at_admitted_depths ... ok
+test ir::tests::scalar_drop_has_no_event_and_fail_faults_after_prior_output ... ok
+test ir::tests::scalar_ir_lowering_scales_across_fifteen_source_families ... ignored, explicit scaling measurement; run separately with --ignored --nocapture
+test ir::tests::scalar_lowering_and_machine_run_on_a_512_kib_caller_stack ... ok
+test ir::tests::scalar_positive_repairs_of_published_scope_rows_execute_without_observations ... ok
+test ir::tests::scalar_relations_keep_strict_less_and_boolean_equality ... ok
+test ir::tests::scalar_work_tally_counts_expression_visits_and_intrinsic_entry ... ok
+test ir::tests::second_selected_subtree_copy_hits_live_cell_limit_without_partial_installation ... ok
+test ir::tests::selected_array_copy_is_independent_of_mutable_root ... ok
+test ir::tests::sequential_calls_release_frames_before_the_next_entry ... ok
+test ir::tests::shadowed_binding_and_complete_reassignment_use_current_slot ... ok
+test ir::tests::malformed_source_campaign_never_panics_and_all_diagnostics_validate ... ok
+test ir::tests::shadowed_resources_close_in_reverse_scope_order ... ok
+test ir::tests::signed_literal_outside_i64_is_a_types_diagnostic ... ok
+test ir::tests::simulator_fault_cleans_callee_then_caller_resources ... ok
+test ir::tests::trailing_module_garbage_is_rejected_before_lowering ... ok
+test ir::tests::subtraction_overflow_has_published_runtime_fields_and_no_output ... ok
+test ir::tests::true_array_equality_and_nonempty_length_are_observed ... ok
+test ir::tests::unicode_sources_never_reach_internal_failure ... ignored, Unicode source and lowering campaign
+test ir::tests::unreachable_tail_is_checked_without_emitting_its_instructions ... ok
+test ir::tests::unicode_crlf_and_final_eof_binding_variants_execute_equally ... ok
+test ir::tests::use_after_consume_or_drop_reports_consumption_site ... ok
+test ir::tests::user_function_named_drop_has_ordinary_read_semantics ... ok
+test ir::tests::verified_function_table_substitution_changes_development_execution ... ok
+test ir::tests::value_minus_one_spellings_share_ast_and_result ... ok
+test ir::verify::tests::join_initialization_is_intersection_in_both_predecessor_orders ... ok
+test ir::verify::tests::verifier_checks_call_scope_origin_and_source_span ... ok
+test ir::verify::tests::cfg_verifier_rejects_borrowed_result_payload_and_propagation ... ok
+test ir::verify::tests::verifier_rejects_call_result_instruction_type_mutation ... ok
+test ir::verify::tests::verifier_rejects_array_element_type_mismatch ... ok
+test ir::verify::tests::verifier_rejects_call_when_callee_parameter_count_changed ... ok
+test ir::verify::tests::verifier_rejects_call_when_callee_result_changed ... ok
+test ir::verify::tests::verifier_rejects_changed_function_identity_position_and_scope_count ... ok
+test ir::verify::tests::verifier_rejects_consuming_a_borrowed_argument ... ok
+test ir::verify::tests::verifier_rejects_copy_of_resource_local ... ok
+test ir::verify::tests::verifier_rejects_destroying_root_while_read_argument_is_live ... ok
+test ir::verify::tests::verifier_rejects_direct_call_signature_mismatch ... ok
+test ir::verify::tests::verifier_rejects_direct_call_to_missing_function ... ok
+test ir::verify::tests::verifier_rejects_direct_call_wrong_arity_and_duplicate_slot ... ok
+test ir::verify::tests::verifier_rejects_drop_binding_while_read_loan_is_live ... ok
+test ir::verify::tests::verifier_rejects_drop_of_read_parameter ... ok
+test ir::verify::tests::verifier_rejects_duplicate_temporary_consumption_and_orphans ... ok
+test ir::verify::tests::verifier_rejects_effect_access_cleanup_and_terminator_mutations ... ok
+test ir::verify::tests::verifier_rejects_index_operations_without_projection ... ok
+test ir::verify::tests::verifier_rejects_index_probe_with_wrong_operand_type ... ok
+test ir::verify::tests::verifier_rejects_index_write_while_reordered_read_loan_is_live ... ok
+test ir::verify::tests::verifier_rejects_indexed_write_with_missing_owner_root ... ok
+test ir::verify::tests::verifier_rejects_non_integer_read_index ... ok
+test ir::verify::tests::verifier_rejects_read_index_from_non_array_root ... ok
+test ir::verify::tests::verifier_rejects_resource_array_in_local_layout ... ok
+test ir::verify::tests::verifier_rejects_read_index_from_uninitialized_array ... ok
+test ir::verify::tests::verifier_rejects_resource_array_in_result_layout ... ok
+test ir::verify::tests::verifier_rejects_resource_arrays_through_both_result_variants ... ok
+test ir::verify::tests::verifier_rejects_result_payload_and_propagation_mutations ... ok
+test ir::verify::tests::verifier_rejects_temporary_array_containing_resource ... ok
+test ir::verify::tests::verifier_rejects_transfer_after_local_was_consumed ... ok
+test ir::verify::tests::verifier_rejects_transfer_from_read_parameter ... ok
+test ir::verify::tests::verifier_rejects_transfer_while_read_loan_remains_live ... ok
+test ir::verify::tests::verifier_rejects_undefined_temporary_and_changed_hash ... ok
+test ir::verify::tests::verifier_rejects_uninitialized_local_and_wrong_type ... ok
+test ir::verify::tests::verifier_rejects_unknown_scope_duplicate_origin_and_invalid_source_spans ... ok
+test ir::verify::tests::verifier_rejects_write_index_to_immutable_root ... ok
+test ir::verify::tests::verifier_rejects_write_index_with_wrong_element_type ... ok
+test ir::tests::repeated_complete_assignment_releases_replaced_cells ... ok
+test ir::i05_tests::malformed_call_and_resource_sources_never_panic_and_diagnostics_validate ... ok
+test ir::tests::observation_quota_checks_complete_next_line_and_preserves_prior_lines ... ok
+test ir::i07a_tests::mutated_cfg_sources_keep_rejections_structured ... ok
+test ir::tests::deepest_admitted_scalar_families_compile_on_small_caller_stacks ... ok
+test check::tests::valid_generated_names_shadowing_and_comparisons_have_no_diagnostics ... ok
+test frontend::tests::canonical_printer_preserves_full_b_ast_across_body_and_signature_matrix ... ok
+test ir::i07b_tests::generated_nested_loop_ownership_matches_source_ast_model ... ok
+test ir::i07b_tests::generated_sparse_ownership_matches_dense_reference_in_regular_tests ... ok
+test ir::i07a_tests::directed_branch_error_and_divergence_fuzz_has_no_internal_failure ... ok
+test ir::tests::array_sources_with_mutated_syntax_never_panic_and_validate_rejections ... ok
+test interp::machine::tests::repeated_index_value_releases_unselected_array_cells ... ok
+test ir::tests::generated_array_copies_and_writes_match_independent_matrix_model ... ok
+test ir::tests::generated_scalar_programs_match_independent_decimal_model ... ok
+test ir::i05_tests::unreachable_lowering_short_scale_regression ... ok
+test check::tests::semantic_passes_scale_with_source_bytes ... ok
+test ir::i07c_tests::assert_eq_logical_pair_charge_is_identical_for_live_and_deferred_values ... ok
+test check::types::quota_tests::default_solver_limit_accepts_its_last_granted_step ... ok
+test check::types::quota_tests::adr_gap_unresolved_assert_eq_charges_each_deferred_constraint ... ok
+test interp::machine::tests::repeated_borrowed_index_releases_consumed_index_cells ... ok
+test frontend::parse::tests::parser_token_patterns_scale_with_source_length has been running for over 60 seconds
+test ir::i07b_tests::consumed_prefix_then_loop_suffix_converges_before_each_exit has been running for over 60 seconds
+test frontend::parse::tests::parser_token_patterns_scale_with_source_length ... ok
+test ir::i07b_tests::consumed_prefix_then_loop_suffix_converges_before_each_exit ... ok
+
+test result: ok. 1028 passed; 0 failed; 50 ignored; 0 measured; 0 filtered out; finished in 250.71s
+
+     Running unittests src\main.rs 
+([clon/target aislado])
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\canonical_print.rs 
+([clon/target aislado])
+
+running 3 tests
+test canonical_text_round_trips_written_modes_and_statement_terminators ... ok
+test canonical_statement_if_else_variants_preserve_structure_and_text ... ok
+test accepted_corpus_files_format_like_the_canonical_printer ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\cli.rs 
+([clon/target aislado])
+
+running 21 tests
+test cli_pending_capabilities_report_scope_and_source_site ... ok
+test adr_gap_deferred_resource_array_uses_copyable_domain ... ok
+test cli_array_equality_releases_loans_before_write ... ok
+test adr_gap_distributed_branch_consumes_outer_add_domain ... ok
+test cli_result_outcomes_keep_err_separate_from_runtime_faults ... ok
+test deferred_array_branch_conflict_rejects_before_driver_lowering ... ok
+test adr_gap_deferred_less_than_bool_uses_operator_primary ... ok
+test cli_preserves_corpus_semantics_and_events ... ok
+test cli_check_and_run_use_official_b_pipeline ... ok
+test hypothetical_unresolved_index_write_has_no_internal_error ... ok
+test cli_check_and_run_ignore_source_extension ... ok
+test adr_gap_direct_never_comparison_preserves_operator_primary ... ok
+test cli_function_assignment_is_a_source_diagnostic ... ok
+test cli_nested_function_values_reject_in_check_and_run ... ok
+test cli_isolated_edit_uses_parse_diagnostic ... ok
+test cli_index_consuming_its_owner_is_a_source_diagnostic ... ok
+test cli_type_conflicts_with_divergent_arrays_exit_as_source_errors ... ok
+test cli_intrinsic_arguments_reject_conflicting_later_access ... ok
+test cli_source_byte_boundary_precedes_utf8_decoding ... ok
+test cli_rejects_options_before_reading_any_source ... ok
+test cli_reports_unreadable_and_invalid_utf8_before_parsing ... ok
+
+test result: ok. 21 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.52s
+
+     Running tests\corpus.rs 
+([clon/target aislado])
+
+running 28 tests
+test corpus_has_only_official_source_extension ... ok
+test nesting_limit_is_diagnostic ... ok
+test malformed_inputs_return_diagnostics ... ok
+test invalid_assignment_root_and_deferred_selector_reject_before_lowering ... ok
+test assignment_bounds_preserve_cleanup ... ok
+test explicit_close_and_failure_do_not_double_close ... ok
+test nested_result_parameter_is_accepted ... ok
+test diagnostic_unicode_comment_location ... ok
+test result_annotation_is_accepted_after_user_function_named_result ... ok
+test diagnostic_render_rejects_non_boundary_utf8_offsets ... ok
+test nested_copy_output ... ok
+test early_return_unwinds_scopes_in_reverse_order ... ok
+test statements_after_return_still_checked ... ok
+test result_annotation_exposes_independent_type_error_in_compiler ... ok
+test recoverable_failure_and_partial_initialization ... ok
+test transfer_has_one_owner_and_exact_cleanup ... ok
+test composed_ast_depth_is_bounded_before_recursive_passes ... ok
+test result_expression_forms_use_semantic_rules ... ok
+test assignment_checks_negative_bounds_after_rhs ... ok
+test indexing_and_overflow_are_checked_in_every_build ... ok
+test pending_capabilities_have_exact_diagnostic_fields_and_valid_inverse ... ok
+test positive_corpus ... ok
+test negative_corpus_exact_codes ... ok
+test composed_expression_height_uses_parser_budget_instead_of_lowering_depth ... ok
+test runtime_work_limit_still_closes_resources ... ok
+test inferred_nesting_across_bindings_is_bounded ... ok
+test work_budget_exhaustion_closes_resources ... ok
+test truncated_and_mutated_inputs_never_panic ... ok
+
+test result: ok. 28 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.09s
+
+     Running tests\i01_diagnostic.rs 
+([clon/target aislado])
+
+running 37 tests
+test adr_code_contract_rejects_each_broken_coordinate_and_data_rule ... ok
+test canonical_type_parser_stops_at_the_published_depth_bound ... ok
+test cause_kind_operation_table_is_total ... ok
+test code_validation_rejects_invalid_lexical_and_terminator_fields ... ok
+test cause_text_keeps_a_null_entity_and_multiple_explanations_are_separated_exactly ... ok
+test code_specific_schema_rules_reject_one_broken_attribute_each ... ok
+test availability_matches_independent_full_registry_expectations ... ok
+test diagnostic_schema_rejects_single_attribute_mutations ... ok
+test every_published_closed_vocabulary_matches_its_literal_set ... ok
+test exact_component_path_runtime_and_coordinate_contracts ... ok
+test explain_accepts_the_entry_subcauses_and_reports_availability ... ok
+test explain_returns_catalog_rows_and_exact_feature_cardinality ... ok
+test explain_subcauses_are_returned_in_lexicographic_order ... ok
+test invalid_utf8_text_uses_zero_coordinates_from_source_view ... ok
+test nx_e0003_costly_analysis_requires_a_nonempty_primary_span ... ok
+test feature_explanations_match_literal_f01_f33_fixtures ... ok
+test explain_and_to_json_accept_every_emitible_catalog_combination ... ok
+test invalid_utf8_span_covers_truncated_prefix_through_eof ... ok
+test nx_e0003_structural_budgets_require_primary_spans ... ok
+test nx_e1105_accepts_the_four_published_permission_fixtures ... ok
+test published_closed_vocabulary_literals_are_accepted ... ok
+test nx_e1105_permission_tables_cover_every_pair ... ok
+test pending_scope_matches_the_published_feature_partition ... ok
+test published_fixture_gaps_stay_empty_and_unavailable ... ok
+test published_reduced_profiles_and_diagnostic_edge_contracts ... ok
+test source_span_rejects_inverted_offsets_that_are_both_valid_boundaries ... ok
+test reduced_profiles_inherit_every_unmodified_budget ... ok
+test terminal_controls_overlapping_edits_and_duplicate_repair_ids_are_rejected ... ok
+test text_rendering_matches_unicode_crlf_and_l07_positions_completely ... ok
+test truncated_utf8_invalid_range_ends_at_eof ... ok
+test to_json_rejects_unknown_catalog_subcause_and_code ... ok
+test explain_non_unicode_argument_returns_usage_error ... ok
+test invalid_format_usage_uses_requested_json_error_envelope ... ok
+test explain_cli_reports_unknown_code_subcause_and_argument_errors ... ok
+test explain_json_is_single_line_and_has_documented_error_shape ... ok
+test ordinary_explanations_match_literal_published_pairs_and_fixture_profile ... ok
+test cli_preserves_b_utf8_errors_and_exact_source_limit ... ok
+
+test result: ok. 37 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.06s
+
+     Running tests\i07c_causal_obligations.rs 
+([clon/target aislado])
+
+running 60 tests
+test adr_gap_nested_union_and_array_element_keep_current_causal_sites ... ok
+test guarded_comparison_keeps_expected_origin_after_domain_resolution ... ok
+test adr_gap_entry_gate_is_reserved_for_execution ... ok
+test failed_selector_condition_retains_independent_body_constructor ... ok
+test alias_join_has_executable_type ... ok
+test first_equality_origin_survives_later_alias_assignments ... ok
+test failed_comparison_keeps_independent_numeric_right_operand ... ok
+test failed_statement_conditions_keep_hypothetical_body_obligations ... ok
+test failed_inner_join_keeps_partial_witness_for_outer_join ... ok
+test concrete_array_element_owns_homogeneity_origin ... ok
+test failed_outer_condition_keeps_nested_join_constructor ... ok
+test comparison_rejects_once_at_first_cross_type_conflict ... ok
+test failed_empty_comparison_keeps_later_assert_argument ... ok
+test indexed_assignment_origin_survives_earlier_pending_domain ... ok
+test deferred_array_siblings_keep_independent_mismatches ... ok
+test grouped_failed_join_consumes_only_one_outer_numeric_domain_site ... ok
+test equality_domain_relation_points_to_resolved_operand ... ok
+test failed_inner_join_preserves_first_valid_branch_for_outer_join ... ok
+test compatible_array_alias_keeps_first_concrete_element_origin ... ok
+test failed_outer_array_keeps_nested_element_cause ... ok
+test indexed_element_origin_survives_compatible_whole_assignment ... ok
+test later_scalar_assignment_keeps_first_concrete_array_origin ... ok
+test first_indexed_array_assignment_owns_later_element_origin ... ok
+test failed_inner_union_preserves_outer_empty_constructor_witness ... ok
+test mixed_nested_join_keeps_constructor_and_shape_sites ... ok
+test failed_right_constructor_preserves_independent_left_comparison_domain ... ok
+test guarded_comparison_keeps_later_assert_argument_domain ... ok
+test first_array_constraint_owns_later_assignment_origin ... ok
+test nested_array_assignment_keeps_first_concrete_origin ... ok
+test nested_comparison_keeps_right_independent_domain_site ... ok
+test resolved_array_left_consumes_only_its_numeric_domain ... ok
+test numeric_operation_reports_only_first_invalid_domain ... ok
+test partial_union_witness_resolves_outer_empty_constructor ... ok
+test intrinsic_numeric_prefix_has_no_source_expected_relation ... ok
+test invalid_selector_condition_keeps_unresolved_constructor ... ok
+test late_binary_domain_failure_does_not_erase_later_argument_mismatch ... ok
+test nested_union_numeric_repair_is_valid ... ok
+test numeric_operation_keeps_one_domain_rejection ... ok
+test pending_comparison_keeps_independent_numeric_rhs_domain ... ok
+test nested_failed_union_keeps_its_outer_shape_conflict ... ok
+test nested_union_does_not_erase_later_array_element_cause ... ok
+test pending_len_left_keeps_independent_comparison_right ... ok
+test late_array_assignment_resolves_guarded_assert_equality ... ok
+test two_unresolved_constructors_keep_two_obligations ... ok
+test two_failed_numeric_operands_do_not_supply_an_assignment_type ... ok
+test recursive_array_assignment_keeps_expected_source_origin ... ok
+test intrinsic_condition_origin_stays_unrelated_after_compatible_assignment ... ok
+test partial_array_witness_resolves_outer_empty_branch ... ok
+test self_referential_len_guard_uses_later_array_witness ... ok
+test unresolved_array_domain_keeps_known_len_result_equality ... ok
+test guarded_equality_requires_every_pending_operand_domain ... ok
+test unresolved_comparison_does_not_erase_later_assert_argument ... ok
+test pending_inner_constructor_preserves_outer_branch_comparison ... ok
+test two_pending_array_domains_keep_distinct_use_sites ... ok
+test pending_len_domain_keeps_independent_result_consumers ... ok
+test tainted_assert_argument_keeps_inner_comparison_cause ... ok
+test unresolved_constructor_survives_failed_nested_union_condition ... ok
+test independent_operands_keep_their_causal_sites ... ok
+test reduced_independent_sites_remain_causal ... ok
+test recursive_shape_planning_keeps_causal_sites_stable ... ok
+
+test result: ok. 60 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.07s
+
+     Running tests\i07c_deferred_group_regressions.rs ([clon/target aislado]
+\deps\i07c_deferred_group_regressions-7c7ca77c1cd3f0fb.exe)
+
+running 3 tests
+test pending_comparison_local_use_keeps_its_own_numeric_conflict ... ok
+test pending_operation_consumers_match_concrete_causal_twins ... ok
+test valid_pending_comparison_results_lower_like_concrete_twins ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\i07c_deferred_metamorphic.rs 
+([clon/target aislado])
+
+running 2 tests
+test later_array_assignment_and_concrete_initializer_have_identical_causes ... ignored, campaña de gemelos de 300.000 fuentes; ejecutar por perfil
+test poisoned_assignment_and_independent_let_have_identical_rhs_causes ... ignored, 50,000-program metamorphic campaign; run explicitly in debug and release
+
+test result: ok. 0 passed; 0 failed; 2 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\i07c_deferred_mutation_cases.rs ([clon/target aislado]
+ps\i07c_deferred_mutation_cases-72bcc664e07a7724.exe)
+
+running 24 tests
+test m00462_keeps_operator_domain ... ok
+test m00454_preserves_two_constructors ... ok
+test m00039_preserves_rhs_c ... ok
+test m00632_keeps_outer_union ... ok
+test m00038_preserves_rhs_constructor ... ok
+test m00059_keeps_inference_code ... ok
+test m00671_preserves_constructor ... ok
+test m00494_keeps_operator_domain ... ok
+test m00058_does_not_invent_array_shape_from_hypothetical_write ... ok
+test m00453_omits_derived_union ... ok
+test m00398_keeps_later_operand_primary ... ok
+test m00434_keeps_operator_domain ... ok
+test m00050_preserves_base_domain ... ok
+test m00509_preserves_rhs_constructor ... ok
+test m00497_keeps_operator_domain ... ok
+test m00218_keeps_union_code ... ok
+test m00060_preserves_constructor ... ok
+test m00549_11061_omits_domain_of_union_with_invalid_condition ... ok
+test independent_numeric_selector_operand_survives_failed_base ... ok
+test m00075_preserves_base_domain ... ok
+test m00260_preserves_both_constructor_sites ... ok
+test pending_numeric_comparison_remains_join_witness ... ok
+test pending_array_constructor_preserves_independent_resource_domain ... ok
+test pending_equality_keeps_outer_join_cause ... ok
+
+test result: ok. 24 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\i07c_deferred_twins.rs 
+([clon/target aislado])
+
+running 14 tests
+test guarded_equality_result_retains_cross_operand_cause ... ok
+test established_array_constructor_satisfies_len_domain_before_element_resolution ... ok
+test pending_branch_context_error_does_not_accuse_its_union ... ok
+test unresolved_guarded_domain_omits_derived_cross_comparison ... ok
+test assignment_resolution_order_keeps_causal_leaf_primary ... ok
+test poisoned_assignment_still_checks_rhs ... ok
+test pending_right_comparison_domain_does_not_supply_outer_union_type ... ok
+test invalid_pending_selector_does_not_supply_projection_type ... ok
+test pending_equality_result_and_numeric_rhs_match_concrete_twin ... ok
+test failed_pending_domain_does_not_hide_independent_nested_union ... ok
+test both_unresolved_constructors_retain_own_site ... ok
+test two_nested_unresolved_arrays_are_reported_without_internal_error ... ok
+test deferred_array_outcomes_have_absolute_acceptance_oracles ... ok
+test deferred_expression_twins_retain_independent_causes ... ok
+
+test result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s
+
+     Running tests\i07c_mutant_projection_scale.rs ([clon/target aislado]
+ps\i07c_mutant_projection_scale-bc694d73f5c72236.exe)
+
+running 1 test
+test resolved_projection_does_not_repartition_unrelated_pending_constraints ... ignored, escala de asignaciones tras resolver proyección y sin proyecciones
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\i07c_mutation_depth.rs 
+([clon/target aislado])
+
+running 4 tests
+test adr_gap_result_component_mismatch_keeps_written_expected_type ... ok
+test nested_deferred_never_constraint_keeps_later_concrete_origin ... ok
+test indexed_binding_preserves_inferred_depth_inside_each_result_component ... ok
+test inferred_array_wrappers_preserve_both_result_component_depths ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\i07c_mutation_regressions.rs 
+([clon/target aislado])
+
+running 67 tests
+test call_arguments_keep_independent_contextual_errors ... ok
+test assert_eq_resource_reports_each_noncopyable_argument ... ok
+test annotated_unresolved_array_keeps_written_binding_type ... ok
+test assert_eq_resource_constraint_blames_second_deferred_operand ... ok
+test assert_eq_array_child_compares_at_second_operand ... ok
+test empty_return_keeps_written_result_origin ... ok
+test anchored_first_branch_keeps_independent_pending_join ... ok
+test assert_eq_deferred_array_keeps_later_concrete_origin ... ok
+test deferred_comparison_distinguishes_cross_equality_from_inner_join ... ok
+test failed_call_argument_does_not_skip_later_argument ... ok
+test failed_nested_comparison_keeps_outer_partial_witness ... ok
+test deferred_comparison_keeps_valid_operand_domain_after_sibling_failure ... ok
+test divergent_array_binding_keeps_numeric_comparison_context ... ok
+test failed_nested_numeric_join_keeps_outer_partial_witness ... ok
+test failed_comparison_right_keeps_determined_left_domain ... ok
+test deferred_assert_eq_keeps_its_known_unit_result ... ok
+test failed_right_comparison_keeps_the_valid_left_domain ... ok
+test alias_of_intrinsically_fixed_binding_keeps_no_source_origin ... ok
+test failed_inner_union_keeps_outer_incompatible_continuation ... ok
+test distributed_numeric_context_survives_earlier_binary_branch ... ok
+test contaminated_inner_addition_keeps_outer_right_domain ... ok
+test deferred_len_result_rejects_conflicting_annotation_before_lowering ... ok
+test failed_nested_union_keeps_independent_comparison_right_domain ... ok
+test cyclic_constructor_errors_keep_inference_code_at_each_site ... ok
+test less_than_related_variables_use_the_operator_site_after_equality ... ok
+test array_assignment_keeps_first_element_origin_after_conflict ... ok
+test failed_right_intrinsic_keeps_independent_left_comparison_domain ... ok
+test invalid_call_argument_suppresses_dependent_result_mismatch ... ok
+test later_unrelated_assignment_keeps_earlier_branch_diagnostic ... ok
+test invalid_assignment_target_preserves_independent_union_error ... ok
+test array_equality_keeps_the_complete_boolean_result_as_found_type ... ok
+test failed_assignment_condition_keeps_prior_array_constructor_obligation ... ok
+test independent_numeric_error_has_no_inferred_expected_origin ... ok
+test inner_right_numeric_conflict_does_not_consume_outer_domain ... ok
+test nested_intrinsic_operands_keep_independent_errors ... ok
+test late_array_shape_conflict_keeps_intrinsic_numeric_expected ... ok
+test failed_assert_eq_argument_suppresses_result_annotation_only ... ok
+test nested_later_union_uses_its_first_valid_leaf_against_outer_anchor ... ok
+test mock_read_records_requires_the_resource_argument ... ok
+test print_resource_uses_its_only_operand_as_primary_and_found ... ok
+test indexed_write_preserves_expected_and_found_orientation ... ok
+test independent_numeric_rhs_keeps_intrinsic_domain_origin ... ok
+test pending_join_drain_keeps_all_unresolved_array_diagnostics ... ok
+test independent_less_than_domain_keeps_intrinsic_origin ... ok
+test later_resource_binding_keeps_deferred_assert_eq_argument_site ... ok
+test invalid_nested_selector_preserves_independent_len_domain ... ok
+test tainted_annotated_let_invalidates_later_uses ... ok
+test rd127_constructor_requires_its_own_element_resolution ... ok
+test repeated_deferred_less_than_uses_operator_token ... ok
+test tainted_call_argument_suppresses_dependent_result_mismatch ... ok
+test unresolved_array_conflict_preserves_constructor_diagnostic ... ok
+test result_constructor_preserves_written_payload_component ... ok
+test try_operator_rejects_non_result_operand ... ok
+test resource_assert_eq_errors_suppress_result_annotation ... ok
+test valid_later_call_argument_does_not_clear_earlier_taint ... ok
+test unresolved_result_constructor_names_missing_component ... ok
+test projected_alias_keeps_earlier_element_context_when_array_arrives_later ... ok
+test right_assert_eq_failure_keeps_newly_determined_left_domain ... ok
+test known_array_constructor_preserves_comparison_equality_priority ... ok
+test pending_left_array_conflict_keeps_nested_right_error ... ok
+test projected_comparison_after_prior_binding_keeps_expected_source_span ... ok
+test right_branch_side_effect_keeps_left_domain_after_inner_failure ... ok
+test linked_array_constructors_keep_each_causal_inference_site ... ok
+test pending_right_join_at_either_boundary_keeps_left_comparison_domain ... ok
+test projected_comparison_preserves_expected_operand_origin ... ok
+test unresolved_array_element_branch_conflict_rejects_before_lowering ... ok
+test unresolved_projection_keeps_selector_hypothetical_in_lowering ... ok
+
+test result: ok. 67 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\i07c_normative_survivors.rs 
+([clon/target aislado])
+
+running 7 tests
+test later_assignment_resolves_empty_array_element ... ok
+test complex_condition_and_selector_keep_three_independent_c_sites ... ok
+test adr_gap_self_selector_without_concrete_base_keeps_current_acceptance ... ok
+test informative_consumer_fixtures_keep_their_independent_causes ... ok
+test contaminated_base_keeps_independent_selector_type_error ... ok
+test independent_causal_sites_survive_deferred_resolution ... ok
+test deferred_projection_and_constructor_programs_finish_with_causal_results ... ok
+
+test result: ok. 7 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\i07c_pending_nominal_domain.rs ([clon/target aislado]
+s\i07c_pending_nominal_domain-d908445b1bd93756.exe)
+
+running 38 tests
+test array_keeps_first_witness_after_independent_element_conflict ... ok
+test failed_pending_left_operand_keeps_independent_numeric_right_site ... ok
+test guarded_right_equality_precedes_operator_domain ... ok
+test established_array_selector_conflict_is_independent_of_assignment_order ... ok
+test nested_selector_causes_are_stable_across_resolution_order ... ok
+test late_numeric_domains_keep_one_failure_per_operation ... ok
+test branch_with_existing_array_element_context_uses_concrete_mismatch ... ok
+test incompatible_array_assignments_blame_the_later_source ... ok
+test multiple_later_arrays_keep_earlier_comparison_equality ... ok
+test incompatible_prefix_with_unresolved_arrays_is_not_a_concrete_twin ... ok
+test nested_array_shape_survives_later_incompatible_assignment_order ... ok
+test independent_selector_constraints_precede_later_assignment_order ... ok
+test failed_first_branch_does_not_anchor_later_branch ... ok
+test first_accepted_assignment_owns_shared_pending_component ... ok
+test immutable_alias_does_not_block_later_constructor_resolution ... ok
+test nested_array_join_reports_source_mismatch_after_later_resolution ... ok
+test nested_branch_array_keeps_only_independent_union_causes ... ok
+test nested_projection_activates_the_earlier_bool_context ... ok
+test planned_projection_child_does_not_use_failed_branch_as_witness ... ok
+test failed_nested_union_does_not_anchor_an_outer_pending_array ... ok
+test cross_type_failure_precedes_less_than_domain_after_resolution ... ok
+test pending_len_result_cannot_anchor_branch_during_shape_planning ... ok
+test recursive_index_assignment_keeps_earlier_origin ... ok
+test projected_array_siblings_retain_resolved_comparison_domain ... ok
+test resolved_condition_failure_cannot_anchor_array_homogeneity ... ok
+test distinct_assignment_constructors_survive_later_branch_joins ... ok
+test outer_index_context_makes_later_flat_array_an_ineligible_twin ... ok
+test nested_pending_comparison_compiles_after_domain_resolution ... ok
+test planned_array_shape_preserves_branch_type_mismatch ... ok
+test resolved_comparison_inside_array_has_executable_type ... ok
+test undecided_right_domain_preserves_comparison_result_for_consumers ... ok
+test later_array_resolution_preserves_nested_comparison_cause ... ok
+test undecided_nominal_operation_reaches_independent_consumers ... ok
+test undecided_domain_inside_numeric_selector_has_executable_type ... ok
+test undecided_domain_preserves_independent_nominal_result ... ok
+test nested_assignment_resolves_comparison_inside_array ... ok
+test resolved_nested_operations_reject_with_types_diagnostics ... ok
+test undecided_domain_positive_controls_stay_accepted ... ok
+
+test result: ok. 38 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.02s
+
+     Running tests\i07c_rd_conformidad.rs 
+([clon/target aislado])
+
+running 1 test
+RD snapshot differences: 0 (informative)
+RD normative: 152/152 check/run pairs
+test rd_table_matches_check_and_run ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 3.00s
+
+     Running tests\i08.rs 
+([clon/target aislado])
+
+running 22 tests
+test deferred_result_alias_conflict_pins_current_t01_diagnostic ... ok
+test option_stays_deferred_and_result_parameter_is_admitted ... ok
+test try_add_evaluates_labeled_arguments_in_source_order ... ok
+test e0202_after_while_pins_current_behavior ... ok
+test try_add_uses_err_channel_while_add_uses_simulator_fault ... ok
+test question_mark_accepts_never_operand_when_all_if_branches_return ... ok
+test published_result_call_examples_match_outcomes ... ok
+test result_payloads_and_propagation_clean_once ... ok
+test propagation_moves_noncopyable_wrapper_and_rejects_implicit_copy ... ok
+test only_active_result_payload_is_destroyed ... ok
+test result_build_and_branch_transfer_temporaries_once ... ok
+test propagation_releases_wrapper_cells_between_iterations ... ok
+test failed_result_expression_suppresses_dependents_and_keeps_siblings ... ok
+test b_order_run_matches_check_after_lowering_error ... ok
+test nested_result_and_argument_propagation_use_one_evaluation ... ok
+test result_wrapper_quota_fault_releases_unconsumed_resource_payload ... ok
+test entry_is_checked_only_for_run_after_other_errors ... ok
+test result_diagnostics_keep_published_data_and_related_sites ... ok
+test published_result_type_negatives_and_repairs ... ok
+test result_wrappers_charge_cells_at_budget_boundary ... ok
+test try_add_reserves_result_cells_once_near_budget ... ok
+test result_array_quota_uses_expanded_source_and_releases_payload ... ok
+
+test result: ok. 22 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.33s
+
+     Running tests\i08_campaign.rs 
+([clon/target aislado])
+
+running 1 test
+test generated_result_programs_preserve_check_run_and_cleanup ... ignored, campaña tipada I08; ejecutar explícitamente en debug y release
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\i08_robustness.rs 
+([clon/target aislado])
+
+running 2 tests
+test mutated_result_sources_do_not_panic_or_reach_invalid_ir ... ignored, sonda determinista de fuentes Result mutadas
+test result_entry_and_propagation_on_small_stacks ... ok
+
+test result: ok. 1 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+     Running tests\i09_campaign.rs 
+([clon/target aislado])
+
+running 1 test
+test typed_effect_programs_keep_contracts_and_transitive_summaries ... ignored, typed I09 campaign; run explicitly in debug and release
+
+test result: ok. 0 passed; 0 failed; 1 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+   Doc-tests nexo
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+i09-validate:ok

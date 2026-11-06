@@ -355,20 +355,26 @@ def run_limited(command: list[str], tree: Path, env: dict, seconds: int):
     """Devuelve None al agotar plazo y termina solo el subárbol creado."""
     options = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
                if os.name == "nt" else {"start_new_session": True})
-    process = subprocess.Popen(command, cwd=tree, env=env,
-                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, **options)
-    try:
-        output, _ = process.communicate(timeout=seconds)
-        return process.returncode, output
-    except subprocess.TimeoutExpired:
-        if os.name == "nt":
-            subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)],
-                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
-        else:
-            import signal
-            os.killpg(process.pid, signal.SIGKILL)
-        process.communicate()
-        return None
+    with tempfile.TemporaryFile() as output_file:
+        process = subprocess.Popen(command, cwd=tree, env=env,
+                                   stdout=output_file, stderr=subprocess.STDOUT, **options)
+        try:
+            process.wait(timeout=seconds)
+        except subprocess.TimeoutExpired:
+            if os.name == "nt":
+                subprocess.run(["taskkill", "/T", "/F", "/PID", str(process.pid)],
+                               stdout=subprocess.PIPE, stderr=subprocess.STDOUT, check=False)
+            else:
+                import signal
+                os.killpg(process.pid, signal.SIGKILL)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                process.kill()
+                process.wait(timeout=10)
+            return None
+        output_file.seek(0)
+        return process.returncode, output_file.read()
 
 
 def assert_disposable_inputs(tree: Path) -> None:
@@ -396,7 +402,7 @@ def assert_disposable_inputs(tree: Path) -> None:
 def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                    output_name: str, resume: bool, only: str, full_suite: bool,
                    reuse_tree: Path | None = None, target_dir: Path | None = None,
-                   full_suite_timeout: int = 900) -> None:
+                   full_suite_timeout: int = 900, mutation_profile: str = "release") -> None:
     protected = {path: hashlib.sha256((ROOT / path).read_bytes()).hexdigest()
                  for path in {item["file"] for item in population}}
     (ROOT / ".scratch").mkdir(exist_ok=True)
@@ -425,8 +431,10 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
         # Two independent shards share 24 logical CPUs; cap each test binary's
         # worker pool while letting the complete suite run in parallel.
         env["RUST_TEST_THREADS"] = "8"
+        profiles = (["debug"] if mutation_profile == "debug" else
+                    (["release", "debug"] if mutation_profile == "both" else ["release"]))
         if only != "test":
-            for profile in (["release", "debug"] if debug_sample else ["release"]):
+            for profile in profiles:
                 command = ["cargo", "test", "--locked", "--offline", "--lib", "--no-run"]
                 if profile == "release":
                     command.append("--release")
@@ -458,6 +466,18 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                 measured = run_limited(baseline_command, tree, env, 180)
                 assert measured is not None and measured[0] == 0, "prueba dirigida base fallida"
                 targeted_baseline[profile] = time.monotonic() - start
+        effects_baseline: dict[str, float] = {}
+        if only == "production":
+            for profile in profiles:
+                baseline_command = ["cargo", "test", "--locked", "--offline", "--lib"]
+                if profile == "release":
+                    baseline_command.append("--release")
+                baseline_command.extend(["ir::effects::tests", "--", "--quiet"])
+                start = time.monotonic()
+                baseline = run_limited(baseline_command, tree, env, 180)
+                elapsed = time.monotonic() - start
+                assert baseline is not None and baseline[0] == 0, "pruebas base de efectos fallidas"
+                effects_baseline[profile] = elapsed
         with output.open("a" if resume else "w", encoding="utf-8", newline="\n") as log:
             for index, item in enumerate(population):
                 if item["id"] in completed:
@@ -477,7 +497,17 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                     witnesses = {}
                     path_name = item["file"]
                     test_only = is_test_only(item)
-                    if path_name.endswith("i07a_tests.rs"):
+                    if path_name.startswith("src/frontend/"):
+                        filters = ["frontend::"]
+                    elif path_name.endswith("machine.rs"):
+                        filters = ["interp::machine::tests"]
+                    elif path_name.endswith("diagnostic.rs"):
+                        filters = ["diagnostic::tests"]
+                    elif path_name.endswith("effects.rs"):
+                        filters = ["ir::effects::tests"]
+                    elif path_name == "src/ir/verify.rs":
+                        filters = ["ir::effects::tests"]
+                    elif path_name.endswith("i07a_tests.rs"):
                         filters = ["i07a_tests"]
                     elif path_name.endswith("i07b_tests.rs"):
                         filters = ["i07b_tests"]
@@ -493,7 +523,9 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                         filters = ["i07a_tests", "i07b_tests", "i07c_tests"]
                     else:
                         filters = ["check::"]
-                    for profile in (["release", "debug"] if index < debug_sample else ["release"]):
+                    mutant_profiles = (profiles if mutation_profile != "both" or index < debug_sample
+                                       else ["release"])
+                    for profile in mutant_profiles:
                         if test_only:
                             # This source is excluded from both production
                             # profiles by cfg(test). Its candidate cannot
@@ -504,6 +536,20 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                         if profile == "release":
                             command.append("--release")
                         results[profile] = "superviviente"
+                        build_command = command + ["--no-run"]
+                        built = run_limited(build_command, tree, env, 180)
+                        if built is None:
+                            results[profile] = "inconclusa"
+                            witnesses[profile] = "compilación del mutante: plazo de 180 s agotado"
+                        elif built[0]:
+                            build_output = built[1].decode("utf-8", "replace")
+                            if "error[E" in build_output or "could not compile" in build_output:
+                                results[profile] = "no_compila"
+                            else:
+                                results[profile] = "inconclusa"
+                            witnesses[profile] = "compilación del mutante"
+                        if results[profile] != "superviviente":
+                            continue
                         if TARGETED_TEST:
                             targeted = ["cargo", "test", "--locked", "--offline"]
                             if profile == "release":
@@ -527,11 +573,21 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                         for filter_name in filters:
                             if results[profile] != "superviviente":
                                 break
-                            timeout = 60 if filter_name == "quota_tests" else (80 if filter_name == "i07c_tests" else 100)
+                            timeout = (
+                                30 if filter_name == "ir::effects::tests" else
+                                (60 if filter_name == "quota_tests" else (80 if filter_name == "i07c_tests" else 100))
+                            )
                             done = run_limited(command + [filter_name, "--quiet"], tree, env, timeout)
                             if done is None:
-                                results[profile] = "inconclusa"
-                                witnesses[profile] = f"{filter_name}: plazo de {timeout} s agotado"
+                                if filter_name == "ir::effects::tests" and effects_baseline.get(profile, 180) < 10:
+                                    results[profile] = "detectada"
+                                    witnesses[profile] = (
+                                        f"{filter_name}: no termina en {timeout} s; "
+                                        f"la base termina en {effects_baseline[profile]:.2f} s"
+                                    )
+                                else:
+                                    results[profile] = "inconclusa"
+                                    witnesses[profile] = f"{filter_name}: plazo de {timeout} s agotado"
                                 break
                             returncode, output_bytes = done
                             output_text = output_bytes.decode("utf-8", "replace")
@@ -811,6 +867,7 @@ def main() -> None:
     parser.add_argument("--unit-prefix", help="prefijo de tests unitarios para supervivientes")
     parser.add_argument("--ignored-unit", action="store_true",
                         help="ejecuta una prueba unitaria ignorada en recheck dirigido")
+    parser.add_argument("--mutation-profile", choices=("debug", "release", "both"), default="release")
     parser.add_argument("--profile", choices=("debug", "release"), default="release",
                         help="perfil de la reejecución dirigida")
     parser.add_argument("--ids", help="IDs separados por comas para --integration-test")
@@ -856,7 +913,7 @@ def main() -> None:
                        f"results-{args.shard:02d}-of-{args.shards:02d}.jsonl")
         run_population(selected, args.debug_sample, args.fast_only, output_name, args.resume,
                        args.only, args.full_suite, args.reuse_tree, args.target_dir,
-                       args.full_suite_timeout)
+                       args.full_suite_timeout, args.mutation_profile)
 
 
 if __name__ == "__main__":

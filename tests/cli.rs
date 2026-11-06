@@ -541,37 +541,23 @@ fn cli_preserves_corpus_semantics_and_events() {
 
 #[test]
 fn cli_pending_capabilities_report_scope_and_source_site() {
-    for (source, scope, first_line) in [
-        (
-            "fn Main() with no_io{}",
-            "I09",
-            "NX-E0006:1:11: Capacidad pendiente de implementación en I09.\n",
-        ),
-        (
-            "fn Main(){MockRequest();}",
-            "I11a",
-            "NX-E0006:1:11: Capacidad pendiente de implementación en I11a.\n",
-        ),
-        (
-            "fn Main(){MockUnknown();}",
-            "I09",
-            "NX-E0006:1:11: Capacidad pendiente de implementación en I09.\n",
-        ),
-    ] {
-        let output = checked("run", source.as_bytes());
-        assert_eq!(output.status.code(), Some(1), "{source}");
-        assert!(output.stdout.is_empty());
-        let rendered = text(&output.stderr);
-        assert!(rendered.starts_with(first_line), "{source}: {rendered}");
-        assert!(
-            rendered.contains("feature_id: implementation_limit"),
-            "{rendered}"
-        );
-        assert!(
-            rendered.contains(&format!("\"pending_scope\":\"{scope}\"")),
-            "{rendered}"
-        );
-    }
+    let source = "fn Main(){MockRequest();}";
+    let output = checked("run", source.as_bytes());
+    assert_eq!(output.status.code(), Some(1), "{source}");
+    assert!(output.stdout.is_empty());
+    let rendered = text(&output.stderr);
+    assert!(
+        rendered.starts_with("NX-E0006:1:11: Capacidad pendiente de implementación en I11a.\n"),
+        "{source}: {rendered}"
+    );
+    assert!(
+        rendered.contains("feature_id: implementation_limit"),
+        "{rendered}"
+    );
+    assert!(
+        rendered.contains("\"pending_scope\":\"I11a\""),
+        "{rendered}"
+    );
 }
 
 #[test]

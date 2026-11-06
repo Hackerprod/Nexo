@@ -4947,35 +4947,9 @@ fn nested_result_annotation_is_now_accepted() {
 }
 
 #[test]
-fn adjacent_with_clause_limit_includes_its_last_token() {
-    use crate::diagnostic::DataValue;
+fn with_clause_is_no_longer_an_implementation_limit() {
     for source in ["fn Main() with no_io{}", "fn Main() with no_io {}"] {
-        // a token ending exactly at the body opener still belongs to
-        // the capability clause and its complete diagnostic primary.
-        let diagnostics = rejected(source);
-        assert_eq!(diagnostics.len(), 1, "{source}: {diagnostics:?}");
-        let diagnostic = &diagnostics[0];
-        assert_eq!(
-            (diagnostic.code.as_str(), diagnostic.subcause.as_deref()),
-            ("NX-E0006", None)
-        );
-        assert_eq!(
-            diagnostic.feature_id.as_deref(),
-            Some("implementation_limit")
-        );
-        assert_eq!(diagnostic.data.len(), 1);
-        assert_eq!(
-            diagnostic.data.get("pending_scope"),
-            Some(&DataValue::String("I09".into()))
-        );
-        let start = source.find("with").unwrap() as u64;
-        let end = source.find("no_io").unwrap() as u64 + "no_io".len() as u64;
-        assert_eq!(
-            diagnostic.primary_span.as_ref().map(|s| (s.start, s.end)),
-            Some((start, end))
-        );
-        assert!(diagnostic.related_spans.is_empty());
-        diagnostic.validate("fixture.n", source).unwrap();
+        super::compile_scalar("fixture.n", source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
     }
 }
 

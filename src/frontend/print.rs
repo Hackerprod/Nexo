@@ -115,7 +115,7 @@ fn print_inner(ast: &Ast, cst: Option<&Cst>) -> Writer {
                         if i > 0 {
                             end = after(&mut out, ",", Role::Comma, end);
                         }
-                        end = after(&mut out, item, Role::Word, end);
+                        end = after(&mut out, &item.name, Role::Word, end);
                     }
                 }
                 WithClause::Operations(operations) => {
@@ -130,7 +130,7 @@ fn print_inner(ast: &Ast, cst: Option<&Cst>) -> Writer {
                             if j > 0 {
                                 end = after(&mut out, ",", Role::Comma, end);
                             }
-                            end = after(&mut out, restriction, Role::Word, end);
+                            end = after(&mut out, &restriction.name, Role::Word, end);
                         }
                         end = after(&mut out, ")", Role::Close, end);
                     }

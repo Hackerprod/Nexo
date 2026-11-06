@@ -3,6 +3,24 @@ use crate::frontend::parse;
 use crate::interp::{Outcome, run_scalar};
 
 #[test]
+fn cfg_inspect_keeps_owned_resource_temporary_live_until_drop() {
+    let source = "fn Main() with no_block{if true{Inspect(MockBlockingOpen(1));}}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar("effects.n", source) else {
+        panic!("the owned temporary's destructor must contribute block,io");
+    };
+    assert_eq!(
+        errors
+            .iter()
+            .map(|error| error.code.as_str())
+            .collect::<Vec<_>>(),
+        ["NX-E0413"]
+    );
+    for error in errors {
+        error.validate("effects.n", source).unwrap();
+    }
+}
+
+#[test]
 fn nested_array_equality_reports_the_outermost_live_loan() {
     let source = "fn Main(){var a=[1];let x=a == (if a == (if true then {a[0]=2;value:[1];} else [1]) then a else a);}";
     let Err(CompileError::Rejected(errors)) = compile_scalar("loan-order.n", source) else {
@@ -1990,6 +2008,14 @@ fn borrowed_index_reports_invalid_path_before_reading_selected_value() {
     for (index, ins) in f.block.instructions.iter_mut().enumerate() {
         ins.origin.0 = index;
     }
+    for exit in &mut f.exit_info {
+        exit.index = f
+            .block
+            .instructions
+            .iter()
+            .position(|ins| ins.span == exit.span)
+            .unwrap_or(f.block.instructions.len());
+    }
     f.content_hash = super::model::content_hash(f);
     super::verify::verify_program(&p).unwrap();
     let e = run_scalar(&p);
@@ -2619,6 +2645,17 @@ fn consumed_temporary_borrowed_by_read_parameter_closes_after_call() {
     );
     errors[0].validate("consume.n", source).unwrap();
 }
+
+#[test]
+fn intrinsic_read_returns_owned_temporary_for_immediate_drop() {
+    let execution = execute("fn Main() { Inspect(MockOpen(5)); }");
+    assert_eq!(execution.outcome, Outcome::Unit);
+    assert_eq!(
+        execution.observations.events(),
+        ["open:0:5", "inspect:0:5", "close:0:5"]
+    );
+}
+
 #[test]
 fn simulator_fault_cleans_callee_then_caller_resources() {
     let e = execute(
@@ -3186,6 +3223,14 @@ fn read_index_without_optional_early_probe_still_checks_bounds() {
         .retain(|i| !matches!(i.op, super::model::Op::CheckIndex { .. }));
     for (i, ins) in f.block.instructions.iter_mut().enumerate() {
         ins.origin = super::model::OriginId(i);
+    }
+    for exit in &mut f.exit_info {
+        exit.index = f
+            .block
+            .instructions
+            .iter()
+            .position(|ins| ins.span == exit.span)
+            .unwrap_or(f.block.instructions.len());
     }
     f.content_hash = super::model::content_hash(f);
     super::verify::verify_program(&p).unwrap();

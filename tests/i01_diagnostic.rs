@@ -1328,7 +1328,7 @@ fn feature_explanations_match_literal_f01_f33_fixtures() {
         ),
         (
             "implementation_limit",
-            "fn Main() with no_io{}",
+            "fn Main(){MockRequest();}",
             "fn Main(){}",
         ),
         (
@@ -1697,7 +1697,7 @@ fn ordinary_explanations_match_literal_published_pairs_and_fixture_profile() {
         let entry = diagnostic::explain(code, *subcause).unwrap().remove(0);
         assert_eq!(entry.negative_source, *negative, "{code}/{subcause:?}");
         assert_eq!(entry.positive_source, *positive, "{code}/{subcause:?}");
-        if !matches!(*code, "NX-E0412" | "NX-E0413" | "NX-E0414" | "NX-E0415") {
+        {
             let errors = if *code == "NX-E0113" {
                 // I08 keeps the catalog's type rule, while compilation reports
                 // the temporary implementation limit at the same source site.

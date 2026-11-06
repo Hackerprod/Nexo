@@ -260,6 +260,7 @@ fn compile_ast_with_inference(
             lower.locals.push(Local {
                 id,
                 name: p.name.clone(),
+                name_span: p.span.clone(),
                 ty: ty.clone(),
                 mutable: *mode == ParameterMode::Inout,
                 scope: ScopeId(0),
@@ -279,6 +280,7 @@ fn compile_ast_with_inference(
                 .map(|t| t.span.clone())
                 .ok_or(CompileError::InvalidIr("parameter name token"))?;
             lower.name_spans.push(name_span);
+            lower.locals[id.0].name_span = lower.name_spans.last().unwrap().clone();
             lower.visible.entry(p.name.clone()).or_default().push(id);
             lower.scopes[0].push(p.name.clone());
             parameters.push(Parameter {
@@ -433,6 +435,8 @@ fn compile_ast_with_inference(
             blocks: other_blocks,
             result,
             cleanup: Vec::new(),
+            effects: None,
+            exit_info: Vec::new(),
         };
         function.cleanup = function.locals.iter().rev().map(|l| l.id).collect();
         function.content_hash = model::content_hash(&function);
@@ -458,6 +462,7 @@ fn compile_ast_with_inference(
             diagnostics.extend(flow_errors);
             continue;
         }
+        super::effects::populate_exit_info(&mut function, ast);
         super::verify::verify_function(&function).map_err(CompileError::InvalidIr)?;
         entries.push(function);
     }
@@ -480,6 +485,12 @@ fn compile_ast_with_inference(
         functions: FunctionTable { entries },
         profile: PROFILE_ID,
     };
+    let mut program = program;
+    if let Err(errors) = super::effects::analyze(&mut program, ast) {
+        return Err(CompileError::Rejected(
+            errors.into_iter().map(Box::new).collect(),
+        ));
+    }
     super::verify::verify_program(&program).map_err(CompileError::InvalidIr)?;
     Ok(program)
 }
@@ -741,6 +752,7 @@ impl Lower<'_> {
             self.locals.push(Local {
                 id,
                 name: String::new(),
+                name_span: span.clone(),
                 ty: resolved.clone(),
                 mutable: true,
                 scope: self.scope,
@@ -2101,6 +2113,45 @@ impl Lower<'_> {
             }
         }
     }
+
+    // A read argument can be an owned temporary. The operation borrows it,
+    // then the caller destroys that value immediately after the call.
+    fn drop_owned_read_arguments(
+        &mut self,
+        prepared: &[(usize, TempId)],
+        params: &[(String, ParameterMode, Ty)],
+    ) {
+        for &(slot, temp) in prepared {
+            if params
+                .get(slot)
+                .is_none_or(|(_, mode, _)| *mode != ParameterMode::Read)
+            {
+                continue;
+            }
+            let Some(instruction) = self
+                .instructions
+                .iter()
+                .find(|instruction| instruction.output == Some(temp))
+            else {
+                continue;
+            };
+            if matches!(
+                instruction.op,
+                Op::BeginLoan { .. } | Op::BorrowValue(_) | Op::BorrowIndex { .. }
+            ) {
+                continue;
+            }
+            if !instruction
+                .ty
+                .as_ref()
+                .is_some_and(Ty::has_resource_destructor)
+            {
+                continue;
+            }
+            let span = instruction.span.clone();
+            self.statement_op(Op::DropValue(temp), span, Access::Own, false);
+        }
+    }
     fn scoped_block(
         &mut self,
         block: &parse::Block,
@@ -2132,7 +2183,12 @@ impl Lower<'_> {
                 continue;
             }
             if !self.consumed_at.contains_key(&id) {
-                self.statement_op(Op::DropLocal(id), block.span.clone(), Access::Own, false);
+                self.statement_op(
+                    Op::DropLocal(id),
+                    block.close_span.clone(),
+                    Access::Own,
+                    false,
+                );
             }
         }
         self.leave_scope(saved)?;
@@ -2236,7 +2292,12 @@ impl Lower<'_> {
                 .and_then(|v| v.last())
                 .ok_or(CompileError::InvalidIr("scope name"))?;
             if !self.poisoned.contains(&id) && !self.consumed_at.contains_key(&id) {
-                self.statement_op(Op::DropLocal(id), block.span.clone(), Access::Own, false);
+                self.statement_op(
+                    Op::DropLocal(id),
+                    block.close_span.clone(),
+                    Access::Own,
+                    false,
+                );
             }
         }
         self.leave_scope(saved)?;
@@ -2403,6 +2464,7 @@ impl Lower<'_> {
                         self.locals.push(Local {
                             id,
                             name: name.clone(),
+                            name_span: binding_span.clone(),
                             ty: expected,
                             mutable: *mutable,
                             scope: self.scope,
@@ -2419,10 +2481,11 @@ impl Lower<'_> {
                     Err(error) => return Err(error),
                 };
                 let id = LocalId(self.locals.len());
-                self.name_spans.push(binding_span);
+                self.name_spans.push(binding_span.clone());
                 self.locals.push(Local {
                     id,
                     name: name.clone(),
+                    name_span: binding_span.clone(),
                     ty: expected,
                     mutable: *mutable,
                     scope: self.scope,
@@ -2821,6 +2884,7 @@ impl Lower<'_> {
                     "MockBlockingOpen" => Intrinsic::MockBlockingOpen,
                     "Inspect" => Intrinsic::Inspect,
                     "TryAdd" => Intrinsic::TryAdd,
+                    "MockUnknown" => Intrinsic::MockUnknown,
                     _ => return Err(CompileError::InvalidIr("user or deferred call")),
                 };
                 if intrinsic == Intrinsic::DropData
@@ -2872,7 +2936,7 @@ impl Lower<'_> {
                         ("a".into(), ParameterMode::Consume, Ty::I64),
                         ("b".into(), ParameterMode::Consume, Ty::I64),
                     ],
-                    Intrinsic::Fail => vec![],
+                    Intrinsic::Fail | Intrinsic::MockUnknown => vec![],
                 };
                 let (prepared, acquired, diverged) =
                     self.prepare_call_arguments(args, &parameters, depth, false, args.len() > 1)?;
@@ -2882,7 +2946,7 @@ impl Lower<'_> {
                 }
                 // AssertEq is symmetric; retain source order so loan release
                 // is the exact reverse of argument evaluation.
-                let ids: Vec<_> = prepared.into_iter().map(|(_, id)| id).collect();
+                let ids: Vec<_> = prepared.iter().map(|(_, id)| *id).collect();
                 let arity = match intrinsic {
                     Intrinsic::Print
                     | Intrinsic::DropData
@@ -2891,7 +2955,7 @@ impl Lower<'_> {
                     | Intrinsic::MockBlockingOpen
                     | Intrinsic::Inspect => 1,
                     Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
-                    Intrinsic::Fail => 0,
+                    Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                 };
                 if args.len() != arity {
                     return Err(CompileError::InvalidIr("intrinsic arity"));
@@ -2899,7 +2963,7 @@ impl Lower<'_> {
                 let result_flow = self.emitted(
                     Op::CallIntrinsic {
                         intrinsic,
-                        args: ids,
+                        args: ids.clone(),
                     },
                     inferred,
                     span.clone(),
@@ -2913,6 +2977,7 @@ impl Lower<'_> {
                     ),
                 );
                 self.end_call_loans(acquired);
+                self.drop_owned_read_arguments(&prepared, &parameters);
                 Ok(result_flow)
             }
             Expr::Array(items, span) => {
@@ -3237,7 +3302,7 @@ mod tests {
     #[test]
     fn capability_limit_returns_before_lowering_an_uninferred_ast() {
         CAPABILITY_LOWER_ATTEMPTS.store(0, std::sync::atomic::Ordering::Relaxed);
-        let source = "fn Main() with no_io {let x=1;Print(x);}";
+        let source = "fn Main(){MockRequest();}";
         let Err(CompileError::Rejected(errors)) = compile_scalar("cap_limit_early_exit.n", source)
         else {
             panic!("capability limit must reject the source");
@@ -3408,6 +3473,11 @@ mod tests {
             locals: vec![Local {
                 id: LocalId(0),
                 name: name.into(),
+                name_span: Span {
+                    file: "bottom_flow.n".into(),
+                    start: 0,
+                    end: 0,
+                },
                 ty,
                 mutable: true,
                 scope: ScopeId(0),
@@ -3576,6 +3646,11 @@ mod tests {
             locals: vec![Local {
                 id: LocalId(0),
                 name: "v".into(),
+                name_span: Span {
+                    file: "bottom_flow.n".into(),
+                    start: 0,
+                    end: 0,
+                },
                 ty: Ty::Never,
                 mutable: false,
                 scope: ScopeId(0),
@@ -3731,13 +3806,12 @@ mod tests {
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
-        assert!(matches!(
-            lower.statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new()),
-            Err(CompileError::InvalidIr(_))
-        ));
+        lower
+            .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
+            .unwrap();
         assert_eq!(lower.scopes.len(), 1);
         assert_eq!(lower.scope, ScopeId(0));
-        assert!(lower.visible.is_empty());
+        assert!(lower.visible.values().all(Vec::is_empty));
     }
 
     #[test]
