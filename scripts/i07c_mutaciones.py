@@ -26,10 +26,17 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "b506d7d"
 OUTPUT = ROOT / "docs/validation/i07c-mutations/population.json"
+RESULTS_PATH: Path | None = None
 DIRECTORIES = ("src/check/", "src/ir/")
 DEFAULT_ONLY = "all"
 TARGETED_TEST: str | None = None
 SKIP_FILES: set[str] = set()
+
+
+def results_file(name: str = "results.jsonl") -> Path:
+    if RESULTS_PATH is not None and name == "results.jsonl":
+        return RESULTS_PATH
+    return OUTPUT.parent / name
 
 TOKENS = (
     ("eq", re.compile(r"(?<![=!<>])==(?![=>])"), "!="),
@@ -269,8 +276,8 @@ def enumerate_population(base: str, write: bool = True) -> list[dict]:
     population = candidates(base)
     if write:
         OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-        OUTPUT.write_text(json.dumps({"base": base, "operators": [name for name, *_ in TOKENS]
-                                      + ["drop_record", "drop_state", "drop_assignment", "swap_primary", "swap_unify"],
+        OUTPUT.write_text(json.dumps({"base": base, "operators": sorted(
+                                          {item["operator"] for item in population}),
                                       "mutations": population}, ensure_ascii=False, indent=2) + "\n",
                           encoding="utf-8", newline="\n")
     return population
@@ -442,11 +449,11 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                                           stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
                 if prepared.returncode:
                     raise RuntimeError(prepared.stdout.decode("utf-8", "replace"))
-        output = OUTPUT.parent / output_name
+        output = results_file(output_name)
         completed: dict[str, dict] = {}
         if resume and output.exists():
             entries = {item["id"]: item for item in
-                       json.loads((OUTPUT.parent / "population.json").read_text(encoding="utf-8"))["mutations"]}
+                       json.loads(OUTPUT.read_text(encoding="utf-8"))["mutations"]}
             for line in output.read_text(encoding="utf-8").splitlines():
                 row = json.loads(line)
                 item = entries[row["id"]]
@@ -502,15 +509,25 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                     elif path_name.endswith("machine.rs"):
                         filters = ["interp::machine::tests"]
                     elif path_name.endswith("diagnostic.rs"):
-                        filters = ["diagnostic::tests"]
+                        filters = ["diagnostic::tests", "i10a_tests"]
                     elif path_name.endswith("effects.rs"):
-                        filters = ["ir::effects::tests"]
+                        filters = [
+                            "ir::effects::tests", "ir::effects::witness_differential_tests",
+                            "i10a_tests"
+                        ]
                     elif path_name == "src/ir/verify.rs":
-                        filters = ["ir::effects::tests"]
+                        filters = [
+                            "ir::verify::tests", "ir::effects::tests", "i10a_tests",
+                            "i07a_tests", "i07b_tests", "i07c_tests"
+                        ]
                     elif path_name.endswith("i07a_tests.rs"):
                         filters = ["i07a_tests"]
                     elif path_name.endswith("i07b_tests.rs"):
                         filters = ["i07b_tests"]
+                    elif path_name.endswith("i10a_tests.rs"):
+                        filters = ["i10a_tests"]
+                    elif path_name == "src/check/names.rs":
+                        filters = ["i10a_tests", "check::"]
                     elif path_name.endswith("check/tests.rs"):
                         filters = ["check::tests"]
                     elif path_name.endswith("i07c_quota_campaign.rs"):
@@ -520,7 +537,7 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
                     elif path_name.endswith("types.rs"):
                         filters = ["check::tests", "i07c_tests"]
                     elif path_name.startswith("src/ir/"):
-                        filters = ["i07a_tests", "i07b_tests", "i07c_tests"]
+                        filters = ["i10a_tests", "i07a_tests", "i07b_tests", "i07c_tests"]
                     else:
                         filters = ["check::"]
                     mutant_profiles = (profiles if mutation_profile != "both" or index < debug_sample
@@ -653,7 +670,7 @@ def shard_path(shard: int, shards: int) -> Path:
 
 def seed_shards(population: list[dict], shards: int, overwrite: bool = False) -> None:
     assert shards > 1
-    rows = checked_results(OUTPUT.parent / "results.jsonl", population)
+    rows = checked_results(results_file(), population)
     for shard in range(shards):
         selected = [item for index, item in enumerate(population) if index % shards == shard]
         path = shard_path(shard, shards)
@@ -673,7 +690,7 @@ def merge_shards(population: list[dict], shards: int) -> None:
         assert not (rows.keys() & part.keys())
         rows.update(part)
     assert len(rows) == len(population), f"missing {len(population) - len(rows)} mutations"
-    merged = OUTPUT.parent / "results.jsonl"
+    merged = results_file()
     staging = merged.with_suffix(merged.suffix + ".tmp")
     staging.write_text(
         "".join(json.dumps(rows[item["id"]], ensure_ascii=False) + "\n"
@@ -755,7 +772,7 @@ def verify_integration(population: list[dict], ids: list[str], test: str | None,
     # Build it separately so a timeout in the measured invocation witnesses
     # execution of the test, not compiler or linker work.
     build_command = command[:command.index("--")] + ["--no-run"]
-    results_path = results_copy or OUTPUT.parent / "results.jsonl"
+    results_path = results_copy or results_file()
     rows = checked_results(results_path, population)
     for id in ids:
         item = entries[id]
@@ -821,7 +838,7 @@ def verify_integration(population: list[dict], ids: list[str], test: str | None,
 
 def normalize_timeout_rows(population: list[dict], shards: int) -> None:
     """El plazo agotado no demuestra que una prueba haya matado al mutante."""
-    results_path = OUTPUT.parent / "results.jsonl"
+    results_path = results_file()
     rows = checked_results(results_path, population)
     changed = []
     for row in rows.values():

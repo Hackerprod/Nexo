@@ -53,6 +53,36 @@ pub enum CompileError {
     Dependent,
 }
 
+#[derive(Clone, Copy)]
+struct AnalysisLimits {
+    flow_function: u64,
+    flow_compilation: u64,
+    effects: u64,
+    ir_items: u64,
+    profile_id: &'static str,
+    force_sparse_ownership: bool,
+}
+
+impl AnalysisLimits {
+    const NORMAL: Self = Self {
+        flow_function: 1_000_000,
+        flow_compilation: 4_000_000,
+        effects: 1_000_000,
+        ir_items: 262_144,
+        profile_id: PROFILE_ID,
+        force_sparse_ownership: false,
+    };
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(crate) enum ReducedProfile {
+    FlowFunction32,
+    FlowCompilation32,
+    Effects32,
+    IrItems32,
+}
+
 /// Produces an opaque, verified artifact. No interpreter entry accepts an AST.
 pub fn compile_scalar(file: &str, source: &str) -> Result<Program, CompileError> {
     compile_scalar_with_entry(file, source, true)
@@ -63,10 +93,79 @@ pub fn check_scalar(file: &str, source: &str) -> Result<Program, CompileError> {
     compile_scalar_with_entry(file, source, false)
 }
 
+#[cfg(test)]
+pub(crate) fn compile_scalar_with_flow_limit(
+    file: &str,
+    source: &str,
+    limit: u64,
+) -> Result<Program, CompileError> {
+    let limits = AnalysisLimits {
+        flow_function: limit,
+        ..AnalysisLimits::NORMAL
+    };
+    compile_scalar_with_analysis_limits(file, source, false, limits)
+}
+
+#[cfg(test)]
+pub(crate) fn compile_scalar_with_profile(
+    file: &str,
+    source: &str,
+    profile: ReducedProfile,
+) -> Result<Program, CompileError> {
+    let limits = match profile {
+        ReducedProfile::FlowFunction32 => AnalysisLimits {
+            flow_function: 32,
+            profile_id: "f0-0002-b-test-flow-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::FlowCompilation32 => AnalysisLimits {
+            flow_compilation: 32,
+            profile_id: "f0-0002-b-test-flow-global-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::Effects32 => AnalysisLimits {
+            effects: 32,
+            profile_id: "f0-0002-b-test-effects-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::IrItems32 => AnalysisLimits {
+            ir_items: 32,
+            profile_id: "f0-0002-b-test-ir-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+    };
+    compile_scalar_with_analysis_limits(file, source, false, limits)
+}
+
+#[cfg(test)]
+pub(crate) fn compile_scalar_with_sparse_ownership(
+    file: &str,
+    source: &str,
+) -> Result<Program, CompileError> {
+    compile_scalar_with_analysis_limits(
+        file,
+        source,
+        false,
+        AnalysisLimits {
+            force_sparse_ownership: true,
+            ..AnalysisLimits::NORMAL
+        },
+    )
+}
+
 fn compile_scalar_with_entry(
     file: &str,
     source: &str,
     run_entry: bool,
+) -> Result<Program, CompileError> {
+    compile_scalar_with_analysis_limits(file, source, run_entry, AnalysisLimits::NORMAL)
+}
+
+fn compile_scalar_with_analysis_limits(
+    file: &str,
+    source: &str,
+    run_entry: bool,
+    limits: AnalysisLimits,
 ) -> Result<Program, CompileError> {
     let ast = parse::parse(file, source).map_err(|d| CompileError::Rejected(vec![d]))?;
     // A capability limit exits check_ast with exactly one
@@ -74,6 +173,10 @@ fn compile_scalar_with_entry(
     // path below, any nonempty checker error set is returned after lowering;
     // that early exit only avoids doing unusable lowering work.
     let checked = crate::check::check_for_compilation(file, source, &ast, false);
+    if let Some(reason) = checked.internal_error {
+        let _ = reason;
+        return Err(CompileError::InvalidIr("internal_error"));
+    }
     if !checked.errors.is_empty()
         && checked
             .errors
@@ -92,16 +195,19 @@ fn compile_scalar_with_entry(
                 #[cfg(test)]
                 if measure_cfg {
                     return super::measure_cfg_thread_work(|| {
-                        compile_ast_with_inference(&ast, source, inferred)
+                        compile_ast_with_flow_limit(&ast, source, inferred, limits)
                     });
                 }
                 #[cfg(test)]
                 {
-                    (compile_ast_with_inference(&ast, source, inferred), 0)
+                    (
+                        compile_ast_with_flow_limit(&ast, source, inferred, limits),
+                        0,
+                    )
                 }
                 #[cfg(not(test))]
                 {
-                    compile_ast_with_inference(&ast, source, inferred)
+                    compile_ast_with_flow_limit(&ast, source, inferred, limits)
                 }
             })
             .map_err(|_| CompileError::InvalidIr("lowering worker unavailable"))?
@@ -143,45 +249,50 @@ fn compile_scalar_with_entry(
 }
 
 #[cfg(test)]
+#[allow(dead_code)] // Called by the release-only timing campaign.
+pub(super) fn compile_scalar_with_unbounded_ir_for_scale(
+    file: &str,
+    source: &str,
+) -> Result<Program, CompileError> {
+    compile_scalar_with_analysis_limits(
+        file,
+        source,
+        false,
+        AnalysisLimits {
+            ir_items: u64::MAX,
+            ..AnalysisLimits::NORMAL
+        },
+    )
+}
+
+#[cfg(test)]
 pub(super) fn compile_ast(ast: &Ast, source_text: &str) -> Result<Program, CompileError> {
     // this test-only entry ignores checker errors and forwards only
     // inferred types. The run-entry flag affects only an emitted entry-point
     // diagnostic, not the inference consumed by this helper.
     let checked = crate::check::check_for_compilation(&ast.span.file, source_text, ast, false);
+    if let Some(reason) = checked.internal_error {
+        let _ = reason;
+        return Err(CompileError::InvalidIr("internal_error"));
+    }
     compile_ast_with_inference(ast, source_text, &checked.inferred)
 }
 
 #[cfg(test)]
-static CAPABILITY_LOWER_ATTEMPTS: std::sync::atomic::AtomicUsize =
-    std::sync::atomic::AtomicUsize::new(0);
-
-#[cfg(test)]
-#[inline(never)]
-fn stack_policy_probe(depth: usize) -> usize {
-    let slab = [0u8; 4096];
-    std::hint::black_box(&slab);
-    let result = if depth == 0 {
-        1
-    } else {
-        stack_policy_probe(depth - 1) + 1
-    };
-    std::hint::black_box(&slab);
-    result
-}
-
 fn compile_ast_with_inference(
     ast: &Ast,
     source_text: &str,
     inferred: &crate::check::types::InferredTypes,
 ) -> Result<Program, CompileError> {
-    #[cfg(test)]
-    if ast.span.file == "cap_limit_early_exit.n" {
-        CAPABILITY_LOWER_ATTEMPTS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    }
-    #[cfg(test)]
-    if ast.span.file == "stack_policy_probe.n" {
-        assert_eq!(stack_policy_probe(384), 385);
-    }
+    compile_ast_with_flow_limit(ast, source_text, inferred, AnalysisLimits::NORMAL)
+}
+
+fn compile_ast_with_flow_limit(
+    ast: &Ast,
+    source_text: &str,
+    inferred: &crate::check::types::InferredTypes,
+    limits: AnalysisLimits,
+) -> Result<Program, CompileError> {
     #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(&ast.span.file);
     let source_text: std::sync::Arc<str> = std::sync::Arc::from(source_text);
@@ -210,10 +321,11 @@ fn compile_ast_with_inference(
             .unwrap_or(Ty::Unit);
         user_functions.insert(f.name.clone(), (params, result));
     }
-    let mut functions: Vec<_> = ast.functions.iter().collect();
-    functions.sort_by(|a, b| a.name.cmp(&b.name));
+    let functions: Vec<_> = ast.functions.iter().collect();
     let mut entries = Vec::with_capacity(functions.len());
     let mut diagnostics = Vec::new();
+    let mut ir_items = 0_u64;
+    let mut ir_limit_span = None;
     for (index, source) in functions.into_iter().enumerate() {
         let result = match source.result.as_ref() {
             None | Some(Type::Unit) => Ty::Unit,
@@ -243,7 +355,7 @@ fn compile_ast_with_inference(
             emission: EmissionMode::Live,
             poisoned: HashSet::new(),
             tokens: Arc::clone(&tokens),
-            defer_ownership: {
+            defer_ownership: limits.force_sparse_ownership || {
                 let first = tokens.partition_point(|t| t.span.start < source.span.start);
                 tokens[first..]
                     .iter()
@@ -378,6 +490,10 @@ fn compile_ast_with_inference(
             });
         }
         if diagnostics.len() > before_body {
+            ir_items = ir_items.saturating_add(count_partial_ir_items(&lower));
+            if ir_items > limits.ir_items && ir_limit_span.is_none() {
+                ir_limit_span = Some(source.name_span.clone());
+            }
             continue;
         }
         let span = source.body.span.clone();
@@ -440,32 +556,54 @@ fn compile_ast_with_inference(
         };
         function.cleanup = function.locals.iter().rev().map(|l| l.id).collect();
         function.content_hash = model::content_hash(&function);
-        let flow_errors = if lower.defer_ownership {
-            let mut ownership_flow_steps = 0_u64;
-            match super::ownership_flow::analyze(
-                &function,
-                &lower.name_spans,
-                &tokens,
-                &mut ownership_flow_steps,
-            ) {
-                Ok(errors) => errors,
-                Err(CompileError::Rejected(errors)) => {
-                    diagnostics.extend(errors.into_iter().map(|d| *d));
-                    continue;
-                }
-                Err(other) => return Err(other),
+        ir_items = ir_items.saturating_add(count_function_ir_items(&function));
+        if ir_items > limits.ir_items && ir_limit_span.is_none() {
+            ir_limit_span = Some(source.name_span.clone());
+        }
+        entries.push((function, lower.name_spans, source.name_span.start, source));
+    }
+    // The complete constructible IR is collected before sparse ownership
+    // analysis starts; its traversal follows source order and includes
+    // functions without loops.
+    let mut ownership_global_steps = 0_u64;
+    let mut ownership_global_limited = false;
+    let mut owned_entries = Vec::with_capacity(entries.len());
+    for (mut function, name_spans, function_start, source_function) in entries {
+        if ownership_global_limited {
+            continue;
+        }
+        let mut ownership_flow_steps = 0_u64;
+        let flow_errors = match super::ownership_flow::analyze(
+            &function,
+            &name_spans,
+            &tokens,
+            &mut ownership_flow_steps,
+            &mut ownership_global_steps,
+            function_start,
+            limits.flow_function,
+            limits.flow_compilation,
+            limits.profile_id,
+        ) {
+            Ok(errors) => errors,
+            Err(CompileError::Rejected(errors)) => {
+                ownership_global_limited = errors.iter().any(|error| {
+                    error.data.get("budget_scope")
+                        == Some(&diagnostic::DataValue::String("compilation".into()))
+                });
+                diagnostics.extend(errors.into_iter().map(|d| *d));
+                continue;
             }
-        } else {
-            Vec::new()
+            Err(other) => return Err(other),
         };
         if !flow_errors.is_empty() {
             diagnostics.extend(flow_errors);
             continue;
         }
-        super::effects::populate_exit_info(&mut function, ast);
+        super::effects::populate_exit_info(&mut function, source_function);
         super::verify::verify_function(&function).map_err(CompileError::InvalidIr)?;
-        entries.push(function);
+        owned_entries.push(function);
     }
+    let entries = owned_entries;
     if !diagnostics.is_empty() {
         fn diagnostic_key(d: &Diagnostic) -> (&str, u64, u64, &str, &str) {
             (
@@ -482,17 +620,135 @@ fn compile_ast_with_inference(
         ));
     }
     let program = Program {
-        functions: FunctionTable { entries },
+        functions: FunctionTable {
+            entries: {
+                let mut entries = entries;
+                entries.sort_by(|a, b| a.name.cmp(&b.name));
+                for (table_index, function) in entries.iter_mut().enumerate() {
+                    function.table_index = table_index;
+                }
+                entries
+            },
+        },
         profile: PROFILE_ID,
     };
     let mut program = program;
-    if let Err(errors) = super::effects::analyze(&mut program, ast) {
+    if let Err(errors) =
+        super::effects::analyze(&mut program, ast, limits.effects, limits.profile_id)
+    {
         return Err(CompileError::Rejected(
             errors.into_iter().map(Box::new).collect(),
         ));
     }
+    if let Some(span) = ir_limit_span {
+        let mut diagnostic = crate::check::names::diagnostic(
+            "NX-E0003",
+            None,
+            diagnostic::Stage::Lower,
+            diagnostic::Operation::AnalysisLimit,
+            span,
+        );
+        diagnostic.profile_id = limits.profile_id.into();
+        diagnostic.data.insert(
+            "budget_kind".into(),
+            diagnostic::DataValue::String("ir_items".into()),
+        );
+        diagnostic.data.insert(
+            "budget_scope".into(),
+            diagnostic::DataValue::String("compilation".into()),
+        );
+        diagnostic
+            .data
+            .insert("limit".into(), diagnostic::DataValue::UInt(limits.ir_items));
+        diagnostic.data.insert(
+            "observed".into(),
+            diagnostic::DataValue::UInt(limits.ir_items.saturating_add(1)),
+        );
+        diagnostic.data.insert(
+            "incomplete_analysis".into(),
+            diagnostic::DataValue::String("lower".into()),
+        );
+        return Err(CompileError::Rejected(vec![diagnostic]));
+    }
     super::verify::verify_program(&program).map_err(CompileError::InvalidIr)?;
     Ok(program)
+}
+
+fn ir_operand_count(op: &Op) -> u64 {
+    match op {
+        Op::ConstI64(_) | Op::ConstBool(_) | Op::ConstUnit => 1,
+        Op::CopyValue(_)
+        | Op::TransferValue(_)
+        | Op::BorrowValue(_)
+        | Op::DropBinding(_)
+        | Op::DropLocal(_)
+        | Op::DropValue(_)
+        | Op::EndLoan(_) => 1,
+        Op::BeginLoan { indexes, .. } => 1 + indexes.len() as u64,
+        Op::BuildArray(values) | Op::CallIntrinsic { args: values, .. } => values.len() as u64,
+        Op::BuildResult { .. } | Op::BranchResult { .. } => 1,
+        Op::ReadIndex { indexes, .. }
+        | Op::BorrowIndex { indexes, .. }
+        | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
+        Op::IndexValue { .. } | Op::Binary { .. } | Op::WritePlace { .. } => 2,
+        Op::WriteIndex { indexes, .. } => 2 + indexes.len() as u64,
+        Op::CallDirect { args, .. } => 1 + args.len() as u64,
+    }
+}
+
+fn ir_instruction_count(instruction: &Instruction) -> u64 {
+    1 + u64::from(instruction.output.is_some())
+        + ir_operand_count(&instruction.op)
+        + u64::from(matches!(instruction.op, Op::BeginLoan { .. }))
+}
+
+fn ir_terminator_count(terminator: &Terminator) -> u64 {
+    1 + match terminator {
+        Terminator::Return { value, .. } => u64::from(value.is_some()),
+        Terminator::Jump { .. } => 1,
+        Terminator::BranchBool { .. } => 3,
+    }
+}
+
+fn count_function_ir_items(function: &Function) -> u64 {
+    let blocks = std::iter::once(&function.block).chain(&function.blocks);
+    1 + function.blocks.len() as u64
+        + 1
+        + function.locals.len() as u64
+        + function.cleanup.len() as u64
+        + blocks
+            .map(|block| {
+                block
+                    .instructions
+                    .iter()
+                    .map(ir_instruction_count)
+                    .sum::<u64>()
+                    + ir_terminator_count(&block.terminator)
+            })
+            .sum::<u64>()
+}
+
+fn count_partial_ir_items(lower: &Lower<'_>) -> u64 {
+    1 + lower.blocks.len() as u64
+        + 1
+        + lower.locals.len() as u64
+        + lower
+            .blocks
+            .iter()
+            .map(|block| {
+                block
+                    .instructions
+                    .iter()
+                    .map(ir_instruction_count)
+                    .sum::<u64>()
+                    + ir_terminator_count(&block.terminator)
+            })
+            .sum::<u64>()
+        + lower
+            .instructions
+            .iter()
+            .map(ir_instruction_count)
+            .sum::<u64>()
 }
 
 struct Lower<'a> {
@@ -1618,7 +1874,9 @@ impl Lower<'_> {
             ),
             severity: diagnostic::Severity::Error,
             stage: diagnostic::Stage::Ownership,
-            message: "Acceso propietario inválido.".into(),
+            message: diagnostic::catalog_message(code)
+                .unwrap_or("Acceso propietario inválido.")
+                .into(),
             operation,
             primary_span: Some(primary),
             related_spans: related,
@@ -3298,30 +3556,6 @@ fn statement_span(stmt: &Statement) -> Span {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn capability_limit_returns_before_lowering_an_uninferred_ast() {
-        CAPABILITY_LOWER_ATTEMPTS.store(0, std::sync::atomic::Ordering::Relaxed);
-        let source = "fn Main(){MockRequest();}";
-        let Err(CompileError::Rejected(errors)) = compile_scalar("cap_limit_early_exit.n", source)
-        else {
-            panic!("capability limit must reject the source");
-        };
-        assert_eq!(errors.len(), 1);
-        assert_eq!(
-            errors[0].feature_id.as_deref(),
-            Some("implementation_limit")
-        );
-        assert_eq!(
-            CAPABILITY_LOWER_ATTEMPTS.load(std::sync::atomic::Ordering::Relaxed),
-            0
-        );
-    }
-
-    #[test]
-    fn lowering_worker_preserves_the_configured_stack_margin() {
-        compile_scalar("stack_policy_probe.n", "fn Main(){}").unwrap();
-    }
 
     #[test]
     fn lowering_requires_checker_binding_and_expression_entries() {

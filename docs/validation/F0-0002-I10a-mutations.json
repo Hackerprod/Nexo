@@ -1,0 +1,946 @@
+{
+  "base": "6cddc5a",
+  "operators": [
+    "S1_rescan_exit_info_for_droplocal",
+    "S2_scan_blocks_per_exit",
+    "S3_rescan_source_returns_per_exit",
+    "S4_find_block_per_exit",
+    "S5_count_every_loan_temporary",
+    "and",
+    "charge_rejected_ownership_unit",
+    "continue",
+    "drop_assignment",
+    "effect_quota_allows_first_excess",
+    "eq",
+    "false",
+    "ignore_block_id_exit_index",
+    "increment",
+    "lt",
+    "misreport_checker_spawn_failure",
+    "ne",
+    "or",
+    "remove_live_union_work_charge",
+    "remove_parser_probe_charge",
+    "remove_sparse_instruction_charge",
+    "rescan_blocks_per_exit",
+    "rescan_blocks_per_verified_exit",
+    "rescan_exit_info_per_droplocal",
+    "restore_depth_guard",
+    "skip_ownership_errors_before_effects",
+    "true",
+    "truncate_witness_dynamic_programming",
+    "witness_omits_total_cause_priority"
+  ],
+  "mutations": [
+    {
+      "file": "src/check.rs",
+      "line": 9,
+      "column": 65,
+      "operator": "false",
+      "literal": "    check_proposed_with_worker_failure(file, source, run_entry, false)",
+      "replacement": "    check_proposed_with_worker_failure(file, source, run_entry, true)",
+      "site_count": 1,
+      "id": "M00001"
+    },
+    {
+      "file": "src/check.rs",
+      "line": 79,
+      "column": 59,
+      "operator": "false",
+      "literal": "        check_ast_with_worker_failure(file, source, &ast, false, force_unavailable),",
+      "replacement": "        check_ast_with_worker_failure(file, source, &ast, true, force_unavailable),",
+      "site_count": 1,
+      "id": "M00002"
+    },
+    {
+      "file": "src/check.rs",
+      "line": 156,
+      "column": 76,
+      "operator": "false",
+      "literal": "    check_ast_with_worker_failure(file, source, ast, enforce_capabilities, false)",
+      "replacement": "    check_ast_with_worker_failure(file, source, ast, enforce_capabilities, true)",
+      "site_count": 1,
+      "id": "M00003"
+    },
+    {
+      "file": "src/check.rs",
+      "line": 211,
+      "column": 1,
+      "operator": "misreport_checker_spawn_failure",
+      "literal": "            Err(_) => CompilationCheck {\n                inferred: types::InferredTypes::default(),\n                resolved: None,\n                errors: Vec::new(),\n                internal_error: Some(\"type checker worker unavailable\"),\n            },",
+      "replacement": "            Err(_) => panic!(\"type checker worker unavailable\"),",
+      "site_count": 1,
+      "id": "M00004"
+    },
+    {
+      "file": "src/check/names.rs",
+      "line": 399,
+      "column": 1,
+      "operator": "restore_depth_guard",
+      "literal": "        // Parsed input has a normative nesting bound of 128. This depth is an\n        // internal recursion statistic, not a second analysis quota.\n        let _ = span;\n        self.depth += 1;",
+      "replacement": "        if self.depth >= 80 {\n            return Err(diagnostic(\"NX-E0003\", None, Stage::Types,\n                Operation::AnalysisLimit, span.clone()));\n        }\n        self.depth += 1;",
+      "site_count": 1,
+      "id": "M00005"
+    },
+    {
+      "file": "src/diagnostic.rs",
+      "line": 366,
+      "column": 36,
+      "operator": "eq",
+      "literal": "                    *expected_kind == kind_name",
+      "replacement": "                    *expected_kind != kind_name",
+      "site_count": 1,
+      "id": "M00006"
+    },
+    {
+      "file": "src/diagnostic.rs",
+      "line": 367,
+      "column": 25,
+      "operator": "and",
+      "literal": "                        && match self.profile_id.as_str() {",
+      "replacement": "                        || match self.profile_id.as_str() {",
+      "site_count": 1,
+      "id": "M00007"
+    },
+    {
+      "file": "src/diagnostic.rs",
+      "line": 368,
+      "column": 66,
+      "operator": "eq",
+      "literal": "                            \"f0-0002-b-test-flow-32-v2\" => scope == \"function\",",
+      "replacement": "                            \"f0-0002-b-test-flow-32-v2\" => scope != \"function\",",
+      "site_count": 1,
+      "id": "M00008"
+    },
+    {
+      "file": "src/diagnostic.rs",
+      "line": 369,
+      "column": 73,
+      "operator": "eq",
+      "literal": "                            \"f0-0002-b-test-flow-global-32-v2\" => scope == \"compilation\",",
+      "replacement": "                            \"f0-0002-b-test-flow-global-32-v2\" => scope != \"compilation\",",
+      "site_count": 1,
+      "id": "M00009"
+    },
+    {
+      "file": "src/diagnostic.rs",
+      "line": 370,
+      "column": 34,
+      "operator": "true",
+      "literal": "                            _ => true,",
+      "replacement": "                            _ => false,",
+      "site_count": 1,
+      "id": "M00010"
+    },
+    {
+      "file": "src/frontend/parse.rs",
+      "line": 2512,
+      "column": 13,
+      "operator": "remove_parser_probe_charge",
+      "literal": "work.fetch_add(1, std::sync::atomic::Ordering::Relaxed);",
+      "replacement": "work.fetch_add(0, std::sync::atomic::Ordering::Relaxed);",
+      "site_count": 1,
+      "id": "M00011"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 29,
+      "column": 5,
+      "operator": "effect_quota_allows_first_excess",
+      "literal": "if *used >= limit {",
+      "replacement": "if *used > limit {",
+      "site_count": 1,
+      "id": "M00012"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 50,
+      "column": 11,
+      "operator": "increment",
+      "literal": "    *used += 1;",
+      "replacement": "    *used -= 1;",
+      "site_count": 1,
+      "id": "M00013"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 269,
+      "column": 21,
+      "operator": "S1_rescan_exit_info_for_droplocal",
+      "literal": "if exit_sites\n                        .get(&(block.id.0, index))\n                        .is_some_and(|exit| exit.live_locals.contains(local))",
+      "replacement": "if f.exit_info.iter().any(|exit| { super::count_cfg_work(1); exit.block == block.id && exit.index == index && exit.live_locals.contains(local) })",
+      "site_count": 1,
+      "id": "M00014"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 269,
+      "column": 21,
+      "operator": "rescan_exit_info_per_droplocal",
+      "literal": "if exit_sites\n                        .get(&(block.id.0, index))\n                        .is_some_and(|exit| exit.live_locals.contains(local))",
+      "replacement": "if f.exit_info.iter().any(|exit| { super::count_cfg_work(1); exit.block == block.id && exit.index == index && exit.live_locals.contains(local) })",
+      "site_count": 1,
+      "id": "M00015"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 550,
+      "column": 1,
+      "operator": "ignore_block_id_exit_index",
+      "literal": "        ) || blocks_by_id\n            .get(&e.block.0)\n            .is_some_and(|block| e.index == block.instructions.len())",
+      "replacement": "        ) || false",
+      "site_count": 1,
+      "id": "M00016"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 550,
+      "column": 11,
+      "operator": "or",
+      "literal": "        ) || blocks_by_id",
+      "replacement": "        ) && blocks_by_id",
+      "site_count": 1,
+      "id": "M00017"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 550,
+      "column": 11,
+      "operator": "rescan_blocks_per_exit",
+      "literal": "|| blocks_by_id\n            .get(&e.block.0)\n            .is_some_and(|block| e.index == block.instructions.len())",
+      "replacement": "|| std::iter::once(&f.block).chain(&f.blocks).find(|block| { super::count_cfg_work(1); block.id == e.block }).is_some_and(|block| e.index == block.instructions.len())",
+      "site_count": 1,
+      "id": "M00018"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 552,
+      "column": 42,
+      "operator": "eq",
+      "literal": "            .is_some_and(|block| e.index == block.instructions.len())",
+      "replacement": "            .is_some_and(|block| e.index != block.instructions.len())",
+      "site_count": 1,
+      "id": "M00019"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 997,
+      "column": 13,
+      "operator": "S4_find_block_per_exit",
+      "literal": "let block = blocks_by_id\n                .get(&exit.block.0)\n                .copied()\n                .ok_or(\"exit block\")?;",
+      "replacement": "let block = std::iter::once(&f.block).chain(&f.blocks).find(|block| { super::count_cfg_work(1); block.id.0 == exit.block.0 }).ok_or(\"exit block\")?;",
+      "site_count": 1,
+      "id": "M00020"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 997,
+      "column": 13,
+      "operator": "rescan_blocks_per_verified_exit",
+      "literal": "let block = blocks_by_id\n                .get(&exit.block.0)\n                .copied()\n                .ok_or(\"exit block\")?;",
+      "replacement": "let block = std::iter::once(&f.block).chain(&f.blocks).find(|block| { super::count_cfg_work(1); block.id.0 == exit.block.0 }).ok_or(\"exit block\")?;",
+      "site_count": 1,
+      "id": "M00021"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1231,
+      "column": 1,
+      "operator": "S2_scan_blocks_per_exit",
+      "literal": "        if let Terminator::Return { span, .. } = &block.terminator {\n            super::count_cfg_work(1);",
+      "replacement": "        if let Terminator::Return { span, .. } = &block.terminator {\n            super::count_cfg_work(1);\n            let _scan = blocks.iter().filter(|b| matches!(b.terminator, Terminator::Return { .. })).count();\n            std::hint::black_box(_scan);",
+      "site_count": 1,
+      "id": "M00022"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1231,
+      "column": 1,
+      "operator": "S3_rescan_source_returns_per_exit",
+      "literal": "        if let Terminator::Return { span, .. } = &block.terminator {\n            super::count_cfg_work(1);",
+      "replacement": "        if let Terminator::Return { span, .. } = &block.terminator {\n            super::count_cfg_work(1);\n            let _rescan = return_spans(&source_function.body, &function.source_text);",
+      "site_count": 1,
+      "id": "M00023"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1235,
+      "column": 58,
+      "operator": "lt",
+      "literal": "                .is_some_and(|candidate| candidate.start < span.start)",
+      "replacement": "                .is_some_and(|candidate| candidate.start <= span.start)",
+      "site_count": 1,
+      "id": "M00024"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1237,
+      "column": 36,
+      "operator": "increment",
+      "literal": "            {\n                next_source_return += 1;\n            }",
+      "replacement": "            {\n                next_source_return -= 1;\n            }",
+      "site_count": 1,
+      "id": "M00025"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1241,
+      "column": 67,
+      "operator": "and",
+      "literal": "                .filter(|candidate| span.start <= candidate.start && candidate.end <= span.end)",
+      "replacement": "                .filter(|candidate| span.start <= candidate.start || candidate.end <= span.end)",
+      "site_count": 1,
+      "id": "M00026"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1244,
+      "column": 36,
+      "operator": "increment",
+      "literal": "            if explicit.is_some() {\n                next_source_return += 1;\n            }",
+      "replacement": "            if explicit.is_some() {\n                next_source_return -= 1;\n            }",
+      "site_count": 1,
+      "id": "M00027"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1246,
+      "column": 50,
+      "operator": "and",
+      "literal": "            let is_implicit = explicit.is_none() && span == &source_function.body.span;",
+      "replacement": "            let is_implicit = explicit.is_none() || span == &source_function.body.span;",
+      "site_count": 1,
+      "id": "M00028"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 1246,
+      "column": 58,
+      "operator": "eq",
+      "literal": "            let is_implicit = explicit.is_none() && span == &source_function.body.span;",
+      "replacement": "            let is_implicit = explicit.is_none() && span != &source_function.body.span;",
+      "site_count": 1,
+      "id": "M00029"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2932,
+      "column": 9,
+      "operator": "witness_omits_total_cause_priority",
+      "literal": "let prefix = (a.unknown, a_causes).cmp(&(b.unknown, b_causes));",
+      "replacement": "let prefix = (a.unknown, a.edges, a_causes).cmp(&(b.unknown, b.edges, b_causes));",
+      "site_count": 1,
+      "id": "M00030"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2933,
+      "column": 19,
+      "operator": "ne",
+      "literal": "        if prefix != std::cmp::Ordering::Equal {",
+      "replacement": "        if prefix == std::cmp::Ordering::Equal {",
+      "site_count": 1,
+      "id": "M00031"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2941,
+      "column": 13,
+      "operator": "and",
+      "literal": "            && left.start != right.start",
+      "replacement": "            || left.start != right.start",
+      "site_count": 1,
+      "id": "M00032"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2941,
+      "column": 27,
+      "operator": "ne",
+      "literal": "            && left.start != right.start",
+      "replacement": "            && left.start == right.start",
+      "site_count": 1,
+      "id": "M00033"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2955,
+      "column": 45,
+      "operator": "or",
+      "literal": "        a_offsets.cmp(&b_offsets).then_with(|| {",
+      "replacement": "        a_offsets.cmp(&b_offsets).then_with(&& {",
+      "site_count": 1,
+      "id": "M00034"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2987,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                } = &instruction.op\n                else {\n                    continue;\n                };\n                let Some(&target_index) = indices.get(target.0.as_str()) else {",
+      "replacement": "                } = &instruction.op\n                else {\n                    break;\n                };\n                let Some(&target_index) = indices.get(target.0.as_str()) else {",
+      "site_count": 1,
+      "id": "M00035"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 2990,
+      "column": 21,
+      "operator": "continue",
+      "literal": "                let Some(&target_index) = indices.get(target.0.as_str()) else {\n                    continue;\n                };",
+      "replacement": "                let Some(&target_index) = indices.get(target.0.as_str()) else {\n                    break;\n                };",
+      "site_count": 1,
+      "id": "M00036"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3018,
+      "column": 1,
+      "operator": "truncate_witness_dynamic_programming",
+      "literal": "    let mut distance = vec![usize::MAX; functions.len()];",
+      "replacement": "    let mut distance = vec![0; functions.len()];",
+      "site_count": 1,
+      "id": "M00037"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3025,
+      "column": 34,
+      "operator": "eq",
+      "literal": "            if distance[*target] == usize::MAX {",
+      "replacement": "            if distance[*target] != usize::MAX {",
+      "site_count": 1,
+      "id": "M00038"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3037,
+      "column": 42,
+      "operator": "ne",
+      "literal": "        .filter(|index| distance[*index] != usize::MAX)",
+      "replacement": "        .filter(|index| distance[*index] == usize::MAX)",
+      "site_count": 1,
+      "id": "M00039"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3044,
+      "column": 41,
+      "operator": "eq",
+      "literal": "            if leaf.summary.known & bit == 0 && leaf.summary.unknown & bit == 0 {",
+      "replacement": "            if leaf.summary.known & bit != 0 && leaf.summary.unknown & bit == 0 {",
+      "site_count": 1,
+      "id": "M00040"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3044,
+      "column": 46,
+      "operator": "and",
+      "literal": "            if leaf.summary.known & bit == 0 && leaf.summary.unknown & bit == 0 {",
+      "replacement": "            if leaf.summary.known & bit == 0 || leaf.summary.unknown & bit == 0 {",
+      "site_count": 1,
+      "id": "M00041"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3044,
+      "column": 76,
+      "operator": "eq",
+      "literal": "            if leaf.summary.known & bit == 0 && leaf.summary.unknown & bit == 0 {",
+      "replacement": "            if leaf.summary.known & bit == 0 && leaf.summary.unknown & bit != 0 {",
+      "site_count": 1,
+      "id": "M00042"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3045,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            if leaf.summary.known & bit == 0 && leaf.summary.unknown & bit == 0 {\n                continue;\n            }",
+      "replacement": "            if leaf.summary.known & bit == 0 && leaf.summary.unknown & bit == 0 {\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00043"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3048,
+      "column": 51,
+      "operator": "eq",
+      "literal": "                unknown: leaf.summary.known & bit == 0,",
+      "replacement": "                unknown: leaf.summary.known & bit != 0,",
+      "site_count": 1,
+      "id": "M00044"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3057,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                .as_ref()\n                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())\n            {\n                best[caller] = Some(candidate);\n            }\n        }\n        for (target, cause) in &callers[caller] {",
+      "replacement": "                .as_ref()\n                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())\n            {\n\n            }\n        }\n        for (target, cause) in &callers[caller] {",
+      "site_count": 1,
+      "id": "M00045"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3062,
+      "column": 34,
+      "operator": "ne",
+      "literal": "            if distance[*target] != distance[caller] + 1 {",
+      "replacement": "            if distance[*target] == distance[caller] + 1 {",
+      "site_count": 1,
+      "id": "M00046"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3063,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            if distance[*target] != distance[caller] + 1 {\n                continue;\n            }",
+      "replacement": "            if distance[*target] != distance[caller] + 1 {\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00047"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3066,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            let Some(suffix) = best[*target].as_ref() else {\n                continue;\n            };",
+      "replacement": "            let Some(suffix) = best[*target].as_ref() else {\n                break;\n            };",
+      "site_count": 1,
+      "id": "M00048"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3078,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                .as_ref()\n                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())\n            {\n                best[caller] = Some(candidate);\n            }\n        }\n    }",
+      "replacement": "                .as_ref()\n                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())\n            {\n\n            }\n        }\n    }",
+      "site_count": 1,
+      "id": "M00049"
+    },
+    {
+      "file": "src/ir/effects.rs",
+      "line": 3088,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            witness.primary = call_causes[0].span.clone().unwrap_or(witness.primary);\n            witness.operation = CauseOperation::FunctionCall;\n            witness",
+      "replacement": "            witness.primary = call_causes[0].span.clone().unwrap_or(witness.primary);\n\n            witness",
+      "site_count": 1,
+      "id": "M00050"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 73,
+      "column": 33,
+      "operator": "false",
+      "literal": "        force_sparse_ownership: false,",
+      "replacement": "        force_sparse_ownership: true,",
+      "site_count": 1,
+      "id": "M00051"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 358,
+      "column": 60,
+      "operator": "or",
+      "literal": "            defer_ownership: limits.force_sparse_ownership || {",
+      "replacement": "            defer_ownership: limits.force_sparse_ownership && {",
+      "site_count": 1,
+      "id": "M00052"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 561,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "        if ir_items > limits.ir_items && ir_limit_span.is_none() {\n            ir_limit_span = Some(source.name_span.clone());\n        }",
+      "replacement": "        if ir_items > limits.ir_items && ir_limit_span.is_none() {\n\n        }",
+      "site_count": 1,
+      "id": "M00053"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 569,
+      "column": 40,
+      "operator": "false",
+      "literal": "    let mut ownership_global_limited = false;",
+      "replacement": "    let mut ownership_global_limited = true;",
+      "site_count": 1,
+      "id": "M00054"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 591,
+      "column": 25,
+      "operator": "eq",
+      "literal": "                        == Some(&diagnostic::DataValue::String(\"compilation\".into()))",
+      "replacement": "                        != Some(&diagnostic::DataValue::String(\"compilation\".into()))",
+      "site_count": 1,
+      "id": "M00055"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 594,
+      "column": 17,
+      "operator": "continue",
+      "literal": "                diagnostics.extend(errors.into_iter().map(|d| *d));\n                continue;\n            }",
+      "replacement": "                diagnostics.extend(errors.into_iter().map(|d| *d));\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00056"
+    },
+    {
+      "file": "src/ir/lower.rs",
+      "line": 606,
+      "column": 1,
+      "operator": "skip_ownership_errors_before_effects",
+      "literal": "    let entries = owned_entries;\n    if !diagnostics.is_empty() {\n        fn diagnostic_key(d: &Diagnostic)",
+      "replacement": "    let entries = owned_entries;\n    if diagnostics.is_empty() {\n        fn diagnostic_key(d: &Diagnostic)",
+      "site_count": 1,
+      "id": "M00057"
+    },
+    {
+      "file": "src/ir/ownership_flow.rs",
+      "line": 102,
+      "column": 1,
+      "operator": "charge_rejected_ownership_unit",
+      "literal": "        if local_denied || global_denied {\n            // A rejected unit is not part of the granted work balance.\n            // In particular, local rejections must not consume compilation quota.\n        } else {",
+      "replacement": "        self.used += 1;\n        self.global_used += 1;\n        if local_denied || global_denied {",
+      "site_count": 1,
+      "id": "M00058"
+    },
+    {
+      "file": "src/ir/ownership_flow.rs",
+      "line": 102,
+      "column": 25,
+      "operator": "or",
+      "literal": "        if local_denied || global_denied {",
+      "replacement": "        if local_denied && global_denied {",
+      "site_count": 1,
+      "id": "M00059"
+    },
+    {
+      "file": "src/ir/ownership_flow.rs",
+      "line": 106,
+      "column": 23,
+      "operator": "increment",
+      "literal": "            self.used += 1;",
+      "replacement": "            self.used -= 1;",
+      "site_count": 1,
+      "id": "M00060"
+    },
+    {
+      "file": "src/ir/ownership_flow.rs",
+      "line": 107,
+      "column": 30,
+      "operator": "increment",
+      "literal": "            self.global_used += 1;",
+      "replacement": "            self.global_used -= 1;",
+      "site_count": 1,
+      "id": "M00061"
+    },
+    {
+      "file": "src/ir/ownership_flow/sparse.rs",
+      "line": 712,
+      "column": 1,
+      "operator": "remove_sparse_instruction_charge",
+      "literal": "            for ins in &block.instructions {\n                budget.charge(&ins.span)?;\n                sparse_transfer(&mut state, ins, function);",
+      "replacement": "            for ins in &block.instructions {\n                let _ = &ins.span;\n                sparse_transfer(&mut state, ins, function);",
+      "site_count": 1,
+      "id": "M00062"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1044,
+      "column": 49,
+      "operator": "false",
+      "literal": "            let Some(node) = node else { return false };",
+      "replacement": "            let Some(node) = node else { return true };",
+      "site_count": 1,
+      "id": "M00063"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1045,
+      "column": 20,
+      "operator": "eq",
+      "literal": "            let Some(node) = node else { return false };\n            if bit == 0 {\n                return node.count != 0;",
+      "replacement": "            let Some(node) = node else { return false };\n            if bit != 0 {\n                return node.count != 0;",
+      "site_count": 1,
+      "id": "M00064"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1046,
+      "column": 35,
+      "operator": "ne",
+      "literal": "                return node.count != 0;",
+      "replacement": "                return node.count == 0;",
+      "site_count": 1,
+      "id": "M00065"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1048,
+      "column": 51,
+      "operator": "eq",
+      "literal": "            let child = if (key >> (bit - 1)) & 1 == 0 {",
+      "replacement": "            let child = if (key >> (bit - 1)) & 1 != 0 {",
+      "site_count": 1,
+      "id": "M00066"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1068,
+      "column": 20,
+      "operator": "eq",
+      "literal": "            super::count_cfg_work(1);\n            if bit == 0 {\n                return node.clone().or_else(|| {",
+      "replacement": "            super::count_cfg_work(1);\n            if bit != 0 {\n                return node.clone().or_else(|| {",
+      "site_count": 1,
+      "id": "M00067"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1079,
+      "column": 59,
+      "operator": "eq",
+      "literal": "            let current = node.as_deref().unwrap_or(&empty_node);\n            let (left, right) = if (key >> (bit - 1)) & 1 == 0 {\n                (",
+      "replacement": "            let current = node.as_deref().unwrap_or(&empty_node);\n            let (left, right) = if (key >> (bit - 1)) & 1 != 0 {\n                (",
+      "site_count": 1,
+      "id": "M00068"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1126,
+      "column": 20,
+      "operator": "eq",
+      "literal": "            let current = node.as_ref()?;\n            if bit == 0 {\n                return None;",
+      "replacement": "            let current = node.as_ref()?;\n            if bit != 0 {\n                return None;",
+      "site_count": 1,
+      "id": "M00069"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1129,
+      "column": 59,
+      "operator": "eq",
+      "literal": "            }\n            let (left, right) = if (key >> (bit - 1)) & 1 == 0 {\n                (remove(&current.left, key, bit - 1), current.right.clone())",
+      "replacement": "            }\n            let (left, right) = if (key >> (bit - 1)) & 1 != 0 {\n                (remove(&current.left, key, bit - 1), current.right.clone())",
+      "site_count": 1,
+      "id": "M00070"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1136,
+      "column": 20,
+      "operator": "ne",
+      "literal": "            (count != 0).then(|| std::sync::Arc::new(LiveNode { left, right, count }))",
+      "replacement": "            (count == 0).then(|| std::sync::Arc::new(LiveNode { left, right, count }))",
+      "site_count": 1,
+      "id": "M00071"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1142,
+      "column": 1,
+      "operator": "remove_live_union_work_charge",
+      "literal": "        fn union(\n            left: &Option<std::sync::Arc<LiveNode>>,\n            right: &Option<std::sync::Arc<LiveNode>>,\n            bit: usize,\n        ) -> Option<std::sync::Arc<LiveNode>> {\n            super::count_cfg_work(1);",
+      "replacement": "        fn union(\n            left: &Option<std::sync::Arc<LiveNode>>,\n            right: &Option<std::sync::Arc<LiveNode>>,\n            bit: usize,\n        ) -> Option<std::sync::Arc<LiveNode>> {\n            super::count_cfg_work(0);",
+      "site_count": 1,
+      "id": "M00072"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1152,
+      "column": 43,
+      "operator": "eq",
+      "literal": "                (Some(a), Some(_)) if bit == 0 => left.clone(),",
+      "replacement": "                (Some(a), Some(_)) if bit != 0 => left.clone(),",
+      "site_count": 1,
+      "id": "M00073"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1160,
+      "column": 45,
+      "operator": "true",
+      "literal": "                            (None, None) => true,",
+      "replacement": "                            (None, None) => false,",
+      "site_count": 1,
+      "id": "M00074"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1162,
+      "column": 34,
+      "operator": "false",
+      "literal": "                            _ => false,",
+      "replacement": "                            _ => true,",
+      "site_count": 1,
+      "id": "M00075"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1164,
+      "column": 42,
+      "operator": "and",
+      "literal": "                    if same(&l, &a.left) && same(&r, &a.right) {",
+      "replacement": "                    if same(&l, &a.left) || same(&r, &a.right) {",
+      "site_count": 1,
+      "id": "M00076"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1167,
+      "column": 42,
+      "operator": "and",
+      "literal": "                    if same(&l, &b.left) && same(&r, &b.right) {",
+      "replacement": "                    if same(&l, &b.left) || same(&r, &b.right) {",
+      "site_count": 1,
+      "id": "M00077"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1273,
+      "column": 20,
+      "operator": "ne",
+      "literal": "        definition != self.block_index",
+      "replacement": "        definition == self.block_index",
+      "site_count": 1,
+      "id": "M00078"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1274,
+      "column": 13,
+      "operator": "and",
+      "literal": "            && self.entered[definition] <= self.entered[self.block_index]",
+      "replacement": "            || self.entered[definition] <= self.entered[self.block_index]",
+      "site_count": 1,
+      "id": "M00079"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1275,
+      "column": 13,
+      "operator": "and",
+      "literal": "            && self.exited[self.block_index] <= self.exited[definition]",
+      "replacement": "            || self.exited[self.block_index] <= self.exited[definition]",
+      "site_count": 1,
+      "id": "M00080"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1449,
+      "column": 25,
+      "operator": "ne",
+      "literal": "        if needed.len() != live_in[index].len() || out.len() != live_out[index].len() {",
+      "replacement": "        if needed.len() == live_in[index].len() || out.len() != live_out[index].len() {",
+      "site_count": 1,
+      "id": "M00081"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1449,
+      "column": 49,
+      "operator": "or",
+      "literal": "        if needed.len() != live_in[index].len() || out.len() != live_out[index].len() {",
+      "replacement": "        if needed.len() != live_in[index].len() && out.len() != live_out[index].len() {",
+      "site_count": 1,
+      "id": "M00082"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1449,
+      "column": 62,
+      "operator": "ne",
+      "literal": "        if needed.len() != live_in[index].len() || out.len() != live_out[index].len() {",
+      "replacement": "        if needed.len() != live_in[index].len() || out.len() == live_out[index].len() {",
+      "site_count": 1,
+      "id": "M00083"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1616,
+      "column": 47,
+      "operator": "or",
+      "literal": "            (metadata.borrowed_from.is_some() || metadata.exclusive_root.is_some()).then_some(id)",
+      "replacement": "            (metadata.borrowed_from.is_some() && metadata.exclusive_root.is_some()).then_some(id)",
+      "site_count": 1,
+      "id": "M00084"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1630,
+      "column": 59,
+      "operator": "increment",
+      "literal": "                if let Some(root) = metadata.borrowed_from {\n                    *temps.reads.entry(root).or_default() += 1;\n                }",
+      "replacement": "                if let Some(root) = metadata.borrowed_from {\n                    *temps.reads.entry(root).or_default() -= 1;\n                }",
+      "site_count": 1,
+      "id": "M00085"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 1633,
+      "column": 63,
+      "operator": "increment",
+      "literal": "                    *temps.exclusive.entry(root).or_default() += 1;",
+      "replacement": "                    *temps.exclusive.entry(root).or_default() -= 1;",
+      "site_count": 1,
+      "id": "M00086"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 2146,
+      "column": 26,
+      "operator": "ne",
+      "literal": "            if temp.live != live_out[index].contains(*id) {",
+      "replacement": "            if temp.live == live_out[index].contains(*id) {",
+      "site_count": 1,
+      "id": "M00087"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 2159,
+      "column": 1,
+      "operator": "S5_count_every_loan_temporary",
+      "literal": "        for &id in &loan_temporaries {\n            if live_out[index].contains(id) {\n                super::count_cfg_work(1);",
+      "replacement": "        for &id in &loan_temporaries {\n            super::count_cfg_work(1);\n            if live_out[index].contains(id) {",
+      "site_count": 1,
+      "id": "M00088"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 2164,
+      "column": 57,
+      "operator": "increment",
+      "literal": "                    *reads_out.entry(root).or_default() += 1;",
+      "replacement": "                    *reads_out.entry(root).or_default() -= 1;",
+      "site_count": 1,
+      "id": "M00089"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 2167,
+      "column": 61,
+      "operator": "increment",
+      "literal": "                    *exclusive_out.entry(root).or_default() += 1;",
+      "replacement": "                    *exclusive_out.entry(root).or_default() -= 1;",
+      "site_count": 1,
+      "id": "M00090"
+    },
+    {
+      "file": "src/ir/verify.rs",
+      "line": 2195,
+      "column": 38,
+      "operator": "ne",
+      "literal": "            if live_out[index].len() != live_in[target].len() {",
+      "replacement": "            if live_out[index].len() == live_in[target].len() {",
+      "site_count": 1,
+      "id": "M00091"
+    }
+  ]
+}

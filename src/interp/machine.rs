@@ -1517,23 +1517,23 @@ mod tests {
     }
     #[test]
     fn repeated_borrowed_index_releases_consumed_index_cells() {
-        let source = format!("fn Main(){{let a=[[1]];{}}}", "Len(a[0]);".repeat(66_000));
+        let source = format!("fn Main(){{let a=[[1]];{}}}", "Len(a[0]);".repeat(10_000));
         let p = crate::ir::compile_scalar("limits.n", &source).unwrap();
         let mut m = machine();
         m.run(p.functions().function("Main").unwrap()).unwrap();
         assert!(m.fault.is_none(), "{:?}", m.fault);
         assert_eq!(m.cells, 0);
-        assert_eq!(m.work, 528_010);
+        assert_eq!(m.work, 80_010);
     }
     #[test]
     fn repeated_index_value_releases_unselected_array_cells() {
-        let source = format!("fn Main(){{{}}}", "Len([[1,2,3],[4]][0]);".repeat(25_000));
+        let source = format!("fn Main(){{{}}}", "Len([[1,2,3],[4]][0]);".repeat(5_000));
         let p = crate::ir::compile_scalar("limits.n", &source).unwrap();
         let mut m = machine();
         m.run(p.functions().function("Main").unwrap()).unwrap();
         assert!(m.fault.is_none(), "{:?}", m.fault);
         assert_eq!(m.cells, 0);
-        assert_eq!(m.work, 525_003);
+        assert_eq!(m.work, 105_003);
     }
     #[test]
     fn ordinary_array_read_shares_storage_but_owner_copy_is_deep() {

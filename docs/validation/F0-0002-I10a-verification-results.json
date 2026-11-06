@@ -1,0 +1,38 @@
+{
+  "clean_clone_validate_script_exit_code": 0,
+  "debug_library": {
+    "passed": 1054,
+    "failed": 0,
+    "ignored": 52
+  },
+  "release_library": {
+    "passed": 1056,
+    "failed": 0,
+    "ignored": 53
+  },
+  "clippy_warnings_denied": "ok",
+  "rustfmt_check": "ok",
+  "rd_normative_pairs": {
+    "compared": 152,
+    "differences": 0
+  },
+  "release_timing_campaign": {
+    "status": "passes with the linear control; ignored release campaign",
+    "source": "if b{return;}",
+    "small_count": 3000,
+    "large_count": 24000,
+    "samples_per_size": 3,
+    "threshold_ratio": 12.0,
+    "base_ratios": [
+      9.158,
+      8.25,
+      8.43
+    ],
+    "mutant_ratios": {
+      "with_local_per_return": 17.696,
+      "quadratic_reposition_1": 15.546,
+      "quadratic_reposition_2": 12.339
+    },
+    "valid_mutant_detections": true
+  }
+}

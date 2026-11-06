@@ -332,6 +332,7 @@ impl Diagnostic {
             let reduced = match self.profile_id.as_str() {
                 "f0-0002-b-test-types-32-v2" => Some(("type_solver_steps", 32)),
                 "f0-0002-b-test-flow-32-v2" => Some(("ownership_flow_steps", 32)),
+                "f0-0002-b-test-flow-global-32-v2" => Some(("ownership_flow_steps", 32)),
                 "f0-0002-b-test-effects-32-v2" => Some(("effect_fixpoint_steps", 32)),
                 "f0-0002-b-test-ir-32-v2" => Some(("ir_items", 32)),
                 _ => None,
@@ -340,21 +341,35 @@ impl Diagnostic {
                 Some(DataValue::String(k)) => k.as_str(),
                 _ => "",
             };
-            let normal_limit = match kind_name {
-                "source_bytes" => Some(1_048_576),
-                "syntax_nesting"
-                | "expression_tree_depth"
-                | "array_type_depth"
-                | "value_type_depth" => Some(128),
-                "function_count" => Some(1_024),
-                "type_solver_steps" | "ownership_flow_steps" | "effect_fixpoint_steps" => {
-                    Some(1_000_000)
-                }
-                "ir_items" => Some(262_144),
+            let scope = match self.data.get("budget_scope") {
+                Some(DataValue::String(scope)) => scope.as_str(),
+                _ => "",
+            };
+            let normal_limit = match (kind_name, scope) {
+                ("source_bytes", "compilation") => Some(1_048_576),
+                (
+                    "syntax_nesting"
+                    | "expression_tree_depth"
+                    | "array_type_depth"
+                    | "value_type_depth",
+                    "compilation",
+                ) => Some(128),
+                ("function_count", "compilation") => Some(1_024),
+                ("type_solver_steps" | "effect_fixpoint_steps", "compilation") => Some(1_000_000),
+                ("ownership_flow_steps", "function") => Some(1_000_000),
+                ("ownership_flow_steps", "compilation") => Some(4_000_000),
+                ("ir_items", "compilation") => Some(262_144),
                 _ => None,
             };
             let expected_limit = reduced
-                .filter(|(expected_kind, _)| *expected_kind == kind_name)
+                .filter(|(expected_kind, _)| {
+                    *expected_kind == kind_name
+                        && match self.profile_id.as_str() {
+                            "f0-0002-b-test-flow-32-v2" => scope == "function",
+                            "f0-0002-b-test-flow-global-32-v2" => scope == "compilation",
+                            _ => true,
+                        }
+                })
                 .map(|(_, limit)| limit as u64)
                 .or(normal_limit);
             if expected_limit
@@ -3491,6 +3506,9 @@ static CATALOG: &[CatalogEntry] = &[
 
 fn catalog_entry(code: &str) -> Option<&'static CatalogEntry> {
     CATALOG.iter().find(|entry| entry.code == code)
+}
+pub(crate) fn catalog_message(code: &str) -> Option<&'static str> {
+    catalog_entry(code).map(|entry| entry.description)
 }
 fn catalog_subcauses(code: &str) -> Vec<String> {
     catalog_entry(code)

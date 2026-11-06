@@ -5,23 +5,86 @@ mod tests;
 pub mod types;
 
 /// Shared semantic checker for the official B frontend.
-pub fn check_proposed(
+pub fn check_proposed(file: &str, source: &str, run_entry: bool) -> Result<(), CheckProposedError> {
+    check_proposed_with_worker_failure(file, source, run_entry, false)
+}
+
+#[derive(Debug)]
+pub enum CheckProposedError {
+    Diagnostics(Vec<Box<crate::diagnostic::Diagnostic>>),
+    Internal(&'static str),
+}
+
+impl Default for CheckProposedError {
+    fn default() -> Self {
+        Self::Diagnostics(Vec::new())
+    }
+}
+
+impl CheckProposedError {
+    pub fn remove(&mut self, index: usize) -> Box<crate::diagnostic::Diagnostic> {
+        match self {
+            Self::Diagnostics(errors) => errors.remove(index),
+            Self::Internal(_) => panic!("internal checker failure has no user diagnostics"),
+        }
+    }
+}
+
+impl std::ops::Deref for CheckProposedError {
+    type Target = [Box<crate::diagnostic::Diagnostic>];
+
+    fn deref(&self) -> &Self::Target {
+        match self {
+            Self::Diagnostics(errors) => errors,
+            Self::Internal(_) => &[],
+        }
+    }
+}
+
+impl IntoIterator for CheckProposedError {
+    type Item = Box<crate::diagnostic::Diagnostic>;
+    type IntoIter = std::vec::IntoIter<Self::Item>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        match self {
+            Self::Diagnostics(errors) => errors,
+            Self::Internal(_) => Vec::new(),
+        }
+        .into_iter()
+    }
+}
+
+impl<'a> IntoIterator for &'a CheckProposedError {
+    type Item = &'a Box<crate::diagnostic::Diagnostic>;
+    type IntoIter = std::slice::Iter<'a, Box<crate::diagnostic::Diagnostic>>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        (**self).iter()
+    }
+}
+
+fn check_proposed_with_worker_failure(
     file: &str,
     source: &str,
     run_entry: bool,
-) -> Result<(), Vec<Box<crate::diagnostic::Diagnostic>>> {
-    let ast = crate::frontend::parse::parse(file, source).map_err(|d| vec![d])?;
+    force_unavailable: bool,
+) -> Result<(), CheckProposedError> {
+    let ast = crate::frontend::parse::parse(file, source)
+        .map_err(|d| CheckProposedError::Diagnostics(vec![d]))?;
     let report = check_with_entry(
         file,
         source,
         &ast,
         run_entry,
-        check_ast(file, source, &ast, false),
+        check_ast_with_worker_failure(file, source, &ast, false, force_unavailable),
     );
+    if let Some(reason) = report.internal_error {
+        return Err(CheckProposedError::Internal(reason));
+    }
     if report.errors.is_empty() {
         Ok(())
     } else {
-        Err(report.errors)
+        Err(CheckProposedError::Diagnostics(report.errors))
     }
 }
 
@@ -30,6 +93,7 @@ pub(crate) struct CompilationCheck {
     pub inferred: types::InferredTypes,
     pub resolved: Option<names::Resolved>,
     pub errors: Vec<Box<crate::diagnostic::Diagnostic>>,
+    pub internal_error: Option<&'static str>,
 }
 
 #[allow(clippy::vec_box)] // Diagnostics share the boxed representation across stages.
@@ -45,6 +109,23 @@ pub(crate) fn check_for_compilation(
         ast,
         run_entry,
         check_ast(file, source, ast, true),
+    )
+}
+
+#[cfg(test)]
+pub(crate) fn check_for_compilation_with_worker_failure(
+    file: &str,
+    source: &str,
+    ast: &crate::frontend::parse::Ast,
+    run_entry: bool,
+    force_unavailable: bool,
+) -> CompilationCheck {
+    check_with_entry(
+        file,
+        source,
+        ast,
+        run_entry,
+        check_ast_with_worker_failure(file, source, ast, true, force_unavailable),
     )
 }
 
@@ -72,69 +153,67 @@ fn check_ast(
     ast: &crate::frontend::parse::Ast,
     enforce_capabilities: bool,
 ) -> CompilationCheck {
+    check_ast_with_worker_failure(file, source, ast, enforce_capabilities, false)
+}
+
+fn check_ast_with_worker_failure(
+    file: &str,
+    source: &str,
+    ast: &crate::frontend::parse::Ast,
+    enforce_capabilities: bool,
+    force_unavailable: bool,
+) -> CompilationCheck {
     std::thread::scope(|scope| {
-        let worker = std::thread::Builder::new()
-            .stack_size(16 * 1024 * 1024)
-            .spawn_scoped(scope, move || {
-                #[cfg(test)]
-                let _allocation_capture = crate::test_alloc::capture_for(file);
-                let resolved = match names::resolve(file, source, ast) {
-                    Ok(resolved) => resolved,
-                    Err(errors) => {
+        let worker = if force_unavailable {
+            Err(std::io::Error::other("injected checker worker failure"))
+        } else {
+            std::thread::Builder::new()
+                .stack_size(16 * 1024 * 1024)
+                .spawn_scoped(scope, move || {
+                    #[cfg(test)]
+                    let _allocation_capture = crate::test_alloc::capture_for(file);
+                    let resolved = match names::resolve(file, source, ast) {
+                        Ok(resolved) => resolved,
+                        Err(errors) => {
+                            return CompilationCheck {
+                                inferred: types::InferredTypes::default(),
+                                resolved: None,
+                                errors,
+                                internal_error: None,
+                            };
+                        }
+                    };
+                    if enforce_capabilities
+                        && let Some(limit) = limits::first_pending(file, source, ast, &resolved)
+                    {
                         return CompilationCheck {
                             inferred: types::InferredTypes::default(),
-                            resolved: None,
-                            errors,
+                            resolved: Some(resolved),
+                            errors: vec![limit],
+                            internal_error: None,
                         };
                     }
-                };
-                if enforce_capabilities
-                    && let Some(limit) = limits::first_pending(file, source, ast, &resolved)
-                {
-                    return CompilationCheck {
-                        inferred: types::InferredTypes::default(),
+                    let types::TypeCheckReport { inferred, errors } =
+                        types::check_with_partial(file, source, ast, &resolved);
+                    CompilationCheck {
+                        inferred,
                         resolved: Some(resolved),
-                        errors: vec![limit],
-                    };
-                }
-                let types::TypeCheckReport { inferred, errors } =
-                    types::check_with_partial(file, source, ast, &resolved);
-                CompilationCheck {
-                    inferred,
-                    resolved: Some(resolved),
-                    errors,
-                }
-            });
+                        errors,
+                        internal_error: None,
+                    }
+                })
+        };
         match worker {
             Ok(worker) => match worker.join() {
                 Ok(result) => result,
                 Err(payload) => std::panic::resume_unwind(payload),
             },
-            Err(_) => {
-                use crate::diagnostic::{DataValue, Operation, Span, Stage};
-                let mut d = names::diagnostic(
-                    "NX-E0003",
-                    None,
-                    Stage::Types,
-                    Operation::AnalysisLimit,
-                    Span {
-                        file: file.into(),
-                        start: 0,
-                        end: 1,
-                    },
-                );
-                d.data.insert(
-                    "budget_kind".into(),
-                    DataValue::String("type_solver_steps".into()),
-                );
-                d.data.insert("limit".into(), DataValue::UInt(1_000_000));
-                d.data.insert("observed".into(), DataValue::UInt(1_000_001));
-                CompilationCheck {
-                    inferred: types::InferredTypes::default(),
-                    resolved: None,
-                    errors: vec![d],
-                }
-            }
+            Err(_) => CompilationCheck {
+                inferred: types::InferredTypes::default(),
+                resolved: None,
+                errors: Vec::new(),
+                internal_error: Some("type checker worker unavailable"),
+            },
         }
     })
 }

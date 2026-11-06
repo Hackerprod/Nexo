@@ -5,6 +5,30 @@ use crate::diagnostic::{
 use crate::frontend::parse;
 
 #[test]
+fn unavailable_checker_worker_is_an_internal_failure() {
+    let source = "fn Main(){}";
+    let ast = parse::parse("worker.n", source).unwrap();
+    let failure = super::check_ast_with_worker_failure("worker.n", source, &ast, false, true);
+    assert_eq!(
+        failure.internal_error,
+        Some("type checker worker unavailable")
+    );
+    assert!(failure.errors.is_empty());
+    let compilation =
+        super::check_for_compilation_with_worker_failure("worker.n", source, &ast, false, true);
+    assert_eq!(
+        compilation.internal_error,
+        Some("type checker worker unavailable")
+    );
+    assert!(matches!(
+        super::check_proposed_with_worker_failure("worker.n", source, false, true),
+        Err(super::CheckProposedError::Internal(
+            "type checker worker unavailable"
+        ))
+    ));
+}
+
+#[test]
 fn nested_pending_nominal_result_has_executable_binding_type() {
     let source = "fn Main(){let p=true;var r=[];let a=((p == (r == r)) == p);r=[3];}";
     let ast = parse::parse("nested_nominal.n", source).unwrap();

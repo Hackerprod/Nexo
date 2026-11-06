@@ -5,7 +5,13 @@ pub mod model;
 mod ownership_flow;
 pub(crate) mod verify;
 
+#[cfg(test)]
+pub(crate) use lower::compile_scalar_with_flow_limit;
 pub use lower::{CompileError, check_scalar, compile_scalar};
+#[cfg(test)]
+pub(crate) use lower::{
+    ReducedProfile, compile_scalar_with_profile, compile_scalar_with_sparse_ownership,
+};
 pub use model::Program;
 
 #[cfg(test)]
@@ -52,5 +58,7 @@ mod i07a_tests;
 mod i07b_tests;
 #[cfg(test)]
 mod i07c_tests;
+#[cfg(test)]
+mod i10a_tests;
 #[cfg(test)]
 mod tests;

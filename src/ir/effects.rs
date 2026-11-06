@@ -1,5 +1,5 @@
 //! Post-ownership, IR-only effect summaries and written-contract checks.
-use std::collections::{HashSet, VecDeque};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use crate::diagnostic::{
     Cause, CauseKind, CauseOperation, DataValue, Entity, EntityKind, Evidence, Operation,
@@ -20,6 +20,36 @@ const EFFECTS: [(u8, &str, &str); 4] = [
     (SUSPEND, "suspend", "NX-E0414"),
     (IO, "io", "NX-E0415"),
 ];
+fn charge_effect(
+    used: &mut u64,
+    span: &Span,
+    limit: u64,
+    profile_id: &str,
+) -> Result<(), Box<crate::diagnostic::Diagnostic>> {
+    if *used >= limit {
+        let mut diagnostic = crate::check::names::diagnostic(
+            "NX-E0003",
+            None,
+            Stage::Effects,
+            Operation::AnalysisLimit,
+            span.clone(),
+        );
+        diagnostic.data.insert(
+            "budget_kind".into(),
+            DataValue::String("effect_fixpoint_steps".into()),
+        );
+        diagnostic
+            .data
+            .insert("limit".into(), DataValue::UInt(limit));
+        diagnostic
+            .data
+            .insert("observed".into(), DataValue::UInt(limit + 1));
+        diagnostic.profile_id = profile_id.into();
+        return Err(diagnostic);
+    }
+    *used += 1;
+    Ok(())
+}
 
 #[derive(Clone)]
 struct Witness {
@@ -108,6 +138,11 @@ fn intrinsic_effect(intrinsic: super::model::Intrinsic) -> (u8, u8, &'static str
 }
 
 fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
+    let exit_sites: HashMap<_, _> = f
+        .exit_info
+        .iter()
+        .map(|exit| ((exit.block.0, exit.index), exit))
+        .collect();
     let mut out = Vec::new();
     let temp_count = std::iter::once(&f.block)
         .chain(&f.blocks)
@@ -145,7 +180,8 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
         }
     }
     for block in std::iter::once(&f.block).chain(&f.blocks) {
-        for ins in &block.instructions {
+        for (index, ins) in block.instructions.iter().enumerate() {
+            super::count_cfg_work(1);
             let (known, unknown, operation, entity) = match &ins.op {
                 Op::BuildArray(_) => (ALLOC, 0, CauseOperation::BuildArray, "Array".to_owned()),
                 Op::CopyValue(local) => {
@@ -230,11 +266,10 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                     format!("binding:{}", f.locals[local.0].name_span.start),
                 ),
                 Op::DropLocal(local) => (
-                    if f.exit_info.iter().any(|e| {
-                        e.block == block.id
-                            && e.index < block.instructions.len()
-                            && e.live_locals.contains(local)
-                    }) {
+                    if exit_sites
+                        .get(&(block.id.0, index))
+                        .is_some_and(|exit| exit.live_locals.contains(local))
+                    {
                         resource_effect(&f.locals[local.0].ty)
                     } else {
                         0
@@ -504,14 +539,19 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
             }
         }
     }
+    let blocks_by_id: HashMap<_, _> = std::iter::once(&f.block)
+        .chain(&f.blocks)
+        .map(|block| (block.id.0, block))
+        .collect();
     for exit in f.exit_info.iter().filter(|e| {
         matches!(
             e.class,
             super::model::ExitClass::Try | super::model::ExitClass::Fail
-        ) || std::iter::once(&f.block)
-            .chain(&f.blocks)
-            .any(|b| b.id == e.block && e.index == b.instructions.len())
+        ) || blocks_by_id
+            .get(&e.block.0)
+            .is_some_and(|block| e.index == block.instructions.len())
     }) {
+        super::count_cfg_work(1);
         for local in &exit.live_locals {
             if exit.definitely_dropped.contains(local) {
                 continue;
@@ -592,22 +632,31 @@ fn add(a: EffectSummary, b: EffectSummary) -> EffectSummary {
     }
 }
 
+#[cfg(test)]
 fn call_components(program: &Program) -> Vec<Vec<usize>> {
+    let rank: Vec<_> = (0..program.functions.functions().len()).collect();
+    call_components_by_rank(program, &rank)
+}
+
+fn call_components_by_rank(program: &Program, rank: &[usize]) -> Vec<Vec<usize>> {
     let functions = program.functions.functions();
+    let indices: HashMap<_, _> = functions
+        .iter()
+        .enumerate()
+        .map(|(index, function)| (function.id.clone(), index))
+        .collect();
     let mut edges = vec![Vec::new(); functions.len()];
     for (index, function) in functions.iter().enumerate() {
         for block in std::iter::once(&function.block).chain(&function.blocks) {
             for instruction in &block.instructions {
                 if let Op::CallDirect { function, .. } = &instruction.op
-                    && let Some(target) = functions
-                        .iter()
-                        .position(|candidate| candidate.id == *function)
+                    && let Some(target) = indices.get(function).copied()
                 {
                     edges[index].push(target);
                 }
             }
         }
-        edges[index].sort_unstable();
+        edges[index].sort_by_key(|target| rank[*target]);
         edges[index].dedup();
     }
     let mut reverse = vec![Vec::new(); functions.len()];
@@ -616,10 +665,15 @@ fn call_components(program: &Program) -> Vec<Vec<usize>> {
             reverse[*target].push(source);
         }
     }
+    for callers in &mut reverse {
+        callers.sort_by_key(|source| rank[*source]);
+    }
 
     let mut seen = vec![false; functions.len()];
     let mut finish = Vec::with_capacity(functions.len());
-    for root in 0..functions.len() {
+    let mut roots: Vec<_> = (0..functions.len()).collect();
+    roots.sort_by_key(|index| rank[*index]);
+    for root in roots {
         if seen[root] {
             continue;
         }
@@ -659,7 +713,7 @@ fn call_components(program: &Program) -> Vec<Vec<usize>> {
                 }
             }
         }
-        component.sort_unstable();
+        component.sort_by_key(|index| rank[*index]);
         components.push(component);
     }
     components.reverse();
@@ -669,14 +723,42 @@ fn call_components(program: &Program) -> Vec<Vec<usize>> {
 pub(super) fn analyze(
     program: &mut Program,
     ast: &Ast,
+    effect_limit: u64,
+    profile_id: &str,
 ) -> Result<(), Vec<crate::diagnostic::Diagnostic>> {
+    let source_functions: HashMap<_, _> = ast
+        .functions
+        .iter()
+        .map(|source| (source.name.as_str(), source))
+        .collect();
+    let source_ranks: HashMap<_, _> = ast
+        .functions
+        .iter()
+        .enumerate()
+        .map(|(index, source)| (source.name.as_str(), index))
+        .collect();
     let mut local = Vec::new();
     for f in program.functions.functions() {
         local.push(function_intrinsic_effect(f));
     }
     let functions = program.functions.functions();
+    let indices: HashMap<_, _> = functions
+        .iter()
+        .enumerate()
+        .map(|(index, function)| (function.id.clone(), index))
+        .collect();
+    let source_rank: Vec<_> = functions
+        .iter()
+        .map(|function| {
+            source_ranks
+                .get(function.name.as_str())
+                .copied()
+                .unwrap_or(usize::MAX)
+        })
+        .collect();
     let mut summaries = vec![EffectSummary::default(); local.len()];
-    for component in call_components(program) {
+    let mut effect_steps = 0;
+    for component in call_components_by_rank(program, &source_rank) {
         let members: HashSet<_> = component.iter().copied().collect();
         loop {
             let old = summaries.clone();
@@ -690,11 +772,23 @@ pub(super) fn analyze(
                     });
                 for block in std::iter::once(&function.block).chain(&function.blocks) {
                     for instruction in &block.instructions {
+                        charge_effect(
+                            &mut effect_steps,
+                            &instruction.span,
+                            effect_limit,
+                            profile_id,
+                        )
+                        .map_err(|error| vec![*error])?;
                         if let Op::CallDirect { function, .. } = &instruction.op
-                            && let Some(target) = functions
-                                .iter()
-                                .position(|candidate| candidate.id == *function)
+                            && let Some(target) = indices.get(function).copied()
                         {
+                            charge_effect(
+                                &mut effect_steps,
+                                &instruction.span,
+                                effect_limit,
+                                profile_id,
+                            )
+                            .map_err(|error| vec![*error])?;
                             summary = add(
                                 summary,
                                 if members.contains(&target) {
@@ -721,8 +815,7 @@ pub(super) fn analyze(
 
     let mut errors = Vec::new();
     for (index, f) in program.functions.functions().iter().enumerate() {
-        let Some(source_function) = ast.functions.iter().find(|source| source.name == f.name)
-        else {
+        let Some(source_function) = source_functions.get(f.name.as_str()).copied() else {
             continue;
         };
         let restrictions: Vec<_> = match source_function.with_clause.as_ref() {
@@ -840,6 +933,7 @@ pub(super) fn analyze(
 
 pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
     let functions = program.functions.functions();
+    let functions_by_id: HashMap<_, _> = functions.iter().map(|f| (f.id.clone(), f)).collect();
     let local: Vec<_> = functions
         .iter()
         .map(|f| {
@@ -860,10 +954,7 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
         for block in std::iter::once(&f.block).chain(&f.blocks) {
             for ins in &block.instructions {
                 if let Op::CallDirect { function, .. } = &ins.op {
-                    let callee = functions
-                        .iter()
-                        .find(|g| g.id == *function)
-                        .ok_or("unknown callee")?;
+                    let callee = functions_by_id.get(function).ok_or("unknown callee")?;
                     let callee_summary = callee.effects.ok_or("effect summary missing")?;
                     if callee_summary.known & !summary.known != 0
                         || callee_summary.unknown & !summary.unknown != 0
@@ -873,6 +964,10 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
                 }
             }
         }
+        let blocks_by_id: HashMap<_, _> = std::iter::once(&f.block)
+            .chain(&f.blocks)
+            .map(|block| (block.id.0, block))
+            .collect();
         let mut sites = HashSet::new();
         let mut expected_sites = HashSet::new();
         for block in std::iter::once(&f.block).chain(&f.blocks) {
@@ -898,9 +993,10 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
             }
         }
         for exit in &f.exit_info {
-            let block = std::iter::once(&f.block)
-                .chain(&f.blocks)
-                .find(|b| b.id == exit.block)
+            super::count_cfg_work(1);
+            let block = blocks_by_id
+                .get(&exit.block.0)
+                .copied()
                 .ok_or("exit block")?;
             if exit.index > block.instructions.len() || !sites.insert((exit.block.0, exit.index)) {
                 return Err("exit site");
@@ -961,13 +1057,17 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
     Ok(())
 }
 
-pub(super) fn populate_exit_info(function: &mut Function, ast: &Ast) {
+pub(super) fn populate_exit_info(
+    function: &mut Function,
+    source_function: &crate::frontend::parse::Function,
+) {
     use super::model::{ExitClass, ExitInfo, Terminator};
     let blocks: Vec<_> = std::iter::once(&function.block)
         .chain(&function.blocks)
         .collect();
     let count = blocks.len();
-    let source_function = ast.functions.iter().find(|f| f.name == function.name);
+    let source_returns = return_spans(&source_function.body, &function.source_text);
+    super::count_cfg_work(source_returns.len() as u64);
     let tracked: HashSet<_> = function
         .locals
         .iter()
@@ -1075,6 +1175,7 @@ pub(super) fn populate_exit_info(function: &mut Function, ast: &Ast) {
         }
     }
     let mut records = Vec::new();
+    let mut next_source_return = 0usize;
     for (bi, block) in blocks.iter().enumerate() {
         let mut may = if tracked.is_empty() {
             Vec::new()
@@ -1128,18 +1229,25 @@ pub(super) fn populate_exit_info(function: &mut Function, ast: &Ast) {
             }
         }
         if let Terminator::Return { span, .. } = &block.terminator {
-            let explicit = source_function.and_then(|source| {
-                return_spans(&source.body, &function.source_text)
-                    .into_iter()
-                    .filter(|r| span.start <= r.start && r.end <= span.end)
-                    .max_by_key(|r| r.start)
-            });
-            let is_implicit = explicit.is_none()
-                && source_function.is_some_and(|source| span == &source.body.span);
+            super::count_cfg_work(1);
+            while source_returns
+                .get(next_source_return)
+                .is_some_and(|candidate| candidate.start < span.start)
+            {
+                next_source_return += 1;
+            }
+            let explicit = source_returns
+                .get(next_source_return)
+                .filter(|candidate| span.start <= candidate.start && candidate.end <= span.end)
+                .cloned();
+            if explicit.is_some() {
+                next_source_return += 1;
+            }
+            let is_implicit = explicit.is_none() && span == &source_function.body.span;
             let exit_span = if let Some(explicit) = explicit {
                 explicit
             } else if is_implicit {
-                source_function.unwrap().body.close_span.clone()
+                source_function.body.close_span.clone()
             } else {
                 span.clone()
             };
@@ -1189,6 +1297,7 @@ fn ordered_local_ids(bits: &[u64]) -> Vec<super::model::LocalId> {
 fn return_spans(block: &crate::frontend::parse::Block, source: &str) -> Vec<Span> {
     let mut spans = Vec::new();
     for statement in &block.statements {
+        super::count_cfg_work(1);
         spans.extend(return_spans_statement(statement, source));
     }
     spans
@@ -1217,7 +1326,10 @@ fn return_spans_statement(statement: &Statement, source: &str) -> Vec<Span> {
             spans
         }
         Statement::While { body, .. } => return_spans(body, source),
-        _ => Vec::new(),
+        Statement::Let { .. }
+        | Statement::Assign { .. }
+        | Statement::Value { .. }
+        | Statement::Expr { .. } => Vec::new(),
     }
 }
 
@@ -1225,6 +1337,24 @@ fn return_spans_statement(statement: &Statement, source: &str) -> Vec<Span> {
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn effect_budget_accepts_exact_limit_and_rejects_first_excess_without_charge() {
+        let span = Span {
+            file: "effect_budget.n".into(),
+            start: 0,
+            end: 1,
+        };
+        let mut used = 0;
+        for _ in 0..32 {
+            charge_effect(&mut used, &span, 32, "f0-0002-b-test-effects-32-v2").unwrap();
+        }
+        assert_eq!(used, 32);
+        let rejected = charge_effect(&mut used, &span, 32, "f0-0002-b-test-effects-32-v2")
+            .expect_err("first excess effect unit must reject");
+        assert_eq!(used, 32);
+        assert_eq!(rejected.data.get("observed"), Some(&DataValue::UInt(33)));
+    }
     use crate::ir::{CompileError, compile_scalar};
 
     fn diagnostics(source: &str) -> Vec<crate::diagnostic::Diagnostic> {
@@ -2223,6 +2353,7 @@ mod tests {
         assert_eq!(drops[0].2, drops[1].2);
         assert!(
             function.exit_info.iter().any(|exit| {
+                super::super::count_cfg_work(1);
                 exit.class == super::super::model::ExitClass::Fallthrough
                     && exit.block == drops[0].0
                     && exit.index == drops[0].1
@@ -2472,7 +2603,7 @@ mod tests {
         }
         assert!(
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                populate_exit_info(&mut function, &ast)
+                populate_exit_info(&mut function, &ast.functions[0])
             }))
             .is_ok()
         );
@@ -2768,16 +2899,217 @@ fn find_witness(
     start: usize,
     bit: u8,
 ) -> Option<Witness> {
+    #[derive(Clone)]
+    struct Path {
+        unknown: bool,
+        edges: usize,
+        next: Option<(usize, Cause)>,
+        leaf: (usize, usize),
+    }
+    fn causes(path: &Path, best: &[Option<Path>], local: &[Vec<Witness>]) -> Vec<Cause> {
+        let mut result = Vec::new();
+        let mut current = path;
+        while let Some((next, cause)) = &current.next {
+            super::count_cfg_work(1);
+            result.push(cause.clone());
+            current = best[*next].as_ref().expect("shortest suffix was solved");
+        }
+        super::count_cfg_work(local[path.leaf.0][path.leaf.1].chain.len() as u64);
+        result.extend(local[path.leaf.0][path.leaf.1].chain.iter().cloned());
+        result
+    }
+    fn compare_paths(
+        a: &Path,
+        b: &Path,
+        best: &[Option<Path>],
+        local: &[Vec<Witness>],
+    ) -> std::cmp::Ordering {
+        let a_causes = a.edges + local[a.leaf.0][a.leaf.1].chain.len();
+        let b_causes = b.edges + local[b.leaf.0][b.leaf.1].chain.len();
+        // The reference ordering counts the complete cause chain, including
+        // the selected leaf's intrinsic causes. Keep call distance as the BFS
+        // primary key, then compare that total before offsets and identities.
+        let prefix = (a.unknown, a_causes).cmp(&(b.unknown, b_causes));
+        if prefix != std::cmp::Ordering::Equal {
+            return prefix;
+        }
+        // Call sites in a source function have distinct starts, so the
+        // overwhelmingly common diamond tie is decided without walking or
+        // copying the suffix chain.
+        if let (Some((_, left)), Some((_, right))) = (&a.next, &b.next)
+            && let (Some(left), Some(right)) = (&left.span, &right.span)
+            && left.start != right.start
+        {
+            return left.start.cmp(&right.start);
+        }
+        let a_chain = causes(a, best, local);
+        let b_chain = causes(b, best, local);
+        let a_offsets: Vec<_> = a_chain
+            .iter()
+            .filter_map(|cause| cause.span.as_ref().map(|span| span.start))
+            .collect();
+        let b_offsets: Vec<_> = b_chain
+            .iter()
+            .filter_map(|cause| cause.span.as_ref().map(|span| span.start))
+            .collect();
+        a_offsets.cmp(&b_offsets).then_with(|| {
+            let a_ids: Vec<_> = a_chain
+                .iter()
+                .filter_map(|cause| cause.entity.as_ref().map(|entity| entity.id.as_str()))
+                .collect();
+            let b_ids: Vec<_> = b_chain
+                .iter()
+                .filter_map(|cause| cause.entity.as_ref().map(|entity| entity.id.as_str()))
+                .collect();
+            a_ids.cmp(&b_ids)
+        })
+    }
+
     let functions = program.functions.functions();
-    let mut queue = std::collections::VecDeque::from([(start, Vec::<Cause>::new(), vec![start])]);
+    let declarations: HashMap<_, _> = ast
+        .functions
+        .iter()
+        .map(|declaration| (declaration.name.as_str(), declaration.name_span.start))
+        .collect();
+    let indices: HashMap<_, _> = functions
+        .iter()
+        .enumerate()
+        .map(|(index, function)| (function.id.0.as_str(), index))
+        .collect();
+    let mut callers = vec![Vec::<(usize, Cause)>::new(); functions.len()];
+    for (caller, function) in functions.iter().enumerate() {
+        for block in std::iter::once(&function.block).chain(&function.blocks) {
+            for instruction in &block.instructions {
+                let Op::CallDirect {
+                    function: target, ..
+                } = &instruction.op
+                else {
+                    continue;
+                };
+                let Some(&target_index) = indices.get(target.0.as_str()) else {
+                    continue;
+                };
+                callers[caller].push((
+                    target_index,
+                    Cause {
+                        kind: CauseKind::Call,
+                        operation: CauseOperation::FunctionCall,
+                        span: Some(call_head(&instruction.span, &function.source_text)),
+                        entity: Some(Entity {
+                            kind: EntityKind::Function,
+                            id: format!(
+                                "function:{}",
+                                declarations
+                                    .get(functions[target_index].name.as_str())
+                                    .copied()
+                                    .unwrap_or(0)
+                            ),
+                        }),
+                        evidence: Evidence::Verified,
+                    },
+                ));
+            }
+        }
+    }
+
+    // First find minimum call distance from the violating function. The
+    // enumerator's total-cause key cannot prefer a longer call prefix, so the
+    // BFS shortest-path DAG retains exactly the candidates that can win.
+    let mut distance = vec![usize::MAX; functions.len()];
+    let mut queue = VecDeque::from([start]);
+    distance[start] = 0;
+    while let Some(caller) = queue.pop_front() {
+        super::count_cfg_work(1);
+        for (target, _) in &callers[caller] {
+            super::count_cfg_work(1);
+            if distance[*target] == usize::MAX {
+                distance[*target] = distance[caller] + 1;
+                queue.push_back(*target);
+            }
+        }
+    }
+
+    // On the shortest-path DAG, retain one best suffix at each function.
+    // Prefixing the same call cause preserves the ordering of the suffix
+    // tuple (known, total cause count, offsets, identity), so the best
+    // suffix composes to the best complete witness.
+    let mut order: Vec<_> = (0..functions.len())
+        .filter(|index| distance[*index] != usize::MAX)
+        .collect();
+    order.sort_unstable_by_key(|index| std::cmp::Reverse(distance[*index]));
+    let mut best: Vec<Option<Path>> = vec![None; functions.len()];
+    for caller in order {
+        for (leaf_index, leaf) in local[caller].iter().enumerate() {
+            super::count_cfg_work(1);
+            if leaf.summary.known & bit == 0 && leaf.summary.unknown & bit == 0 {
+                continue;
+            }
+            let candidate = Path {
+                unknown: leaf.summary.known & bit == 0,
+                edges: 0,
+                next: None,
+                leaf: (caller, leaf_index),
+            };
+            if best[caller]
+                .as_ref()
+                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())
+            {
+                best[caller] = Some(candidate);
+            }
+        }
+        for (target, cause) in &callers[caller] {
+            super::count_cfg_work(1);
+            if distance[*target] != distance[caller] + 1 {
+                continue;
+            }
+            let Some(suffix) = best[*target].as_ref() else {
+                continue;
+            };
+            let candidate = Path {
+                unknown: suffix.unknown,
+                edges: suffix.edges + 1,
+                next: Some((*target, cause.clone())),
+                leaf: suffix.leaf,
+            };
+            if best[caller]
+                .as_ref()
+                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())
+            {
+                best[caller] = Some(candidate);
+            }
+        }
+    }
+    best.get(start).and_then(Option::as_ref).map(|path| {
+        let mut witness = local[path.leaf.0][path.leaf.1].clone();
+        let call_causes = causes(path, &best, local);
+        let call_count = path.edges;
+        if call_count > 0 {
+            witness.primary = call_causes[0].span.clone().unwrap_or(witness.primary);
+            witness.operation = CauseOperation::FunctionCall;
+            witness
+                .chain
+                .splice(0..0, call_causes.into_iter().take(call_count));
+        }
+        witness
+    })
+}
+
+#[cfg(test)]
+fn find_witness_enumerated(
+    program: &Program,
+    ast: &Ast,
+    local: &[Vec<Witness>],
+    start: usize,
+    bit: u8,
+) -> Option<Witness> {
+    let functions = program.functions.functions();
+    let mut queue = VecDeque::from([(start, Vec::<Cause>::new(), vec![start])]);
     let mut candidates: Vec<(bool, usize, Vec<u64>, String, Witness)> = Vec::new();
     while let Some((at, prefix, path)) = queue.pop_front() {
         for leaf in &local[at] {
             if leaf.summary.known & bit != 0 || leaf.summary.unknown & bit != 0 {
                 let mut witness = leaf.clone();
-                let mut chain = prefix.clone();
-                chain.extend(witness.chain.clone());
-                witness.chain = chain;
+                witness.chain.splice(0..0, prefix.clone());
                 if !prefix.is_empty() {
                     witness.primary = prefix[0].span.clone().unwrap_or(witness.primary);
                     witness.operation = CauseOperation::FunctionCall;
@@ -2802,30 +3134,33 @@ fn find_witness(
                 ));
             }
         }
-        let f = &functions[at];
-        for block in std::iter::once(&f.block).chain(&f.blocks) {
-            for ins in &block.instructions {
-                let Op::CallDirect { function, .. } = &ins.op else {
-                    continue;
-                };
-                let Some(target) = functions
-                    .iter()
-                    .position(|candidate| candidate.id == *function)
+        let function = &functions[at];
+        for block in std::iter::once(&function.block).chain(&function.blocks) {
+            for instruction in &block.instructions {
+                let Op::CallDirect {
+                    function: target, ..
+                } = &instruction.op
                 else {
                     continue;
                 };
-                if path.contains(&target) {
+                let Some(target_index) = functions
+                    .iter()
+                    .position(|candidate| candidate.id == *target)
+                else {
+                    continue;
+                };
+                if path.contains(&target_index) {
                     continue;
                 }
-                let mut next_prefix = prefix.clone();
                 let declaration = ast
                     .functions
                     .iter()
-                    .find(|decl| decl.name == functions[target].name);
+                    .find(|decl| decl.name == functions[target_index].name);
+                let mut next_prefix = prefix.clone();
                 next_prefix.push(Cause {
                     kind: CauseKind::Call,
                     operation: CauseOperation::FunctionCall,
-                    span: Some(call_head(&ins.span, &f.source_text)),
+                    span: Some(call_head(&instruction.span, &function.source_text)),
                     entity: Some(Entity {
                         kind: EntityKind::Function,
                         id: format!(
@@ -2836,14 +3171,369 @@ fn find_witness(
                     evidence: Evidence::Verified,
                 });
                 let mut next_path = path.clone();
-                next_path.push(target);
-                queue.push_back((target, next_prefix, next_path));
+                next_path.push(target_index);
+                queue.push_back((target_index, next_prefix, next_path));
             }
         }
     }
     candidates.sort_by(|a, b| (&a.0, &a.1, &a.2, &a.3).cmp(&(&b.0, &b.1, &b.2, &b.3)));
-    candidates
-        .into_iter()
-        .next()
-        .map(|(_, _, _, _, witness)| witness)
+    candidates.into_iter().next().map(|entry| entry.4.clone())
+}
+
+#[cfg(test)]
+mod witness_differential_tests {
+    use super::*;
+
+    fn witness_chain(size: usize) -> (String, Ast, Program, usize, Vec<Vec<Witness>>) {
+        let mut source = String::new();
+        for index in 0..size {
+            source.push_str(&format!("fn F{index}(){{F{}();}}", index + 1));
+        }
+        source.push_str(&format!("fn F{size}(){{Print(0);}}fn Main(){{F0();}}"));
+        let ast = crate::frontend::parse::parse("witness-scale.n", &source).unwrap();
+        let program = crate::ir::compile_scalar("witness-scale.n", &source).unwrap();
+        let local = program
+            .functions
+            .functions()
+            .iter()
+            .map(function_intrinsic_effect)
+            .collect();
+        let start = program
+            .functions
+            .functions()
+            .iter()
+            .position(|function| function.name == "Main")
+            .unwrap();
+        (source, ast, program, start, local)
+    }
+
+    fn synthetic_diamond(size: usize) -> (Ast, Program, usize, Vec<Vec<Witness>>) {
+        let source = "fn Leaf(){Print(0);}fn A(){Leaf();}fn Main(){A();}";
+        let ast = crate::frontend::parse::parse("witness-diamond.n", source).unwrap();
+        let mut program = crate::ir::compile_scalar("witness-diamond.n", source).unwrap();
+        let leaf = program.functions.function("Leaf").unwrap().clone();
+        let caller = program.functions.function("A").unwrap().clone();
+        let main_id = program.functions.function("Main").unwrap().id.clone();
+        let target_ids: Vec<_> = (0..size)
+            .map(|index| super::super::model::FunctionId(format!("synthetic:A{index}")))
+            .collect();
+        let leaf_id = leaf.id.clone();
+        for index in 0..size {
+            let mut function = if index + 1 == size {
+                leaf.clone()
+            } else {
+                caller.clone()
+            };
+            function.name = format!("A{index}");
+            function.id = target_ids[index].clone();
+            function.table_index = program.functions.functions().len() + index;
+            if index + 1 < size {
+                let target = target_ids[index + 1].clone();
+                let mut calls = Vec::new();
+                for (call_index, instruction) in
+                    function.block.instructions.iter().cloned().enumerate()
+                {
+                    let mut instruction = instruction;
+                    if let Op::CallDirect { function, .. } = &mut instruction.op {
+                        *function = target.clone();
+                    }
+                    if call_index == 1 {
+                        instruction.span.start += 1;
+                    }
+                    calls.push(instruction);
+                }
+                function.block.instructions = calls.clone();
+                if let Some(first) = calls.first().cloned() {
+                    let mut parallel = first;
+                    parallel.span.start += 1;
+                    function.block.instructions.push(parallel);
+                }
+            }
+            program.functions.entries.push(function);
+        }
+        if let Some(main) = program
+            .functions
+            .entries
+            .iter_mut()
+            .find(|function| function.id == main_id)
+        {
+            for instruction in &mut main.block.instructions {
+                if let Op::CallDirect { function, .. } = &mut instruction.op {
+                    *function = target_ids[0].clone();
+                }
+            }
+        }
+        let local = program
+            .functions
+            .functions()
+            .iter()
+            .map(function_intrinsic_effect)
+            .collect();
+        let start = program
+            .functions
+            .functions()
+            .iter()
+            .position(|function| function.id == main_id)
+            .unwrap();
+        let _ = leaf_id;
+        (ast, program, start, local)
+    }
+
+    #[test]
+    fn witness_search_work_tracks_call_graph_size() {
+        let units = [32, 128, 512].map(|size| {
+            let (_source, ast, program, start, local) = witness_chain(size);
+            let (witness, units) = crate::ir::measure_cfg_thread_work(|| {
+                find_witness(&program, &ast, &local, start, IO)
+            });
+            assert!(witness.is_some());
+            units
+        });
+        assert!(units[1] <= units[0] * 5, "{units:?}");
+        assert!(units[2] <= units[1] * 5, "{units:?}");
+    }
+
+    #[test]
+    #[ignore = "release timing campaign; record locally when running scale verification"]
+    fn witness_search_release_time_ratio_is_bounded() {
+        let elapsed = [32, 128, 512].map(|size| {
+            let (_source, ast, program, start, local) = witness_chain(size);
+            let began = std::time::Instant::now();
+            assert!(find_witness(&program, &ast, &local, start, IO).is_some());
+            began.elapsed()
+        });
+        eprintln!("I10a witness search-only release seconds at 32/128/512: {elapsed:?}");
+        assert!(
+            elapsed[1].as_secs_f64() <= elapsed[0].as_secs_f64() * 8.0,
+            "{elapsed:?}"
+        );
+        assert!(
+            elapsed[2].as_secs_f64() <= elapsed[1].as_secs_f64() * 8.0,
+            "{elapsed:?}"
+        );
+    }
+
+    #[test]
+    #[ignore = "release timing repro for validator B1"]
+    fn witness_release_timing_matches_validator_scale_shapes() {
+        let (_source, ast, program, start, local) = witness_chain(800);
+        let began = std::time::Instant::now();
+        assert!(find_witness(&program, &ast, &local, start, IO).is_some());
+        eprintln!(
+            "I10a find_witness-only chain-800: {:.6}s",
+            began.elapsed().as_secs_f64()
+        );
+        for size in [512, 4_000] {
+            let (ast, program, start, local) = synthetic_diamond(size);
+            let began = std::time::Instant::now();
+            assert!(find_witness(&program, &ast, &local, start, IO).is_some());
+            let elapsed = began.elapsed().as_secs_f64();
+            eprintln!("I10a synthetic diamond n={size}: {elapsed:.3}s");
+            assert!(
+                elapsed < 10.0,
+                "absolute witness time n={size}: {elapsed:.3}s"
+            );
+        }
+    }
+
+    #[test]
+    fn dynamic_witness_matches_simple_path_enumerator_on_small_graphs() {
+        for depth in 1..=13 {
+            let mut source = String::from("fn Leaf(){Print(0);} ");
+            for level in (0..depth).rev() {
+                let target = if level + 1 == depth {
+                    "Leaf".to_owned()
+                } else {
+                    format!("A{}", level + 1)
+                };
+                source.push_str(&format!("fn A{level}(){{{target}();{target}();}} "));
+            }
+            source.push_str("fn Main(){A0();}");
+            let ast = crate::frontend::parse::parse("witness-dp.n", &source).unwrap();
+            let program = crate::ir::check_scalar("witness-dp.n", &source).unwrap();
+            let local: Vec<_> = program
+                .functions
+                .functions()
+                .iter()
+                .map(function_intrinsic_effect)
+                .collect();
+            let main = program
+                .functions
+                .functions()
+                .iter()
+                .position(|function| function.name == "Main")
+                .unwrap();
+            let dynamic = find_witness(&program, &ast, &local, main, IO).unwrap();
+            let enumerated = find_witness_enumerated(&program, &ast, &local, main, IO).unwrap();
+            assert_eq!(dynamic.summary, enumerated.summary, "depth={depth}");
+            assert_eq!(dynamic.primary, enumerated.primary, "depth={depth}");
+            assert_eq!(dynamic.operation, enumerated.operation, "depth={depth}");
+            assert_eq!(dynamic.chain, enumerated.chain, "depth={depth}");
+            assert_eq!(dynamic.related, enumerated.related, "depth={depth}");
+        }
+    }
+
+    #[test]
+    fn dynamic_witness_matches_reference_with_variable_leaf_chains_and_sccs() {
+        // Five fixed seeds mirror the independent val36 generator's source
+        // shapes while keeping each enumerated graph small and reproducible.
+        let mut compared = 0usize;
+        let mut leaf_lengths = HashSet::new();
+        let mut has_unknown_leaf = false;
+        let mut multiple_constraints = 0usize;
+        for seed in [
+            36_000_001u64,
+            36_000_002,
+            36_000_003,
+            36_000_004,
+            36_000_005,
+        ] {
+            let mut state = seed;
+            let mut next = || {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                state
+            };
+            for case in 0..500 {
+                let count = 3 + (next() as usize % 4);
+                let mut source = String::new();
+                for index in 0..count {
+                    let mut body = String::new();
+                    for _ in 0..(next() as usize % 3) {
+                        body.push_str(&format!("G{}();", next() as usize % count));
+                    }
+                    match next() % 4 {
+                        0 => body.push_str("Print(0);"),
+                        1 => body.push_str("MockUnknown();"),
+                        2 => body.push_str("let r=MockOpen(1);Drop(r);"),
+                        _ => body.push_str("let r=MockOpen(1);Drop(r);Print(0);"),
+                    }
+                    source.push_str(&format!("fn G{index}(){{{body}}}"));
+                }
+                source.push_str("fn Main(){");
+                for index in 0..count {
+                    source.push_str(&format!("G{index}();"));
+                }
+                source.push('}');
+                let ast = crate::frontend::parse::parse("witness-seeded.n", &source).unwrap();
+                let program = crate::ir::check_scalar("witness-seeded.n", &source).unwrap();
+                let functions = program.functions.functions();
+                let mut local: Vec<_> = functions.iter().map(function_intrinsic_effect).collect();
+                // Extend the source-derived local evidence with deterministic
+                // longer leaf chains, as the differential oracle in val36 did.
+                let leaf_function = functions.iter().position(|f| f.name == "G0").unwrap();
+                let base = local[leaf_function][0].clone();
+                for length in 1..=3 {
+                    let mut leaf = base.clone();
+                    leaf.chain.resize(length, base.chain[0].clone());
+                    if length == 3 {
+                        leaf.summary.known = 0;
+                        leaf.summary.unknown |= IO;
+                    }
+                    local[leaf_function].push(leaf);
+                }
+                for leaf in local.iter().flatten() {
+                    leaf_lengths.insert(leaf.chain.len());
+                    has_unknown_leaf |= leaf.summary.unknown != 0;
+                }
+                let main = functions.iter().position(|f| f.name == "Main").unwrap();
+                let mut violated_bits = 0;
+                for bit in [IO, ALLOC] {
+                    let expected = find_witness_enumerated(&program, &ast, &local, main, bit);
+                    if expected.is_none() {
+                        continue;
+                    }
+                    violated_bits += 1;
+                    let actual = find_witness(&program, &ast, &local, main, bit);
+                    assert_eq!(
+                        actual.as_ref().map(|w| (
+                            &w.summary,
+                            &w.primary,
+                            w.operation,
+                            &w.chain,
+                            &w.related
+                        )),
+                        expected.as_ref().map(|w| (
+                            &w.summary,
+                            &w.primary,
+                            w.operation,
+                            &w.chain,
+                            &w.related
+                        )),
+                        "seed={seed} case={case} bit={bit}\n{source}"
+                    );
+                    compared += 1;
+                }
+                multiple_constraints += usize::from(violated_bits == 2);
+            }
+        }
+        assert!(
+            compared >= 2_400,
+            "only compared {compared} violating cases"
+        );
+        assert!(
+            (1..=3).all(|length| leaf_lengths.contains(&length)),
+            "leaf lengths={leaf_lengths:?}"
+        );
+        assert!(
+            has_unknown_leaf,
+            "seeded sources must include unknown leaves"
+        );
+        assert!(
+            multiple_constraints > 0,
+            "sources must violate multiple constraints"
+        );
+    }
+
+    #[test]
+    fn witness_prefers_total_cause_count_before_callsite_offset() {
+        let source = "fn Make()->Result<MockResource,MockResource>{return Ok(MockOpen(1));} fn B()->Result<MockResource,MockResource>{return Make();} fn A(r:move Result<MockResource,MockResource>){Drop(r);} fn Main(){let r=B();A(move r);} ";
+        let ast = crate::frontend::parse::parse("witness-key.n", source).unwrap();
+        let program = crate::ir::check_scalar("witness-key.n", source).unwrap();
+        let functions = program.functions.functions();
+        let local: Vec<_> = functions.iter().map(function_intrinsic_effect).collect();
+        let main = functions.iter().position(|f| f.name == "Main").unwrap();
+        let actual = find_witness(&program, &ast, &local, main, IO).unwrap();
+        let expected = find_witness_enumerated(&program, &ast, &local, main, IO).unwrap();
+        assert_eq!(actual.summary, expected.summary);
+        assert_eq!(actual.primary, expected.primary);
+        assert_eq!(actual.operation, expected.operation);
+        assert_eq!(actual.chain, expected.chain);
+        assert_eq!(actual.related, expected.related);
+        let expected_first_target = format!("function:{}", source.find("fn B").unwrap() + 3);
+        assert_eq!(
+            actual.chain[0]
+                .entity
+                .as_ref()
+                .map(|entity| entity.id.as_str()),
+            Some(expected_first_target.as_str())
+        );
+    }
+
+    #[test]
+    fn dynamic_witness_handles_the_twenty_level_diamond_ladder() {
+        let depth = 20;
+        let mut source = String::new();
+        for level in 0..depth {
+            source.push_str(&format!(
+                "fn A{level}(){{B{level}();C{level}();}}fn B{level}(){{A{}();}}fn C{level}(){{A{}();}}",
+                level + 1,
+                level + 1
+            ));
+        }
+        source.push_str(&format!(
+            "fn A{depth}(){{Print(0);}}fn Main() with no_io{{A0();}}"
+        ));
+        let Err(super::super::lower::CompileError::Rejected(errors)) =
+            crate::ir::check_scalar("witness-ladder.n", &source)
+        else {
+            panic!("the written no_io restriction must reject the effect");
+        };
+        let effect = errors
+            .iter()
+            .find(|diagnostic| diagnostic.code == "NX-E0415")
+            .expect("known IO effect");
+        assert_eq!(effect.cause_chain.len(), 42);
+    }
 }

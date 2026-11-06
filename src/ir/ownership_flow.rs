@@ -15,23 +15,39 @@ use crate::diagnostic::{
 };
 use crate::frontend::lex::Token;
 
-const FLOW_LIMIT: u64 = 1_000_000;
-
-#[cfg(test)]
-pub(super) static FLOW_WORK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-#[cfg(test)]
-pub(super) static QUEUE_FLOW_WORK: std::sync::atomic::AtomicU64 =
-    std::sync::atomic::AtomicU64::new(0);
-#[cfg(test)]
-pub(super) static SPARSE_FLOW_WORK: std::sync::atomic::AtomicU64 =
-    std::sync::atomic::AtomicU64::new(0);
-#[cfg(test)]
-pub(super) static PREFIX_FLOW_WORK: std::sync::atomic::AtomicU64 =
-    std::sync::atomic::AtomicU64::new(0);
+pub(super) const FLOW_LIMIT: u64 = 1_000_000;
 
 #[cfg(test)]
 thread_local! {
     pub(super) static FLOW_STATE_COUNT_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    #[cfg(test)]
+    pub(super) static FLOW_DENSE_ORACLE_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+pub(super) fn with_dense_oracle<T>(work: impl FnOnce() -> T) -> T {
+    struct Reset;
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            FLOW_DENSE_ORACLE_ENABLED.with(|enabled| enabled.set(false));
+        }
+    }
+    FLOW_DENSE_ORACLE_ENABLED.with(|enabled| enabled.set(true));
+    let _reset = Reset;
+    work()
+}
+
+#[cfg(test)]
+pub(super) fn with_state_count<T>(work: impl FnOnce() -> T) -> T {
+    struct Reset;
+    impl Drop for Reset {
+        fn drop(&mut self) {
+            FLOW_STATE_COUNT_ENABLED.with(|enabled| enabled.set(false));
+        }
+    }
+    FLOW_STATE_COUNT_ENABLED.with(|enabled| enabled.set(true));
+    let _reset = Reset;
+    work()
 }
 #[cfg(test)]
 pub(super) static FLOW_STATE_ALLOCS: std::sync::atomic::AtomicU64 =
@@ -60,40 +76,35 @@ type State = BTreeMap<usize, Fact>;
 
 struct Budget {
     used: u64,
+    global_used: u64,
+    function_start: u64,
+    local_limit: u64,
+    global_limit: u64,
+}
+
+impl Default for Budget {
+    fn default() -> Self {
+        Self {
+            used: 0,
+            global_used: 0,
+            function_start: 0,
+            local_limit: FLOW_LIMIT,
+            global_limit: 4_000_000,
+        }
+    }
 }
 
 impl Budget {
     fn charge(&mut self, span: &Span) -> Result<(), CompileError> {
-        #[cfg(test)]
-        let limit = if span.file == "quota_preserve.n" {
-            64
-        } else {
-            FLOW_LIMIT
-        };
-        #[cfg(not(test))]
-        let limit = FLOW_LIMIT;
+        let local_denied = self.used >= self.local_limit;
+        let global_denied = self.global_used >= self.global_limit;
         super::count_cfg_work(1);
-        #[cfg(test)]
-        if matches!(
-            span.file.as_str(),
-            "flow_short_scale.n" | "cfg_scale_counter.n"
-        ) {
-            FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        }
-        #[cfg(test)]
-        if span.file == "queue_once.n" {
-            QUEUE_FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        }
-        #[cfg(test)]
-        if span.file == "sparse_scale.n" {
-            SPARSE_FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        }
-        #[cfg(test)]
-        if span.file == "prefix_scale.n" {
-            PREFIX_FLOW_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        }
-        self.used += 1;
-        if self.used <= limit {
+        if local_denied || global_denied {
+            // A rejected unit is not part of the granted work balance.
+            // In particular, local rejections must not consume compilation quota.
+        } else {
+            self.used += 1;
+            self.global_used += 1;
             return Ok(());
         }
         let mut d = crate::check::names::diagnostic(
@@ -107,10 +118,46 @@ impl Budget {
             "budget_kind".into(),
             diagnostic::DataValue::String("ownership_flow_steps".into()),
         );
+        let scope = if global_denied {
+            "compilation"
+        } else {
+            "function"
+        };
+        let limit = if global_denied {
+            self.global_limit
+        } else {
+            self.local_limit
+        };
+        d.data.insert(
+            "budget_scope".into(),
+            diagnostic::DataValue::String(scope.into()),
+        );
         d.data
             .insert("limit".into(), diagnostic::DataValue::UInt(limit));
         d.data
-            .insert("observed".into(), diagnostic::DataValue::UInt(self.used));
+            .insert("observed".into(), diagnostic::DataValue::UInt(limit + 1));
+        if !global_denied {
+            d.data.insert(
+                "analysis_function".into(),
+                diagnostic::DataValue::Object(
+                    [
+                        (
+                            "kind".into(),
+                            diagnostic::DataValue::String("function".into()),
+                        ),
+                        (
+                            "id".into(),
+                            diagnostic::DataValue::String(format!(
+                                "function:{}",
+                                self.function_start
+                            )),
+                        ),
+                    ]
+                    .into_iter()
+                    .collect(),
+                ),
+            );
+        }
         Err(CompileError::Rejected(vec![d]))
     }
 }
@@ -391,7 +438,10 @@ fn analyze_dense(
     incoming[0] = Some(State::new());
     let mut queue = VecDeque::from([0]);
     let mut queued = vec![false; blocks.len()];
-    let mut budget = Budget { used: *used };
+    let mut budget = Budget {
+        used: *used,
+        ..Budget::default()
+    };
     while let Some(index) = queue.pop_front() {
         queued[index] = false;
         let block = blocks[index];
@@ -466,7 +516,7 @@ fn analyze_dense(
 }
 
 mod sparse;
-pub(super) use sparse::analyze;
+pub(super) use sparse::analyze_with_limits as analyze;
 
 #[cfg(test)]
 #[allow(clippy::too_many_arguments)]
@@ -639,7 +689,10 @@ mod tests {
         let mut incoming = vec![None];
         let mut queued = vec![false];
         let mut queue = VecDeque::new();
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         let error = propagate(
             0,
             blocks.len(),
@@ -664,7 +717,10 @@ mod tests {
         let right = State::from([(0, fact(4, false))]);
         assert!(left[&0].definite);
         assert!(!right[&0].definite);
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         assert!(join(&mut left, &right, &mut budget, &span(1, 2)).unwrap());
         assert!(!left[&0].definite);
         assert_eq!(left[&0].sites.len(), 2);
@@ -721,7 +777,10 @@ mod tests {
         short.sites.get_mut(&(7, 8, true)).unwrap().distance = 3;
         let mut into = State::from([(0, long)]);
         let from = State::from([(0, short)]);
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         assert!(join(&mut into, &from, &mut budget, &span(1, 2)).unwrap());
         assert_eq!(into[&0].sites[&(7, 8, true)].distance, 3);
     }
@@ -780,7 +839,10 @@ mod tests {
         let mut incoming = vec![None; 3];
         let mut queue = VecDeque::new();
         let mut queued = vec![false; 3];
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         for target in [1, 2] {
             propagate(
                 0,
@@ -808,6 +870,7 @@ mod tests {
         };
         let mut budget = Budget {
             used: FLOW_LIMIT.saturating_sub(1),
+            ..Budget::default()
         };
         assert!(budget.charge(&span).is_ok());
         let Err(CompileError::Rejected(errors)) = budget.charge(&span) else {
@@ -832,6 +895,37 @@ mod tests {
             Some(&diagnostic::DataValue::UInt(1_000_001))
         );
         d.validate("budget_flow.n", source).unwrap();
+        assert_eq!(budget.used, FLOW_LIMIT);
+        assert_eq!(budget.global_used, 1);
+        assert!(budget.charge(&span).is_err());
+        assert_eq!(budget.used, FLOW_LIMIT);
+        assert_eq!(budget.global_used, 1);
+    }
+
+    #[test]
+    fn rejected_ownership_charge_at_both_limits_changes_neither_balance() {
+        let span = Span {
+            file: "budget_flow.n".into(),
+            start: 10,
+            end: 11,
+        };
+        let mut budget = Budget {
+            used: 7,
+            global_used: 19,
+            local_limit: 8,
+            global_limit: 20,
+            ..Budget::default()
+        };
+        assert!(budget.charge(&span).is_ok());
+        assert_eq!((budget.used, budget.global_used), (8, 20));
+        let Err(CompileError::Rejected(errors)) = budget.charge(&span) else {
+            panic!("expected rejection when both limits are exhausted");
+        };
+        assert_eq!(
+            errors[0].data.get("budget_scope"),
+            Some(&diagnostic::DataValue::String("compilation".into()))
+        );
+        assert_eq!((budget.used, budget.global_used), (8, 20));
     }
 
     #[test]
@@ -841,7 +935,7 @@ mod tests {
         let function = program.functions.function("Main").unwrap();
         let tokens = crate::frontend::lex::lex("summary_charge.n", source).unwrap();
         let mut used = 0;
-        analyze(function, &[], &tokens, &mut used).unwrap();
+        sparse::analyze(function, &[], &tokens, &mut used).unwrap();
         assert_eq!(used, 5);
     }
 }

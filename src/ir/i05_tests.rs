@@ -57,7 +57,9 @@ fn assert_consumed_binding_diagnostics(
         explanation_id: Some("NX-E0202/definitely_consumed".into()),
         severity: Severity::Error,
         stage: Stage::Ownership,
-        message: "Acceso propietario inválido.".into(),
+        message: crate::diagnostic::catalog_message("NX-E0202")
+            .expect("catalog entry")
+            .into(),
         operation: Operation::OwnershipUse,
         primary_span: Some(span(use_spans[0])),
         related_spans: vec![

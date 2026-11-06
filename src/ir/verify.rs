@@ -1020,19 +1020,199 @@ fn visit_terminator_temps(terminator: &Terminator, mut visit: impl FnMut(TempId)
         _ => {}
     }
 }
-struct CfgTemps {
+
+#[derive(Default)]
+struct LiveNode {
+    left: Option<std::sync::Arc<LiveNode>>,
+    right: Option<std::sync::Arc<LiveNode>>,
+    count: usize,
+}
+
+#[derive(Clone, Default)]
+struct LiveSet {
+    root: Option<std::sync::Arc<LiveNode>>,
+}
+
+impl LiveSet {
+    fn len(&self) -> usize {
+        self.root.as_ref().map_or(0, |node| node.count)
+    }
+
+    fn contains(&self, key: usize) -> bool {
+        fn visit(node: &Option<std::sync::Arc<LiveNode>>, key: usize, bit: usize) -> bool {
+            super::count_cfg_work(1);
+            let Some(node) = node else { return false };
+            if bit == 0 {
+                return node.count != 0;
+            }
+            let child = if (key >> (bit - 1)) & 1 == 0 {
+                &node.left
+            } else {
+                &node.right
+            };
+            visit(child, key, bit - 1)
+        }
+        visit(&self.root, key, usize::BITS as usize)
+    }
+
+    fn insert(&mut self, key: usize) {
+        if self.contains(key) {
+            return;
+        }
+        fn insert(
+            node: &Option<std::sync::Arc<LiveNode>>,
+            key: usize,
+            bit: usize,
+        ) -> Option<std::sync::Arc<LiveNode>> {
+            super::count_cfg_work(1);
+            if bit == 0 {
+                return node.clone().or_else(|| {
+                    Some(std::sync::Arc::new(LiveNode {
+                        count: 1,
+                        ..LiveNode::default()
+                    }))
+                });
+            }
+            let empty = None;
+            let empty_node = LiveNode::default();
+            let current = node.as_deref().unwrap_or(&empty_node);
+            let (left, right) = if (key >> (bit - 1)) & 1 == 0 {
+                (
+                    insert(
+                        if node.is_some() {
+                            &current.left
+                        } else {
+                            &empty
+                        },
+                        key,
+                        bit - 1,
+                    ),
+                    current.right.clone(),
+                )
+            } else {
+                (
+                    current.left.clone(),
+                    insert(
+                        if node.is_some() {
+                            &current.right
+                        } else {
+                            &empty
+                        },
+                        key,
+                        bit - 1,
+                    ),
+                )
+            };
+            Some(std::sync::Arc::new(LiveNode {
+                count: left.as_ref().map_or(0, |n| n.count) + right.as_ref().map_or(0, |n| n.count),
+                left,
+                right,
+            }))
+        }
+        self.root = insert(&self.root, key, usize::BITS as usize);
+    }
+
+    fn remove(&mut self, key: usize) {
+        if !self.contains(key) {
+            return;
+        }
+        fn remove(
+            node: &Option<std::sync::Arc<LiveNode>>,
+            key: usize,
+            bit: usize,
+        ) -> Option<std::sync::Arc<LiveNode>> {
+            super::count_cfg_work(1);
+            let current = node.as_ref()?;
+            if bit == 0 {
+                return None;
+            }
+            let (left, right) = if (key >> (bit - 1)) & 1 == 0 {
+                (remove(&current.left, key, bit - 1), current.right.clone())
+            } else {
+                (current.left.clone(), remove(&current.right, key, bit - 1))
+            };
+            let count =
+                left.as_ref().map_or(0, |n| n.count) + right.as_ref().map_or(0, |n| n.count);
+            (count != 0).then(|| std::sync::Arc::new(LiveNode { left, right, count }))
+        }
+        self.root = remove(&self.root, key, usize::BITS as usize);
+    }
+
+    fn union(&self, other: &Self) -> Self {
+        fn union(
+            left: &Option<std::sync::Arc<LiveNode>>,
+            right: &Option<std::sync::Arc<LiveNode>>,
+            bit: usize,
+        ) -> Option<std::sync::Arc<LiveNode>> {
+            super::count_cfg_work(1);
+            match (left, right) {
+                (None, _) => right.clone(),
+                (_, None) => left.clone(),
+                (Some(a), Some(b)) if std::sync::Arc::ptr_eq(a, b) => left.clone(),
+                (Some(a), Some(_)) if bit == 0 => left.clone(),
+                (Some(a), Some(b)) => {
+                    let l = union(&a.left, &b.left, bit - 1);
+                    let r = union(&a.right, &b.right, bit - 1);
+                    let same =
+                        |x: &Option<std::sync::Arc<LiveNode>>,
+                         y: &Option<std::sync::Arc<LiveNode>>| match (x, y)
+                        {
+                            (None, None) => true,
+                            (Some(x), Some(y)) => std::sync::Arc::ptr_eq(x, y),
+                            _ => false,
+                        };
+                    if same(&l, &a.left) && same(&r, &a.right) {
+                        return left.clone();
+                    }
+                    if same(&l, &b.left) && same(&r, &b.right) {
+                        return right.clone();
+                    }
+                    let count =
+                        l.as_ref().map_or(0, |n| n.count) + r.as_ref().map_or(0, |n| n.count);
+                    super::count_cfg_work(1);
+                    Some(std::sync::Arc::new(LiveNode {
+                        left: l,
+                        right: r,
+                        count,
+                    }))
+                }
+            }
+        }
+        Self {
+            root: union(&self.root, &other.root, usize::BITS as usize),
+        }
+    }
+}
+
+struct CfgTemps<'a> {
     data: std::collections::HashMap<usize, CfgTemp>,
     reads: std::collections::HashMap<usize, usize>,
     exclusive: std::collections::HashMap<usize, usize>,
     pending_end: Vec<super::model::LoanId>,
+    live_in: &'a LiveSet,
+    definitions: &'a std::collections::HashMap<usize, (usize, CfgTemp)>,
+    block_index: usize,
+    entered: &'a [usize],
+    exited: &'a [usize],
 }
-impl CfgTemps {
-    fn new() -> Self {
+impl<'a> CfgTemps<'a> {
+    fn new(
+        live_in: &'a LiveSet,
+        definitions: &'a std::collections::HashMap<usize, (usize, CfgTemp)>,
+        block_index: usize,
+        entered: &'a [usize],
+        exited: &'a [usize],
+    ) -> Self {
         Self {
             data: std::collections::HashMap::new(),
             reads: std::collections::HashMap::new(),
             exclusive: std::collections::HashMap::new(),
             pending_end: Vec::new(),
+            live_in,
+            definitions,
+            block_index,
+            entered,
+            exited,
         }
     }
     fn reads(&self, root: usize) -> usize {
@@ -1042,6 +1222,16 @@ impl CfgTemps {
         self.exclusive.get(&root).copied().unwrap_or(0)
     }
     fn read(&mut self, id: TempId, consume: bool) -> Result<Ty, &'static str> {
+        if !self.data.contains_key(&id.0) {
+            if !self.live_in.contains(id.0) {
+                return Err("undefined temporary");
+            }
+            let definition = self.definitions.get(&id.0).ok_or("undefined temporary")?;
+            if !self.dominates(definition.0) {
+                return Err("undefined temporary");
+            }
+            self.data.insert(id.0, definition.1.clone());
+        }
         let temp = self.data.get_mut(&id.0).ok_or("undefined temporary")?;
         if !temp.live {
             return Err("temporary used twice");
@@ -1062,11 +1252,27 @@ impl CfgTemps {
         Ok(temp.ty.clone())
     }
     fn info(&self, id: TempId) -> Result<&CfgTemp, &'static str> {
-        let temp = self.data.get(&id.0).ok_or("undefined temporary")?;
+        let temp = if let Some(temp) = self.data.get(&id.0) {
+            temp
+        } else {
+            if !self.live_in.contains(id.0) {
+                return Err("undefined temporary");
+            }
+            let (definition, temp) = self.definitions.get(&id.0).ok_or("undefined temporary")?;
+            if !self.dominates(*definition) {
+                return Err("undefined temporary");
+            }
+            temp
+        };
         if !temp.live {
             return Err("temporary used twice");
         }
         Ok(temp)
+    }
+    fn dominates(&self, definition: usize) -> bool {
+        definition != self.block_index
+            && self.entered[definition] <= self.entered[self.block_index]
+            && self.exited[self.block_index] <= self.exited[definition]
     }
 }
 
@@ -1210,7 +1416,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     }
     // Temporary liveness is an edge property. An operand evaluated before an if
     // can remain live through both arms and be consumed in their continuation.
-    let mut live_in = vec![HashSet::<usize>::new(); blocks.len()];
+    let mut live_in = vec![LiveSet::default(); blocks.len()];
     let mut live_out = live_in.clone();
     let mut queue: VecDeque<usize> = (0..blocks.len()).rev().collect();
     let mut queued = vec![true; blocks.len()];
@@ -1221,9 +1427,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             return Err("control-flow analysis limit");
         }
         queued[index] = false;
-        let mut out = HashSet::new();
+        let mut out = LiveSet::default();
         for &target in &successors[index] {
-            out.extend(live_in[target].iter().copied());
+            out = out.union(&live_in[target]);
         }
         let mut needed = out.clone();
         visit_terminator_temps(&blocks[index].terminator, |id| {
@@ -1232,13 +1438,15 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
         for ins in blocks[index].instructions.iter().rev() {
             super::count_cfg_work(1);
             if let Some(id) = ins.output {
-                needed.remove(&id.0);
+                needed.remove(id.0);
             }
             visit_op_temps(&ins.op, |id| {
                 needed.insert(id.0);
             });
         }
-        if needed != live_in[index] || out != live_out[index] {
+        // Starting from empty sets and applying this monotone transfer can
+        // only add live temporaries, so equal cardinality means equal state.
+        if needed.len() != live_in[index].len() || out.len() != live_out[index].len() {
             live_in[index] = needed;
             live_out[index] = out;
             for &pred in &predecessors[index] {
@@ -1251,7 +1459,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     }
     let mut definitions = std::collections::HashMap::<usize, (usize, CfgTemp)>::new();
     for (block_index, block) in blocks.iter().enumerate() {
+        super::count_cfg_work(1);
         for ins in &block.instructions {
+            super::count_cfg_work(1);
             if let (Some(id), Some(ty)) = (ins.output, ins.ty.clone()) {
                 let borrowed_from = match ins.op {
                     Op::BorrowValue(root) | Op::BorrowIndex { local: root, .. } => Some(root.0),
@@ -1400,17 +1610,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             walk.push((next, 0));
         }
     }
-    let return_temps: HashSet<usize> = blocks
+    let loan_temporaries: Vec<usize> = definitions
         .iter()
-        .filter_map(|block| {
-            if let Terminator::Return {
-                value: Some(id), ..
-            } = block.terminator
-            {
-                Some(id.0)
-            } else {
-                None
-            }
+        .filter_map(|(&id, (_, metadata))| {
+            (metadata.borrowed_from.is_some() || metadata.exclusive_root.is_some()).then_some(id)
         })
         .collect();
     let mut outputs = HashSet::new();
@@ -1418,30 +1621,18 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     for (index, block) in blocks.iter().enumerate() {
         super::count_cfg_work(1);
         let mut initialized = incoming[index].clone();
-        let mut temps = CfgTemps::new();
-        for &id in &live_in[index] {
-            super::count_cfg_work(1);
-            let missing = || match &block.terminator {
-                _ if return_temps.contains(&id) => "undefined return temporary",
-                Terminator::BranchBool { condition, .. } if condition.0 == id => {
-                    "branch condition type"
+        let mut temps = CfgTemps::new(&live_in[index], &definitions, index, &entered, &exited);
+        for &id in &loan_temporaries {
+            if live_in[index].contains(id) {
+                super::count_cfg_work(1);
+                let metadata = &definitions[&id].1;
+                if let Some(root) = metadata.borrowed_from {
+                    *temps.reads.entry(root).or_default() += 1;
                 }
-                _ => "undefined temporary",
-            };
-            let (defined_in, metadata) = definitions.get(&id).ok_or_else(missing)?;
-            if *defined_in == index {
-                return Err(missing());
+                if let Some(root) = metadata.exclusive_root {
+                    *temps.exclusive.entry(root).or_default() += 1;
+                }
             }
-            if !(entered[*defined_in] <= entered[index] && exited[index] <= exited[*defined_in]) {
-                return Err(missing());
-            }
-            if let Some(root) = metadata.borrowed_from {
-                *temps.reads.entry(root).or_default() += 1;
-            }
-            if let Some(root) = metadata.exclusive_root {
-                *temps.exclusive.entry(root).or_default() += 1;
-            }
-            temps.data.insert(id, metadata.clone());
         }
         for (position, ins) in block.instructions.iter().enumerate() {
             super::count_cfg_work(1);
@@ -1950,31 +2141,31 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             Terminator::Jump { .. } => {}
             Terminator::Return { value: None, .. } => return Err("missing return value"),
         }
-        if temps
-            .data
-            .iter()
-            .any(|(id, temp)| temp.live && !live_out[index].contains(id))
-        {
-            return Err("unconsumed temporary");
-        }
-        if live_out[index]
-            .iter()
-            .any(|id| !temps.data.get(id).is_some_and(|temp| temp.live))
-        {
-            return Err("temporary used twice");
+        for (id, temp) in &temps.data {
+            super::count_cfg_work(1);
+            if temp.live != live_out[index].contains(*id) {
+                return Err(if temp.live {
+                    "unconsumed temporary"
+                } else {
+                    "temporary used twice"
+                });
+            }
         }
         if !temps.pending_end.is_empty() {
             return Err("loan end missing");
         }
         let mut reads_out = std::collections::HashMap::<usize, usize>::new();
         let mut exclusive_out = std::collections::HashMap::<usize, usize>::new();
-        for id in &live_out[index] {
-            let temp = temps.data.get(id).ok_or("undefined temporary")?;
-            if let Some(root) = temp.borrowed_from {
-                *reads_out.entry(root).or_default() += 1;
-            }
-            if let Some(root) = temp.exclusive_root {
-                *exclusive_out.entry(root).or_default() += 1;
+        for &id in &loan_temporaries {
+            if live_out[index].contains(id) {
+                super::count_cfg_work(1);
+                let temp = &definitions[&id].1;
+                if let Some(root) = temp.borrowed_from {
+                    *reads_out.entry(root).or_default() += 1;
+                }
+                if let Some(root) = temp.exclusive_root {
+                    *exclusive_out.entry(root).or_default() += 1;
+                }
             }
         }
         if reads_out
@@ -1999,7 +2190,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     // A consumer in one arm does not license silently losing it in the other.
     for (index, targets) in successors.iter().enumerate() {
         for &target in targets {
-            if live_out[index] != live_in[target] {
+            // live_out is the union of every successor's live_in. Equal
+            // cardinality therefore proves this particular edge is exact.
+            if live_out[index].len() != live_in[target].len() {
                 return Err("temporary leaked on edge");
             }
         }
@@ -2011,6 +2204,22 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
 mod tests {
     use super::*;
     use crate::ir::compile_scalar;
+    #[test]
+    fn persistent_liveness_union_preserves_disjoint_and_shared_temps() {
+        let mut left = LiveSet::default();
+        left.insert(1);
+        left.insert(usize::MAX);
+        let mut right = LiveSet::default();
+        right.insert(2);
+        right.insert(usize::MAX);
+        let (merged, steps) = crate::ir::measure_cfg_thread_work(|| left.union(&right));
+        assert_eq!(merged.len(), 3);
+        assert!(merged.contains(1));
+        assert!(merged.contains(2));
+        assert!(merged.contains(usize::MAX));
+        assert_eq!(steps, 316);
+    }
+
     #[test]
     fn join_initialization_is_intersection_in_both_predecessor_orders() {
         let (tree, _, bottom) = InitTree::new(3);

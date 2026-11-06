@@ -3,17 +3,12 @@ use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::mpsc::{self, Sender};
 #[cfg(test)]
-static PARSE_SCALE_WORK: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
-#[cfg(test)]
-static PARSE_SCALE_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-#[cfg(test)]
 pub(crate) fn measure_parse_work(source: &str) -> (Result<Ast, Box<Diagnostic>>, u64) {
-    use std::sync::atomic::Ordering;
-    let _guard = PARSE_SCALE_MUTEX.lock().unwrap();
-    PARSE_SCALE_WORK.store(0, Ordering::Relaxed);
-    let result = parse("b-scale.n", source);
-    (result, PARSE_SCALE_WORK.load(Ordering::Relaxed))
+    let work = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
+    let result =
+        parse_with_split_tokens_counted("scale.n", source, Some(work.clone())).map(|(ast, _)| ast);
+    let units = work.load(std::sync::atomic::Ordering::Relaxed);
+    (result, units)
 }
 
 use super::lex::{self, Kind, Token};
@@ -334,6 +329,7 @@ struct ParseJob {
     file: String,
     source: String,
     response: Sender<WorkerResult>,
+    work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
 }
 thread_local! {
     static PARSE_WORKER: RefCell<Option<Sender<ParseJob>>> = const { RefCell::new(None) };
@@ -356,6 +352,7 @@ pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
         depth: 0,
         function_names: HashSet::new(),
         local_scopes: Vec::new(),
+        work: None,
     };
     parser.budget_error(
         "syntax_nesting",
@@ -374,6 +371,14 @@ pub(crate) fn parse_with_split_tokens(
     file: &str,
     source: &str,
 ) -> Result<(Ast, Vec<usize>), Box<Diagnostic>> {
+    parse_with_split_tokens_counted(file, source, None)
+}
+
+fn parse_with_split_tokens_counted(
+    file: &str,
+    source: &str,
+    work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
+) -> Result<(Ast, Vec<usize>), Box<Diagnostic>> {
     if source.len() > 1_048_576 {
         let parser = Parser {
             file,
@@ -386,6 +391,7 @@ pub(crate) fn parse_with_split_tokens(
             depth: 0,
             function_names: HashSet::new(),
             local_scopes: Vec::new(),
+            work: None,
         };
         return Err(parser.budget_error(
             "source_bytes",
@@ -400,6 +406,7 @@ pub(crate) fn parse_with_split_tokens(
         file: file.into(),
         source: source.into(),
         response,
+        work,
     };
     let sent = PARSE_WORKER.with(|slot| {
         let mut worker = slot.borrow_mut();
@@ -412,7 +419,7 @@ pub(crate) fn parse_with_split_tokens(
                 .spawn(move || {
                     for job in jobs {
                         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                            parse_inner(&job.file, &job.source)
+                            parse_inner(&job.file, &job.source, job.work.clone())
                         }));
                         let _ = job.response.send(result);
                     }
@@ -432,7 +439,11 @@ pub(crate) fn parse_with_split_tokens(
     }
 }
 
-fn parse_inner(file: &str, source: &str) -> ParseResult {
+fn parse_inner(
+    file: &str,
+    source: &str,
+    work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
+) -> ParseResult {
     #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(file);
     let tokens = lex::lex(file, source)?;
@@ -459,6 +470,7 @@ fn parse_inner(file: &str, source: &str) -> ParseResult {
         depth: 0,
         function_names,
         local_scopes: Vec::new(),
+        work,
     }
     .program()
 }
@@ -467,6 +479,28 @@ fn parse_inner(file: &str, source: &str) -> ParseResult {
 mod tests {
     use super::*;
     use crate::diagnostic::DataValue;
+
+    #[test]
+    fn parser_token_probe_units_scale_with_source_length() {
+        fn measured(target: usize) -> u64 {
+            let mut source = String::from("fn F(){");
+            while source.len() + 8 < target {
+                source.push_str("let x=0;");
+            }
+            source.push('}');
+            let (parsed, units) = measure_parse_work(&source);
+            assert!(parsed.is_ok());
+            units
+        }
+        let small = measured(32 * 1024);
+        let large = measured(64 * 1024);
+        assert!(small > 0);
+        assert!(large >= small);
+        assert!(
+            large <= small * 23 / 10,
+            "parser probe units: {small} -> {large}"
+        );
+    }
 
     #[test]
     #[cfg(not(debug_assertions))]
@@ -630,7 +664,7 @@ mod tests {
         let source = "fn F(){let x=1;}";
         let start = Instant::now();
         for _ in 0..COUNT {
-            std::hint::black_box(parse_inner("cost.n", source).unwrap());
+            std::hint::black_box(parse_inner("cost.n", source, None).unwrap());
         }
         let direct = start.elapsed();
         let before = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get);
@@ -882,6 +916,7 @@ struct Parser<'a> {
     depth: usize,
     function_names: HashSet<String>,
     local_scopes: Vec<HashSet<String>>,
+    work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
 }
 impl Parser<'_> {
     fn program(mut self) -> ParseResult {
@@ -2473,9 +2508,8 @@ impl Parser<'_> {
         self.newline_after(self.prev_end()).is_some()
     }
     fn peek(&self) -> &Token {
-        #[cfg(test)]
-        if self.file == "b-scale.n" {
-            PARSE_SCALE_WORK.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        if let Some(work) = &self.work {
+            work.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
         }
         &self.tokens[self.at.min(self.tokens.len() - 1)]
     }
@@ -2670,6 +2704,7 @@ mod b_tests {
             depth: 0,
             function_names: HashSet::new(),
             local_scopes: Vec::new(),
+            work: None,
         };
         parser.expect_type_close().unwrap();
         assert_eq!(
@@ -2783,6 +2818,7 @@ mod b_tests {
                 depth: 0,
                 function_names: HashSet::new(),
                 local_scopes: Vec::new(),
+                work: None,
             };
             let result = parser.statement(false, 0);
             assert_eq!(result.is_err(), expect_error, "{source}");

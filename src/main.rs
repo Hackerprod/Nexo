@@ -75,9 +75,10 @@ fn main() -> ExitCode {
             }
             return ExitCode::FAILURE;
         }
-        Err(_) => {
-            eprintln!("nexo-driver:internal_error");
-            return ExitCode::from(2);
+        Err(error) => {
+            let (status, message) = internal_error_exit(&error);
+            eprintln!("{message}");
+            return ExitCode::from(status);
         }
     };
     if args_os[0] == OsStr::new("check") {
@@ -126,6 +127,23 @@ fn main() -> ExitCode {
             eprintln!("nexo-driver:internal_error");
             ExitCode::from(2)
         }
+    }
+}
+
+fn internal_error_exit(_error: &nexo::ir::CompileError) -> (u8, &'static str) {
+    (2, "nexo-driver:internal_error")
+}
+
+#[cfg(test)]
+#[allow(clippy::items_after_test_module)]
+mod tests {
+    #[test]
+    fn checker_worker_failure_maps_to_controlled_exit_two_message() {
+        let error = nexo::ir::CompileError::InvalidIr("internal_error");
+        let (status, message) = super::internal_error_exit(&error);
+        assert_eq!(status, 2);
+        assert_eq!(message, "nexo-driver:internal_error");
+        assert!(!message.contains("panicked"));
     }
 }
 

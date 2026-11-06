@@ -1,0 +1,203 @@
+{
+  "generator": "scripts/i07c_typed_campaign/main.rs (twin)",
+  "campaigns": [
+    {
+      "profile": "release",
+      "programs": 300000,
+      "seed": 10495373245766874321,
+      "depth": 3,
+      "flagged_for_differential_review": 19,
+      "threads": [
+        {
+          "thread": 7,
+          "programs": 37500,
+          "rejected": 23544,
+          "accepted_both": 13956,
+          "bugs": 0,
+          "assignment_blamed": 4210,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 5,
+          "programs": 37500,
+          "rejected": 23410,
+          "accepted_both": 14090,
+          "bugs": 0,
+          "assignment_blamed": 4109,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 4,
+          "programs": 37500,
+          "rejected": 23460,
+          "accepted_both": 14040,
+          "bugs": 0,
+          "assignment_blamed": 4081,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 6,
+          "programs": 37500,
+          "rejected": 23314,
+          "accepted_both": 14186,
+          "bugs": 0,
+          "assignment_blamed": 4027,
+          "duplicates": 0,
+          "other_differences": 2
+        },
+        {
+          "thread": 2,
+          "programs": 37500,
+          "rejected": 23443,
+          "accepted_both": 14057,
+          "bugs": 0,
+          "assignment_blamed": 3977,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 0,
+          "programs": 37500,
+          "rejected": 23380,
+          "accepted_both": 14120,
+          "bugs": 0,
+          "assignment_blamed": 4076,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 3,
+          "programs": 37500,
+          "rejected": 23538,
+          "accepted_both": 13962,
+          "bugs": 0,
+          "assignment_blamed": 4128,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 1,
+          "programs": 37500,
+          "rejected": 23394,
+          "accepted_both": 14106,
+          "bugs": 0,
+          "assignment_blamed": 4090,
+          "duplicates": 0,
+          "other_differences": 3
+        }
+      ],
+      "totals": {
+        "programs": 300000,
+        "rejected": 187483,
+        "accepted_both": 112517,
+        "bugs": 0,
+        "assignment_blamed": 32698,
+        "duplicates": 0,
+        "other_differences": 8
+      },
+      "binary_exit_code": 0
+    },
+    {
+      "profile": "debug",
+      "programs": 100000,
+      "seed": 10495373245766874321,
+      "depth": 3,
+      "flagged_for_differential_review": 10,
+      "threads": [
+        {
+          "thread": 7,
+          "programs": 12500,
+          "rejected": 7874,
+          "accepted_both": 4626,
+          "bugs": 0,
+          "assignment_blamed": 1424,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 5,
+          "programs": 12500,
+          "rejected": 7834,
+          "accepted_both": 4666,
+          "bugs": 0,
+          "assignment_blamed": 1393,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 4,
+          "programs": 12500,
+          "rejected": 7803,
+          "accepted_both": 4697,
+          "bugs": 0,
+          "assignment_blamed": 1318,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 2,
+          "programs": 12500,
+          "rejected": 7898,
+          "accepted_both": 4602,
+          "bugs": 0,
+          "assignment_blamed": 1343,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 6,
+          "programs": 12500,
+          "rejected": 7773,
+          "accepted_both": 4727,
+          "bugs": 0,
+          "assignment_blamed": 1302,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 1,
+          "programs": 12500,
+          "rejected": 7816,
+          "accepted_both": 4684,
+          "bugs": 0,
+          "assignment_blamed": 1377,
+          "duplicates": 0,
+          "other_differences": 2
+        },
+        {
+          "thread": 3,
+          "programs": 12500,
+          "rejected": 7812,
+          "accepted_both": 4688,
+          "bugs": 0,
+          "assignment_blamed": 1419,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 0,
+          "programs": 12500,
+          "rejected": 7754,
+          "accepted_both": 4746,
+          "bugs": 0,
+          "assignment_blamed": 1375,
+          "duplicates": 0,
+          "other_differences": 0
+        }
+      ],
+      "totals": {
+        "programs": 100000,
+        "rejected": 62564,
+        "accepted_both": 37436,
+        "bugs": 0,
+        "assignment_blamed": 10951,
+        "duplicates": 0,
+        "other_differences": 3
+      },
+      "binary_exit_code": 0
+    }
+  ]
+}

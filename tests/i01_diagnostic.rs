@@ -1706,7 +1706,9 @@ fn ordinary_explanations_match_literal_published_pairs_and_fixture_profile() {
                     .unwrap_or_else(|| panic!("catalog negative did not reject: {negative}"))
             } else {
                 match nexo::ir::compile_scalar("catalog_example.n", negative) {
-                    Err(nexo::ir::CompileError::Rejected(errors)) => errors,
+                    Err(nexo::ir::CompileError::Rejected(errors)) => {
+                        nexo::check::CheckProposedError::Diagnostics(errors)
+                    }
                     other => {
                         panic!("catalog negative did not reject: {code}/{subcause:?}: {other:?}")
                     }
@@ -2723,6 +2725,11 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
             Stage::Ownership,
         ),
         (
+            "f0-0002-b-test-flow-global-32-v2",
+            "ownership_flow_steps",
+            Stage::Ownership,
+        ),
+        (
             "f0-0002-b-test-effects-32-v2",
             "effect_fixpoint_steps",
             Stage::Effects,
@@ -2736,6 +2743,22 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
         d.data.insert("budget_kind".into(), V::String(kind.into()));
         d.data.insert("limit".into(), V::UInt(32));
         d.data.insert("observed".into(), V::UInt(33));
+        if kind == "ownership_flow_steps" {
+            let local = profile == "f0-0002-b-test-flow-32-v2";
+            d.data.insert(
+                "budget_scope".into(),
+                V::String(if local { "function" } else { "compilation" }.into()),
+            );
+            if local {
+                d.data.insert(
+                    "analysis_function".into(),
+                    V::Object(std::collections::BTreeMap::from([
+                        ("kind".into(), V::String("function".into())),
+                        ("id".into(), V::String("function:Main".into())),
+                    ])),
+                );
+            }
+        }
         refresh_budget_metadata(&mut d);
         assert!(d.validate("input.n", "x").is_ok(), "{profile}");
         d.data
@@ -2794,7 +2817,8 @@ fn published_reduced_profiles_and_diagnostic_edge_contracts() {
                 | "array_type_depth"
                 | "value_type_depth" => 128,
                 "function_count" => 1_024,
-                "type_solver_steps" | "ownership_flow_steps" | "effect_fixpoint_steps" => 1_000_000,
+                "type_solver_steps" | "effect_fixpoint_steps" => 1_000_000,
+                "ownership_flow_steps" => 4_000_000,
                 "ir_items" => 262_144,
                 _ => unreachable!(),
             };
@@ -3083,6 +3107,10 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
         ("f0-0002-b-test-types-32-v2", Some("type_solver_steps")),
         ("f0-0002-b-test-flow-32-v2", Some("ownership_flow_steps")),
         (
+            "f0-0002-b-test-flow-global-32-v2",
+            Some("ownership_flow_steps"),
+        ),
+        (
             "f0-0002-b-test-effects-32-v2",
             Some("effect_fixpoint_steps"),
         ),
@@ -3092,7 +3120,15 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
         ("f0-0002-b-test-observations-64-v2", None),
     ];
     for (profile, changed) in profiles {
-        for (kind, normal, stage) in analysis {
+        for (kind, mut normal, stage) in analysis {
+            let local_flow_profile = profile == "f0-0002-b-test-flow-32-v2";
+            if kind == "ownership_flow_steps" {
+                normal = if local_flow_profile {
+                    1_000_000
+                } else {
+                    4_000_000
+                };
+            }
             let limit = if changed == Some(kind) { 32 } else { normal };
             let mut d = diagnostic_for_catalog("NX-E0003", None);
             d.profile_id = profile.into();
@@ -3101,6 +3137,28 @@ fn reduced_profiles_inherit_every_unmodified_budget() {
             d.data.insert("budget_kind".into(), V::String(kind.into()));
             d.data.insert("limit".into(), V::UInt(limit));
             d.data.insert("observed".into(), V::UInt(limit + 1));
+            if kind == "ownership_flow_steps" {
+                d.data.insert(
+                    "budget_scope".into(),
+                    V::String(
+                        if local_flow_profile {
+                            "function"
+                        } else {
+                            "compilation"
+                        }
+                        .into(),
+                    ),
+                );
+                if local_flow_profile {
+                    d.data.insert(
+                        "analysis_function".into(),
+                        V::Object(std::collections::BTreeMap::from([
+                            ("kind".into(), V::String("function".into())),
+                            ("id".into(), V::String("function:Main".into())),
+                        ])),
+                    );
+                }
+            }
             refresh_budget_metadata(&mut d);
             let source = if kind == "source_bytes" {
                 "x".repeat(limit as usize + 1)
@@ -3178,7 +3236,7 @@ fn nx_e0003_costly_analysis_requires_a_nonempty_primary_span() {
 
     let cases = [
         ("type_solver_steps", Stage::Types, 1_000_000),
-        ("ownership_flow_steps", Stage::Ownership, 1_000_000),
+        ("ownership_flow_steps", Stage::Ownership, 4_000_000),
         ("effect_fixpoint_steps", Stage::Effects, 1_000_000),
         ("ir_items", Stage::Lower, 262_144),
     ];

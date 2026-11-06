@@ -1,0 +1,503 @@
+{
+  "cut": "I10a",
+  "baseline_commit": "6cddc5a",
+  "source_inventory": [
+    {
+      "path": "src/check.rs",
+      "sha256": "2f4b0fbe00de2b5e29055db0d1ce5ce5889c75d94125bd73a89734f1f437f071",
+      "bytes": 6740,
+      "lf": 219,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 219
+    },
+    {
+      "path": "src/main.rs",
+      "sha256": "2c41aab65ebbcb59fcb2a1cfa9834f2f706c07694b686e317acf21b8f307f24f",
+      "bytes": 11939,
+      "lf": 385,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 385
+    },
+    {
+      "path": "src/check/names.rs",
+      "sha256": "87d3590b3f18e121f028a730aca19644d3280c151d4feeb80afbe49547142706",
+      "bytes": 30412,
+      "lf": 901,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 901
+    },
+    {
+      "path": "src/diagnostic.rs",
+      "sha256": "936d17ca2833e2b3a55369752feb518006be3624fafdaf40e1e263d0a1574f83",
+      "bytes": 158152,
+      "lf": 4022,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 4022
+    },
+    {
+      "path": "src/check/tests.rs",
+      "sha256": "ec02ac48d731c8622e451c416484fbc1b95c35f179045979905ed897f2835698",
+      "bytes": 118837,
+      "lf": 3357,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 3357
+    },
+    {
+      "path": "src/frontend/parse.rs",
+      "sha256": "99246d7a2d4d19183fa5a27ac97e3357bd4cd6c021fe1457850f2026db6abb4f",
+      "bytes": 98810,
+      "lf": 2837,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 2837
+    },
+    {
+      "path": "src/interp/machine.rs",
+      "sha256": "2e4b9132b46eb455e0918361fb58010e2aa08ff9a59f39efaab33c06541cdac9",
+      "bytes": 67790,
+      "lf": 1613,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 1613
+    },
+    {
+      "path": "src/ir/effects.rs",
+      "sha256": "07ce1c9d0076eac87541a6201e88dda2206fddbbde8fdd8eab164c1ad516109c",
+      "bytes": 138589,
+      "lf": 3539,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 3539
+    },
+    {
+      "path": "src/ir/i05_tests.rs",
+      "sha256": "022049987e51e87c2bf1c3916504e05c547aab314f67cf7d7d87f06c2c9320db",
+      "bytes": 38711,
+      "lf": 1055,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 1055
+    },
+    {
+      "path": "src/ir/i07a_tests.rs",
+      "sha256": "54a48bcbbe2031eaa8d8c52c0af8cab2805bef80e5a5d3ac6e88f10c4e4dccb8",
+      "bytes": 155127,
+      "lf": 3655,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 3655
+    },
+    {
+      "path": "src/ir/i07b_tests.rs",
+      "sha256": "6c142044ca2d249eb5c4c1e8a7f59ed2d7bb13084e05a3d9d30f5b6dc58d8fc6",
+      "bytes": 62915,
+      "lf": 1520,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 1520
+    },
+    {
+      "path": "src/ir/i10a_tests.rs",
+      "sha256": "9622df3fd74770fbbeb5ae66a1ba0a6bda98287e65b51e60483a3ba7c423dc15",
+      "bytes": 31469,
+      "lf": 893,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 893
+    },
+    {
+      "path": "src/ir/lower.rs",
+      "sha256": "23e27949fad1d146150684a76b965113d6bbfa9bb150a426f5a5376012be3e89",
+      "bytes": 173376,
+      "lf": 4465,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 4465
+    },
+    {
+      "path": "src/ir/model.rs",
+      "sha256": "176c275adb7e35463907710f02d354e0a822ef0444ace5908dec2b7031e2cb58",
+      "bytes": 21658,
+      "lf": 674,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 674
+    },
+    {
+      "path": "src/ir/mod.rs",
+      "sha256": "c5d745156e288912243c0e2c804703453c73ba7ecc65c93f7ddec23cfce8943a",
+      "bytes": 1584,
+      "lf": 64,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 64
+    },
+    {
+      "path": "src/ir/ownership_flow.rs",
+      "sha256": "0816f3998db7ad5593deb821a649e077307dbf0a2d2e36071c3fb953aeb5ea37",
+      "bytes": 30267,
+      "lf": 941,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 941
+    },
+    {
+      "path": "src/ir/ownership_flow/sparse.rs",
+      "sha256": "ea7529f21d9d26a184f04a5b4dfa8c1e407be20a94bd7a28c953aa5087d770cd",
+      "bytes": 58202,
+      "lf": 1616,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 1616
+    },
+    {
+      "path": "src/ir/tests.rs",
+      "sha256": "728f2fcc0346ab1162976df449194e2c43ab3b3156651fd3f15f9a5a30fa8f89",
+      "bytes": 140713,
+      "lf": 3804,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 3804
+    },
+    {
+      "path": "src/ir/verify.rs",
+      "sha256": "2cfbb7549cf8cd72c0ebfffa764bb15e6438f70ca39eadf8f16188ee6f77deef",
+      "bytes": 122951,
+      "lf": 3143,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 3143
+    },
+    {
+      "path": "tests/i01_diagnostic.rs",
+      "sha256": "cbbea36e3a32a8ff603706af864bc9453d83567b30a1a70d866632bcdf0805e4",
+      "bytes": 139750,
+      "lf": 3872,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 3872
+    },
+    {
+      "path": "scripts/i07c_mutaciones.py",
+      "sha256": "cae082adb70d84ac977766208b1d9d4672fdc6e4382673a26929fe672756251e",
+      "bytes": 48825,
+      "lf": 937,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 937
+    },
+    {
+      "path": "scripts/i10a_mutaciones.py",
+      "sha256": "957fb9d06e2bc0ac11436557455adaadd92a723127a20b6d63e451aeb7e25bdc",
+      "bytes": 11917,
+      "lf": 253,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 253
+    },
+    {
+      "path": "scripts/i10a_estado.py",
+      "sha256": "4e46bcd4326f4f54dc6646fef086abb65a729f498a60413ccbbebd0b01851929",
+      "bytes": 4417,
+      "lf": 87,
+      "crlf": 0,
+      "nuls": 0,
+      "working_tree_lines": 87
+    }
+  ],
+  "mutation_population_count": 91,
+  "mutation_population_unique_count": 91,
+  "mutation_results_match_population": true,
+  "mutation_population_sha256": "8e1da34a36691037092125e6f27a251084ec3f66deabd64797babb690fffdb45",
+  "mutation_results": {
+    "count": 91,
+    "sha256": "a09682c09cba133fa699590c3f75c66bf1b49a37d078b02f83bc1e0a81fae03c",
+    "by_profile": {
+      "release": {
+        "detectada": 82,
+        "superviviente": 7,
+        "no_compila": 2
+      }
+    }
+  },
+  "typed_campaigns": [
+    {
+      "profile": "release",
+      "programs": 300000,
+      "seed": 10495373245766874321,
+      "depth": 3,
+      "flagged_for_differential_review": 19,
+      "threads": [
+        {
+          "thread": 7,
+          "programs": 37500,
+          "rejected": 23544,
+          "accepted_both": 13956,
+          "bugs": 0,
+          "assignment_blamed": 4210,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 5,
+          "programs": 37500,
+          "rejected": 23410,
+          "accepted_both": 14090,
+          "bugs": 0,
+          "assignment_blamed": 4109,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 4,
+          "programs": 37500,
+          "rejected": 23460,
+          "accepted_both": 14040,
+          "bugs": 0,
+          "assignment_blamed": 4081,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 6,
+          "programs": 37500,
+          "rejected": 23314,
+          "accepted_both": 14186,
+          "bugs": 0,
+          "assignment_blamed": 4027,
+          "duplicates": 0,
+          "other_differences": 2
+        },
+        {
+          "thread": 2,
+          "programs": 37500,
+          "rejected": 23443,
+          "accepted_both": 14057,
+          "bugs": 0,
+          "assignment_blamed": 3977,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 0,
+          "programs": 37500,
+          "rejected": 23380,
+          "accepted_both": 14120,
+          "bugs": 0,
+          "assignment_blamed": 4076,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 3,
+          "programs": 37500,
+          "rejected": 23538,
+          "accepted_both": 13962,
+          "bugs": 0,
+          "assignment_blamed": 4128,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 1,
+          "programs": 37500,
+          "rejected": 23394,
+          "accepted_both": 14106,
+          "bugs": 0,
+          "assignment_blamed": 4090,
+          "duplicates": 0,
+          "other_differences": 3
+        }
+      ],
+      "totals": {
+        "programs": 300000,
+        "rejected": 187483,
+        "accepted_both": 112517,
+        "bugs": 0,
+        "assignment_blamed": 32698,
+        "duplicates": 0,
+        "other_differences": 8
+      },
+      "binary_exit_code": 0
+    },
+    {
+      "profile": "debug",
+      "programs": 100000,
+      "seed": 10495373245766874321,
+      "depth": 3,
+      "flagged_for_differential_review": 10,
+      "threads": [
+        {
+          "thread": 7,
+          "programs": 12500,
+          "rejected": 7874,
+          "accepted_both": 4626,
+          "bugs": 0,
+          "assignment_blamed": 1424,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 5,
+          "programs": 12500,
+          "rejected": 7834,
+          "accepted_both": 4666,
+          "bugs": 0,
+          "assignment_blamed": 1393,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 4,
+          "programs": 12500,
+          "rejected": 7803,
+          "accepted_both": 4697,
+          "bugs": 0,
+          "assignment_blamed": 1318,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 2,
+          "programs": 12500,
+          "rejected": 7898,
+          "accepted_both": 4602,
+          "bugs": 0,
+          "assignment_blamed": 1343,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 6,
+          "programs": 12500,
+          "rejected": 7773,
+          "accepted_both": 4727,
+          "bugs": 0,
+          "assignment_blamed": 1302,
+          "duplicates": 0,
+          "other_differences": 0
+        },
+        {
+          "thread": 1,
+          "programs": 12500,
+          "rejected": 7816,
+          "accepted_both": 4684,
+          "bugs": 0,
+          "assignment_blamed": 1377,
+          "duplicates": 0,
+          "other_differences": 2
+        },
+        {
+          "thread": 3,
+          "programs": 12500,
+          "rejected": 7812,
+          "accepted_both": 4688,
+          "bugs": 0,
+          "assignment_blamed": 1419,
+          "duplicates": 0,
+          "other_differences": 1
+        },
+        {
+          "thread": 0,
+          "programs": 12500,
+          "rejected": 7754,
+          "accepted_both": 4746,
+          "bugs": 0,
+          "assignment_blamed": 1375,
+          "duplicates": 0,
+          "other_differences": 0
+        }
+      ],
+      "totals": {
+        "programs": 100000,
+        "rejected": 62564,
+        "accepted_both": 37436,
+        "bugs": 0,
+        "assignment_blamed": 10951,
+        "duplicates": 0,
+        "other_differences": 3
+      },
+      "binary_exit_code": 0
+    }
+  ],
+  "verification": {
+    "clean_clone_validate_script_exit_code": 0,
+    "debug_library": {
+      "passed": 1054,
+      "failed": 0,
+      "ignored": 52
+    },
+    "release_library": {
+      "passed": 1056,
+      "failed": 0,
+      "ignored": 53
+    },
+    "clippy_warnings_denied": "ok",
+    "rustfmt_check": "ok",
+    "rd_normative_pairs": {
+      "compared": 152,
+      "differences": 0
+    },
+    "release_timing_campaign": {
+      "status": "passes with the linear control; ignored release campaign",
+      "source": "if b{return;}",
+      "small_count": 3000,
+      "large_count": 24000,
+      "samples_per_size": 3,
+      "threshold_ratio": 12.0,
+      "base_ratios": [
+        9.158,
+        8.25,
+        8.43
+      ],
+      "mutant_ratios": {
+        "with_local_per_return": 17.696,
+        "quadratic_reposition_1": 15.546,
+        "quadratic_reposition_2": 12.339
+      },
+      "valid_mutant_detections": true
+    }
+  },
+  "verification_results_sha256": "ee6797839da5964b457579eda4293753c9d3a4ed30d2aadd4f193b695e0af1b5",
+  "typed_campaign_results_sha256": "8ed7705b505c2e19d107df7bd9021cf0f8002dbe37f0c153e8089b1cb7bf7bf7",
+  "working_tree_status": [
+    " M HANDOFF.md",
+    " M Pending.md",
+    " M RECOVERY.md",
+    " M docs/adr/F0-0002-second-slice.md",
+    " M scripts/i07c_mutaciones.py",
+    " M src/check.rs",
+    " M src/check/names.rs",
+    " M src/check/tests.rs",
+    " M src/diagnostic.rs",
+    " M src/frontend/parse.rs",
+    " M src/interp/machine.rs",
+    " M src/ir/effects.rs",
+    " M src/ir/i05_tests.rs",
+    " M src/ir/i07a_tests.rs",
+    " M src/ir/i07b_tests.rs",
+    " M src/ir/lower.rs",
+    " M src/ir/mod.rs",
+    " M src/ir/ownership_flow.rs",
+    " M src/ir/ownership_flow/sparse.rs",
+    " M src/ir/tests.rs",
+    " M src/ir/verify.rs",
+    " M src/main.rs",
+    " M tests/i01_diagnostic.rs",
+    "?? docs/validation/F0-0002-I10a-implementation-notes.md",
+    "?? docs/validation/F0-0002-I10a-mutation-results.jsonl",
+    "?? docs/validation/F0-0002-I10a-mutations.json",
+    "?? docs/validation/F0-0002-I10a-state.json",
+    "?? docs/validation/F0-0002-I10a-typed-campaign-results.json",
+    "?? docs/validation/F0-0002-I10a-verification-results.json",
+    "?? scripts/i10a_estado.py",
+    "?? scripts/i10a_mutaciones.py",
+    "?? src/ir/i10a_tests.rs"
+  ],
+  "test_results": "No inferido por este generador; se registra en el informe de implementación."
+}

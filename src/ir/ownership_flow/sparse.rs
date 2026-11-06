@@ -522,61 +522,79 @@ fn summarize_backedge(
     })
 }
 
-pub(in crate::ir) fn analyze(
+#[allow(clippy::too_many_arguments)] // Local and compilation quotas are independent ADR counters.
+pub(in crate::ir) fn analyze_with_limits(
+    function: &Function,
+    name_spans: &[Span],
+    tokens: &[Token],
+    used: &mut u64,
+    global_used: &mut u64,
+    function_start: u64,
+    local_limit: u64,
+    global_limit: u64,
+    profile_id: &str,
+) -> Result<Vec<Diagnostic>, CompileError> {
+    let _ = (name_spans, tokens);
+    let mut observed = Vec::new();
+    let result = analyze_inner(
+        function,
+        name_spans,
+        tokens,
+        used,
+        global_used,
+        function_start,
+        local_limit,
+        global_limit,
+        &mut observed,
+    );
+    match result {
+        Err(CompileError::Rejected(mut limit)) => {
+            observed.extend(limit.drain(..).map(|d| *d));
+            normalize_diagnostics(&mut observed, profile_id);
+            Err(CompileError::Rejected(
+                observed.into_iter().map(Box::new).collect(),
+            ))
+        }
+        Ok(mut errors) => {
+            normalize_diagnostics(&mut errors, profile_id);
+            Ok(errors)
+        }
+        Err(other) => Err(other),
+    }
+}
+
+fn normalize_diagnostics(errors: &mut Vec<Diagnostic>, profile_id: &str) {
+    for diagnostic in errors.iter_mut() {
+        diagnostic.profile_id = profile_id.into();
+        if matches!(
+            diagnostic.code.as_str(),
+            "NX-E0003" | "NX-E0105" | "NX-E0202"
+        ) && let Some(message) = crate::diagnostic::catalog_message(&diagnostic.code)
+        {
+            diagnostic.message = message.into();
+        }
+    }
+    canonicalize(errors);
+}
+
+#[cfg(test)]
+pub(super) fn analyze(
     function: &Function,
     name_spans: &[Span],
     tokens: &[Token],
     used: &mut u64,
 ) -> Result<Vec<Diagnostic>, CompileError> {
-    let blocks = std::iter::once(&function.block).chain(&function.blocks);
-    // Only these instructions create ownership facts. Without a source fact,
-    // every incoming state stays empty, so a fixed-point walk cannot report
-    // a use after consumption. Charge the single inspection pass to the same
-    // budget and leave the full analysis for functions that can generate facts.
-    if !blocks.clone().any(|block| {
-        block
-            .instructions
-            .iter()
-            .any(|ins| matches!(ins.op, Op::TransferValue(_) | Op::DropBinding(_)))
-    }) {
-        let mut budget = Budget { used: *used };
-        let mut errors = Vec::new();
-        for (index, block) in blocks.enumerate() {
-            if index > 0 {
-                let terminator_span = match &block.terminator {
-                    Terminator::Return { span, .. }
-                    | Terminator::Jump { span, .. }
-                    | Terminator::BranchBool { span, .. } => span,
-                };
-                budget.charge(terminator_span)?;
-            }
-            for ins in &block.instructions {
-                budget.charge(&ins.span)?;
-                if let Op::WriteIndex { local, .. } = ins.op
-                    && !function.locals[local.0].mutable
-                {
-                    errors.push(immutable_index_diagnostic(
-                        function, name_spans, tokens, local, ins,
-                    ));
-                }
-            }
-        }
-        *used = budget.used;
-        canonicalize(&mut errors);
-        return Ok(errors);
-    }
-    let mut observed = Vec::new();
-    let result = analyze_inner(function, name_spans, tokens, used, &mut observed);
-    match result {
-        Err(CompileError::Rejected(mut limit)) => {
-            observed.extend(limit.drain(..).map(|d| *d));
-            canonicalize(&mut observed);
-            Err(CompileError::Rejected(
-                observed.into_iter().map(Box::new).collect(),
-            ))
-        }
-        other => other,
-    }
+    analyze_with_limits(
+        function,
+        name_spans,
+        tokens,
+        used,
+        &mut 0,
+        0,
+        FLOW_LIMIT,
+        4_000_000,
+        crate::diagnostic::PROFILE_ID,
+    )
 }
 
 // A source use has one diagnostic. If distinct stable paths name that same
@@ -649,23 +667,34 @@ fn collect_diagnostics(
     errors
 }
 
+#[allow(clippy::too_many_arguments)] // Carries the two scopes and function identity through one fixpoint.
 fn analyze_inner(
     function: &Function,
     name_spans: &[Span],
     tokens: &[Token],
     used: &mut u64,
+    global_used: &mut u64,
+    function_start: u64,
+    local_limit: u64,
+    global_limit: u64,
     observed: &mut Vec<Diagnostic>,
 ) -> Result<Vec<Diagnostic>, CompileError> {
     #[cfg(test)]
     let original_used = *used;
     #[cfg(test)]
-    FLOW_STATE_COUNT_ENABLED.with(|enabled| enabled.set(function.source_file == "sparse_scale.n"));
+    let count_state = FLOW_STATE_COUNT_ENABLED.with(std::cell::Cell::get);
     #[cfg(test)]
-    let _state_count_guard = StateCountGuard;
+    let _state_count_guard = count_state.then_some(StateCountGuard);
     let blocks: Vec<_> = std::iter::once(&function.block)
         .chain(&function.blocks)
         .collect();
-    let mut budget = Budget { used: *used };
+    let mut budget = Budget {
+        used: *used,
+        global_used: *global_used,
+        function_start,
+        local_limit,
+        global_limit,
+    };
     let mut backedges: Vec<Option<Backedge>> = (0..blocks.len()).map(|_| None).collect();
     let mut incoming = vec![None::<SparseState>; blocks.len()];
     incoming[0] = Some(SparseState::new(function.locals.len()));
@@ -744,6 +773,8 @@ fn analyze_inner(
         Ok(())
     })();
     if let Err(error) = fixed_point {
+        *used = budget.used;
+        *global_used = budget.global_used;
         if matches!(error, CompileError::Rejected(_)) {
             let end = stable_prefix(&blocks, current, &queued);
             *observed = collect_diagnostics(function, name_spans, tokens, &blocks, &incoming, end);
@@ -767,6 +798,8 @@ fn analyze_inner(
                         blocks.len(),
                     );
                 }
+                *used = budget.used;
+                *global_used = budget.global_used;
                 return Err(error);
             }
             if let Some(local) = use_local(&ins.op)
@@ -780,8 +813,9 @@ fn analyze_inner(
     }
     canonicalize(&mut errors);
     *used = budget.used;
+    *global_used = budget.global_used;
     #[cfg(test)]
-    if function.source_file == "sparse_dense_oracle.n" {
+    if FLOW_DENSE_ORACLE_ENABLED.with(std::cell::Cell::get) {
         let mut dense_used = original_used;
         let dense = super::analyze_dense(function, name_spans, tokens, &mut dense_used).unwrap();
         assert_eq!(
@@ -876,7 +910,10 @@ mod tests {
             },
         );
         let parent = Node::branch(Some(conditional), None).unwrap();
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         let (_, changed) = join_node(
             Some(&parent),
             None,
@@ -955,7 +992,10 @@ mod tests {
         old.sites.values_mut().next().unwrap().distance = 3;
         let mut incoming = consumed(1);
         incoming.sites.values_mut().next().unwrap().distance = 1;
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         assert!(join_fact(&mut old, &incoming, &mut budget, &span(10)).unwrap());
         assert_eq!(old.sites.values().next().unwrap().distance, 1);
     }
@@ -984,7 +1024,10 @@ mod tests {
                     edges: Some(Rc::new(EdgeList::One(new_edge.clone()))),
                     maybe: false,
                 };
-                let mut budget = Budget { used: 0 };
+                let mut budget = Budget {
+                    used: 0,
+                    ..Budget::default()
+                };
                 let (joined, _) = join_node(
                     Some(&root),
                     Some(&root),
@@ -1032,7 +1075,10 @@ mod tests {
                     maybe: !old_is_maybe,
                     ..Lazy::default()
                 };
-                let mut budget = Budget { used: 0 };
+                let mut budget = Budget {
+                    used: 0,
+                    ..Budget::default()
+                };
                 let (joined, changed) = join_node(
                     Some(&root),
                     Some(&root),
@@ -1061,7 +1107,10 @@ mod tests {
             definite: false,
             sites: BTreeMap::new(),
         });
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         let (joined, changed) = join_node(
             Some(&root),
             Some(&root),
@@ -1409,7 +1458,10 @@ mod tests {
             kill: false,
             declared_here: false,
         }];
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         assert!(join_loop(&mut into, &from, &touched, &mut budget, &span(10)).unwrap());
         assert!(!into.get(0).unwrap().definite);
     }
@@ -1439,7 +1491,10 @@ mod tests {
         let mut into = SparseState::new(2);
         into.set(0, Some(consumed(1)));
         let from = SparseState::new(2);
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         assert!(join_sparse(&mut into, &from, &mut budget, &span(10)).unwrap());
         assert!(!into.get(0).unwrap().definite);
     }
@@ -1537,7 +1592,10 @@ mod tests {
                 _ => None,
             })
             .unwrap();
-        let mut budget = Budget { used: 0 };
+        let mut budget = Budget {
+            used: 0,
+            ..Budget::default()
+        };
         let summary =
             summarize_backedge(&blocks, source_block, target, &names, &mut budget).unwrap();
         let resource = summary

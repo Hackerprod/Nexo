@@ -396,24 +396,9 @@ impl Resolver {
     }
 
     fn enter(&mut self, span: &Span) -> Result<(), Box<Diagnostic>> {
-        // The parser bounds syntax and expression height, but the checker still
-        // guards every recursive activation before descending into untrusted ASTs.
-        if self.depth >= 256 {
-            let mut d = diagnostic(
-                "NX-E0003",
-                None,
-                Stage::Types,
-                Operation::AnalysisLimit,
-                span.clone(),
-            );
-            d.data.insert(
-                "budget_kind".into(),
-                DataValue::String("type_solver_steps".into()),
-            );
-            d.data.insert("limit".into(), DataValue::UInt(1_000_000));
-            d.data.insert("observed".into(), DataValue::UInt(1_000_001));
-            return Err(d);
-        }
+        // Parsed input has a normative nesting bound of 128. This depth is an
+        // internal recursion statistic, not a second analysis quota.
+        let _ = span;
         self.depth += 1;
         Ok(())
     }
@@ -866,6 +851,20 @@ pub fn entry(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn synthetic_ast_name_walk_has_no_secondary_depth_quota() {
+        let source = "fn Main(){let x=1;}";
+        let mut ast = crate::frontend::parse::parse("synthetic_depth.n", source).unwrap();
+        let Statement::Let { value, .. } = &mut ast.functions[0].body.statements[0] else {
+            panic!("expected binding")
+        };
+        let span = value.span().clone();
+        for _ in 0..512 {
+            *value = Expr::Group(Box::new(value.clone()), span.clone());
+        }
+        assert!(resolve("synthetic_depth.n", source, &ast).is_ok());
+    }
 
     #[test]
     fn function_scope_restores_preexisting_resolver_state() {
