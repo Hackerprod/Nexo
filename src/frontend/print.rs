@@ -239,10 +239,17 @@ fn stmt(statement: &Statement, out: &mut Writer) {
             }
             out.terminator(span.end as usize);
         }
-        Statement::Value { value, span } => {
-            let start = span.start as usize;
-            at(out, "value", Role::Word, start, start + 5);
-            after(out, ":", Role::Colon, start + 5);
+        Statement::Value {
+            value,
+            marker,
+            span,
+            ..
+        } => {
+            if let Some(marker) = marker {
+                let start = marker.start as usize;
+                at(out, "value", Role::Word, start, start + 5);
+                after(out, ":", Role::Colon, start + 5);
+            }
             if let Some(value) = value {
                 expr(value, out, 0);
             }
@@ -427,6 +434,7 @@ fn expr(value: &Expr, out: &mut Writer, parent: u8) {
             target,
             index,
             span,
+            ..
         } => {
             expr(target, out, 3);
             after(out, "[", Role::AttachedOpen, target.span().end as usize);
@@ -476,7 +484,9 @@ fn print_else(value: &Else, out: &mut Writer) {
 fn branch_operand(branch: &Block, out: &mut Writer, is_else: bool) {
     if let [
         Statement::Value {
-            value: Some(value), ..
+            value: Some(value),
+            marker,
+            ..
         },
     ] = branch.statements.as_slice()
     {
@@ -487,7 +497,7 @@ fn branch_operand(branch: &Block, out: &mut Writer, is_else: bool) {
         // A parsed explicit branch has both delimiters outside its value span;
         // a synthesized simple branch has neither. The second comparison is
         // redundant for accepted trees.
-        let explicit = branch.span.start < value.span().start;
+        let explicit = marker.is_some();
         if !(is_else && matches!(inner, Expr::If { .. }))
             && (!explicit
                 || (!out.has_comment(branch.span.start as usize, branch.span.end as usize)

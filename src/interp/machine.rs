@@ -1,8 +1,11 @@
 use std::sync::Arc;
 
 use super::observation::Log;
-use crate::diagnostic::{self, DataValue, Diagnostic, Namespace, Operation, Severity, Stage};
+use crate::diagnostic::{
+    self, DataValue, Diagnostic, Namespace, Operation, RelatedRole, RelatedSpan, Severity, Stage,
+};
 use crate::ir::model::{Binary, Function, Intrinsic, Op, ParameterMode, Program, TempId, Ty};
+use crate::ir::work::{WorkEvent, WorkPlanner};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
@@ -20,6 +23,30 @@ pub struct Execution {
     pub work_consumed: u64,
     #[cfg(test)]
     pub(crate) disposals: u64,
+}
+#[derive(Clone, Copy)]
+struct ExecutionLimits {
+    profile_id: &'static str,
+    work: u64,
+    frames: u64,
+    cells: u64,
+    observations: u64,
+}
+impl ExecutionLimits {
+    const NORMAL: Self = Self {
+        profile_id: diagnostic::PROFILE_ID,
+        work: 1_000_000,
+        frames: 256,
+        cells: 65_536,
+        observations: 65_536,
+    };
+}
+#[cfg(test)]
+#[derive(Clone, Copy)]
+pub(crate) enum ReducedExecutionProfile {
+    Frames8,
+    Cells64,
+    Observations64,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Value {
@@ -103,17 +130,46 @@ impl Value {
         Arc::get_mut(xs)?.get_mut(usize::try_from(index).ok()?)
     }
 }
+fn equal_pairs(left: &Value, right: &Value) -> u64 {
+    match (left, right) {
+        (Value::Array(a, _), Value::Array(b, _)) => {
+            let mut work = 2u64;
+            if a.len() != b.len() {
+                return work;
+            }
+            for (x, y) in a.iter().zip(b.iter()) {
+                work = work.saturating_add(equal_pairs(x, y));
+                if x != y {
+                    break;
+                }
+            }
+            work
+        }
+        (Value::Result { ok: a, payload: x }, Value::Result { ok: b, payload: y }) => {
+            if a != b {
+                2
+            } else {
+                2u64.saturating_add(equal_pairs(x, y))
+            }
+        }
+        _ => 2,
+    }
+}
 enum TempValue {
     Own(Value),
     Borrow(crate::ir::model::LocalId),
     BorrowIndex(crate::ir::model::LocalId, Vec<i64>),
+    ReadScalar(Value),
     Exclusive(crate::ir::model::LocalId, Vec<i64>),
 }
 impl TempValue {
     fn owned_cells(&self) -> u64 {
         match self {
             Self::Own(v) => v.cells(),
-            Self::Borrow(_) | Self::BorrowIndex(_, _) | Self::Exclusive(_, _) => 0,
+            Self::Borrow(_)
+            | Self::BorrowIndex(_, _)
+            | Self::ReadScalar(_)
+            | Self::Exclusive(_, _) => 0,
         }
     }
     fn as_value<'a>(&'a self, locals: &'a [Option<Value>]) -> Result<&'a Value, &'static str> {
@@ -135,15 +191,17 @@ impl TempValue {
                 }
                 Ok(value)
             }
+            Self::ReadScalar(value) => Ok(value),
             Self::Exclusive(_, _) => Err("exclusive loan used as value"),
         }
     }
     fn into_owned(self) -> Result<Value, &'static str> {
         match self {
             Self::Own(v) => Ok(v),
-            Self::Borrow(_) | Self::BorrowIndex(_, _) | Self::Exclusive(_, _) => {
-                Err("borrowed value used as owner")
-            }
+            Self::Borrow(_)
+            | Self::BorrowIndex(_, _)
+            | Self::ReadScalar(_)
+            | Self::Exclusive(_, _) => Err("borrowed value used as owner"),
         }
     }
 }
@@ -158,10 +216,34 @@ pub fn run_scalar(program: &Program) -> Execution {
     // unicode_sources_never_reach_internal_failure and the source/IR model
     // tests exercise the accepted path; forged-IR verifier tests cover the
     // rejection side of the boundary.
+    run_with_execution_limits(program, ExecutionLimits::NORMAL)
+}
+#[cfg(test)]
+pub(crate) fn run_with_limits(program: &Program, profile: ReducedExecutionProfile) -> Execution {
+    let limits = match profile {
+        ReducedExecutionProfile::Frames8 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-frames-8-v2",
+            frames: 8,
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::Cells64 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-cells-64-v2",
+            cells: 64,
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::Observations64 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-observations-64-v2",
+            observations: 64,
+            ..ExecutionLimits::NORMAL
+        },
+    };
+    run_with_execution_limits(program, limits)
+}
+fn run_with_execution_limits(program: &Program, limits: ExecutionLimits) -> Execution {
     std::thread::scope(|scope| {
         match std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
-            .spawn_scoped(scope, || run_verified(program))
+            .spawn_scoped(scope, || run_verified(program, limits))
         {
             Ok(worker) => worker
                 .join()
@@ -180,9 +262,10 @@ fn internal_execution(reason: &'static str) -> Execution {
         disposals: 0,
     }
 }
-fn run_verified(program: &Program) -> Execution {
+fn run_verified(program: &Program, limits: ExecutionLimits) -> Execution {
     let mut state = Machine {
-        log: Log::default(),
+        log: Log::with_limit(limits.observations),
+        limits,
         work: 0,
         cells: 0,
         fault: None,
@@ -266,6 +349,7 @@ fn run_verified(program: &Program) -> Execution {
 }
 struct Machine {
     log: Log,
+    limits: ExecutionLimits,
     work: u64,
     cells: u64,
     fault: Option<Box<Diagnostic>>,
@@ -275,6 +359,14 @@ struct Machine {
     disposals: u64,
 }
 impl Machine {
+    fn final_unit_context(&mut self, context: &diagnostic::Span) {
+        if let Some(fault) = self.fault.as_mut() {
+            fault.related_spans = vec![RelatedSpan {
+                role: RelatedRole::Context,
+                span: context.clone(),
+            }];
+        }
+    }
     fn dispose(&mut self, value: Value) -> Result<(), &'static str> {
         #[cfg(test)]
         {
@@ -300,7 +392,7 @@ impl Machine {
                     "runtime_budget_kind",
                     DataValue::String("observation_bytes".into()),
                 ),
-                ("limit", DataValue::UInt(65_536)),
+                ("limit", DataValue::UInt(self.limits.observations)),
                 ("observed", DataValue::UInt(observed)),
             ],
         );
@@ -320,7 +412,7 @@ impl Machine {
         let mut d = Diagnostic {
             schema_version: diagnostic::SCHEMA_VERSION,
             diagnostic_namespace: Namespace::F0002Sim,
-            profile_id: diagnostic::PROFILE_ID.into(),
+            profile_id: self.limits.profile_id.into(),
             code: code.into(),
             subcause: None,
             rule: code.into(),
@@ -351,17 +443,31 @@ impl Machine {
         }
         self.fault = Some(Box::new(d));
     }
-    fn tick(&mut self, n: u64, span: &diagnostic::Span) -> bool {
+    fn index_fault(&mut self, site: &crate::ir::model::IndexSite, failed: usize) {
+        let selector = site.selectors.get(failed).unwrap_or(&site.context);
+        self.fault("R0102", selector, vec![]);
+        if let Some(diagnostic) = self.fault.as_mut() {
+            diagnostic.primary_span = Some(selector.clone());
+            diagnostic.related_spans = vec![diagnostic::RelatedSpan {
+                role: diagnostic::RelatedRole::Context,
+                span: site.context.clone(),
+            }];
+        }
+    }
+    fn charge_work(&mut self, n: u64, span: &diagnostic::Span) -> bool {
         let proposed = self.work.saturating_add(n);
-        if proposed > 1_000_000 {
-            self.work = 1_000_000;
+        if proposed > self.limits.work {
+            self.work = self.limits.work;
             self.fault(
                 "R0001",
                 span,
                 vec![
-                    ("limit", DataValue::UInt(1_000_000)),
-                    ("observed", DataValue::UInt(1_000_001)),
-                    ("work_consumed", DataValue::UInt(1_000_000)),
+                    ("limit", DataValue::UInt(self.limits.work)),
+                    (
+                        "observed",
+                        DataValue::UInt(self.limits.work.saturating_add(1)),
+                    ),
+                    ("work_consumed", DataValue::UInt(self.limits.work)),
                 ],
             );
             false
@@ -375,7 +481,7 @@ impl Machine {
     }
     fn reserve_cells(&mut self, n: u64, span: &diagnostic::Span) -> bool {
         let proposed = self.cells.saturating_add(n);
-        if proposed > 65_536 {
+        if proposed > self.limits.cells {
             self.fault(
                 "R0002",
                 span,
@@ -384,7 +490,7 @@ impl Machine {
                         "runtime_budget_kind",
                         DataValue::String("live_value_cells".into()),
                     ),
-                    ("limit", DataValue::UInt(65_536)),
+                    ("limit", DataValue::UInt(self.limits.cells)),
                     ("observed", DataValue::UInt(proposed)),
                 ],
             );
@@ -432,7 +538,7 @@ impl Machine {
         args: Vec<(Value, bool)>,
         call_span: &diagnostic::Span,
     ) -> Result<FrameReturn, &'static str> {
-        if !self.tick(1, call_span) {
+        if !self.charge_work(WorkPlanner::units(WorkEvent::Entry), call_span) {
             let mut inout = (0..args.len()).map(|_| None).collect::<Vec<_>>();
             for (slot, (v, borrowed)) in args.into_iter().enumerate().rev() {
                 if function.parameters[slot].mode == ParameterMode::Inout {
@@ -443,7 +549,7 @@ impl Machine {
             }
             return Ok(FrameReturn { value: None, inout });
         }
-        if self.frames >= 256 {
+        if self.frames >= self.limits.frames {
             self.fault(
                 "R0002",
                 call_span,
@@ -452,8 +558,11 @@ impl Machine {
                         "runtime_budget_kind",
                         DataValue::String("call_frames".into()),
                     ),
-                    ("limit", DataValue::UInt(256)),
-                    ("observed", DataValue::UInt(257)),
+                    ("limit", DataValue::UInt(self.limits.frames)),
+                    (
+                        "observed",
+                        DataValue::UInt(self.limits.frames.saturating_add(1)),
+                    ),
                 ],
             );
             let mut inout = (0..args.len()).map(|_| None).collect::<Vec<_>>();
@@ -484,10 +593,35 @@ impl Machine {
         let mut returned = None;
         'cfg: loop {
             for ins in &current.instructions {
-                if !self.tick(u64::from(ins.tick), &ins.span) {
+                let implicit_final_unit = matches!(ins.op, Op::ConstUnit)
+                    && ins.charges.last().is_some_and(|charge| {
+                        charge.origin.start > ins.span.start && charge.origin.end == ins.span.end
+                    });
+                for charge in &ins.charges {
+                    if !self.charge_work(charge.ticks, &charge.origin) {
+                        if implicit_final_unit {
+                            self.final_unit_context(&ins.span);
+                        }
+                        break;
+                    }
+                }
+                if self.fault.is_some() {
+                    if implicit_final_unit {
+                        self.final_unit_context(&ins.span);
+                    }
                     break;
                 }
                 if let Op::BorrowValue(id) = &ins.op {
+                    if let Some(value @ (Value::Int(_) | Value::Bool(_) | Value::Unit)) =
+                        locals.get(id.0).ok_or("borrow local index")?.as_ref()
+                    {
+                        Self::install_temp(
+                            &mut temps,
+                            ins.output.ok_or("borrow output identity")?,
+                            TempValue::ReadScalar(value.clone()),
+                        )?;
+                        continue;
+                    }
                     Self::install_temp(
                         &mut temps,
                         ins.output.ok_or("borrow output identity")?,
@@ -498,6 +632,7 @@ impl Machine {
                 if let Op::BeginLoan {
                     root,
                     indexes,
+                    site,
                     permission,
                     ..
                 } = &ins.op
@@ -516,16 +651,16 @@ impl Machine {
                         .as_ref()
                         .ok_or("loan unavailable root")?;
                     let mut valid = true;
-                    for index in &path {
+                    for (position, index) in path.iter().enumerate() {
                         if let Some(next) = selected.element(*index) {
                             selected = next;
                         } else {
                             valid = false;
+                            self.index_fault(site, position);
                             break;
                         }
                     }
                     if !valid {
-                        self.fault("R0102", &ins.span, vec![]);
                         break;
                     }
                     let loan_value = match permission {
@@ -546,7 +681,12 @@ impl Machine {
                     )?;
                     continue;
                 }
-                if let Op::BorrowIndex { local, indexes } = &ins.op {
+                if let Op::BorrowIndex {
+                    local,
+                    indexes,
+                    site,
+                } = &ins.op
+                {
                     let mut path = Vec::with_capacity(indexes.len());
                     for id in indexes {
                         let Value::Int(index) = Self::take(&mut temps, *id)?.into_owned()? else {
@@ -561,22 +701,28 @@ impl Machine {
                         .as_ref()
                         .ok_or("borrowed empty local")?;
                     let mut valid = true;
-                    for index in &path {
+                    for (position, index) in path.iter().enumerate() {
                         if let Some(next) = value.element(*index) {
                             value = next;
                         } else {
                             valid = false;
+                            self.index_fault(site, position);
                             break;
                         }
                     }
                     if !valid {
-                        self.fault("R0102", &ins.span, vec![]);
                         break;
                     }
+                    let borrowed_value =
+                        if matches!(value, Value::Int(_) | Value::Bool(_) | Value::Unit) {
+                            TempValue::ReadScalar(value.clone())
+                        } else {
+                            TempValue::BorrowIndex(*local, path)
+                        };
                     Self::install_temp(
                         &mut temps,
                         ins.output.ok_or("borrow index output identity")?,
-                        TempValue::BorrowIndex(*local, path),
+                        borrowed_value,
                     )?;
                     continue;
                 }
@@ -586,19 +732,33 @@ impl Machine {
                     Op::BeginLoan { .. } => return Err("loan dispatch"),
                     Op::EndLoan(_) => None,
                     Op::ConstI64(n) => {
-                        if !self.tick(1, &ins.span) || !self.cell(&ins.span) {
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                             break;
                         }
                         Some(Value::Int(*n))
                     }
                     Op::ConstBool(b) => {
-                        if !self.tick(1, &ins.span) || !self.cell(&ins.span) {
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                             break;
                         }
                         Some(Value::Bool(*b))
                     }
                     Op::ConstUnit => {
-                        if !self.tick(1, &ins.span) || !self.cell(&ins.span) {
+                        let implicit_final = ins.charges.last().is_some_and(|charge| {
+                            charge.origin.start > ins.span.start
+                                && charge.origin.end == ins.span.end
+                        });
+                        let cell_span = if implicit_final {
+                            &ins.charges.last().unwrap().origin
+                        } else {
+                            &ins.span
+                        };
+                        if (!implicit_final && !self.charge_work(1, cell_span))
+                            || !self.cell(cell_span)
+                        {
+                            if implicit_final {
+                                self.final_unit_context(&ins.span);
+                            }
                             break;
                         }
                         Some(Value::Unit)
@@ -609,7 +769,7 @@ impl Machine {
                             .ok_or("local index")?
                             .as_ref()
                             .ok_or("empty local")?;
-                        if !self.tick(v.cells(), &ins.span)
+                        if !self.charge_work(v.cells(), &ins.span)
                             || !self.reserve_cells(v.cells(), &ins.span)
                         {
                             break;
@@ -632,14 +792,17 @@ impl Machine {
                             total = total.checked_add(v.cells()).ok_or("array size overflow")?;
                             xs.push(v);
                         }
-                        if !self.tick(1, &ins.span) || !self.cell(&ins.span) {
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                             self.cells = self.cells.saturating_sub(total - 1);
                             break;
                         }
                         Some(Value::Array(Arc::new(xs), total))
                     }
                     Op::BuildResult { ok, payload } => {
-                        if !self.tick(3, &ins.span) || !self.cell(&ins.span) {
+                        if !self.charge_work(1, &ins.span)
+                            || !self.charge_work(1, &ins.span)
+                            || !self.cell(&ins.span)
+                        {
                             break;
                         }
                         let payload = Self::take(&mut temps, *payload)?.into_owned()?;
@@ -649,9 +812,6 @@ impl Machine {
                         })
                     }
                     Op::BranchResult { value, .. } => {
-                        if !self.tick(1, &ins.span) {
-                            break;
-                        }
                         let source = Self::take(&mut temps, *value)?.into_owned()?;
                         let Value::Result { ok, payload } = source else {
                             return Err("propagation value type");
@@ -664,7 +824,11 @@ impl Machine {
                             break 'cfg;
                         }
                     }
-                    Op::ReadIndex { local, indexes } => {
+                    Op::ReadIndex {
+                        local,
+                        indexes,
+                        site,
+                    } => {
                         let mut path = Vec::with_capacity(indexes.len());
                         for id in indexes {
                             let Value::Int(n) = Self::take(&mut temps, *id)?.into_owned()? else {
@@ -679,33 +843,37 @@ impl Machine {
                             .as_ref()
                             .ok_or("empty local")?;
                         let mut valid = true;
-                        for index in path {
+                        for (position, index) in path.into_iter().enumerate() {
                             if let Some(next) = selected.element(index) {
                                 selected = next;
                             } else {
                                 valid = false;
+                                self.index_fault(site, position);
                                 break;
                             }
                         }
                         if !valid {
-                            self.fault("R0102", &ins.span, vec![]);
                             break;
                         }
-                        if !self.tick(selected.cells(), &ins.span)
+                        if !self.charge_work(selected.cells(), &ins.span)
                             || !self.reserve_cells(selected.cells(), &ins.span)
                         {
                             break;
                         }
                         Some(selected.deep_copy())
                     }
-                    Op::CheckIndex { local, indexes } => {
+                    Op::CheckIndex {
+                        local,
+                        indexes,
+                        site,
+                    } => {
                         let mut selected = locals
                             .get(local.0)
                             .ok_or("check index local")?
                             .as_ref()
                             .ok_or("empty local")?;
                         let mut valid = true;
-                        for id in indexes {
+                        for (position, id) in indexes.iter().enumerate() {
                             let Some(TempValue::Own(Value::Int(n))) =
                                 temps.get(id.0).and_then(Option::as_ref)
                             else {
@@ -715,16 +883,16 @@ impl Machine {
                                 selected = next;
                             } else {
                                 valid = false;
+                                self.index_fault(site, position);
                                 break;
                             }
                         }
                         if !valid {
-                            self.fault("R0102", &ins.span, vec![]);
                             break;
                         }
                         None
                     }
-                    Op::IndexValue { base, index } => {
+                    Op::IndexValue { base, index, site } => {
                         let base = Self::take(&mut temps, *base)?.into_owned()?;
                         let Value::Int(n) = Self::take(&mut temps, *index)?.into_owned()? else {
                             return Err("index value type");
@@ -732,7 +900,7 @@ impl Machine {
                         let size = base.cells();
                         let Some(selected) = base.element(n) else {
                             self.cells = self.cells.saturating_sub(size + 1);
-                            self.fault("R0102", &ins.span, vec![]);
+                            self.index_fault(site, 0);
                             break;
                         };
                         let selected = selected.clone();
@@ -765,20 +933,20 @@ impl Machine {
                                 }
                             }
                             (Binary::Less, Value::Int(a), Value::Int(b)) => {
-                                if !self.tick(2, &ins.span) {
+                                if !self.charge_work(2, &ins.span) {
                                     break;
                                 }
                                 Value::Bool(a < b)
                             }
                             (Binary::Equal, a, b) => {
-                                if !self.tick(a.cells().saturating_add(b.cells()), &ins.span) {
+                                if !self.charge_work(equal_pairs(a, b), &ins.span) {
                                     break;
                                 }
                                 Value::Bool(a == b)
                             }
                             _ => return Err("verified binary domain"),
                         };
-                        if !self.tick(1, &ins.span) || !self.cell(&ins.span) {
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                             break;
                         }
                         Some(v)
@@ -795,6 +963,7 @@ impl Machine {
                         local,
                         indexes,
                         value,
+                        site,
                     } => {
                         let mut path = Vec::with_capacity(indexes.len());
                         for id in indexes {
@@ -810,9 +979,14 @@ impl Machine {
                             .ok_or("write index local")?
                             .as_mut()
                             .ok_or("empty local")?;
+                        if let Some(position) = first_bad_index(root, &path) {
+                            self.cells = self.cells.saturating_sub(replacement.cells());
+                            self.index_fault(site, position);
+                            break;
+                        }
                         let Some(node) = get_mut_path(root, &path) else {
                             self.cells = self.cells.saturating_sub(replacement.cells());
-                            self.fault("R0102", &ins.span, vec![]);
+                            self.index_fault(site, path.len().saturating_sub(1));
                             break;
                         };
                         let previous = std::mem::replace(node, replacement);
@@ -825,9 +999,6 @@ impl Machine {
                         None
                     }
                     Op::CallIntrinsic { intrinsic, args } => {
-                        if !self.tick(2, &ins.span) {
-                            break;
-                        } // resolved target name and intrinsic entry
                         let argument_ids = args.clone();
                         let mut values = Vec::with_capacity(args.len());
                         for id in args {
@@ -839,14 +1010,24 @@ impl Machine {
                                 );
                             }
                         }
+                        if !self.charge_work(1, &ins.span) {
+                            break;
+                        }
                         let mut pre_reserved_output = false;
+                        let mut precharged_output_work = false;
+                        if *intrinsic == Intrinsic::DropData {
+                            if !self.charge_work(1, &ins.span) {
+                                break;
+                            }
+                            precharged_output_work = true;
+                        }
                         let output = match intrinsic {
                             Intrinsic::Print => {
                                 let value = values[0].as_value(&locals)?;
-                                if !self.tick(value.cells(), &ins.span) {
+                                if !self.charge_work(value.cells(), &ins.span) {
                                     break;
                                 }
-                                if !self.cell(&ins.span) {
+                                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                                     break;
                                 }
                                 let line = value.text();
@@ -860,7 +1041,7 @@ impl Machine {
                                                 "runtime_budget_kind",
                                                 DataValue::String("observation_bytes".into()),
                                             ),
-                                            ("limit", DataValue::UInt(65_536)),
+                                            ("limit", DataValue::UInt(self.limits.observations)),
                                             ("observed", DataValue::UInt(observed)),
                                         ],
                                     );
@@ -871,8 +1052,7 @@ impl Machine {
                             Intrinsic::AssertEq => {
                                 let left = values[0].as_value(&locals)?;
                                 let right = values[1].as_value(&locals)?;
-                                if !self.tick(left.cells().saturating_add(right.cells()), &ins.span)
-                                {
+                                if !self.charge_work(equal_pairs(left, right), &ins.span) {
                                     break;
                                 }
                                 if left != right {
@@ -899,7 +1079,7 @@ impl Machine {
                                     return Err("open label type");
                                 };
                                 let label = *label;
-                                if !self.cell(&ins.span) {
+                                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                                     break;
                                 }
                                 pre_reserved_output = true;
@@ -934,7 +1114,7 @@ impl Machine {
                                     return Err("inspect type");
                                 };
                                 let text = format!("inspect:{id}:{label}");
-                                if !self.cell(&ins.span) {
+                                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                                     for v in values.drain(..).rev() {
                                         if matches!(&v, TempValue::Own(value) if value.owns_resource())
                                         {
@@ -973,7 +1153,9 @@ impl Machine {
                                         payload: Box::new(Value::Int(30)),
                                     },
                                 };
-                                if !self.reserve_cells(2, &ins.span) {
+                                if !self.charge_work(2, &ins.span)
+                                    || !self.reserve_cells(2, &ins.span)
+                                {
                                     break;
                                 }
                                 pre_reserved_output = true;
@@ -992,7 +1174,8 @@ impl Machine {
                         }
                         if *intrinsic != Intrinsic::Print
                             && !pre_reserved_output
-                            && !self.cell(&ins.span)
+                            && ((!precharged_output_work && !self.charge_work(1, &ins.span))
+                                || !self.cell(&ins.span))
                         {
                             break;
                         }
@@ -1003,9 +1186,6 @@ impl Machine {
                         args,
                         signature,
                     } => {
-                        if !self.tick(1, &ins.span) {
-                            break;
-                        }
                         let program = program.ok_or("call table unavailable")?;
                         let target = program
                             .functions
@@ -1107,7 +1287,7 @@ impl Machine {
                             .take()
                             .ok_or("drop empty binding")?;
                         self.dispose(old)?;
-                        if !self.cell(&ins.span) {
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                             break;
                         }
                         Some(Value::Unit)
@@ -1132,6 +1312,19 @@ impl Machine {
             if self.fault.is_some() {
                 break 'cfg;
             }
+            let charges = match &current.terminator {
+                crate::ir::model::Terminator::Return { charges, .. }
+                | crate::ir::model::Terminator::Jump { charges, .. }
+                | crate::ir::model::Terminator::BranchBool { charges, .. } => charges,
+            };
+            for charge in charges {
+                if !self.charge_work(charge.ticks, &charge.origin) {
+                    break;
+                }
+            }
+            if self.fault.is_some() {
+                break 'cfg;
+            }
             match &current.terminator {
                 crate::ir::model::Terminator::Return {
                     value: Some(id), ..
@@ -1142,10 +1335,7 @@ impl Machine {
                 crate::ir::model::Terminator::Return { value: None, .. } => {
                     return Err("return terminator");
                 }
-                crate::ir::model::Terminator::Jump { target, span } => {
-                    if !self.tick(1, span) {
-                        break 'cfg;
-                    }
+                crate::ir::model::Terminator::Jump { target, .. } => {
                     current = if target.0 == 0 {
                         &function.block
                     } else {
@@ -1153,19 +1343,13 @@ impl Machine {
                     };
                 }
                 crate::ir::model::Terminator::BranchBool {
-                    condition,
-                    yes,
-                    no,
-                    span,
+                    condition, yes, no, ..
                 } => {
-                    if !self.tick(1, span) {
-                        break 'cfg;
-                    }
-                    let Value::Bool(test) = Self::take(&mut temps, *condition)?.into_owned()?
-                    else {
+                    let value = Self::take(&mut temps, *condition)?;
+                    let Value::Bool(test) = *value.as_value(&locals)? else {
                         return Err("branch condition type");
                     };
-                    self.cells = self.cells.saturating_sub(1);
+                    self.cells = self.cells.saturating_sub(value.owned_cells());
                     let target = if test { yes } else { no };
                     current = if target.0 == 0 {
                         &function.block
@@ -1207,6 +1391,15 @@ fn get_mut_path<'a>(mut node: &'a mut Value, path: &[i64]) -> Option<&'a mut Val
         node = node.element_mut(index)?;
     }
     Some(node)
+}
+fn first_bad_index(mut node: &Value, path: &[i64]) -> Option<usize> {
+    for (position, index) in path.iter().enumerate() {
+        let Some(next) = node.element(*index) else {
+            return Some(position);
+        };
+        node = next;
+    }
+    None
 }
 fn adjust_size(root: &mut Value, path: &[i64], old: u64, new: u64) {
     let mut node = root;
@@ -1250,7 +1443,15 @@ mod tests {
             .block
             .instructions
             .iter()
-            .position(|i| matches!(i.op, Op::DropBinding(_)))
+            .position(|i| {
+                matches!(
+                    i.op,
+                    Op::CallIntrinsic {
+                        intrinsic: crate::ir::model::Intrinsic::DropData,
+                        ..
+                    }
+                )
+            })
             .unwrap();
         let next = TempId(
             function.block.instructions[..=drop_pos]
@@ -1270,7 +1471,7 @@ mod tests {
                 origin: crate::ir::model::OriginId(drop_pos + 1),
                 access: crate::ir::model::Access::Read,
                 effect_io: false,
-                tick: true,
+                charges: vec![],
             },
         );
         let mut state = machine();
@@ -1286,6 +1487,7 @@ mod tests {
     fn machine() -> Machine {
         Machine {
             log: Log::default(),
+            limits: ExecutionLimits::NORMAL,
             work: 0,
             cells: 0,
             fault: None,
@@ -1360,9 +1562,9 @@ mod tests {
     fn work_boundary_grants_limit_and_rejects_next_unit_with_exact_fields() {
         let mut m = machine();
         m.work = 999_999;
-        assert!(m.tick(1, &span()));
+        assert!(m.charge_work(1, &span()));
         assert_eq!(m.work, 1_000_000);
-        assert!(!m.tick(1, &span()));
+        assert!(!m.charge_work(1, &span()));
         assert_eq!(m.work, 1_000_000);
         let d = m.fault.unwrap();
         assert_eq!(
@@ -1523,7 +1725,7 @@ mod tests {
         m.run(p.functions().function("Main").unwrap()).unwrap();
         assert!(m.fault.is_none(), "{:?}", m.fault);
         assert_eq!(m.cells, 0);
-        assert_eq!(m.work, 80_010);
+        assert_eq!(m.work, 90_009);
     }
     #[test]
     fn repeated_index_value_releases_unselected_array_cells() {
@@ -1533,7 +1735,7 @@ mod tests {
         m.run(p.functions().function("Main").unwrap()).unwrap();
         assert!(m.fault.is_none(), "{:?}", m.fault);
         assert_eq!(m.cells, 0);
-        assert_eq!(m.work, 105_003);
+        assert_eq!(m.work, 110_002);
     }
     #[test]
     fn ordinary_array_read_shares_storage_but_owner_copy_is_deep() {

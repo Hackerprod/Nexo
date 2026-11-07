@@ -47,8 +47,10 @@ fn erase_expr_spans(expr: &mut Expr) {
             target,
             index,
             span,
+            selector,
         } => {
             blank(span);
+            blank(selector);
             erase_expr_spans(target);
             erase_expr_spans(index);
         }
@@ -99,8 +101,19 @@ fn erase_statement_spans(statement: &mut Statement) {
                 erase_expr_spans(place);
             }
         }
-        Statement::Return { value, span } | Statement::Value { value, span } => {
+        Statement::Return { value, span } => {
             blank(span);
+            if let Some(value) = value {
+                erase_expr_spans(value);
+            }
+        }
+        Statement::Value {
+            value,
+            marker,
+            span,
+        } => {
+            blank(span);
+            *marker = None;
             if let Some(value) = value {
                 erase_expr_spans(value);
             }

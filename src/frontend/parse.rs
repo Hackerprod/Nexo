@@ -215,6 +215,7 @@ pub enum Statement {
     },
     Value {
         value: Option<Expr>,
+        marker: Option<Span>,
         span: Span,
     },
     If {
@@ -261,6 +262,7 @@ pub enum Expr {
     Index {
         target: Box<Expr>,
         index: Box<Expr>,
+        selector: Span,
         span: Span,
     },
     If {
@@ -1562,6 +1564,7 @@ impl Parser<'_> {
             )?;
             return Ok(Statement::Value {
                 value: val,
+                marker: Some(marker),
                 span: self.span(st, end),
             });
         }
@@ -1807,13 +1810,16 @@ impl Parser<'_> {
             }
             if self.eat("[") {
                 let start = lhs.span().start as usize;
+                let selector_start = self.prev_start();
                 let index_start = self.prev_start();
                 let ix = self.expr(0)?;
                 let end = self.peek().span.end as usize;
                 self.expect("]", "grammar.Index", &["]"], index_start)?;
+                let selector = self.span(selector_start, self.prev_end());
                 lhs = Expr::Index {
                     target: Box::new(lhs),
                     index: Box::new(ix),
+                    selector,
                     span: self.span(start, end),
                 };
                 self.check_expression_height(&lhs)?;
@@ -2135,6 +2141,7 @@ impl Parser<'_> {
                     Else::Block(Block {
                         statements: vec![Statement::Value {
                             value: Some(operand),
+                            marker: None,
                             span: span.clone(),
                         }],
                         span: span.clone(),
@@ -2215,6 +2222,7 @@ impl Parser<'_> {
         Ok(Block {
             statements: vec![Statement::Value {
                 value: Some(operand),
+                marker: None,
                 span: span.clone(),
             }],
             span: span.clone(),

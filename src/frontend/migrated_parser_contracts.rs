@@ -585,7 +585,7 @@ fn b_l05_l06_l07_keep_unit_discard_and_utf8_offsets() {
     let value_start = l05.find("value: ();").unwrap() as u64;
     let value = (value_start, value_start + "value: ();".len() as u64);
     assert!(
-        matches!(&ast.functions[0].body.statements[0], Statement::Let { value: Expr::If { then_block, .. }, .. } if matches!(&then_block.statements[0], Statement::Value { value: Some(Expr::Unit(_)), span } if (span.start,span.end)==value))
+        matches!(&ast.functions[0].body.statements[0], Statement::Let { value: Expr::If { then_block, .. }, .. } if matches!(&then_block.statements[0], Statement::Value { value: Some(Expr::Unit(_)), span, .. } if (span.start,span.end)==value))
     );
     let l06 = "fn F()->I64{\n1\n}\nfn Main(){}";
     let ast = parse("l.n", l06).unwrap();

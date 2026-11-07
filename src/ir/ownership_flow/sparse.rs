@@ -235,7 +235,7 @@ fn sparse_transfer(
             }
             let site = Site {
                 span: ins.span.clone(),
-                is_drop: matches!(ins.op, Op::DropBinding(_)),
+                is_drop: matches!(ins.op, Op::DropBinding(_)) || is_drop_transfer(function, ins),
                 backedges: Vec::new(),
                 distance: 0,
             };
@@ -479,7 +479,10 @@ fn summarize_backedge(
     let loop_span = target
         .checked_sub(1)
         .and_then(|preheader| {
-            if let Terminator::Jump { target: dest, span } = &blocks[preheader].terminator {
+            if let Terminator::Jump {
+                target: dest, span, ..
+            } = &blocks[preheader].terminator
+            {
                 (dest.0 == target).then_some(span)
             } else {
                 None
@@ -490,7 +493,9 @@ fn summarize_backedge(
     let mut touched = Vec::<LoopEffect>::new();
     for member in &blocks[target..=source] {
         for ins in &member.instructions {
-            budget.charge(&ins.span)?;
+            if !super::super::model::is_drop_data_call(member, ins.origin.0) {
+                budget.charge(&ins.span)?;
+            }
             let local = match ins.op {
                 Op::WritePlace { local, .. } | Op::DropLocal(local) => Some(local),
                 _ => use_local(&ins.op),
@@ -710,7 +715,9 @@ fn analyze_inner(
             let block = blocks[index];
             let mut state = incoming[index].clone().expect("queued block has input");
             for ins in &block.instructions {
-                budget.charge(&ins.span)?;
+                if !super::is_paired_drop_call(function, ins) {
+                    budget.charge(&ins.span)?;
+                }
                 sparse_transfer(&mut state, ins, function);
             }
             let mut propagate = |target: usize| -> Result<(), CompileError> {
@@ -787,6 +794,9 @@ fn analyze_inner(
             continue;
         };
         for ins in &block.instructions {
+            if super::is_paired_drop_call(function, ins) {
+                continue;
+            }
             if let Err(error) = budget.charge(&ins.span) {
                 if matches!(error, CompileError::Rejected(_)) {
                     *observed = collect_diagnostics(
@@ -940,6 +950,7 @@ mod tests {
         function.block.terminator = Terminator::Jump {
             target: super::super::super::model::BlockId(count),
             span: span(2),
+            charges: vec![],
         };
         let names = vec![span(1); function.locals.len()];
         let tokens = crate::frontend::lex::lex("sparse_witness.n", source).unwrap();
@@ -958,6 +969,7 @@ mod tests {
         function.block.terminator = Terminator::Jump {
             target: super::super::super::model::BlockId(0),
             span: span(2),
+            charges: vec![],
         };
         let names = vec![span(1); function.locals.len()];
         let tokens = crate::frontend::lex::lex("sparse_witness.n", source).unwrap();

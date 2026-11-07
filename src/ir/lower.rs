@@ -2,10 +2,11 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use super::model::{
-    self, Access, BasicBlock, Binary, BlockId, Function, FunctionId, FunctionTable, Instruction,
-    Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId, Parameter, ParameterMode,
-    Program, ScopeId, TempId, Terminator, Ty,
+    self, Access, BasicBlock, Binary, BlockId, Function, FunctionId, FunctionTable, IndexSite,
+    Instruction, Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId, Parameter,
+    ParameterMode, Program, ScopeId, TempId, Terminator, Ty, WorkCharge,
 };
+use super::work::{WorkEvent, WorkPlanner};
 use crate::check::types::ResolvedType;
 use crate::diagnostic::{self, Diagnostic, PROFILE_ID, Span};
 use crate::frontend::lex;
@@ -335,6 +336,7 @@ fn compile_ast_with_flow_limit(
         };
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -497,6 +499,11 @@ fn compile_ast_with_flow_limit(
             continue;
         }
         let span = source.body.span.clone();
+        let final_unit_origin = Span {
+            file: span.file.clone(),
+            start: span.end.saturating_sub(1),
+            end: span.end,
+        };
         let all_paths_return = lower.terminated == Some(Termination::Diverged);
         let value = if all_paths_return {
             None
@@ -506,11 +513,23 @@ fn compile_ast_with_flow_limit(
             if result != Ty::Unit {
                 return Err(CompileError::InvalidIr("control-flow return analysis"));
             }
-            Some(
-                lower
-                    .emit(Op::ConstUnit, Ty::Unit, span.clone(), Access::Own, false)
-                    .ok_or(CompileError::InvalidIr("function return flow"))?,
-            )
+            if lower.emission == EmissionMode::Live {
+                lower.pending_charges.push(WorkPlanner::charge(
+                    WorkEvent::FinalUnit,
+                    final_unit_origin.clone(),
+                ));
+            }
+            let unit = lower
+                .emit(Op::ConstUnit, Ty::Unit, span.clone(), Access::Own, false)
+                .ok_or(CompileError::InvalidIr("function return flow"))?;
+            if let Some(instruction) = lower.instructions.last_mut()
+                && instruction.output == Some(unit)
+                && matches!(instruction.op, Op::ConstUnit)
+                && let Some(last) = instruction.charges.last_mut()
+            {
+                last.origin = final_unit_origin;
+            }
+            Some(unit)
         };
         let (entry, other_blocks) = if all_paths_return {
             let mut all = lower.blocks;
@@ -523,7 +542,11 @@ fn compile_ast_with_flow_limit(
                 BasicBlock {
                     id: BlockId(0),
                     instructions: lower.instructions,
-                    terminator: Terminator::Return { value, span },
+                    terminator: Terminator::Return {
+                        value,
+                        span,
+                        charges: vec![],
+                    },
                 },
                 Vec::new(),
             )
@@ -531,7 +554,11 @@ fn compile_ast_with_flow_limit(
             lower.blocks.push(BasicBlock {
                 id: BlockId(lower.blocks.len()),
                 instructions: lower.instructions,
-                terminator: Terminator::Return { value, span },
+                terminator: Terminator::Return {
+                    value,
+                    span,
+                    charges: vec![],
+                },
             });
             let mut all = lower.blocks;
             (all.remove(0), all)
@@ -753,6 +780,7 @@ fn count_partial_ir_items(lower: &Lower<'_>) -> u64 {
 
 struct Lower<'a> {
     instructions: Vec<Instruction>,
+    pending_charges: Vec<WorkCharge>,
     blocks: Vec<BasicBlock>,
     locals: Vec<Local>,
     visible: HashMap<String, Vec<LocalId>>,
@@ -965,7 +993,7 @@ impl Lower<'_> {
                     self.temp_live(id, false);
                 }
             }
-            Op::IndexValue { base, index } => {
+            Op::IndexValue { base, index, .. } => {
                 self.temp_live(*base, false);
                 self.temp_live(*index, false);
             }
@@ -1054,7 +1082,7 @@ impl Lower<'_> {
                 ),
             ]));
         };
-        let test_flow = self.expr(condition, depth + 1, Some(&Ty::Bool))?;
+        let test_flow = self.expr_mode(condition, depth + 1, Some(&Ty::Bool), true)?;
         let condition_diverges = test_flow.diverged();
         // expr() already enforces the Bool expectation for a live value;
         // Never is the only non-Bool flow admitted here. This guard is a
@@ -1079,6 +1107,7 @@ impl Lower<'_> {
                 yes: BlockId(self.blocks.len() + 1),
                 no: BlockId(usize::MAX),
                 span: span.clone(),
+                charges: vec![],
             }))
         } else {
             None
@@ -1129,11 +1158,13 @@ impl Lower<'_> {
                     Terminator::Return {
                         value: Some(value),
                         span: then_block.span.clone(),
+                        charges: vec![],
                     }
                 } else {
                     Terminator::Jump {
                         target: BlockId(usize::MAX),
                         span: then_block.span.clone(),
+                        charges: vec![],
                     }
                 }),
             )
@@ -1190,11 +1221,13 @@ impl Lower<'_> {
                     Terminator::Return {
                         value: Some(value),
                         span: else_span.clone(),
+                        charges: vec![],
                     }
                 } else {
                     Terminator::Jump {
                         target: BlockId(usize::MAX),
                         span: else_span.clone(),
+                        charges: vec![],
                     }
                 }),
             )
@@ -1269,6 +1302,7 @@ impl Lower<'_> {
         let preheader = self.finish_block(Terminator::Jump {
             target: BlockId(self.blocks.len() + 1),
             span: span.clone(),
+            charges: vec![],
         });
         // The condition may itself create branches. Its first block is the
         // loop header; every iteration must evaluate the entire condition.
@@ -1276,7 +1310,13 @@ impl Lower<'_> {
         let checkpoint = self.consumed_undo.len();
         let temp_checkpoint = self.temp_undo.len();
         self.dead_depth += 1;
-        let test_flow = self.expr(condition, 0, Some(&Ty::Bool))?;
+        if entry_emission == EmissionMode::Live {
+            self.pending_charges.push(WorkPlanner::charge(
+                WorkEvent::WhileCondition,
+                condition.span().clone(),
+            ));
+        }
+        let test_flow = self.expr_mode(condition, 0, Some(&Ty::Bool), true)?;
         let condition_diverges = test_flow.diverged();
         if condition_diverges || entry_emission == EmissionMode::Analyze {
             self.terminated = None;
@@ -1300,14 +1340,16 @@ impl Lower<'_> {
                     let scopes = self.next_scope;
                     self.terminated = None;
                     let before_second_errors = diagnostics.len();
-                    let second = self.expr(condition, 0, Some(&Ty::Bool)).and_then(|flow| {
-                        if flow.diverged() {
-                            Ok(())
-                        } else {
-                            self.terminated = None;
-                            self.scoped_block(body, depth, diagnostics)
-                        }
-                    });
+                    let second = self
+                        .expr_mode(condition, 0, Some(&Ty::Bool), true)
+                        .and_then(|flow| {
+                            if flow.diverged() {
+                                Ok(())
+                            } else {
+                                self.terminated = None;
+                                self.scoped_block(body, depth, diagnostics)
+                            }
+                        });
                     self.restore_availability(second_checkpoint);
                     self.restore_temps(second_temps);
                     self.locals.truncate(locals);
@@ -1342,6 +1384,7 @@ impl Lower<'_> {
             yes: BlockId(self.blocks.len() + 1),
             no: BlockId(usize::MAX),
             span: condition.span().clone(),
+            charges: vec![],
         });
         // The complete condition has one ownership state. Both outcomes
         // inherit its joined effects, regardless of the values in its arms.
@@ -1361,11 +1404,13 @@ impl Lower<'_> {
             Some(self.finish_block(Terminator::Return {
                 value: Some(value),
                 span: body.span.clone(),
+                charges: vec![],
             }))
         } else {
             Some(self.finish_block(Terminator::Jump {
                 target: condition_header,
                 span: body.span.clone(),
+                charges: vec![],
             }))
         };
         let _body_state = self.restore_availability(checkpoint);
@@ -1411,7 +1456,7 @@ impl Lower<'_> {
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<(), CompileError> {
         let entry_emission = self.emission;
-        let condition_flow = self.expr(condition, 0, Some(&Ty::Bool))?;
+        let condition_flow = self.expr_mode(condition, 0, Some(&Ty::Bool), true)?;
         let condition_diverges = condition_flow.diverged();
         // expr() already checks every live condition against Bool. A
         // different live type here is unreachable; this guard only checks
@@ -1436,6 +1481,7 @@ impl Lower<'_> {
                 yes: BlockId(self.blocks.len() + 1),
                 no: BlockId(usize::MAX),
                 span: span.clone(),
+                charges: vec![],
             }))
         } else {
             None
@@ -1460,11 +1506,13 @@ impl Lower<'_> {
                         Terminator::Return {
                             value: Some(value),
                             span: then_block.span.clone(),
+                            charges: vec![],
                         }
                     } else {
                         Terminator::Jump {
                             target: BlockId(usize::MAX),
                             span: then_block.span.clone(),
+                            charges: vec![],
                         }
                     }),
                 )
@@ -1524,6 +1572,9 @@ impl Lower<'_> {
                         diagnostics,
                     )?;
                 }
+                StatementElse::Statement(Statement::Block(block)) => {
+                    self.scoped_block(block, depth + 1, diagnostics)?
+                }
                 StatementElse::Statement(stmt) => self.statement(stmt, depth + 1, diagnostics)?,
                 StatementElse::Else(parse::Else::Block(block)) => {
                     self.scoped_block(block, depth + 1, diagnostics)?
@@ -1542,11 +1593,13 @@ impl Lower<'_> {
                         Terminator::Return {
                             value: Some(value),
                             span: else_span.clone(),
+                            charges: vec![],
                         }
                     } else {
                         Terminator::Jump {
                             target: BlockId(usize::MAX),
                             span: else_span,
+                            charges: vec![],
                         }
                     }),
                 )
@@ -1681,6 +1734,15 @@ impl Lower<'_> {
         if self.emission == EmissionMode::Analyze {
             return BlockId(usize::MAX);
         }
+        let mut terminator = terminator;
+        let pending = std::mem::take(&mut self.pending_charges);
+        match &mut terminator {
+            Terminator::Return { charges, .. }
+            | Terminator::Jump { charges, .. }
+            | Terminator::BranchBool { charges, .. } => {
+                charges.splice(0..0, pending);
+            }
+        }
         // a return value is excluded from pending drops above. After this
         // point finish_block does not inspect live_temps: a final return has
         // no successor, while branch lowering restores its temp checkpoint
@@ -1690,6 +1752,7 @@ impl Lower<'_> {
         if let Terminator::Return {
             value: Some(value),
             span,
+            ..
         } = &terminator
         {
             let mut pending: Vec<_> = self
@@ -2071,16 +2134,25 @@ impl Lower<'_> {
         let id = TempId(self.next_temp);
         let origin = OriginId(self.instructions.len());
         self.next_temp += 1;
+        let administrative = matches!(
+            op,
+            Op::EndLoan(_) | Op::DropLocal(_) | Op::DropValue(_) | Op::DropBinding(_)
+        );
+        let charges = if administrative {
+            Vec::new()
+        } else {
+            std::mem::take(&mut self.pending_charges)
+        };
         self.instructions.push(Instruction {
             op,
             output: Some(id),
             ty: Some(ty),
             origin,
-            span,
+            span: span.clone(),
             scope: self.scope,
             access,
             effect_io,
-            tick: true,
+            charges,
         });
         self.temp_live(id, true);
         Some(id)
@@ -2093,16 +2165,25 @@ impl Lower<'_> {
         count_loan_work();
         super::count_cfg_work(1);
         let id = self.instructions.len();
+        let administrative = matches!(
+            op,
+            Op::EndLoan(_) | Op::DropLocal(_) | Op::DropValue(_) | Op::DropBinding(_)
+        );
+        let charges = if administrative {
+            Vec::new()
+        } else {
+            std::mem::take(&mut self.pending_charges)
+        };
         self.instructions.push(Instruction {
             op,
             output: None,
             ty: None,
             origin: OriginId(id),
-            span,
+            span: span.clone(),
             scope: self.scope,
             access,
             effect_io,
-            tick: true,
+            charges,
         });
     }
     fn get(&self, name: &str) -> Result<LocalId, CompileError> {
@@ -2127,6 +2208,19 @@ impl Lower<'_> {
         retain_place_loan: bool,
     ) -> Result<(Flow, Option<LocalId>), CompileError> {
         count_loan_work();
+        if self.emission == EmissionMode::Live
+            && mode == ParameterMode::Inout
+            && let Some(edit) = self.tokens.iter().find(|token| {
+                token.text == "edit"
+                    && token.span.start >= arg.span.start
+                    && token.span.end <= arg.span.end
+            })
+        {
+            self.pending_charges.push(WorkPlanner::charge(
+                WorkEvent::InoutPrefix,
+                edit.span.clone(),
+            ));
+        }
         if !retain_place_loan {
             return self
                 .expr_mode(
@@ -2173,6 +2267,26 @@ impl Lower<'_> {
                     .map(|flow| (flow, None));
             }
             let indexed_place = !index_exprs.is_empty();
+            if mode == ParameterMode::Read && self.emission == EmissionMode::Live {
+                if indexed_place {
+                    self.pending_charges.extend(
+                        index_access_spans(&arg.value)
+                            .into_iter()
+                            .map(|origin| WorkPlanner::charge(WorkEvent::ReadSelector, origin)),
+                    );
+                }
+                self.pending_charges.push(WorkPlanner::charge(
+                    WorkEvent::ReadName,
+                    root.span().clone(),
+                ));
+            }
+            if mode == ParameterMode::Inout && self.emission == EmissionMode::Live {
+                self.pending_charges.extend(
+                    index_selectors(place)
+                        .into_iter()
+                        .map(|origin| WorkPlanner::charge(WorkEvent::PlaceSelector, origin)),
+                );
+            }
             if mode == ParameterMode::Inout {
                 if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
                     return Err(self.permission_error(local, root.span().clone(), "borrow_inout"));
@@ -2190,7 +2304,7 @@ impl Lower<'_> {
             let mut indexes = Vec::with_capacity(index_exprs.len());
             let ty = self.resolved_expr(&arg.value)?;
             for index_expr in index_exprs {
-                let index_flow = self.expr(index_expr, depth + 1, Some(&Ty::I64))?;
+                let index_flow = self.expr_mode(index_expr, depth + 1, Some(&Ty::I64), true)?;
                 if index_flow.diverged() {
                     return Ok((
                         Flow::Diverged {
@@ -2225,6 +2339,7 @@ impl Lower<'_> {
                 Op::BeginLoan {
                     root: local,
                     indexes,
+                    site: index_site(place, arg.span.clone()),
                     loan,
                     origin_span: arg.span.clone(),
                     permission,
@@ -2367,7 +2482,7 @@ impl Lower<'_> {
             if self.emission == EmissionMode::Live
                 && let Some(last) = self.instructions.last_mut()
             {
-                last.tick = false;
+                last.charges.clear();
             }
         }
     }
@@ -2484,7 +2599,9 @@ impl Lower<'_> {
         let final_value_result = (|| -> Result<_, CompileError> {
             Ok(match block.statements.last() {
                 Some(Statement::Value {
-                    value: Some(value), ..
+                    value: Some(value),
+                    marker,
+                    ..
                 }) => {
                     let evaluated = self.block_with_tail(
                         &block.statements[..block.statements.len() - 1],
@@ -2495,6 +2612,12 @@ impl Lower<'_> {
                             let saved_emission = lower.emission;
                             if prior_terminated {
                                 lower.emission = EmissionMode::Analyze;
+                            }
+                            if lower.emission == EmissionMode::Live {
+                                lower.pending_charges.push(WorkPlanner::charge(
+                                    WorkEvent::ValueStatement,
+                                    marker.clone().unwrap_or_else(|| value.span().clone()),
+                                ));
                             }
                             let result = lower.expr(value, 0, expected);
                             if saved_termination.is_some() {
@@ -2582,6 +2705,7 @@ impl Lower<'_> {
             if self.terminated.is_some() && unreachable.is_none() {
                 unreachable = Some((
                     std::mem::take(&mut self.instructions),
+                    std::mem::take(&mut self.pending_charges),
                     self.blocks.len(),
                     self.locals.len(),
                     self.scopes
@@ -2633,6 +2757,7 @@ impl Lower<'_> {
         let tail_result = tail(self, was_terminated);
         if let Some((
             instructions,
+            pending_charges,
             blocks,
             locals,
             scope_len,
@@ -2679,6 +2804,7 @@ impl Lower<'_> {
             self.locals.truncate(locals);
             self.name_spans.truncate(locals);
             self.instructions = instructions;
+            self.pending_charges = pending_charges;
             self.blocks.truncate(blocks);
             self.next_scope = next_scope;
             self.scope_parents.truncate(next_scope);
@@ -2699,6 +2825,66 @@ impl Lower<'_> {
         depth: usize,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<(), CompileError> {
+        if self.emission == EmissionMode::Live {
+            match statement {
+                Statement::Return { span, .. } => {
+                    let origin = Span {
+                        file: span.file.clone(),
+                        start: span.start,
+                        end: span
+                            .end
+                            .min(span.start.saturating_add("return".len() as u64)),
+                    };
+                    self.pending_charges
+                        .push(WorkPlanner::charge(WorkEvent::ReturnStatement, origin));
+                }
+                Statement::Value {
+                    value: Some(value),
+                    marker,
+                    ..
+                } => self.pending_charges.push(WorkPlanner::charge(
+                    WorkEvent::ValueStatement,
+                    marker.clone().unwrap_or_else(|| value.span().clone()),
+                )),
+                Statement::Expr { value, .. } => self.pending_charges.push(WorkPlanner::charge(
+                    WorkEvent::ExpressionStatement,
+                    value.span().clone(),
+                )),
+                Statement::Value {
+                    value: None, span, ..
+                } => self
+                    .pending_charges
+                    .push(WorkPlanner::charge(WorkEvent::EmptyValue, span.clone())),
+                Statement::If { span, .. } | Statement::While { span, .. } => {
+                    let origin = self
+                        .tokens
+                        .iter()
+                        .find(|token| token.span.start == span.start)
+                        .map_or_else(|| span.clone(), |token| token.span.clone());
+                    self.pending_charges
+                        .push(WorkPlanner::charge(WorkEvent::IfStatement, origin));
+                }
+                Statement::Block(block) => self.pending_charges.push(WorkPlanner::charge(
+                    WorkEvent::Block,
+                    Span {
+                        file: block.span.file.clone(),
+                        start: block.span.start,
+                        end: (block.span.start + 1).min(block.span.end),
+                    },
+                )),
+                Statement::Let { .. } => {}
+                Statement::Assign { span, .. } => {
+                    let Statement::Assign { place, .. } = statement else {
+                        unreachable!();
+                    };
+                    let _ = span;
+                    self.pending_charges.push(WorkPlanner::charge(
+                        WorkEvent::Assignment,
+                        place.span().clone(),
+                    ));
+                }
+            }
+        }
         match statement {
             Statement::Let {
                 mutable,
@@ -2708,6 +2894,16 @@ impl Lower<'_> {
                 ..
             } => {
                 let binding_span = self.name_span(statement, name, value.span().start)?;
+                let statement_start = statement_span(statement).start;
+                if self.emission == EmissionMode::Live
+                    && let Some(token) = self
+                        .tokens
+                        .iter()
+                        .find(|token| token.span.start == statement_start)
+                {
+                    self.pending_charges
+                        .push(WorkPlanner::charge(WorkEvent::Binding, token.span.clone()));
+                }
                 let expected = self.resolved_type(
                     self.inferred_bindings
                         .bindings
@@ -2772,6 +2968,7 @@ impl Lower<'_> {
             }
             Statement::Assign { place, value, .. } => {
                 let (root, index_exprs) = place_parts(place)?;
+                let selector_spans = index_selectors(place);
                 let indexed_place = !index_exprs.is_empty();
                 let name = place_name(root).ok_or(CompileError::InvalidIr("assignment root"))?;
                 let id = self.get(name)?;
@@ -2795,9 +2992,15 @@ impl Lower<'_> {
                 );
                 let selector_expected = (!base_unresolved).then_some(&Ty::I64);
                 let mut diverged = false;
-                for e in index_exprs {
+                for (selector_index, e) in index_exprs.into_iter().enumerate() {
                     if diverged {
                         self.terminated = None;
+                    }
+                    if self.emission == EmissionMode::Live {
+                        self.pending_charges.push(WorkPlanner::charge(
+                            WorkEvent::PlaceSelector,
+                            selector_spans[selector_index].clone(),
+                        ));
                     }
                     let index_flow = self.expr(e, 0, selector_expected)?;
                     if index_flow.diverged() {
@@ -2863,6 +3066,7 @@ impl Lower<'_> {
                         Op::WriteIndex {
                             local: id,
                             indexes,
+                            site: index_site(place, place.span().clone()),
                             value: temp,
                         }
                     },
@@ -2890,7 +3094,14 @@ impl Lower<'_> {
                 let flow = match value {
                     Some(e) => self.expr(e, 0, Some(&self.result.clone()))?,
                     None => {
-                        let span = statement_span(statement);
+                        let statement = statement_span(statement);
+                        let span = Span {
+                            file: statement.file.clone(),
+                            start: statement.start,
+                            end: statement
+                                .end
+                                .min(statement.start.saturating_add("return".len() as u64)),
+                        };
                         self.emitted(Op::ConstUnit, Ty::Unit, span, Access::Own, false)
                     }
                 };
@@ -2946,6 +3157,51 @@ impl Lower<'_> {
         _expected: Option<&Ty>,
         borrow: bool,
     ) -> Result<Flow, CompileError> {
+        if self.emission == EmissionMode::Live {
+            let mut own = Vec::new();
+            match e {
+                Expr::Name(_, span)
+                | Expr::Integer(_, span)
+                | Expr::Bool(_, span)
+                | Expr::Unit(span) => own.push(span.clone()),
+                Expr::Array(_, span)
+                | Expr::Binary { span, .. }
+                | Expr::Index { span, .. }
+                | Expr::If { span, .. } => own.push(span.clone()),
+                Expr::Call { target, span, .. } => {
+                    own.push(span.clone());
+                    if matches!(target.as_ref(), Expr::Name(..)) {
+                        own.push(target.span().clone());
+                    }
+                }
+                Expr::Unary {
+                    mode: Mode::Consume | Mode::Inout,
+                    span,
+                    ..
+                } => {
+                    let token = self
+                        .tokens
+                        .iter()
+                        .find(|token| token.span.start == span.start)
+                        .map_or_else(|| span.clone(), |token| token.span.clone());
+                    own.push(token);
+                }
+                Expr::Unary {
+                    mode: Mode::Read,
+                    value,
+                    span,
+                } => {
+                    if span.end > value.span().end {
+                        own.push(span.clone());
+                    }
+                }
+                Expr::Group(..) => {}
+            }
+            self.pending_charges.extend(
+                own.into_iter()
+                    .map(|origin| WorkPlanner::charge(WorkEvent::IfExpression, origin)),
+            );
+        }
         // This threaded AST depth is not
         // read by lowering or serialized into IR. The checker owns the
         // source-depth limit before lowering starts, so changing one caller's
@@ -2996,18 +3252,17 @@ impl Lower<'_> {
                 right,
                 span,
             } => {
-                // Scalar equality reads independent values. Array equality
-                // borrows its operands to avoid deep copies and retains the
-                // loan across evaluation of the right operand.
-                let borrow_left = op == "==" && matches!(self.resolved_expr(left)?, Ty::Array(_));
+                // Binary operands are read-only under §11.6. Keep existing
+                // values borrowed instead of constructing owner copies.
+                let borrow_left = true;
                 let left_flow = self.expr_mode(left, depth + 1, None, borrow_left)?;
                 let left_diverged = left_flow.diverged();
                 if left_diverged {
                     self.emission = EmissionMode::Analyze;
                     self.terminated = None;
                 }
-                let borrow_right = op == "==" && matches!(self.resolved_expr(right)?, Ty::Array(_));
-                let left_root = if borrow_left {
+                let borrow_right = true;
+                let left_root = if op == "==" && matches!(self.resolved_expr(left)?, Ty::Array(_)) {
                     place_parts(left)
                         .ok()
                         .and_then(|(root, _)| place_name(root))
@@ -3153,7 +3408,7 @@ impl Lower<'_> {
                     self.check_available(local, args[0].value.span().clone())?;
                     if self.locals[local.0]
                         .parameter_mode
-                        .is_some_and(|m| m != ParameterMode::Consume)
+                        .is_some_and(|mode| mode != ParameterMode::Consume)
                     {
                         return Err(self.permission_error(
                             local,
@@ -3163,8 +3418,21 @@ impl Lower<'_> {
                     }
                     self.conflict(local, args[0].value.span().clone(), "drop")?;
                     self.mark_consumed(local, Some((span.clone(), true)));
+                    let value = self.emitted(
+                        Op::TransferValue(local),
+                        self.locals[local.0].ty.clone(),
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    );
+                    let Some(value) = value.temp() else {
+                        return Ok(Flow::Diverged { ty: Some(inferred) });
+                    };
                     return Ok(self.emitted(
-                        Op::DropBinding(local),
+                        Op::CallIntrinsic {
+                            intrinsic: Intrinsic::DropData,
+                            args: vec![value],
+                        },
                         inferred,
                         span.clone(),
                         Access::Own,
@@ -3300,6 +3568,7 @@ impl Lower<'_> {
             Expr::Index {
                 target,
                 index,
+                selector,
                 span,
             } => {
                 // F0-0002 §4.1.2.3, RD121: a projection of a base whose
@@ -3316,7 +3585,7 @@ impl Lower<'_> {
                         return Err(CompileError::InvalidIr("live unresolved index base"));
                     }
                     self.expr(target, depth + 1, None)?;
-                    self.expr(index, depth + 1, None)?;
+                    self.expr_mode(index, depth + 1, None, true)?;
                     return Ok(Flow::Value {
                         temp: None,
                         ty: inferred,
@@ -3326,6 +3595,17 @@ impl Lower<'_> {
                     && let Some(name) = place_name(root)
                 {
                     let local = self.get(name)?;
+                    if self.emission == EmissionMode::Live {
+                        self.pending_charges.extend(
+                            index_access_spans(e).into_iter().skip(1).map(|origin| {
+                                WorkPlanner::charge(WorkEvent::IndexExpression, origin)
+                            }),
+                        );
+                        self.pending_charges.push(WorkPlanner::charge(
+                            WorkEvent::ReadName,
+                            root.span().clone(),
+                        ));
+                    }
                     let mut ids = Vec::with_capacity(index_exprs.len());
                     let mut diverged = false;
                     for index_expr in index_exprs {
@@ -3333,7 +3613,8 @@ impl Lower<'_> {
                             self.terminated = None;
                             self.emission = EmissionMode::Analyze;
                         }
-                        let index_flow = self.expr(index_expr, depth + 1, Some(&Ty::I64))?;
+                        let index_flow =
+                            self.expr_mode(index_expr, depth + 1, Some(&Ty::I64), true)?;
                         if index_flow.diverged() {
                             diverged = true;
                             self.emission = EmissionMode::Analyze;
@@ -3354,6 +3635,13 @@ impl Lower<'_> {
                             Op::CheckIndex {
                                 local,
                                 indexes: ids.clone(),
+                                site: IndexSite {
+                                    context: e.span().clone(),
+                                    selectors: index_selectors(e)
+                                        .into_iter()
+                                        .take(ids.len())
+                                        .collect(),
+                                },
                             },
                             span.clone(),
                             Access::Read,
@@ -3377,11 +3665,13 @@ impl Lower<'_> {
                             Op::BorrowIndex {
                                 local,
                                 indexes: ids,
+                                site: index_site(e, span.clone()),
                             }
                         } else {
                             Op::ReadIndex {
                                 local,
                                 indexes: ids,
+                                site: index_site(e, span.clone()),
                             }
                         },
                         inferred,
@@ -3394,13 +3684,13 @@ impl Lower<'_> {
                 if base_flow.diverged() {
                     self.terminated = None;
                     self.emission = EmissionMode::Analyze;
-                    self.expr(index, depth + 1, Some(&Ty::I64))?;
+                    self.expr_mode(index, depth + 1, Some(&Ty::I64), true)?;
                     self.terminated = Some(Termination::Diverged);
                     return Ok(Flow::Diverged {
                         ty: (inferred != Ty::Never).then_some(inferred),
                     });
                 }
-                let index_flow = self.expr(index, depth + 1, Some(&Ty::I64))?;
+                let index_flow = self.expr_mode(index, depth + 1, Some(&Ty::I64), true)?;
                 if index_flow.diverged() {
                     return Ok(Flow::Diverged {
                         ty: (inferred != Ty::Never).then_some(inferred),
@@ -3423,7 +3713,14 @@ impl Lower<'_> {
                     return Err(CompileError::InvalidIr("index operand flow"));
                 };
                 Ok(self.emitted(
-                    Op::IndexValue { base, index: idx },
+                    Op::IndexValue {
+                        base,
+                        index: idx,
+                        site: IndexSite {
+                            context: span.clone(),
+                            selectors: vec![selector.clone()],
+                        },
+                    },
                     ty,
                     span.clone(),
                     Access::Own,
@@ -3527,6 +3824,39 @@ fn place_parts(expr: &Expr) -> Result<(&Expr, Vec<&Expr>), CompileError> {
             }
             _ => return Err(CompileError::InvalidIr("nonlocal place")),
         }
+    }
+}
+fn index_selectors(expr: &Expr) -> Vec<Span> {
+    fn collect(expr: &Expr, out: &mut Vec<Span>) {
+        if let Expr::Index {
+            target, selector, ..
+        } = expr
+        {
+            collect(target, out);
+            out.push(selector.clone());
+        }
+    }
+    let mut selectors = Vec::new();
+    collect(expr, &mut selectors);
+    selectors
+}
+fn index_access_spans(expr: &Expr) -> Vec<Span> {
+    fn collect(expr: &Expr, out: &mut Vec<Span>) {
+        if let Expr::Index { target, span, .. } = expr {
+            out.push(span.clone());
+            collect(target, out);
+        } else if let Expr::Group(inner, _) = expr {
+            collect(inner, out);
+        }
+    }
+    let mut spans = Vec::new();
+    collect(expr, &mut spans);
+    spans
+}
+fn index_site(expr: &Expr, context: Span) -> IndexSite {
+    IndexSite {
+        context,
+        selectors: index_selectors(expr),
     }
 }
 fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
@@ -3703,6 +4033,7 @@ mod tests {
         };
         Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: vec![Local {
                 id: LocalId(0),
@@ -3754,10 +4085,15 @@ mod tests {
         );
         let index = TempId(1);
         let value = TempId(2);
+        let site_span = lower.tokens[0].span.clone();
         lower.live_temps.extend([index, value]);
         lower.consume_op_temps(&Op::WriteIndex {
             local: LocalId(0),
             indexes: vec![index],
+            site: IndexSite {
+                context: site_span.clone(),
+                selectors: vec![site_span],
+            },
             value,
         });
         assert!(!lower.live_temps.contains(&index));
@@ -3876,6 +4212,7 @@ mod tests {
         };
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: vec![Local {
                 id: LocalId(0),
@@ -3951,6 +4288,7 @@ mod tests {
         );
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -3998,7 +4336,11 @@ mod tests {
         );
         lower.statement_op(Op::DropLocal(LocalId(0)), span.clone(), Access::Own, false);
         assert_eq!(
-            lower.finish_block(Terminator::Return { value: None, span }),
+            lower.finish_block(Terminator::Return {
+                value: None,
+                span,
+                charges: vec![]
+            }),
             BlockId(usize::MAX)
         );
         assert_eq!(lower.instructions.len(), instructions);
@@ -4015,6 +4357,7 @@ mod tests {
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -4057,6 +4400,7 @@ mod tests {
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -4164,6 +4508,7 @@ mod tests {
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -4205,6 +4550,7 @@ mod tests {
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -4271,6 +4617,7 @@ mod tests {
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -4344,6 +4691,7 @@ mod tests {
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),
@@ -4430,6 +4778,7 @@ mod tests {
         let signatures = HashMap::new();
         let mut lower = Lower {
             instructions: Vec::new(),
+            pending_charges: Vec::new(),
             blocks: Vec::new(),
             locals: Vec::new(),
             visible: HashMap::new(),

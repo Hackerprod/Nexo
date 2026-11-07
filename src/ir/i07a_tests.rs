@@ -975,6 +975,7 @@ fn terminator_operand_stays_live_across_jump() {
     function.block.terminator = Terminator::Jump {
         target: BlockId(1),
         span,
+        charges: vec![],
     };
     function.blocks.push(model::BasicBlock {
         id: BlockId(1),
@@ -1054,25 +1055,32 @@ fn dominator_of_loop_header_includes_nonentry_preheader() {
         _ => panic!("while condition must branch"),
     };
     let temp = TempId(10_000);
+    let span = function
+        .blocks
+        .iter()
+        .flat_map(|block| &block.instructions)
+        .find(|instruction| matches!(instruction.op, Op::ConstBool(false)))
+        .unwrap()
+        .span
+        .clone();
     let before = function
         .blocks
         .iter_mut()
         .find(|block| block.id == preheader)
         .unwrap();
-    let span = match &before.terminator {
-        Terminator::Jump { span, .. } => span.clone(),
-        _ => unreachable!(),
-    };
     before.instructions.push(model::Instruction {
         op: Op::ConstI64(99),
         output: Some(temp),
         ty: Some(model::Ty::I64),
-        span,
+        span: span.clone(),
         scope: model::ScopeId(0),
         origin: model::OriginId(before.instructions.len()),
         access: model::Access::Own,
         effect_io: false,
-        tick: true,
+        charges: vec![model::WorkCharge {
+            ticks: 1,
+            origin: span.clone(),
+        }],
     });
     let after = function
         .blocks
@@ -1089,12 +1097,12 @@ fn dominator_of_loop_header_includes_nonentry_preheader() {
             op: Op::DropValue(temp),
             output: None,
             ty: None,
-            span,
+            span: span.clone(),
             scope: model::ScopeId(0),
             origin: model::OriginId(0),
             access: model::Access::Own,
             effect_io: false,
-            tick: true,
+            charges: vec![],
         },
     );
     for (index, ins) in after.instructions.iter_mut().enumerate() {
@@ -1122,12 +1130,15 @@ fn cfg_verifier_rejects_orphan_output_on_a_branch() {
         op: Op::ConstI64(9),
         output: Some(TempId(10_000)),
         ty: Some(model::Ty::I64),
-        span,
+        span: span.clone(),
         scope: model::ScopeId(0),
         origin: model::OriginId(branch.instructions.len()),
         access: model::Access::Own,
         effect_io: false,
-        tick: true,
+        charges: vec![model::WorkCharge {
+            ticks: 1,
+            origin: span.clone(),
+        }],
     });
     function.content_hash = model::content_hash(&function);
     assert_eq!(
@@ -1160,12 +1171,12 @@ fn cfg_verifier_rejects_operand_consumed_on_only_one_predecessor() {
         op: Op::DropValue(carried),
         output: None,
         ty: None,
-        span,
+        span: span.clone(),
         scope: model::ScopeId(0),
         origin: model::OriginId(branch.instructions.len()),
         access: model::Access::Own,
         effect_io: false,
-        tick: true,
+        charges: vec![],
     });
     function.content_hash = model::content_hash(&function);
     assert_eq!(
@@ -1564,12 +1575,12 @@ fn cfg_verifier_revisits_loop_header_after_backedge_consumes_owner() {
         op: Op::DropLocal(model::LocalId(0)),
         output: None,
         ty: None,
-        span,
+        span: span.clone(),
         scope,
         origin: model::OriginId(body.instructions.len()),
         access: model::Access::Own,
         effect_io: false,
-        tick: true,
+        charges: vec![],
     });
     bad.content_hash = model::content_hash(&bad);
     assert_eq!(

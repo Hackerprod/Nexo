@@ -1,0 +1,110 @@
+{
+  "campaigns": [
+    {
+      "catalog_row_coverage": [
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50
+      ],
+      "catalog_row_order": [
+        "entry",
+        "final_unit",
+        "while_condition",
+        "inout_prefix",
+        "read_selector",
+        "read_name",
+        "place_selector",
+        "return_statement",
+        "value_statement_explicit",
+        "expression_statement",
+        "if_statement",
+        "block",
+        "assignment",
+        "binding",
+        "if_expression_implicit",
+        "index_expression"
+      ],
+      "catalog_rows": 16,
+      "expression_coverage": [
+        166560,
+        33333,
+        33333
+      ],
+      "outcome": "completed",
+      "profile": "debug",
+      "seed_hex": "0x008311061106c0de",
+      "sources": 100000,
+      "unreachable_catalog_rows": [
+        "EmptyValue"
+      ]
+    },
+    {
+      "catalog_row_coverage": [
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50,
+        50
+      ],
+      "catalog_row_order": [
+        "entry",
+        "final_unit",
+        "while_condition",
+        "inout_prefix",
+        "read_selector",
+        "read_name",
+        "place_selector",
+        "return_statement",
+        "value_statement_explicit",
+        "expression_statement",
+        "if_statement",
+        "block",
+        "assignment",
+        "binding",
+        "if_expression_implicit",
+        "index_expression"
+      ],
+      "catalog_rows": 16,
+      "expression_coverage": [
+        500334,
+        100000,
+        100000
+      ],
+      "outcome": "completed",
+      "profile": "release",
+      "seed_hex": "0x008411061106c0de",
+      "sources": 300000,
+      "unreachable_catalog_rows": [
+        "EmptyValue"
+      ]
+    }
+  ],
+  "cut": "I10b",
+  "generator": "i10b-owned-tree-v2",
+  "generator_sha256": "eabb2dbbdae74c72e8c0fceb3cae4e01410be6b52ed67f3f4b2add86acdbde16",
+  "oracle": "separately generated source tree evaluated by its own work function"
+}

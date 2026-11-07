@@ -137,7 +137,32 @@ fn intrinsic_effect(intrinsic: super::model::Intrinsic) -> (u8, u8, &'static str
     }
 }
 
+fn explicit_drop_sources(f: &Function) -> HashMap<usize, super::model::LocalId> {
+    use super::model::{Intrinsic, Op};
+    let mut transferred = HashMap::new();
+    let mut dropped = HashMap::new();
+    for ins in std::iter::once(&f.block)
+        .chain(&f.blocks)
+        .flat_map(|b| &b.instructions)
+    {
+        if let (Some(output), Op::TransferValue(local)) = (ins.output, &ins.op) {
+            transferred.insert(output.0, *local);
+        }
+        if let Op::CallIntrinsic {
+            intrinsic: Intrinsic::DropData,
+            args,
+        } = &ins.op
+            && let Some(arg) = args.first()
+            && let Some(local) = transferred.get(&arg.0)
+        {
+            dropped.insert(ins.origin.0, *local);
+        }
+    }
+    dropped
+}
+
 fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
+    let drop_sources = explicit_drop_sources(f);
     let exit_sites: HashMap<_, _> = f
         .exit_info
         .iter()
@@ -181,7 +206,9 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
     }
     for block in std::iter::once(&f.block).chain(&f.blocks) {
         for (index, ins) in block.instructions.iter().enumerate() {
-            super::count_cfg_work(1);
+            if !super::model::is_drop_data_call(block, index) {
+                super::count_cfg_work(1);
+            }
             let (known, unknown, operation, entity) = match &ins.op {
                 Op::BuildArray(_) => (ALLOC, 0, CauseOperation::BuildArray, "Array".to_owned()),
                 Op::CopyValue(local) => {
@@ -242,14 +269,26 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                     };
                     if *intrinsic == super::model::Intrinsic::DropData {
                         let arg = args.first().copied();
-                        let ty = arg.and_then(|id| temp_types.get(id.0).and_then(Option::as_ref));
-                        let variant = arg.and_then(|id| temp_variants.get(id.0).copied().flatten());
-                        (
-                            ty.map_or(0, |ty| variant_effect(ty, variant)),
-                            0,
-                            CauseOperation::ValueDrop,
-                            "temporary".to_owned(),
-                        )
+                        if let Some(local) = drop_sources.get(&ins.origin.0) {
+                            let local_ty = &f.locals[local.0].ty;
+                            (
+                                resource_effect(local_ty),
+                                0,
+                                CauseOperation::ValueDrop,
+                                format!("binding:{}", f.locals[local.0].name_span.start),
+                            )
+                        } else {
+                            let ty =
+                                arg.and_then(|id| temp_types.get(id.0).and_then(Option::as_ref));
+                            let variant =
+                                arg.and_then(|id| temp_variants.get(id.0).copied().flatten());
+                            (
+                                ty.map_or(0, |ty| variant_effect(ty, variant)),
+                                0,
+                                CauseOperation::ValueDrop,
+                                "temporary".to_owned(),
+                            )
+                        }
                     } else {
                         (
                             known,
@@ -305,27 +344,15 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                         } = &ins.op
                         {
                             let arg = args.first().copied();
-                            let ty =
-                                arg.and_then(|id| temp_types.get(id.0).and_then(Option::as_ref));
-                            let variant =
-                                arg.and_then(|id| temp_variants.get(id.0).copied().flatten());
-                            if let Some(ty) = ty {
-                                let temp_span = arg
-                                    .and_then(|id| temp_spans.get(id.0).and_then(Option::as_ref));
+                            if let Some(local) = drop_sources.get(&ins.origin.0).copied() {
                                 chain.push(Cause {
                                     kind: CauseKind::Drop,
                                     operation: CauseOperation::ValueDrop,
                                     span: Some(ins.span.clone()),
-                                    entity: Some(Entity {
-                                        kind: EntityKind::Temporary,
-                                        id: format!(
-                                            "temporary:{}:0",
-                                            temp_span.map_or(ins.span.start, |span| span.start)
-                                        ),
-                                    }),
+                                    entity: Some(local_entity(f, local)),
                                     evidence: Evidence::Verified,
                                 });
-                                for resource in resource_types(ty, variant) {
+                                for resource in resource_types(&f.locals[local.0].ty, None) {
                                     chain.push(Cause {
                                         kind: CauseKind::Drop,
                                         operation: CauseOperation::ResourceDrop,
@@ -336,6 +363,41 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                                         }),
                                         evidence: Evidence::Verified,
                                     });
+                                }
+                            } else {
+                                let ty = arg
+                                    .and_then(|id| temp_types.get(id.0).and_then(Option::as_ref));
+                                let variant =
+                                    arg.and_then(|id| temp_variants.get(id.0).copied().flatten());
+                                if let Some(ty) = ty {
+                                    let temp_span = arg.and_then(|id| {
+                                        temp_spans.get(id.0).and_then(Option::as_ref)
+                                    });
+                                    chain.push(Cause {
+                                        kind: CauseKind::Drop,
+                                        operation: CauseOperation::ValueDrop,
+                                        span: Some(ins.span.clone()),
+                                        entity: Some(Entity {
+                                            kind: EntityKind::Temporary,
+                                            id: format!(
+                                                "temporary:{}:0",
+                                                temp_span.map_or(ins.span.start, |span| span.start)
+                                            ),
+                                        }),
+                                        evidence: Evidence::Verified,
+                                    });
+                                    for resource in resource_types(ty, variant) {
+                                        chain.push(Cause {
+                                            kind: CauseKind::Drop,
+                                            operation: CauseOperation::ResourceDrop,
+                                            span: None,
+                                            entity: Some(Entity {
+                                                kind: EntityKind::Type,
+                                                id: resource.into(),
+                                            }),
+                                            evidence: Evidence::Verified,
+                                        });
+                                    }
                                 }
                             }
                         } else if let Op::DropValue(temp) = ins.op {
@@ -353,6 +415,26 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                                                 .as_ref()
                                                 .map_or(ins.span.start, |s| s.start)
                                         ),
+                                    }),
+                                    evidence: Evidence::Verified,
+                                });
+                            }
+                        } else if let Some(local) = drop_sources.get(&ins.origin.0).copied() {
+                            chain.push(Cause {
+                                kind: CauseKind::Drop,
+                                operation: CauseOperation::ValueDrop,
+                                span: Some(ins.span.clone()),
+                                entity: Some(local_entity(f, local)),
+                                evidence: Evidence::Verified,
+                            });
+                            for resource in resource_types(&f.locals[local.0].ty, None) {
+                                chain.push(Cause {
+                                    kind: CauseKind::Drop,
+                                    operation: CauseOperation::ResourceDrop,
+                                    span: None,
+                                    entity: Some(Entity {
+                                        kind: EntityKind::Type,
+                                        id: resource.into(),
                                     }),
                                     evidence: Evidence::Verified,
                                 });
@@ -1062,6 +1144,7 @@ pub(super) fn populate_exit_info(
     source_function: &crate::frontend::parse::Function,
 ) {
     use super::model::{ExitClass, ExitInfo, Terminator};
+    let drop_sources = explicit_drop_sources(function);
     let blocks: Vec<_> = std::iter::once(&function.block)
         .chain(&function.blocks)
         .collect();
@@ -1158,6 +1241,15 @@ pub(super) fn populate_exit_info(
                         remove_local_bit(&mut may, local.0);
                         insert_local_bit(&mut gone, local.0);
                     }
+                    Op::CallIntrinsic { .. }
+                        if drop_sources
+                            .get(&ins.origin.0)
+                            .is_some_and(|local| tracked.contains(&local.0)) =>
+                    {
+                        let local = drop_sources[&ins.origin.0];
+                        remove_local_bit(&mut may, local.0);
+                        insert_local_bit(&mut gone, local.0);
+                    }
                     _ => {}
                 }
             }
@@ -1222,6 +1314,15 @@ pub(super) fn populate_exit_info(
                     remove_local_bit(&mut may, local.0);
                 }
                 Op::DropBinding(local) | Op::DropLocal(local) if tracked.contains(&local.0) => {
+                    remove_local_bit(&mut may, local.0);
+                    insert_local_bit(&mut gone, local.0);
+                }
+                Op::CallIntrinsic { .. }
+                    if drop_sources
+                        .get(&ins.origin.0)
+                        .is_some_and(|local| tracked.contains(&local.0)) =>
+                {
+                    let local = drop_sources[&ins.origin.0];
                     remove_local_bit(&mut may, local.0);
                     insert_local_bit(&mut gone, local.0);
                 }
@@ -2107,7 +2208,8 @@ mod tests {
                 .as_ref()
                 .is_some_and(|entity| {
                     entity.kind == EntityKind::Binding && entity.id == "binding:28"
-                })
+                }),
+            "{errors:#?}"
         );
         assert_eq!(
             errors[0].cause_chain[0]
@@ -2711,7 +2813,15 @@ mod tests {
             .block
             .instructions
             .iter_mut()
-            .find(|instruction| matches!(instruction.op, Op::DropBinding(_)))
+            .find(|instruction| {
+                matches!(
+                    instruction.op,
+                    Op::CallIntrinsic {
+                        intrinsic: super::super::model::Intrinsic::DropData,
+                        ..
+                    }
+                )
+            })
             .unwrap();
         drop.op = Op::CallIntrinsic {
             intrinsic: super::super::model::Intrinsic::DropData,
@@ -2747,7 +2857,15 @@ mod tests {
             .block
             .instructions
             .iter_mut()
-            .find(|instruction| matches!(instruction.op, Op::DropBinding(_)))
+            .find(|instruction| {
+                matches!(
+                    instruction.op,
+                    Op::CallIntrinsic {
+                        intrinsic: super::super::model::Intrinsic::DropData,
+                        ..
+                    }
+                )
+            })
             .unwrap();
         drop.op = Op::CallIntrinsic {
             intrinsic: super::super::model::Intrinsic::DropData,

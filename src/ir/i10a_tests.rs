@@ -53,6 +53,7 @@ fn cfg_dominance_rejects_temporary_from_sibling_branch() {
         yes: super::model::BlockId(4),
         no: super::model::BlockId(5),
         span: span.clone(),
+        charges: vec![],
     };
     for id in [4, 5] {
         let output = TempId(replacement_id.0 + (id - 3));
@@ -67,11 +68,15 @@ fn cfg_dominance_rejects_temporary_from_sibling_branch() {
                 origin: OriginId(0),
                 access: Access::Own,
                 effect_io: false,
-                tick: true,
+                charges: vec![super::model::WorkCharge {
+                    ticks: 1,
+                    origin: span.clone(),
+                }],
             }],
             terminator: Terminator::Return {
                 value: Some(output),
                 span: span.clone(),
+                charges: vec![],
             },
         });
     }

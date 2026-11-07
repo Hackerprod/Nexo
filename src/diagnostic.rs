@@ -81,7 +81,7 @@ vocabulary!(Operation {
     BuildArray => "value.build_array", ValueDrop => "value.drop"
 });
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Span {
     pub file: String,
     pub start: u64,

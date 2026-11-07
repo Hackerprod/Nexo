@@ -1,0 +1,864 @@
+{
+  "mutants": [
+    {
+      "after": "let mut work = 1u64;",
+      "before": "let mut work = 2u64;",
+      "file": "src/interp/machine.rs",
+      "id": "eq_base_pair",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "if false {\n                    break;\n                }",
+      "before": "if x != y {\n                    break;\n                }",
+      "file": "src/interp/machine.rs",
+      "id": "eq_no_stop",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "if false {\n                2\n            }",
+      "before": "if a != b {\n                2\n            }",
+      "file": "src/interp/machine.rs",
+      "id": "eq_result_tag",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "for charge in ins.charges.iter().take(0) {\n                bytes.extend_from_slice(&charge.ticks",
+      "before": "for charge in &ins.charges {\n                bytes.extend_from_slice(&charge.ticks",
+      "file": "src/ir/model.rs",
+      "id": "hash_ins_charges",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "",
+      "before": "        hash_span(bytes, &site.context, base);\n",
+      "file": "src/ir/model.rs",
+      "id": "hash_site_ctx",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "",
+      "before": "        number(bytes, site.selectors.len());\n",
+      "equivalence_reason": "La cardinalidad de selectores coincide con índices y esa cardinalidad ya se codifica en el hash del op; el verificador la impone.",
+      "file": "src/ir/model.rs",
+      "id": "hash_site_len",
+      "kind": "str",
+      "prior_classification": "equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "        for selector in site.selectors.iter().take(0) {\n            hash_span(bytes, selector, base);",
+      "before": "        for selector in &site.selectors {\n            hash_span(bytes, selector, base);",
+      "file": "src/ir/model.rs",
+      "id": "hash_site_sel",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "        bytes.extend_from_slice(&(charges.len() as u64).to_le_bytes());\n        for charge in charges.iter().take(0) {",
+      "before": "        bytes.extend_from_slice(&(charges.len() as u64).to_le_bytes());\n        for charge in charges {",
+      "file": "src/ir/model.rs",
+      "id": "hash_term_charges",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "span: selector.clone(),",
+      "before": "span: site.context.clone(),",
+      "file": "src/interp/machine.rs",
+      "id": "idx_context_selector",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "site.selectors.first()",
+      "before": "site.selectors.get(failed)",
+      "file": "src/interp/machine.rs",
+      "id": "idx_first_selector",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "diagnostic.related_spans = vec![]; let _u = vec![diagnostic::RelatedSpan {",
+      "before": "diagnostic.related_spans = vec![diagnostic::RelatedSpan {",
+      "file": "src/interp/machine.rs",
+      "id": "idx_no_context",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "diagnostic.primary_span = Some(site.context.clone());",
+      "before": "diagnostic.primary_span = Some(selector.clone());",
+      "file": "src/interp/machine.rs",
+      "id": "idx_primary_context",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "if proposed >= self.limits.cells {",
+      "before": "if proposed > self.limits.cells {",
+      "file": "src/interp/machine.rs",
+      "id": "lim_cells",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "if self.frames > self.limits.frames {",
+      "before": "if self.frames >= self.limits.frames {",
+      "file": "src/interp/machine.rs",
+      "id": "lim_frames",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "DataValue::UInt(self.limits.frames),",
+      "before": "DataValue::UInt(self.limits.frames.saturating_add(1)),",
+      "file": "src/interp/machine.rs",
+      "id": "lim_frames_observed",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "Self::with_limit(65_535)",
+      "before": "Self::with_limit(65_536)",
+      "file": "src/interp/observation.rs",
+      "id": "lim_obs_default",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "let n = u64::try_from(prefix.len() + text.len()).map_err(|_| u64::MAX)?;",
+      "before": "let n = u64::try_from(prefix.len() + text.len() + 1).map_err(|_| u64::MAX)?;",
+      "file": "src/interp/observation.rs",
+      "id": "lim_obs_lf",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "self.reserved += bytes + 1;",
+      "before": "self.reserved += bytes;",
+      "file": "src/interp/observation.rs",
+      "id": "lim_obs_reserve",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "profile_id: diagnostic::PROFILE_ID.into(),",
+      "before": "profile_id: self.limits.profile_id.into(),",
+      "file": "src/interp/machine.rs",
+      "id": "lim_profile_id",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "if proposed >= self.limits.work {",
+      "before": "if proposed > self.limits.work {",
+      "file": "src/interp/machine.rs",
+      "id": "lim_work",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "DataValue::UInt(self.limits.work.saturating_add(2)),",
+      "before": "DataValue::UInt(self.limits.work.saturating_add(1)),",
+      "file": "src/interp/machine.rs",
+      "id": "lim_work_observed",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "span.clone()",
+      "before": "token.span.clone()",
+      "file": "src/ir/lower.rs",
+      "id": "low_assign_origin_2855",
+      "kind": "line",
+      "line": 2855,
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": ".map_or_else(|| span.clone(), |token| span.clone());",
+      "before": ".map_or_else(|| span.clone(), |token| token.span.clone());",
+      "file": "src/ir/lower.rs",
+      "id": "low_assign_origin_root",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "NOAPPLY"
+    },
+    {
+      "after": "origin: span.clone(),",
+      "before": "origin: final_unit_origin.clone(),",
+      "equivalence_reason": "El origen alterno queda sobrescrito más tarde por el origen explícito de unidad final.",
+      "file": "src/ir/lower.rs",
+      "id": "low_final_unit_origin",
+      "kind": "str",
+      "prior_classification": "equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "span.clone()",
+      "before": "token.span.clone()",
+      "file": "src/ir/lower.rs",
+      "id": "low_ifwhile_origin_2838",
+      "kind": "line",
+      "line": 2838,
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "collect(target, out);\n            out.push(span.clone());",
+      "before": "out.push(span.clone());\n            collect(target, out);",
+      "file": "src/ir/lower.rs",
+      "id": "low_pre_order_idx",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "charges.extend(pending);",
+      "before": "charges.splice(0..0, pending);",
+      "equivalence_reason": "El vector receptor está vacío en el punto de inserción; splice(0..0, prefijos) y extend(prefijos) conservan el mismo orden.",
+      "file": "src/ir/lower.rs",
+      "id": "low_prefix_order",
+      "kind": "str",
+      "prior_classification": "equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "span.clone()",
+      "before": "token.span.clone()",
+      "file": "src/ir/lower.rs",
+      "id": "low_return_origin_2819",
+      "kind": "line",
+      "line": 2819,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "out.push(selector.clone());\n            collect(target, out);",
+      "before": "collect(target, out);\n            out.push(selector.clone());",
+      "file": "src/ir/lower.rs",
+      "id": "low_selector_order",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "selectors: Vec::new(),",
+      "before": "selectors: index_selectors(expr),",
+      "file": "src/ir/lower.rs",
+      "id": "low_site_selectors_empty",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": ".skip(0)\n",
+      "before": ".skip(1)\n",
+      "file": "src/ir/lower.rs",
+      "id": "low_skip_index_levels",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_1314",
+      "kind": "line",
+      "line": 1314,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2219",
+      "kind": "line",
+      "line": 2219,
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2274",
+      "kind": "line",
+      "line": 2274,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2278",
+      "kind": "line",
+      "line": 2278,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 0",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2820",
+      "kind": "line",
+      "line": 2820,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2826",
+      "kind": "line",
+      "line": 2826,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "equivalence_reason": "El caso value: sin operando no llega como programa aceptado; no puede ejecutar el cargo.",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2830",
+      "kind": "line",
+      "line": 2830,
+      "prior_classification": "equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "ticks: 0",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2839",
+      "kind": "line",
+      "line": 2839,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2842",
+      "kind": "line",
+      "line": 2842,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 0",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2856",
+      "kind": "line",
+      "line": 2856,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2877",
+      "kind": "line",
+      "line": 2877,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_2975",
+      "kind": "line",
+      "line": 2975,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_3169",
+      "kind": "line",
+      "line": 3169,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_3570",
+      "kind": "line",
+      "line": 3570,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_3573",
+      "kind": "line",
+      "line": 3573,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "ticks: 2",
+      "before": "ticks: 1",
+      "file": "src/ir/lower.rs",
+      "id": "low_ticks_517",
+      "kind": "line",
+      "line": 517,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "origin: span.clone(),",
+      "before": "origin: condition.span().clone(),",
+      "file": "src/ir/lower.rs",
+      "id": "low_while_cond_origin",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1009",
+      "kind": "line",
+      "line": 1009,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1015",
+      "kind": "line",
+      "line": 1015,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(value.cells() + 1,",
+      "before": "charge_work(value.cells(),",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1023",
+      "kind": "line",
+      "line": 1023,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1026",
+      "kind": "line",
+      "line": 1026,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(equal_pairs(left, right) + 1,",
+      "before": "charge_work(equal_pairs(left, right),",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1051",
+      "kind": "line",
+      "line": 1051,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1078",
+      "kind": "line",
+      "line": 1078,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1113",
+      "kind": "line",
+      "line": 1113,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(1,",
+      "before": "charge_work(2,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1152",
+      "kind": "line",
+      "line": 1152,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1173",
+      "kind": "line",
+      "line": 1173,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1286",
+      "kind": "line",
+      "line": 1286,
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "charge.ticks + 1",
+      "before": "charge.ticks",
+      "file": "src/interp/machine.rs",
+      "id": "mach_1317",
+      "kind": "line",
+      "line": 1317,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_537",
+      "kind": "line",
+      "line": 537,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_731",
+      "kind": "line",
+      "line": 731,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_737",
+      "kind": "line",
+      "line": 737,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_752",
+      "kind": "line",
+      "line": 752,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(v.cells() + 1,",
+      "before": "charge_work(v.cells(),",
+      "file": "src/interp/machine.rs",
+      "id": "mach_768",
+      "kind": "line",
+      "line": 768,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_791",
+      "kind": "line",
+      "line": 791,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_798",
+      "kind": "line",
+      "line": 798,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_799",
+      "kind": "line",
+      "line": 799,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(selected.cells() + 1,",
+      "before": "charge_work(selected.cells(),",
+      "file": "src/interp/machine.rs",
+      "id": "mach_854",
+      "kind": "line",
+      "line": 854,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(1,",
+      "before": "charge_work(2,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_932",
+      "kind": "line",
+      "line": 932,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "charge_work(equal_pairs(a, b) + 1,",
+      "before": "charge_work(equal_pairs(a, b),",
+      "file": "src/interp/machine.rs",
+      "id": "mach_938",
+      "kind": "line",
+      "line": 938,
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "charge_work(2,",
+      "before": "charge_work(1,",
+      "file": "src/interp/machine.rs",
+      "id": "mach_945",
+      "kind": "line",
+      "line": 945,
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "work = work.saturating_add(equal_pairs(x, y) + 1);",
+      "before": "work = work.saturating_add(equal_pairs(x, y));",
+      "file": "src/interp/machine.rs",
+      "id": "mach_eq_hdr_pair_len",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "if !self.charge_work(charge.ticks + 1, &charge.origin) {\n                    ",
+      "before": "if !self.charge_work(charge.ticks, &charge.origin) {\n                    ",
+      "file": "src/interp/machine.rs",
+      "id": "mach_term_charge_ticks",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "NOAPPLY"
+    },
+    {
+      "after": ") && false\n        {\n            return Err(\"work charge rule\");",
+      "before": ") && !ins.charges.is_empty()\n        {\n            return Err(\"work charge rule\");",
+      "file": "src/ir/verify.rs",
+      "id": "ver_admin_rule_a",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": ") && false\n            {\n                return Err(\"work charge rule\");",
+      "before": ") && !ins.charges.is_empty()\n            {\n                return Err(\"work charge rule\");",
+      "file": "src/ir/verify.rs",
+      "id": "ver_admin_rule_b",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "c.origin.start <= c.origin.end",
+      "before": "c.origin.start < c.origin.end",
+      "file": "src/ir/verify.rs",
+      "id": "ver_empty",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {\n    for ins in std::iter::once(&function.block)\n        .chain(&function.blocks)\n        .flat_map(|b| &b.instructions)\n    {\n        if false && !valid_charges(function, &ins.charges) {",
+      "before": "pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {\n    for ins in std::iter::once(&function.block)\n        .chain(&function.blocks)\n        .flat_map(|b| &b.instructions)\n    {\n        if !valid_charges(function, &ins.charges) {",
+      "file": "src/ir/verify.rs",
+      "id": "ver_fn_ins",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "        if false && !valid_charges(function, charges) {\n            return Err(\"work charge origin\");",
+      "before": "        if !valid_charges(function, charges) {\n            return Err(\"work charge origin\");",
+      "file": "src/ir/verify.rs",
+      "id": "ver_fn_term",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "            if false && !valid_charges(function, &ins.charges) {\n                return Err(\"work charge origin\");\n            }\n            if let Op::CallDirect",
+      "before": "            if !valid_charges(function, &ins.charges) {\n                return Err(\"work charge origin\");\n            }\n            if let Op::CallDirect",
+      "equivalence_reason": "verify_program valida las instrucciones al invocar verify_function antes de la pasada redundante.",
+      "file": "src/ir/verify.rs",
+      "id": "ver_prog_ins",
+      "kind": "str",
+      "prior_classification": "equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "            if false && !valid_charges(function, charges) {\n                return Err(\"terminator charges\");",
+      "before": "            if !valid_charges(function, charges) {\n                return Err(\"terminator charges\");",
+      "equivalence_reason": "verify_program valida terminadores al invocar verify_function antes de la pasada redundante.",
+      "file": "src/ir/verify.rs",
+      "id": "ver_prog_term",
+      "kind": "str",
+      "prior_classification": "equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "index_site(&ins.op).is_some_and(|(site, count)| false && !valid_index_site(function, site, count))\n        {\n            return Err(\"index site\");",
+      "before": "index_site(&ins.op).is_some_and(|(site, count)| !valid_index_site(function, site, count))\n        {\n            return Err(\"index site\");",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_call_a",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "site.selectors.len() <= count",
+      "before": "site.selectors.len() == count",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_card",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "&& true",
+      "before": "&& s.end <= site.context.end",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_contain_hi",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "&& true",
+      "before": "&& site.context.start <= s.start",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_contain_lo",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "&& true",
+      "before": "&& valid_span(function, &site.context)",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_ctx",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": ".all(|w| w[0].start < w[1].start)",
+      "before": ".all(|w| w[0].start < w[1].start && w[0].end <= w[1].start)",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_order",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "&& s.start <= s.end\n",
+      "before": "&& s.start < s.end\n",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_selempty",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "true\n                && s.start < s.end",
+      "before": "valid_span(function, s)\n                && s.start < s.end",
+      "file": "src/ir/verify.rs",
+      "id": "ver_site_selspan",
+      "kind": "str",
+      "prior_classification": "non_equivalent",
+      "prior_result": "SURVIVED"
+    },
+    {
+      "after": "&& true",
+      "before": "&& valid_span(function, &c.origin)",
+      "file": "src/ir/verify.rs",
+      "id": "ver_span",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    },
+    {
+      "after": "c.ticks >= 0 &&",
+      "before": "c.ticks > 0 &&",
+      "file": "src/ir/verify.rs",
+      "id": "ver_ticks",
+      "kind": "str",
+      "prior_classification": "other",
+      "prior_result": "KILLED"
+    }
+  ],
+  "schema": "i10b-mutation-population-v1",
+  "source": "val43 90-mutant production population, rebased for execution"
+}

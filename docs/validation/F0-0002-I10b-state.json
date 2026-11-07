@@ -1,0 +1,485 @@
+{
+  "cut": "I10b",
+  "base": "bdd0db2",
+  "source_inventory": [
+    {
+      "path": "src/diagnostic.rs",
+      "sha256": "06db1687f47b56b1bdfe578933557f4d946e836626e064d525f37d165d469959",
+      "bytes": 158158,
+      "lf": 4022,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 4022
+    },
+    {
+      "path": "src/interp/machine.rs",
+      "sha256": "a430d111f8389555d80596d56abb223acb382934aff6224e18d22018342b5a32",
+      "bytes": 75808,
+      "lf": 1815,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 1815
+    },
+    {
+      "path": "src/interp/mod.rs",
+      "sha256": "3ff6126c38fe77d7746b3e889556f59e514271a85a567b6795cf4ff6686c89b4",
+      "bytes": 212,
+      "lf": 6,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 6
+    },
+    {
+      "path": "src/interp/observation.rs",
+      "sha256": "48fb309b22fa5d84f486da23f8eb831c65923c4fa69573531b44109c37fc73bc",
+      "bytes": 5237,
+      "lf": 155,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 155
+    },
+    {
+      "path": "src/frontend/migrated_parser_contracts.rs",
+      "sha256": "c5285163f0b20ba7faeea6d4cab2c29306dcb9e958e0e2271c2a5c9a15774537",
+      "bytes": 51548,
+      "lf": 1398,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 1398
+    },
+    {
+      "path": "src/frontend/parse.rs",
+      "sha256": "27573a95039ce4df3c87473d5a315f88b5f8cbda8c94f5c11103370675810a6a",
+      "bytes": 99135,
+      "lf": 2845,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 2845
+    },
+    {
+      "path": "src/frontend/print.rs",
+      "sha256": "a75b3659236ebc827efb60140e53adc6dde05e6681f949a75bd7a17b567bbdf4",
+      "bytes": 18558,
+      "lf": 518,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 518
+    },
+    {
+      "path": "src/frontend/test_normalize.rs",
+      "sha256": "3a721e98419790ee66e9e26d25107529720fa4950fc51143834e9cffd1b4181b",
+      "bytes": 5557,
+      "lf": 188,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 188
+    },
+    {
+      "path": "src/frontend/tests.rs",
+      "sha256": "5c9ddd83ef56a00578a43369cdacdbbba5b5869d8fd134a9441aece3630374ec",
+      "bytes": 188301,
+      "lf": 4912,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 4912
+    },
+    {
+      "path": "src/ir/i06_tests.rs",
+      "sha256": "558bedc6a2ba3929e6179088e7747f94648329235923edaeb63b355965dff6a7",
+      "bytes": 58856,
+      "lf": 1486,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 1486
+    },
+    {
+      "path": "src/ir/i07a_tests.rs",
+      "sha256": "b8c1cf9949d3fe6e1c0dbf60a5af3a097d45a57b646887dd129a0ce718f72ae5",
+      "bytes": 155513,
+      "lf": 3666,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 3666
+    },
+    {
+      "path": "src/ir/i10a_tests.rs",
+      "sha256": "72cda7e79e30be280396233364bc1f3d5b6de4f26bb9d3749911ecb44d4cc986",
+      "bytes": 31648,
+      "lf": 898,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 898
+    },
+    {
+      "path": "src/ir/i10b_tests.rs",
+      "sha256": "031d947bc7210b6e9b43db4bc07553f253ca9c1f85da6586416d77afa28e4c0c",
+      "bytes": 51680,
+      "lf": 1464,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 1464
+    },
+    {
+      "path": "src/ir/effects.rs",
+      "sha256": "7c6b0553f9c634182c77aa7cd8b9011f1884cc421b27831fa15781518a753e62",
+      "bytes": 144116,
+      "lf": 3657,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 3657
+    },
+    {
+      "path": "src/ir/lower.rs",
+      "sha256": "f1102ce89336007f2be4950872d504e71a55358735ecf74aad8dc721a5cf84cf",
+      "bytes": 187722,
+      "lf": 4814,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 4814
+    },
+    {
+      "path": "src/ir/mod.rs",
+      "sha256": "c71e0d1a77548e4867c95ec1191f7ee57752c895b96394fd744127e02a395144",
+      "bytes": 1670,
+      "lf": 69,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 69
+    },
+    {
+      "path": "src/ir/model.rs",
+      "sha256": "17ff4f975dc53bf23a30e3c3531fb35b7ac5e18e2115fc7f3d69cedc024ba3cf",
+      "bytes": 25531,
+      "lf": 779,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 779
+    },
+    {
+      "path": "src/ir/ownership_flow.rs",
+      "sha256": "dd600f7ac8149cab9253666bfe74862cd4f78719b056e033413aa2727e2a7bfd",
+      "bytes": 31855,
+      "lf": 983,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 983
+    },
+    {
+      "path": "src/ir/ownership_flow/sparse.rs",
+      "sha256": "68bf59fb0fe0868840c63c1251bfdd91e38917b1cf5c160a6fb13c6e905cf862",
+      "bytes": 58621,
+      "lf": 1628,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 1628
+    },
+    {
+      "path": "src/ir/tests.rs",
+      "sha256": "1dff80fcee43267c8330a634e62a69373d4a74b0f1b6048266d9d1c5dabb098f",
+      "bytes": 141264,
+      "lf": 3821,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 3821
+    },
+    {
+      "path": "src/ir/verify.rs",
+      "sha256": "48ec80fdd7d46b06819a450ec140e0743078dff2e24b4111b2793cd453fc14f2",
+      "bytes": 128808,
+      "lf": 3287,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 3287
+    },
+    {
+      "path": "src/ir/work.rs",
+      "sha256": "8458fbda50b28a69102e8cbbf8c0973be9bea9b105fc0661233ea0a7b046f20b",
+      "bytes": 5190,
+      "lf": 224,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 224
+    },
+    {
+      "path": "tests/i10b_campaign.rs",
+      "sha256": "1268bbd720e4c44959be2887af5a3b5ad0b4dd57196e63bd1e846e818bb1a189",
+      "bytes": 3652,
+      "lf": 93,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 93
+    },
+    {
+      "path": "scripts/i10b_mutaciones.py",
+      "sha256": "857746e8eef437a548058a195d8942164af09611a543c06ea5b62c119e42a9d7",
+      "bytes": 12787,
+      "lf": 284,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 284
+    },
+    {
+      "path": "scripts/i10b_estado.py",
+      "sha256": "ac9ab946877e17c3bcf745cb2aec56dd05cd41dd7291e010763ab0846fb84814",
+      "bytes": 4667,
+      "lf": 106,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 106
+    },
+    {
+      "path": "scripts/i10b_poblacion.py",
+      "sha256": "ab3e03097c7df781a300def1d9766ed5306b3d9b74d4f3a897a98a17c25bfb8a",
+      "bytes": 1189,
+      "lf": 31,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 31
+    },
+    {
+      "path": "scripts/i10b_campanas.py",
+      "sha256": "293d85bd602f063326ddd8df964d056051e35370525b71bca89918c36e130933",
+      "bytes": 3421,
+      "lf": 72,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 72
+    },
+    {
+      "path": "src/ir/work_oracle_tests.rs",
+      "sha256": "eabb2dbbdae74c72e8c0fceb3cae4e01410be6b52ed67f3f4b2add86acdbde16",
+      "bytes": 9992,
+      "lf": 301,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 301
+    },
+    {
+      "path": "docs/validation/F0-0002-I10b-mutation-population.json",
+      "sha256": "c239d56b6925c41cf738180f293391d97fde56dba4e8d510067989d856fcbe89",
+      "bytes": 27212,
+      "lf": 864,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 864
+    },
+    {
+      "path": "docs/adr/F0-0002-second-slice.md",
+      "sha256": "1692e26b46cfa7454bb1d1c3575a52a3598911057fb13173928307130bc0dff3",
+      "bytes": 379072,
+      "lf": 3678,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 3678
+    },
+    {
+      "path": "docs/validation/F0-0002-I10b-implementation-notes.md",
+      "sha256": "faf46c573a4fe1c797b6b2d49d20b01f233a6567c563c6c874fa69bfa745afb9",
+      "bytes": 5466,
+      "lf": 35,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 35
+    },
+    {
+      "path": "docs/validation/F0-0002-I10b-campaign-results.json",
+      "sha256": "ae269852fac23932d2e892d35f452be2ab8f8f22a5f64e74bc7fd0631a63ada8",
+      "bytes": 2217,
+      "lf": 110,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 110
+    },
+    {
+      "path": "docs/validation/F0-0002-I10b-mutation-results.json",
+      "sha256": "8dc293571c847ad5ccdedd2cdf554aa9ce63b0f79d224835379cb114ce4b4a3b",
+      "bytes": 95726,
+      "lf": 1840,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 1840
+    },
+    {
+      "path": "Pending.md",
+      "sha256": "cb617e8b6ba9eb90bfbb6afe44744286022c54a126f0fe62256c3e42577ed704",
+      "bytes": 47031,
+      "lf": 211,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 211
+    },
+    {
+      "path": "HANDOFF.md",
+      "sha256": "fb147565f7283eeb748c9e3404626964346c169e83914f629666ee5086c93d97",
+      "bytes": 35673,
+      "lf": 185,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 185
+    },
+    {
+      "path": "RECOVERY.md",
+      "sha256": "56c6ea6bebf5cd38413450fc8b4ba58e488dbafdb33df37e443f08adef05b2d1",
+      "bytes": 32974,
+      "lf": 151,
+      "crlf": 0,
+      "nuls": 0,
+      "lines": 151
+    }
+  ],
+  "contracts": {
+    "published_totals": [
+      56,
+      25,
+      15
+    ],
+    "empty_indexed_final_unit_ticks": [
+      2,
+      6,
+      1
+    ],
+    "print_ticks": 10,
+    "assert_eq_ticks": 19,
+    "administrative_instruction_charges": 0,
+    "final_unit_charge": "ConstUnit before cell reservation",
+    "result_propagation_charge": "static prefix WorkCharge over the full operand? span; BranchResult carries no charge"
+  },
+  "verification": {
+    "debug": {
+      "library_passed": 1088,
+      "ignored": 53,
+      "failed": 0,
+      "rd_pairs": 152
+    },
+    "release": {
+      "library_passed": 1090,
+      "ignored": 54,
+      "failed": 0,
+      "rd_pairs": 152
+    },
+    "clean_clone_validate": "exit 0; clone began without hidden state or target; cargo clean and clone removal completed",
+    "fmt": "clean",
+    "clippy_warnings": 0
+  },
+  "campaigns": {
+    "campaigns": [
+      {
+        "catalog_row_coverage": [
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50
+        ],
+        "catalog_row_order": [
+          "entry",
+          "final_unit",
+          "while_condition",
+          "inout_prefix",
+          "read_selector",
+          "read_name",
+          "place_selector",
+          "return_statement",
+          "value_statement_explicit",
+          "expression_statement",
+          "if_statement",
+          "block",
+          "assignment",
+          "binding",
+          "if_expression_implicit",
+          "index_expression"
+        ],
+        "catalog_rows": 16,
+        "expression_coverage": [
+          166560,
+          33333,
+          33333
+        ],
+        "outcome": "completed",
+        "profile": "debug",
+        "seed_hex": "0x008311061106c0de",
+        "sources": 100000,
+        "unreachable_catalog_rows": [
+          "EmptyValue"
+        ]
+      },
+      {
+        "catalog_row_coverage": [
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50,
+          50
+        ],
+        "catalog_row_order": [
+          "entry",
+          "final_unit",
+          "while_condition",
+          "inout_prefix",
+          "read_selector",
+          "read_name",
+          "place_selector",
+          "return_statement",
+          "value_statement_explicit",
+          "expression_statement",
+          "if_statement",
+          "block",
+          "assignment",
+          "binding",
+          "if_expression_implicit",
+          "index_expression"
+        ],
+        "catalog_rows": 16,
+        "expression_coverage": [
+          500334,
+          100000,
+          100000
+        ],
+        "outcome": "completed",
+        "profile": "release",
+        "seed_hex": "0x008411061106c0de",
+        "sources": 300000,
+        "unreachable_catalog_rows": [
+          "EmptyValue"
+        ]
+      }
+    ],
+    "cut": "I10b",
+    "generator": "i10b-owned-tree-v2",
+    "generator_sha256": "eabb2dbbdae74c72e8c0fceb3cae4e01410be6b52ed67f3f4b2add86acdbde16",
+    "oracle": "separately generated source tree evaluated by its own work function"
+  },
+  "production_mutations": {
+    "count": 90,
+    "killed": 85,
+    "equivalent_survivors": 5,
+    "non_equivalent": 15,
+    "non_equivalent_killed": 15,
+    "compiled_and_detected": 85,
+    "all_restored": true,
+    "results_sha256": "8dc293571c847ad5ccdedd2cdf554aa9ce63b0f79d224835379cb114ce4b4a3b"
+  },
+  "implementation_notes_sha256": "faf46c573a4fe1c797b6b2d49d20b01f233a6567c563c6c874fa69bfa745afb9"
+}

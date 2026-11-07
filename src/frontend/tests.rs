@@ -331,7 +331,7 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
                 expression(place, source);
                 expression(value, source);
             }
-            Statement::Return { value, span } | Statement::Value { value, span } => {
+            Statement::Return { value, span } | Statement::Value { value, span, .. } => {
                 if !matches!(statement, Statement::Value { .. })
                     || source[span.start as usize..].starts_with("value:")
                 {
@@ -963,6 +963,7 @@ fn constructed_selection_operand_gets_required_parentheses() {
             Expr::Index {
                 target: Box::new(selection.clone()),
                 index: Box::new(integer.clone()),
+                selector: span.clone(),
                 span: span.clone(),
             },
             "(if a then 1 else 2)[1]",
@@ -972,6 +973,7 @@ fn constructed_selection_operand_gets_required_parentheses() {
             Expr::Index {
                 target: Box::new(name.clone()),
                 index: Box::new(selection.clone()),
+                selector: span.clone(),
                 span: span.clone(),
             },
             "F[if a then 1 else 2]",

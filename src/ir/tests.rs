@@ -811,7 +811,7 @@ fn function_identity_and_hash_ignore_unrelated_order_and_track_body() {
     let one = compile_scalar("fixture.n", "fn Main() {\n    Print(1);\n}\n").unwrap();
     assert_eq!(
         one.functions().function("Main").unwrap().content_hash,
-        0x2429_2d7d_adf8_6fdf
+        0x1630_8332_9161_cbc6
     );
     let a = compile_scalar(
         "fixture.n",
@@ -2082,7 +2082,7 @@ fn binary_instruction_hash_matches_fixed_canonical_fnv_encoding() {
     let p = compile_scalar("h.n", "fn Main() {\n    Print(1 + 2);\n}\n").unwrap();
     assert_eq!(
         p.functions().function("Main").unwrap().content_hash,
-        0x20c7_71da_7f5d_f960
+        0xde2e_27c5_83b6_14ea
     );
 }
 #[test]
@@ -2489,7 +2489,7 @@ fn direct_call_hash_has_fixed_canonical_vector() {
     .unwrap();
     assert_eq!(
         p.functions().function("Main").unwrap().content_hash,
-        0x1dee_b608_6d9e_e0aa
+        0x607c_da0b_a66f_56f5
     );
 }
 #[test]
@@ -2501,7 +2501,7 @@ fn result_hash_tracks_both_type_arms_and_result_operations() {
     .unwrap();
     let function = program.functions().function("Main").unwrap();
     let original = super::model::content_hash(function);
-    assert_eq!(original, 0x0ede_81db_643c_609c);
+    assert_eq!(original, 0x69d8_43c9_d943_b040);
 
     let mut changed = function.clone();
     changed.result = super::model::Ty::Result(
@@ -2555,7 +2555,7 @@ fn result_hash_tracks_both_type_arms_and_result_operations() {
         compile_scalar("hash.n", "fn Main(){let a:Array<Result<I64,I64>>=[Ok(1)];}").unwrap();
     assert_eq!(
         array.functions().function("Main").unwrap().content_hash,
-        0x18b3_b900_a56f_5f3a
+        0x9def_585d_d7c5_3ea2
     );
 }
 #[test]
@@ -3485,7 +3485,7 @@ fn lexical_operator_repair_pairs_execute_for_lx01_through_lx05() {
     assert_eq!(value.outcome, Outcome::Unit);
 }
 #[test]
-fn adr_gap_runtime_index_primary_tracks_whole_index_operation() {
+fn runtime_index_primary_is_failed_selector_with_access_context() {
     let read_source = "fn Main() {\n    let a = [0];\n    Print(a[2]);\n}\n";
     let read = execute(read_source);
     assert_eq!(read.diagnostics[0].code, "R0102");
@@ -3494,7 +3494,16 @@ fn adr_gap_runtime_index_primary_tracks_whole_index_operation() {
             .primary_span
             .as_ref()
             .map(|s| (s.start, s.end)),
-        Some(byte_span(read_source, "a[2]", 0))
+        Some(byte_span(read_source, "[2]", 0))
+    );
+    assert_eq!(read.diagnostics[0].related_spans.len(), 1);
+    assert_eq!(
+        read.diagnostics[0].related_spans[0].span.start,
+        byte_span(read_source, "a[2]", 0).0
+    );
+    assert_eq!(
+        read.diagnostics[0].related_spans[0].span.end,
+        byte_span(read_source, "a[2]", 0).1
     );
     let write_source = "fn Main() {\n    var a = [0];\n    a[2] = 1;\n}\n";
     let write = execute(write_source);
@@ -3504,7 +3513,15 @@ fn adr_gap_runtime_index_primary_tracks_whole_index_operation() {
             .primary_span
             .as_ref()
             .map(|s| (s.start, s.end)),
-        Some(byte_span(write_source, "a[2] = 1;", 0))
+        Some(byte_span(write_source, "[2]", 0))
+    );
+    assert_eq!(
+        write.diagnostics[0].related_spans[0].span.start,
+        byte_span(write_source, "a[2]", 0).0
+    );
+    assert_eq!(
+        write.diagnostics[0].related_spans[0].span.end,
+        byte_span(write_source, "a[2]", 0).1
     );
 }
 #[test]

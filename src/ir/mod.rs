@@ -4,6 +4,7 @@ mod lower;
 pub mod model;
 mod ownership_flow;
 pub(crate) mod verify;
+pub(crate) mod work;
 
 #[cfg(test)]
 pub(crate) use lower::compile_scalar_with_flow_limit;
@@ -61,4 +62,8 @@ mod i07c_tests;
 #[cfg(test)]
 mod i10a_tests;
 #[cfg(test)]
+mod i10b_tests;
+#[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod work_oracle_tests;

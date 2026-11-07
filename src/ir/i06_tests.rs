@@ -493,6 +493,7 @@ fn verifier_rejects_forged_loan_permissions_and_lifecycle() {
     f.block.terminator = model::Terminator::Return {
         value: Some(borrowed),
         span: span.clone(),
+        charges: vec![],
     };
     assert_eq!(verify(f), Err("borrowed return"));
 }
@@ -889,6 +890,7 @@ fn verifier_rejects_unavailable_and_misplaced_loans() {
     };
     write.op = Op::DropValue(value);
     write.access = model::Access::Own;
+    write.charges.clear();
     assert_eq!(verify(f), Err("loan unavailable root"));
 
     let mut f = base.clone();
@@ -930,6 +932,7 @@ fn verifier_rejects_unavailable_and_misplaced_loans() {
     f.block.terminator = model::Terminator::Return {
         value: Some(call_output),
         span: span.clone(),
+        charges: vec![],
     };
     assert_eq!(verify(f), Err("loan end missing"));
 
@@ -937,6 +940,7 @@ fn verifier_rejects_unavailable_and_misplaced_loans() {
     f.block.instructions[call_pos].op = Op::DropValue(loan_temp);
     f.block.instructions[call_pos].output = None;
     f.block.instructions[call_pos].ty = None;
+    f.block.instructions[call_pos].charges.clear();
     assert_eq!(verify(f), Err("unmatched loan end"));
 
     let mut f = base;
@@ -1041,7 +1045,7 @@ fn verifier_requires_reverse_loan_release_and_parameter_permissions() {
         .block
         .instructions
         .iter_mut()
-        .find(|ins| matches!(ins.op, Op::CopyValue(_)))
+        .find(|ins| matches!(ins.op, Op::BorrowValue(_)))
         .unwrap();
     read.op = Op::TransferValue(model::LocalId(0));
     read.access = model::Access::Own;

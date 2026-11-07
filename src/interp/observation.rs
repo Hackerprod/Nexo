@@ -9,13 +9,27 @@ pub struct Observation {
     pub channel: Channel,
     pub text: String,
 }
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Log {
     observations: Vec<Observation>,
     bytes: u64,
     reserved: u64,
+    limit: u64,
+}
+impl Default for Log {
+    fn default() -> Self {
+        Self::with_limit(65_536)
+    }
 }
 impl Log {
+    pub(crate) fn with_limit(limit: u64) -> Self {
+        Self {
+            observations: Vec::new(),
+            bytes: 0,
+            reserved: 0,
+            limit,
+        }
+    }
     pub fn observations(&self) -> &[Observation] {
         &self.observations
     }
@@ -52,7 +66,7 @@ impl Log {
             .checked_add(self.reserved)
             .and_then(|v| v.checked_add(n))
             .ok_or(u64::MAX)?;
-        if proposed > 65_536 {
+        if proposed > self.limit {
             return Err(proposed);
         }
         self.bytes += n;
@@ -65,7 +79,7 @@ impl Log {
             .checked_add(self.reserved)
             .and_then(|v| v.checked_add(bytes))
             .ok_or(u64::MAX)?;
-        if proposed > 65_536 {
+        if proposed > self.limit {
             return Err(proposed);
         }
         self.reserved += bytes;

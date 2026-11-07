@@ -119,6 +119,7 @@ pub enum Op {
     BeginLoan {
         root: LocalId,
         indexes: Vec<TempId>,
+        site: IndexSite,
         loan: LoanId,
         origin_span: Span,
         permission: LoanPermission,
@@ -141,18 +142,22 @@ pub enum Op {
     ReadIndex {
         local: LocalId,
         indexes: Vec<TempId>,
+        site: IndexSite,
     },
     BorrowIndex {
         local: LocalId,
         indexes: Vec<TempId>,
+        site: IndexSite,
     },
     CheckIndex {
         local: LocalId,
         indexes: Vec<TempId>,
+        site: IndexSite,
     },
     IndexValue {
         base: TempId,
         index: TempId,
+        site: IndexSite,
     },
     Binary {
         op: Binary,
@@ -166,6 +171,7 @@ pub enum Op {
     WriteIndex {
         local: LocalId,
         indexes: Vec<TempId>,
+        site: IndexSite,
         value: TempId,
     },
     CallIntrinsic {
@@ -192,23 +198,36 @@ pub struct Instruction {
     pub origin: OriginId,
     pub access: Access,
     pub effect_io: bool,
-    pub tick: bool,
+    pub charges: Vec<WorkCharge>,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct WorkCharge {
+    pub ticks: u64,
+    pub origin: Span,
+}
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct IndexSite {
+    pub context: Span,
+    pub selectors: Vec<Span>,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Terminator {
     Return {
         value: Option<TempId>,
         span: Span,
+        charges: Vec<WorkCharge>,
     },
     Jump {
         target: BlockId,
         span: Span,
+        charges: Vec<WorkCharge>,
     },
     BranchBool {
         condition: TempId,
         yes: BlockId,
         no: BlockId,
         span: Span,
+        charges: Vec<WorkCharge>,
     },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -216,6 +235,26 @@ pub struct BasicBlock {
     pub id: BlockId,
     pub instructions: Vec<Instruction>,
     pub terminator: Terminator,
+}
+
+pub(crate) fn is_drop_data_call(block: &BasicBlock, index: usize) -> bool {
+    let Some(ins) = block.instructions.get(index) else {
+        return false;
+    };
+    let Op::CallIntrinsic {
+        intrinsic: Intrinsic::DropData,
+        args,
+    } = &ins.op
+    else {
+        return false;
+    };
+    let Some(arg) = args.first() else {
+        return false;
+    };
+    index
+        .checked_sub(1)
+        .and_then(|previous| block.instructions.get(previous))
+        .is_some_and(|ins| matches!(ins.op, Op::TransferValue(_)) && ins.output == Some(*arg))
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Local {
@@ -360,7 +399,7 @@ impl Program {
     }
 }
 
-/// FNV-1a over a canonical, span-free rendering of the function's semantic IR.
+/// FNV-1a over canonical semantic IR and source-relative work-charge spans.
 pub(crate) fn content_hash(f: &Function) -> u64 {
     fn number(bytes: &mut Vec<u8>, n: usize) {
         bytes.extend_from_slice(&(n as u64).to_le_bytes())
@@ -394,6 +433,18 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
             }
         }
     }
+    fn hash_span(bytes: &mut Vec<u8>, span: &Span, base: u64) {
+        number(bytes, span.start.saturating_sub(base) as usize);
+        number(bytes, span.end.saturating_sub(base) as usize);
+    }
+    fn index_site(bytes: &mut Vec<u8>, site: &IndexSite, base: u64) {
+        hash_span(bytes, &site.context, base);
+        number(bytes, site.selectors.len());
+        for selector in &site.selectors {
+            hash_span(bytes, selector, base);
+        }
+    }
+    let source_base = f.source_text.find(&format!("fn {}", f.name)).unwrap_or(0) as u64;
     let mut bytes = vec![1];
     ty(&mut bytes, &f.result);
     number(&mut bytes, f.parameters.len());
@@ -450,6 +501,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                 Op::BeginLoan {
                     root,
                     indexes,
+                    site,
                     permission,
                     parent,
                     ..
@@ -460,6 +512,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     for id in indexes {
                         number(&mut bytes, id.0);
                     }
+                    index_site(&mut bytes, site, source_base);
                     bytes.push(match permission {
                         LoanPermission::Read => 1,
                         LoanPermission::Inout => 2,
@@ -492,34 +545,50 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     number(&mut bytes, value.0);
                     ty(&mut bytes, result);
                 }
-                Op::ReadIndex { local, indexes } => {
+                Op::ReadIndex {
+                    local,
+                    indexes,
+                    site,
+                } => {
                     bytes.push(11);
                     number(&mut bytes, local.0);
                     number(&mut bytes, indexes.len());
                     for id in indexes {
                         number(&mut bytes, id.0);
                     }
+                    index_site(&mut bytes, site, source_base);
                 }
-                Op::BorrowIndex { local, indexes } => {
+                Op::BorrowIndex {
+                    local,
+                    indexes,
+                    site,
+                } => {
                     bytes.push(16);
                     number(&mut bytes, local.0);
                     number(&mut bytes, indexes.len());
                     for id in indexes {
                         number(&mut bytes, id.0);
                     }
+                    index_site(&mut bytes, site, source_base);
                 }
-                Op::CheckIndex { local, indexes } => {
+                Op::CheckIndex {
+                    local,
+                    indexes,
+                    site,
+                } => {
                     bytes.push(15);
                     number(&mut bytes, local.0);
                     number(&mut bytes, indexes.len());
                     for id in indexes {
                         number(&mut bytes, id.0);
                     }
+                    index_site(&mut bytes, site, source_base);
                 }
-                Op::IndexValue { base, index } => {
+                Op::IndexValue { base, index, site } => {
                     bytes.push(12);
                     number(&mut bytes, base.0);
                     number(&mut bytes, index.0);
+                    index_site(&mut bytes, site, source_base);
                 }
                 Op::Binary { op, left, right } => {
                     bytes.push(5);
@@ -541,6 +610,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     local,
                     indexes,
                     value,
+                    site,
                 } => {
                     bytes.push(13);
                     number(&mut bytes, local.0);
@@ -548,6 +618,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     for id in indexes {
                         number(&mut bytes, id.0);
                     }
+                    index_site(&mut bytes, site, source_base);
                     number(&mut bytes, value.0);
                 }
                 Op::CallIntrinsic { intrinsic, args } => {
@@ -624,7 +695,22 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                 Access::Write => 3,
             });
             bytes.push(u8::from(ins.effect_io));
-            bytes.push(u8::from(ins.tick));
+            bytes.extend_from_slice(&(ins.charges.len() as u64).to_le_bytes());
+            for charge in &ins.charges {
+                bytes.extend_from_slice(&charge.ticks.to_le_bytes());
+                bytes.extend_from_slice(&(charge.origin.file.len() as u64).to_le_bytes());
+                bytes.extend_from_slice(charge.origin.file.as_bytes());
+                bytes.extend_from_slice(
+                    &charge
+                        .origin
+                        .start
+                        .saturating_sub(source_base)
+                        .to_le_bytes(),
+                );
+                bytes.extend_from_slice(
+                    &charge.origin.end.saturating_sub(source_base).to_le_bytes(),
+                );
+            }
         }
         if !f.blocks.is_empty() {
             match &block.terminator {
@@ -651,6 +737,25 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     number(&mut bytes, no.0);
                 }
             }
+        }
+        let charges = match &block.terminator {
+            Terminator::Return { charges, .. }
+            | Terminator::Jump { charges, .. }
+            | Terminator::BranchBool { charges, .. } => charges,
+        };
+        bytes.extend_from_slice(&(charges.len() as u64).to_le_bytes());
+        for charge in charges {
+            bytes.extend_from_slice(&charge.ticks.to_le_bytes());
+            bytes.extend_from_slice(&(charge.origin.file.len() as u64).to_le_bytes());
+            bytes.extend_from_slice(charge.origin.file.as_bytes());
+            bytes.extend_from_slice(
+                &charge
+                    .origin
+                    .start
+                    .saturating_sub(source_base)
+                    .to_le_bytes(),
+            );
+            bytes.extend_from_slice(&charge.origin.end.saturating_sub(source_base).to_le_bytes());
         }
     }
     number(&mut bytes, f.cleanup.len());

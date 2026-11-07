@@ -17,6 +17,29 @@ use crate::frontend::lex::Token;
 
 pub(super) const FLOW_LIMIT: u64 = 1_000_000;
 
+fn is_drop_transfer(function: &Function, ins: &super::model::Instruction) -> bool {
+    let Some(output) = ins.output else {
+        return false;
+    };
+    std::iter::once(&function.block).chain(&function.blocks).any(|block| {
+        let Some(current) = block.instructions.get(ins.origin.0) else { return false };
+        std::ptr::eq(current, ins) && block.instructions.get(ins.origin.0 + 1).is_some_and(|next|
+            matches!(&next.op, Op::CallIntrinsic { intrinsic: super::model::Intrinsic::DropData, args } if args.first() == Some(&output)))
+    })
+}
+
+fn is_paired_drop_call(function: &Function, ins: &super::model::Instruction) -> bool {
+    std::iter::once(&function.block)
+        .chain(&function.blocks)
+        .any(|block| {
+            super::model::is_drop_data_call(block, ins.origin.0)
+                && block
+                    .instructions
+                    .get(ins.origin.0)
+                    .is_some_and(|candidate| std::ptr::eq(candidate, ins))
+        })
+}
+
 #[cfg(test)]
 thread_local! {
     pub(super) static FLOW_STATE_COUNT_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -174,7 +197,7 @@ fn transfer(state: &mut State, ins: &super::model::Instruction, function: &Funct
             }
             let site = Site {
                 span: ins.span.clone(),
-                is_drop: matches!(ins.op, Op::DropBinding(_)),
+                is_drop: matches!(ins.op, Op::DropBinding(_)) || is_drop_transfer(function, ins),
                 backedges: Vec::new(),
                 distance: 0,
             };
@@ -281,7 +304,9 @@ fn primary_span(
     local: LocalId,
     ins: &super::model::Instruction,
 ) -> Span {
-    if matches!(ins.op, Op::DropBinding(_) | Op::WriteIndex { .. }) {
+    if matches!(ins.op, Op::DropBinding(_) | Op::WriteIndex { .. })
+        || is_drop_transfer(function, ins)
+    {
         let at = tokens.partition_point(|t| t.span.start < ins.span.start);
         if let Some(token) = tokens[at..]
             .iter()
@@ -447,7 +472,9 @@ fn analyze_dense(
         let block = blocks[index];
         let mut state = incoming[index].clone().expect("queued block has input");
         for ins in &block.instructions {
-            budget.charge(&ins.span)?;
+            if !is_paired_drop_call(function, ins) {
+                budget.charge(&ins.span)?;
+            }
             transfer(&mut state, ins, function);
         }
         let targets: &[super::model::BlockId] = match &block.terminator {
@@ -491,7 +518,9 @@ fn analyze_dense(
             continue;
         };
         for ins in &block.instructions {
-            budget.charge(&ins.span)?;
+            if !is_paired_drop_call(function, ins) {
+                budget.charge(&ins.span)?;
+            }
             if let Some(local) = use_local(&ins.op)
                 && let Some(d) = use_diagnostic(
                     function,
@@ -545,7 +574,9 @@ fn propagate(
         let loop_span = target
             .checked_sub(1)
             .and_then(|preheader| {
-                if let Terminator::Jump { target: dest, span } = &blocks[preheader].terminator
+                if let Terminator::Jump {
+                    target: dest, span, ..
+                } = &blocks[preheader].terminator
                     && dest.0 == target
                 {
                     Some(span)
@@ -621,7 +652,15 @@ mod tests {
             .block
             .instructions
             .iter()
-            .find(|ins| matches!(ins.op, Op::DropBinding(_)))
+            .find(|ins| {
+                matches!(
+                    ins.op,
+                    Op::CallIntrinsic {
+                        intrinsic: super::super::model::Intrinsic::DropData,
+                        ..
+                    }
+                )
+            })
             .unwrap();
         let mut state = State::new();
         let mut drop_r = ins.clone();
@@ -816,6 +855,7 @@ mod tests {
                 terminator: Terminator::Return {
                     value: Some(TempId(0)),
                     span: span(0, 1),
+                    charges: vec![],
                 },
             },
             BasicBlock {
@@ -824,6 +864,7 @@ mod tests {
                 terminator: Terminator::Return {
                     value: Some(TempId(0)),
                     span: span(1, 2),
+                    charges: vec![],
                 },
             },
             BasicBlock {
@@ -832,6 +873,7 @@ mod tests {
                 terminator: Terminator::Return {
                     value: Some(TempId(0)),
                     span: span(2, 3),
+                    charges: vec![],
                 },
             },
         ];

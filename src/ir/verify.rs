@@ -1,7 +1,51 @@
 use super::model::{
-    Access, Binary, Function, Intrinsic, LoanPermission, Op, ParameterMode, Program, TempId,
-    Terminator, Ty,
+    Access, Binary, Function, IndexSite, Intrinsic, LoanPermission, Op, ParameterMode, Program,
+    TempId, Terminator, Ty, WorkCharge,
 };
+
+fn valid_span(function: &Function, span: &crate::diagnostic::Span) -> bool {
+    span.file == function.source_file
+        && span.start <= span.end
+        && usize::try_from(span.start)
+            .ok()
+            .is_some_and(|n| function.source_text.is_char_boundary(n))
+        && usize::try_from(span.end)
+            .ok()
+            .is_some_and(|n| function.source_text.is_char_boundary(n))
+}
+
+fn valid_index_site(function: &Function, site: &IndexSite, count: usize) -> bool {
+    site.selectors.len() == count
+        && valid_span(function, &site.context)
+        && site.selectors.iter().all(|s| {
+            valid_span(function, s)
+                && s.start < s.end
+                && site.context.start <= s.start
+                && s.end <= site.context.end
+        })
+        && site
+            .selectors
+            .windows(2)
+            .all(|w| w[0].start < w[1].start && w[0].end <= w[1].start)
+}
+
+fn valid_charges(function: &Function, charges: &[WorkCharge]) -> bool {
+    charges
+        .iter()
+        .all(|c| c.ticks > 0 && c.origin.start < c.origin.end && valid_span(function, &c.origin))
+}
+
+fn index_site(op: &Op) -> Option<(&IndexSite, usize)> {
+    match op {
+        Op::BeginLoan { site, indexes, .. }
+        | Op::ReadIndex { site, indexes, .. }
+        | Op::BorrowIndex { site, indexes, .. }
+        | Op::CheckIndex { site, indexes, .. }
+        | Op::WriteIndex { site, indexes, .. } => Some((site, indexes.len())),
+        Op::IndexValue { site, .. } => Some((site, 1)),
+        _ => None,
+    }
+}
 
 pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
     if program.profile != crate::diagnostic::PROFILE_ID {
@@ -22,6 +66,9 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
             .chain(&function.blocks)
             .flat_map(|b| &b.instructions)
         {
+            if !valid_charges(function, &ins.charges) {
+                return Err("work charge origin");
+            }
             if let Op::CallDirect {
                 function: callee,
                 signature,
@@ -47,6 +94,16 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
                 }
             }
         }
+        for block in std::iter::once(&function.block).chain(&function.blocks) {
+            let charges = match &block.terminator {
+                Terminator::Return { charges, .. }
+                | Terminator::Jump { charges, .. }
+                | Terminator::BranchBool { charges, .. } => charges,
+            };
+            if !valid_charges(function, charges) {
+                return Err("terminator charges");
+            }
+        }
     }
     if program
         .functions
@@ -59,6 +116,24 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
     Ok(())
 }
 pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
+    for ins in std::iter::once(&function.block)
+        .chain(&function.blocks)
+        .flat_map(|b| &b.instructions)
+    {
+        if !valid_charges(function, &ins.charges) {
+            return Err("work charge origin");
+        }
+    }
+    for block in std::iter::once(&function.block).chain(&function.blocks) {
+        let charges = match &block.terminator {
+            Terminator::Return { charges, .. }
+            | Terminator::Jump { charges, .. }
+            | Terminator::BranchBool { charges, .. } => charges,
+        };
+        if !valid_charges(function, charges) {
+            return Err("work charge origin");
+        }
+    }
     if function.id.0 != function.name || function.scope_count == 0 {
         return Err("function identity");
     }
@@ -208,7 +283,8 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 if matches!(
                     local.parameter_mode,
                     Some(ParameterMode::Read | ParameterMode::Inout)
-                ) {
+                ) && matches!(ins.op, Op::TransferValue(_))
+                {
                     return Err("transfer read parameter");
                 }
                 if active_borrows[id.0] != 0 {
@@ -234,6 +310,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 origin_span,
                 permission,
                 parent,
+                ..
             } => {
                 let local = function.locals.get(root.0).ok_or("loan root")?;
                 if !initialized[root.0] {
@@ -341,7 +418,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 Some(*success)
             }
-            Op::ReadIndex { local, indexes } | Op::BorrowIndex { local, indexes } => {
+            Op::ReadIndex { local, indexes, .. } | Op::BorrowIndex { local, indexes, .. } => {
                 let local = function.locals.get(local.0).ok_or("read index local")?;
                 if active_exclusive[local.id.0] != 0 {
                     return Err("read during exclusive loan");
@@ -371,7 +448,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 Some(ty)
             }
-            Op::CheckIndex { local, indexes } => {
+            Op::CheckIndex { local, indexes, .. } => {
                 let l = function.locals.get(local.0).ok_or("check index local")?;
                 if active_exclusive[local.0] != 0 {
                     return Err("read during exclusive loan");
@@ -397,7 +474,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 None
             }
-            Op::IndexValue { base, index } => {
+            Op::IndexValue { base, index, .. } => {
                 if borrowed.get(base.0) == Some(&true) {
                     return Err("index borrowed base");
                 }
@@ -486,6 +563,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 local,
                 indexes,
                 value,
+                ..
             } => {
                 let l = function.locals.get(local.0).ok_or("write index local")?;
                 if active_borrows[local.0] != 0 {
@@ -741,7 +819,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             Op::WritePlace { .. } | Op::WriteIndex { .. } => Access::Write,
             _ => Access::Own,
         };
-        if ins.access != access || ins.tick != !matches!(ins.op, Op::EndLoan(_)) {
+        if ins.access != access {
             return Err("access or source tick");
         }
         if let Some(ty) = expected {
@@ -749,19 +827,23 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             if id.0 != temps.len() {
                 return Err("temporary identity");
             }
+            let scalar_snapshot = matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
+                && matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. });
             temps.push(ty);
             live.push(true);
-            borrowed.push(matches!(
-                ins.op,
-                Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BeginLoan { .. }
-            ));
+            borrowed.push(
+                matches!(
+                    ins.op,
+                    Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BeginLoan { .. }
+                ) && !scalar_snapshot,
+            );
             let source = match ins.op {
                 Op::BorrowValue(id) => Some(id),
                 Op::BorrowIndex { local, .. } => Some(local),
                 Op::BeginLoan { root, .. } => Some(root),
                 _ => None,
             };
-            if let Some(id) = source {
+            if let Some(id) = source.filter(|_| !scalar_snapshot) {
                 active_borrows[id.0] = active_borrows[id.0].checked_add(1).ok_or("borrow count")?;
             }
             let permission = match ins.op {
@@ -781,15 +863,27 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 Op::BeginLoan { loan, .. } => Some(loan),
                 _ => None,
             });
-            borrow_sources.push(source);
+            borrow_sources.push(source.filter(|_| !scalar_snapshot));
         } else if ins.output.is_some() {
             return Err("unexpected output");
+        }
+        if matches!(
+            ins.op,
+            Op::EndLoan(_) | Op::DropLocal(_) | Op::DropValue(_) | Op::DropBinding(_)
+        ) && !ins.charges.is_empty()
+        {
+            return Err("work charge rule");
+        }
+        if index_site(&ins.op).is_some_and(|(site, count)| !valid_index_site(function, site, count))
+        {
+            return Err("index site");
         }
     }
     match &function.block.terminator {
         Terminator::Return {
             value: Some(value),
             span,
+            ..
         } => {
             if !valid_span(span) {
                 return Err("terminator origin");
@@ -967,6 +1061,7 @@ impl InitTree {
 struct CfgTemp {
     ty: Ty,
     live: bool,
+    is_borrowed: bool,
     borrowed_from: Option<usize>,
     exclusive_root: Option<usize>,
     permission: Option<LoanPermission>,
@@ -985,7 +1080,7 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
                 visit(id);
             }
         }
-        Op::IndexValue { base, index } => {
+        Op::IndexValue { base, index, .. } => {
             visit(*base);
             visit(*index);
         }
@@ -1302,9 +1397,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             Terminator::Return {
                 value: Some(_),
                 span,
+                ..
             } => (vec![], span),
             Terminator::Return { value: None, .. } => return Err("missing return value"),
-            Terminator::Jump { target, span } => (vec![target.0], span),
+            Terminator::Jump { target, span, .. } => (vec![target.0], span),
             Terminator::BranchBool { yes, no, span, .. } => (vec![yes.0, no.0], span),
         };
         if !valid_span(span) {
@@ -1336,7 +1432,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 target
                     .checked_sub(1)
                     .and_then(|before| match &blocks[before].terminator {
-                        Terminator::Jump { target: dest, span } if dest.0 == target => Some(span),
+                        Terminator::Jump {
+                            target: dest, span, ..
+                        } if dest.0 == target => Some(span),
                         _ => None,
                     });
             if !preheader.is_some_and(|span| span.start < body.start && span.end >= body.end) {
@@ -1380,8 +1478,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
         super::count_cfg_work(1);
         queued[index] = false;
         let mut state = incoming[index].clone();
-        for ins in &blocks[index].instructions {
-            super::count_cfg_work(1);
+        for (position, ins) in blocks[index].instructions.iter().enumerate() {
+            if !super::model::is_drop_data_call(blocks[index], position) {
+                super::count_cfg_work(1);
+            }
             match ins.op {
                 Op::WritePlace { local, .. } => {
                     function.locals.get(local.0).ok_or("local reference")?;
@@ -1435,8 +1535,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
         visit_terminator_temps(&blocks[index].terminator, |id| {
             needed.insert(id.0);
         });
-        for ins in blocks[index].instructions.iter().rev() {
-            super::count_cfg_work(1);
+        for (position, ins) in blocks[index].instructions.iter().enumerate().rev() {
+            if !super::model::is_drop_data_call(blocks[index], position) {
+                super::count_cfg_work(1);
+            }
             if let Some(id) = ins.output {
                 needed.remove(id.0);
             }
@@ -1460,9 +1562,22 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     let mut definitions = std::collections::HashMap::<usize, (usize, CfgTemp)>::new();
     for (block_index, block) in blocks.iter().enumerate() {
         super::count_cfg_work(1);
-        for ins in &block.instructions {
-            super::count_cfg_work(1);
+        for (position, ins) in block.instructions.iter().enumerate() {
+            if !super::model::is_drop_data_call(block, position) {
+                super::count_cfg_work(1);
+            }
             if let (Some(id), Some(ty)) = (ins.output, ins.ty.clone()) {
+                let scalar_snapshot = matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
+                    && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit);
+                let is_borrowed = matches!(
+                    ins.op,
+                    Op::BorrowValue(_)
+                        | Op::BorrowIndex { .. }
+                        | Op::BeginLoan {
+                            permission: LoanPermission::Read,
+                            ..
+                        }
+                ) && !scalar_snapshot;
                 let borrowed_from = match ins.op {
                     Op::BorrowValue(root) | Op::BorrowIndex { local: root, .. } => Some(root.0),
                     Op::BeginLoan {
@@ -1471,7 +1586,11 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         ..
                     } => Some(root.0),
                     _ => None,
-                };
+                }
+                .filter(|_| {
+                    !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
+                        && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
+                });
                 let exclusive_root = match ins.op {
                     Op::BeginLoan {
                         root,
@@ -1494,6 +1613,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                             CfgTemp {
                                 ty,
                                 live: true,
+                                is_borrowed,
                                 borrowed_from,
                                 exclusive_root,
                                 permission,
@@ -1613,7 +1733,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     let loan_temporaries: Vec<usize> = definitions
         .iter()
         .filter_map(|(&id, (_, metadata))| {
-            (metadata.borrowed_from.is_some() || metadata.exclusive_root.is_some()).then_some(id)
+            (metadata.is_borrowed || metadata.exclusive_root.is_some()).then_some(id)
         })
         .collect();
     let mut outputs = HashSet::new();
@@ -1635,7 +1755,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             }
         }
         for (position, ins) in block.instructions.iter().enumerate() {
-            super::count_cfg_work(1);
+            if !super::model::is_drop_data_call(block, position) {
+                super::count_cfg_work(1);
+            }
             if !valid_span(&ins.span)
                 || ins.origin.0 != position
                 || ins.scope.0 >= function.scope_count
@@ -1663,7 +1785,8 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         if matches!(
                             local.parameter_mode,
                             Some(ParameterMode::Read | ParameterMode::Inout)
-                        ) {
+                        ) && matches!(ins.op, Op::TransferValue(_))
+                        {
                             return Err("transfer read parameter");
                         }
                         if temps.reads(id.0) != 0 || temps.exclusive(id.0) != 0 {
@@ -1680,6 +1803,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     origin_span,
                     permission,
                     parent,
+                    ..
                 } => {
                     let local = function.locals.get(root.0).ok_or("loan root")?;
                     if !tree.get(&initialized, root.0) {
@@ -1745,7 +1869,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     let Some(Ty::Result(success, error)) = &ins.ty else {
                         return Err("result type");
                     };
-                    if temps.info(*payload)?.borrowed_from.is_some()
+                    if temps.info(*payload)?.is_borrowed
                         || temps.info(*payload)?.exclusive_root.is_some()
                     {
                         return Err("borrowed result payload");
@@ -1759,7 +1883,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     let Ty::Result(_, function_error) = &function.result else {
                         return Err("propagation function type");
                     };
-                    if temps.info(*value)?.borrowed_from.is_some()
+                    if temps.info(*value)?.is_borrowed
                         || temps.info(*value)?.exclusive_root.is_some()
                     {
                         return Err("borrowed propagation operand");
@@ -1772,9 +1896,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     Some(*success)
                 }
-                Op::ReadIndex { local, indexes }
-                | Op::BorrowIndex { local, indexes }
-                | Op::CheckIndex { local, indexes } => {
+                Op::ReadIndex { local, indexes, .. }
+                | Op::BorrowIndex { local, indexes, .. }
+                | Op::CheckIndex { local, indexes, .. } => {
                     let local = function.locals.get(local.0).ok_or("read index local")?;
                     if !tree.get(&initialized, local.id.0) {
                         return Err("read index uninitialized local");
@@ -1801,7 +1925,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         Some(ty)
                     }
                 }
-                Op::IndexValue { base, index } => {
+                Op::IndexValue { base, index, .. } => {
                     let base = temps.read(*base, true)?;
                     if temps.read(*index, true)? != Ty::I64 {
                         return Err("index type");
@@ -1832,7 +1956,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     if tree.get(&initialized, local.id.0) && !local.mutable {
                         return Err("immutable rewrite");
                     }
-                    if temps.info(*value)?.borrowed_from.is_some()
+                    if temps.info(*value)?.is_borrowed
                         || temps.info(*value)?.permission == Some(LoanPermission::Inout)
                     {
                         return Err("write borrowed value");
@@ -1847,6 +1971,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     local,
                     indexes,
                     value,
+                    ..
                 } => {
                     let local = function.locals.get(local.0).ok_or("write index local")?;
                     if !tree.get(&initialized, local.id.0) || !local.mutable {
@@ -1868,7 +1993,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         };
                         ty = *child;
                     }
-                    if temps.info(*value)?.borrowed_from.is_some()
+                    if temps.info(*value)?.is_borrowed
                         || temps.info(*value)?.permission == Some(LoanPermission::Inout)
                     {
                         return Err("write borrowed value");
@@ -1893,15 +2018,13 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         return Err("intrinsic arity");
                     }
                     let first = if let Some(id) = args.first() {
-                        if *intrinsic == Intrinsic::DropData
-                            && temps.info(*id)?.borrowed_from.is_some()
-                        {
+                        if *intrinsic == Intrinsic::DropData && temps.info(*id)?.is_borrowed {
                             return Err("drop borrowed value");
                         }
                         if let Some(loan) = temps.info(*id)?.loan {
                             temps.pending_end.push(loan);
                         }
-                        let borrowed = temps.info(*id)?.borrowed_from.is_some()
+                        let borrowed = temps.info(*id)?.is_borrowed
                             || temps.info(*id)?.exclusive_root.is_some();
                         let owned_resource_read = *intrinsic == Intrinsic::Inspect
                             && !borrowed
@@ -1970,7 +2093,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         let (_, mode, ty) = signature.get(*slot).ok_or("call slot")?;
                         let info = temps.info(*id)?;
                         if *mode == ParameterMode::Consume
-                            && (info.borrowed_from.is_some() || info.exclusive_root.is_some())
+                            && (info.is_borrowed || info.exclusive_root.is_some())
                         {
                             return Err("consuming borrowed argument");
                         }
@@ -2042,6 +2165,18 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             if expected.as_ref() != ins.ty.as_ref() {
                 return Err("instruction result type");
             }
+            if matches!(
+                ins.op,
+                Op::EndLoan(_) | Op::DropLocal(_) | Op::DropValue(_) | Op::DropBinding(_)
+            ) && !ins.charges.is_empty()
+            {
+                return Err("work charge rule");
+            }
+            if index_site(&ins.op)
+                .is_some_and(|(site, count)| !valid_index_site(function, site, count))
+            {
+                return Err("index site");
+            }
             let access = match ins.op {
                 Op::CopyValue(_)
                 | Op::BorrowValue(_)
@@ -2052,7 +2187,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 Op::WritePlace { .. } | Op::WriteIndex { .. } => Access::Write,
                 _ => Access::Own,
             };
-            if ins.access != access || ins.tick != !matches!(ins.op, Op::EndLoan(_)) {
+            if ins.access != access {
                 return Err("access or source tick");
             }
             if ins.effect_io
@@ -2085,7 +2220,15 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         } => Some(root.0),
                         _ => None,
                     };
+                    let is_borrowed = borrowed_from.is_some()
+                        && !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
+                            && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit));
+                    let borrowed_from = borrowed_from.filter(|_| {
+                        !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
+                            && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
+                    });
                     if matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
+                        && !matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
                         && let Some(root) = borrowed_from
                     {
                         *temps.reads.entry(root).or_default() += 1;
@@ -2109,6 +2252,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         CfgTemp {
                             ty,
                             live: true,
+                            is_borrowed,
                             borrowed_from,
                             exclusive_root,
                             permission,
@@ -2125,7 +2269,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 value: Some(id), ..
             } => {
                 let info = temps.info(*id).map_err(|_| "undefined return temporary")?;
-                if info.borrowed_from.is_some() || info.exclusive_root.is_some() {
+                if info.is_borrowed || info.exclusive_root.is_some() {
                     return Err("borrowed return");
                 }
                 if info.ty != function.result {
@@ -2268,7 +2412,7 @@ mod tests {
                 origin: super::super::model::OriginId(0),
                 access: Access::Read,
                 effect_io: false,
-                tick: true,
+                charges: vec![],
             },
         );
         f.block.instructions.insert(
@@ -2282,7 +2426,7 @@ mod tests {
                 origin: super::super::model::OriginId(0),
                 access: Access::Own,
                 effect_io: false,
-                tick: true,
+                charges: vec![],
             },
         );
         for (index, ins) in f.block.instructions.iter_mut().enumerate() {
@@ -2299,7 +2443,7 @@ mod tests {
             .block
             .instructions
             .iter()
-            .position(|i| matches!(i.op, Op::DropBinding(_)))
+            .position(|i| matches!(i.op, Op::TransferValue(_)))
             .unwrap();
         let next = TempId(
             f.block.instructions[..pos]
@@ -2334,7 +2478,7 @@ mod tests {
                 origin: super::super::model::OriginId(0),
                 access: Access::Read,
                 effect_io: false,
-                tick: true,
+                charges: vec![],
             },
         );
         f.block.instructions.insert(
@@ -2348,14 +2492,14 @@ mod tests {
                 origin: super::super::model::OriginId(0),
                 access: Access::Own,
                 effect_io: false,
-                tick: true,
+                charges: vec![],
             },
         );
         for (index, ins) in f.block.instructions.iter_mut().enumerate() {
             ins.origin.0 = index;
         }
         f.content_hash = super::super::model::content_hash(&f);
-        assert_eq!(verify_function(&f), Err("drop while borrowed"));
+        assert_eq!(verify_function(&f), Err("transfer while borrowed"));
     }
     #[test]
     fn verifier_rejects_undefined_temporary_and_changed_hash() {
@@ -2605,7 +2749,7 @@ mod tests {
     #[test]
     fn cfg_verifier_rejects_borrowed_result_payload_and_propagation() {
         let constructor =
-            "fn Main(){let x=1;let r:Result<I64,I64>=if true then Ok(x) else Err(2);}";
+            "fn Main(){let x=[1];let r:Result<Array<I64>,I64>=if true then Ok(x) else Err(2);}";
         assert_eq!(
             changed_main(constructor, |f| {
                 assert!(!f.blocks.is_empty());
@@ -2908,7 +3052,7 @@ mod tests {
     #[test]
     fn verifier_rejects_consuming_a_borrowed_argument() {
         let got = changed_main(
-            "fn F(x: move I64) {}\nfn Main() {\n    let x = 1;\n    F(move x);\n}\n",
+            "fn F(x: move Array<I64>) {}\nfn Main() {\n    let x = [1];\n    F(move x);\n}\n",
             |f| {
                 let transfer = f
                     .block
@@ -3117,7 +3261,7 @@ mod tests {
     fn verifier_rejects_transfer_while_read_loan_remains_live() {
         let p = compile_scalar(
             "v.n",
-            "fn Main() {\n    let x = 1;\n    Print(x);\n    let y = move x;\n}\n",
+            "fn Main() {\n    let x = [1];\n    Print(x);\n    let y = move x;\n}\n",
         )
         .unwrap();
         let mut f = p.functions.function("Main").unwrap().clone();
