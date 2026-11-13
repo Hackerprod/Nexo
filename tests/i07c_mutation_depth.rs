@@ -59,10 +59,20 @@ fn indexed_binding_preserves_inferred_depth_inside_each_result_component() {
 }
 
 #[test]
-fn adr_gap_result_component_mismatch_keeps_written_expected_type() {
+fn result_component_mismatch_reports_complete_written_types() {
     for (parameter, result, expected, found) in [
-        ("Result<Bool,Bool>", "Result<I64,Bool>", "I64", "Bool"),
-        ("Result<I64,I64>", "Result<I64,Bool>", "Bool", "I64"),
+        (
+            "Result<Bool,Bool>",
+            "Result<I64,Bool>",
+            "Result<I64,Bool>",
+            "Result<Bool,Bool>",
+        ),
+        (
+            "Result<I64,I64>",
+            "Result<I64,Bool>",
+            "Result<I64,Bool>",
+            "Result<I64,I64>",
+        ),
     ] {
         let source = format!("fn F(x:view {parameter})->{result}{{return x;}} fn Main(){{}}");
         let errors = check_proposed("result_component.n", &source, false).unwrap_err();

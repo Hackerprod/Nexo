@@ -718,17 +718,21 @@ fn result_diagnostics_keep_published_data_and_related_sites() {
 }
 
 #[test]
-fn deferred_result_alias_conflict_pins_current_t01_diagnostic() {
+fn deferred_result_alias_conflict_preserves_atomic_result_equality() {
     let source = "fn Main(){let r=Err(1);let s:Result<Bool,Bool>=r;let t:Result<I64,I64>=r;}";
     let errors = rejected(source, false);
     assert_eq!(errors.len(), 1);
     assert_eq!(
         (errors[0].code.as_str(), span(&errors[0])),
-        ("NX-E0113", (16, 22))
+        ("NX-E0102", (47, 48))
     );
     assert_eq!(
-        errors[0].data.get("unresolved_components"),
-        Some(&DataValue::Array(vec![DataValue::String("$.ok".into())]))
+        errors[0].data.get("expected_type"),
+        Some(&DataValue::String("Result<Bool,Bool>".into()))
+    );
+    assert_eq!(
+        errors[0].data.get("found_type"),
+        Some(&DataValue::String("Result<I64,I64>".into()))
     );
 }
 

@@ -27,42 +27,48 @@ fn result_entry_and_propagation_on_small_stacks() {
 #[test]
 #[ignore = "sonda determinista de fuentes Result mutadas"]
 fn mutated_result_sources_do_not_panic_or_reach_invalid_ir() {
-    let mut state = 0x7e91_294b_56c3_d08au64;
     let seeds = [
         "fn Main()->Result<(),I64>{let x=TryAdd(1,2)?;return Ok(());}",
         "fn F()->Result<I64,I64>{return Err(7);}fn Main()->Result<(),I64>{let x=F()?;return Ok(());}",
         "fn Main(){let r:Result<MockResource,I64>=Ok(MockOpen(1));Drop(move r);}",
         "fn Main(){let a:Result<I64,I64>=Ok(1);AssertEq(a,a);}",
+        "fn Main(){let r=Ok(1);let s:Result<I64,Bool>=r;}",
+        "fn Main(){let r=Err(1);let s:Result<Bool,Bool>=r;let t:Result<I64,I64>=r;}",
+        "fn Main(){let r=Ok(Ok(1));let s:Result<Result<I64,Bool>,I64>=r;}",
+        "fn Main(){let r=TryAdd(1,2);AssertEq(Ok(3),r);}",
     ];
     let alphabet = b"?<>():,{}[]+-0123456789IRltuyOkeMna ;";
-    for index in 0..20_000 {
-        state ^= state << 13;
-        state ^= state >> 7;
-        state ^= state << 17;
-        let mut bytes = seeds[(state as usize) % seeds.len()].as_bytes().to_vec();
-        let mutations = 1 + (state as usize % 3);
-        for _ in 0..mutations {
+    for seed in [0x7e91_294b_56c3_d08au64, 0xf000_7007_2026_1113u64] {
+        let mut state = seed;
+        for index in 0..20_000 {
             state ^= state << 13;
             state ^= state >> 7;
             state ^= state << 17;
-            let at = (state as usize) % bytes.len();
-            bytes[at] = alphabet[((state >> 19) as usize) % alphabet.len()];
-        }
-        let source = String::from_utf8(bytes).unwrap();
-        let result = std::panic::catch_unwind(|| {
-            let _ = ir::check_scalar(FILE, &source);
-            match ir::compile_scalar(FILE, &source) {
-                Ok(program) => {
-                    let execution = interp::run_scalar(&program, Default::default());
-                    assert!(!matches!(execution.outcome, Outcome::InternalError(_)));
-                }
-                Err(CompileError::Rejected(_)) => {}
-                Err(other) => panic!("unexpected compilation state: {other:?}"),
+            let mut bytes = seeds[(state as usize) % seeds.len()].as_bytes().to_vec();
+            let mutations = 1 + (state as usize % 3);
+            for _ in 0..mutations {
+                state ^= state << 13;
+                state ^= state >> 7;
+                state ^= state << 17;
+                let at = (state as usize) % bytes.len();
+                bytes[at] = alphabet[((state >> 19) as usize) % alphabet.len()];
             }
-        });
-        assert!(
-            result.is_ok(),
-            "seed=0x7e91294b56c3d08a index={index} source={source}"
-        );
+            let source = String::from_utf8(bytes).unwrap();
+            let result = std::panic::catch_unwind(|| {
+                let _ = ir::check_scalar(FILE, &source);
+                match ir::compile_scalar(FILE, &source) {
+                    Ok(program) => {
+                        let execution = interp::run_scalar(&program, Default::default());
+                        assert!(!matches!(execution.outcome, Outcome::InternalError(_)));
+                    }
+                    Err(CompileError::Rejected(_)) => {}
+                    Err(other) => panic!("unexpected compilation state: {other:?}"),
+                }
+            });
+            assert!(
+                result.is_ok(),
+                "seed={seed:#x} index={index} source={source}"
+            );
+        }
     }
 }

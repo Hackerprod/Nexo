@@ -307,6 +307,9 @@ struct TypeNode {
     array_child: Option<u64>,
     array_origin: Option<Span>,
     array_constructed: bool,
+    result_children: Option<(u64, u64)>,
+    result_origin: Option<Span>,
+    result_constructed: bool,
     bottom_only: bool,
     // Only presence is tested by bind/union. The earliest span is retained
     // for deterministic propagation, but changing one Some(span) to another
@@ -315,6 +318,7 @@ struct TypeNode {
     copyable_origin: Option<Span>,
 }
 
+#[derive(Clone)]
 struct PendingDeferredJoin {
     left: Type,
     right: Type,
@@ -327,6 +331,7 @@ struct PendingDeferredJoin {
     comparison_domain_if_unresolved: Option<PendingComparisonDomain>,
 }
 
+#[derive(Clone)]
 struct PendingComparisonDomain {
     left: Type,
     operator: Span,
@@ -334,12 +339,14 @@ struct PendingComparisonDomain {
     domain: &'static str,
 }
 
+#[derive(Clone)]
 struct PendingDomain {
     variable: u64,
     operand: Span,
     domain: &'static str,
 }
 
+#[derive(Clone)]
 struct PendingDomainResult {
     variable: u64,
     domain: &'static str,
@@ -350,6 +357,7 @@ struct PendingDomainResult {
     depends_on: Option<Span>,
 }
 
+#[derive(Clone)]
 struct PendingBinaryDomain {
     variable: u64,
     operator: Span,
@@ -383,6 +391,7 @@ struct PendingOperandEvidence {
     results: Vec<Span>,
 }
 
+#[derive(Clone)]
 struct PendingProjection {
     base: u64,
     item: u64,
@@ -397,6 +406,7 @@ struct PendingProjection {
     related_expected: bool,
 }
 
+#[derive(Clone)]
 struct ReadPlan {
     ty: Type,
     blocked: Vec<(u64, u64)>,
@@ -410,8 +420,10 @@ enum ShapeHint {
     Array(Box<ShapeHint>),
 }
 
+#[derive(Clone)]
 enum PendingConstraint {
     Constructor { child: u64, array: u64, span: Span },
+    ResultConstructor { result: u64, span: Span },
     Join(Box<PendingDeferredJoin>),
     Domain(PendingDomain),
     DomainResult(Box<PendingDomainResult>),
@@ -638,6 +650,7 @@ fn compare_source_site(
 }
 
 #[allow(clippy::vec_box)] // Public semantic result keeps boxed diagnostics.
+#[derive(Clone)]
 struct Checker<'a> {
     file: &'a str,
     tokens: Vec<Token>,
@@ -990,6 +1003,9 @@ impl Checker<'_> {
                     array_child: None,
                     array_origin: None,
                     array_constructed: false,
+                    result_children: None,
+                    result_origin: None,
+                    result_constructed: false,
                     bottom_only: false,
                     copyable_origin: Some(origin.clone()),
                 },
@@ -1028,6 +1044,39 @@ impl Checker<'_> {
                 _ => None,
             })
             .collect()
+    }
+
+    fn pending_result_constructors(&self) -> Vec<(u64, Span)> {
+        self.pending
+            .iter()
+            .filter_map(|entry| match entry {
+                PendingConstraint::ResultConstructor { result, span } => {
+                    Some((*result, span.clone()))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn unresolved_result_paths(
+        &mut self,
+        id: u64,
+        path: String,
+        depth: usize,
+        paths: &mut Vec<DataValue>,
+    ) {
+        if depth > 128 || self.concrete(id).is_some() {
+            return;
+        }
+        let root = self.root(id);
+        if let Some(child) = self.type_nodes[&root].array_child {
+            self.unresolved_result_paths(child, format!("{path}.element"), depth + 1, paths);
+        } else if let Some((ok, err)) = self.type_nodes[&root].result_children {
+            self.unresolved_result_paths(ok, format!("{path}.ok"), depth + 1, paths);
+            self.unresolved_result_paths(err, format!("{path}.err"), depth + 1, paths);
+        } else {
+            paths.push(DataValue::String(path));
+        }
     }
     fn pending_joins(&self) -> impl Iterator<Item = &PendingDeferredJoin> {
         self.pending.iter().filter_map(|entry| match entry {
@@ -1722,6 +1771,9 @@ impl Checker<'_> {
                 array_child: None,
                 array_origin: None,
                 array_constructed: false,
+                result_children: None,
+                result_origin: None,
+                result_constructed: false,
                 bottom_only: false,
                 copyable_origin: None,
             },
@@ -1738,6 +1790,14 @@ impl Checker<'_> {
             }
             return Ok(child);
         }
+        if self.type_nodes[&root].result_children.is_some()
+            || self.type_nodes[&root]
+                .concrete
+                .as_ref()
+                .is_some_and(|(ty, _)| !matches!(ty, Type::Array(..)))
+        {
+            return Err(unresolved_type(origin.clone()));
+        }
         let child = self.new_variable(origin)?;
         self.type_nodes.get_mut(&root).unwrap().array_child = Some(child);
         self.type_nodes.get_mut(&root).unwrap().array_origin = Some(origin.clone());
@@ -1748,6 +1808,46 @@ impl Checker<'_> {
         self.type_nodes.get_mut(&child).unwrap().copyable_origin = Some(origin.clone());
         self.check_one_inferred_depth(root, origin)?;
         Ok(child)
+    }
+
+    fn require_result(&mut self, id: u64, origin: &Span) -> Result<(u64, u64), Box<Diagnostic>> {
+        self.charge_solver(origin)?;
+        let root = self.root(id);
+        if let Some(children) = self.type_nodes[&root].result_children {
+            return Ok(children);
+        }
+        if self.type_nodes[&root].array_child.is_some()
+            || self.type_nodes[&root]
+                .concrete
+                .as_ref()
+                .is_some_and(|(ty, _)| !matches!(ty, Type::Result(..)))
+        {
+            return Err(unresolved_type(origin.clone()));
+        }
+        let ok = self.new_variable(origin)?;
+        let err = self.new_variable(origin)?;
+        if let Some((Type::Result(a, b), previous_origin)) = self.type_nodes[&root].concrete.clone()
+        {
+            self.type_nodes.get_mut(&root).unwrap().concrete = None;
+            let intrinsic = self.type_nodes[&root].concrete_intrinsic;
+            self.bind(
+                ok,
+                a.as_ref().clone(),
+                previous_origin.clone(),
+                origin.clone(),
+                intrinsic,
+            )?;
+            self.bind(
+                err,
+                b.as_ref().clone(),
+                previous_origin,
+                origin.clone(),
+                intrinsic,
+            )?;
+        }
+        self.type_nodes.get_mut(&root).unwrap().result_children = Some((ok, err));
+        self.type_nodes.get_mut(&root).unwrap().result_origin = Some(origin.clone());
+        Ok((ok, err))
     }
 
     fn require_copyable(&mut self, id: u64, origin: &Span) -> Result<(), Box<Diagnostic>> {
@@ -1763,6 +1863,13 @@ impl Checker<'_> {
                 "domain:copyable_data",
                 &ty,
             ));
+        }
+        if self.type_nodes[&root].result_children.is_some() && self.concrete(root).is_none() {
+            self.pending.push(PendingConstraint::Domain(PendingDomain {
+                variable: root,
+                operand: origin.clone(),
+                domain: "domain:copyable_data",
+            }));
         }
         // Only presence of this domain is consulted by unification. A later
         // failure uses its current operand as primary, so choosing the first
@@ -1798,23 +1905,38 @@ impl Checker<'_> {
     }
 
     fn concrete(&mut self, id: u64) -> Option<(Type, Span)> {
-        let mut current = self.root(id);
-        let mut wrappers = 0;
-        loop {
-            if let Some((mut ty, origin)) = self.type_nodes[&current].concrete.clone() {
-                for _ in 0..wrappers {
-                    ty = Type::Array(Arc::new(ty));
-                }
-                return Some((ty, origin));
-            }
-            let child = self.type_nodes[&current].array_child?;
-            wrappers += 1;
-            if wrappers > 128 {
-                // The structural guard reports NX-E0003 from a source origin.
+        self.concrete_with_depth(id, 0)
+    }
+
+    fn concrete_with_depth(&mut self, id: u64, depth: usize) -> Option<(Type, Span)> {
+        if depth > 128 {
+            return None;
+        }
+        let root = self.root(id);
+        let node = self.type_nodes[&root].clone();
+        if let Some(concrete) = node.concrete {
+            if node.array_child.is_some() && !matches!(concrete.0, Type::Array(..))
+                || node.result_children.is_some() && !matches!(concrete.0, Type::Result(..))
+            {
+                // A malformed representative must remain unresolved instead
+                // of hiding its structural children behind a scalar witness.
                 return None;
             }
-            current = self.root(child);
+            return Some(concrete);
         }
+        if let Some(child) = node.array_child {
+            let (ty, child_origin) = self.concrete_with_depth(child, depth + 1)?;
+            return Some((Type::Array(Arc::new(ty)), child_origin));
+        }
+        if let Some((ok, err)) = node.result_children {
+            let (ok_ty, ok_origin) = self.concrete_with_depth(ok, depth + 1)?;
+            let (err_ty, _) = self.concrete_with_depth(err, depth + 1)?;
+            return Some((
+                Type::Result(Arc::new(ok_ty), Arc::new(err_ty)),
+                node.result_origin.unwrap_or(ok_origin),
+            ));
+        }
+        None
     }
 
     fn concrete_evidence(&mut self, id: u64) -> Option<ConcreteEvidence> {
@@ -1833,10 +1955,11 @@ impl Checker<'_> {
             if node.concrete.is_some() {
                 return node.concrete_intrinsic;
             }
-            let Some(child) = node.array_child else {
+            if let Some(child) = node.array_child {
+                current = self.root(child);
+            } else {
                 return false;
-            };
-            current = self.root(child);
+            }
         }
         false
     }
@@ -1864,7 +1987,9 @@ impl Checker<'_> {
             Type::Deferred(id) => {
                 let root = self.root(*id);
                 let node = &self.type_nodes[&root];
-                node.concrete.is_some() || node.array_child.is_some()
+                node.concrete.is_some()
+                    || node.array_child.is_some()
+                    || node.result_children.is_some()
             }
             Type::Never | Type::Tainted => false,
             _ => true,
@@ -1896,10 +2021,55 @@ impl Checker<'_> {
         found: Span,
         intrinsic: bool,
     ) -> Result<(), Box<Diagnostic>> {
+        // Divergence contributes no witness for either component. Keeping it
+        // as a concrete node would make later compatible equalities conflict.
+        if ty == Type::Never {
+            return Ok(());
+        }
         // A constructor containing a variable is a structural constraint,
         // never a concrete type stored in a union-find representative.
         if let Type::Deferred(other) = ty {
             return self.union(id, other, found);
+        }
+        if let Type::Result(ok, err) = &ty {
+            let root = self.root(id);
+            if internal_state(&ty).is_some() || self.type_nodes[&root].result_children.is_some() {
+                let ok = ok.as_ref().clone();
+                let err = err.as_ref().clone();
+                return self.atomic(|checker| {
+                    let root = checker.root(id);
+                    let was_concrete = checker.concrete(root).is_some();
+                    if let Some((previous, previous_origin)) =
+                        checker.type_nodes[&root].concrete.clone()
+                        && !matches!(previous, Type::Result(..))
+                    {
+                        let expected =
+                            pretty(&previous).ok_or_else(|| unresolved_type(found.clone()))?;
+                        return Err(mismatch(
+                            found.clone(),
+                            found.clone(),
+                            (!checker.origin_intrinsic(root)).then_some(previous_origin),
+                            &expected,
+                            &ty,
+                        ));
+                    }
+                    let (ok_id, err_id) = checker.require_result(id, &found)?;
+                    checker.bind(ok_id, ok, origin.clone(), found.clone(), intrinsic)?;
+                    checker.bind(err_id, err, origin.clone(), found.clone(), intrinsic)?;
+                    if !was_concrete && checker.concrete(root).is_some() {
+                        checker.type_nodes.get_mut(&root).unwrap().result_origin =
+                            Some(origin.clone());
+                    }
+                    Ok(())
+                });
+            }
+        }
+        let root = self.root(id);
+        if self.type_nodes[&root].result_children.is_some() {
+            // A Result shape cannot be replaced by a scalar while one of its
+            // children is still open. The source equality owns the conflict;
+            // its caller can defer it until both whole types are printable.
+            return Err(unresolved_type(found));
         }
         if let Type::Array(element) = ty {
             let root = self.root(id);
@@ -2020,6 +2190,26 @@ impl Checker<'_> {
         Ok(())
     }
 
+    fn atomic<T>(
+        &mut self,
+        work: impl FnOnce(&mut Self) -> Result<T, Box<Diagnostic>>,
+    ) -> Result<T, Box<Diagnostic>> {
+        let snapshot = self.clone();
+        match work(self) {
+            Ok(value) => Ok(value),
+            Err(error) => {
+                let steps = self.solver_steps;
+                let quota = self.quota_error.clone();
+                *self = snapshot;
+                self.solver_steps = steps;
+                if quota.is_some() {
+                    self.quota_error = quota;
+                }
+                Err(error)
+            }
+        }
+    }
+
     fn fail_constructed_dependents(&mut self, element: u64) {
         // §13.9: an array whose element already failed a concrete constraint
         // must not add an unresolved-constructor consequence at function end.
@@ -2080,7 +2270,10 @@ impl Checker<'_> {
         // source types deeper than 128 are rejected by the array-depth
         // limit before this shape walk; iteration 129 has no reachable node.
         for _ in 0..=128 {
-            let node = &self.type_nodes[&current];
+            let node = self.type_nodes[&current].clone();
+            if node.result_children.is_some() && self.result_shape_conflict(current, part, 0) {
+                return Ok(Some(current));
+            }
             if node.array_constructed {
                 constructed_owner = Some(current);
             }
@@ -2102,6 +2295,21 @@ impl Checker<'_> {
             }
         }
         Ok(None)
+    }
+
+    fn result_shape_conflict(&mut self, id: u64, against: &Type, depth: usize) -> bool {
+        if depth > 128 || matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {
+            return false;
+        }
+        let root = self.root(id);
+        let Some((ok, err)) = self.type_nodes[&root].result_children else {
+            return false;
+        };
+        let Type::Result(wanted_ok, wanted_err) = against else {
+            return true;
+        };
+        self.result_shape_conflict(ok, wanted_ok, depth + 1)
+            || self.result_shape_conflict(err, wanted_err, depth + 1)
     }
 
     fn defer_shape_conflict(
@@ -2213,10 +2421,14 @@ impl Checker<'_> {
                 {
                     // A branch may make its earlier deferred operand concrete
                     // while evaluating the later continuation (§4.7).
-                    return Err(
-                        compare_source_site(&left, &right, left_origin, found, policy)
-                            .expect("distinct concrete branch types"),
-                    );
+                    return Err(compare_source_site(
+                        &left,
+                        &right,
+                        left_origin,
+                        found.clone(),
+                        policy,
+                    )
+                    .unwrap_or_else(|| unresolved_type(found)));
                 }
                 // A concrete scalar cannot be united with a still unresolved
                 // literal-array child. Keep both whole roots until later
@@ -2225,6 +2437,28 @@ impl Checker<'_> {
                 // child representatives before discovering the contradiction.
                 let l = self.concrete(a);
                 let r = self.concrete(b);
+                let a_root = self.root(a);
+                let b_root = self.root(b);
+                let incompatible_shapes = self.type_nodes[&a_root].array_child.is_some()
+                    && self.type_nodes[&b_root].result_children.is_some()
+                    || self.type_nodes[&a_root].result_children.is_some()
+                        && self.type_nodes[&b_root].array_child.is_some();
+                if incompatible_shapes {
+                    let constructor = if self.type_nodes[&a_root].result_children.is_some() {
+                        a_root
+                    } else {
+                        b_root
+                    };
+                    self.defer_shape_conflict(
+                        Type::Deferred(a),
+                        Type::Deferred(b),
+                        constructor,
+                        left_origin,
+                        found,
+                        policy,
+                    );
+                    return Ok(Type::Deferred(a_root));
+                }
                 let constructor = match (&l, &r) {
                     (Some((ty, _)), None) => {
                         self.unresolved_constructor_shape_conflict(b, ty, &found)?
@@ -2249,6 +2483,27 @@ impl Checker<'_> {
                 let previous = self.pending_join_count();
                 match self.union(a, b, found.clone()) {
                     Ok(()) => {}
+                    Err(error)
+                        if error.code == "NX-E0102"
+                            && (self.type_nodes[&a_root].result_children.is_some()
+                                || self.type_nodes[&b_root].result_children.is_some())
+                            && (self.concrete(a).is_none() || self.concrete(b).is_none()) =>
+                    {
+                        let constructor = self.root(a);
+                        self.pending
+                            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+                                left: Type::Deferred(a),
+                                right: Type::Deferred(b),
+                                constructor,
+                                left_origin,
+                                found,
+                                branch,
+                                related_expected,
+                                numeric_domain_owner: self.numeric_domain_owner,
+                                comparison_domain_if_unresolved: None,
+                            })));
+                        return Ok(Type::Deferred(constructor));
+                    }
                     Err(error) if error.code == "NX-E0103" => {
                         // ADR §4.1.2.2: a recursive equality is rejected at
                         // this occurrence, but later compatible constraints
@@ -2287,10 +2542,14 @@ impl Checker<'_> {
                     && let Some((left, _)) = self.concrete(id)
                     && left != other
                 {
-                    return Err(
-                        compare_source_site(&left, &other, left_origin, found, policy)
-                            .expect("distinct concrete branch types"),
-                    );
+                    return Err(compare_source_site(
+                        &left,
+                        &other,
+                        left_origin,
+                        found.clone(),
+                        policy,
+                    )
+                    .unwrap_or_else(|| unresolved_type(found)));
                 }
                 if internal_state(&other).is_none()
                     && let Some(constructor) =
@@ -2308,7 +2567,35 @@ impl Checker<'_> {
                     return Ok(Type::Deferred(self.root(id)));
                 }
                 let previous = self.pending_join_count();
-                self.bind(id, other.clone(), right_origin, found, !related_expected)?;
+                if let Err(error) = self.bind(
+                    id,
+                    other.clone(),
+                    right_origin,
+                    found.clone(),
+                    !related_expected,
+                ) {
+                    let root = self.root(id);
+                    if error.code == "NX-E0102"
+                        && matches!(other, Type::Result(..))
+                        && self.type_nodes[&root].result_children.is_some()
+                        && self.concrete(id).is_none()
+                    {
+                        self.pending
+                            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+                                left: Type::Deferred(id),
+                                right: other,
+                                constructor: root,
+                                left_origin,
+                                found,
+                                branch,
+                                related_expected,
+                                numeric_domain_owner: self.numeric_domain_owner,
+                                comparison_domain_if_unresolved: None,
+                            })));
+                        return Ok(Type::Deferred(root));
+                    }
+                    return Err(error);
+                }
                 for join in self.pending_joins_mut().skip(previous) {
                     join.left = Type::Deferred(id);
                     join.right = other.clone();
@@ -2325,10 +2612,14 @@ impl Checker<'_> {
                     && let Some((right, _)) = self.concrete(id)
                     && other != right
                 {
-                    return Err(
-                        compare_source_site(&other, &right, left_origin, found, policy)
-                            .expect("distinct concrete source types"),
-                    );
+                    return Err(compare_source_site(
+                        &other,
+                        &right,
+                        left_origin,
+                        found.clone(),
+                        policy,
+                    )
+                    .unwrap_or_else(|| unresolved_type(found)));
                 }
                 if internal_state(&other).is_none()
                     && let Some(constructor) =
@@ -2346,13 +2637,35 @@ impl Checker<'_> {
                     return Ok(Type::Deferred(self.root(id)));
                 }
                 let previous = self.pending_join_count();
-                self.bind(
+                if let Err(error) = self.bind(
                     id,
                     other.clone(),
                     left_origin.clone(),
-                    found,
+                    found.clone(),
                     !related_expected,
-                )?;
+                ) {
+                    let root = self.root(id);
+                    if error.code == "NX-E0102"
+                        && matches!(other, Type::Result(..))
+                        && self.type_nodes[&root].result_children.is_some()
+                        && self.concrete(id).is_none()
+                    {
+                        self.pending
+                            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+                                left: other,
+                                right: Type::Deferred(id),
+                                constructor: root,
+                                left_origin,
+                                found,
+                                branch,
+                                related_expected,
+                                numeric_domain_owner: self.numeric_domain_owner,
+                                comparison_domain_if_unresolved: None,
+                            })));
+                        return Ok(Type::Deferred(root));
+                    }
+                    return Err(error);
+                }
                 for join in self.pending_joins_mut().skip(previous) {
                     join.left = other.clone();
                     join.right = Type::Deferred(id);
@@ -2418,23 +2731,35 @@ impl Checker<'_> {
                 Ok(resolved)
             }
             (Type::Result(a_ok, a_err), Type::Result(b_ok, b_err)) => {
-                let ok = self.unify(
-                    a_ok.as_ref().clone(),
-                    b_ok.as_ref().clone(),
-                    left_origin.clone(),
-                    right_origin.clone(),
-                    found.clone(),
-                    branch,
-                )?;
-                let err = self.unify(
-                    a_err.as_ref().clone(),
-                    b_err.as_ref().clone(),
-                    left_origin,
-                    right_origin,
-                    found,
-                    branch,
-                )?;
-                Ok(Type::Result(Arc::new(ok), Arc::new(err)))
+                let expected = Type::Result(a_ok.clone(), a_err.clone());
+                let found_type = Type::Result(b_ok.clone(), b_err.clone());
+                let compare = |checker: &mut Self| {
+                    let ok = checker.unify(
+                        a_ok.as_ref().clone(),
+                        b_ok.as_ref().clone(),
+                        left_origin.clone(),
+                        right_origin.clone(),
+                        found.clone(),
+                        branch,
+                    )?;
+                    let err = checker.unify(
+                        a_err.as_ref().clone(),
+                        b_err.as_ref().clone(),
+                        left_origin,
+                        right_origin,
+                        found,
+                        branch,
+                    )?;
+                    Ok(Type::Result(Arc::new(ok), Arc::new(err)))
+                };
+                let outcome = if internal_state(&expected).is_none()
+                    && internal_state(&found_type).is_none()
+                {
+                    compare(self)
+                } else {
+                    self.atomic(compare)
+                };
+                outcome.map_err(|error| array_mismatch(error, &expected, &found_type))
             }
             (a, b) => match compare_source_site(&a, &b, left_origin, found, policy) {
                 Some(error) => Err(error),
@@ -2444,17 +2769,42 @@ impl Checker<'_> {
     }
 
     fn union(&mut self, left: u64, right: u64, found: Span) -> Result<(), Box<Diagnostic>> {
+        let l = self.root(left);
+        let r = self.root(right);
+        if self.type_nodes[&l].result_children.is_some()
+            || self.type_nodes[&r].result_children.is_some()
+        {
+            return self.atomic(|checker| checker.union_inner(left, right, found));
+        }
+        self.union_inner(left, right, found)
+    }
+
+    fn union_inner(&mut self, left: u64, right: u64, found: Span) -> Result<(), Box<Diagnostic>> {
         self.charge_solver(&found)?;
         let l = self.root(left);
         let r = self.root(right);
         if l == r {
             return Ok(());
         }
-        if (self.type_nodes[&l].array_child.is_some() || self.type_nodes[&r].array_child.is_some())
-            && (self.array_reaches(l, r, &found)? || self.array_reaches(r, l, &found)?)
+        if self.type_nodes[&l].array_child.is_some()
+            && self.type_nodes[&r].result_children.is_some()
+            || self.type_nodes[&l].result_children.is_some()
+                && self.type_nodes[&r].array_child.is_some()
         {
-            self.fail_constructed_dependents(l);
-            self.fail_constructed_dependents(r);
+            return Err(unresolved_type(found));
+        }
+        if (self.type_nodes[&l].array_child.is_some()
+            || self.type_nodes[&l].result_children.is_some()
+            || self.type_nodes[&r].array_child.is_some()
+            || self.type_nodes[&r].result_children.is_some())
+            && (self.type_reaches(l, r, &found)? || self.type_reaches(r, l, &found)?)
+        {
+            if self.type_nodes[&l].array_child.is_some()
+                || self.type_nodes[&r].array_child.is_some()
+            {
+                self.fail_constructed_dependents(l);
+                self.fail_constructed_dependents(r);
+            }
             // A finite monomorphic type cannot contain itself. The ADR does
             // not assign a separate occurs-check code; inference remains
             // unresolved at this constructor.
@@ -2483,6 +2833,27 @@ impl Checker<'_> {
         let b_intrinsic = self.type_nodes[&b].concrete_intrinsic;
         let a_child = self.type_nodes[&a].array_child;
         let b_child = self.type_nodes[&b].array_child;
+        let a_result = self.type_nodes[&a].result_children;
+        let b_result = self.type_nodes[&b].result_children;
+        if let Some((other, _)) = &b_concrete
+            && a_result.is_some()
+            && !matches!(other, Type::Result(..))
+        {
+            return Err(unresolved_type(found));
+        }
+        if let Some((other, _)) = &a_concrete
+            && b_result.is_some()
+            && !matches!(other, Type::Result(..))
+        {
+            return Err(unresolved_type(found));
+        }
+        let (a_full, b_full) = if a_result.is_some() || b_result.is_some() {
+            (self.concrete(a), self.concrete(b))
+        } else {
+            (None, None)
+        };
+        let result_constructed =
+            self.type_nodes[&a].result_constructed || self.type_nodes[&b].result_constructed;
         let array_constructed =
             self.type_nodes[&a].array_constructed || self.type_nodes[&b].array_constructed;
         let bottom_only = self.type_nodes[&a].bottom_only || self.type_nodes[&b].bottom_only;
@@ -2528,6 +2899,38 @@ impl Checker<'_> {
                 a_intrinsic,
             )?;
         }
+        if let (Some((ok, err)), Some((Type::Result(a, b), origin))) = (a_result, &b_concrete) {
+            self.bind(
+                ok,
+                a.as_ref().clone(),
+                origin.clone(),
+                found.clone(),
+                b_intrinsic,
+            )?;
+            self.bind(
+                err,
+                b.as_ref().clone(),
+                origin.clone(),
+                found.clone(),
+                b_intrinsic,
+            )?;
+        }
+        if let (Some((ok, err)), Some((Type::Result(a, b), origin))) = (b_result, &a_concrete) {
+            self.bind(
+                ok,
+                a.as_ref().clone(),
+                origin.clone(),
+                found.clone(),
+                a_intrinsic,
+            )?;
+            self.bind(
+                err,
+                b.as_ref().clone(),
+                origin.clone(),
+                found.clone(),
+                a_intrinsic,
+            )?;
+        }
         if let Some((other, _)) = &b_concrete
             && a_child.is_some()
             && !matches!(other, Type::Array(_))
@@ -2561,9 +2964,26 @@ impl Checker<'_> {
         if let (Some(left_child), Some(right_child)) = (a_child, b_child) {
             self.union(left_child, right_child, found.clone())?;
         }
+        if let (Some((a_ok, a_err)), Some((b_ok, b_err))) = (a_result, b_result) {
+            self.union(a_ok, b_ok, found.clone())?;
+            self.union(a_err, b_err, found.clone())?;
+        }
         self.type_nodes.get_mut(&b).unwrap().parent = a;
         self.type_nodes.get_mut(&a).unwrap().size += self.type_nodes[&b].size;
         self.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);
+        self.type_nodes.get_mut(&a).unwrap().result_children = a_result.or(b_result);
+        self.type_nodes.get_mut(&a).unwrap().result_constructed = result_constructed;
+        self.type_nodes.get_mut(&a).unwrap().result_origin = self.type_nodes[&a]
+            .result_origin
+            .clone()
+            .or_else(|| self.type_nodes[&b].result_origin.clone());
+        if self.type_nodes[&a].result_children.is_some() {
+            if let Some(origin) = a_full.or(b_full).map(|(_, origin)| origin) {
+                self.type_nodes.get_mut(&a).unwrap().result_origin = Some(origin);
+            } else if self.concrete(a).is_some() {
+                self.type_nodes.get_mut(&a).unwrap().result_origin = Some(found.clone());
+            }
+        }
         self.type_nodes.get_mut(&a).unwrap().array_constructed = array_constructed;
         self.type_nodes.get_mut(&a).unwrap().bottom_only = bottom_only;
         // only presence of copyable_origin participates in constraints.
@@ -2603,27 +3023,37 @@ impl Checker<'_> {
         Ok(())
     }
 
-    fn array_reaches(
+    fn type_reaches(
         &mut self,
         start: u64,
         target: u64,
         found: &Span,
     ) -> Result<bool, Box<Diagnostic>> {
-        let mut current = start;
-        for _ in 0..=self.next_variable {
-            let Some(child) = self.type_nodes[&current].array_child else {
-                return Ok(false);
-            };
-            self.charge_solver(found)?;
-            current = self.root(child);
+        let target = self.root(target);
+        let mut work = vec![(self.root(start), false)];
+        let mut seen = HashSet::new();
+        while let Some((current, traversed)) = work.pop() {
+            if traversed {
+                self.charge_solver(found)?;
+            }
+            let current = self.root(current);
+            if !seen.insert(current) {
+                continue;
+            }
             if current == target {
                 return Ok(true);
             }
+            let array_child = self.type_nodes[&current].array_child;
+            let result_children = self.type_nodes[&current].result_children;
+            if let Some(child) = array_child {
+                work.push((child, true));
+            }
+            if let Some((ok, err)) = result_children {
+                work.push((err, true));
+                work.push((ok, true));
+            }
         }
-        // The union occurs check prevents cycles. In an acyclic graph a walk
-        // visits at most next_variable distinct nodes, so this fallback is
-        // unreachable; it rejects defensively if the invariant is broken.
-        Ok(true)
+        Ok(false)
     }
 
     fn inferred_array_depth(&mut self, id: u64) -> usize {
@@ -3275,6 +3705,9 @@ impl Checker<'_> {
                         continue;
                     }
                 }
+                if self.type_nodes[&constructor].result_children.is_some() {
+                    continue;
+                }
                 self.unresolved_constructor_diagnostic(constructor, join.found)
             };
             if error.code == "NX-E0102"
@@ -3318,6 +3751,13 @@ impl Checker<'_> {
             .collect();
         for (child, array, span) in self.pending_constructors() {
             let root = self.root(array);
+            let child_root = self.root(child);
+            let result_child_owns_inference =
+                self.type_nodes[&child_root].result_children.is_some()
+                    && self
+                        .pending_result_constructors()
+                        .into_iter()
+                        .any(|(result, _)| self.root(result) == child_root);
             let own_inference_cause = causal_inference_sites.iter().any(|&(start, end)| {
                 start <= span.start && span.end <= end && (start, end) != span_key(&span)
             });
@@ -3328,6 +3768,7 @@ impl Checker<'_> {
                 || shared_inference_roots.contains(&root))
                 && self.concrete(child).is_none()
                 && !unresolved_arrays.contains(&self.root(child))
+                && !result_child_owns_inference
             {
                 self.record_error(names::diagnostic(
                     "NX-E0103",
@@ -3336,6 +3777,28 @@ impl Checker<'_> {
                     Operation::TypesInfer,
                     span,
                 ));
+            }
+        }
+        for (result, span) in self.pending_result_constructors() {
+            let array_cause = self.errors.iter().any(|error| {
+                error.code == "NX-E0103"
+                    && error
+                        .primary_span
+                        .as_ref()
+                        .is_some_and(|site| span.start <= site.start && site.end <= span.end)
+            });
+            if array_cause {
+                continue;
+            }
+            let mut paths = Vec::new();
+            self.unresolved_result_paths(result, "$".into(), 0, &mut paths);
+            if !paths.is_empty() {
+                let mut diagnostic =
+                    names::diagnostic("NX-E0113", None, Stage::Types, Operation::TypesInfer, span);
+                diagnostic
+                    .data
+                    .insert("unresolved_components".into(), DataValue::Array(paths));
+                self.record_error(diagnostic);
             }
         }
         for domain in self.take_pending_kind(|entry| match entry {
@@ -4133,7 +4596,9 @@ impl Checker<'_> {
                     // This keeps the source operand's full type and delays
                     // serialization until its element is determined.
                     let pending_outer_shape = matches!((&got, expected), (Type::Array(_), ty)
-                        if !matches!(ty, Type::Array(_)));
+                        if !matches!(ty, Type::Array(_)))
+                        || matches!((&got, expected), (Type::Result(..), ty)
+                            if !matches!(ty, Type::Result(..)));
                     let compared = if (context.outer_compare || pending_outer_shape)
                         && internal_state(&got).is_some()
                     {
@@ -4303,6 +4768,30 @@ impl Checker<'_> {
                 if operand == Type::Never {
                     return Ok(Type::Never);
                 }
+                // A monomorphic binding can still be represented by its
+                // deferred root even after Ok/Err established Result children.
+                // Project those same children so `?` constrains the graph
+                // shared by every use of the binding and its aliases.
+                let operand = match operand {
+                    Type::Deferred(id) => {
+                        if let Some((ty, _)) = self.concrete(id) {
+                            ty
+                        } else {
+                            let root = self.root(id);
+                            if self.type_nodes[&root].result_children.is_none() {
+                                Type::Deferred(id)
+                            } else {
+                                let (ok, err) =
+                                    self.require_result(id, &Self::primary_span(value))?;
+                                Type::Result(
+                                    Arc::new(Type::Deferred(ok)),
+                                    Arc::new(Type::Deferred(err)),
+                                )
+                            }
+                        }
+                    }
+                    other => other,
+                };
                 let Type::Result(ok, err) = operand else {
                     return Err(mismatch(
                         Span {
@@ -4329,18 +4818,33 @@ impl Checker<'_> {
                         &self.result,
                     ));
                 };
-                if err != *function_err {
+                let function_err = function_err.as_ref().clone();
+                let try_site = Span {
+                    file: span.file.clone(),
+                    start: span.end - 1,
+                    end: span.end,
+                };
+                if let Some(err_type) = self.resolved_join_side(err.as_ref().clone())
+                    && err_type != function_err
+                {
                     return Err(mismatch(
-                        Span {
-                            file: span.file.clone(),
-                            start: span.end - 1,
-                            end: span.end,
-                        },
+                        try_site,
                         Self::primary_span(value),
                         self.result_span.clone(),
-                        &pretty(function_err).unwrap_or_default(),
-                        &err,
+                        &pretty(&function_err).unwrap_or_default(),
+                        &err_type,
                     ));
+                }
+                self.unify(
+                    function_err,
+                    err.as_ref().clone(),
+                    self.result_span.clone().unwrap_or_else(|| try_site.clone()),
+                    Self::primary_span(value),
+                    try_site,
+                    false,
+                )?;
+                if let Type::Deferred(id) = ok.as_ref() {
+                    self.expr_vars.insert(span_key(e.span()), *id);
                 }
                 Ok(ok.as_ref().clone())
             }
@@ -6217,51 +6721,16 @@ impl Checker<'_> {
                 Ok(declared_result.clone())
             }
             "AssertEq" => {
-                fn result_constructor(expression: &Expr) -> bool {
-                    match expression {
-                        Expr::Group(inner, _) => result_constructor(inner),
-                        Expr::Call { target, .. } => matches!(
-                            &**target,
-                            Expr::Name(name, _) if name == "Ok" || name == "Err"
-                        ),
-                        _ => false,
-                    }
-                }
                 let mut values: [Option<Type>; 2] = [None, None];
                 let mut evidence: [Option<PendingOperandEvidence>; 2] = [None, None];
                 let mut invalid = false;
-                let mut sibling_context_applied = false;
                 for (arg, &slot) in args.iter().zip(slots) {
                     let prior_taint = self.tainted;
                     self.tainted = false;
                     let prior_errors = self.errors.len();
                     let pending_start = self.pending.len();
                     let pending_generation = self.pending_generation;
-                    let expected_from_first = (slot == 1)
-                        .then(|| values[0].as_ref())
-                        .flatten()
-                        .filter(|ty| {
-                            matches!(ty, Type::Result(..))
-                                && internal_state(ty).is_none()
-                                && result_constructor(&arg.value)
-                        });
-                    let result = if let Some(expected) = expected_from_first {
-                        sibling_context_applied = true;
-                        self.check_against_context(
-                            &arg.value,
-                            CheckContext {
-                                expected: Some(expected),
-                                expected_span: Some(&Self::primary_span(ordered(0))),
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: true,
-                                deferred_element: false,
-                            },
-                        )
-                    } else {
-                        self.expr(&arg.value, None, None)
-                    };
+                    let result = self.expr(&arg.value, None, None);
                     let tainted = self.tainted;
                     let site = Self::primary_span(&arg.value);
                     let recover = (tainted || matches!(result, Ok(Type::Tainted)))
@@ -6374,7 +6843,7 @@ impl Checker<'_> {
                                     require_resolved: composite,
                                 },
                             )));
-                    } else if !sibling_context_applied {
+                    } else {
                         self.unify(
                             left,
                             right,
@@ -6434,20 +6903,27 @@ impl Checker<'_> {
                 if let Some((ok, err)) = expected_result {
                     return Ok(Type::Result(Arc::new(ok.clone()), Arc::new(err.clone())));
                 }
-                let mut d = names::diagnostic(
-                    "NX-E0113",
-                    None,
-                    Stage::Types,
-                    Operation::TypesInfer,
-                    call_span.clone(),
-                );
-                let path = if name == "Ok" { "$.err" } else { "$.ok" };
-                let _ = payload;
-                d.data.insert(
-                    "unresolved_components".into(),
-                    DataValue::Array(vec![DataValue::String(path.into())]),
-                );
-                Err(d)
+                let result = self.new_variable(call_span)?;
+                let (ok, err) = self.require_result(result, call_span)?;
+                let payload_child = if name == "Ok" { ok } else { err };
+                self.bind(
+                    payload_child,
+                    payload,
+                    Self::primary_span(ordered(0)),
+                    Self::primary_span(ordered(0)),
+                    true,
+                )?;
+                self.type_nodes.get_mut(&result).unwrap().result_constructed = true;
+                self.expr_vars.insert(span_key(call_span), result);
+                self.deferred_exprs.insert(span_key(call_span));
+                self.pending.push(PendingConstraint::ResultConstructor {
+                    result,
+                    span: call_span.clone(),
+                });
+                Ok(Type::Result(
+                    Arc::new(Type::Deferred(ok)),
+                    Arc::new(Type::Deferred(err)),
+                ))
             }
             _ => unreachable!("closed intrinsic registry"),
         }
@@ -7915,7 +8391,7 @@ mod quota_tests {
             Some(&DataValue::UInt(checker.solver_limit + 1))
         );
         checker.analysis_exhausted = false;
-        let reach = checker.array_reaches(root, child, &site(3)).unwrap_err();
+        let reach = checker.type_reaches(root, child, &site(3)).unwrap_err();
         assert_eq!(reach.code, "NX-E0003");
         assert_eq!(
             reach.data.get("observed"),
@@ -7992,10 +8468,10 @@ mod quota_tests {
         }
         let before = checker.solver_steps;
         checker.solver_limit = before + 128;
-        assert!(checker.array_reaches(first, last, &site(200)).unwrap());
+        assert!(checker.type_reaches(first, last, &site(200)).unwrap());
         assert_eq!(checker.solver_steps, before + 128);
         checker.solver_limit += 127;
-        let denied = checker.array_reaches(first, last, &site(201)).unwrap_err();
+        let denied = checker.type_reaches(first, last, &site(201)).unwrap_err();
         assert_eq!(checker.solver_steps, checker.solver_limit);
         assert_eq!(denied.code, "NX-E0003");
         assert_eq!(

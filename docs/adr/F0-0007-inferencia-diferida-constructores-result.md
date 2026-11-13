@@ -107,10 +107,10 @@ posiciones de AssertEq por el mecanismo común (hoy solo se acepta con el
 constructor en segundo lugar), retirando la excepción sintáctica de AssertEq. No cambia el orden de evaluación, efectos, movimientos
 ni limpieza: inferir no ejecuta, duplica ni reordena operandos.
 
-Nota sobre N10 (decisión de este ADR): A2 §13.17 suprime solo el NX-E0113 exterior que depende de un Array
-irresuelto. Este ADR lo lee así: `Ok([])` sin anotación emite únicamente el diagnóstico del Array (una causa, un
-diagnóstico) y no un NX-E0113 adicional por `$.err`. Si una revisión posterior concluye que `$.err` debe
-denunciarse por separado, se resuelve por enmienda de este ADR.
+Nota sobre N10 (decisión de este ADR): A2 §13.17 suprime el NX-E0113 exterior cuando un Array
+irresuelto es la causa de la indeterminación. `Ok([])` y `Err(Ok([]))` sin anotación emiten únicamente
+NX-E0103 sobre `[]`: una causa, un diagnóstico. En `Err(Ok([]))` se descarta la lectura que atribuye
+al `$.ok` del `Err` exterior una obligación NX-E0113 independiente de ese Array.
 
 **R5 — Cierre y diagnóstico.** Tras todas las restricciones locales compatibles,
 un constructor Result que conserve componentes indeterminados emite
