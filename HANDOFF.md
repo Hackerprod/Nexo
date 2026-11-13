@@ -279,3 +279,5 @@ D5 resuelve en notas, sin enmienda normativa, el comportamiento no especificado 
 `sh scripts/validate.sh` finalizó con código 0 en un clon limpio retirado al terminar: debug 1.535/0/67 y release 1.537/0/68; fmt y Clippy `-D warnings` completados. RD: 152/152 pares check/run por perfil, cero diferencias. Higiene: 0 hallazgos; citas 214 extremos, sin errores salvo los avisos conocidos del auditor para B-G1, validados manualmente bajo el subapartado B de §11.8.
 
 La población Release `--quick-release` y las campañas se reprodujeron dos veces con SHA-256 idénticos `8bd129ebec20d79ca67683784589a3683ca37f1ce5d626a1c19275a2682b7f57` y `becb61067d6dcad6776db87384a2eef49e96e239f3789ccaa54703e5516e11e9`. Sin commit, push ni red; se regenerará dos veces el estado final después de este HANDOFF y RECOVERY. Revisión independiente, decisión de fase del propietario, I11b y puertas F0 siguen pendientes.
+
+Programas objetivo que ejecutan: 10 de 29 (corpus/objetivo/, scripts/objetivo.py)

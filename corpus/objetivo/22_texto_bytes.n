@@ -1,0 +1,2 @@
+// F0-0004 sec. 11.1; A01; capacidad: texto y bytes.
+fn Main(){let a="é🙂";var b=a;b="x";AssertEq(a.ByteLen(),6);AssertEq(a.ScalarLen(),2);AssertEq(b,"x");}

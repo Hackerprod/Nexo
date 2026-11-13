@@ -1,0 +1,2 @@
+// F0-0003 sec. 4; closure sincrona; capacidad: captura y llamada de closure.
+fn Main(){let base=3;let f=fn [base](x:view I64)->I64{return base+x;};AssertEq(f(4),7);}

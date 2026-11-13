@@ -1,0 +1,82 @@
+// F0-0004 sec. 11; aplicacion de referencia; capacidad: lineas, registros nominales, Result, acumulacion y texto.
+use std.console;
+use std.parse;
+use extension package.Resumen;
+const maxLineas: I64 = comptime 100;
+const iva: I64 = comptime 21;
+
+@derive(Format, PartialEq)
+struct Registro {
+    linea: I64;
+    original: String;
+    centimos: I64;
+}
+
+@derive(Format, PartialEq)
+enum Lectura {
+    Vacia,
+    Dato(Registro)
+}
+
+struct Resumen {
+    cantidad: I64;
+    total: I64;
+}
+extend Resumen {
+    fn Agregar(self: edit, r: view Registro) {
+        self.total += r.centimos;
+        self.cantidad += 1;
+    }
+    fn Texto(self: view) -> String {
+        var media = 0;
+        if self.cantidad != 0 {
+            media = self.total / self.cantidad;
+        }
+        return "Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}";
+    }
+}
+
+fn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {
+    if texto == "" {
+        return Ok(Lectura.Vacia);
+    }
+    let importe = parse.I64(texto)?;
+    if importe < 0 or importe > 10000 {
+        return Err(42);
+    }
+    var base = importe * 100;
+    if importe >= 10 and importe <= 100 {
+        base = base * 90 / 100;
+    }
+    let centimos = base + base * iva / 100;
+    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));
+}
+
+fn Main() -> Result<(), I64> {
+    var registros: Array<Registro> = [];
+    for numero in 1..=maxLineas {
+        let siguiente = console.ReadLine()?;
+        match move siguiente {
+            Some(move texto) => {
+                if texto == "fin" {
+                    break;
+                }
+                let lectura = Convertir(numero, texto)?;
+                match move lectura {
+                    Lectura.Vacia => { continue; },
+                    Lectura.Dato(move r) => {
+                        Push(edit registros, move r);
+                    }
+                }
+            },
+            None => { break; }
+        }
+    }
+    var resumen = Resumen(0, 0);
+    for r in registros {
+        edit resumen.Agregar(r);
+        console.Println("L{r.linea}: {r.original} EUR => {r.centimos} cent")?;
+    }
+    console.Println(resumen.Texto())?;
+    return Ok(());
+}

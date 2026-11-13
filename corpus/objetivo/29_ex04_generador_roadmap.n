@@ -1,0 +1,18 @@
+// EX04 del roadmap; sec. EX04, u32/u64 y consola sin equivalente completo; capacidad: programa completo EX04.
+use std.app
+use std.console
+
+// Para un u32, el cuadrado cabe en u64.
+gen fn cuadrados(limite: u32 = 4) -> u64 {
+    for n in 0..limite {
+        let wide = u64(n)
+        yield wide * wide
+    }
+}
+
+fn Main() -> Result<(), app.Error> {
+    for value in cuadrados(limite: 4) {
+        console.println("{value}")?
+    }
+    return Ok(())
+}

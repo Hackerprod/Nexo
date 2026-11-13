@@ -1,0 +1,24 @@
+// EX01 del roadmap; sec. EX01, CLI/archivo no simulados en los ADR; capacidad: programa completo EX01.
+use std.app
+use std.cli
+use std.console
+use std.fs
+use std.parse
+
+fn Main() -> Result<(), app.Error> {
+    let path = cli.positional(0, default: "ventas.txt")?
+    let text = fs.read_text(path)?
+    var total: i64 = 0
+
+    for line in text.lines() {
+        let field = line.trim()
+        if field.is_empty() {
+            continue
+        }
+        let value = parse.i64(field)?
+        total = total.try_add(value)?
+    }
+
+    console.println("Total: {total}")?
+    return Ok(())
+}

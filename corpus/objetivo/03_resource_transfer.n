@@ -1,0 +1,11 @@
+// F0-0002 sec. 11; transferencia de recursos; capacidad: MockResource y move.
+fn Main() {
+    let source = MockOpen(10);
+    let owner = move source;
+    Inspect(owner);
+    {
+        let inner = MockOpen(20);
+        Inspect(inner);
+    }
+    Drop(owner);
+}

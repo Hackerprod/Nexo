@@ -1,0 +1,24 @@
+// EX04 reducido; F0-0003 sec. 11; capacidad: generador, Result, recursos y escritura simulada.
+gen fn Cuadrados(limite:view I64,r:move MockResource)->I64 {
+    var n=0;
+    var cuadrado=0;
+    var impar=1;
+    while n<limite {
+        Inspect(r);
+        yield cuadrado;
+        n=n+1;
+        if n<limite {
+            cuadrado=cuadrado+impar;
+            impar=impar+2;
+        }
+    }
+}
+fn Main()->Result<(),I64> {
+    let limite=MockRequest()?;
+    if limite<0 {return Err(41);}
+    if 1000<limite {return Err(41);}
+    for valor in Cuadrados(limite,MockOpen(4)) {
+        MockWriteI64(valor)?;
+    }
+    return Ok(());
+}

@@ -1,0 +1,2 @@
+// F0-0002 sec. 11.4; arrays; capacidad: copia y escritura indexada.
+fn Main(){var values=[2,4,6];values[1]=9;AssertEq(values,[2,9,6]);}

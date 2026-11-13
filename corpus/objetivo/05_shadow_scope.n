@@ -1,0 +1,15 @@
+// F0-0002 sec. 11; sombreado de ambito; capacidad: ambitos y shadowing.
+fn Main() {
+    var value = [1, 2];
+    {
+        var value = value;
+        value[0] = 8;
+        AssertEq(value[0], 8);
+    }
+    AssertEq(value[0], 1);
+    let r = MockOpen(7);
+    {
+        let r = move r;
+        Inspect(r);
+    }
+}

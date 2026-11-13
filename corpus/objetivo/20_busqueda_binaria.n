@@ -1,0 +1,32 @@
+// F0-0005 sec. 11 (F5-P05); capacidad: seleccion y arrays.
+fn Search(a:view Array<I64>,key:view I64)->I64{
+    var lo=0;
+    var hi=Len(a);
+    while lo<hi{
+        let mid=lo+(hi-lo)/2;
+        if a[mid]==key{
+            return mid;
+        }
+        if a[mid]<key{
+            lo=mid+1;
+        }else{
+            hi=mid;
+        }
+    }
+    return -1;
+}
+fn Main(){
+    var squares:Array<I64>=[];
+    for n in 0..<10{
+        Push(edit squares,n*n);
+    }
+    AssertEq(Len(squares),10);
+    AssertEq(Search(squares,0),0);
+    AssertEq(Search(squares,81),9);
+    AssertEq(Search(squares,82),-1);
+    let empty:Array<I64>=[];
+    AssertEq(Search(empty,1),-1);
+    Print(Search(squares,49));
+    Print(Search(squares,50));
+    Print(squares);
+}

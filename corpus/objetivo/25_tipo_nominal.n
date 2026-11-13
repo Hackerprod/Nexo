@@ -1,0 +1,3 @@
+// F0-0004 sec. 11.1; A04; capacidad: struct y enum nominales.
+@derive(PartialEq)struct S{x:Array<String>;}
+fn Main(){let a=S(["a"]);var b=a;Push(edit b.x,"b");AssertEq(a.x,["a"]);AssertEq(b.x,["a","b"]);AssertEq(a!=b,true);AssertEq(Pop(edit b.x),Some("b"));AssertEq(a==b,true);let c=JoinArrays(a.x,["é"]);var n=0;for text in c{n+=text.ByteLen();}AssertEq(n,3);}

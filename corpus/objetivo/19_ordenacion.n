@@ -1,0 +1,32 @@
+// F0-0005 sec. 11 (F5-P04); capacidad: arrays y actualizacion.
+fn Sort(a:edit Array<I64>){
+    let size=Len(a);
+    for i in 1..<size{
+        let value=a[i];
+        var j=i;
+        while j>0 and a[j-1]>value{
+            a[j]=a[j-1];
+            j-=1;
+        }
+        a[j]=value;
+    }
+}
+fn Main(){
+    var values:Array<I64>=[];
+    Push(edit values,5);
+    Push(edit values,2);
+    Push(edit values,4);
+    Push(edit values,2);
+    Push(edit values,1);
+    let original=values;
+    Sort(edit values);
+    AssertEq(original,[5,2,4,2,1]);
+    AssertEq(values,[1,2,2,4,5]);
+    let largest=Pop(edit values);
+    AssertEq(largest,Some(5));
+    Push(edit values,5);
+    let joined=JoinArrays(values,[8,9]);
+    AssertEq(Len(joined),7);
+    Print(values);
+    Print(joined);
+}

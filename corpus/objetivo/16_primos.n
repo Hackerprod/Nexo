@@ -1,0 +1,33 @@
+// F0-0005 sec. 11 (F5-P01); capacidad: operadores, while y funciones.
+const limit:I64=comptime 30;
+fn Prime(n:view I64)->Bool{
+    if n<2{
+        return false;
+    }
+    var d=2;
+    while d<=n/d{
+        if n%d==0{
+            return false;
+        }
+        d+=1;
+    }
+    return true;
+}
+fn Main(){
+    var primes:Array<I64>=[];
+    for n in 0..=limit{
+        if not Prime(n){
+            continue;
+        }
+        Push(edit primes,n);
+    }
+    AssertEq(Len(primes),10);
+    AssertEq(primes[0],2);
+    AssertEq(primes[9],29);
+    var sum=0;
+    for p in primes{
+        sum+=p;
+    }
+    Print(primes);
+    Print(sum);
+}

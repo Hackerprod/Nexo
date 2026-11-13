@@ -1,0 +1,2 @@
+// F0-0002 sec. 11.6; MockWriteI64; capacidad: escritura simulada.
+fn Main()->Result<(),I64>{MockWriteI64(25)?;return Ok(());}

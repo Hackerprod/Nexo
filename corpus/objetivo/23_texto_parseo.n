@@ -1,0 +1,2 @@
+// F0-0004 sec. 11.1; A02; capacidad: texto y parseo.
+fn Main(){let a="é".Scalars();let b="é".Scalars();AssertEq(a,[233]);AssertEq(b,[101,769]);var n=0;for code in b{n+=1;}Print(n);}

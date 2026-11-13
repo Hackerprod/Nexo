@@ -1,0 +1,32 @@
+// F0-0005 sec. 11 (F5-P02); capacidad: arrays y control de flujo.
+const limit:I64=comptime 30;
+fn Main(){
+    var composite:Array<Bool>=[];
+    for i in 0..=limit{
+        Push(edit composite,false);
+    }
+    composite[0]=true;
+    composite[1]=true;
+    var p=2;
+    while p<=limit/p{
+        if composite[p]{
+            p+=1;
+            continue;
+        }
+        var multiple=p*p;
+        while multiple<=limit{
+            composite[multiple]=true;
+            multiple+=p;
+        }
+        p+=1;
+    }
+    var primes:Array<I64>=[];
+    for n in 2..=limit{
+        if not composite[n]{
+            Push(edit primes,n);
+        }
+    }
+    AssertEq(Len(primes),10);
+    AssertEq(composite[25],true);
+    Print(primes);
+}

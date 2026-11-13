@@ -1,0 +1,9 @@
+// F0-0002 sec. 11; limpieza al retornar; capacidad: limpieza de recursos.
+fn Main() {
+    let outer = MockOpen(1);
+    {
+        let inner = MockOpen(2);
+        return;
+    }
+    Print(999);
+}

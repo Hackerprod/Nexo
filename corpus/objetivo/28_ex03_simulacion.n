@@ -1,0 +1,30 @@
+// EX03 del roadmap; sec. EX03, Table/f32/genericos sin reemplazo simulado; capacidad: programa completo EX03.
+use std.app
+use std.console
+use std.table.{Table, TableLayout, UniqueTableView, SoA, AoS}
+
+struct Particula {
+    x: f32
+    vx: f32
+}
+
+fn avanzar<L: TableLayout>(inout ps: UniqueTableView<Particula, L>, dt: f32)
+    with no_alloc, no_block, no_suspend, no_io {
+    for inout p in ps {
+        p.x += p.vx * dt
+    }
+}
+
+fn Main() -> Result<(), app.Error> {
+    var ps = Table<Particula, layout: SoA>.from_values([
+        Particula(x: 0.0, vx: 1.0),
+        Particula(x: 2.0, vx: -1.0)
+    ])
+
+    with ps.prepare_unique() as view {
+        avanzar(inout view, dt: 0.5)
+    }
+
+    console.println("Primera posición: {ps.row(0).x}")?
+    return Ok(())
+}

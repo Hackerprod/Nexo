@@ -1,0 +1,32 @@
+// F0-0005 sec. 11 (F5-P03); capacidad: operadores y bucles.
+const start:I64=comptime 27;
+fn Step(n:view I64)->I64{
+    if n%2==0{
+        return n/2;
+    }
+    return 3*n+1;
+}
+fn Main(){
+    var n=start;
+    var steps=0;
+    var peak=n;
+    var odd=0;
+    while true{
+        if n==1{
+            break;
+        }
+        if n%2!=0{
+            odd+=1;
+        }
+        n=Step(n);
+        steps+=1;
+        if n>peak{
+            peak=n;
+        }
+    }
+    AssertEq(n,1);
+    AssertEq(odd,41);
+    Print(steps);
+    Print(peak);
+    Print(odd);
+}

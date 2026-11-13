@@ -1,0 +1,3 @@
+// F0-0004 sec. 11.1; A03; capacidad: String y arrays.
+use std.parse;use std.text;
+fn Main()->Result<(),I64>{let n=parse.I64("-9223372036854775808")?;AssertEq(text.FromI64(n),"-9223372036854775808");AssertEq(parse.I64("+1"),Err(-9101));return Ok(());}

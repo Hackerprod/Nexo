@@ -1,0 +1,2 @@
+// F0-0003 sec. 3; Option; capacidad: None y match.
+fn Main(){let value:Option<I64>=None;match move value{Some(n)=>{AssertEq(n,1);},None=>{AssertEq(1,1);}}}

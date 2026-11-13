@@ -1,0 +1,3 @@
+// F0-0003 sec. 5 y 9; generador; capacidad: yield, Next y recorrido.
+gen fn Valores(limite:view I64)->I64{var i=0;while i<limite{yield i;i=i+1;}}
+fn Main(){var total=0;for value in Valores(4){total=total+value;}AssertEq(total,6);}

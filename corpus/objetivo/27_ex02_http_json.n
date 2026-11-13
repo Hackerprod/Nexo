@@ -1,0 +1,34 @@
+// EX02 del roadmap; sec. EX02, HTTP/JSON sin interfaz simulada; capacidad: programa completo EX02.
+use std.app
+use std.http
+use std.json
+
+@derive(JsonEncode)
+struct Salud {
+    estado: String
+}
+
+fn responder(req: http.RequestView) -> Result<http.Response, app.Error> {
+    if req.method != http.Method.GET {
+        return Ok(http.Response.text(405, "Método no permitido"))
+    }
+    if req.path != "/salud" {
+        return Ok(http.Response.text(404, "Ruta no encontrada"))
+    }
+
+    let body = json.encode(Salud(estado: "ok"))?
+    return Ok(http.Response.json(200, consume body))
+}
+
+fn Main() -> Result<(), app.Error> {
+    let server = http.bind(
+        "127.0.0.1:8080",
+        max_connections: 64,
+        max_header_bytes: 16384,
+        max_body_bytes: 1048576,
+        idle_timeout_ms: 5000
+    )?
+
+    http.serve(consume server, handler: responder)?
+    return Ok(())
+}
