@@ -1,6 +1,71 @@
 //! Normalized AST equality for printer tests.
 use crate::diagnostic::Span;
-use crate::frontend::parse::{Ast, Block, Else, Expr, Statement, WithClause};
+use crate::frontend::parse::{Ast, Block, Else, Expr, Match, Pattern, Statement, WithClause};
+
+fn erase_match_spans(selection: &mut Match) {
+    erase_expr_spans(&mut selection.scrutinee);
+    for arm in &mut selection.arms {
+        erase_pattern_spans(&mut arm.pattern);
+        if let Some(guard) = &mut arm.guard {
+            erase_expr_spans(guard);
+        }
+        if let Some(span) = &mut arm.guard_span {
+            *span = Span {
+                file: String::new(),
+                start: 0,
+                end: 0,
+            };
+        }
+        erase_block_spans(&mut arm.body);
+        arm.span = Span {
+            file: String::new(),
+            start: 0,
+            end: 0,
+        };
+    }
+    if let Some(span) = &mut selection.mode_span {
+        *span = Span {
+            file: String::new(),
+            start: 0,
+            end: 0,
+        };
+    }
+    selection.span = Span {
+        file: String::new(),
+        start: 0,
+        end: 0,
+    };
+    selection.keyword_span = Span {
+        file: String::new(),
+        start: 0,
+        end: 0,
+    };
+}
+
+fn erase_pattern_spans(pattern: &mut Pattern) {
+    match pattern {
+        Pattern::Wildcard(span)
+        | Pattern::Integer(_, span)
+        | Pattern::Bool(_, span)
+        | Pattern::Name { span, .. } => {
+            *span = Span {
+                file: String::new(),
+                start: 0,
+                end: 0,
+            }
+        }
+        Pattern::Constructor { args, span, .. } => {
+            for arg in args {
+                erase_pattern_spans(arg);
+            }
+            *span = Span {
+                file: String::new(),
+                start: 0,
+                end: 0,
+            };
+        }
+    }
+}
 
 fn erase_expr_spans(expr: &mut Expr) {
     let blank = |span: &mut Span| {
@@ -70,6 +135,7 @@ fn erase_expr_spans(expr: &mut Expr) {
                 }
             }
         }
+        Expr::Match(selection) => erase_match_spans(selection),
     }
 }
 
@@ -141,6 +207,7 @@ fn erase_statement_spans(statement: &mut Statement) {
             erase_block_spans(body);
         }
         Statement::Block(block) => erase_block_spans(block),
+        Statement::Match(selection) => erase_match_spans(selection),
     }
 }
 

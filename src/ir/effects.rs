@@ -79,7 +79,9 @@ fn resource_effect(ty: &Ty) -> u8 {
     match ty {
         Ty::MockResource => IO,
         Ty::MockBlockingResource => BLOCK | IO,
-        Ty::Result(ok, err) => resource_effect(ok) | resource_effect(err),
+        Ty::Union { first, second, .. } => {
+            resource_effect(first) | second.as_ref().map_or(0, |ty| resource_effect(ty))
+        }
         _ => 0,
     }
 }
@@ -87,7 +89,9 @@ fn resource_effect(ty: &Ty) -> u8 {
 fn copies_array(ty: &Ty) -> bool {
     match ty {
         Ty::Array(_) => true,
-        Ty::Result(ok, err) => copies_array(ok) || copies_array(err),
+        Ty::Union { first, second, .. } => {
+            copies_array(first) || second.as_ref().is_some_and(|ty| copies_array(ty))
+        }
         _ => false,
     }
 }
@@ -106,24 +110,38 @@ fn local_entity(f: &Function, local: super::model::LocalId) -> Entity {
 }
 
 fn variant_effect(ty: &Ty, variant: Option<bool>) -> u8 {
-    match (ty, variant) {
-        (Ty::Result(ok, _), Some(true)) => resource_effect(ok),
-        (Ty::Result(_, err), Some(false)) => resource_effect(err),
-        _ => resource_effect(ty),
+    if let Some(descriptor) = ty.union_descriptor()
+        && let Some(first) = variant
+    {
+        let variant = if first {
+            &descriptor.variants[0]
+        } else {
+            &descriptor.variants[1]
+        };
+        return variant.payload.map_or(0, resource_effect);
     }
+    resource_effect(ty)
 }
 
 fn resource_types(ty: &Ty, variant: Option<bool>) -> Vec<&'static str> {
-    match (ty, variant) {
-        (Ty::MockResource, _) => vec!["MockResource"],
-        (Ty::MockBlockingResource, _) => vec!["MockBlockingResource"],
-        (Ty::Result(ok, _), Some(true)) => resource_types(ok, None),
-        (Ty::Result(_, err), Some(false)) => resource_types(err, None),
-        (Ty::Result(ok, err), None) => {
-            let mut types = resource_types(ok, None);
-            types.extend(resource_types(err, None));
-            types
-        }
+    if let Some(descriptor) = ty.union_descriptor() {
+        let variants: &[crate::union::Variant<&Ty>] = match variant {
+            Some(true) => &descriptor.variants[..1],
+            Some(false) => &descriptor.variants[1..],
+            None => &descriptor.variants,
+        };
+        return variants
+            .iter()
+            .flat_map(|variant| {
+                variant
+                    .payload
+                    .map_or_else(Vec::new, |payload| resource_types(payload, None))
+            })
+            .collect();
+    }
+    match ty {
+        Ty::MockResource => vec!["MockResource"],
+        Ty::MockBlockingResource => vec!["MockBlockingResource"],
         _ => Vec::new(),
     }
 }
@@ -1171,7 +1189,7 @@ pub(super) fn populate_exit_info(
         .filter(|l| {
             matches!(
                 l.ty,
-                Ty::Array(_) | Ty::MockResource | Ty::MockBlockingResource | Ty::Result(_, _)
+                Ty::Array(_) | Ty::MockResource | Ty::MockBlockingResource | Ty::Union { .. }
             )
         })
         .map(|l| l.id.0)
@@ -1204,7 +1222,7 @@ pub(super) fn populate_exit_info(
                     add(yes);
                     add(no);
                 }
-                Terminator::Return { .. } => {}
+                Terminator::Return { .. } | Terminator::Unreachable { .. } => {}
             }
         }
         let mut may_out = may_in.clone();
@@ -1441,6 +1459,11 @@ fn return_spans_statement(statement: &Statement, source: &str) -> Vec<Span> {
             spans
         }
         Statement::While { body, .. } => return_spans(body, source),
+        Statement::Match(selection) => selection
+            .arms
+            .iter()
+            .flat_map(|arm| return_spans(&arm.body, source))
+            .collect(),
         Statement::Let { .. }
         | Statement::Assign { .. }
         | Statement::Value { .. }

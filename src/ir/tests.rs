@@ -2535,12 +2535,12 @@ fn result_hash_tracks_both_type_arms_and_result_operations() {
     assert_eq!(original, 0x69d8_43c9_d943_b040);
 
     let mut changed = function.clone();
-    changed.result = super::model::Ty::Result(
+    changed.result = super::model::Ty::result(
         Box::new(super::model::Ty::Bool),
         Box::new(super::model::Ty::I64),
     );
     assert_ne!(original, super::model::content_hash(&changed));
-    changed.result = super::model::Ty::Result(
+    changed.result = super::model::Ty::result(
         Box::new(super::model::Ty::I64),
         Box::new(super::model::Ty::Bool),
     );

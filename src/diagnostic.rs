@@ -551,6 +551,7 @@ impl Diagnostic {
             "loan",
             "binding",
             "parameter",
+            "permission_source",
             "active_permission",
             "requested_access",
             "missing_pattern",
@@ -575,9 +576,8 @@ impl Diagnostic {
                 "unresolved_components" => {
                     matches!(value, DataValue::Array(items) if items.iter().all(|item| matches!(item, DataValue::String(_))))
                 }
-                "origin" | "loan" | "binding" | "parameter" | "analysis_function" => {
-                    valid_entity_value(value)
-                }
+                "origin" | "loan" | "binding" | "parameter" | "permission_source"
+                | "analysis_function" => valid_entity_value(value),
                 "contract_origin" => valid_span_value(value),
                 _ => matches!(value, DataValue::String(_)),
             };
@@ -978,7 +978,8 @@ impl Diagnostic {
                 &["constructor", "expected_arity", "found_arity"]
             }
             "NX-E1325" => &["constructor", "scrutinee_type"],
-            "NX-E1304" => &["missing_pattern"],
+            "NX-E1304" if cause == Some("non_exhaustive") => &["missing_pattern"],
+            "NX-E1304" => &[],
             "NX-E1107" => &["required_mode", "requested_mode"],
             "NX-E1204" => &["property_evidence", "suspension_kind"],
             "NX-E1305" if cause == Some("guard_effect") => {
@@ -998,6 +999,7 @@ impl Diagnostic {
                 "loan",
                 "binding",
                 "parameter",
+                "permission_source",
                 "active_permission",
                 "requested_access",
             ],
@@ -1068,6 +1070,8 @@ impl Diagnostic {
                                 rest = next;
                             } else if let Some(next) = rest.strip_prefix(".err") {
                                 rest = next;
+                            } else if let Some(next) = rest.strip_prefix(".some") {
+                                rest = next;
                             } else {
                                 return false;
                             }
@@ -1097,12 +1101,21 @@ impl Diagnostic {
             let sub = cause.unwrap_or("");
             let (required, pairs): (&[&str], &[(&str, &str)]) = match sub {
                 "permission_escalation" => (
-                    &[
-                        "origin",
-                        "parameter",
-                        "active_permission",
-                        "requested_access",
-                    ],
+                    if has("permission_source") {
+                        &[
+                            "origin",
+                            "permission_source",
+                            "active_permission",
+                            "requested_access",
+                        ]
+                    } else {
+                        &[
+                            "origin",
+                            "parameter",
+                            "active_permission",
+                            "requested_access",
+                        ]
+                    },
                     &[
                         ("read", "write"),
                         ("read", "consume"),
@@ -1659,6 +1672,10 @@ fn valid_diagnostic_type(value: &str, expected: bool) -> bool {
                 && parse(bytes, index, depth + 1)
                 && take(bytes, index, b">");
         }
+        if rest.starts_with(b"Option<") {
+            *index += 7;
+            return parse(bytes, index, depth + 1) && take(bytes, index, b">");
+        }
         false
     }
     fn take(bytes: &[u8], index: &mut usize, expected: &[u8]) -> bool {
@@ -2035,15 +2052,38 @@ pub fn explain(code: &str, subcause: Option<&str>) -> Result<Vec<Explanation>, E
         if !causes.iter().any(|s| s == wanted) {
             return Err(ExplainError::UnknownSubcause);
         }
-        Ok(vec![explanation_for(code, Some(wanted), desc)])
+        Ok(vec![explanation_for(
+            code,
+            Some(wanted),
+            subcause_description(code, wanted).unwrap_or(desc),
+        )])
     } else {
         let mut causes = causes;
         causes.sort_by(|a, b| a.as_bytes().cmp(b.as_bytes()));
         Ok(causes
             .iter()
-            .map(|s| explanation_for(code, Some(s), desc.clone()))
+            .map(|s| {
+                explanation_for(
+                    code,
+                    Some(s),
+                    subcause_description(code, s).unwrap_or_else(|| desc.clone()),
+                )
+            })
             .collect())
     }
+}
+
+fn subcause_description(code: &str, subcause: &str) -> Option<String> {
+    let description = match (code, subcause) {
+        ("NX-E1325", "constructor_arity") => {
+            "Constructor de patrón de unión con aridad incorrecta."
+        }
+        ("NX-E1325", "constructor_type") => "Constructor de patrón de otra unión nominal.",
+        ("NX-E1326", "break_outside_loop") => "break requiere un bucle en este invocable.",
+        ("NX-E1326", "continue_outside_loop") => "continue requiere un bucle en este invocable.",
+        _ => return None,
+    };
+    Some(description.into())
 }
 
 #[derive(Clone, Copy)]
@@ -2341,6 +2381,28 @@ fn explanation_for(code: &str, subcause: Option<&str>, description: String) -> E
 
 fn published_source(code: &str, subcause: Option<&str>) -> (&'static str, &'static str) {
     match (code, subcause) {
+        ("NX-E1304", Some("non_exhaustive")) => (
+            "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{}}}",
+            "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{},None=>{}}}",
+        ),
+        ("NX-E1304", Some("unreachable_arm")) => (
+            "fn Main(){match true{true=>{},false=>{},_=>{}}}",
+            "fn Main(){match true{true=>{},false=>{}}}",
+        ),
+        ("NX-E1325", Some("constructor_arity")) => (
+            "fn Main(){let o:Option<I64>=Some(1);match o{Some(a,b)=>{},None=>{}}}",
+            "fn Main(){let o:Option<I64>=Some(1);match o{Some(a)=>{},None=>{}}}",
+        ),
+        ("NX-E1325", Some("constructor_type")) => (
+            "fn Main(){let o:Option<I64>=Some(1);match o{Ok(n)=>{},_=>{}}}",
+            "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{},_=>{}}}",
+        ),
+        ("NX-E1326", Some("break_outside_loop")) => {
+            ("fn Main(){break;}", "fn Main(){while false{break;}}")
+        }
+        ("NX-E1326", Some("continue_outside_loop")) => {
+            ("fn Main(){continue;}", "fn Main(){while false{continue;}}")
+        }
         ("NX-E0111", Some("missing_argument")) => (
             "fn F(x:view I64){} fn Main(){F();}",
             "fn F(x:view I64){} fn Main(){F(1);}",
@@ -2505,7 +2567,7 @@ fn coordinates_by_code(code: &str, subcause: Option<&str>) -> Option<(&'static s
         "NX-E0001" => ("lex", "syntax.lex"),
         "NX-E0002" | "NX-E0005" => ("parse", "syntax.parse"),
         "NX-E0101" => ("names", "names.resolve"),
-        "NX-E0102" | "NX-E1303" => ("types", "types.check"),
+        "NX-E0102" | "NX-E1303" | "NX-E1304" => ("types", "types.check"),
         "NX-E0103" | "NX-E0113" => ("types", "types.infer"),
         "NX-E0104" => ("names", "names.declare"),
         "NX-E0105" => ("ownership", "place.write"),
@@ -3221,13 +3283,13 @@ static CATALOG: &[CatalogEntry] = &[
         subcauses: &[
             CatalogSubcause {
                 name: "non_exhaustive",
-                availability: "outside_profile",
+                availability: "in_profile",
                 stage: "",
                 operation: "",
             },
             CatalogSubcause {
                 name: "unreachable_arm",
-                availability: "outside_profile",
+                availability: "in_profile",
                 stage: "",
                 operation: "",
             },
@@ -3521,13 +3583,13 @@ static CATALOG: &[CatalogEntry] = &[
         subcauses: &[
             CatalogSubcause {
                 name: "constructor_arity",
-                availability: "outside_profile",
+                availability: "in_profile",
                 stage: "types",
                 operation: "types.check",
             },
             CatalogSubcause {
                 name: "constructor_type",
-                availability: "outside_profile",
+                availability: "in_profile",
                 stage: "types",
                 operation: "types.check",
             },

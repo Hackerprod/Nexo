@@ -395,3 +395,20 @@ El corte entrega el perfil `f0-0003-b-v1` con sus ocho reducidos, el catálogo y
 | NB-J01-04 | Las descripciones de `explain` de NX-E1325 y NX-E1326 son una sola frase para dos subcausas. | `explain NX-E1325` y `explain NX-E1326`. | J02 |
 | NB-J01-05 | `scripts/compare_head_union.py` depende de rutas bajo el directorio de trabajo temporal. | Ejecutar el script desde un clon sin ese directorio. | Endurecimiento de scripts |
 | NB-J01-06 | El mutante `result_child_order` (orden de los hijos de `Result`) sobrevive sin programa que lo exhiba. | Sin programa. | Endurecimiento posterior |
+| NB-J02J03-01 | Los objetivos 12 y 13 contienen `match move value`, cuyo modo consumidor pertenece a J04 según F0-0003 §2.2; exigir su ejecución en J03 con la barrera J04 vigente requiere adelantar una parte de J04 o cambiar las fuentes objetivo. No es laguna del ADR. | `check corpus/objetivo/12_option_match.n` y `check corpus/objetivo/13_option_none.n` bajo `f0-0003-b-v1`; ambos rechazaban antes de J04 y ahora ejecutan. | J04, resuelto |
+
+## F0-0003 — continuación J02 a J04 (2026-11-13)
+
+NB-J01-01, NB-J01-02, NB-J01-04 y NB-J01-05 quedaron corregidos: la sintaxis inválida precede a las capacidades posteriores, `Result` y `Option` usan la unión nominal del mismo unificador, `explain` distingue las subcausas y el diferencial con HEAD se ejecuta sin rutas locales especiales. NB-J02J03-01 quedó resuelto al extender el alcance a J04 sin cambiar los programas objetivo; 12 y 13 ejecutan. NB-J01-03 conserva solo las barreras posteriores a J04. NB-J01-06 sigue sin programa causal.
+
+| Id | Observación | Evidencia y pendiente |
+|---|---|---|
+| NB-J04-01 | El mutante `option_none_coverage` sobrevivió al test rápido M01 elegido en la pasada única; esa elección no ejercita `None` como binding bajo `Result`. | El programa `fn Main(){let r:Result<I64,I64>=Ok(1);match r{None=>{AssertEq(None,r);}}}` ejecuta con el código original y está fijado en `tests/j03_match.rs`. La validación dirigida aplicó el mutante: el programa pasó de unit a NX-E1304/non_exhaustive y dos pruebas existentes fallaron. No se observó defecto en el compilador original. |
+
+| Id | Observación | Reproducción | Corte responsable |
+|---|---|---|---|
+| NB-J04-02 | `explain` de NX-E1304, NX-E1325 y NX-E1326 carecía de ejemplos B pareados; las cuatro subcausas activas publican los ejemplos de F0-0003 sección 9 y las dos futuras publican pares B. | `nexo explain NX-E1304`, `NX-E1325` y `NX-E1326`; comprobación en `tests/j04_match_semantics.rs`. | J02-J04, corregido |
+| NB-J04-03 | La cardinalidad de NX-E0113 para varios `None` sin tipo contextual no está fijada por F0-0003. | `fn Main(){AssertEq(None,None);}` emite dos; `fn Main(){let o=Some(None);}` emite dos. | Decisión futura de diagnósticos |
+| NB-J04-04 | El criterio de `related_spans` de `unreachable_arm` fuera de M02 queda sin evidencia dirigida; no cambia la regla de cobertura. | `fn Main(){match true{true=>{},false=>{},_=>{}}}` cubre M02; faltan patrones anidados. | Endurecimiento de J03 |
+| NB-J04-05 | Una invocación del fuzz tardó 20 s bajo ocho procesos; el mismo programa tardó 15 ms al repetirlo y no se reprodujo el cuelgue. | Fuzz de 22.400 fuentes con ocho procesos; la fuente de la invocación aislada no se conservó. | Endurecimiento del arnés de fuzz |
+| NB-J04-06 | **Corregido:** un literal de patrón bajo un componente aún diferido producía un NX-E0102 con tipo esperado vacío; su serialización fallaba y la CLI incluía `null` en `diagnostics`. Ahora el patrón espera la resolución del scrutinee y el constructor conserva el NX-E0113 causal. | `match Ok(1){Ok(1)=>{},_=>{}}`, `match None{Some(1)=>{},_=>{}}` y `match Err(true){Err(true)=>{},_=>{}}` emiten cada uno un NX-E0113, tanto en `check` como en `run`, sin `null` ni error interno; `tests/j04_match_semantics.rs` fija los positivos con tipo determinable. | J02–J04, corregido |

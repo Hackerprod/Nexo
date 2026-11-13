@@ -309,7 +309,8 @@ pub(crate) fn intrinsic(name: &str) -> Option<Signature> {
         "Print" | "Drop" => (vec![("v", Unit)], Unit),
         "AssertEq" => (vec![("a", Unit), ("b", Unit)], Unit),
         "Fail" | "MockUnknown" => (vec![], Unit),
-        "Ok" | "Err" => (vec![("v", Unit)], Unit),
+        "Ok" | "Err" | "Some" => (vec![("v", Unit)], Unit),
+        "None" => (vec![], Unit),
         _ => return None,
     };
     let params = params
@@ -379,6 +380,7 @@ struct Resolver {
     depth: usize,
     phase: Stage,
     errors: Vec<Box<Diagnostic>>,
+    allow_option: bool,
 }
 
 impl Resolver {
@@ -390,6 +392,8 @@ impl Resolver {
         }
         if self.resolved.signatures.contains_key(name) {
             Some(ResolvedUse::Function(name.into()))
+        } else if matches!(name, "Some" | "None") && !self.allow_option {
+            None
         } else {
             intrinsic(name).map(|_| ResolvedUse::Intrinsic(name.into()))
         }
@@ -486,6 +490,7 @@ impl Resolver {
                 self.expr(condition, false)?;
                 self.block(body, true)
             }
+            Statement::Match(selection) => self.selection(selection),
         }
     }
 
@@ -514,6 +519,7 @@ impl Resolver {
                     .lookup(name)
                     .ok_or_else(|| unknown(span.clone(), kind))?;
                 if !call_target
+                    && name != "None"
                     && matches!(found, ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
                 {
                     let mut d = diagnostic(
@@ -596,6 +602,13 @@ impl Resolver {
                         Some((RelatedRole::Declaration, local.name_span.clone())),
                     ));
                 }
+                if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "None") {
+                    return Err(argument_error(
+                        "non_callable_target",
+                        target.span().clone(),
+                        None,
+                    ));
+                }
                 let sig = signature(&self.resolved, &target_use).expect("registered target");
                 let slots = self.bind(&sig, target.span(), args)?;
                 if matches!(&target_use,ResolvedUse::Intrinsic(name) if name == "Drop")
@@ -625,6 +638,84 @@ impl Resolver {
                     },
                 );
                 args.iter().try_for_each(|a| self.expr(&a.value, false))
+            }
+            Expr::Match(selection) => self.selection(selection),
+        }
+    }
+
+    fn selection(
+        &mut self,
+        selection: &crate::frontend::parse::Match,
+    ) -> Result<(), Box<Diagnostic>> {
+        self.expr(&selection.scrutinee, false)?;
+        for arm in &selection.arms {
+            self.scopes.push(HashMap::new());
+            let checked = (|| {
+                self.pattern(&arm.pattern)?;
+                if let Some(guard) = &arm.guard {
+                    self.expr(guard, false)?;
+                }
+                self.block(&arm.body, true)
+            })();
+            self.scopes.pop();
+            checked?;
+        }
+        Ok(())
+    }
+
+    fn pattern(
+        &mut self,
+        pattern: &crate::frontend::parse::Pattern,
+    ) -> Result<(), Box<Diagnostic>> {
+        use crate::frontend::parse::Pattern;
+        match pattern {
+            Pattern::Wildcard(_) | Pattern::Integer(..) | Pattern::Bool(..) => Ok(()),
+            Pattern::Name { name, mode, span } => {
+                if self.phase == Stage::Names {
+                    let scope = self.scopes.last_mut().expect("arm scope exists");
+                    if let Some(previous) = scope.get(name) {
+                        return Err(duplicate(
+                            span.clone(),
+                            previous.name_span.clone(),
+                            "binding",
+                        ));
+                    }
+                    scope.insert(
+                        name.clone(),
+                        Local {
+                            name_span: span.clone(),
+                            mode: mode.unwrap_or(Mode::Read),
+                            mutable: *mode == Some(Mode::Inout),
+                        },
+                    );
+                } else {
+                    self.scopes.last_mut().expect("arm scope exists").insert(
+                        name.clone(),
+                        Local {
+                            name_span: span.clone(),
+                            mode: mode.unwrap_or(Mode::Read),
+                            mutable: *mode == Some(Mode::Inout),
+                        },
+                    );
+                }
+                Ok(())
+            }
+            Pattern::Constructor { name, args, span } => {
+                if self.phase == Stage::Names
+                    && (!matches!(name.as_str(), "Some" | "None" | "Ok" | "Err")
+                        || !matches!(self.lookup(name), Some(ResolvedUse::Intrinsic(_))))
+                {
+                    let name_span = self
+                        .tokens
+                        .iter()
+                        .find(|token| token.span.start == span.start)
+                        .map_or_else(|| span.clone(), |token| token.span.clone());
+                    return Err(unknown(name_span, "call_target"));
+                }
+                for arg in args {
+                    self.pattern(arg)?;
+                }
+                Ok(())
             }
         }
     }
@@ -713,6 +804,16 @@ impl Resolver {
 }
 
 pub fn resolve(file: &str, source: &str, ast: &Ast) -> Result<Resolved, Vec<Box<Diagnostic>>> {
+    resolve_with_option(file, source, ast, false)
+}
+
+#[allow(clippy::vec_box)] // Diagnostics retain the shared boxed representation.
+pub(crate) fn resolve_with_option(
+    file: &str,
+    source: &str,
+    ast: &Ast,
+    allow_option: bool,
+) -> Result<Resolved, Vec<Box<Diagnostic>>> {
     let (registered, registration_errors) = register(file, source, ast)?;
     let tokens = lex::lex(file, source).map_err(|d| vec![d])?;
     let mut resolver = Resolver {
@@ -722,6 +823,7 @@ pub fn resolve(file: &str, source: &str, ast: &Ast) -> Result<Resolved, Vec<Box<
         depth: 0,
         phase: Stage::Names,
         errors: registration_errors,
+        allow_option,
     };
     let mut seen_functions = HashSet::new();
     for function in &ast.functions {
@@ -893,6 +995,7 @@ mod tests {
             depth: 0,
             phase: Stage::Names,
             errors: Vec::new(),
+            allow_option: false,
         };
         resolver.function(&ast.functions[0]).unwrap();
         assert_eq!(resolver.scopes.len(), 1);

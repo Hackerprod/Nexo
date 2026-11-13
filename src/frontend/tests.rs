@@ -317,6 +317,15 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
                     }
                 }
             }
+            Expr::Match(selection) => {
+                expression(&selection.scrutinee, source);
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        expression(guard, source);
+                    }
+                    assert_simple_terminators(&arm.body, source);
+                }
+            }
             Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
         }
     }
@@ -355,6 +364,15 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
                 expression(value, source);
             }
             Statement::Block(block) => assert_simple_terminators(block, source),
+            Statement::Match(selection) => {
+                expression(&selection.scrutinee, source);
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        expression(guard, source);
+                    }
+                    assert_simple_terminators(&arm.body, source);
+                }
+            }
             Statement::While {
                 condition, body, ..
             } => {

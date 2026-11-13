@@ -1,6 +1,6 @@
 use super::model::{
-    Access, Binary, Function, IndexSite, Intrinsic, LoanPermission, Op, ParameterMode, Program,
-    TempId, Terminator, Ty, WorkCharge,
+    Access, BasicBlock, Binary, Function, IndexSite, Intrinsic, LoanPermission, LocalId, Op,
+    ParameterMode, Program, TempId, Terminator, Ty, WorkCharge,
 };
 
 fn valid_span(function: &Function, span: &crate::diagnostic::Span) -> bool {
@@ -96,7 +96,8 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
         }
         for block in std::iter::once(&function.block).chain(&function.blocks) {
             let charges = match &block.terminator {
-                Terminator::Return { charges, .. }
+                Terminator::Unreachable { charges, .. }
+                | Terminator::Return { charges, .. }
                 | Terminator::Jump { charges, .. }
                 | Terminator::BranchBool { charges, .. } => charges,
             };
@@ -126,7 +127,8 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     }
     for block in std::iter::once(&function.block).chain(&function.blocks) {
         let charges = match &block.terminator {
-            Terminator::Return { charges, .. }
+            Terminator::Unreachable { charges, .. }
+            | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => charges,
         };
@@ -178,7 +180,16 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
         .locals
         .iter()
         .skip(function.parameters.len())
-        .any(|l| l.parameter_mode.is_some())
+        .any(|l| match l.parameter_mode {
+            None => false,
+            Some(ParameterMode::Read) => !std::iter::once(&function.block).chain(function.blocks.iter())
+                .flat_map(|block| &block.instructions)
+                .any(|instruction| matches!(instruction.op, Op::BindView { local, .. } if local == l.id)),
+            Some(ParameterMode::Inout) => !l.mutable || !std::iter::once(&function.block).chain(function.blocks.iter())
+                .flat_map(|block| &block.instructions)
+                .any(|instruction| matches!(instruction.op, Op::BindEdit { local, .. } if local == l.id)),
+            Some(ParameterMode::Consume) => true,
+        })
     {
         return Err("parameter layout");
     }
@@ -403,6 +414,112 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 ins.ty.clone()
             }
+            Op::TestVariant { local, path, tag } => {
+                let root = function.locals.get(local.0).ok_or("match local")?;
+                if !initialized[local.0] {
+                    return Err("uninitialized match local");
+                }
+                let selected = root.ty.at_variant_path(path).ok_or("match path")?;
+                if !selected
+                    .union_descriptor()
+                    .is_some_and(|union| union.variant(*tag).is_some())
+                {
+                    return Err("match tag");
+                }
+                Some(Ty::Bool)
+            }
+            Op::TestLiteral {
+                local,
+                path,
+                literal,
+            } => {
+                let root = function.locals.get(local.0).ok_or("match local")?;
+                if !initialized[local.0] {
+                    return Err("uninitialized match local");
+                }
+                let selected = root.ty.at_variant_path(path).ok_or("match path")?;
+                if !matches!(
+                    (selected, literal),
+                    (Ty::I64, super::model::MatchLiteral::I64(_))
+                        | (Ty::Bool, super::model::MatchLiteral::Bool(_))
+                ) {
+                    return Err("match literal type");
+                }
+                Some(Ty::Bool)
+            }
+            Op::ProjectPayload { local, path } | Op::ExtractPayload { local, path } => {
+                let root = function.locals.get(local.0).ok_or("match local")?;
+                if !initialized[local.0] || path.is_empty() {
+                    return Err("match projection path");
+                }
+                if matches!(ins.op, Op::ExtractPayload { .. })
+                    && (root.parameter_mode.is_some() || active_borrows[local.0] != 0)
+                {
+                    return Err("extract borrowed local");
+                }
+                Some(
+                    root.ty
+                        .at_variant_path(path)
+                        .ok_or("match payload type")?
+                        .clone(),
+                )
+            }
+            Op::BindView { local, value, hold } => {
+                let root = function.locals.get(local.0).ok_or("view local")?;
+                if initialized[local.0] || root.parameter_mode != Some(ParameterMode::Read) {
+                    return Err("view binding state");
+                }
+                let actual = if *hold {
+                    if !live.get(value.0).copied().unwrap_or(false) {
+                        return Err("view loan ended");
+                    }
+                    temps.get(value.0).ok_or("view loan")?.clone()
+                } else {
+                    take(
+                        *value,
+                        &temps,
+                        &mut live,
+                        &borrow_sources,
+                        &mut active_borrows,
+                    )?
+                };
+                if actual != root.ty {
+                    return Err("view type");
+                }
+                initialized[local.0] = true;
+                None
+            }
+            Op::BindEdit {
+                local,
+                root,
+                proof,
+                loan,
+                path,
+            } => {
+                let source = function.locals.get(root.0).ok_or("edit root")?;
+                let alias = function.locals.get(local.0).ok_or("edit local")?;
+                let witness = function.locals.get(proof.0).ok_or("edit proof")?;
+                let selected = if let Some(loan) = loan {
+                    let ty = temps.get(loan.0).ok_or("edit loan")?;
+                    if !live[loan.0] {
+                        return Err("edit loan ended");
+                    }
+                    ty.at_variant_path(path)
+                } else {
+                    source.ty.at_variant_path(path)
+                };
+                if !initialized[root.0]
+                    || initialized[local.0]
+                    || active_exclusive[root.0] == 0
+                    || alias.parameter_mode != Some(ParameterMode::Inout)
+                    || witness.ty.at_variant_path(path) != Some(&alias.ty)
+                    || selected != Some(&alias.ty)
+                {
+                    return Err("edit binding proof");
+                }
+                initialized[local.0] = true;
+                None
+            }
             Op::BranchVariant { value, result } => {
                 let destination = function
                     .result
@@ -552,6 +669,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         })
                     }
                     Binary::Equal if l.copyable() => Some(Ty::Bool),
+                    Binary::And if l == Ty::Bool => Some(Ty::Bool),
                     _ => return Err("binary domain"),
                 }
             }
@@ -730,18 +848,18 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     Intrinsic::Len => Ty::I64,
                     Intrinsic::MockOpen => Ty::MockResource,
                     Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
-                    Intrinsic::TryAdd => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
-                    Intrinsic::MockReadRecords => Ty::Result(
-                        Box::new(Ty::Array(Box::new(Ty::Result(
+                    Intrinsic::TryAdd => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),
+                    Intrinsic::MockReadRecords => Ty::result(
+                        Box::new(Ty::Array(Box::new(Ty::result(
                             Box::new(Ty::I64),
                             Box::new(Ty::I64),
                         )))),
                         Box::new(Ty::I64),
                     ),
                     Intrinsic::MockWriteI64 | Intrinsic::MockReply => {
-                        Ty::Result(Box::new(Ty::Unit), Box::new(Ty::I64))
+                        Ty::result(Box::new(Ty::Unit), Box::new(Ty::I64))
                     }
-                    Intrinsic::MockRequest => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
+                    Intrinsic::MockRequest => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),
                     _ => Ty::Unit,
                 })
             }
@@ -863,8 +981,15 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Op::BeginLoan { .. }
             | Op::ReadIndex { .. }
             | Op::BorrowIndex { .. }
-            | Op::CheckIndex { .. } => Access::Read,
-            Op::WritePlace { .. } | Op::WriteIndex { .. } => Access::Write,
+            | Op::CheckIndex { .. }
+            | Op::TestVariant { .. }
+            | Op::TestLiteral { .. }
+            | Op::ProjectPayload { .. } => Access::Read,
+            Op::WritePlace { .. }
+            | Op::WriteIndex { .. }
+            | Op::BindView { .. }
+            | Op::BindEdit { .. }
+            | Op::ExtractPayload { .. } => Access::Write,
             _ => Access::Own,
         };
         if ins.access != access {
@@ -882,13 +1007,17 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             borrowed.push(
                 matches!(
                     ins.op,
-                    Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BeginLoan { .. }
+                    Op::BorrowValue(_)
+                        | Op::BorrowIndex { .. }
+                        | Op::BeginLoan { .. }
+                        | Op::ProjectPayload { .. }
                 ) && !scalar_snapshot,
             );
             let source = match ins.op {
                 Op::BorrowValue(id) => Some(id),
                 Op::BorrowIndex { local, .. } => Some(local),
                 Op::BeginLoan { root, .. } => Some(root),
+                Op::ProjectPayload { local, .. } => Some(local),
                 _ => None,
             };
             if let Some(id) = source.filter(|_| !scalar_snapshot) {
@@ -903,7 +1032,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     }
                     Some(permission)
                 }
-                Op::BorrowValue(_) | Op::BorrowIndex { .. } => Some(LoanPermission::Read),
+                Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::ProjectPayload { .. } => {
+                    Some(LoanPermission::Read)
+                }
                 _ => None,
             };
             loan_permission.push(permission);
@@ -951,7 +1082,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             }
         }
         Terminator::Return { value: None, .. } => return Err("missing return value"),
-        Terminator::Jump { .. } | Terminator::BranchBool { .. } => {
+        Terminator::Unreachable { .. }
+        | Terminator::Jump { .. }
+        | Terminator::BranchBool { .. } => {
             return Err("unexpected control terminator");
         }
     }
@@ -1142,7 +1275,9 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
             visit(*left);
             visit(*right);
         }
-        Op::WritePlace { value, .. } | Op::DropValue(value) => visit(*value),
+        Op::WritePlace { value, .. } | Op::BindView { value, .. } | Op::DropValue(value) => {
+            visit(*value)
+        }
         Op::WriteIndex { indexes, value, .. } => {
             for &id in indexes {
                 visit(id);
@@ -1446,6 +1581,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             return Err("block identity");
         }
         let (targets, span): (Vec<usize>, _) = match &block.terminator {
+            Terminator::Unreachable { span, .. } => (vec![], span),
             Terminator::Return {
                 value: Some(_),
                 span,
@@ -1511,6 +1647,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     if reachable.iter().any(|v| !v) {
         return Err("unreachable block");
     }
+    verify_match_proofs(function, &blocks, work_limit)?;
     let (tree, top, bottom) = InitTree::new(function.locals.len());
     let mut entry = bottom;
     for p in &function.parameters {
@@ -1535,7 +1672,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 super::count_cfg_work(1);
             }
             match ins.op {
-                Op::WritePlace { local, .. } => {
+                Op::WritePlace { local, .. }
+                | Op::BindView { local, .. }
+                | Op::BindEdit { local, .. } => {
                     function.locals.get(local.0).ok_or("local reference")?;
                     state = tree.set(&state, local.0, true);
                 }
@@ -1936,6 +2075,102 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     ins.ty.clone()
                 }
+                Op::TestVariant { local, path, tag } => {
+                    let root = function.locals.get(local.0).ok_or("match local")?;
+                    if !tree.get(&initialized, local.0) {
+                        return Err("uninitialized match local");
+                    }
+                    let selected = root.ty.at_variant_path(path).ok_or("match path")?;
+                    if !selected
+                        .union_descriptor()
+                        .is_some_and(|union| union.variant(*tag).is_some())
+                    {
+                        return Err("match tag");
+                    }
+                    Some(Ty::Bool)
+                }
+                Op::TestLiteral {
+                    local,
+                    path,
+                    literal,
+                } => {
+                    let root = function.locals.get(local.0).ok_or("match local")?;
+                    if !tree.get(&initialized, local.0) {
+                        return Err("uninitialized match local");
+                    }
+                    let selected = root.ty.at_variant_path(path).ok_or("match path")?;
+                    if !matches!(
+                        (selected, literal),
+                        (Ty::I64, super::model::MatchLiteral::I64(_))
+                            | (Ty::Bool, super::model::MatchLiteral::Bool(_))
+                    ) {
+                        return Err("match literal type");
+                    }
+                    Some(Ty::Bool)
+                }
+                Op::ProjectPayload { local, path } | Op::ExtractPayload { local, path } => {
+                    let root = function.locals.get(local.0).ok_or("match local")?;
+                    if !tree.get(&initialized, local.0) || path.is_empty() {
+                        return Err("match projection path");
+                    }
+                    if matches!(ins.op, Op::ExtractPayload { .. })
+                        && (root.parameter_mode.is_some()
+                            || temps.reads(local.0) != 0
+                            || temps.exclusive(local.0) != 0)
+                    {
+                        return Err("extract borrowed local");
+                    }
+                    Some(
+                        root.ty
+                            .at_variant_path(path)
+                            .ok_or("match payload type")?
+                            .clone(),
+                    )
+                }
+                Op::BindView { local, value, hold } => {
+                    let root = function.locals.get(local.0).ok_or("view local")?;
+                    if tree.get(&initialized, local.0)
+                        || root.parameter_mode != Some(ParameterMode::Read)
+                    {
+                        return Err("view binding state");
+                    }
+                    if temps.read(*value, !*hold)? != root.ty {
+                        return Err("view type");
+                    }
+                    initialized = tree.set(&initialized, local.0, true);
+                    None
+                }
+                Op::BindEdit {
+                    local,
+                    root,
+                    proof,
+                    loan,
+                    path,
+                } => {
+                    let source = function.locals.get(root.0).ok_or("edit root")?;
+                    let alias = function.locals.get(local.0).ok_or("edit local")?;
+                    let witness = function.locals.get(proof.0).ok_or("edit proof")?;
+                    let selected = if let Some(loan) = loan {
+                        let temp = temps.info(*loan)?;
+                        if temp.exclusive_root != Some(root.0) {
+                            return Err("edit loan source");
+                        }
+                        temp.ty.at_variant_path(path)
+                    } else {
+                        source.ty.at_variant_path(path)
+                    };
+                    if !tree.get(&initialized, root.0)
+                        || tree.get(&initialized, local.0)
+                        || temps.exclusive(root.0) == 0
+                        || alias.parameter_mode != Some(ParameterMode::Inout)
+                        || witness.ty.at_variant_path(path) != Some(&alias.ty)
+                        || selected != Some(&alias.ty)
+                    {
+                        return Err("edit binding proof");
+                    }
+                    initialized = tree.set(&initialized, local.0, true);
+                    None
+                }
                 Op::BranchVariant { value, result } => {
                     let destination = function
                         .result
@@ -2016,6 +2251,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         Binary::Add | Binary::Sub if left == Ty::I64 => Ty::I64,
                         Binary::Less if left == Ty::I64 => Ty::Bool,
                         Binary::Equal if left.copyable() => Ty::Bool,
+                        Binary::And if left == Ty::Bool => Ty::Bool,
                         _ => return Err("binary domain"),
                     })
                 }
@@ -2159,18 +2395,18 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         Intrinsic::Len => Ty::I64,
                         Intrinsic::MockOpen => Ty::MockResource,
                         Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
-                        Intrinsic::TryAdd => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
-                        Intrinsic::MockReadRecords => Ty::Result(
-                            Box::new(Ty::Array(Box::new(Ty::Result(
+                        Intrinsic::TryAdd => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),
+                        Intrinsic::MockReadRecords => Ty::result(
+                            Box::new(Ty::Array(Box::new(Ty::result(
                                 Box::new(Ty::I64),
                                 Box::new(Ty::I64),
                             )))),
                             Box::new(Ty::I64),
                         ),
                         Intrinsic::MockWriteI64 | Intrinsic::MockReply => {
-                            Ty::Result(Box::new(Ty::Unit), Box::new(Ty::I64))
+                            Ty::result(Box::new(Ty::Unit), Box::new(Ty::I64))
                         }
-                        Intrinsic::MockRequest => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
+                        Intrinsic::MockRequest => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),
                         _ => Ty::Unit,
                     })
                 }
@@ -2278,8 +2514,15 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 | Op::BeginLoan { .. }
                 | Op::ReadIndex { .. }
                 | Op::BorrowIndex { .. }
-                | Op::CheckIndex { .. } => Access::Read,
-                Op::WritePlace { .. } | Op::WriteIndex { .. } => Access::Write,
+                | Op::CheckIndex { .. }
+                | Op::TestVariant { .. }
+                | Op::TestLiteral { .. }
+                | Op::ProjectPayload { .. } => Access::Read,
+                Op::WritePlace { .. }
+                | Op::WriteIndex { .. }
+                | Op::BindView { .. }
+                | Op::BindEdit { .. }
+                | Op::ExtractPayload { .. } => Access::Write,
                 _ => Access::Own,
             };
             if ins.access != access {
@@ -2317,6 +2560,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                             permission: LoanPermission::Read,
                             ..
                         } => Some(root.0),
+                        Op::ProjectPayload { local, .. } => Some(local.0),
                         _ => None,
                     };
                     let is_borrowed = borrowed_from.is_some()
@@ -2326,8 +2570,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
                             && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
                     });
-                    if matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
+                    if (matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
                         && !matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
+                        || matches!(ins.op, Op::ProjectPayload { .. }))
                         && let Some(root) = borrowed_from
                     {
                         *temps.reads.entry(root).or_default() += 1;
@@ -2364,6 +2609,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             }
         }
         match &block.terminator {
+            Terminator::Unreachable { .. } => {}
             Terminator::Return {
                 value: Some(id), ..
             } => {
@@ -2443,10 +2689,228 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     Ok(())
 }
 
+type VariantFact = (
+    LocalId,
+    Vec<crate::union::VariantTag>,
+    crate::union::VariantTag,
+);
+
+fn verify_match_proofs(
+    function: &Function,
+    blocks: &[&BasicBlock],
+    work_limit: usize,
+) -> Result<(), &'static str> {
+    use std::collections::{HashMap, HashSet, VecDeque};
+    let mut conditions: HashMap<TempId, Vec<VariantFact>> = HashMap::new();
+    let mut alternatives: HashMap<TempId, Vec<VariantFact>> = HashMap::new();
+    let mut condition_origin = HashMap::<TempId, (usize, usize)>::new();
+    for (block_index, block) in blocks.iter().enumerate() {
+        for (position, ins) in block.instructions.iter().enumerate() {
+            let Some(output) = ins.output else { continue };
+            match &ins.op {
+                Op::TestVariant { local, path, tag } => {
+                    conditions.insert(output, vec![(*local, path.clone(), *tag)]);
+                    condition_origin.insert(output, (block_index, position));
+                    let ty = function
+                        .locals
+                        .get(local.0)
+                        .and_then(|root| root.ty.at_variant_path(path))
+                        .and_then(Ty::union_descriptor);
+                    if let Some(union) = ty
+                        && union.variants.len() == 2
+                        && let Some(other) =
+                            union.variants.iter().find(|variant| variant.tag != *tag)
+                    {
+                        alternatives.insert(output, vec![(*local, path.clone(), other.tag)]);
+                    }
+                }
+                Op::TestLiteral { .. } => {
+                    condition_origin.insert(output, (block_index, position));
+                }
+                Op::Binary {
+                    op: Binary::And,
+                    left,
+                    right,
+                } => {
+                    let mut facts = conditions.get(left).cloned().unwrap_or_default();
+                    facts.extend(conditions.get(right).cloned().unwrap_or_default());
+                    conditions.insert(output, facts);
+                    if let (Some((left_block, left_at)), Some((right_block, right_at))) =
+                        (condition_origin.get(left), condition_origin.get(right))
+                        && left_block == right_block
+                        && *left_block == block_index
+                    {
+                        condition_origin.insert(output, (block_index, (*left_at).min(*right_at)));
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
+    let mut incoming: Vec<Option<HashSet<VariantFact>>> = vec![None; blocks.len()];
+    incoming[0] = Some(HashSet::new());
+    let mut queue = VecDeque::from([0usize]);
+    let mut queued = vec![false; blocks.len()];
+    queued[0] = true;
+    let mut work = 0usize;
+    while let Some(index) = queue.pop_front() {
+        queued[index] = false;
+        work += 1;
+        if work > work_limit {
+            return Err("match proof analysis limit");
+        }
+        let mut facts = incoming[index].clone().ok_or("match proof entry")?;
+        for ins in &blocks[index].instructions {
+            match &ins.op {
+                Op::ProjectPayload { local, path }
+                | Op::ExtractPayload { local, path }
+                | Op::BindEdit {
+                    proof: local, path, ..
+                } => {
+                    let mut prefix = Vec::new();
+                    for tag in path {
+                        if !facts.contains(&(*local, prefix.clone(), *tag)) {
+                            return Err("unproven match payload");
+                        }
+                        prefix.push(*tag);
+                    }
+                    if matches!(ins.op, Op::ExtractPayload { .. }) {
+                        facts.retain(|(root, _, _)| root != local);
+                    }
+                }
+                Op::WritePlace { local, .. }
+                | Op::TransferValue(local)
+                | Op::DropBinding(local)
+                | Op::DropLocal(local) => {
+                    facts.retain(|(root, _, _)| root != local);
+                }
+                _ => {}
+            }
+        }
+        let edges: Vec<(usize, Vec<VariantFact>)> = match &blocks[index].terminator {
+            Terminator::BranchBool {
+                condition, yes, no, ..
+            } => {
+                let valid = condition_origin.get(condition).is_some_and(|(block, at)| {
+                    *block == index
+                        && blocks[index].instructions[*at..].iter().all(|ins| {
+                            matches!(
+                                ins.op,
+                                Op::TestVariant { .. }
+                                    | Op::TestLiteral { .. }
+                                    | Op::Binary {
+                                        op: Binary::And,
+                                        ..
+                                    }
+                            )
+                        })
+                });
+                let mut edges = vec![(
+                    yes.0,
+                    if valid {
+                        conditions.get(condition).cloned().unwrap_or_default()
+                    } else {
+                        Vec::new()
+                    },
+                )];
+                edges.push((
+                    no.0,
+                    if valid {
+                        alternatives.get(condition).cloned().unwrap_or_default()
+                    } else {
+                        Vec::new()
+                    },
+                ));
+                edges
+            }
+            Terminator::Jump { target, .. } => vec![(target.0, Vec::new())],
+            Terminator::Return { .. } | Terminator::Unreachable { .. } => Vec::new(),
+        };
+        for (target, added) in edges {
+            let mut edge = facts.clone();
+            edge.extend(added);
+            let changed = if let Some(old) = &incoming[target] {
+                let merged: HashSet<_> = old.intersection(&edge).cloned().collect();
+                if &merged == old {
+                    false
+                } else {
+                    incoming[target] = Some(merged);
+                    true
+                }
+            } else {
+                incoming[target] = Some(edge);
+                true
+            };
+            if changed && !queued[target] {
+                queue.push_back(target);
+                queued[target] = true;
+            }
+        }
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::ir::compile_scalar;
+    use crate::ir::{ReducedProfile, compile_scalar_with_profile};
+
+    #[test]
+    fn match_projection_requires_the_selected_variant_on_every_incoming_edge() {
+        let source = "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{},None=>{}}}";
+        let program =
+            compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+        let mut function = program.functions.entries[0].clone();
+        assert_eq!(verify_function(&function), Ok(()));
+        let test = std::iter::once(&mut function.block)
+            .chain(&mut function.blocks)
+            .flat_map(|block| &mut block.instructions)
+            .find(|ins| {
+                matches!(
+                    ins.op,
+                    Op::TestVariant {
+                        tag: crate::union::VariantTag(1),
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        let Op::TestVariant { tag, .. } = &mut test.op else {
+            unreachable!()
+        };
+        *tag = crate::union::VariantTag(0);
+        function.content_hash = super::super::model::content_hash(&function);
+        assert_eq!(verify_function(&function), Err("unproven match payload"));
+    }
+
+    #[test]
+    fn final_payload_projection_keeps_its_variant_proof_after_sibling_subdivision() {
+        let source = "fn Main(){let x:Result<Bool,Bool>=Ok(true);match x{Ok(true)=>{},Ok(false)=>{},Err(e)=>{}}}";
+        let program =
+            compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+        let mut function = program.functions.entries[0].clone();
+        assert_eq!(verify_function(&function), Ok(()));
+        let test = std::iter::once(&mut function.block)
+            .chain(&mut function.blocks)
+            .flat_map(|block| &mut block.instructions)
+            .find(|ins| {
+                matches!(
+                    ins.op,
+                    Op::TestVariant {
+                        tag: crate::union::VariantTag(1),
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        let Op::TestVariant { tag, .. } = &mut test.op else {
+            unreachable!()
+        };
+        *tag = crate::union::VariantTag(0);
+        function.content_hash = super::super::model::content_hash(&function);
+        assert_eq!(verify_function(&function), Err("unproven match payload"));
+    }
     #[test]
     fn persistent_liveness_union_preserves_disjoint_and_shared_temps() {
         let mut left = LiveSet::default();
@@ -2860,8 +3324,8 @@ mod tests {
     #[test]
     fn verifier_rejects_resource_arrays_through_both_result_variants() {
         for ty in [
-            Ty::Result(Box::new(Ty::MockResource), Box::new(Ty::I64)),
-            Ty::Result(Box::new(Ty::I64), Box::new(Ty::MockResource)),
+            Ty::result(Box::new(Ty::MockResource), Box::new(Ty::I64)),
+            Ty::result(Box::new(Ty::I64), Box::new(Ty::MockResource)),
         ] {
             let array = Ty::Array(Box::new(ty));
             assert_eq!(
@@ -2901,7 +3365,7 @@ mod tests {
                 let result_local = f
                     .locals
                     .iter()
-                    .find(|local| matches!(local.ty, Ty::Result(..)))
+                    .find(|local| matches!(local.ty, Ty::Union { .. }))
                     .unwrap()
                     .id;
                 let instruction = std::iter::once(&mut f.block)

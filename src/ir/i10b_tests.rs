@@ -1236,7 +1236,8 @@ fn verifier_checks_work_charge_metadata_on_cfg_terminators() {
         let mut forged = original.clone();
         let file = forged.source_file.clone();
         match &mut forged.blocks[block_index].terminator {
-            Terminator::Jump { charges, .. }
+            Terminator::Unreachable { charges, .. }
+            | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. }
             | Terminator::Return { charges, .. } => {
                 charges.push(super::model::WorkCharge {
@@ -1544,7 +1545,8 @@ trait TerminatorCharges {
 impl TerminatorCharges for Terminator {
     fn terminator_charges(&self) -> &[super::model::WorkCharge] {
         match self {
-            Terminator::Return { charges, .. }
+            Terminator::Unreachable { charges, .. }
+            | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => charges,
         }

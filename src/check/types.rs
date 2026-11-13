@@ -6,27 +6,42 @@ use super::names::{self, Resolved, ResolvedUse};
 use crate::diagnostic::{DataValue, Diagnostic, Operation, RelatedRole, RelatedSpan, Span, Stage};
 use crate::frontend::{
     lex::{self, Kind, Token},
-    parse::{self, Ast, Block, Else, Expr, Function, Mode, Statement, Type as SyntaxType},
+    parse::{self, Ast, Block, Else, Expr, Function, Mode, Pattern, Statement, Type as SyntaxType},
 };
 use crate::union::{UnionDescriptor, UnionKind};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-enum InferTy {
+pub(super) enum InferTy {
     I64,
     Bool,
     Unit,
     MockResource,
     MockBlockingResource,
     Array(Arc<InferTy>),
-    Result(Arc<InferTy>, Arc<InferTy>),
+    Union(UnionKind, Arc<InferTy>, Option<Arc<InferTy>>),
     Deferred(u64),
     Never,
     Tainted,
 }
 
-fn concrete_union(ty: &InferTy) -> Option<UnionDescriptor<&InferTy>> {
+impl InferTy {
+    fn result(ok: Arc<Self>, err: Arc<Self>) -> Self {
+        Self::Union(UnionKind::Result, ok, Some(err))
+    }
+
+    fn option(some: Arc<Self>) -> Self {
+        Self::Union(UnionKind::Option, some, None)
+    }
+}
+
+pub(super) fn concrete_union(ty: &InferTy) -> Option<UnionDescriptor<&InferTy>> {
     match ty {
-        InferTy::Result(ok, err) => Some(UnionDescriptor::result(ok.as_ref(), err.as_ref())),
+        InferTy::Union(UnionKind::Result, ok, Some(err)) => {
+            Some(UnionDescriptor::result(ok.as_ref(), err.as_ref()))
+        }
+        InferTy::Union(UnionKind::Option, some, None) => {
+            Some(UnionDescriptor::option(some.as_ref()))
+        }
         _ => None,
     }
 }
@@ -34,7 +49,7 @@ fn concrete_union(ty: &InferTy) -> Option<UnionDescriptor<&InferTy>> {
 #[cfg(test)]
 include!("i07c_quota_campaign.rs");
 
-type Type = InferTy;
+pub(super) type Type = InferTy;
 
 impl From<&SyntaxType> for InferTy {
     fn from(value: &SyntaxType) -> Self {
@@ -45,10 +60,11 @@ impl From<&SyntaxType> for InferTy {
             SyntaxType::MockResource => Self::MockResource,
             SyntaxType::MockBlockingResource => Self::MockBlockingResource,
             SyntaxType::Array(inner) => Self::Array(Arc::new(Self::from(inner.as_ref()))),
-            SyntaxType::Result(ok, err) => Self::Result(
+            SyntaxType::Result(ok, err) => Self::result(
                 Arc::new(Self::from(ok.as_ref())),
                 Arc::new(Self::from(err.as_ref())),
             ),
+            SyntaxType::Option(some) => Self::option(Arc::new(Self::from(some.as_ref()))),
         }
     }
 }
@@ -61,10 +77,14 @@ fn syntax_type(value: &InferTy) -> Option<SyntaxType> {
         InferTy::MockResource => Some(SyntaxType::MockResource),
         InferTy::MockBlockingResource => Some(SyntaxType::MockBlockingResource),
         InferTy::Array(inner) => Some(SyntaxType::Array(Box::new(syntax_type(inner)?))),
-        InferTy::Result(ok, err) => Some(SyntaxType::Result(
+        InferTy::Union(UnionKind::Result, ok, Some(err)) => Some(SyntaxType::Result(
             Box::new(syntax_type(ok)?),
             Box::new(syntax_type(err)?),
         )),
+        InferTy::Union(UnionKind::Option, some, None) => {
+            Some(SyntaxType::Option(Box::new(syntax_type(some)?)))
+        }
+        InferTy::Union(..) => None,
         InferTy::Deferred(_) | InferTy::Never | InferTy::Tainted => None,
     }
 }
@@ -105,6 +125,11 @@ fn pretty(ty: &Type) -> Option<String> {
                 work.push(Part::Type(ok));
                 work.push(Part::Text("Result<"));
             }
+            Part::Type(SyntaxType::Option(some)) => {
+                work.push(Part::Text(">"));
+                work.push(Part::Type(some));
+                work.push(Part::Text("Option<"));
+            }
         }
     }
     Some(output)
@@ -126,9 +151,11 @@ fn copyable(ty: &Type) -> bool {
         match node {
             Type::I64 | Type::Bool | Type::Unit => {}
             Type::Array(inner) => work.push(inner),
-            Type::Result(ok, err) => {
-                work.push(err);
-                work.push(ok);
+            Type::Union(_, first, second) => {
+                if let Some(second) = second {
+                    work.push(second);
+                }
+                work.push(first);
             }
             Type::MockResource | Type::MockBlockingResource => return false,
             Type::Deferred(_) | Type::Never | Type::Tainted => return false,
@@ -157,9 +184,11 @@ fn internal_state(ty: &Type) -> Option<Type> {
             Type::Never => state = Some(Type::Never),
             Type::Deferred(id) if state.is_none() => state = Some(Type::Deferred(*id)),
             Type::Array(child) => work.push(child),
-            Type::Result(ok, err) => {
-                work.push(err);
-                work.push(ok);
+            Type::Union(_, first, second) => {
+                if let Some(second) = second {
+                    work.push(second);
+                }
+                work.push(first);
             }
             _ => {}
         }
@@ -173,9 +202,11 @@ fn contains_resource(ty: &Type) -> bool {
         match node {
             Type::MockResource | Type::MockBlockingResource => return true,
             Type::Array(inner) => work.push(inner),
-            Type::Result(ok, err) => {
-                work.push(err);
-                work.push(ok);
+            Type::Union(_, first, second) => {
+                if let Some(second) = second {
+                    work.push(second);
+                }
+                work.push(first);
             }
             Type::I64 | Type::Bool | Type::Unit => {}
             Type::Deferred(_) | Type::Never | Type::Tainted => {}
@@ -194,9 +225,11 @@ fn has_resource_array(ty: &Type) -> bool {
                 }
                 work.push(inner);
             }
-            Type::Result(ok, err) => {
-                work.push(err);
-                work.push(ok);
+            Type::Union(_, first, second) => {
+                if let Some(second) = second {
+                    work.push(second);
+                }
+                work.push(first);
             }
             Type::I64
             | Type::Bool
@@ -228,6 +261,11 @@ fn mismatch(
     expected: &str,
     found: &Type,
 ) -> Box<Diagnostic> {
+    // An unresolved expected type cannot form a schema-valid mismatch.
+    // Its constructor owns the inference diagnostic instead.
+    if expected.is_empty() {
+        return unresolved_type(primary);
+    }
     let Some(found_label) = pretty(found) else {
         return unresolved_type(primary);
     };
@@ -355,7 +393,7 @@ struct PendingDomain {
 }
 
 #[derive(Clone)]
-struct PendingDomainResult {
+struct PendingNominalDomain {
     variable: u64,
     domain: &'static str,
     call: Span,
@@ -431,10 +469,10 @@ enum ShapeHint {
 #[derive(Clone)]
 enum PendingConstraint {
     Constructor { child: u64, array: u64, span: Span },
-    ResultConstructor { result: u64, span: Span },
+    VariantConstructor { union: u64, span: Span },
     Join(Box<PendingDeferredJoin>),
     Domain(PendingDomain),
-    DomainResult(Box<PendingDomainResult>),
+    DomainNominal(Box<PendingNominalDomain>),
     BinaryDomain(Box<PendingBinaryDomain>),
     GuardedComparison(Box<PendingGuardedComparison>),
     Projection(Box<PendingProjection>),
@@ -500,6 +538,15 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
                     None => {}
                 }
             }
+            Expr::Match(selection) => {
+                expression(&selection.scrutinee, types);
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        expression(guard, types);
+                    }
+                    block(&arm.body, types);
+                }
+            }
             Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
         }
     }
@@ -535,6 +582,9 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
             } => {
                 expression(condition, types);
                 block(body, types);
+            }
+            Statement::Match(selection) => {
+                expression(&Expr::Match(Box::new(selection.clone())), types)
             }
             Statement::Block(b) => block(b, types),
             Statement::Return { value: None, .. } | Statement::Value { value: None, .. } => {}
@@ -1054,19 +1104,19 @@ impl Checker<'_> {
             .collect()
     }
 
-    fn pending_result_constructors(&self) -> Vec<(u64, Span)> {
+    fn pending_variant_constructors(&self) -> Vec<(u64, Span)> {
         self.pending
             .iter()
             .filter_map(|entry| match entry {
-                PendingConstraint::ResultConstructor { result, span } => {
-                    Some((*result, span.clone()))
+                PendingConstraint::VariantConstructor { union, span } => {
+                    Some((*union, span.clone()))
                 }
                 _ => None,
             })
             .collect()
     }
 
-    fn unresolved_result_paths(
+    fn unresolved_union_paths(
         &mut self,
         id: u64,
         path: String,
@@ -1078,11 +1128,11 @@ impl Checker<'_> {
         }
         let root = self.root(id);
         if let Some(child) = self.type_nodes[&root].array_child {
-            self.unresolved_result_paths(child, format!("{path}.element"), depth + 1, paths);
+            self.unresolved_union_paths(child, format!("{path}.element"), depth + 1, paths);
         } else if let Some(union) = self.type_nodes[&root].variant_children {
             for variant in union.variants {
                 if let Some(child) = variant.payload {
-                    self.unresolved_result_paths(
+                    self.unresolved_union_paths(
                         child,
                         format!("{path}.{}", variant.name.to_ascii_lowercase()),
                         depth + 1,
@@ -1529,7 +1579,7 @@ impl Checker<'_> {
             .nth(before)
             .map(|domain| (domain.variable, domain.domain));
         if let Some((variable, domain)) = found {
-            self.defer_domain_result(
+            self.defer_nominal_domain(
                 variable,
                 domain,
                 call,
@@ -1542,7 +1592,7 @@ impl Checker<'_> {
     }
 
     #[allow(clippy::too_many_arguments)] // One pending constraint carries its causal sites and guard.
-    fn defer_domain_result(
+    fn defer_nominal_domain(
         &mut self,
         variable: u64,
         domain: &'static str,
@@ -1563,8 +1613,8 @@ impl Checker<'_> {
         if domain == "I64" && self.type_nodes[&root].array_child.is_some() {
             self.failed_join_exprs.insert(span_key(call));
         }
-        self.pending.push(PendingConstraint::DomainResult(Box::new(
-            PendingDomainResult {
+        self.pending.push(PendingConstraint::DomainNominal(Box::new(
+            PendingNominalDomain {
                 variable,
                 domain,
                 call: call.clone(),
@@ -1579,7 +1629,7 @@ impl Checker<'_> {
     fn pending_operation_guard(&self, operand: &Expr) -> Option<(u64, &'static str)> {
         let site = span_key(&Self::primary_span(operand));
         self.pending.iter().find_map(|pending| match pending {
-            PendingConstraint::DomainResult(result) if span_key(&result.call) == site => {
+            PendingConstraint::DomainNominal(result) if span_key(&result.call) == site => {
                 Some((result.variable, result.domain))
             }
             PendingConstraint::BinaryDomain(result) if span_key(&result.result) == site => {
@@ -1613,7 +1663,7 @@ impl Checker<'_> {
                 PendingConstraint::Domain(domain) if inside(&domain.operand) => {
                     evidence.domains.push((domain.variable, domain.domain));
                 }
-                PendingConstraint::DomainResult(result) if inside(&result.call) => {
+                PendingConstraint::DomainNominal(result) if inside(&result.call) => {
                     evidence.domains.push((result.variable, result.domain));
                     evidence.results.push(result.call.clone());
                 }
@@ -1671,7 +1721,7 @@ impl Checker<'_> {
             .cloned()
             .or_else(|| {
                 self.pending.iter().find_map(|pending| match pending {
-                    PendingConstraint::DomainResult(result) if span_key(&result.call) == site => {
+                    PendingConstraint::DomainNominal(result) if span_key(&result.call) == site => {
                         Some(result.nominal.clone())
                     }
                     PendingConstraint::GuardedComparison(result)
@@ -1962,13 +2012,26 @@ impl Checker<'_> {
             let (ty, child_origin) = self.concrete_with_depth(child, depth + 1)?;
             return Some((Type::Array(Arc::new(ty)), child_origin));
         }
-        if let Some((ok, err)) = node.variant_children.and_then(|u| u.result_payloads()) {
-            let (ok_ty, ok_origin) = self.concrete_with_depth(ok, depth + 1)?;
-            let (err_ty, _) = self.concrete_with_depth(err, depth + 1)?;
-            return Some((
-                Type::Result(Arc::new(ok_ty), Arc::new(err_ty)),
-                node.variant_origin.unwrap_or(ok_origin),
-            ));
+        if let Some(union) = node.variant_children {
+            let mut payloads = Vec::new();
+            for variant in union.variants {
+                if let Some(child) = variant.payload {
+                    payloads.push(self.concrete_with_depth(child, depth + 1)?);
+                }
+            }
+            let origin = node
+                .variant_origin
+                .or_else(|| payloads.first().map(|(_, origin)| origin.clone()))?;
+            return match (union.kind, payloads.as_slice()) {
+                (UnionKind::Option, [(some, _)]) => {
+                    Some((Type::option(Arc::new(some.clone())), origin))
+                }
+                (UnionKind::Result, [(ok, _), (err, _)]) => Some((
+                    Type::result(Arc::new(ok.clone()), Arc::new(err.clone())),
+                    origin,
+                )),
+                _ => None,
+            };
         }
         None
     }
@@ -2039,10 +2102,14 @@ impl Checker<'_> {
             Type::Array(inner) => Some(SyntaxType::Array(Box::new(
                 self.resolved_syntax_type(inner)?,
             ))),
-            Type::Result(ok, err) => Some(SyntaxType::Result(
+            Type::Union(UnionKind::Result, ok, Some(err)) => Some(SyntaxType::Result(
                 Box::new(self.resolved_syntax_type(ok)?),
                 Box::new(self.resolved_syntax_type(err)?),
             )),
+            Type::Union(UnionKind::Option, some, None) => Some(SyntaxType::Option(Box::new(
+                self.resolved_syntax_type(some)?,
+            ))),
+            Type::Union(..) => None,
             _ => syntax_type(ty),
         }
     }
@@ -2065,17 +2132,16 @@ impl Checker<'_> {
         if let Type::Deferred(other) = ty {
             return self.union(id, other, found);
         }
-        if let Type::Result(ok, err) = &ty {
+        if let Some(wanted) = concrete_union(&ty) {
             let root = self.root(id);
             if internal_state(&ty).is_some() || self.type_nodes[&root].variant_children.is_some() {
-                let ok = ok.as_ref().clone();
-                let err = err.as_ref().clone();
+                let kind = wanted.kind;
                 return self.atomic(|checker| {
                     let root = checker.root(id);
                     let was_concrete = checker.concrete(root).is_some();
                     if let Some((previous, previous_origin)) =
                         checker.type_nodes[&root].concrete.clone()
-                        && !matches!(previous, Type::Result(..))
+                        && concrete_union(&previous).is_none_or(|union| union.kind != kind)
                     {
                         let expected =
                             pretty(&previous).ok_or_else(|| unresolved_type(found.clone()))?;
@@ -2087,12 +2153,18 @@ impl Checker<'_> {
                             &ty,
                         ));
                     }
-                    let (ok_id, err_id) = checker
-                        .require_union(id, UnionKind::Result, &found)?
-                        .result_payloads()
-                        .unwrap();
-                    checker.bind(ok_id, ok, origin.clone(), found.clone(), intrinsic)?;
-                    checker.bind(err_id, err, origin.clone(), found.clone(), intrinsic)?;
+                    let actual = checker.require_union(id, kind, &found)?;
+                    for (actual, target) in actual.variants.iter().zip(wanted.variants) {
+                        if let (Some(actual), Some(target)) = (actual.payload, target.payload) {
+                            checker.bind(
+                                actual,
+                                target.clone(),
+                                origin.clone(),
+                                found.clone(),
+                                intrinsic,
+                            )?;
+                        }
+                    }
                     if !was_concrete && checker.concrete(root).is_some() {
                         checker.type_nodes.get_mut(&root).unwrap().variant_origin =
                             Some(origin.clone());
@@ -2103,7 +2175,7 @@ impl Checker<'_> {
         }
         let root = self.root(id);
         if self.type_nodes[&root].variant_children.is_some() {
-            // A Result shape cannot be replaced by a scalar while one of its
+            // A union shape cannot be replaced by a scalar while one of its
             // children is still open. The source equality owns the conflict;
             // its caller can defer it until both whole types are printable.
             return Err(unresolved_type(found));
@@ -2408,10 +2480,14 @@ impl Checker<'_> {
             Type::Array(child) => Some(Type::Array(Arc::new(
                 self.resolved_join_side(child.as_ref().clone())?,
             ))),
-            Type::Result(ok, err) => Some(Type::Result(
+            Type::Union(UnionKind::Result, ok, Some(err)) => Some(Type::result(
                 Arc::new(self.resolved_join_side(ok.as_ref().clone())?),
                 Arc::new(self.resolved_join_side(err.as_ref().clone())?),
             )),
+            Type::Union(UnionKind::Option, some, None) => Some(Type::option(Arc::new(
+                self.resolved_join_side(some.as_ref().clone())?,
+            ))),
+            Type::Union(..) => None,
             Type::Never | Type::Tainted => None,
             other => Some(other),
         }
@@ -2623,7 +2699,7 @@ impl Checker<'_> {
                 ) {
                     let root = self.root(id);
                     if error.code == "NX-E0102"
-                        && matches!(other, Type::Result(..))
+                        && concrete_union(&other).is_some()
                         && self.type_nodes[&root].variant_children.is_some()
                         && self.concrete(id).is_none()
                     {
@@ -2693,7 +2769,7 @@ impl Checker<'_> {
                 ) {
                     let root = self.root(id);
                     if error.code == "NX-E0102"
-                        && matches!(other, Type::Result(..))
+                        && concrete_union(&other).is_some()
                         && self.type_nodes[&root].variant_children.is_some()
                         && self.concrete(id).is_none()
                     {
@@ -2777,27 +2853,44 @@ impl Checker<'_> {
                 }
                 Ok(resolved)
             }
-            (Type::Result(a_ok, a_err), Type::Result(b_ok, b_err)) => {
-                let expected = Type::Result(a_ok.clone(), a_err.clone());
-                let found_type = Type::Result(b_ok.clone(), b_err.clone());
-                let compare = |checker: &mut Self| {
-                    let ok = checker.unify(
-                        a_ok.as_ref().clone(),
-                        b_ok.as_ref().clone(),
-                        left_origin.clone(),
-                        right_origin.clone(),
-                        found.clone(),
-                        branch,
-                    )?;
-                    let err = checker.unify(
-                        a_err.as_ref().clone(),
-                        b_err.as_ref().clone(),
+            (a, b) if concrete_union(&a).is_some() && concrete_union(&b).is_some() => {
+                let expected = a;
+                let found_type = b;
+                let left_union = concrete_union(&expected).unwrap();
+                let right_union = concrete_union(&found_type).unwrap();
+                if left_union.kind != right_union.kind {
+                    return match compare_source_site(
+                        &expected,
+                        &found_type,
                         left_origin,
-                        right_origin,
                         found,
-                        branch,
-                    )?;
-                    Ok(Type::Result(Arc::new(ok), Arc::new(err)))
+                        policy,
+                    ) {
+                        Some(error) => Err(error),
+                        None => Ok(expected),
+                    };
+                }
+                let compare = |checker: &mut Self| {
+                    let mut payloads = Vec::new();
+                    for (left, right) in left_union.variants.iter().zip(right_union.variants) {
+                        if let (Some(left), Some(right)) = (left.payload, right.payload) {
+                            payloads.push(checker.unify(
+                                left.clone(),
+                                right.clone(),
+                                left_origin.clone(),
+                                right_origin.clone(),
+                                found.clone(),
+                                branch,
+                            )?);
+                        }
+                    }
+                    Ok(match (left_union.kind, payloads.as_slice()) {
+                        (UnionKind::Option, [some]) => Type::option(Arc::new(some.clone())),
+                        (UnionKind::Result, [ok, err]) => {
+                            Type::result(Arc::new(ok.clone()), Arc::new(err.clone()))
+                        }
+                        _ => return Err(unresolved_type(found.clone())),
+                    })
                 };
                 let outcome = if internal_state(&expected).is_none()
                     && internal_state(&found_type).is_none()
@@ -3125,9 +3218,11 @@ impl Checker<'_> {
                     inner_max = inner_max.max(arrays);
                     match part {
                         Type::Array(child) => work.push((child, arrays + 1)),
-                        Type::Result(ok, err) => {
-                            work.push((ok, arrays));
-                            work.push((err, arrays));
+                        Type::Union(_, first, second) => {
+                            work.push((first, arrays));
+                            if let Some(second) = second {
+                                work.push((second, arrays));
+                            }
                         }
                         _ => {}
                     }
@@ -3273,6 +3368,15 @@ impl Checker<'_> {
                         })
             }
             Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => false,
+            Expr::Match(selection) => {
+                self.expression_reads_binding(&selection.scrutinee, site)
+                    || selection.arms.iter().any(|arm| {
+                        arm.guard
+                            .as_ref()
+                            .is_some_and(|guard| self.expression_reads_binding(guard, site))
+                            || self.block_reads_binding(&arm.body, site)
+                    })
+            }
         }
     }
 
@@ -3314,6 +3418,9 @@ impl Checker<'_> {
                     || self.block_reads_binding(body, site)
             }
             Statement::Block(block) => self.block_reads_binding(block, site),
+            Statement::Match(selection) => {
+                self.expression_reads_binding(&Expr::Match(Box::new(selection.clone())), site)
+            }
         }
     }
 
@@ -3408,7 +3515,8 @@ impl Checker<'_> {
             | Expr::If { .. }
             | Expr::Index { .. }
             | Expr::Call { .. }
-            | Expr::Unary { .. } => false,
+            | Expr::Unary { .. }
+            | Expr::Match(..) => false,
         }
     }
 
@@ -3432,9 +3540,11 @@ impl Checker<'_> {
             values = values.max(v);
             match node {
                 Type::Array(inner) => work.push((inner, a + 1, v + 1)),
-                Type::Result(ok, err) => {
-                    work.push((err, a, v + 1));
-                    work.push((ok, a, v + 1));
+                Type::Union(_, first, second) => {
+                    if let Some(second) = second {
+                        work.push((second, a, v + 1));
+                    }
+                    work.push((first, a, v + 1));
                 }
                 Type::I64
                 | Type::Bool
@@ -3636,7 +3746,7 @@ impl Checker<'_> {
                     continue;
                 }
             } else if guards.is_empty() {
-                // DomainResult can depend on another nominal operation (for
+                // DomainNominal can depend on another nominal operation (for
                 // example `Len(q[x]) + 1`). Resolve the entire chain before
                 // granting the binding its executable type. An undecided
                 // domain remains usable only without an unresolved
@@ -3647,7 +3757,7 @@ impl Checker<'_> {
                 while seen.insert(span_key(&site)) {
                     let Some((variable, domain, dependency)) =
                         self.pending.iter().find_map(|entry| match entry {
-                            PendingConstraint::DomainResult(pending) if pending.call == site => {
+                            PendingConstraint::DomainNominal(pending) if pending.call == site => {
                                 Some((pending.variable, pending.domain, pending.depends_on.clone()))
                             }
                             _ => None,
@@ -3813,7 +3923,7 @@ impl Checker<'_> {
             let result_child_owns_inference =
                 self.type_nodes[&child_root].variant_children.is_some()
                     && self
-                        .pending_result_constructors()
+                        .pending_variant_constructors()
                         .into_iter()
                         .any(|(result, _)| self.root(result) == child_root);
             let own_inference_cause = causal_inference_sites.iter().any(|&(start, end)| {
@@ -3837,7 +3947,7 @@ impl Checker<'_> {
                 ));
             }
         }
-        for (result, span) in self.pending_result_constructors() {
+        for (result, span) in self.pending_variant_constructors() {
             let array_cause = self.errors.iter().any(|error| {
                 error.code == "NX-E0103"
                     && error
@@ -3849,7 +3959,7 @@ impl Checker<'_> {
                 continue;
             }
             let mut paths = Vec::new();
-            self.unresolved_result_paths(result, "$".into(), 0, &mut paths);
+            self.unresolved_union_paths(result, "$".into(), 0, &mut paths);
             if !paths.is_empty() {
                 let mut diagnostic =
                     names::diagnostic("NX-E0113", None, Stage::Types, Operation::TypesInfer, span);
@@ -3872,7 +3982,7 @@ impl Checker<'_> {
         let mut failed_results = HashSet::new();
         let mut failed_dependencies = HashSet::new();
         for pending in self.take_pending_kind(|entry| match entry {
-            PendingConstraint::DomainResult(result) => Ok(result),
+            PendingConstraint::DomainNominal(result) => Ok(result),
             other => Err(other),
         }) {
             let domain_invalid = self.concrete(pending.variable).is_some_and(|(ty, _)| {
@@ -4067,6 +4177,7 @@ impl Checker<'_> {
                         | Statement::If { span, .. }
                         | Statement::While { span, .. }
                         | Statement::Expr { span, .. } => span,
+                        Statement::Match(selection) => &selection.span,
                         Statement::Block(block) => &block.span,
                     };
                     self.top_statement_start = span.start;
@@ -4497,6 +4608,7 @@ impl Checker<'_> {
                 self.statement_condition(condition)?;
                 self.block(body)
             }
+            Statement::Match(selection) => self.selection(selection, false, None, None).map(|_| ()),
         }
     }
 
@@ -4655,8 +4767,9 @@ impl Checker<'_> {
                     // serialization until its element is determined.
                     let pending_outer_shape = matches!((&got, expected), (Type::Array(_), ty)
                         if !matches!(ty, Type::Array(_)))
-                        || matches!((&got, expected), (Type::Result(..), ty)
-                            if !matches!(ty, Type::Result(..)));
+                        || concrete_union(&got).is_some_and(|union| {
+                            concrete_union(expected).is_none_or(|other| other.kind != union.kind)
+                        });
                     let compared = if (context.outer_compare || pending_outer_shape)
                         && internal_state(&got).is_some()
                     {
@@ -4739,8 +4852,14 @@ impl Checker<'_> {
             }
             Expr::Bool(..) => Ok(Type::Bool),
             Expr::Unit(..) => Ok(Type::Unit),
-            Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
+            Expr::Name(name, span) => match self.resolved.uses.get(&span.start) {
+                Some(ResolvedUse::Intrinsic(intrinsic)) if intrinsic == "None" => {
+                    self.option_none(span, expected)
+                }
                 Some(ResolvedUse::Local(local)) => {
+                    if name == "None" && !self.locals.contains_key(&local.name_span.start) {
+                        return self.option_none(span, expected);
+                    }
                     if self.invalid.contains(&local.name_span.start) {
                         self.tainted = true;
                         return Ok(Type::Tainted);
@@ -4847,7 +4966,7 @@ impl Checker<'_> {
                                     )?
                                     .result_payloads()
                                     .unwrap();
-                                Type::Result(
+                                Type::result(
                                     Arc::new(Type::Deferred(ok)),
                                     Arc::new(Type::Deferred(err)),
                                 )
@@ -4856,7 +4975,7 @@ impl Checker<'_> {
                     }
                     other => other,
                 };
-                let Type::Result(ok, err) = operand else {
+                let Type::Union(UnionKind::Result, ok, Some(err)) = operand else {
                     return Err(mismatch(
                         Span {
                             file: span.file.clone(),
@@ -4869,7 +4988,7 @@ impl Checker<'_> {
                         &operand,
                     ));
                 };
-                let Type::Result(_, function_err) = &self.result else {
+                let Type::Union(UnionKind::Result, _, Some(function_err)) = &self.result else {
                     return Err(mismatch(
                         Span {
                             file: span.file.clone(),
@@ -5342,7 +5461,7 @@ impl Checker<'_> {
                     if matches!(op.as_str(), "+" | "-")
                         && let Some((variable, domain)) = self.pending_operation_guard(left)
                     {
-                        self.defer_domain_result(
+                        self.defer_nominal_domain(
                             variable,
                             domain,
                             e.span(),
@@ -5562,7 +5681,7 @@ impl Checker<'_> {
                                         result: e.span().clone(),
                                     },
                                 )));
-                                self.defer_domain_result(
+                                self.defer_nominal_domain(
                                     id,
                                     domain,
                                     e.span(),
@@ -6009,6 +6128,236 @@ impl Checker<'_> {
                     self.divergent_exprs.insert(span_key(e.span()));
                 }
                 Ok(normal.or_else(|| expected.cloned()).unwrap_or(Type::Never))
+            }
+            Expr::Match(selection) => self.selection(selection, true, expected, expected_span),
+        }
+    }
+
+    fn option_none(
+        &mut self,
+        span: &Span,
+        expected: Option<&Type>,
+    ) -> Result<Type, Box<Diagnostic>> {
+        if let Some(complete @ Type::Union(UnionKind::Option, _, None)) = expected {
+            return Ok(complete.clone());
+        }
+        let result = self.new_variable(span)?;
+        let children = self.require_union(result, UnionKind::Option, span)?;
+        let some = children.variants[1]
+            .payload
+            .ok_or_else(|| unresolved_type(span.clone()))?;
+        self.type_nodes
+            .get_mut(&result)
+            .unwrap()
+            .variant_constructed = true;
+        self.expr_vars.insert(span_key(span), result);
+        self.deferred_exprs.insert(span_key(span));
+        self.pending.push(PendingConstraint::VariantConstructor {
+            union: result,
+            span: span.clone(),
+        });
+        Ok(Type::option(Arc::new(Type::Deferred(some))))
+    }
+
+    fn selection(
+        &mut self,
+        selection: &parse::Match,
+        expression: bool,
+        expected: Option<&Type>,
+        expected_span: Option<&Span>,
+    ) -> Result<Type, Box<Diagnostic>> {
+        let inferred = self.expr(&selection.scrutinee, None, None)?;
+        let selected = self
+            .resolved_syntax_type(&inferred)
+            .map(|ty| Type::from(&ty))
+            .unwrap_or(inferred);
+        let selected_origin = Self::primary_span(&selection.scrutinee);
+        let mut previous: Vec<&Pattern> = Vec::new();
+        let mut joined: Option<(Type, Span)> = None;
+        for arm in &selection.arms {
+            self.pattern_type(&arm.pattern, &selected, &selected_origin)?;
+            if crate::check::match_coverage::subsumed(&selected, &arm.pattern, &previous) {
+                let mut diagnostic = names::diagnostic(
+                    "NX-E1304",
+                    Some("unreachable_arm"),
+                    Stage::Types,
+                    Operation::TypesCheck,
+                    arm.pattern.span().clone(),
+                );
+                for pattern in &previous {
+                    diagnostic.related_spans.push(RelatedSpan {
+                        role: RelatedRole::Context,
+                        span: pattern.span().clone(),
+                    });
+                }
+                names::sort_related(&mut diagnostic);
+                return Err(diagnostic);
+            }
+            previous.push(&arm.pattern);
+            if expression {
+                let (value, failed, _) = self.branch(
+                    &arm.body,
+                    expected,
+                    expected_span,
+                    expected.is_some(),
+                    joined.as_ref().map(|(ty, span)| (ty, span)),
+                    false,
+                )?;
+                if !failed && let Some(value) = value {
+                    let origin =
+                        branch_value_span(&arm.body).unwrap_or_else(|| arm.body.span.clone());
+                    if let Some((first, first_origin)) = &joined {
+                        self.unify(
+                            first.clone(),
+                            value.clone(),
+                            first_origin.clone(),
+                            origin.clone(),
+                            origin,
+                            expected.is_none(),
+                        )?;
+                    } else {
+                        joined = Some((value, origin));
+                    }
+                }
+            } else {
+                self.block(&arm.body)?;
+            }
+        }
+        if let Some(witness) = crate::check::match_coverage::missing(&selected, &previous) {
+            let mut diagnostic = names::diagnostic(
+                "NX-E1304",
+                Some("non_exhaustive"),
+                Stage::Types,
+                Operation::TypesCheck,
+                selection.keyword_span.clone(),
+            );
+            diagnostic
+                .data
+                .insert("missing_pattern".into(), DataValue::String(witness));
+            return Err(diagnostic);
+        }
+        Ok(if expression {
+            joined.map_or_else(|| expected.cloned().unwrap_or(Type::Never), |(ty, _)| ty)
+        } else {
+            Type::Unit
+        })
+    }
+
+    fn pattern_type(
+        &mut self,
+        pattern: &Pattern,
+        selected: &Type,
+        origin: &Span,
+    ) -> Result<(), Box<Diagnostic>> {
+        self.charge_solver(pattern.span())?;
+        match pattern {
+            Pattern::Wildcard(_) => Ok(()),
+            Pattern::Integer(_, span) => {
+                if selected == &Type::I64 || pretty(selected).is_none() {
+                    Ok(())
+                } else {
+                    Err(mismatch(
+                        span.clone(),
+                        span.clone(),
+                        Some(origin.clone()),
+                        &pretty(selected).unwrap_or_default(),
+                        &Type::I64,
+                    ))
+                }
+            }
+            Pattern::Bool(_, span) => {
+                if selected == &Type::Bool || pretty(selected).is_none() {
+                    Ok(())
+                } else {
+                    Err(mismatch(
+                        span.clone(),
+                        span.clone(),
+                        Some(origin.clone()),
+                        &pretty(selected).unwrap_or_default(),
+                        &Type::Bool,
+                    ))
+                }
+            }
+            Pattern::Name { name, span, .. }
+                if name == "None" && matches!(selected, Type::Union(UnionKind::Option, ..)) =>
+            {
+                Ok(())
+            }
+            Pattern::Name { span, .. } => {
+                self.locals.insert(
+                    span.start,
+                    Known {
+                        ty: selected.clone(),
+                        origin: origin.clone(),
+                        variable: if let Type::Deferred(id) = selected {
+                            Some(*id)
+                        } else {
+                            None
+                        },
+                    },
+                );
+                Ok(())
+            }
+            Pattern::Constructor { name, args, span } => {
+                let kind = match name.as_str() {
+                    "Some" | "None" => UnionKind::Option,
+                    "Ok" | "Err" => UnionKind::Result,
+                    _ => return Ok(()), // names.resolve owns unknown constructors.
+                };
+                let Some(descriptor) = concrete_union(selected).filter(|union| union.kind == kind)
+                else {
+                    if pretty(selected).is_none() {
+                        // The scrutinee's unresolved constructor reports NX-E0113.
+                        return Ok(());
+                    }
+                    let mut diagnostic = names::diagnostic(
+                        "NX-E1325",
+                        Some("constructor_type"),
+                        Stage::Types,
+                        Operation::TypesCheck,
+                        span.clone(),
+                    );
+                    diagnostic.data.insert(
+                        "constructor".into(),
+                        DataValue::String(format!("prelude:{name}")),
+                    );
+                    diagnostic.data.insert(
+                        "scrutinee_type".into(),
+                        DataValue::String(pretty(selected).unwrap_or_default()),
+                    );
+                    return Err(diagnostic);
+                };
+                let Some(tag) = kind.variant_tag(name) else {
+                    return Ok(());
+                };
+                let Some(variant) = descriptor.variant(tag) else {
+                    return Ok(());
+                };
+                let arity = usize::from(variant.payload.is_some());
+                if args.len() != arity {
+                    let mut diagnostic = names::diagnostic(
+                        "NX-E1325",
+                        Some("constructor_arity"),
+                        Stage::Types,
+                        Operation::TypesCheck,
+                        span.clone(),
+                    );
+                    diagnostic.data.insert(
+                        "constructor".into(),
+                        DataValue::String(format!("prelude:{name}")),
+                    );
+                    diagnostic
+                        .data
+                        .insert("expected_arity".into(), DataValue::UInt(arity as u64));
+                    diagnostic
+                        .data
+                        .insert("found_arity".into(), DataValue::UInt(args.len() as u64));
+                    return Err(diagnostic);
+                }
+                if let (Some(payload), Some(arg)) = (variant.payload, args.first()) {
+                    self.pattern_type(arg, payload, origin)?;
+                }
+                Ok(())
             }
         }
     }
@@ -6948,13 +7297,20 @@ impl Checker<'_> {
                 self.tainted |= invalid;
                 Ok(declared_result.clone())
             }
-            "Ok" | "Err" => {
-                let expected_result = match expected {
-                    Some(Type::Result(ok, err)) => Some((&**ok, &**err)),
-                    _ => None,
+            "Ok" | "Err" | "Some" => {
+                let kind = if name == "Some" {
+                    UnionKind::Option
+                } else {
+                    UnionKind::Result
                 };
-                let payload_expected =
-                    expected_result.map(|(ok, err)| if name == "Ok" { ok } else { err });
+                let tag = kind
+                    .variant_tag(name)
+                    .ok_or_else(|| unresolved_type(call_span.clone()))?;
+                let expected_union = expected
+                    .and_then(concrete_union)
+                    .filter(|union| union.kind == kind);
+                let payload_expected = expected_union
+                    .and_then(|union| union.variant(tag).and_then(|variant| variant.payload));
                 let prior_taint = self.tainted;
                 self.tainted = false;
                 let payload_result = self.expr(ordered(0), payload_expected, expected_span);
@@ -6964,15 +7320,15 @@ impl Checker<'_> {
                 if payload_tainted || payload == Type::Tainted {
                     return Ok(Type::Tainted);
                 }
-                if let Some((ok, err)) = expected_result {
-                    return Ok(Type::Result(Arc::new(ok.clone()), Arc::new(err.clone())));
+                if let Some(complete) = expected.filter(|_| expected_union.is_some()) {
+                    return Ok(complete.clone());
                 }
                 let result = self.new_variable(call_span)?;
-                let (ok, err) = self
-                    .require_union(result, UnionKind::Result, call_span)?
-                    .result_payloads()
-                    .unwrap();
-                let payload_child = if name == "Ok" { ok } else { err };
+                let children = self.require_union(result, kind, call_span)?;
+                let payload_child = children
+                    .variant(tag)
+                    .and_then(|variant| variant.payload)
+                    .ok_or_else(|| unresolved_type(call_span.clone()))?;
                 self.bind(
                     payload_child,
                     payload,
@@ -6986,14 +7342,22 @@ impl Checker<'_> {
                     .variant_constructed = true;
                 self.expr_vars.insert(span_key(call_span), result);
                 self.deferred_exprs.insert(span_key(call_span));
-                self.pending.push(PendingConstraint::ResultConstructor {
-                    result,
+                self.pending.push(PendingConstraint::VariantConstructor {
+                    union: result,
                     span: call_span.clone(),
                 });
-                Ok(Type::Result(
-                    Arc::new(Type::Deferred(ok)),
-                    Arc::new(Type::Deferred(err)),
-                ))
+                match kind {
+                    UnionKind::Option => Ok(Type::option(Arc::new(Type::Deferred(payload_child)))),
+                    UnionKind::Result => {
+                        let (ok, err) = children
+                            .result_payloads()
+                            .ok_or_else(|| unresolved_type(call_span.clone()))?;
+                        Ok(Type::result(
+                            Arc::new(Type::Deferred(ok)),
+                            Arc::new(Type::Deferred(err)),
+                        ))
+                    }
+                }
             }
             _ => unreachable!("closed intrinsic registry"),
         }
@@ -7173,7 +7537,7 @@ pub(crate) fn check_with_partial_limit(
             .iter()
             .filter_map(|entry| match entry {
                 PendingConstraint::BinaryDomain(domain) => Some(span_key(&domain.result)),
-                PendingConstraint::DomainResult(result) => Some(span_key(&result.call)),
+                PendingConstraint::DomainNominal(result) => Some(span_key(&result.call)),
                 _ => None,
             })
             .chain(checker.failed_join_exprs.iter().copied())
@@ -7940,7 +8304,7 @@ mod quota_tests {
         let mut checker = empty_checker(&resolved);
         let ok = checker.new_variable(&site(0)).unwrap();
         let err = checker.new_variable(&site(1)).unwrap();
-        let result = Type::Result(Arc::new(Type::Deferred(ok)), Arc::new(Type::Deferred(err)));
+        let result = Type::result(Arc::new(Type::Deferred(ok)), Arc::new(Type::Deferred(err)));
         assert_eq!(checker.resolved_syntax_type(&result), None);
         checker
             .bind(ok, Type::I64, site(2), site(2), false)

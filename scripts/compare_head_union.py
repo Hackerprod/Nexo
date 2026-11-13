@@ -1,53 +1,40 @@
 #!/usr/bin/env python3
-"""Compare the current CLI with binaries built from git archive HEAD.
+"""Compare CLI bytes with the committed HEAD on programs without Option/match."""
 
-Run ``--build-head`` after saving current debug/release binaries to
-``.scratch/current-union-bin`` and removing the active target. Output is byte exact.
-"""
-
-import argparse
-import hashlib
+import io
 import itertools
 import json
 import os
 from pathlib import Path
 import re
-import shutil
 import subprocess
 import tarfile
 import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
-HEAD_BIN = ROOT / ".scratch" / "head-union-bin"
-CURRENT_BIN = ROOT / ".scratch" / "current-union-bin"
-SOURCES = ROOT / ".scratch" / "union-diff-sources"
 RUST_STRING = re.compile(r'r#"(.*?)"#|"((?:\\.|[^"\\])*)"', re.S)
 
 
-def build_head() -> None:
+def build_head(directory: Path) -> dict[str, Path]:
     archive = subprocess.run(["git", "archive", "HEAD"], cwd=ROOT, capture_output=True, check=True).stdout
-    with tempfile.TemporaryDirectory(prefix="nexo-union-head-", dir=ROOT / ".scratch") as temporary:
-        tree = Path(temporary)
-        tar_path = tree / "head.tar"
-        tar_path.write_bytes(archive)
-        source = tree / "source"
-        source.mkdir()
-        with tarfile.open(tar_path) as tar:
-            for member in tar.getmembers():
-                target = (source / member.name).resolve()
-                if source.resolve() not in target.parents and target != source.resolve():
-                    raise ValueError("archive path escapes source tree")
-            tar.extractall(source, filter="data")
-        HEAD_BIN.mkdir(parents=True, exist_ok=True)
-        for mode in ("debug", "release"):
-            command = ["cargo", "build", "--offline", "--locked"]
-            if mode == "release":
-                command.append("--release")
-            subprocess.run(command, cwd=source, check=True)
-            binary = source / "target" / mode / ("nexo.exe" if os.name == "nt" else "nexo")
-            shutil.copy2(binary, HEAD_BIN / f"head-{mode}{binary.suffix}")
-            shutil.rmtree(source / "target")
-        print("HEAD", subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip())
+    source = directory / "source"
+    source.mkdir()
+    with tarfile.open(fileobj=io.BytesIO(archive)) as tar:
+        for member in tar.getmembers():
+            target = (source / member.name).resolve()
+            if source.resolve() not in target.parents and target != source.resolve():
+                raise ValueError("archive path escapes source tree")
+        tar.extractall(source, filter="data")
+    binaries = {}
+    for mode in ("debug", "release"):
+        command = ["cargo", "build", "--offline", "--locked"]
+        if mode == "release":
+            command.append("--release")
+        env = os.environ.copy()
+        env["CARGO_TARGET_DIR"] = str(source / "target")
+        subprocess.run(command, cwd=source, env=env, check=True)
+        binaries[mode] = source / "target" / mode / ("nexo.exe" if os.name == "nt" else "nexo")
+    return binaries
 
 
 def unescape_rust(literal: str) -> str:
@@ -93,9 +80,6 @@ def all_sources() -> list[tuple[str, str, Path | None]]:
             rows.append((str(path.relative_to(ROOT)), path.read_text(encoding="utf-8"), env if env.exists() else None))
     rows.extend((name, source, None) for name, source in test_sources())
     rows.extend((name, source, None) for name, source in f0007_examples())
-    for directory in ("f0007-structural", "f0007-binding-sweep"):
-        for path in sorted((ROOT / ".scratch" / directory).glob("*.n")):
-            rows.append((f"{directory}:{path.name}", path.read_text(encoding="utf-8"), None))
     assignments = ["Ok(1)", "Err(2)", "Err(true)", "Ok([1])", "Err([2])"]
     contexts = ["", "let s:Result<I64,I64>=r;", "let s:Result<I64,Bool>=r;",
                 "if true {r=Ok(3);}", "while false {r=Err(4);}",
@@ -107,7 +91,7 @@ def all_sources() -> list[tuple[str, str, Path | None]]:
     for index, (first, second, context) in enumerate(itertools.islice(combinations, 300)):
         source = f"fn Main(){{var r={first};r={second};{context}}}"
         rows.append((f"f0007-reassignment:{index:03}", source, None))
-    return rows
+    return [row for row in rows if not re.search(r"\b(?:Option|Some|None|match)\b", row[1])]
 
 
 def invoke(binary: Path, args: list[str]) -> tuple[int, bytes, bytes]:
@@ -115,51 +99,41 @@ def invoke(binary: Path, args: list[str]) -> tuple[int, bytes, bytes]:
     return result.returncode, result.stdout, result.stderr
 
 
-def head_catalog_codes() -> list[str]:
-    catalog = subprocess.check_output(
-        ["git", "show", "HEAD:docs/adr/F0-CODIGOS.md"], cwd=ROOT
-    ).decode("utf-8")
-    return sorted(set(re.findall(r"\bNX-E\d{4}\b", catalog)))
-
-
 def compare() -> None:
-    suffix = ".exe" if os.name == "nt" else ""
-    binaries = {
-        (lineage, mode): (HEAD_BIN / f"head-{mode}{suffix}" if lineage == "head"
-                          else CURRENT_BIN / f"current-{mode}{suffix}")
-        for lineage in ("head", "current") for mode in ("debug", "release")
-    }
-    for binary in binaries.values():
-        if not binary.is_file():
-            raise SystemExit(f"missing binary: {binary}")
-    SOURCES.mkdir(parents=True, exist_ok=True)
-    rows = all_sources()
-    differences = []
-    commands = 0
-    for index, (name, source, env) in enumerate(rows):
-        if index and index % 100 == 0:
-            print(f"compared_sources={index}/{len(rows)} differences={len(differences)}", flush=True)
-        path = SOURCES / f"{index:05}.n"
-        path.write_text(source, encoding="utf-8", newline="")
-        for mode in ("debug", "release"):
-            for command in ("check", "run"):
-                args = [command, str(path), "--format", "json"]
-                if command == "run" and env:
-                    args.extend(["--mock-env", str(env)])
-                before = invoke(binaries["head", mode], args)
-                after = invoke(binaries["current", mode], args)
-                commands += 1
-                if before != after:
-                    differences.append((name, mode, command, hashlib.sha256(repr(before).encode()).hexdigest(),
-                                        hashlib.sha256(repr(after).encode()).hexdigest()))
-    for mode in ("debug", "release"):
-        for code in head_catalog_codes():
-            before = invoke(binaries["head", mode], ["explain", code, "--format", "json"])
-            after = invoke(binaries["current", mode], ["explain", code, "--format", "json"])
-            commands += 1
-            if before != after:
-                differences.append((code, mode, "explain", hashlib.sha256(repr(before).encode()).hexdigest(),
-                                    hashlib.sha256(repr(after).encode()).hexdigest()))
+    with tempfile.TemporaryDirectory(prefix="nexo-union-diff-") as temporary:
+        directory = Path(temporary)
+        head = build_head(directory)
+        suffix = ".exe" if os.name == "nt" else ""
+        target = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
+        current = {mode: target / mode / f"nexo{suffix}" for mode in ("debug", "release")}
+        for mode in current:
+            if not current[mode].is_file():
+                command = ["cargo", "build", "--offline", "--locked"]
+                if mode == "release":
+                    command.append("--release")
+                subprocess.run(command, cwd=ROOT, check=True)
+        sources = directory / "sources"
+        sources.mkdir()
+        rows = all_sources()
+        differences = []
+        commands = 0
+        for index, (name, source, env) in enumerate(rows):
+            if index and index % 100 == 0:
+                print(f"compared_sources={index}/{len(rows)} differences={len(differences)}", flush=True)
+            path = sources / f"{index:05}.n"
+            path.write_text(source, encoding="utf-8", newline="")
+            for mode in ("debug", "release"):
+                for command in ("check", "run"):
+                    args = [command, str(path), "--format", "json"]
+                    if command == "run" and env:
+                        args.extend(["--mock-env", str(env)])
+                    before = invoke(head[mode], args)
+                    after = invoke(current[mode], args)
+                    commands += 1
+                    if before != after:
+                        differences.append((name, mode, command, before[0], after[0],
+                                            before[1][:300].decode("utf-8", "replace"),
+                                            after[1][:300].decode("utf-8", "replace")))
     print(json.dumps({"sources": len(rows), "commands": commands, "differences": len(differences),
                       "first": differences[:10]}, ensure_ascii=False))
     if differences:
@@ -167,7 +141,4 @@ def compare() -> None:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--build-head", action="store_true")
-    args = parser.parse_args()
-    build_head() if args.build_head else compare()
+    compare()

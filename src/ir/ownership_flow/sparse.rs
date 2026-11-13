@@ -748,7 +748,8 @@ fn analyze_inner(
                 }
                 let changed = if let Some(prior) = &mut incoming[target] {
                     let span = match &blocks[target].terminator {
-                        Terminator::Return { span, .. }
+                        Terminator::Unreachable { span, .. }
+                        | Terminator::Return { span, .. }
                         | Terminator::Jump { span, .. }
                         | Terminator::BranchBool { span, .. } => span,
                     };
@@ -769,7 +770,7 @@ fn analyze_inner(
                 Ok(())
             };
             match &block.terminator {
-                Terminator::Return { .. } => {}
+                Terminator::Return { .. } | Terminator::Unreachable { .. } => {}
                 Terminator::Jump { target, .. } => propagate(target.0)?,
                 Terminator::BranchBool { yes, no, .. } => {
                     propagate(yes.0)?;

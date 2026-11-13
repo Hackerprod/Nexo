@@ -478,7 +478,7 @@ fn analyze_dense(
             transfer(&mut state, ins, function);
         }
         let targets: &[super::model::BlockId] = match &block.terminator {
-            Terminator::Return { .. } => &[],
+            Terminator::Return { .. } | Terminator::Unreachable { .. } => &[],
             Terminator::Jump { target, .. } => std::slice::from_ref(target),
             Terminator::BranchBool { yes, no, .. } => {
                 // The two successors are handled below without allocating.
@@ -595,7 +595,8 @@ fn propagate(
     }
     let changed = if let Some(prior) = &mut incoming[target] {
         let span = match &blocks[target].terminator {
-            Terminator::Return { span, .. }
+            Terminator::Unreachable { span, .. }
+            | Terminator::Return { span, .. }
             | Terminator::Jump { span, .. }
             | Terminator::BranchBool { span, .. } => span,
         };

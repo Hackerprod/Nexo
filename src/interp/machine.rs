@@ -5,7 +5,9 @@ use super::observation::Log;
 use crate::diagnostic::{
     self, DataValue, Diagnostic, Namespace, Operation, RelatedRole, RelatedSpan, Severity, Stage,
 };
-use crate::ir::model::{Binary, Function, Intrinsic, Op, ParameterMode, Program, TempId, Ty};
+use crate::ir::model::{
+    Binary, Function, Intrinsic, MatchLiteral, Op, ParameterMode, Program, TempId, Ty,
+};
 use crate::ir::work::{WorkEvent, WorkPlanner};
 use crate::union::{UnionKind, VariantTag};
 
@@ -107,6 +109,43 @@ enum Value {
     },
 }
 impl Value {
+    fn at_variant_path(&self, path: &[VariantTag]) -> Option<&Self> {
+        let mut value = self;
+        for tag in path {
+            let Self::Union {
+                tag: actual,
+                payload: Some(next),
+                ..
+            } = value
+            else {
+                return None;
+            };
+            if actual != tag {
+                return None;
+            }
+            value = next;
+        }
+        Some(value)
+    }
+
+    fn at_variant_path_mut(&mut self, path: &[VariantTag]) -> Option<&mut Self> {
+        let mut value = self;
+        for tag in path {
+            let Self::Union {
+                tag: actual,
+                payload: Some(next),
+                ..
+            } = value
+            else {
+                return None;
+            };
+            if actual != tag {
+                return None;
+            }
+            value = next;
+        }
+        Some(value)
+    }
     fn owns_resource(&self) -> bool {
         let mut node = self;
         while let Self::Union {
@@ -243,6 +282,7 @@ enum TempValue {
     ReadScalar(Value),
     Exclusive(crate::ir::model::LocalId, Vec<i64>),
 }
+type EditAlias = (crate::ir::model::LocalId, Vec<i64>, Vec<VariantTag>);
 impl TempValue {
     fn owned_cells(&self) -> u64 {
         match self {
@@ -902,6 +942,7 @@ impl Machine {
         self.frames += 1;
         let mut locals: Vec<Option<Value>> = vec![None; function.locals.len()];
         let mut borrowed_locals = vec![false; function.locals.len()];
+        let mut edit_aliases: Vec<Option<EditAlias>> = vec![None; function.locals.len()];
         if args.len() != function.parameters.len() {
             return Err("frame argument count");
         }
@@ -1056,11 +1097,156 @@ impl Machine {
                     )?;
                     continue;
                 }
+                if let Op::ProjectPayload { local, path } = &ins.op {
+                    let source = locals
+                        .get(local.0)
+                        .and_then(Option::as_ref)
+                        .ok_or("projection local")?;
+                    let value = source
+                        .at_variant_path(&path[..path.len().saturating_sub(1)])
+                        .ok_or("projection path")?;
+                    let Value::Union {
+                        tag,
+                        payload: Some(payload),
+                        ..
+                    } = value
+                    else {
+                        return Err("projection variant");
+                    };
+                    if Some(tag) != path.last() {
+                        return Err("projection tag");
+                    }
+                    Self::install_temp(
+                        &mut temps,
+                        ins.output.ok_or("projection output")?,
+                        TempValue::ReadScalar((**payload).clone()),
+                    )?;
+                    continue;
+                }
+                if let Op::BindView { local, value, hold } = &ins.op {
+                    let borrowed = if *hold {
+                        temps
+                            .get(value.0)
+                            .and_then(Option::as_ref)
+                            .ok_or("view loan")?
+                    } else {
+                        // The arm-local projection can be released immediately.
+                        // The selection loan remains live until the match joins.
+                        let taken = Self::take(&mut temps, *value)?;
+                        let selected = taken.as_value(&locals)?.clone();
+                        let slot = locals.get_mut(local.0).ok_or("view local")?;
+                        if slot.is_some() {
+                            return Err("view already bound");
+                        }
+                        *slot = Some(selected);
+                        borrowed_locals[local.0] = true;
+                        continue;
+                    };
+                    let selected = borrowed.as_value(&locals)?.clone();
+                    let slot = locals.get_mut(local.0).ok_or("view local")?;
+                    if slot.is_some() {
+                        return Err("view already bound");
+                    }
+                    *slot = Some(selected);
+                    borrowed_locals[local.0] = true;
+                    continue;
+                }
+                if let Op::BindEdit {
+                    local,
+                    root,
+                    loan,
+                    path,
+                    ..
+                } = &ins.op
+                {
+                    let indexes = if let Some(loan) = loan {
+                        let Some(TempValue::Exclusive(source, indexes)) =
+                            temps.get(loan.0).and_then(Option::as_ref)
+                        else {
+                            return Err("edit loan");
+                        };
+                        if source != root {
+                            return Err("edit loan source");
+                        }
+                        indexes.clone()
+                    } else {
+                        Vec::new()
+                    };
+                    let source = locals
+                        .get(root.0)
+                        .and_then(Option::as_ref)
+                        .ok_or("edit root")?;
+                    let selected = get_path(source, &indexes)
+                        .ok_or("edit index")?
+                        .at_variant_path(path)
+                        .ok_or("edit path")?
+                        .deep_copy();
+                    let slot = locals.get_mut(local.0).ok_or("edit local")?;
+                    if slot.is_some() {
+                        return Err("edit already bound");
+                    }
+                    *slot = Some(selected);
+                    borrowed_locals[local.0] = true;
+                    edit_aliases[local.0] = Some((*root, indexes, path.clone()));
+                    continue;
+                }
                 let value = match &ins.op {
                     Op::BorrowValue(_) => return Err("borrow dispatch"),
                     Op::BorrowIndex { .. } => return Err("borrow index dispatch"),
                     Op::BeginLoan { .. } => return Err("loan dispatch"),
                     Op::EndLoan(_) => None,
+                    Op::TestVariant { local, path, tag } => {
+                        let found = locals.get(local.0).and_then(Option::as_ref)
+                            .and_then(|value| value.at_variant_path(path))
+                            .is_some_and(|value| matches!(value, Value::Union { tag: actual, .. } if actual == tag));
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                            break;
+                        }
+                        Some(Value::Bool(found))
+                    }
+                    Op::TestLiteral {
+                        local,
+                        path,
+                        literal,
+                    } => {
+                        let found = locals
+                            .get(local.0)
+                            .and_then(Option::as_ref)
+                            .and_then(|value| value.at_variant_path(path))
+                            .is_some_and(|value| match (value, literal) {
+                                (Value::Int(actual), MatchLiteral::I64(expected)) => {
+                                    actual == expected
+                                }
+                                (Value::Bool(actual), MatchLiteral::Bool(expected)) => {
+                                    actual == expected
+                                }
+                                _ => false,
+                            });
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                            break;
+                        }
+                        Some(Value::Bool(found))
+                    }
+                    Op::ExtractPayload { local, path } => {
+                        let source = locals
+                            .get_mut(local.0)
+                            .and_then(Option::as_mut)
+                            .ok_or("extract local")?;
+                        let Some((&last, prefix)) = path.split_last() else {
+                            return Err("extract path");
+                        };
+                        let value = source.at_variant_path_mut(prefix).ok_or("extract prefix")?;
+                        let Value::Union { tag, payload, .. } = value else {
+                            return Err("extract variant");
+                        };
+                        if *tag != last {
+                            return Err("extract tag");
+                        }
+                        Some(*payload.take().ok_or("extract missing payload")?)
+                    }
+                    Op::ProjectPayload { .. } | Op::BindView { .. } | Op::BindEdit { .. } => {
+                        return Err("projection dispatch");
+                    }
                     Op::ConstI64(n) => {
                         if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                             break;
@@ -1304,6 +1490,7 @@ impl Machine {
                                 }
                                 Value::Bool(a < b)
                             }
+                            (Binary::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
                             (Binary::Equal, a, b) => {
                                 if !self.charge_work(equal_pairs(a, b), &ins.span) {
                                     break;
@@ -1319,9 +1506,66 @@ impl Machine {
                     }
                     Op::WritePlace { local, value } => {
                         let v = Self::take(&mut temps, *value)?.into_owned()?;
-                        let dest = locals.get_mut(local.0).ok_or("write index")?;
-                        if let Some(old) = dest.replace(v) {
+                        if let Some((root, indexes, path)) =
+                            edit_aliases.get(local.0).and_then(Clone::clone)
+                        {
+                            let old = if path.is_empty() {
+                                if indexes.is_empty() {
+                                    locals
+                                        .get_mut(root.0)
+                                        .ok_or("edit root")?
+                                        .replace(v.deep_copy())
+                                        .ok_or("edit root empty")?
+                                } else {
+                                    let source = locals
+                                        .get_mut(root.0)
+                                        .and_then(Option::as_mut)
+                                        .ok_or("edit root")?;
+                                    std::mem::replace(
+                                        get_mut_path(source, &indexes).ok_or("edit index")?,
+                                        v.deep_copy(),
+                                    )
+                                }
+                            } else {
+                                let source = locals
+                                    .get_mut(root.0)
+                                    .and_then(Option::as_mut)
+                                    .ok_or("edit root")?;
+                                let Some((&tag, prefix)) = path.split_last() else {
+                                    return Err("edit path");
+                                };
+                                let Value::Union {
+                                    tag: actual,
+                                    payload,
+                                    ..
+                                } = get_mut_path(source, &indexes)
+                                    .ok_or("edit index")?
+                                    .at_variant_path_mut(prefix)
+                                    .ok_or("edit prefix")?
+                                else {
+                                    return Err("edit variant");
+                                };
+                                if *actual != tag {
+                                    return Err("edit tag");
+                                }
+                                *payload
+                                    .replace(Box::new(v.deep_copy()))
+                                    .ok_or("edit payload")?
+                            };
+                            if !indexes.is_empty() {
+                                let source = locals
+                                    .get_mut(root.0)
+                                    .and_then(Option::as_mut)
+                                    .ok_or("edit root")?;
+                                adjust_size(source, &indexes, old.cells(), v.cells());
+                            }
+                            *locals.get_mut(local.0).ok_or("edit local")? = Some(v);
                             self.dispose(old)?;
+                        } else {
+                            let dest = locals.get_mut(local.0).ok_or("write index")?;
+                            if let Some(old) = dest.replace(v) {
+                                self.dispose(old)?;
+                            }
                         }
                         None
                     }
@@ -1343,6 +1587,37 @@ impl Machine {
                             path.push(*n);
                         }
                         let replacement = Self::take(&mut temps, *value)?.into_owned()?;
+                        if let Some((source_id, source_indexes, variants)) =
+                            edit_aliases.get(local.0).and_then(Clone::clone)
+                        {
+                            let source = locals
+                                .get_mut(source_id.0)
+                                .and_then(Option::as_mut)
+                                .ok_or("edit index root")?;
+                            let selected = get_mut_path(source, &source_indexes)
+                                .ok_or("edit index source")?
+                                .at_variant_path_mut(&variants)
+                                .ok_or("edit index variant")?;
+                            if let Some(position) = first_bad_index(selected, &path) {
+                                self.cells = self.cells.saturating_sub(replacement.cells());
+                                self.index_fault(site, position);
+                                break;
+                            }
+                            let node = get_mut_path(selected, &path).ok_or("edit index target")?;
+                            let previous = std::mem::replace(node, replacement);
+                            let old_size = previous.cells();
+                            let new_size = node.cells();
+                            adjust_size(selected, &path, old_size, new_size);
+                            adjust_size(source, &source_indexes, old_size, new_size);
+                            let snapshot = get_path(source, &source_indexes)
+                                .ok_or("edit index source")?
+                                .at_variant_path(&variants)
+                                .ok_or("edit index variant")?
+                                .deep_copy();
+                            *locals.get_mut(local.0).ok_or("edit index local")? = Some(snapshot);
+                            self.dispose(previous)?;
+                            continue;
+                        }
                         let root = locals
                             .get_mut(local.0)
                             .ok_or("write index local")?
@@ -1677,6 +1952,7 @@ impl Machine {
                         {
                             self.dispose(old)?;
                         }
+                        edit_aliases[id.0] = None;
                         None
                     }
                 };
@@ -1692,7 +1968,8 @@ impl Machine {
                 break 'cfg;
             }
             let charges = match &current.terminator {
-                crate::ir::model::Terminator::Return { charges, .. }
+                crate::ir::model::Terminator::Unreachable { charges, .. }
+                | crate::ir::model::Terminator::Return { charges, .. }
                 | crate::ir::model::Terminator::Jump { charges, .. }
                 | crate::ir::model::Terminator::BranchBool { charges, .. } => charges,
             };
@@ -1705,6 +1982,9 @@ impl Machine {
                 break 'cfg;
             }
             match &current.terminator {
+                crate::ir::model::Terminator::Unreachable { .. } => {
+                    return Err("unreachable match arm");
+                }
                 crate::ir::model::Terminator::Return {
                     value: Some(id), ..
                 } => {
@@ -1765,6 +2045,13 @@ impl Machine {
         })
     }
 }
+fn get_path<'a>(mut node: &'a Value, path: &[i64]) -> Option<&'a Value> {
+    for index in path {
+        node = node.element(*index)?;
+    }
+    Some(node)
+}
+
 fn get_mut_path<'a>(mut node: &'a mut Value, path: &[i64]) -> Option<&'a mut Value> {
     for &index in path {
         node = node.element_mut(index)?;
@@ -1802,7 +2089,8 @@ trait TerminatorSpan {
 impl TerminatorSpan for crate::ir::model::BasicBlock {
     fn terminator_span(&self) -> diagnostic::Span {
         match &self.terminator {
-            crate::ir::model::Terminator::Return { span, .. } => span.clone(),
+            crate::ir::model::Terminator::Unreachable { span, .. }
+            | crate::ir::model::Terminator::Return { span, .. } => span.clone(),
             crate::ir::model::Terminator::Jump { span, .. }
             | crate::ir::model::Terminator::BranchBool { span, .. } => span.clone(),
         }

@@ -1,0 +1,50 @@
+{
+  "mode": "quick-release",
+  "mutations": [
+    {
+      "id": "option_payload_copyability",
+      "file": "src/ir/model.rs",
+      "original_sha256": "5c8a30b15101c97634ff629053c8d774dc9fae10a42a2f4938c94a530ed66e9c",
+      "mutated_sha256": "cb534a89de7fe8386a50f4521f96b3b2ac555539149e21293a098b956801439d",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j02_option option_resource_payload_is_closed_once_and_none_remains_noncopyable"
+    },
+    {
+      "id": "option_none_coverage",
+      "file": "src/check/match_coverage.rs",
+      "original_sha256": "60d1e570129c39884cde37b6b7d9fde8f7486a0f57ec5521008352eab532b19c",
+      "mutated_sha256": "517d29e1a6077c8b1cf717ef2565005eec21893b7a782c657b56f5607272b949",
+      "restored": true,
+      "status": "survived",
+      "test": "--test j03_match match_option_missing_none_is_m01"
+    },
+    {
+      "id": "variant_selection_runtime",
+      "file": "src/interp/machine.rs",
+      "original_sha256": "e2b32939fd02801e534129f5b79550eb639f911aee897c484eff9fce20744d34",
+      "mutated_sha256": "8d297271434a6d4f4f4a47dafc428d35cff476fc7746ef985dbf7e9ce76d1439",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j04_match_ownership owner_extraction_and_cleanup_follow_selected_arm"
+    },
+    {
+      "id": "pattern_edit_permission",
+      "file": "src/ir/lower_match.rs",
+      "original_sha256": "10cdb348b9c4c1a422488db64cd039e4b8aa6ac68d4dc8fb708c236c64d4ba42",
+      "mutated_sha256": "f744e282abe500ebc222abdb7157de6b6bf0ec25c6ebb29b917748bbd413d1e2",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j04_match_ownership m06_pattern_edit_requires_exclusive_selection"
+    },
+    {
+      "id": "payload_access_proof",
+      "file": "src/ir/verify.rs",
+      "original_sha256": "18adef2686cb1db24b9208d61d334c20c0094f6d0f3f1050f10174851b515e4c",
+      "mutated_sha256": "4d5b841d88eb88f0823a6f94342f3b8080d8868614f138a5057d4d2f88b281a5",
+      "restored": true,
+      "status": "killed",
+      "test": "--lib match_projection_requires_the_selected_variant_on_every_incoming_edge"
+    }
+  ]
+}

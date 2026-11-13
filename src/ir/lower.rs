@@ -6,6 +6,8 @@ use super::model::{
     Instruction, Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId, Parameter,
     ParameterMode, Program, ScopeId, TempId, Terminator, Ty, WorkCharge,
 };
+#[path = "lower_match.rs"]
+mod lower_match;
 use super::work::{WorkEvent, WorkPlanner};
 use crate::check::types::ResolvedType;
 use crate::diagnostic::{self, Diagnostic, PROFILE_ID, Span};
@@ -834,7 +836,13 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::EndLoan(_) => 1,
         Op::BeginLoan { indexes, .. } => 1 + indexes.len() as u64,
         Op::BuildArray(values) | Op::CallIntrinsic { args: values, .. } => values.len() as u64,
-        Op::BuildVariant { .. } | Op::BranchVariant { .. } => 1,
+        Op::BuildVariant { .. }
+        | Op::BranchVariant { .. }
+        | Op::TestVariant { .. }
+        | Op::TestLiteral { .. }
+        | Op::ProjectPayload { .. }
+        | Op::ExtractPayload { .. } => 1,
+        Op::BindView { .. } | Op::BindEdit { .. } => 2,
         Op::ReadIndex { indexes, .. }
         | Op::BorrowIndex { indexes, .. }
         | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
@@ -852,6 +860,7 @@ fn ir_instruction_count(instruction: &Instruction) -> u64 {
 
 fn ir_terminator_count(terminator: &Terminator) -> u64 {
     1 + match terminator {
+        Terminator::Unreachable { .. } => 0,
         Terminator::Return { value, .. } => u64::from(value.is_some()),
         Terminator::Jump { .. } => 1,
         Terminator::BranchBool { .. } => 3,
@@ -1128,6 +1137,7 @@ impl Lower<'_> {
                 self.temp_live(*right, false);
             }
             Op::WritePlace { value, .. } | Op::DropValue(value) => self.temp_live(*value, false),
+            Op::BindView { value, hold, .. } => self.temp_live(*value, *hold),
             Op::WriteIndex { indexes, value, .. } => {
                 for &id in indexes {
                     self.temp_live(id, false);
@@ -1861,7 +1871,8 @@ impl Lower<'_> {
         let mut terminator = terminator;
         let pending = std::mem::take(&mut self.pending_charges);
         match &mut terminator {
-            Terminator::Return { charges, .. }
+            Terminator::Unreachable { charges, .. }
+            | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => {
                 charges.splice(0..0, pending);
@@ -2373,6 +2384,16 @@ impl Lower<'_> {
             && let Ok((root, index_exprs)) = place_parts(place)
             && let Some(name) = place_name(root)
         {
+            if name == "None" && self.visible.get(name).and_then(|v| v.last()).is_none() {
+                return self
+                    .expr_mode(
+                        &arg.value,
+                        depth + 1,
+                        Some(expected),
+                        mode == ParameterMode::Read,
+                    )
+                    .map(|flow| (flow, None));
+            }
             let local = self.get(name)?;
             // F0-0002 §4.1.2.3, RD121: a read loan from a hypothetical
             // projection has no place to lend. Delegate to the ordinary
@@ -2997,6 +3018,7 @@ impl Lower<'_> {
                     },
                 )),
                 Statement::Let { .. } => {}
+                Statement::Match(_) => {}
                 Statement::Assign { span, .. } => {
                     let Statement::Assign { place, .. } = statement else {
                         unreachable!();
@@ -3263,6 +3285,9 @@ impl Lower<'_> {
             Statement::Value { .. } => {
                 return Err(CompileError::InvalidIr("control flow"));
             }
+            Statement::Match(selection) => {
+                self.match_selection(selection, false, depth, None, diagnostics)?;
+            }
         }
         Ok(())
     }
@@ -3320,6 +3345,7 @@ impl Lower<'_> {
                     }
                 }
                 Expr::Group(..) => {}
+                Expr::Match(selection) => own.push(selection.span.clone()),
             }
             self.pending_charges.extend(
                 own.into_iter()
@@ -3346,6 +3372,18 @@ impl Lower<'_> {
                 Ok(self.emitted(Op::ConstUnit, inferred, s.clone(), Access::Own, false))
             }
             Expr::Name(name, s) => {
+                if name == "None" && self.visible.get(name).and_then(|v| v.last()).is_none() {
+                    return Ok(self.emitted(
+                        Op::BuildVariant {
+                            tag: crate::union::VariantTag(0),
+                            payload: None,
+                        },
+                        inferred,
+                        s.clone(),
+                        Access::Own,
+                        false,
+                    ));
+                }
                 let id = self.get(name)?;
                 self.check_available(id, s.clone())?;
                 if self.locals[id.0].ty == Ty::Never {
@@ -3483,9 +3521,12 @@ impl Lower<'_> {
                     self.end_call_loans(acquired);
                     return Ok(result_flow);
                 }
-                if let Some(tag) = crate::union::UnionKind::Result.variant_tag(name) {
+                if let Some(tag) = inferred
+                    .union_descriptor()
+                    .and_then(|union| union.kind.variant_tag(name))
+                {
                     if args.len() != 1 {
-                        return Err(CompileError::InvalidIr("result constructor arity"));
+                        return Err(CompileError::InvalidIr("variant constructor arity"));
                     }
                     let payload = self.expr(&args[0].value, depth + 1, None)?;
                     if payload.diverged() {
@@ -3940,6 +3981,9 @@ impl Lower<'_> {
                 depth,
                 expected,
             ),
+            Expr::Match(selection) => {
+                self.match_selection(selection, true, depth, Some(&inferred), &mut Vec::new())
+            }
         }
     }
 }
@@ -3997,7 +4041,8 @@ fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
         Type::MockResource => Ty::MockResource,
         Type::MockBlockingResource => Ty::MockBlockingResource,
         Type::Array(child) => Ty::Array(Box::new(lower_type(child)?)),
-        Type::Result(ok, err) => Ty::Result(Box::new(lower_type(ok)?), Box::new(lower_type(err)?)),
+        Type::Result(ok, err) => Ty::result(Box::new(lower_type(ok)?), Box::new(lower_type(err)?)),
+        Type::Option(some) => Ty::option(Box::new(lower_type(some)?)),
     })
 }
 fn statement_span(stmt: &Statement) -> Span {
@@ -4009,6 +4054,7 @@ fn statement_span(stmt: &Statement) -> Span {
         | Statement::If { span, .. }
         | Statement::While { span, .. }
         | Statement::Expr { span, .. } => span.clone(),
+        Statement::Match(selection) => selection.span.clone(),
         Statement::Block(block) => block.span.clone(),
     }
 }

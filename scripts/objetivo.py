@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,7 +17,8 @@ TIMEOUT_SECONDS = 10
 
 
 def build_binary() -> Path:
-    binary = ROOT / "target" / "release" / ("nexo.exe" if sys.platform == "win32" else "nexo")
+    target = Path(os.environ.get("CARGO_TARGET_DIR", ROOT / "target"))
+    binary = target / "release" / ("nexo.exe" if sys.platform == "win32" else "nexo")
     if not binary.is_file():
         result = subprocess.run(
             ["cargo", "build", "--locked", "--offline", "--release"],
@@ -52,9 +54,11 @@ def diagnostic_reason(payload: object) -> str:
     return "rechazo sin diagnóstico estructurado"
 
 
-def run_one(binary: Path, source: Path) -> tuple[bool, str]:
+def run_one(binary: Path, source: Path, profile: str | None) -> tuple[bool, str]:
     env_path = source.with_suffix(".env.json")
     common = [str(binary), "check", str(source), "--format", "json"]
+    if profile:
+        common.extend(["--profile", profile])
     try:
         check = subprocess.run(common, cwd=ROOT, capture_output=True, text=True,
                                encoding="utf-8", errors="replace", timeout=TIMEOUT_SECONDS)
@@ -68,6 +72,8 @@ def run_one(binary: Path, source: Path) -> tuple[bool, str]:
         return False, diagnostic_reason(checked)
 
     command = [str(binary), "run", str(source), "--format", "json"]
+    if profile:
+        command.extend(["--profile", profile])
     if env_path.is_file():
         command.extend(["--mock-env", str(env_path)])
     try:
@@ -104,7 +110,8 @@ def rows(binary: Path) -> list[dict[str, str]]:
         match = metadata.removeprefix("// ").split("; capacidad: ", 1)
         origin = match[0] if match else "procedencia no indicada"
         capability = match[1].rstrip(".") if len(match) > 1 else "capacidad no indicada"
-        executes, reason = run_one(binary, source)
+        profile = "f0-0003-b-v1" if "F0-0003" in metadata else None
+        executes, reason = run_one(binary, source, profile)
         result.append({"id": source.stem[:2], "archivo": source.name,
                        "procedencia": origin, "capacidad": capability,
                        "estado": "EJECUTA" if executes else "NO EJECUTA",

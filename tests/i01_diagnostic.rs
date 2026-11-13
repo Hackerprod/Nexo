@@ -567,8 +567,8 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
     (
         "NX-E1304",
         &[
-            (Some("non_exhaustive"), "outside_profile"),
-            (Some("unreachable_arm"), "outside_profile"),
+            (Some("non_exhaustive"), "in_profile"),
+            (Some("unreachable_arm"), "in_profile"),
         ],
     ),
     (
@@ -638,6 +638,20 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
         ],
     ),
     ("NX-E1324", &[(None, "outside_profile")]),
+    (
+        "NX-E1325",
+        &[
+            (Some("constructor_arity"), "in_profile"),
+            (Some("constructor_type"), "in_profile"),
+        ],
+    ),
+    (
+        "NX-E1326",
+        &[
+            (Some("break_outside_loop"), "outside_profile"),
+            (Some("continue_outside_loop"), "outside_profile"),
+        ],
+    ),
 ];
 
 #[test]
@@ -779,8 +793,8 @@ fn availability_matches_independent_full_registry_expectations() {
         (
             "NX-E1304",
             &[
-                (Some("non_exhaustive"), "outside_profile"),
-                (Some("unreachable_arm"), "outside_profile"),
+                (Some("non_exhaustive"), "in_profile"),
+                (Some("unreachable_arm"), "in_profile"),
             ],
         ),
         (
@@ -850,6 +864,20 @@ fn availability_matches_independent_full_registry_expectations() {
             ],
         ),
         ("NX-E1324", &[(None, "outside_profile")]),
+        (
+            "NX-E1325",
+            &[
+                (Some("constructor_arity"), "in_profile"),
+                (Some("constructor_type"), "in_profile"),
+            ],
+        ),
+        (
+            "NX-E1326",
+            &[
+                (Some("break_outside_loop"), "outside_profile"),
+                (Some("continue_outside_loop"), "outside_profile"),
+            ],
+        ),
     ];
     let mut combinations = 0;
     for (code, cases) in EXPECTED {
@@ -875,8 +903,8 @@ fn availability_matches_independent_full_registry_expectations() {
             combinations += 1;
         }
     }
-    assert_eq!(EXPECTED.len(), 70);
-    assert_eq!(combinations, 113);
+    assert_eq!(EXPECTED.len(), 72);
+    assert_eq!(combinations, 117);
 }
 
 fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Diagnostic {
@@ -903,7 +931,7 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         ),
         "NX-E0006" => (Stage::Parse, Operation::SyntaxParse),
         "NX-E0101" => (Stage::Names, Operation::NamesResolve),
-        "NX-E0102" | "NX-E1303" => (Stage::Types, Operation::TypesCheck),
+        "NX-E0102" | "NX-E1303" | "NX-E1304" | "NX-E1325" => (Stage::Types, Operation::TypesCheck),
         "NX-E0103" | "NX-E0113" => (Stage::Types, Operation::TypesInfer),
         "NX-E0104" => (Stage::Names, Operation::NamesDeclare),
         "NX-E0105" => (Stage::Ownership, Operation::PlaceWrite),
@@ -948,6 +976,18 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         "NX-E0102" | "NX-E1303" => {
             data.insert("expected_type".into(), V::String("I64".into()));
             data.insert("found_type".into(), V::String("Bool".into()));
+        }
+        "NX-E1304" if subcause == Some("non_exhaustive") => {
+            data.insert("missing_pattern".into(), V::String("None".into()));
+        }
+        "NX-E1325" if subcause == Some("constructor_arity") => {
+            data.insert("constructor".into(), V::String("prelude:Some".into()));
+            data.insert("expected_arity".into(), V::UInt(1));
+            data.insert("found_arity".into(), V::UInt(2));
+        }
+        "NX-E1325" => {
+            data.insert("constructor".into(), V::String("prelude:Ok".into()));
+            data.insert("scrutinee_type".into(), V::String("Option<I64>".into()));
         }
         "NX-E0112" => {
             data.insert("entry".into(), V::String("Main".into()));
@@ -1248,7 +1288,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
         }
     }
     assert_eq!(type_fixtures, 59);
-    assert_eq!(accepted, 135, "valid ADR constructed diagnostics");
+    assert_eq!(accepted, 139, "valid ADR constructed diagnostics");
     for code in ["NX-E0005", "NX-E0006", "R0101"] {
         let mut d = if code == "R0101" {
             let mut d = diagnostic_for_catalog("NX-E0006", None);

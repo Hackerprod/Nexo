@@ -172,6 +172,7 @@ pub enum Type {
     MockBlockingResource,
     Array(Box<Type>),
     Result(Box<Type>, Box<Type>),
+    Option(Box<Type>),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WithClause {
@@ -195,6 +196,68 @@ pub struct Block {
     pub span: Span,
     pub close_span: Span,
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Match {
+    pub scrutinee: Box<Expr>,
+    pub mode: Option<Mode>,
+    pub mode_span: Option<Span>,
+    pub arms: Vec<Arm>,
+    pub span: Span,
+    pub keyword_span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Arm {
+    pub pattern: Pattern,
+    pub guard: Option<Expr>,
+    pub guard_span: Option<Span>,
+    pub body: Block,
+    pub span: Span,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub enum Pattern {
+    Wildcard(Span),
+    Integer(String, Span),
+    Bool(bool, Span),
+    Name {
+        name: String,
+        mode: Option<Mode>,
+        span: Span,
+    },
+    Constructor {
+        name: String,
+        args: Vec<Pattern>,
+        span: Span,
+    },
+}
+
+impl Pattern {
+    pub fn span(&self) -> &Span {
+        match self {
+            Self::Wildcard(span)
+            | Self::Integer(_, span)
+            | Self::Bool(_, span)
+            | Self::Name { span, .. }
+            | Self::Constructor { span, .. } => span,
+        }
+    }
+}
+
+fn collect_pattern_bindings(pattern: &Pattern, bindings: &mut HashSet<String>) {
+    match pattern {
+        Pattern::Name { name, .. } => {
+            bindings.insert(name.clone());
+        }
+        Pattern::Constructor { args, .. } => {
+            for arg in args {
+                collect_pattern_bindings(arg, bindings);
+            }
+        }
+        _ => {}
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement {
     Let {
@@ -229,6 +292,7 @@ pub enum Statement {
         body: Block,
         span: Span,
     },
+    Match(Match),
     Block(Block),
     Expr {
         value: Expr,
@@ -271,6 +335,7 @@ pub enum Expr {
         otherwise: Option<Box<Else>>,
         span: Span,
     },
+    Match(Box<Match>),
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Else {
@@ -297,6 +362,7 @@ impl Expr {
             | Self::Call { span: s, .. }
             | Self::Index { span: s, .. }
             | Self::If { span: s, .. } => s,
+            Self::Match(selection) => &selection.span,
         }
     }
 }
@@ -311,6 +377,7 @@ pub(crate) fn statement_span(s: &Statement) -> &Span {
         | Statement::If { span, .. }
         | Statement::While { span, .. }
         | Statement::Expr { span, .. } => span,
+        Statement::Match(selection) => &selection.span,
     }
 }
 fn else_span(e: &Else) -> &Span {
@@ -357,6 +424,7 @@ pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
         local_scopes: Vec::new(),
         work: None,
         new_profile: false,
+        pending_match: None,
     };
     parser.budget_error(
         "syntax_nesting",
@@ -402,6 +470,7 @@ fn parse_with_split_tokens_counted(
             local_scopes: Vec::new(),
             work: None,
             new_profile,
+            pending_match: None,
         };
         return Err(parser.budget_error(
             "source_bytes",
@@ -484,6 +553,7 @@ fn parse_inner(
         local_scopes: Vec::new(),
         work,
         new_profile,
+        pending_match: None,
     }
     .program()
 }
@@ -791,6 +861,7 @@ fn unadmitted_edit_in_statement(statement: &Statement) -> Option<Span> {
         Statement::While {
             condition, body, ..
         } => unadmitted_edit_in_expr(condition, false).or_else(|| unadmitted_edit_in_block(body)),
+        Statement::Match(selection) => unadmitted_edit_in_match(selection),
         Statement::Block(block) => unadmitted_edit_in_block(block),
         Statement::Return { value: None, .. } | Statement::Value { value: None, .. } => None,
     }
@@ -842,8 +913,19 @@ fn unadmitted_edit_in_expr(expr: &Expr, immediate_argument: bool) -> Option<Span
                     Else::If(expr) => unadmitted_edit_in_expr(expr, false),
                 })
             }),
+        Expr::Match(selection) => unadmitted_edit_in_match(selection),
         Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => None,
     }
+}
+fn unadmitted_edit_in_match(selection: &Match) -> Option<Span> {
+    unadmitted_edit_in_expr(&selection.scrutinee, false).or_else(|| {
+        selection.arms.iter().find_map(|arm| {
+            arm.guard
+                .as_ref()
+                .and_then(|guard| unadmitted_edit_in_expr(guard, false))
+                .or_else(|| unadmitted_edit_in_block(&arm.body))
+        })
+    })
 }
 fn returns_unit(expr: &Expr) -> bool {
     match expr {
@@ -879,6 +961,7 @@ fn non_unit_return(statement: &Statement) -> Option<Span> {
             condition, body, ..
         } => expr_non_unit_return(condition)
             .or_else(|| body.statements.iter().find_map(non_unit_return)),
+        Statement::Match(selection) => match_non_unit_return(selection),
         Statement::Let { value, .. }
         | Statement::Assign { value, .. }
         | Statement::Expr { value, .. }
@@ -915,8 +998,19 @@ fn expr_non_unit_return(expr: &Expr) -> Option<Span> {
             expr_non_unit_return(target).or_else(|| expr_non_unit_return(index))
         }
         Expr::Array(xs, _) => xs.iter().find_map(expr_non_unit_return),
+        Expr::Match(selection) => match_non_unit_return(selection),
         _ => None,
     }
+}
+fn match_non_unit_return(selection: &Match) -> Option<Span> {
+    expr_non_unit_return(&selection.scrutinee).or_else(|| {
+        selection.arms.iter().find_map(|arm| {
+            arm.guard
+                .as_ref()
+                .and_then(expr_non_unit_return)
+                .or_else(|| arm.body.statements.iter().find_map(non_unit_return))
+        })
+    })
 }
 struct Parser<'a> {
     file: &'a str,
@@ -931,6 +1025,7 @@ struct Parser<'a> {
     local_scopes: Vec<HashSet<String>>,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
+    pending_match: Option<(&'static str, Span)>,
 }
 impl Parser<'_> {
     fn program(mut self) -> ParseResult {
@@ -957,6 +1052,9 @@ impl Parser<'_> {
                 }
                 return Err(self.err("module_item", &["EOF", "fn"], 0, None));
             }
+        }
+        if let Some((feature, span)) = self.pending_match.clone() {
+            return Err(self.feature(feature, span));
         }
         Ok((
             Ast {
@@ -1321,6 +1419,11 @@ impl Parser<'_> {
             let b = self.ty()?;
             self.expect_type_close()?;
             Type::Result(Box::new(a), Box::new(b))
+        } else if self.new_profile && self.eat("Option") {
+            self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
+            let payload = self.ty()?;
+            self.expect_type_close()?;
+            Type::Option(Box::new(payload))
         } else {
             let tok = self.peek().clone();
             if tok.text == "Option" {
@@ -1466,6 +1569,9 @@ impl Parser<'_> {
         block_start: usize,
     ) -> Result<Statement, Box<Diagnostic>> {
         let st = self.peek().span.start as usize;
+        if self.new_profile && self.word("match") {
+            return Ok(Statement::Match(self.match_form(false)?));
+        }
         if let Some(id) = deferred_feature(&self.peek().text) {
             return Err(self.feature(id, self.peek().span.clone()));
         }
@@ -1827,13 +1933,6 @@ impl Parser<'_> {
                     args,
                     span: self.span(start, end),
                 };
-                if self.new_profile
-                    && matches!(&lhs, Expr::Call { target, .. } if matches!(target.as_ref(), Expr::Name(name, _) if crate::prelude::pending_intrinsic(name).is_some_and(|entry| entry.variant.is_some() && entry.arity == 1)))
-                    && !self.function_names.contains("Some")
-                    && !self.local_scopes.iter().any(|scope| scope.contains("Some"))
-                {
-                    return Err(self.feature("option", lhs.span().clone()));
-                }
                 self.check_expression_height(&lhs)?;
                 continue;
             }
@@ -1904,6 +2003,13 @@ impl Parser<'_> {
             }
             if op == "+=" {
                 return Err(self.feature("compound_assignment", self.peek().span.clone()));
+            }
+            if self.new_profile
+                && op == "<"
+                && matches!(&lhs, Expr::Name(..))
+                && self.generic_head_call()
+            {
+                return Err(self.feature("traits_generics", self.peek().span.clone()));
             }
             if matches!(
                 op,
@@ -2070,6 +2176,9 @@ impl Parser<'_> {
         if t.text == "if" {
             return self.if_form(true);
         }
+        if self.new_profile && t.text == "match" {
+            return Ok(Expr::Match(Box::new(self.match_form(true)?)));
+        }
         if t.text == "fn" {
             return Err(self.feature("closure", t.span));
         }
@@ -2085,17 +2194,6 @@ impl Parser<'_> {
             return Ok(Expr::Bool(t.text == "true", t.span));
         }
         if t.kind == Kind::Name {
-            if self.new_profile
-                && crate::prelude::pending_intrinsic(&t.text)
-                    .is_some_and(|entry| entry.variant.is_some() && entry.arity == 0)
-                && !self.function_names.contains(&t.text)
-                && !self
-                    .local_scopes
-                    .iter()
-                    .any(|scope| scope.contains(&t.text))
-            {
-                return Err(self.feature("option", t.span));
-            }
             self.take();
             return Ok(Expr::Name(t.text, t.span));
         }
@@ -2259,6 +2357,162 @@ impl Parser<'_> {
         }
         unreachable!("if form has a branch")
     }
+    fn match_form(&mut self, expression: bool) -> Result<Match, Box<Diagnostic>> {
+        let keyword = self.take();
+        let (mode, mode_span) = if self.word("move") || self.word("edit") {
+            let token = self.take();
+            let mode = if token.text == "move" {
+                Mode::Consume
+            } else {
+                Mode::Inout
+            };
+            (Some(mode), Some(token.span))
+        } else {
+            (None, None)
+        };
+        let scrutinee = self.expr(0)?;
+        if mode.is_some() && !is_place_expr(&scrutinee) {
+            let prefix = mode_span.as_ref().unwrap();
+            return Err(self.syntax(
+                &self.tokens[self.at.saturating_sub(1)],
+                if mode == Some(Mode::Consume) {
+                    "consume_place"
+                } else {
+                    "inout_place"
+                },
+                &["Place"],
+                prefix.start as usize,
+            ));
+        }
+        if mode == Some(Mode::Consume) && is_projected_place(&scrutinee) {
+            let mut d = self.feature("partial_transfer", scrutinee.span().clone());
+            if let Some(span) = mode_span.clone() {
+                d.related_spans.push(RelatedSpan {
+                    role: RelatedRole::Context,
+                    span,
+                });
+            }
+            return Err(d);
+        }
+        self.expect("{", "grammar.Match", &["{"], keyword.span.start as usize)?;
+        let mut arms = Vec::new();
+        while !self.at_text("}") && !self.eof() {
+            let pattern = self.pattern()?;
+            let mut bindings = HashSet::new();
+            collect_pattern_bindings(&pattern, &mut bindings);
+            self.local_scopes.push(bindings);
+            let guard_span = self.word("if").then(|| self.take().span);
+            if let Some(span) = &guard_span {
+                self.note_pending("match_guard", span.clone());
+            }
+            let guard = if guard_span.is_some() {
+                Some(self.expr(0)?)
+            } else {
+                None
+            };
+            self.expect("=>", "grammar.Arm", &["=>"], pattern.span().start as usize)?;
+            let body = self.block_with_target(expression)?;
+            self.local_scopes.pop();
+            let span = self.span(pattern.span().start as usize, body.span.end as usize);
+            arms.push(Arm {
+                pattern,
+                guard,
+                guard_span,
+                body,
+                span,
+            });
+            if !self.eat(",") {
+                break;
+            }
+        }
+        self.expect(
+            "}",
+            "grammar.Match",
+            &[",", "}"],
+            keyword.span.start as usize,
+        )?;
+        Ok(Match {
+            scrutinee: Box::new(scrutinee),
+            mode,
+            mode_span,
+            arms,
+            span: self.span(keyword.span.start as usize, self.prev_end()),
+            keyword_span: keyword.span,
+        })
+    }
+
+    fn pattern(&mut self) -> Result<Pattern, Box<Diagnostic>> {
+        let token = self.take();
+        let start = token.span.start as usize;
+        if token.text == "_" {
+            return Ok(Pattern::Wildcard(token.span));
+        }
+        if token.kind == Kind::Integer {
+            return Ok(Pattern::Integer(token.text, token.span));
+        }
+        if token.text == "-" && self.peek().kind == Kind::Integer {
+            let magnitude = self.take();
+            return Ok(Pattern::Integer(
+                format!("-{}", magnitude.text),
+                self.span(start, magnitude.span.end as usize),
+            ));
+        }
+        if token.text == "true" || token.text == "false" {
+            return Ok(Pattern::Bool(token.text == "true", token.span));
+        }
+        let (mode, name) = if token.text == "edit" || token.text == "move" {
+            let name = self.expect_name("grammar.Pattern", &["Name"], start)?;
+            (
+                Some(if token.text == "edit" {
+                    Mode::Inout
+                } else {
+                    Mode::Consume
+                }),
+                name,
+            )
+        } else {
+            (None, token)
+        };
+        if name.kind != Kind::Name {
+            return Err(self.err(
+                "grammar.Pattern",
+                &["Name", "_", "IntLiteral", "true", "false"],
+                start,
+                None,
+            ));
+        }
+        if mode.is_none() && self.eat("(") {
+            let mut args = Vec::new();
+            while !self.at_text(")") && !self.eof() {
+                args.push(self.pattern()?);
+                if !self.eat(",") {
+                    break;
+                }
+            }
+            self.expect(")", "grammar.Pattern", &[")", ","], start)?;
+            return Ok(Pattern::Constructor {
+                name: name.text,
+                args,
+                span: self.span(start, self.prev_end()),
+            });
+        }
+        Ok(Pattern::Name {
+            name: name.text,
+            mode,
+            span: self.span(start, self.prev_end()),
+        })
+    }
+
+    fn note_pending(&mut self, feature: &'static str, span: Span) {
+        if self
+            .pending_match
+            .as_ref()
+            .is_none_or(|(_, prior)| span.start < prior.start)
+        {
+            self.pending_match = Some((feature, span));
+        }
+    }
+
     fn branch_operand(&mut self) -> Result<Block, Box<Diagnostic>> {
         if self.at_text("{") {
             return self.block_with_target(true);
@@ -2369,12 +2623,37 @@ impl Parser<'_> {
         d.recognized_prefix = Some(self.span(prefix_start, t.span.start as usize));
         d
     }
+    fn generic_head_call(&self) -> bool {
+        let mut depth = 0usize;
+        for (index, token) in self.tokens.iter().enumerate().skip(self.at) {
+            match token.text.as_str() {
+                "<" => depth += 1,
+                ">" => {
+                    depth = depth.saturating_sub(1);
+                    if depth == 0 {
+                        return self
+                            .tokens
+                            .get(index + 1)
+                            .is_some_and(|next| next.text == "(");
+                    }
+                }
+                _ => {}
+            }
+            if depth > 128 || token.kind == Kind::Eof {
+                break;
+            }
+        }
+        false
+    }
+
     fn feature(&self, id: &str, s: Span) -> Box<Diagnostic> {
         let pending = self
             .new_profile
             .then(|| match (id, self.slice(&s)) {
                 ("option", _) => ("J02", Stage::Types, Operation::TypesCheck),
                 ("match", _) => ("J03", Stage::Types, Operation::TypesCheck),
+                ("match_mode", _) => ("J04", Stage::Types, Operation::TypesCheck),
+                ("match_guard", _) => ("J05", Stage::Types, Operation::TypesCheck),
                 ("closure", _) => ("J06", Stage::Types, Operation::TypesCheck),
                 ("generator", "yield" | "Next") => ("J11", Stage::Types, Operation::TypesCheck),
                 ("generator", _) => ("J10", Stage::Types, Operation::TypesCheck),
@@ -2736,6 +3015,7 @@ fn expression_height(expr: &Expr) -> usize {
             });
             1 + expression_height(condition).max(branch).max(alternative)
         }
+        Expr::Match(selection) => match_expression_height(selection),
     }
 }
 
@@ -2775,6 +3055,7 @@ fn statement_expression_height(statement: &Statement) -> usize {
                 .max()
                 .unwrap_or(0),
         ),
+        Statement::Match(selection) => match_expression_height(selection),
         Statement::Block(block) => block
             .statements
             .iter()
@@ -2782,6 +3063,25 @@ fn statement_expression_height(statement: &Statement) -> usize {
             .max()
             .unwrap_or(0),
     }
+}
+fn match_expression_height(selection: &Match) -> usize {
+    1 + expression_height(&selection.scrutinee).max(
+        selection
+            .arms
+            .iter()
+            .map(|arm| {
+                arm.guard.as_ref().map_or(0, expression_height).max(
+                    arm.body
+                        .statements
+                        .iter()
+                        .map(statement_expression_height)
+                        .max()
+                        .unwrap_or(0),
+                )
+            })
+            .max()
+            .unwrap_or(0),
+    )
 }
 
 #[cfg(test)]
@@ -2810,6 +3110,7 @@ mod b_tests {
             local_scopes: Vec::new(),
             work: None,
             new_profile: false,
+            pending_match: None,
         };
         parser.expect_type_close().unwrap();
         assert_eq!(
@@ -2925,6 +3226,7 @@ mod b_tests {
                 local_scopes: Vec::new(),
                 work: None,
                 new_profile: false,
+                pending_match: None,
             };
             let result = parser.statement(false, 0);
             assert_eq!(result.is_err(), expect_error, "{source}");

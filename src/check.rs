@@ -1,3 +1,4 @@
+mod match_coverage;
 pub mod names;
 #[cfg(test)]
 mod tests;
@@ -75,7 +76,7 @@ fn check_proposed_with_worker_failure(
         source,
         &ast,
         run_entry,
-        check_ast_with_worker_failure(file, source, &ast, force_unavailable, 1_000_000),
+        check_ast_with_worker_failure(file, source, &ast, force_unavailable, 1_000_000, false),
     );
     if let Some(reason) = report.internal_error {
         return Err(CheckProposedError::Internal(reason));
@@ -126,7 +127,13 @@ pub(crate) fn check_for_compilation_with_type_limit(
         source,
         ast,
         run_entry,
-        check_ast(file, source, ast, type_steps_limit),
+        check_ast(
+            file,
+            source,
+            ast,
+            type_steps_limit,
+            profile_id.starts_with("f0-0003-"),
+        ),
     );
     for error in &mut report.errors {
         if error.code == "NX-E0003"
@@ -151,7 +158,7 @@ pub(crate) fn check_for_compilation_with_worker_failure(
         source,
         ast,
         run_entry,
-        check_ast_with_worker_failure(file, source, ast, force_unavailable, 1_000_000),
+        check_ast_with_worker_failure(file, source, ast, force_unavailable, 1_000_000, false),
     )
 }
 
@@ -178,8 +185,9 @@ fn check_ast(
     source: &str,
     ast: &crate::frontend::parse::Ast,
     type_steps_limit: u64,
+    allow_option: bool,
 ) -> CompilationCheck {
-    check_ast_with_worker_failure(file, source, ast, false, type_steps_limit)
+    check_ast_with_worker_failure(file, source, ast, false, type_steps_limit, allow_option)
 }
 
 fn check_ast_with_worker_failure(
@@ -188,6 +196,7 @@ fn check_ast_with_worker_failure(
     ast: &crate::frontend::parse::Ast,
     force_unavailable: bool,
     type_steps_limit: u64,
+    allow_option: bool,
 ) -> CompilationCheck {
     std::thread::scope(|scope| {
         let worker = if force_unavailable {
@@ -198,7 +207,8 @@ fn check_ast_with_worker_failure(
                 .spawn_scoped(scope, move || {
                     #[cfg(test)]
                     let _allocation_capture = crate::test_alloc::capture_for(file);
-                    let resolved = match names::resolve(file, source, ast) {
+                    let resolved = match names::resolve_with_option(file, source, ast, allow_option)
+                    {
                         Ok(resolved) => resolved,
                         Err(errors) => {
                             return CompilationCheck {

@@ -8,7 +8,8 @@ use crate::frontend::parse;
 fn unavailable_checker_worker_is_an_internal_failure() {
     let source = "fn Main(){}";
     let ast = parse::parse("worker.n", source).unwrap();
-    let failure = super::check_ast_with_worker_failure("worker.n", source, &ast, true, 1_000_000);
+    let failure =
+        super::check_ast_with_worker_failure("worker.n", source, &ast, true, 1_000_000, false);
     assert_eq!(
         failure.internal_error,
         Some("type checker worker unavailable")

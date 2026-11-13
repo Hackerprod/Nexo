@@ -1,12 +1,15 @@
+use std::sync::atomic::{AtomicU64, Ordering};
 use std::{fs, process::Command};
 
 use nexo::{prelude::PENDING_INTRINSICS, union::UnionKind};
 
 fn check(source: &str, profile: &str) -> (i32, String) {
+    static NEXT: AtomicU64 = AtomicU64::new(0);
     let path = std::env::temp_dir().join(format!(
-        "nexo-j01-{}-{}.n",
+        "nexo-j01-{}-{}-{}.n",
         std::process::id(),
-        source.len()
+        source.len(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
     ));
     fs::write(&path, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_nexo"))
@@ -82,14 +85,8 @@ fn j01_effect_diagnostic_names_the_new_model_without_changing_a2() {
 fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
     for (source, scope, stage, feature) in [
         (
-            "fn Main(){let x:Option<I64>=None;}",
-            "J02",
-            "types",
-            "option",
-        ),
-        (
-            "fn Main(){match true{true=>{},false=>{}}}",
-            "J03",
+            "fn Main(){match true{true if true=>{},_=>{}}}",
+            "J05",
             "types",
             "match",
         ),
@@ -127,6 +124,19 @@ fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
 }
 
 #[test]
+fn j04_match_modes_are_available_only_in_the_j_profile() {
+    let source = "fn Main(){let o=true;match move o{true=>{},false=>{}}}";
+    let (new_status, new_output) = check(source, "f0-0003-b-v1");
+    assert_eq!(new_status, 0, "{new_output}");
+    let (old_status, old_output) = check(source, "f0-0002-b-v2");
+    assert_eq!(old_status, 1, "{old_output}");
+    assert!(
+        old_output.contains("\"feature_id\":\"match\""),
+        "{old_output}"
+    );
+}
+
+#[test]
 fn j01_pending_prelude_entries_have_j_scopes() {
     assert_eq!(
         PENDING_INTRINSICS.map(|entry| entry.identity),
@@ -134,16 +144,21 @@ fn j01_pending_prelude_entries_have_j_scopes() {
     );
     assert_eq!(UnionKind::Option.variant_tag("Some").unwrap().0, 1);
     assert_eq!(UnionKind::Option.variant_tag("None").unwrap().0, 0);
-    for (source, scope) in [
-        ("fn Main(){let x=Some(1);}", "J02"),
-        ("fn Main(){Iterator.Next(1);}", "J11"),
+    let (status, output) = check("fn Main(){Iterator.Next(1);}", "f0-0003-b-v1");
+    assert_eq!(status, 1, "{output}");
+    assert!(output.contains("\"pending_scope\":\"J11\""), "{output}");
+}
+
+#[test]
+fn j02_option_boundary_accepts_both_nominal_variants() {
+    for source in [
+        "fn Main(){let x:Option<I64>=None;}",
+        "fn Main(){let x=Some(1);}",
     ] {
         let (status, output) = check(source, "f0-0003-b-v1");
-        assert_eq!(status, 1, "{output}");
-        assert!(
-            output.contains(&format!("\"pending_scope\":\"{scope}\"")),
-            "{output}"
-        );
+        assert_eq!(status, 0, "{source}: {output}");
+        let (old_status, old_output) = check(source, "f0-0002-b-v2");
+        assert_eq!(old_status, 1, "{source}: {old_output}");
     }
 }
 
@@ -153,5 +168,42 @@ fn j01_malformed_option_and_some_keep_syntax_priority() {
         let (status, output) = check(source, "f0-0003-b-v1");
         assert_eq!(status, 1, "{output}");
         assert!(!output.contains("\"pending_scope\":\"J02\""), "{output}");
+    }
+}
+
+#[test]
+fn j01_later_syntax_error_precedes_pending_option_constructor() {
+    let source = "fn Main(){let x=Some(1);let y:Result=Ok(1);}";
+    let (status, output) = check(source, "f0-0003-b-v1");
+    assert_eq!(status, 1, "{output}");
+    assert!(output.contains("\"code\":\"NX-E0002\""), "{output}");
+    assert!(!output.contains("\"pending_scope\":\"J02\""), "{output}");
+}
+
+#[test]
+fn j01_explain_describes_each_constructor_and_loop_subcause_separately() {
+    for (code, first, second, first_text, second_text) in [
+        (
+            "NX-E1325",
+            "constructor_arity",
+            "constructor_type",
+            "aridad incorrecta",
+            "otra unión nominal",
+        ),
+        (
+            "NX-E1326",
+            "break_outside_loop",
+            "continue_outside_loop",
+            "break requiere",
+            "continue requiere",
+        ),
+    ] {
+        let first = nexo::diagnostic::explain(code, Some(first)).unwrap();
+        let second = nexo::diagnostic::explain(code, Some(second)).unwrap();
+        assert_eq!(first.len(), 1);
+        assert_eq!(second.len(), 1);
+        assert!(first[0].description.contains(first_text));
+        assert!(second[0].description.contains(second_text));
+        assert_ne!(first[0].description, second[0].description);
     }
 }

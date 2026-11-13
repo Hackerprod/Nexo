@@ -28,21 +28,62 @@ pub enum Ty {
     Bool,
     Unit,
     Array(Box<Ty>),
-    Result(Box<Ty>, Box<Ty>),
+    Union {
+        kind: UnionKind,
+        first: Box<Ty>,
+        second: Option<Box<Ty>>,
+    },
     MockResource,
     MockBlockingResource,
 }
 impl Ty {
+    pub fn result(ok: Box<Ty>, err: Box<Ty>) -> Self {
+        Self::Union {
+            kind: UnionKind::Result,
+            first: ok,
+            second: Some(err),
+        }
+    }
+
+    pub fn option(some: Box<Ty>) -> Self {
+        Self::Union {
+            kind: UnionKind::Option,
+            first: some,
+            second: None,
+        }
+    }
+
     pub fn union_descriptor(&self) -> Option<UnionDescriptor<&Ty>> {
         match self {
-            Self::Result(ok, err) => Some(UnionDescriptor::result(ok, err)),
+            Self::Union {
+                kind: UnionKind::Result,
+                first,
+                second: Some(second),
+            } => Some(UnionDescriptor::result(first, second)),
+            Self::Union {
+                kind: UnionKind::Option,
+                first,
+                second: None,
+            } => Some(UnionDescriptor::option(first)),
             _ => None,
         }
+    }
+    pub fn at_variant_path(&self, path: &[VariantTag]) -> Option<&Ty> {
+        let mut ty = self;
+        for tag in path {
+            ty = ty.union_descriptor()?.variant(*tag)?.payload?;
+        }
+        Some(ty)
     }
     pub fn has_resource_destructor(&self) -> bool {
         match self {
             Self::MockResource | Self::MockBlockingResource => true,
-            Self::Result(ok, err) => ok.has_resource_destructor() || err.has_resource_destructor(),
+            Self::Union { first, second, .. } => {
+                first.has_resource_destructor()
+                    || second
+                        .as_ref()
+                        .is_some_and(|ty| ty.has_resource_destructor())
+            }
             Self::Array(inner) => inner.has_resource_destructor(),
             Self::Never | Self::I64 | Self::Bool | Self::Unit => false,
         }
@@ -52,7 +93,9 @@ impl Ty {
         match self {
             Self::MockResource | Self::MockBlockingResource => false,
             Self::Array(inner) => inner.copyable(),
-            Self::Result(ok, err) => ok.copyable() && err.copyable(),
+            Self::Union { first, second, .. } => {
+                first.copyable() && second.as_ref().is_none_or(|ty| ty.copyable())
+            }
             _ => true,
         }
     }
@@ -61,9 +104,11 @@ impl Ty {
         while let Some((node, within_array)) = pending.pop() {
             match node {
                 Self::Array(inner) => pending.push((inner, true)),
-                Self::Result(ok, err) => {
-                    pending.push((ok, within_array));
-                    pending.push((err, within_array));
+                Self::Union { first, second, .. } => {
+                    pending.push((first, within_array));
+                    if let Some(second) = second {
+                        pending.push((second, within_array));
+                    }
                 }
                 Self::MockResource | Self::MockBlockingResource if within_array => return true,
                 _ => {}
@@ -84,6 +129,12 @@ pub enum Binary {
     Sub,
     Less,
     Equal,
+    And,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum MatchLiteral {
+    I64(i64),
+    Bool(bool),
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Intrinsic {
@@ -143,6 +194,36 @@ pub enum Op {
     BuildVariant {
         tag: VariantTag,
         payload: Option<TempId>,
+    },
+    TestVariant {
+        local: LocalId,
+        path: Vec<VariantTag>,
+        tag: VariantTag,
+    },
+    TestLiteral {
+        local: LocalId,
+        path: Vec<VariantTag>,
+        literal: MatchLiteral,
+    },
+    ProjectPayload {
+        local: LocalId,
+        path: Vec<VariantTag>,
+    },
+    BindView {
+        local: LocalId,
+        value: TempId,
+        hold: bool,
+    },
+    BindEdit {
+        local: LocalId,
+        root: LocalId,
+        proof: LocalId,
+        loan: Option<TempId>,
+        path: Vec<VariantTag>,
+    },
+    ExtractPayload {
+        local: LocalId,
+        path: Vec<VariantTag>,
     },
     /// Selects the active variant. On Err the current frame returns
     /// Result<U,E> through its ordinary cleanup path.
@@ -223,6 +304,10 @@ pub struct IndexSite {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Terminator {
+    Unreachable {
+        span: Span,
+        charges: Vec<WorkCharge>,
+    },
     Return {
         value: Option<TempId>,
         span: Span,
@@ -435,11 +520,17 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     pending.push(Item::End);
                     pending.push(Item::Type(child));
                 }
-                Item::Type(Ty::Result(ok, err)) => {
-                    bytes.push(8);
+                Item::Type(Ty::Union {
+                    kind,
+                    first,
+                    second,
+                }) => {
+                    bytes.push(if *kind == UnionKind::Result { 8 } else { 9 });
                     pending.push(Item::End);
-                    pending.push(Item::Type(err));
-                    pending.push(Item::Type(ok));
+                    if let Some(second) = second {
+                        pending.push(Item::Type(second));
+                    }
+                    pending.push(Item::Type(first));
                 }
             }
         }
@@ -568,6 +659,72 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     number(&mut bytes, value.0);
                     ty(&mut bytes, result);
                 }
+                Op::TestVariant { local, path, tag } => {
+                    bytes.push(24);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, path.len());
+                    for step in path {
+                        bytes.push(step.0);
+                    }
+                    bytes.push(tag.0);
+                }
+                Op::TestLiteral {
+                    local,
+                    path,
+                    literal,
+                } => {
+                    bytes.push(25);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, path.len());
+                    for step in path {
+                        bytes.push(step.0);
+                    }
+                    match literal {
+                        MatchLiteral::I64(value) => {
+                            bytes.push(1);
+                            bytes.extend_from_slice(&value.to_le_bytes());
+                        }
+                        MatchLiteral::Bool(value) => {
+                            bytes.push(2);
+                            bytes.push(u8::from(*value));
+                        }
+                    }
+                }
+                Op::ProjectPayload { local, path } | Op::ExtractPayload { local, path } => {
+                    bytes.push(if matches!(ins.op, Op::ProjectPayload { .. }) {
+                        26
+                    } else {
+                        28
+                    });
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, path.len());
+                    for step in path {
+                        bytes.push(step.0);
+                    }
+                }
+                Op::BindView { local, value, hold } => {
+                    bytes.push(27);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, value.0);
+                    bytes.push(u8::from(*hold));
+                }
+                Op::BindEdit {
+                    local,
+                    root,
+                    proof,
+                    loan,
+                    path,
+                } => {
+                    bytes.push(29);
+                    number(&mut bytes, local.0);
+                    number(&mut bytes, root.0);
+                    number(&mut bytes, proof.0);
+                    number(&mut bytes, loan.map_or(0, |id| id.0 + 1));
+                    number(&mut bytes, path.len());
+                    for step in path {
+                        bytes.push(step.0);
+                    }
+                }
                 Op::ReadIndex {
                     local,
                     indexes,
@@ -620,6 +777,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Binary::Sub => 2,
                         Binary::Less => 3,
                         Binary::Equal => 4,
+                        Binary::And => 5,
                     });
                     number(&mut bytes, left.0);
                     number(&mut bytes, right.0)
@@ -741,6 +899,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
         }
         if !f.blocks.is_empty() {
             match &block.terminator {
+                Terminator::Unreachable { .. } => bytes.push(4),
                 Terminator::Return { value, .. } => {
                     bytes.push(1);
                     match value {
@@ -766,7 +925,8 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
             }
         }
         let charges = match &block.terminator {
-            Terminator::Return { charges, .. }
+            Terminator::Unreachable { charges, .. }
+            | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => charges,
         };

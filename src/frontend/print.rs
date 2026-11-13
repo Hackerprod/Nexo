@@ -167,6 +167,12 @@ fn ty(value: &Type, out: &mut Writer, bound: usize) -> usize {
             let end = ty(err, out, end);
             after(out, ">", Role::TypeClose, end)
         }
+        Type::Option(some) => {
+            let end = after(out, "Option", Role::Word, bound);
+            let end = after(out, "<", Role::TypeOpen, end);
+            let end = ty(some, out, end);
+            after(out, ">", Role::TypeClose, end)
+        }
     }
 }
 fn block(value: &Block, out: &mut Writer, structural: bool) {
@@ -291,6 +297,7 @@ fn stmt(statement: &Statement, out: &mut Writer) {
                 }
             }
         }
+        Statement::Match(selection) => print_match(selection, out),
     }
 }
 fn stmt_if_expr(value: &Expr, out: &mut Writer) {
@@ -468,6 +475,127 @@ fn expr(value: &Expr, out: &mut Writer, parent: u8) {
             if parent > 0 {
                 inserted(out, ")", Role::Close);
             }
+        }
+        Expr::Match(selection) => {
+            if parent > 0 {
+                inserted(out, "(", Role::Open);
+            }
+            print_match(selection, out);
+            if parent > 0 {
+                inserted(out, ")", Role::Close);
+            }
+        }
+    }
+}
+fn print_match(selection: &Match, out: &mut Writer) {
+    let start = selection.keyword_span.start as usize;
+    at(out, "match", Role::Word, start, start + 5);
+    if let Some(mode_span) = &selection.mode_span {
+        let word = mode(selection.mode.unwrap_or(Mode::Read));
+        at(
+            out,
+            word,
+            Role::Word,
+            mode_span.start as usize,
+            mode_span.end as usize,
+        );
+    }
+    expr(&selection.scrutinee, out, 0);
+    after(
+        out,
+        "{",
+        Role::BlockOpen,
+        selection.scrutinee.span().end as usize,
+    );
+    for (index, arm) in selection.arms.iter().enumerate() {
+        if index > 0 {
+            after(
+                out,
+                ",",
+                Role::Comma,
+                selection.arms[index - 1].body.span.end as usize,
+            );
+        }
+        print_pattern(&arm.pattern, out);
+        if let (Some(guard), Some(span)) = (&arm.guard, &arm.guard_span) {
+            at(
+                out,
+                "if",
+                Role::Word,
+                span.start as usize,
+                span.end as usize,
+            );
+            expr(guard, out, 0);
+        }
+        after(out, "=>", Role::Arrow, arm.pattern.span().end as usize);
+        block(&arm.body, out, false);
+    }
+    let end = selection.span.end as usize;
+    at(out, "}", Role::BlockClose, end - 1, end);
+}
+fn print_pattern(pattern: &Pattern, out: &mut Writer) {
+    match pattern {
+        Pattern::Wildcard(span) => at(out, "_", Role::Word, span.start as usize, span.end as usize),
+        Pattern::Integer(text, span) => at(
+            out,
+            text,
+            Role::Word,
+            span.start as usize,
+            span.end as usize,
+        ),
+        Pattern::Bool(value, span) => at(
+            out,
+            if *value { "true" } else { "false" },
+            Role::Word,
+            span.start as usize,
+            span.end as usize,
+        ),
+        Pattern::Name {
+            name,
+            mode: binding_mode,
+            span,
+        } => {
+            if let Some(binding_mode) = binding_mode {
+                let word = mode(*binding_mode);
+                at(
+                    out,
+                    word,
+                    Role::Word,
+                    span.start as usize,
+                    span.start as usize + word.len(),
+                );
+                after(out, name, Role::Word, span.start as usize + word.len());
+            } else {
+                at(
+                    out,
+                    name,
+                    Role::Word,
+                    span.start as usize,
+                    span.end as usize,
+                );
+            }
+        }
+        Pattern::Constructor { name, args, span } => {
+            at(
+                out,
+                name,
+                Role::Word,
+                span.start as usize,
+                span.start as usize + name.len(),
+            );
+            after(
+                out,
+                "(",
+                Role::AttachedOpen,
+                span.start as usize + name.len(),
+            );
+            for (index, arg) in args.iter().enumerate() {
+                if index > 0 {
+                    after(out, ",", Role::Comma, args[index - 1].span().end as usize);
+                }
+                print_pattern(arg, out);
+            }
+            after(out, ")", Role::Close, span.end as usize - 1);
         }
     }
 }

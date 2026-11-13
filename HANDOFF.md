@@ -256,6 +256,8 @@ Población Release: 351 (331 muertas, 19 equivalencias justificadas, D2 y cero s
 
 La auditoría final, extendida al estado JSON y a su generador, verificó 232 pares sección/línea sin errores. Regenerar el estado después de este HANDOFF.
 
+La preparación del siguiente tramo detectó que `corpus/objetivo/12_option_match.n` y `13_option_none.n` contienen `match move value`; F0-0003 §2.2 asigna la adquisición consumidora del scrutinee a J04. Se registró la decisión de alcance en Pending como NB-J02J03-01. J02 y J03 siguen pendientes, y el objetivo permanece en 10/29. Las descripciones de `explain` NX-E1325 y NX-E1326 se separaron por subcausa con una prueba dirigida; la suite de biblioteca y el test del perfil J01 pasaron. No se declara completado ningún J adicional.
+
 El estado se regeneró de nuevo dos veces después de actualizar los documentos: bytes idénticos y once hashes documentales concordantes. Revisión independiente, aprobación del propietario, I11b y puertas F0 siguen pendientes.
 
 ## Corrección posterior a val61 — evidencia local (2026-11-12)
@@ -280,7 +282,7 @@ D5 resuelve en notas, sin enmienda normativa, el comportamiento no especificado 
 
 La población Release `--quick-release` y las campañas se reprodujeron dos veces con SHA-256 idénticos `8bd129ebec20d79ca67683784589a3683ca37f1ce5d626a1c19275a2682b7f57` y `becb61067d6dcad6776db87384a2eef49e96e239f3789ccaa54703e5516e11e9`. Sin commit, push ni red; se regenerará dos veces el estado final después de este HANDOFF y RECOVERY. Revisión independiente, decisión de fase del propietario, I11b y puertas F0 siguen pendientes.
 
-Programas objetivo que ejecutan: 10 de 29 (corpus/objetivo/, scripts/objetivo.py)
+Programas objetivo que ejecutan: 12 de 29 (corpus/objetivo/, scripts/objetivo.py)
 
 ## I11b — cierre local de implementación (2026-11-12)
 
@@ -318,3 +320,25 @@ La verificación dirigida repitió 450 programas anidados y añadió 100 con `?`
 La CLI acepta `f0-0003-b-v1` y sus ocho perfiles reducidos por el selector vigente; el perfil publica `effect_model=f0-0003-sim-v1`, el catálogo/schema y el manifiesto de intrínsecos pendientes. Las capacidades J posteriores conservan barreras `NX-E0006/implementation_limit` con su ámbito, mientras los perfiles A2 mantienen sus diagnósticos y ejecución. El descriptor nominal compartido fija Result Ok/0 y Err/1, y Option None/0 y Some/1; el unificador transaccional usa hijos por variante, la IR y ambos verificadores usan tag/payload, y el intérprete almacena una unión con un solo payload activo. El lowering de Result conserva los costes, la propiedad y la limpieza de A2.
 
 El diferencial frente a HEAD construido con `git archive` comparó 2624 fuentes y 10648 pares de invocaciones de `check`, `run` y `explain` en debug/release: cero diferencias en stdout, stderr y código de salida. RD dio 152/152 por modo y cero diferencias de snapshot; la suite release, formato y Clippy `-D warnings` pasaron. Fuzz release con semilla nueva: 20.000 casos de parser y 20.000 de tipado, sin pánicos. La pasada única de cinco mutantes de reglas Result detectó 4; 1 sobrevive sin programa causal registrado. `corpus/objetivo/` continúa en 10/29: esta preparación no activa aún Option ni match. La revisión independiente del corte y la aprobación de fase por el propietario siguen pendientes.
+
+## F0-0003 — implementación J02, J03 y J04 (2026-11-13)
+
+J02 habilita `Option`, `Some` y `None` con inferencia contextual, copia y destrucción transitivas y O01/O02 sobre el descriptor nominal compartido. J03 habilita `match` de lectura, cobertura simbólica, unificación de brazos, M01–M05, M07/M08, M10/M11 y el binding `None` bajo `Result`. J04 incorpora selección `move` y `edit`, extracción y permisos de patrón, joins M06/M09, escritura a través de Place indexado y limpieza de recursos en `return` y `?`. Las guardas siguen bajo J05; closures, generadores y `for` conservan sus barreras.
+
+Los programas objetivo 12 y 13 ejecutan con resultado unitario, sin salida, eventos ni diagnósticos, conforme a F0-0003 §§3, 6 y 11. El medidor registra **12 de 29**, sin pérdida de los diez anteriores. La suite estructural cubrió 500 fuentes `Option`/`match` anidadas y el fuzz release 20.000, sin pánicos ni errores internos. El diferencial de 248 fuentes J, corpus y RD ejecutó 992 comandos debug/release y `check`/`run` sin diferencias; el diferencial con HEAD sobre 1.590 fuentes ajenas a `Option`/`match` comparó 6.360 comandos byte a byte con cero diferencias. RD conserva 152/152. `sh scripts/validate.sh` terminó con código 0 en una copia limpia sin archivos transitorios, con formato, Clippy `-D warnings` y ambas suites offline/locked.
+
+La pasada única rápida de cinco mutantes de núcleo detectó cuatro y restauró los cinco archivos por SHA-256. El superviviente `option_none_coverage` se debió a que su test rápido M01 no ejercita el binding `None` bajo `Result`; NB-J04-01 registra el programa discriminante ya cubierto por una regresión y la comprobación dirigida pendiente. La revisión independiente, las puertas F0 y la aprobación de fase por el propietario siguen pendientes.
+
+## F0-0003 — corrección de patrones y temporales (2026-11-13)
+
+La resolución de nombres exige que un constructor de patrón sea una variante nominal y emite NX-E0101/call_target para funciones e intrínsecos ajenos. El checker concreta el tipo del scrutinee temporal antes de comprobar patrones; el parser incorpora los bindings del brazo a su alcance léxico, incluido el sombreado de una función. El último brazo de la IR dirige la ruta falsa a un bloque terminal con limpieza, de modo que el verificador conserva la prueba de variante en la ruta que proyecta el payload.
+
+`tests/j04_match_semantics.rs` fija los cuatro defectos con pares positivos y negativos; `src/ir/verify.rs` comprueba además una mutación del tag que debe rechazar la proyección. `explain` publica ejemplos B pareados para NX-E1304, NX-E1325 y NX-E1326. Dos barridos release de 20.000 fuentes, con semilla 202611131730, terminaron sin pánicos, `internal_error`, `InvalidIr` ni cuelgues. El diferencial J comparó 264 fuentes y 1.056 invocaciones debug/release y check/run sin diferencias; RD conserva 152/152 en ambos modos. El diferencial byte a byte contra HEAD comparó 1.594 fuentes sin Option/match y 6.376 invocaciones con cero diferencias. El corpus objetivo sigue en **12 de 29**. Los puntos de andamiaje pendientes constan en Pending; la revisión independiente y la aprobación de fase continúan pendientes.
+
+`sh scripts/validate.sh` terminó con código 0 en una copia limpia en D:, con formato, Clippy `-D warnings` y suites debug/release offline/locked.
+
+## F0-0003 — diagnóstico de scrutinee inline irresuelto (2026-11-13)
+
+El checker omite el diagnóstico derivado de un literal de patrón cuando su tipo aún es diferido; el constructor común de incompatibilidad impide emitir un tipo esperado vacío. Cada una de las tres fuentes `match Ok(1){Ok(1)…}`, `match None{Some(1)…}` y `match Err(true){Err(true)…}` devuelve solo NX-E0113, sin elementos `null` ni errores internos en la CLI. `tests/j04_match_semantics.rs` conserva positivos con tipos determinados y comprueba `check`/`run` JSON. El fuzz release de 20.000 fuentes con semilla 202611132133 verificó también la serialización de cada diagnóstico rechazado, sin pánicos ni fallos internos.
+
+Formato, Clippy `-D warnings`, suites debug y release y `sh scripts/validate.sh` en copia limpia de D: terminaron con código 0. RD conserva 152/152 y cero diferencias de snapshot en ambos modos. El diferencial J midió 273 fuentes y 1.092 invocaciones sin diferencias; contra HEAD, 1.594 fuentes sin `Option`/`match` y 6.376 invocaciones byte a byte dieron cero diferencias. El corpus objetivo permanece en **12 de 29**. No se ejecutó otra mutación. La revisión independiente y la aprobación de fase continúan pendientes.
