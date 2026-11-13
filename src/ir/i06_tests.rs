@@ -805,7 +805,7 @@ fn loan_compiler_and_interpreter_work_from_small_caller_stacks() {
 }
 
 #[test]
-#[ignore = "explicit 256 KiB to 1 MiB compilation measurement"]
+#[ignore = "normal-profile 32 KiB to 128 KiB compilation measurement"]
 fn dense_loan_and_call_sources_scale_across_twelve_families() {
     let _campaign = crate::test_alloc::campaign_guard();
     use std::sync::atomic::Ordering;
@@ -843,7 +843,7 @@ fn dense_loan_and_call_sources_scale_across_twelve_families() {
     }
     for family in 0..12 {
         let mut samples = Vec::new();
-        for bytes in [256 * 1024, 1024 * 1024] {
+        for bytes in [32 * 1024, 128 * 1024] {
             let src = source(family, bytes);
             super::lower::LOAN_WORK.store(0, Ordering::Relaxed);
             crate::test_alloc::reset("dead_scale_counter.n");

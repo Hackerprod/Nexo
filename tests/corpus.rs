@@ -1,4 +1,8 @@
-use std::{fs, path::Path};
+use std::{
+    fs,
+    path::{Path, PathBuf},
+    process::{Command, Output},
+};
 
 use nexo::{
     diagnostic::{DataValue, Diagnostic},
@@ -39,6 +43,20 @@ fn rejected(source: &str) -> Vec<Box<Diagnostic>> {
     }
 }
 
+fn cli(executable: &Path, command: &str, source: &Path) -> Output {
+    Command::new(executable)
+        .args([command, "--format", "json"])
+        .arg(source)
+        .output()
+        .unwrap_or_else(|error| {
+            panic!(
+                "{} {command} {}: {error}",
+                executable.display(),
+                source.display()
+            )
+        })
+}
+
 #[test]
 fn corpus_has_only_official_source_extension() {
     let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("corpus");
@@ -66,6 +84,73 @@ fn corpus_has_only_official_source_extension() {
             count += 1;
         }
         assert_eq!(count, expected, "corpus/{group}");
+    }
+}
+
+#[test]
+fn corpus_cli_check_run_diagnostics_match_across_profiles() {
+    let current = PathBuf::from(env!("CARGO_BIN_EXE_nexo"));
+    let other = std::env::var_os("NEXO_OTHER_EXE")
+        .map(PathBuf::from)
+        .unwrap_or_else(|| current.clone());
+    for (group, expected_acceptance) in [("pass", true), ("fail", false)] {
+        for entry in fs::read_dir(
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("corpus")
+                .join(group),
+        )
+        .unwrap()
+        {
+            let source = entry.unwrap().path();
+            let outputs = [&current, &other].map(|executable| {
+                ["check", "run"].map(|command| cli(executable, command, &source))
+            });
+            let expected_exit = Some(if expected_acceptance { 0 } else { 1 });
+            for profile in &outputs {
+                assert_eq!(
+                    profile[0].status.code(),
+                    expected_exit,
+                    "check {}",
+                    source.display()
+                );
+                assert_eq!(
+                    profile[1].status.code(),
+                    expected_exit,
+                    "run {}",
+                    source.display()
+                );
+                if expected_acceptance {
+                    assert!(profile[0].stderr.is_empty(), "check {}", source.display());
+                } else {
+                    assert_eq!(
+                        profile[0].stderr,
+                        profile[1].stderr,
+                        "check/run diagnostic identity for {}",
+                        source.display()
+                    );
+                }
+            }
+            for command in 0..2 {
+                assert_eq!(
+                    outputs[0][command].status.code(),
+                    outputs[1][command].status.code(),
+                    "profile exit parity for {}",
+                    source.display()
+                );
+                assert_eq!(
+                    outputs[0][command].stdout,
+                    outputs[1][command].stdout,
+                    "profile stdout parity for {}",
+                    source.display()
+                );
+                assert_eq!(
+                    outputs[0][command].stderr,
+                    outputs[1][command].stderr,
+                    "profile diagnostic parity for {}",
+                    source.display()
+                );
+            }
+        }
     }
 }
 

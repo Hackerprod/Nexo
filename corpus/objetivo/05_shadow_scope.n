@@ -1,4 +1,4 @@
-// F0-0002 sec. 11; sombreado de ambito; capacidad: ambitos y shadowing.
+// F0-0002 sec. 11; sombreado de ámbito; capacidad: ámbitos y shadowing.
 fn Main() {
     var value = [1, 2];
     {

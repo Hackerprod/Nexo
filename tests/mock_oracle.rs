@@ -2973,8 +2973,16 @@ fn mock_oracle_covers_non_string_literals_and_canonical_i64_at_every_slot() {
 
 #[test]
 fn mock_oracle_parser_arbitrary_byte_fuzz_never_panics_or_disagrees() {
-    let mut rng = SplitMix64(0x6a09_e667_f3bc_c909);
-    for _ in 0..2_048 {
+    let seed = std::env::var("NEXO_MOCK_JSON_FUZZ_SEED")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0x6a09_e667_f3bc_c909);
+    let cases = std::env::var("NEXO_MOCK_JSON_FUZZ_CASES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(2_048);
+    let mut rng = SplitMix64(seed);
+    for _ in 0..cases {
         let length = (rng.next() % 512) as usize;
         let input = (0..length).map(|_| rng.next() as u8).collect::<Vec<_>>();
         let _ = check_parser_case(&input);

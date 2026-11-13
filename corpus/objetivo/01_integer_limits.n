@@ -1,4 +1,4 @@
-// F0-0002 sec. 11; limites I64; capacidad: limites I64 comprobados.
+// F0-0002 sec. 11; límites I64; capacidad: límites I64 comprobados.
 fn Main() {
     AssertEq(-9223372036854775808 + 1, -9223372036854775807);
     AssertEq(9223372036854775806 + 1, 9223372036854775807);

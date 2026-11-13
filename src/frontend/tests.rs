@@ -4006,8 +4006,15 @@ fn token_sequence_mutations_never_panic_and_accepted_asts_reparse() {
         "value", "I64", "Bool", "1", "0", "(", ")", "[", "]", "{", "}", ":", ";", ",", "+", "=",
         "?", "@", "🙂",
     ];
-    let mut state = 0x4e45_584f_70ce_2026_u64;
-    for n in 0..100_000_usize {
+    let mut state = std::env::var("NEXO_PARSER_FUZZ_SEED")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0x4e45_584f_70ce_2026_u64);
+    let cases = std::env::var("NEXO_PARSER_FUZZ_CASES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(100_000);
+    for n in 0..cases {
         state ^= state << 13;
         state ^= state >> 7;
         state ^= state << 17;

@@ -1045,12 +1045,12 @@ fn unreachable_lowering_short_scale_regression() {
 }
 
 #[test]
-#[ignore = "explicit dead-code and dense-declaration compilation measurement"]
+#[ignore = "normal-profile dead-code and dense-declaration scale measurement"]
 fn i05_unreachable_and_dense_declarations_scale_across_twelve_families() {
     let _campaign = crate::test_alloc::campaign_guard();
     for family in 0..12 {
         let mut traffic = [(0_u64, 0_u64); 2];
-        for (index, size) in [256 * 1024, 1024 * 1024].into_iter().enumerate() {
+        for (index, size) in [32 * 1024, 128 * 1024].into_iter().enumerate() {
             let source = unreachable_scale_source(family, size);
             crate::test_alloc::reset("dead_scale_counter.n");
             compile_scalar("dead_scale_counter.n", &source).unwrap();

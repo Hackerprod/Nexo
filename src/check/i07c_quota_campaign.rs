@@ -122,7 +122,7 @@ mod i07c_quota_property {
     }
 
     #[test]
-    #[ignore]
+    #[ignore = "reduced quota property campaign; run explicitly with I07C_QUOTA_SEEDS"]
     fn reduced_quota_property() {
         let seeds: Vec<u64> = std::env::var("I07C_QUOTA_SEEDS")
             .unwrap_or("1".into())

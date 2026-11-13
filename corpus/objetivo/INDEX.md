@@ -38,7 +38,7 @@ Corpus progresivo de programas completos en sintaxis oficial B.
 
 ## Traducciones pendientes de APIs simuladas
 
-- EX01 conserva `std.cli`, `std.fs`, `std.parse` y `std.console` del roadmap porque los ADR no definen reemplazos equivalentes para argumentos, archivos ni texto. La logica completa se transcribe sin inventar esas operaciones.
-- EX02 conserva las APIs `std.http` y `std.json`: no hay una interfaz simulada de servidor, peticion o serializacion que permita traducirlas sin anadir semantica.
+- EX01 conserva `std.cli`, `std.fs`, `std.parse` y `std.console` del roadmap porque los ADR no definen reemplazos equivalentes para argumentos, archivos ni texto. La lógica completa se transcribe sin inventar esas operaciones.
+- EX02 conserva las APIs `std.http` y `std.json`: no hay una interfaz simulada de servidor, petición o serialización que permita traducirlas sin añadir semántica.
 - EX03 conserva `Table`, `TableLayout`, `UniqueTableView`, `SoA`, `AoS` y `f32`; los ADR no definen equivalentes simulados para esas APIs ni ese tipo numerico.
-- EX04 conserva `u32`, `u64`, el argumento por defecto y las APIs de texto/consola del roadmap. F0-0003 sec. 11 tiene un objetivo EX04 reducido separado, escrito con las APIs simuladas que si especifica.
+- EX04 conserva `u32`, `u64`, el argumento por defecto y las APIs de texto/consola del roadmap. F0-0003 sec. 11 tiene un objetivo EX04 reducido separado, escrito con las APIs simuladas que sí especifica.

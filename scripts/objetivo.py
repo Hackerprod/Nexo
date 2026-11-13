@@ -24,7 +24,7 @@ def build_binary() -> Path:
             check=False,
         )
         if result.returncode != 0:
-            raise RuntimeError("cargo build --release fallo")
+            raise RuntimeError("cargo build --release falló")
     if not binary.is_file():
         raise RuntimeError("cargo no produjo target/release/nexo")
     return binary
@@ -32,12 +32,12 @@ def build_binary() -> Path:
 
 def diagnostic_reason(payload: object) -> str:
     if not isinstance(payload, dict):
-        return "diagnostico JSON no interpretable"
+        return "diagnóstico JSON no interpretable"
     diagnostics = payload.get("diagnostics", [])
     if diagnostics:
         first = diagnostics[0]
         if isinstance(first, dict):
-            code = str(first.get("code", "diagnostico"))
+            code = str(first.get("code", "diagnóstico"))
             subcause = first.get("subcause")
             feature = first.get("feature_id")
             detail = code
@@ -49,7 +49,7 @@ def diagnostic_reason(payload: object) -> str:
     outcome = payload.get("outcome")
     if isinstance(outcome, dict) and outcome.get("kind") == "driver_error":
         return str(outcome.get("reason", "driver_error"))
-    return "rechazo sin diagnostico estructurado"
+    return "rechazo sin diagnóstico estructurado"
 
 
 def run_one(binary: Path, source: Path) -> tuple[bool, str]:
@@ -63,7 +63,7 @@ def run_one(binary: Path, source: Path) -> tuple[bool, str]:
     try:
         checked = json.loads(check.stdout)
     except json.JSONDecodeError:
-        return False, "check: salida JSON invalida"
+        return False, "check: salida JSON inválida"
     if check.returncode != 0 or checked.get("outcome", {}).get("kind") != "checked":
         return False, diagnostic_reason(checked)
 
@@ -78,22 +78,22 @@ def run_one(binary: Path, source: Path) -> tuple[bool, str]:
     try:
         result = json.loads(run.stdout)
     except json.JSONDecodeError:
-        return False, "run: salida JSON invalida o internal_error"
+        return False, "run: salida JSON inválida o internal_error"
     outcome = result.get("outcome", {})
     if outcome.get("kind") == "driver_error":
         return False, "run: " + str(outcome.get("reason", "driver_error"))
     if outcome.get("kind") not in ("unit", "ok", "err"):
         return False, "run: resultado " + str(outcome.get("kind", "desconocido"))
     if run.returncode != 0 and outcome.get("kind") != "err":
-        return False, "run: codigo de salida inesperado"
+        return False, "run: código de salida inesperado"
     if result.get("diagnostics"):
-        return False, "run: diagnostico de ejecucion"
+        return False, "run: diagnóstico de ejecución"
     expected_path = source.with_suffix(".out")
     if expected_path.is_file():
         expected = expected_path.read_text(encoding="utf-8")
         actual = "".join(line + "\n" for line in result.get("stdout", []))
         if actual != expected:
-            return False, "run: la salida difiere de .out"
+        return False, "run: la salida difiere de .out"
     return True, "?"
 
 

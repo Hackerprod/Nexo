@@ -1,4 +1,4 @@
-// F0-0005 sec. 11 (F5-P04); capacidad: arrays y actualizacion.
+// F0-0005 sec. 11 (F5-P04); capacidad: arrays y actualización.
 fn Sort(a:edit Array<I64>){
     let size=Len(a);
     for i in 1..<size{

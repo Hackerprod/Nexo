@@ -1,2 +1,2 @@
-// F0-0002 sec. 11.6; MockRequest; capacidad: peticion simulada y Result.
+// F0-0002 sec. 11.6; MockRequest; capacidad: petición simulada y Result.
 fn Main()->Result<(),I64>{let value=MockRequest()?;AssertEq(value,12);return Ok(());}

@@ -1,4 +1,4 @@
-// EX03 del roadmap; sec. EX03, Table/f32/genericos sin reemplazo simulado; capacidad: programa completo EX03.
+// EX03 del roadmap; sec. EX03, Table/f32/genéricos sin reemplazo simulado; capacidad: programa completo EX03.
 use std.app
 use std.console
 use std.table.{Table, TableLayout, UniqueTableView, SoA, AoS}

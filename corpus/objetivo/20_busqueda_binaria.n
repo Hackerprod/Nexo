@@ -1,4 +1,4 @@
-// F0-0005 sec. 11 (F5-P05); capacidad: seleccion y arrays.
+// F0-0005 sec. 11 (F5-P05); capacidad: selección y arrays.
 fn Search(a:view Array<I64>,key:view I64)->I64{
     var lo=0;
     var hi=Len(a);

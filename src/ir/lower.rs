@@ -305,6 +305,9 @@ fn compile_scalar_with_analysis_limits(
 
 #[cfg(test)]
 #[allow(dead_code)] // Called by the release-only timing campaign.
+/// Compile a scale fixture while bypassing only the normative IR-item cap.
+/// These fixtures measure compiler work beyond the public profile's limit;
+/// production entry points continue to use `AnalysisLimits::NORMAL`.
 pub(super) fn compile_scalar_with_unbounded_ir_for_scale(
     file: &str,
     source: &str,

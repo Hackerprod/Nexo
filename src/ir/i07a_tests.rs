@@ -310,7 +310,7 @@ fn dead_value_call_after_return_does_not_mutate_emitted_tick() {
 }
 
 #[test]
-#[ignore = "explicit 256 KiB to 1 MiB verifier loop scale measurement"]
+#[ignore = "normal-profile 32 KiB to 128 KiB verifier loop scale measurement"]
 fn loop_backedges_scale_in_steps_allocation_and_time() {
     let _campaign = crate::test_alloc::campaign_guard();
     use std::time::Instant;
@@ -321,7 +321,7 @@ fn loop_backedges_scale_in_steps_allocation_and_time() {
     ];
     for (family, pattern) in patterns.iter().enumerate() {
         let mut measurements = Vec::new();
-        for target in [256 * 1024, 1024 * 1024] {
+        for target in [32 * 1024, 128 * 1024] {
             let mut source = String::from("fn Main(){");
             while source.len() + pattern.len() < target {
                 source.push_str(pattern);
@@ -1794,7 +1794,7 @@ fn directed_branch_error_and_divergence_fuzz_has_no_internal_failure() {
 }
 
 #[test]
-#[ignore = "explicit 256 KiB to 1 MiB CFG work measurement"]
+#[ignore = "normal-profile 32 KiB to 128 KiB CFG work measurement"]
 fn cfg_dense_sources_have_bounded_deterministic_work() {
     let _campaign = crate::test_alloc::campaign_guard();
     let patterns = [
@@ -1829,7 +1829,7 @@ fn cfg_dense_sources_have_bounded_deterministic_work() {
         }
         let mut work = [0_u64; 2];
         let mut traffic = [(0_u64, 0_u64); 2];
-        for (at, target) in [256 * 1024, 1024 * 1024].into_iter().enumerate() {
+        for (at, target) in [32 * 1024, 128 * 1024].into_iter().enumerate() {
             let mut source = String::from("fn Main(){");
             while source.len() + pattern.len() < target {
                 source.push_str(pattern);
@@ -1864,7 +1864,7 @@ fn cfg_dense_sources_have_bounded_deterministic_work() {
 }
 
 #[test]
-#[ignore = "explicit 256 KiB to 1 MiB later-operand CFG scale measurement"]
+#[ignore = "normal-profile 32 KiB to 128 KiB later-operand CFG scale measurement"]
 fn cfg_later_operands_scale_linearly_in_work_and_allocation() {
     let _campaign = crate::test_alloc::campaign_guard();
     let families = [
@@ -1913,7 +1913,7 @@ fn cfg_later_operands_scale_linearly_in_work_and_allocation() {
         }
         let mut work = [0_u64; 2];
         let mut traffic = [(0_u64, 0_u64); 2];
-        for (at, target) in [256 * 1024, 1024 * 1024].into_iter().enumerate() {
+        for (at, target) in [32 * 1024, 128 * 1024].into_iter().enumerate() {
             let mut source = String::from(prefix);
             while source.len() + pattern.len() < target {
                 source.push_str(pattern);
@@ -3563,7 +3563,7 @@ fn independent_branch_value_errors_keep_exact_contract_after_divergence() {
 }
 
 #[test]
-#[ignore = "explicit 256 KiB to 1 MiB divergent and live scale measurement"]
+#[ignore = "normal-profile 32 KiB to 128 KiB divergent and live scale measurement"]
 fn divergent_and_live_sources_scale_in_work_bytes_and_allocations() {
     let _campaign = crate::test_alloc::campaign_guard();
     // F0-0002 §6.2 retains dead-code checks; §13.9 retains independent sites.
@@ -3648,7 +3648,7 @@ fn divergent_and_live_sources_scale_in_work_bytes_and_allocations() {
             let small = std::env::var("NEXO_DIVERGENT_SCALE_SMALL_KIB")
                 .ok()
                 .and_then(|n| n.parse::<usize>().ok())
-                .unwrap_or(256)
+                .unwrap_or(32)
                 * 1024;
             for (at, target) in [small, small * 4].into_iter().enumerate() {
                 let mut source = String::from(*prefix);

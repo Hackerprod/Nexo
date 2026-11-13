@@ -1,2 +1,2 @@
-// F0-0003 sec. 3 y 6; Option; capacidad: Option y seleccion exhaustiva.
+// F0-0003 sec. 3 y 6; Option; capacidad: Option y selección exhaustiva.
 fn Main(){let value:Option<I64>=Some(7);match move value{Some(n)=>{AssertEq(n,7);},None=>{AssertEq(0,1);}}}

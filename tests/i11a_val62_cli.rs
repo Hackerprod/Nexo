@@ -360,6 +360,34 @@ fn generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle() {
         }
     }
 
+    let fuzz_cases = std::env::var("NEXO_CLI_ARGV_FUZZ_CASES")
+        .ok()
+        .and_then(|value| value.parse::<usize>().ok())
+        .unwrap_or(0);
+    let mut state = std::env::var("NEXO_CLI_ARGV_FUZZ_SEED")
+        .ok()
+        .and_then(|value| value.parse::<u64>().ok())
+        .unwrap_or(0x11a0_0062_2026_1112);
+    for case in 0..fuzz_cases {
+        state ^= state << 13;
+        state ^= state >> 7;
+        state ^= state << 17;
+        let command = commands[(state as usize) % commands.len()];
+        let option = OPTIONS[((state >> 8) as usize) % OPTIONS.len()];
+        let choices = value_cases(option);
+        let (_, value, repetition) = choices[((state >> 16) as usize) % choices.len()];
+        let option_groups = groups(option, value, repetition);
+        let position = ((state >> 24) as usize) % (option_groups.len() + 1);
+        let program = programs[((state >> 32) as usize) % programs.len()];
+        let argv = argv_at_position(command, &option_groups, position, program);
+        assert_eq!(
+            fixture.invoke(&argv),
+            expected(&argv, &fixture.0),
+            "seeded argv case={case} seed_state={state} argv={argv:?}"
+        );
+        cases += 1;
+    }
+
     let branch_cases: &[&[&str]] = &[
         &["run", "p.n", "--unknown"],
         &["run", "--unknown", "p.n"],
@@ -384,7 +412,7 @@ fn generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle() {
     }
 
     eprintln!(
-        "val62_cli_argv_matrix cases={cases} dimensions=command-option-value-position-repetition"
+        "val62_cli_argv_matrix cases={cases} dimensions=command-option-value-position-repetition fuzz_seeded={fuzz_cases}"
     );
 }
 

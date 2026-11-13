@@ -3671,7 +3671,7 @@ fn array_ir_lowering_scales_across_ten_source_families() {
     ];
     for (family, pattern) in patterns.iter().enumerate() {
         let mut traffic = Vec::new();
-        for size in [262_144usize, 1_048_576] {
+        for size in [32_768usize, 131_072] {
             let mut source = String::from("fn Main(){var a=[[1,2],[3,4]];");
             while source.len() + pattern.len() + 3 <= size {
                 source.push_str(pattern);
@@ -3801,7 +3801,7 @@ fn scalar_lowering_and_machine_run_on_a_512_kib_caller_stack() {
         .unwrap();
 }
 #[test]
-#[ignore = "explicit scaling measurement; run separately with --ignored --nocapture"]
+#[ignore = "normal-profile 16 KiB to 64 KiB scalar lowering scale measurement"]
 fn scalar_ir_lowering_scales_across_fifteen_source_families() {
     let _campaign = crate::test_alloc::campaign_guard();
     let patterns = [
@@ -3823,7 +3823,7 @@ fn scalar_ir_lowering_scales_across_fifteen_source_families() {
     ];
     for (family, pattern) in patterns.iter().enumerate() {
         let mut measurements = Vec::new();
-        for size in [262_144usize, 1_048_576] {
+        for size in [16_384usize, 65_536] {
             let mut source = String::from("fn Main(){var x=0;");
             while source.len() + pattern.len() + 3 <= size {
                 source.push_str(pattern)

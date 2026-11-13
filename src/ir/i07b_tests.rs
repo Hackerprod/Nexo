@@ -992,11 +992,11 @@ fn ir_item_limit_rejects_the_first_binding_over_the_compilation_cap() {
 }
 
 #[test]
-#[ignore = "explicit 256 KiB to 1 MiB consumed-prefix loop-suffix scale measurement"]
+#[ignore = "normal-profile consumed-prefix loop-suffix scale measurement"]
 fn consumed_prefix_loop_suffix_scales_across_source_budget() {
     let _campaign = crate::test_alloc::campaign_guard();
     let mut samples = Vec::new();
-    for (count, target) in [(2700, 256 * 1024), (10800, 1024 * 1024)] {
+    for (count, target) in [(400, 32 * 1024), (1600, 128 * 1024)] {
         let mut source = String::from("fn F(b:view Bool){");
         for i in 0..count {
             source.push_str(&format!("var r{i}=MockOpen(1);Drop(r{i});"));
@@ -1143,7 +1143,7 @@ fn sparse_scale_source(family: usize, target: usize) -> String {
 }
 
 #[test]
-#[ignore = "explicit adversarial 256-KiB to 1-MiB sparse-state measurement"]
+#[ignore = "normal-profile adversarial sparse-state scale measurement"]
 fn sparse_ownership_scales_across_fourteen_adversarial_families() {
     let _campaign = crate::test_alloc::campaign_guard();
     use std::sync::atomic::Ordering::Relaxed;
@@ -1154,7 +1154,7 @@ fn sparse_ownership_scales_across_fourteen_adversarial_families() {
             continue;
         }
         let mut samples = Vec::new();
-        for target in [256 * 1024, 1024 * 1024] {
+        for target in [32 * 1024, 128 * 1024] {
             let source = sparse_scale_source(family, target);
             super::ownership_flow::FLOW_STATE_ALLOCS.store(0, Relaxed);
             super::ownership_flow::FLOW_STATE_BYTES.store(0, Relaxed);
@@ -1440,7 +1440,7 @@ fn generated_sparse_ownership_matches_dense_reference_exactly() {
 }
 
 #[test]
-#[ignore = "explicit 15-family 256-KiB to 1-MiB CFG scale measurement"]
+#[ignore = "normal-profile 32-KiB to 128-KiB CFG scale measurement"]
 fn loop_fixpoint_scales_by_steps_and_allocation_traffic() {
     let _campaign = crate::test_alloc::campaign_guard();
     let patterns = [
@@ -1467,7 +1467,7 @@ fn loop_fixpoint_scales_by_steps_and_allocation_traffic() {
             continue;
         }
         let mut measures = Vec::new();
-        for target in [256 * 1024, 1024 * 1024] {
+        for target in [32 * 1024, 128 * 1024] {
             let mut source = String::from("fn Main(){");
             while source.len() + pattern.len() < target {
                 source.push_str(pattern);

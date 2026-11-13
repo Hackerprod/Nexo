@@ -1,4 +1,4 @@
-// F0-0004 sec. 11; aplicacion de referencia; capacidad: lineas, registros nominales, Result, acumulacion y texto.
+// F0-0004 sec. 11; aplicación de referencia; capacidad: líneas, registros nominales, Result, acumulación y texto.
 use std.console;
 use std.parse;
 use extension package.Resumen;
