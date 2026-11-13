@@ -192,10 +192,10 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
             temp_types[id.0] = Some(ty.clone());
             temp_spans[id.0] = Some(ins.span.clone());
         }
-        if let (Some(id), Op::BuildResult { ok, .. }) = (ins.output, &ins.op)
+        if let (Some(id), Op::BuildVariant { tag, .. }) = (ins.output, &ins.op)
             && id.0 < temp_variants.len()
         {
-            temp_variants[id.0] = Some(*ok);
+            temp_variants[id.0] = Some(tag.0 == 0);
         }
         if let Some(id) = ins.output
             && id.0 < owned_temps.len()
@@ -950,7 +950,14 @@ pub(super) fn analyze(
             });
             d.data.insert(
                 "effect_model".into(),
-                DataValue::String("f0-0002-sim-v1".into()),
+                DataValue::String(
+                    if profile_id.starts_with("f0-0003-") {
+                        "f0-0003-sim-v1"
+                    } else {
+                        "f0-0002-sim-v1"
+                    }
+                    .into(),
+                ),
             );
             d.data.insert(
                 "contract_origin".into(),
@@ -1067,7 +1074,7 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
                 if (matches!(ins.op, Op::DropLocal(_)) && !prior_same_exit)
                     || matches!(
                         ins.op,
-                        Op::BranchResult { .. }
+                        Op::BranchVariant { .. }
                             | Op::CallIntrinsic {
                                 intrinsic: super::model::Intrinsic::Fail,
                                 ..
@@ -1109,7 +1116,7 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
                 let instruction = &block.instructions[exit.index];
                 let expected_class = match &instruction.op {
                     Op::DropLocal(_) => Some(super::model::ExitClass::Fallthrough),
-                    Op::BranchResult { .. } => Some(super::model::ExitClass::Try),
+                    Op::BranchVariant { .. } => Some(super::model::ExitClass::Try),
                     Op::CallIntrinsic {
                         intrinsic: super::model::Intrinsic::Fail,
                         ..
@@ -1293,7 +1300,7 @@ pub(super) fn populate_exit_info(
             let class = match ins.op {
                 Op::DropLocal(_) if !prior_same_exit => Some(ExitClass::Fallthrough),
                 Op::DropLocal(_) => None,
-                Op::BranchResult { .. } => Some(ExitClass::Try),
+                Op::BranchVariant { .. } => Some(ExitClass::Try),
                 Op::CallIntrinsic {
                     intrinsic: super::model::Intrinsic::Fail,
                     ..
@@ -2811,9 +2818,15 @@ mod tests {
             .instructions
             .iter()
             .find_map(|instruction| {
-                matches!(instruction.op, Op::BuildResult { ok: true, .. })
-                    .then_some(instruction.output)
-                    .flatten()
+                matches!(
+                    instruction.op,
+                    Op::BuildVariant {
+                        tag: crate::union::VariantTag(0),
+                        ..
+                    }
+                )
+                .then_some(instruction.output)
+                .flatten()
             })
             .unwrap();
         let drop = function
@@ -2855,9 +2868,15 @@ mod tests {
             .instructions
             .iter()
             .find_map(|instruction| {
-                matches!(instruction.op, Op::BuildResult { ok: false, .. })
-                    .then_some(instruction.output)
-                    .flatten()
+                matches!(
+                    instruction.op,
+                    Op::BuildVariant {
+                        tag: crate::union::VariantTag(1),
+                        ..
+                    }
+                )
+                .then_some(instruction.output)
+                .flatten()
             })
             .unwrap();
         let drop = function

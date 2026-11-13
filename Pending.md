@@ -373,3 +373,25 @@ El residuo B4 de NB-I11b-11 (`?` sobre binding Result pendiente) quedó corregid
 La reasignación estructural de `var` de NB-I11b-11/V06 queda corregida en `union_inner`: no puede unir hijos `Result` con un escalar concreto; una igualdad fallida restaura el grafo y no convierte el tipo diferido en una forma incompatible. `tests/f0007.rs::result_var_reassignment_preserves_each_constructor_obligation` fija cuatro NX-E0113 literales para `r=Err(true)` y `r=Err(1)` (A2 §§4.1.2.2, 13.17; F0-0007 R3/R5). Las pruebas de reasignación compatibles e incompatibles incluyen Array anidado, alias, ramas, bucles y `?`; los conflictos serializables fijan NX-E0102 literal. Se repitieron 450 y 550 programas y se añadieron 300 reasignaciones: cero pánicos, `internal_error`, `InvalidIr`, divergencias `check`/`run` o debug/release, y cero aceptaciones de HEAD convertidas en rechazo. NB-I11b-11/12 y V06 conservan evidencia local de corrección; la revisión independiente y la aprobación de fase siguen pendientes.
 
 - Higiene de nombres (2026-11-13): los nueve targets I11a se nombraron por lo que prueban y se actualizaron sus referencias. No hubo cambios de cuerpo ni de comportamiento. Verificación limpia: debug 1.543/67, release 1.545/68, RD 152/152 por perfil y cero diferencias. No se ejecutaron poblaciones completas; la campaña no acepta un tamaño mínimo.
+
+
+## F0-0003 — J01 y unión nominal compartida (2026-11-13)
+
+J02 debe activar Option sobre el descriptor nominal y J03 debe activar match; sus barreras continúan hasta completar sus reglas, efectos y cuotas. La preparación estructural y J01 tienen evidencia local: diferencial de 2624 fuentes sin diferencias frente a HEAD, RD 152/152 por modo y fuzz release de parser/tipado con 20.000 casos por categoría. La revisión independiente de este corte y la aprobación de fase permanecen pendientes.
+
+| Id | Observación | Estado |
+|---|---|---|
+| result_child_order | Mutante superviviente en `src/check/types.rs` sin programa que exhiba conducta incorrecta. | No bloquea por F0_ACUERDOS §10; buscar repro antes de reclasificar. |
+
+## J01 y representación nominal compartida de uniones: observaciones no bloqueantes
+
+El corte entrega el perfil `f0-0003-b-v1` con sus ocho reducidos, el catálogo y las barreras de las capacidades J pendientes, y la representación nominal compartida de uniones que usa `Result` (sin `Option` ni `match` todavía). La validación independiente no encontró defectos bloqueantes; el comportamiento observable de los programas anteriores coincide byte a byte con el de la base. Observaciones registradas:
+
+| Id | Observación | Reproducción | Corte responsable |
+|---|---|---|---|
+| NB-J01-01 | Con el perfil nuevo, un programa con un `Some(1)` anterior a un error sintáctico posterior da la barrera de capacidad pendiente J02 en lugar del error de sintaxis que la base daba; F0-0003 §2.2 dice que los errores sintácticos preceden al alcance. Con `Option<I64>` ya ocurría igual en la base. | `fn Main(){let x=Some(1);let y:Result=Ok(1);}` con `--profile f0-0003-b-v1`: NX-E0006/J02; la base da NX-E0002 parse en `[36,37)`. | J02 |
+| NB-J01-02 | Queda código específico de `Result` junto al descriptor de unión: `Ty::Result` (`src/ir/model.rs`), `InferTy::Result`, la rama `(Type::Result, Type::Result)` de la unificación y las restricciones `ResultConstructor` y `DomainResult` de `src/check/types.rs`. Deuda estructural que J02 debe absorber al añadir `Option` por el mismo descriptor. | Sin programa: comportamiento idéntico a la base. | J02 |
+| NB-J01-03 | `tests/j01_profile.rs` comprueba solo subcadenas y no cubre las barreras de J04, J05, J07, J08, J09, J12 y J14. | Sin programa. | J04 a J14, cada uno al retirar su barrera |
+| NB-J01-04 | Las descripciones de `explain` de NX-E1325 y NX-E1326 son una sola frase para dos subcausas. | `explain NX-E1325` y `explain NX-E1326`. | J02 |
+| NB-J01-05 | `scripts/compare_head_union.py` depende de rutas bajo el directorio de trabajo temporal. | Ejecutar el script desde un clon sin ese directorio. | Endurecimiento de scripts |
+| NB-J01-06 | El mutante `result_child_order` (orden de los hijos de `Result`) sobrevive sin programa que lo exhiba. | Sin programa. | Endurecimiento posterior |

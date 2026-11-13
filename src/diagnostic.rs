@@ -66,7 +66,10 @@ vocabulary!(CauseOperation {
     BuildArray => "value.build_array", ValueCopy => "value.copy", ValueDrop => "value.drop",
     ResourceDrop => "resource.drop", ValueConsume => "value.consume",
     BorrowRead => "borrow.read", BorrowInout => "borrow.inout",
-    BorrowReborrow => "borrow.reborrow", FlowBackedge => "flow.backedge"
+    BorrowReborrow => "borrow.reborrow", FlowBackedge => "flow.backedge",
+    ClosureCreate => "closure.create", ClosureCall => "closure.call",
+    GeneratorCreate => "generator.create", GeneratorNext => "generator.next",
+    GeneratorYield => "generator.yield", SuspendSafe => "property.suspend_safe"
 });
 vocabulary!(Operation {
     SyntaxLex => "syntax.lex", SyntaxParse => "syntax.parse", AnalysisLimit => "analysis.limit",
@@ -78,7 +81,11 @@ vocabulary!(Operation {
     RuntimeLimit => "runtime.limit", ValueAdd => "value.add", ValueSub => "value.sub",
     ValueIndex => "value.index", AssertEq => "intrinsic.assert_eq", Fail => "intrinsic.fail",
     FunctionCall => "function.call", IntrinsicCall => "intrinsic.call",
-    BuildArray => "value.build_array", ValueDrop => "value.drop"
+    BuildArray => "value.build_array", ValueDrop => "value.drop",
+    OwnershipCheck => "ownership.check", EffectsCheck => "effects.check",
+    IrLower => "ir.lower", ClosureCreate => "closure.create",
+    ClosureCall => "closure.call", GeneratorCreate => "generator.create",
+    GeneratorNext => "generator.next", GeneratorYield => "generator.yield"
 });
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -218,6 +225,15 @@ impl Diagnostic {
         }
         const PUBLISHED_PROFILES: &[&str] = &[
             PROFILE_ID,
+            "f0-0003-b-v1",
+            "f0-0003-b-test-types-32-v1",
+            "f0-0003-b-test-flow-32-v1",
+            "f0-0003-b-test-flow-global-32-v1",
+            "f0-0003-b-test-effects-32-v1",
+            "f0-0003-b-test-ir-32-v1",
+            "f0-0003-b-test-frames-8-v1",
+            "f0-0003-b-test-cells-64-v1",
+            "f0-0003-b-test-observations-64-v1",
             "f0-0002-b-test-types-32-v2",
             "f0-0002-b-test-flow-32-v2",
             "f0-0002-b-test-flow-global-32-v2",
@@ -331,10 +347,15 @@ impl Diagnostic {
             let kind = self.data.get("budget_kind");
             let reduced = match self.profile_id.as_str() {
                 "f0-0002-b-test-types-32-v2" => Some(("type_solver_steps", 32)),
+                "f0-0003-b-test-types-32-v1" => Some(("type_solver_steps", 32)),
                 "f0-0002-b-test-flow-32-v2" => Some(("ownership_flow_steps", 32)),
+                "f0-0003-b-test-flow-32-v1" => Some(("ownership_flow_steps", 32)),
                 "f0-0002-b-test-flow-global-32-v2" => Some(("ownership_flow_steps", 32)),
+                "f0-0003-b-test-flow-global-32-v1" => Some(("ownership_flow_steps", 32)),
                 "f0-0002-b-test-effects-32-v2" => Some(("effect_fixpoint_steps", 32)),
+                "f0-0003-b-test-effects-32-v1" => Some(("effect_fixpoint_steps", 32)),
                 "f0-0002-b-test-ir-32-v2" => Some(("ir_items", 32)),
+                "f0-0003-b-test-ir-32-v1" => Some(("ir_items", 32)),
                 _ => None,
             };
             let kind_name = match kind {
@@ -365,8 +386,11 @@ impl Diagnostic {
                 .filter(|(expected_kind, _)| {
                     *expected_kind == kind_name
                         && match self.profile_id.as_str() {
-                            "f0-0002-b-test-flow-32-v2" => scope == "function",
-                            "f0-0002-b-test-flow-global-32-v2" => scope == "compilation",
+                            "f0-0002-b-test-flow-32-v2" | "f0-0003-b-test-flow-32-v1" => {
+                                scope == "function"
+                            }
+                            "f0-0002-b-test-flow-global-32-v2"
+                            | "f0-0003-b-test-flow-global-32-v1" => scope == "compilation",
                             _ => true,
                         }
                 })
@@ -529,13 +553,24 @@ impl Diagnostic {
             "parameter",
             "active_permission",
             "requested_access",
+            "missing_pattern",
+            "constructor",
+            "expected_arity",
+            "found_arity",
+            "scrutinee_type",
+            "required_mode",
+            "requested_mode",
+            "property_evidence",
+            "suspension_kind",
         ];
         if self.data.keys().any(|k| !allowed.contains(&k.as_str())) {
             return fail("unknown data key");
         }
         for (key, value) in &self.data {
             let valid = match key.as_str() {
-                "limit" | "observed" => matches!(value, DataValue::UInt(_)),
+                "limit" | "observed" | "expected_arity" | "found_arity" => {
+                    matches!(value, DataValue::UInt(_))
+                }
                 "work_consumed" => true,
                 "unresolved_components" => {
                     matches!(value, DataValue::Array(items) if items.iter().all(|item| matches!(item, DataValue::String(_))))
@@ -761,120 +796,34 @@ impl Diagnostic {
         }
         for cause in &self.cause_chain {
             let coherent = match cause.kind {
-                CauseKind::Call => match cause.operation {
-                    CauseOperation::FunctionCall | CauseOperation::IntrinsicCall => true,
+                CauseKind::Call => matches!(
+                    cause.operation,
+                    CauseOperation::FunctionCall
+                        | CauseOperation::IntrinsicCall
+                        | CauseOperation::ClosureCreate
+                        | CauseOperation::ClosureCall
+                        | CauseOperation::GeneratorCreate
+                        | CauseOperation::GeneratorNext
+                ),
+                CauseKind::Copy => cause.operation == CauseOperation::ValueCopy,
+                CauseKind::Consume => cause.operation == CauseOperation::ValueConsume,
+                CauseKind::Borrow => matches!(
+                    cause.operation,
+                    CauseOperation::BorrowRead | CauseOperation::BorrowInout
+                ),
+                CauseKind::Reborrow => cause.operation == CauseOperation::BorrowReborrow,
+                CauseKind::Drop => matches!(
+                    cause.operation,
+                    CauseOperation::ValueDrop | CauseOperation::ResourceDrop
+                ),
+                CauseKind::Return | CauseKind::Limit => false,
+                CauseKind::Backedge => cause.operation == CauseOperation::FlowBackedge,
+                CauseKind::Effect => matches!(
+                    cause.operation,
                     CauseOperation::BuildArray
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::BorrowReborrow
-                    | CauseOperation::FlowBackedge => false,
-                },
-                CauseKind::Copy => match cause.operation {
-                    CauseOperation::ValueCopy => true,
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::BuildArray
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::BorrowReborrow
-                    | CauseOperation::FlowBackedge => false,
-                },
-                CauseKind::Consume => match cause.operation {
-                    CauseOperation::ValueConsume => true,
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::BuildArray
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::BorrowReborrow
-                    | CauseOperation::FlowBackedge => false,
-                },
-                CauseKind::Borrow => match cause.operation {
-                    CauseOperation::BorrowRead | CauseOperation::BorrowInout => true,
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::BuildArray
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowReborrow
-                    | CauseOperation::FlowBackedge => false,
-                },
-                CauseKind::Reborrow => match cause.operation {
-                    CauseOperation::BorrowReborrow => true,
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::BuildArray
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::FlowBackedge => false,
-                },
-                CauseKind::Drop => match cause.operation {
-                    CauseOperation::ValueDrop | CauseOperation::ResourceDrop => true,
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::BuildArray
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::BorrowReborrow
-                    | CauseOperation::FlowBackedge => false,
-                },
-                CauseKind::Return | CauseKind::Limit => match cause.operation {
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::BuildArray
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::BorrowReborrow
-                    | CauseOperation::FlowBackedge => false,
-                },
-                CauseKind::Backedge => match cause.operation {
-                    CauseOperation::FlowBackedge => true,
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::BuildArray
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::BorrowReborrow => false,
-                },
-                CauseKind::Effect => match cause.operation {
-                    CauseOperation::BuildArray => true,
-                    CauseOperation::FunctionCall
-                    | CauseOperation::IntrinsicCall
-                    | CauseOperation::ValueCopy
-                    | CauseOperation::ValueDrop
-                    | CauseOperation::ResourceDrop
-                    | CauseOperation::ValueConsume
-                    | CauseOperation::BorrowRead
-                    | CauseOperation::BorrowInout
-                    | CauseOperation::BorrowReborrow
-                    | CauseOperation::FlowBackedge => false,
-                },
+                        | CauseOperation::GeneratorYield
+                        | CauseOperation::SuspendSafe
+                ),
             };
             if !coherent {
                 return err("§13.15 cause kind/operation correspondence");
@@ -915,6 +864,9 @@ impl Diagnostic {
             let f = self.feature_id.as_deref().unwrap_or("");
             match f {
                 "function_value" => ("names", "names.resolve"),
+                "implementation_limit" if self.profile_id.starts_with("f0-0003-") => {
+                    (self.stage.as_str(), self.operation.as_str())
+                }
                 "implementation_limit" => ("types", "types.check"),
                 "inferred_non_unit_result" | "resource_array" | "option" | "unsupported_type" => {
                     ("types", "types.check")
@@ -1022,6 +974,16 @@ impl Diagnostic {
             "NX-E0006" => &["pending_scope", "type_spelling"],
             "NX-E0101" => &["use_kind"],
             "NX-E0102" | "NX-E1303" => &["expected_type", "found_type"],
+            "NX-E1325" if cause == Some("constructor_arity") => {
+                &["constructor", "expected_arity", "found_arity"]
+            }
+            "NX-E1325" => &["constructor", "scrutinee_type"],
+            "NX-E1304" => &["missing_pattern"],
+            "NX-E1107" => &["required_mode", "requested_mode"],
+            "NX-E1204" => &["property_evidence", "suspension_kind"],
+            "NX-E1305" if cause == Some("guard_effect") => {
+                &["effect_model", "effect_evidence", "required_effect"]
+            }
             "NX-E0104" => &["declaration_kind"],
             "NX-E0112" => &["entry"],
             "NX-E0113" => &["unresolved_components"],
@@ -1227,7 +1189,10 @@ impl Diagnostic {
                 }));
             }
         }
-        if self.code == "NX-E0003" && self.profile_id.starts_with("f0-0002-b-") {
+        if self.code == "NX-E0003"
+            && (self.profile_id.starts_with("f0-0002-b-")
+                || self.profile_id.starts_with("f0-0003-b-"))
+        {
             for key in ["budget_scope", "incomplete_analysis"] {
                 if !has(key) {
                     return Err(SchemaError(format!(
@@ -1309,12 +1274,41 @@ impl Diagnostic {
         enum_value("use_kind", &["value", "call_target"])?;
         enum_value(
             "pending_scope",
-            &["F0-0003", "later_adr", "I08", "I09", "I10a", "I10b", "I11a"],
+            &[
+                "F0-0003",
+                "later_adr",
+                "I08",
+                "I09",
+                "I10a",
+                "I10b",
+                "I11a",
+                "J02",
+                "J03",
+                "J04",
+                "J05",
+                "J06",
+                "J07",
+                "J08",
+                "J09",
+                "J10",
+                "J11",
+                "J12",
+                "J13",
+                "J14",
+            ],
         )?;
         enum_value("effect_evidence", &["known_effect", "unknown_effect"])?;
         enum_value("required_effect", &["alloc", "block", "suspend", "io"])?;
         if matches!(code, "NX-E0412" | "NX-E0413" | "NX-E0414" | "NX-E0415")
-            && self.data.get("effect_model") != Some(&DataValue::String("f0-0002-sim-v1".into()))
+            && self.data.get("effect_model")
+                != Some(&DataValue::String(
+                    if self.profile_id.starts_with("f0-0003-") {
+                        "f0-0003-sim-v1"
+                    } else {
+                        "f0-0002-sim-v1"
+                    }
+                    .into(),
+                ))
         {
             return Err(SchemaError(
                 "§13.6 effect_model must be f0-0002-sim-v1".into(),
@@ -1355,8 +1349,11 @@ impl Diagnostic {
         if code == "R0002" {
             let reduced = match self.profile_id.as_str() {
                 "f0-0002-b-test-frames-8-v2" => Some(("call_frames", 8)),
+                "f0-0003-b-test-frames-8-v1" => Some(("call_frames", 8)),
                 "f0-0002-b-test-cells-64-v2" => Some(("live_value_cells", 64)),
+                "f0-0003-b-test-cells-64-v1" => Some(("live_value_cells", 64)),
                 "f0-0002-b-test-observations-64-v2" => Some(("observation_bytes", 64)),
+                "f0-0003-b-test-observations-64-v1" => Some(("observation_bytes", 64)),
                 _ => None,
             };
             let kind = match self.data.get("runtime_budget_kind") {
@@ -1417,7 +1414,11 @@ impl Diagnostic {
                 Some("later_adr")
             };
             let scope = self.data.get("pending_scope");
-            let valid = if let Some(expected) = expected {
+            let valid = if self.profile_id.starts_with("f0-0003-")
+                && self.feature_id.as_deref() == Some("implementation_limit")
+            {
+                matches!(scope, Some(DataValue::String(value)) if ["J02", "J03", "J04", "J05", "J06", "J07", "J08", "J09", "J10", "J11", "J12", "J13", "J14"].contains(&value.as_str()))
+            } else if let Some(expected) = expected {
                 scope == Some(&DataValue::String(expected.into()))
             } else {
                 matches!(scope, Some(DataValue::String(value)) if ["I08", "I09", "I10a", "I10b", "I11a"].contains(&value.as_str()))
@@ -2552,7 +2553,7 @@ struct CatalogEntry {
     operation: &'static str,
 }
 
-// Static transcription of the 70 canonical NX-E identities from F0-CODIGOS.md
+// Static transcription of the 73 canonical NX-E identities from F0-CODIGOS.md
 // and its addendum. section 13.12 coordinates are attached to each identity/subcause.
 // Empty coordinates mean no stage/operation is assigned here: for example section 13.12
 // delegates effects to section 13.15 and NX-E0006 to its feature/context table.
@@ -3147,6 +3148,14 @@ static CATALOG: &[CatalogEntry] = &[
         operation: "",
     },
     CatalogEntry {
+        code: "NX-E1214",
+        description: "El cuerpo generador no propaga con ?.",
+        subcauses: &[],
+        availability: "outside_profile",
+        stage: "types",
+        operation: "types.check",
+    },
+    CatalogEntry {
         code: "NX-E1301",
         description: "Forma corta de closure reconocida por ImplicitClosureBody y rechazada por faltar return: implicit_closure_body; span del operando completo y => relacionado, nunca NX-E0002 por esa forma. Una expresión final analizada como sentencia válida no es esta forma: su caída sin retorno usa NX-E1317.",
         subcauses: &[CatalogSubcause {
@@ -3505,6 +3514,48 @@ static CATALOG: &[CatalogEntry] = &[
         availability: "outside_profile",
         stage: "",
         operation: "",
+    },
+    CatalogEntry {
+        code: "NX-E1325",
+        description: "Constructor de patrón de unión incompatible o con aridad incorrecta.",
+        subcauses: &[
+            CatalogSubcause {
+                name: "constructor_arity",
+                availability: "outside_profile",
+                stage: "types",
+                operation: "types.check",
+            },
+            CatalogSubcause {
+                name: "constructor_type",
+                availability: "outside_profile",
+                stage: "types",
+                operation: "types.check",
+            },
+        ],
+        availability: "outside_profile",
+        stage: "types",
+        operation: "types.check",
+    },
+    CatalogEntry {
+        code: "NX-E1326",
+        description: "break o continue requiere un bucle en este invocable.",
+        subcauses: &[
+            CatalogSubcause {
+                name: "break_outside_loop",
+                availability: "outside_profile",
+                stage: "types",
+                operation: "types.check",
+            },
+            CatalogSubcause {
+                name: "continue_outside_loop",
+                availability: "outside_profile",
+                stage: "types",
+                operation: "types.check",
+            },
+        ],
+        availability: "outside_profile",
+        stage: "types",
+        operation: "types.check",
     },
 ];
 

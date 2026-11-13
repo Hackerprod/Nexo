@@ -8,6 +8,7 @@ use crate::frontend::{
     lex::{self, Kind, Token},
     parse::{self, Ast, Block, Else, Expr, Function, Mode, Statement, Type as SyntaxType},
 };
+use crate::union::{UnionDescriptor, UnionKind};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum InferTy {
@@ -21,6 +22,13 @@ enum InferTy {
     Deferred(u64),
     Never,
     Tainted,
+}
+
+fn concrete_union(ty: &InferTy) -> Option<UnionDescriptor<&InferTy>> {
+    match ty {
+        InferTy::Result(ok, err) => Some(UnionDescriptor::result(ok.as_ref(), err.as_ref())),
+        _ => None,
+    }
 }
 
 #[cfg(test)]
@@ -307,9 +315,9 @@ struct TypeNode {
     array_child: Option<u64>,
     array_origin: Option<Span>,
     array_constructed: bool,
-    result_children: Option<(u64, u64)>,
-    result_origin: Option<Span>,
-    result_constructed: bool,
+    variant_children: Option<UnionDescriptor<u64>>,
+    variant_origin: Option<Span>,
+    variant_constructed: bool,
     bottom_only: bool,
     // Only presence is tested by bind/union. The earliest span is retained
     // for deterministic propagation, but changing one Some(span) to another
@@ -1003,9 +1011,9 @@ impl Checker<'_> {
                     array_child: None,
                     array_origin: None,
                     array_constructed: false,
-                    result_children: None,
-                    result_origin: None,
-                    result_constructed: false,
+                    variant_children: None,
+                    variant_origin: None,
+                    variant_constructed: false,
                     bottom_only: false,
                     copyable_origin: Some(origin.clone()),
                 },
@@ -1071,9 +1079,17 @@ impl Checker<'_> {
         let root = self.root(id);
         if let Some(child) = self.type_nodes[&root].array_child {
             self.unresolved_result_paths(child, format!("{path}.element"), depth + 1, paths);
-        } else if let Some((ok, err)) = self.type_nodes[&root].result_children {
-            self.unresolved_result_paths(ok, format!("{path}.ok"), depth + 1, paths);
-            self.unresolved_result_paths(err, format!("{path}.err"), depth + 1, paths);
+        } else if let Some(union) = self.type_nodes[&root].variant_children {
+            for variant in union.variants {
+                if let Some(child) = variant.payload {
+                    self.unresolved_result_paths(
+                        child,
+                        format!("{path}.{}", variant.name.to_ascii_lowercase()),
+                        depth + 1,
+                        paths,
+                    );
+                }
+            }
         } else {
             paths.push(DataValue::String(path));
         }
@@ -1771,9 +1787,9 @@ impl Checker<'_> {
                 array_child: None,
                 array_origin: None,
                 array_constructed: false,
-                result_children: None,
-                result_origin: None,
-                result_constructed: false,
+                variant_children: None,
+                variant_origin: None,
+                variant_constructed: false,
                 bottom_only: false,
                 copyable_origin: None,
             },
@@ -1790,7 +1806,7 @@ impl Checker<'_> {
             }
             return Ok(child);
         }
-        if self.type_nodes[&root].result_children.is_some()
+        if self.type_nodes[&root].variant_children.is_some()
             || self.type_nodes[&root]
                 .concrete
                 .as_ref()
@@ -1810,44 +1826,60 @@ impl Checker<'_> {
         Ok(child)
     }
 
-    fn require_result(&mut self, id: u64, origin: &Span) -> Result<(u64, u64), Box<Diagnostic>> {
+    fn require_union(
+        &mut self,
+        id: u64,
+        kind: UnionKind,
+        origin: &Span,
+    ) -> Result<UnionDescriptor<u64>, Box<Diagnostic>> {
         self.charge_solver(origin)?;
         let root = self.root(id);
-        if let Some(children) = self.type_nodes[&root].result_children {
-            return Ok(children);
+        if let Some(children) = self.type_nodes[&root].variant_children {
+            return if children.kind == kind {
+                Ok(children)
+            } else {
+                Err(unresolved_type(origin.clone()))
+            };
         }
         if self.type_nodes[&root].array_child.is_some()
             || self.type_nodes[&root]
                 .concrete
                 .as_ref()
-                .is_some_and(|(ty, _)| !matches!(ty, Type::Result(..)))
+                .is_some_and(|(ty, _)| concrete_union(ty).is_none_or(|union| union.kind != kind))
         {
             return Err(unresolved_type(origin.clone()));
         }
-        let ok = self.new_variable(origin)?;
-        let err = self.new_variable(origin)?;
-        if let Some((Type::Result(a, b), previous_origin)) = self.type_nodes[&root].concrete.clone()
+        let first = self.new_variable(origin)?;
+        let second = if kind == UnionKind::Result {
+            Some(self.new_variable(origin)?)
+        } else {
+            None
+        };
+        let children = if let Some(second) = second {
+            UnionDescriptor::result(first, second)
+        } else {
+            UnionDescriptor::option(first)
+        };
+        if let Some((concrete, previous_origin)) = self.type_nodes[&root].concrete.clone()
+            && let Some(wanted) = concrete_union(&concrete)
         {
             self.type_nodes.get_mut(&root).unwrap().concrete = None;
             let intrinsic = self.type_nodes[&root].concrete_intrinsic;
-            self.bind(
-                ok,
-                a.as_ref().clone(),
-                previous_origin.clone(),
-                origin.clone(),
-                intrinsic,
-            )?;
-            self.bind(
-                err,
-                b.as_ref().clone(),
-                previous_origin,
-                origin.clone(),
-                intrinsic,
-            )?;
+            for (actual, target) in children.variants.iter().zip(wanted.variants) {
+                if let (Some(actual), Some(target)) = (actual.payload, target.payload) {
+                    self.bind(
+                        actual,
+                        (*target).clone(),
+                        previous_origin.clone(),
+                        origin.clone(),
+                        intrinsic,
+                    )?;
+                }
+            }
         }
-        self.type_nodes.get_mut(&root).unwrap().result_children = Some((ok, err));
-        self.type_nodes.get_mut(&root).unwrap().result_origin = Some(origin.clone());
-        Ok((ok, err))
+        self.type_nodes.get_mut(&root).unwrap().variant_children = Some(children);
+        self.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin.clone());
+        Ok(children)
     }
 
     fn require_copyable(&mut self, id: u64, origin: &Span) -> Result<(), Box<Diagnostic>> {
@@ -1864,7 +1896,7 @@ impl Checker<'_> {
                 &ty,
             ));
         }
-        if self.type_nodes[&root].result_children.is_some() && self.concrete(root).is_none() {
+        if self.type_nodes[&root].variant_children.is_some() && self.concrete(root).is_none() {
             self.pending.push(PendingConstraint::Domain(PendingDomain {
                 variable: root,
                 operand: origin.clone(),
@@ -1916,7 +1948,9 @@ impl Checker<'_> {
         let node = self.type_nodes[&root].clone();
         if let Some(concrete) = node.concrete {
             if node.array_child.is_some() && !matches!(concrete.0, Type::Array(..))
-                || node.result_children.is_some() && !matches!(concrete.0, Type::Result(..))
+                || node.variant_children.is_some_and(|children| {
+                    concrete_union(&concrete.0).is_none_or(|union| union.kind != children.kind)
+                })
             {
                 // A malformed representative must remain unresolved instead
                 // of hiding its structural children behind a scalar witness.
@@ -1928,12 +1962,12 @@ impl Checker<'_> {
             let (ty, child_origin) = self.concrete_with_depth(child, depth + 1)?;
             return Some((Type::Array(Arc::new(ty)), child_origin));
         }
-        if let Some((ok, err)) = node.result_children {
+        if let Some((ok, err)) = node.variant_children.and_then(|u| u.result_payloads()) {
             let (ok_ty, ok_origin) = self.concrete_with_depth(ok, depth + 1)?;
             let (err_ty, _) = self.concrete_with_depth(err, depth + 1)?;
             return Some((
                 Type::Result(Arc::new(ok_ty), Arc::new(err_ty)),
-                node.result_origin.unwrap_or(ok_origin),
+                node.variant_origin.unwrap_or(ok_origin),
             ));
         }
         None
@@ -1989,7 +2023,7 @@ impl Checker<'_> {
                 let node = &self.type_nodes[&root];
                 node.concrete.is_some()
                     || node.array_child.is_some()
-                    || node.result_children.is_some()
+                    || node.variant_children.is_some()
             }
             Type::Never | Type::Tainted => false,
             _ => true,
@@ -2033,7 +2067,7 @@ impl Checker<'_> {
         }
         if let Type::Result(ok, err) = &ty {
             let root = self.root(id);
-            if internal_state(&ty).is_some() || self.type_nodes[&root].result_children.is_some() {
+            if internal_state(&ty).is_some() || self.type_nodes[&root].variant_children.is_some() {
                 let ok = ok.as_ref().clone();
                 let err = err.as_ref().clone();
                 return self.atomic(|checker| {
@@ -2053,11 +2087,14 @@ impl Checker<'_> {
                             &ty,
                         ));
                     }
-                    let (ok_id, err_id) = checker.require_result(id, &found)?;
+                    let (ok_id, err_id) = checker
+                        .require_union(id, UnionKind::Result, &found)?
+                        .result_payloads()
+                        .unwrap();
                     checker.bind(ok_id, ok, origin.clone(), found.clone(), intrinsic)?;
                     checker.bind(err_id, err, origin.clone(), found.clone(), intrinsic)?;
                     if !was_concrete && checker.concrete(root).is_some() {
-                        checker.type_nodes.get_mut(&root).unwrap().result_origin =
+                        checker.type_nodes.get_mut(&root).unwrap().variant_origin =
                             Some(origin.clone());
                     }
                     Ok(())
@@ -2065,7 +2102,7 @@ impl Checker<'_> {
             }
         }
         let root = self.root(id);
-        if self.type_nodes[&root].result_children.is_some() {
+        if self.type_nodes[&root].variant_children.is_some() {
             // A Result shape cannot be replaced by a scalar while one of its
             // children is still open. The source equality owns the conflict;
             // its caller can defer it until both whole types are printable.
@@ -2271,7 +2308,7 @@ impl Checker<'_> {
         // limit before this shape walk; iteration 129 has no reachable node.
         for _ in 0..=128 {
             let node = self.type_nodes[&current].clone();
-            if node.result_children.is_some() && self.result_shape_conflict(current, part, 0) {
+            if node.variant_children.is_some() && self.result_shape_conflict(current, part, 0) {
                 return Ok(Some(current));
             }
             if node.array_constructed {
@@ -2302,14 +2339,24 @@ impl Checker<'_> {
             return false;
         }
         let root = self.root(id);
-        let Some((ok, err)) = self.type_nodes[&root].result_children else {
+        let Some(union) = self.type_nodes[&root].variant_children else {
             return false;
         };
-        let Type::Result(wanted_ok, wanted_err) = against else {
+        let Some(wanted) = concrete_union(against) else {
             return true;
         };
-        self.result_shape_conflict(ok, wanted_ok, depth + 1)
-            || self.result_shape_conflict(err, wanted_err, depth + 1)
+        union.kind != wanted.kind
+            || union
+                .variants
+                .iter()
+                .zip(wanted.variants)
+                .any(|(actual, wanted)| match (actual.payload, wanted.payload) {
+                    (Some(actual), Some(wanted)) => {
+                        self.result_shape_conflict(actual, wanted, depth + 1)
+                    }
+                    (None, None) => false,
+                    _ => true,
+                })
     }
 
     fn defer_shape_conflict(
@@ -2440,11 +2487,11 @@ impl Checker<'_> {
                 let a_root = self.root(a);
                 let b_root = self.root(b);
                 let incompatible_shapes = self.type_nodes[&a_root].array_child.is_some()
-                    && self.type_nodes[&b_root].result_children.is_some()
-                    || self.type_nodes[&a_root].result_children.is_some()
+                    && self.type_nodes[&b_root].variant_children.is_some()
+                    || self.type_nodes[&a_root].variant_children.is_some()
                         && self.type_nodes[&b_root].array_child.is_some();
                 if incompatible_shapes {
-                    let constructor = if self.type_nodes[&a_root].result_children.is_some() {
+                    let constructor = if self.type_nodes[&a_root].variant_children.is_some() {
                         a_root
                     } else {
                         b_root
@@ -2485,8 +2532,8 @@ impl Checker<'_> {
                     Ok(()) => {}
                     Err(error)
                         if error.code == "NX-E0102"
-                            && (self.type_nodes[&a_root].result_children.is_some()
-                                || self.type_nodes[&b_root].result_children.is_some())
+                            && (self.type_nodes[&a_root].variant_children.is_some()
+                                || self.type_nodes[&b_root].variant_children.is_some())
                             && (self.concrete(a).is_none() || self.concrete(b).is_none()) =>
                     {
                         let constructor = self.root(a);
@@ -2577,7 +2624,7 @@ impl Checker<'_> {
                     let root = self.root(id);
                     if error.code == "NX-E0102"
                         && matches!(other, Type::Result(..))
-                        && self.type_nodes[&root].result_children.is_some()
+                        && self.type_nodes[&root].variant_children.is_some()
                         && self.concrete(id).is_none()
                     {
                         self.pending
@@ -2647,7 +2694,7 @@ impl Checker<'_> {
                     let root = self.root(id);
                     if error.code == "NX-E0102"
                         && matches!(other, Type::Result(..))
-                        && self.type_nodes[&root].result_children.is_some()
+                        && self.type_nodes[&root].variant_children.is_some()
                         && self.concrete(id).is_none()
                     {
                         self.pending
@@ -2771,8 +2818,8 @@ impl Checker<'_> {
     fn union(&mut self, left: u64, right: u64, found: Span) -> Result<(), Box<Diagnostic>> {
         let l = self.root(left);
         let r = self.root(right);
-        if self.type_nodes[&l].result_children.is_some()
-            || self.type_nodes[&r].result_children.is_some()
+        if self.type_nodes[&l].variant_children.is_some()
+            || self.type_nodes[&r].variant_children.is_some()
         {
             return self.atomic(|checker| checker.union_inner(left, right, found));
         }
@@ -2787,16 +2834,16 @@ impl Checker<'_> {
             return Ok(());
         }
         if self.type_nodes[&l].array_child.is_some()
-            && self.type_nodes[&r].result_children.is_some()
-            || self.type_nodes[&l].result_children.is_some()
+            && self.type_nodes[&r].variant_children.is_some()
+            || self.type_nodes[&l].variant_children.is_some()
                 && self.type_nodes[&r].array_child.is_some()
         {
             return Err(unresolved_type(found));
         }
         if (self.type_nodes[&l].array_child.is_some()
-            || self.type_nodes[&l].result_children.is_some()
+            || self.type_nodes[&l].variant_children.is_some()
             || self.type_nodes[&r].array_child.is_some()
-            || self.type_nodes[&r].result_children.is_some())
+            || self.type_nodes[&r].variant_children.is_some())
             && (self.type_reaches(l, r, &found)? || self.type_reaches(r, l, &found)?)
         {
             if self.type_nodes[&l].array_child.is_some()
@@ -2833,17 +2880,24 @@ impl Checker<'_> {
         let b_intrinsic = self.type_nodes[&b].concrete_intrinsic;
         let a_child = self.type_nodes[&a].array_child;
         let b_child = self.type_nodes[&b].array_child;
-        let a_result = self.type_nodes[&a].result_children;
-        let b_result = self.type_nodes[&b].result_children;
+        let a_result = self.type_nodes[&a].variant_children;
+        let b_result = self.type_nodes[&b].variant_children;
+        if let (Some(left), Some(right)) = (a_result, b_result)
+            && left.kind != right.kind
+        {
+            return Err(unresolved_type(found));
+        }
         if let Some((other, _)) = &b_concrete
             && a_result.is_some()
-            && !matches!(other, Type::Result(..))
+            && concrete_union(other)
+                .is_none_or(|union| Some(union.kind) != a_result.map(|u| u.kind))
         {
             return Err(unresolved_type(found));
         }
         if let Some((other, _)) = &a_concrete
             && b_result.is_some()
-            && !matches!(other, Type::Result(..))
+            && concrete_union(other)
+                .is_none_or(|union| Some(union.kind) != b_result.map(|u| u.kind))
         {
             return Err(unresolved_type(found));
         }
@@ -2852,8 +2906,8 @@ impl Checker<'_> {
         } else {
             (None, None)
         };
-        let result_constructed =
-            self.type_nodes[&a].result_constructed || self.type_nodes[&b].result_constructed;
+        let variant_constructed =
+            self.type_nodes[&a].variant_constructed || self.type_nodes[&b].variant_constructed;
         let array_constructed =
             self.type_nodes[&a].array_constructed || self.type_nodes[&b].array_constructed;
         let bottom_only = self.type_nodes[&a].bottom_only || self.type_nodes[&b].bottom_only;
@@ -2899,37 +2953,35 @@ impl Checker<'_> {
                 a_intrinsic,
             )?;
         }
-        if let (Some((ok, err)), Some((Type::Result(a, b), origin))) = (a_result, &b_concrete) {
-            self.bind(
-                ok,
-                a.as_ref().clone(),
-                origin.clone(),
-                found.clone(),
-                b_intrinsic,
-            )?;
-            self.bind(
-                err,
-                b.as_ref().clone(),
-                origin.clone(),
-                found.clone(),
-                b_intrinsic,
-            )?;
+        if let (Some(children), Some((ty, origin))) = (a_result, &b_concrete)
+            && let Some(concrete) = concrete_union(ty)
+        {
+            for (child, target) in children.variants.iter().zip(concrete.variants) {
+                if let (Some(child), Some(target)) = (child.payload, target.payload) {
+                    self.bind(
+                        child,
+                        (*target).clone(),
+                        origin.clone(),
+                        found.clone(),
+                        b_intrinsic,
+                    )?;
+                }
+            }
         }
-        if let (Some((ok, err)), Some((Type::Result(a, b), origin))) = (b_result, &a_concrete) {
-            self.bind(
-                ok,
-                a.as_ref().clone(),
-                origin.clone(),
-                found.clone(),
-                a_intrinsic,
-            )?;
-            self.bind(
-                err,
-                b.as_ref().clone(),
-                origin.clone(),
-                found.clone(),
-                a_intrinsic,
-            )?;
+        if let (Some(children), Some((ty, origin))) = (b_result, &a_concrete)
+            && let Some(concrete) = concrete_union(ty)
+        {
+            for (child, target) in children.variants.iter().zip(concrete.variants) {
+                if let (Some(child), Some(target)) = (child.payload, target.payload) {
+                    self.bind(
+                        child,
+                        (*target).clone(),
+                        origin.clone(),
+                        found.clone(),
+                        a_intrinsic,
+                    )?;
+                }
+            }
         }
         if let Some((other, _)) = &b_concrete
             && a_child.is_some()
@@ -2964,24 +3016,27 @@ impl Checker<'_> {
         if let (Some(left_child), Some(right_child)) = (a_child, b_child) {
             self.union(left_child, right_child, found.clone())?;
         }
-        if let (Some((a_ok, a_err)), Some((b_ok, b_err))) = (a_result, b_result) {
-            self.union(a_ok, b_ok, found.clone())?;
-            self.union(a_err, b_err, found.clone())?;
+        if let (Some(left), Some(right)) = (a_result, b_result) {
+            for (left, right) in left.variants.iter().zip(right.variants) {
+                if let (Some(left), Some(right)) = (left.payload, right.payload) {
+                    self.union(left, right, found.clone())?;
+                }
+            }
         }
         self.type_nodes.get_mut(&b).unwrap().parent = a;
         self.type_nodes.get_mut(&a).unwrap().size += self.type_nodes[&b].size;
         self.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);
-        self.type_nodes.get_mut(&a).unwrap().result_children = a_result.or(b_result);
-        self.type_nodes.get_mut(&a).unwrap().result_constructed = result_constructed;
-        self.type_nodes.get_mut(&a).unwrap().result_origin = self.type_nodes[&a]
-            .result_origin
+        self.type_nodes.get_mut(&a).unwrap().variant_children = a_result.or(b_result);
+        self.type_nodes.get_mut(&a).unwrap().variant_constructed = variant_constructed;
+        self.type_nodes.get_mut(&a).unwrap().variant_origin = self.type_nodes[&a]
+            .variant_origin
             .clone()
-            .or_else(|| self.type_nodes[&b].result_origin.clone());
-        if self.type_nodes[&a].result_children.is_some() {
+            .or_else(|| self.type_nodes[&b].variant_origin.clone());
+        if self.type_nodes[&a].variant_children.is_some() {
             if let Some(origin) = a_full.or(b_full).map(|(_, origin)| origin) {
-                self.type_nodes.get_mut(&a).unwrap().result_origin = Some(origin);
+                self.type_nodes.get_mut(&a).unwrap().variant_origin = Some(origin);
             } else if self.concrete(a).is_some() {
-                self.type_nodes.get_mut(&a).unwrap().result_origin = Some(found.clone());
+                self.type_nodes.get_mut(&a).unwrap().variant_origin = Some(found.clone());
             }
         }
         self.type_nodes.get_mut(&a).unwrap().array_constructed = array_constructed;
@@ -3044,13 +3099,16 @@ impl Checker<'_> {
                 return Ok(true);
             }
             let array_child = self.type_nodes[&current].array_child;
-            let result_children = self.type_nodes[&current].result_children;
+            let variant_children = self.type_nodes[&current].variant_children;
             if let Some(child) = array_child {
                 work.push((child, true));
             }
-            if let Some((ok, err)) = result_children {
-                work.push((err, true));
-                work.push((ok, true));
+            if let Some(union) = variant_children {
+                for variant in union.variants.into_iter().rev() {
+                    if let Some(child) = variant.payload {
+                        work.push((child, true));
+                    }
+                }
             }
         }
         Ok(false)
@@ -3705,7 +3763,7 @@ impl Checker<'_> {
                         continue;
                     }
                 }
-                if self.type_nodes[&constructor].result_children.is_some() {
+                if self.type_nodes[&constructor].variant_children.is_some() {
                     continue;
                 }
                 self.unresolved_constructor_diagnostic(constructor, join.found)
@@ -3753,7 +3811,7 @@ impl Checker<'_> {
             let root = self.root(array);
             let child_root = self.root(child);
             let result_child_owns_inference =
-                self.type_nodes[&child_root].result_children.is_some()
+                self.type_nodes[&child_root].variant_children.is_some()
                     && self
                         .pending_result_constructors()
                         .into_iter()
@@ -4778,11 +4836,17 @@ impl Checker<'_> {
                             ty
                         } else {
                             let root = self.root(id);
-                            if self.type_nodes[&root].result_children.is_none() {
+                            if self.type_nodes[&root].variant_children.is_none() {
                                 Type::Deferred(id)
                             } else {
-                                let (ok, err) =
-                                    self.require_result(id, &Self::primary_span(value))?;
+                                let (ok, err) = self
+                                    .require_union(
+                                        id,
+                                        UnionKind::Result,
+                                        &Self::primary_span(value),
+                                    )?
+                                    .result_payloads()
+                                    .unwrap();
                                 Type::Result(
                                     Arc::new(Type::Deferred(ok)),
                                     Arc::new(Type::Deferred(err)),
@@ -6904,7 +6968,10 @@ impl Checker<'_> {
                     return Ok(Type::Result(Arc::new(ok.clone()), Arc::new(err.clone())));
                 }
                 let result = self.new_variable(call_span)?;
-                let (ok, err) = self.require_result(result, call_span)?;
+                let (ok, err) = self
+                    .require_union(result, UnionKind::Result, call_span)?
+                    .result_payloads()
+                    .unwrap();
                 let payload_child = if name == "Ok" { ok } else { err };
                 self.bind(
                     payload_child,
@@ -6913,7 +6980,10 @@ impl Checker<'_> {
                     Self::primary_span(ordered(0)),
                     true,
                 )?;
-                self.type_nodes.get_mut(&result).unwrap().result_constructed = true;
+                self.type_nodes
+                    .get_mut(&result)
+                    .unwrap()
+                    .variant_constructed = true;
                 self.expr_vars.insert(span_key(call_span), result);
                 self.deferred_exprs.insert(span_key(call_span));
                 self.pending.push(PendingConstraint::ResultConstructor {

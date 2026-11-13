@@ -377,46 +377,66 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 ins.ty.clone()
             }
-            Op::BuildResult { ok, payload } => {
-                let Some(Ty::Result(success, error)) = &ins.ty else {
+            Op::BuildVariant { tag, payload } => {
+                let Some(union) = ins.ty.as_ref().and_then(Ty::union_descriptor) else {
                     return Err("result type");
                 };
-                if borrowed.get(payload.0) == Some(&true) {
+                let variant = union.variant(*tag).ok_or("result variant tag")?;
+                if let Some(payload) = payload
+                    && borrowed.get(payload.0) == Some(&true)
+                {
                     return Err("borrowed result payload");
                 }
-                let actual = take(
-                    *payload,
-                    &temps,
-                    &mut live,
-                    &borrow_sources,
-                    &mut active_borrows,
-                )?;
-                if actual != **(if *ok { success } else { error }) {
+                let actual = payload
+                    .map(|payload| {
+                        take(
+                            payload,
+                            &temps,
+                            &mut live,
+                            &borrow_sources,
+                            &mut active_borrows,
+                        )
+                    })
+                    .transpose()?;
+                if actual != variant.payload.cloned() {
                     return Err("result payload type");
                 }
                 ins.ty.clone()
             }
-            Op::BranchResult { value, result } => {
-                let Ty::Result(_, function_error) = &function.result else {
-                    return Err("propagation function type");
-                };
+            Op::BranchVariant { value, result } => {
+                let destination = function
+                    .result
+                    .union_descriptor()
+                    .ok_or("propagation function type")?;
+                let function_error = destination.variants[1]
+                    .payload
+                    .ok_or("propagation function type")?;
                 if borrowed.get(value.0) == Some(&true) {
                     return Err("borrowed propagation operand");
                 }
-                let Ty::Result(success, error) = take(
+                let operand = take(
                     *value,
                     &temps,
                     &mut live,
                     &borrow_sources,
                     &mut active_borrows,
-                )?
-                else {
-                    return Err("propagation operand type");
-                };
-                if *error != **function_error || *result != function.result {
+                )?;
+                let source = operand
+                    .union_descriptor()
+                    .ok_or("propagation operand type")?;
+                let success = source.variants[0]
+                    .payload
+                    .ok_or("propagation operand type")?;
+                let error = source.variants[1]
+                    .payload
+                    .ok_or("propagation operand type")?;
+                if source.kind != destination.kind
+                    || error != function_error
+                    || *result != function.result
+                {
                     return Err("propagation error type");
                 }
-                Some(*success)
+                Some(success.clone())
             }
             Op::ReadIndex { local, indexes, .. } | Op::BorrowIndex { local, indexes, .. } => {
                 let local = function.locals.get(local.0).ok_or("read index local")?;
@@ -1112,8 +1132,12 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
             visit(*base);
             visit(*index);
         }
-        Op::BuildResult { payload, .. } => visit(*payload),
-        Op::BranchResult { value, .. } => visit(*value),
+        Op::BuildVariant {
+            payload: Some(payload),
+            ..
+        } => visit(*payload),
+        Op::BuildVariant { payload: None, .. } => {}
+        Op::BranchVariant { value, .. } => visit(*value),
         Op::Binary { left, right, .. } => {
             visit(*left);
             visit(*right);
@@ -1893,36 +1917,55 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     ins.ty.clone()
                 }
-                Op::BuildResult { ok, payload } => {
-                    let Some(Ty::Result(success, error)) = &ins.ty else {
+                Op::BuildVariant { tag, payload } => {
+                    let Some(union) = ins.ty.as_ref().and_then(Ty::union_descriptor) else {
                         return Err("result type");
                     };
-                    if temps.info(*payload)?.is_borrowed
-                        || temps.info(*payload)?.exclusive_root.is_some()
+                    let variant = union.variant(*tag).ok_or("result variant tag")?;
+                    if let Some(payload) = payload
+                        && (temps.info(*payload)?.is_borrowed
+                            || temps.info(*payload)?.exclusive_root.is_some())
                     {
                         return Err("borrowed result payload");
                     }
-                    if temps.read(*payload, true)? != **(if *ok { success } else { error }) {
+                    let actual = payload
+                        .map(|payload| temps.read(payload, true))
+                        .transpose()?;
+                    if actual != variant.payload.cloned() {
                         return Err("result payload type");
                     }
                     ins.ty.clone()
                 }
-                Op::BranchResult { value, result } => {
-                    let Ty::Result(_, function_error) = &function.result else {
-                        return Err("propagation function type");
-                    };
+                Op::BranchVariant { value, result } => {
+                    let destination = function
+                        .result
+                        .union_descriptor()
+                        .ok_or("propagation function type")?;
+                    let function_error = destination.variants[1]
+                        .payload
+                        .ok_or("propagation function type")?;
                     if temps.info(*value)?.is_borrowed
                         || temps.info(*value)?.exclusive_root.is_some()
                     {
                         return Err("borrowed propagation operand");
                     }
-                    let Ty::Result(success, error) = temps.read(*value, true)? else {
-                        return Err("propagation operand type");
-                    };
-                    if *error != **function_error || *result != function.result {
+                    let operand = temps.read(*value, true)?;
+                    let source = operand
+                        .union_descriptor()
+                        .ok_or("propagation operand type")?;
+                    let success = source.variants[0]
+                        .payload
+                        .ok_or("propagation operand type")?;
+                    let error = source.variants[1]
+                        .payload
+                        .ok_or("propagation operand type")?;
+                    if source.kind != destination.kind
+                        || error != function_error
+                        || *result != function.result
+                    {
                         return Err("propagation error type");
                     }
-                    Some(*success)
+                    Some(success.clone())
                 }
                 Op::ReadIndex { local, indexes, .. }
                 | Op::BorrowIndex { local, indexes, .. }
@@ -2733,10 +2776,10 @@ mod tests {
                     .block
                     .instructions
                     .iter_mut()
-                    .find(|i| matches!(i.op, Op::BuildResult { .. }))
+                    .find(|i| matches!(i.op, Op::BuildVariant { .. }))
                     .unwrap();
-                if let Op::BuildResult { ok, .. } = &mut i.op {
-                    *ok = false;
+                if let Op::BuildVariant { tag, .. } = &mut i.op {
+                    tag.0 = 1;
                 }
             }),
             Err("result payload type")
@@ -2747,10 +2790,10 @@ mod tests {
                     .block
                     .instructions
                     .iter_mut()
-                    .find(|i| matches!(i.op, Op::BuildResult { .. }))
+                    .find(|i| matches!(i.op, Op::BuildVariant { .. }))
                     .unwrap();
-                if let Op::BuildResult { payload, .. } = &mut i.op {
-                    *payload = TempId(99);
+                if let Op::BuildVariant { payload, .. } = &mut i.op {
+                    *payload = Some(TempId(99));
                 }
             }),
             Err("undefined temporary")
@@ -2762,9 +2805,9 @@ mod tests {
                     .block
                     .instructions
                     .iter_mut()
-                    .find(|i| matches!(i.op, Op::BranchResult { .. }))
+                    .find(|i| matches!(i.op, Op::BranchVariant { .. }))
                     .unwrap();
-                if let Op::BranchResult { result, .. } = &mut i.op {
+                if let Op::BranchVariant { result, .. } = &mut i.op {
                     *result = Ty::Unit;
                 }
             }),
@@ -2776,14 +2819,43 @@ mod tests {
                     .block
                     .instructions
                     .iter_mut()
-                    .find(|i| matches!(i.op, Op::BranchResult { .. }))
+                    .find(|i| matches!(i.op, Op::BranchVariant { .. }))
                     .unwrap();
-                if let Op::BranchResult { value, .. } = &mut i.op {
+                if let Op::BranchVariant { value, .. } = &mut i.op {
                     *value = TempId(0);
                 }
             }),
             Err("temporary used twice")
         );
+    }
+
+    #[test]
+    fn nominal_result_variant_requires_a_declared_tag_and_payload_in_both_verifiers() {
+        for source in [
+            "fn Main()->Result<(),I64>{return Ok(());}",
+            "fn Main()->Result<(),I64>{let x=if true then Ok(()) else Err(1);return x;}",
+        ] {
+            for (mutate, expected) in [(2u8, "result variant tag"), (3u8, "result payload type")] {
+                assert_eq!(
+                    changed_main(source, |function| {
+                        let instruction = std::iter::once(&mut function.block)
+                            .chain(&mut function.blocks)
+                            .flat_map(|block| &mut block.instructions)
+                            .find(|instruction| matches!(instruction.op, Op::BuildVariant { .. }))
+                            .unwrap();
+                        if let Op::BuildVariant { tag, payload } = &mut instruction.op {
+                            if mutate == 2 {
+                                tag.0 = 2;
+                            } else {
+                                *payload = None;
+                            }
+                        }
+                    }),
+                    Err(expected),
+                    "{source}"
+                );
+            }
+        }
     }
     #[test]
     fn verifier_rejects_resource_arrays_through_both_result_variants() {
@@ -2848,9 +2920,9 @@ mod tests {
                 let instruction = std::iter::once(&mut f.block)
                     .chain(&mut f.blocks)
                     .flat_map(|block| &mut block.instructions)
-                    .find(|instruction| matches!(instruction.op, Op::BranchResult { .. }))
+                    .find(|instruction| matches!(instruction.op, Op::BranchVariant { .. }))
                     .unwrap();
-                if let Op::BranchResult { result, .. } = &mut instruction.op {
+                if let Op::BranchVariant { result, .. } = &mut instruction.op {
                     *result = Ty::Unit;
                 }
             }),

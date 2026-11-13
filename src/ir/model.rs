@@ -1,5 +1,6 @@
 //! Typed, source-originated linear IR. Later cuts extend the block graph.
 use crate::diagnostic::Span;
+use crate::union::{UnionDescriptor, UnionKind, VariantTag};
 
 /// Stable canonical identity. The function table position is a separate index.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -32,6 +33,12 @@ pub enum Ty {
     MockBlockingResource,
 }
 impl Ty {
+    pub fn union_descriptor(&self) -> Option<UnionDescriptor<&Ty>> {
+        match self {
+            Self::Result(ok, err) => Some(UnionDescriptor::result(ok, err)),
+            _ => None,
+        }
+    }
     pub fn has_resource_destructor(&self) -> bool {
         match self {
             Self::MockResource | Self::MockBlockingResource => true,
@@ -133,13 +140,13 @@ pub enum Op {
     /// Marks the end of the callee cleanup and release of a call argument loan.
     EndLoan(LoanId),
     BuildArray(Vec<TempId>),
-    BuildResult {
-        ok: bool,
-        payload: TempId,
+    BuildVariant {
+        tag: VariantTag,
+        payload: Option<TempId>,
     },
     /// Selects the active variant. On Err the current frame returns
     /// Result<U,E> through its ordinary cleanup path.
-    BranchResult {
+    BranchVariant {
         value: TempId,
         result: Ty,
     },
@@ -539,12 +546,24 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         number(&mut bytes, id.0);
                     }
                 }
-                Op::BuildResult { ok, payload } => {
+                Op::BuildVariant { tag, payload } => {
                     bytes.push(22);
-                    bytes.push(u8::from(*ok));
-                    number(&mut bytes, payload.0);
+                    // Preserve the published A2 hash encoding for existing Result IR.
+                    bytes.push(
+                        if matches!(
+                            ins.ty.as_ref().and_then(Ty::union_descriptor),
+                            Some(union) if union.kind == UnionKind::Result
+                        ) {
+                            tag.0 ^ 1
+                        } else {
+                            tag.0
+                        },
+                    );
+                    if let Some(payload) = payload {
+                        number(&mut bytes, payload.0);
+                    }
                 }
-                Op::BranchResult { value, result } => {
+                Op::BranchVariant { value, result } => {
                     bytes.push(23);
                     number(&mut bytes, value.0);
                     ty(&mut bytes, result);

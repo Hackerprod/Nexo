@@ -3044,8 +3044,15 @@ fn generated_valid_mutations_return_valid_diagnostics_without_panics() {
         "\r\n",
         "// á🙂\n",
     ];
-    let mut seed = 0x9e3779b97f4a7c15_u64;
-    for i in 0..20_000 {
+    let mut seed = std::env::var("NEXO_TYPE_FUZZ_SEED")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(0x9e3779b97f4a7c15_u64);
+    let cases = std::env::var("NEXO_TYPE_FUZZ_CASES")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or(20_000);
+    for i in 0..cases {
         seed ^= seed << 7;
         seed ^= seed >> 9;
         seed ^= seed << 8;

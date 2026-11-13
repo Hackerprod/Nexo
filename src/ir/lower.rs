@@ -80,14 +80,23 @@ impl AnalysisLimits {
 #[derive(Clone, Copy)]
 pub enum ReducedProfile {
     Normal,
+    JNormal,
     Types32,
+    JTypes32,
     FlowFunction32,
+    JFlowFunction32,
     FlowCompilation32,
+    JFlowCompilation32,
     Effects32,
+    JEffects32,
     IrItems32,
+    JIrItems32,
     Frames8,
+    JFrames8,
     Cells64,
+    JCells64,
     Observations64,
+    JObservations64,
 }
 impl ReducedProfile {
     pub fn from_id(id: &str) -> Option<Self> {
@@ -101,6 +110,15 @@ impl ReducedProfile {
             "f0-0002-b-test-frames-8-v2" => Self::Frames8,
             "f0-0002-b-test-cells-64-v2" => Self::Cells64,
             "f0-0002-b-test-observations-64-v2" => Self::Observations64,
+            "f0-0003-b-v1" => Self::JNormal,
+            "f0-0003-b-test-types-32-v1" => Self::JTypes32,
+            "f0-0003-b-test-flow-32-v1" => Self::JFlowFunction32,
+            "f0-0003-b-test-flow-global-32-v1" => Self::JFlowCompilation32,
+            "f0-0003-b-test-effects-32-v1" => Self::JEffects32,
+            "f0-0003-b-test-ir-32-v1" => Self::JIrItems32,
+            "f0-0003-b-test-frames-8-v1" => Self::JFrames8,
+            "f0-0003-b-test-cells-64-v1" => Self::JCells64,
+            "f0-0003-b-test-observations-64-v1" => Self::JObservations64,
             _ => return None,
         })
     }
@@ -109,9 +127,18 @@ impl ReducedProfile {
 fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
     match profile {
         ReducedProfile::Normal => AnalysisLimits::NORMAL,
+        ReducedProfile::JNormal => AnalysisLimits {
+            profile_id: "f0-0003-b-v1",
+            ..AnalysisLimits::NORMAL
+        },
         ReducedProfile::Types32 => AnalysisLimits {
             type_solver_steps: 32,
             profile_id: "f0-0002-b-test-types-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::JTypes32 => AnalysisLimits {
+            type_solver_steps: 32,
+            profile_id: "f0-0003-b-test-types-32-v1",
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::FlowFunction32 => AnalysisLimits {
@@ -119,9 +146,19 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
             profile_id: "f0-0002-b-test-flow-32-v2",
             ..AnalysisLimits::NORMAL
         },
+        ReducedProfile::JFlowFunction32 => AnalysisLimits {
+            flow_function: 32,
+            profile_id: "f0-0003-b-test-flow-32-v1",
+            ..AnalysisLimits::NORMAL
+        },
         ReducedProfile::FlowCompilation32 => AnalysisLimits {
             flow_compilation: 32,
             profile_id: "f0-0002-b-test-flow-global-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::JFlowCompilation32 => AnalysisLimits {
+            flow_compilation: 32,
+            profile_id: "f0-0003-b-test-flow-global-32-v1",
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::Effects32 => AnalysisLimits {
@@ -129,21 +166,43 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
             profile_id: "f0-0002-b-test-effects-32-v2",
             ..AnalysisLimits::NORMAL
         },
+        ReducedProfile::JEffects32 => AnalysisLimits {
+            effects: 32,
+            profile_id: "f0-0003-b-test-effects-32-v1",
+            ..AnalysisLimits::NORMAL
+        },
         ReducedProfile::IrItems32 => AnalysisLimits {
             ir_items: 32,
             profile_id: "f0-0002-b-test-ir-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::JIrItems32 => AnalysisLimits {
+            ir_items: 32,
+            profile_id: "f0-0003-b-test-ir-32-v1",
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::Frames8 => AnalysisLimits {
             profile_id: "f0-0002-b-test-frames-8-v2",
             ..AnalysisLimits::NORMAL
         },
+        ReducedProfile::JFrames8 => AnalysisLimits {
+            profile_id: "f0-0003-b-test-frames-8-v1",
+            ..AnalysisLimits::NORMAL
+        },
         ReducedProfile::Cells64 => AnalysisLimits {
             profile_id: "f0-0002-b-test-cells-64-v2",
             ..AnalysisLimits::NORMAL
         },
+        ReducedProfile::JCells64 => AnalysisLimits {
+            profile_id: "f0-0003-b-test-cells-64-v1",
+            ..AnalysisLimits::NORMAL
+        },
         ReducedProfile::Observations64 => AnalysisLimits {
             profile_id: "f0-0002-b-test-observations-64-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::JObservations64 => AnalysisLimits {
+            profile_id: "f0-0003-b-test-observations-64-v1",
             ..AnalysisLimits::NORMAL
         },
     }
@@ -227,7 +286,12 @@ fn compile_scalar_with_analysis_limits(
     run_entry: bool,
     limits: AnalysisLimits,
 ) -> Result<Program, CompileError> {
-    let ast = parse::parse(file, source).map_err(|d| CompileError::Rejected(vec![d]))?;
+    let ast = if limits.profile_id.starts_with("f0-0003-") {
+        parse::parse_new_profile(file, source)
+    } else {
+        parse::parse(file, source)
+    }
+    .map_err(|d| CompileError::Rejected(vec![d]))?;
     let checked = crate::check::check_for_compilation_with_type_limit(
         file,
         source,
@@ -770,7 +834,7 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::EndLoan(_) => 1,
         Op::BeginLoan { indexes, .. } => 1 + indexes.len() as u64,
         Op::BuildArray(values) | Op::CallIntrinsic { args: values, .. } => values.len() as u64,
-        Op::BuildResult { .. } | Op::BranchResult { .. } => 1,
+        Op::BuildVariant { .. } | Op::BranchVariant { .. } => 1,
         Op::ReadIndex { indexes, .. }
         | Op::BorrowIndex { indexes, .. }
         | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
@@ -1054,8 +1118,11 @@ impl Lower<'_> {
                 self.temp_live(*base, false);
                 self.temp_live(*index, false);
             }
-            Op::BuildResult { payload, .. } => self.temp_live(*payload, false),
-            Op::BranchResult { value, .. } => self.temp_live(*value, false),
+            Op::BuildVariant {
+                payload: Some(id), ..
+            } => self.temp_live(*id, false),
+            Op::BuildVariant { payload: None, .. } => {}
+            Op::BranchVariant { value, .. } => self.temp_live(*value, false),
             Op::Binary { left, right, .. } => {
                 self.temp_live(*left, false);
                 self.temp_live(*right, false);
@@ -3416,7 +3483,7 @@ impl Lower<'_> {
                     self.end_call_loans(acquired);
                     return Ok(result_flow);
                 }
-                if matches!(name, "Ok" | "Err") {
+                if let Some(tag) = crate::union::UnionKind::Result.variant_tag(name) {
                     if args.len() != 1 {
                         return Err(CompileError::InvalidIr("result constructor arity"));
                     }
@@ -3434,9 +3501,9 @@ impl Lower<'_> {
                         .temp()
                         .ok_or(CompileError::InvalidIr("result payload"))?;
                     return Ok(self.emitted(
-                        Op::BuildResult {
-                            ok: name == "Ok",
-                            payload,
+                        Op::BuildVariant {
+                            tag,
+                            payload: Some(payload),
                         },
                         inferred,
                         span.clone(),
@@ -3845,7 +3912,7 @@ impl Lower<'_> {
                     .temp()
                     .ok_or(CompileError::InvalidIr("propagation operand"))?;
                 Ok(self.emitted(
-                    Op::BranchResult {
+                    Op::BranchVariant {
                         value,
                         result: self.result.clone(),
                     },

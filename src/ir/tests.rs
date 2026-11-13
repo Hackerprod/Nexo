@@ -2557,10 +2557,10 @@ fn result_hash_tracks_both_type_arms_and_result_operations() {
                 .iter_mut()
                 .flat_map(|block| &mut block.instructions),
         )
-        .find(|instruction| matches!(instruction.op, super::model::Op::BuildResult { .. }))
+        .find(|instruction| matches!(instruction.op, super::model::Op::BuildVariant { .. }))
         .unwrap();
-    if let super::model::Op::BuildResult { ok, .. } = &mut instruction.op {
-        *ok = !*ok;
+    if let super::model::Op::BuildVariant { tag, .. } = &mut instruction.op {
+        tag.0 ^= 1;
     }
     assert_ne!(original, super::model::content_hash(&changed));
 
@@ -2575,9 +2575,9 @@ fn result_hash_tracks_both_type_arms_and_result_operations() {
                 .iter_mut()
                 .flat_map(|block| &mut block.instructions),
         )
-        .find(|instruction| matches!(instruction.op, super::model::Op::BranchResult { .. }))
+        .find(|instruction| matches!(instruction.op, super::model::Op::BranchVariant { .. }))
         .unwrap();
-    if let super::model::Op::BranchResult { result, .. } = &mut instruction.op {
+    if let super::model::Op::BranchVariant { result, .. } = &mut instruction.op {
         *result = super::model::Ty::Bool;
     }
     assert_ne!(original, super::model::content_hash(&changed));

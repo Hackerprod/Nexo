@@ -7,6 +7,7 @@ use crate::diagnostic::{
 };
 use crate::ir::model::{Binary, Function, Intrinsic, Op, ParameterMode, Program, TempId, Ty};
 use crate::ir::work::{WorkEvent, WorkPlanner};
+use crate::union::{UnionKind, VariantTag};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
@@ -45,14 +46,23 @@ impl ExecutionLimits {
 #[derive(Clone, Copy)]
 pub enum ReducedExecutionProfile {
     Normal,
+    JNormal,
     Types32,
+    JTypes32,
     FlowFunction32,
+    JFlowFunction32,
     FlowCompilation32,
+    JFlowCompilation32,
     Effects32,
+    JEffects32,
     IrItems32,
+    JIrItems32,
     Frames8,
+    JFrames8,
     Cells64,
+    JCells64,
     Observations64,
+    JObservations64,
 }
 impl ReducedExecutionProfile {
     pub fn from_id(id: &str) -> Option<Self> {
@@ -66,6 +76,15 @@ impl ReducedExecutionProfile {
             "f0-0002-b-test-frames-8-v2" => Self::Frames8,
             "f0-0002-b-test-cells-64-v2" => Self::Cells64,
             "f0-0002-b-test-observations-64-v2" => Self::Observations64,
+            "f0-0003-b-v1" => Self::JNormal,
+            "f0-0003-b-test-types-32-v1" => Self::JTypes32,
+            "f0-0003-b-test-flow-32-v1" => Self::JFlowFunction32,
+            "f0-0003-b-test-flow-global-32-v1" => Self::JFlowCompilation32,
+            "f0-0003-b-test-effects-32-v1" => Self::JEffects32,
+            "f0-0003-b-test-ir-32-v1" => Self::JIrItems32,
+            "f0-0003-b-test-frames-8-v1" => Self::JFrames8,
+            "f0-0003-b-test-cells-64-v1" => Self::JCells64,
+            "f0-0003-b-test-observations-64-v1" => Self::JObservations64,
             _ => return None,
         })
     }
@@ -76,13 +95,25 @@ enum Value {
     Bool(bool),
     Unit,
     Array(Arc<Vec<Value>>, u64),
-    Result { ok: bool, payload: Box<Value> },
-    Resource { id: u64, label: i64, blocking: bool },
+    Union {
+        kind: UnionKind,
+        tag: VariantTag,
+        payload: Option<Box<Value>>,
+    },
+    Resource {
+        id: u64,
+        label: i64,
+        blocking: bool,
+    },
 }
 impl Value {
     fn owns_resource(&self) -> bool {
         let mut node = self;
-        while let Self::Result { payload, .. } = node {
+        while let Self::Union {
+            payload: Some(payload),
+            ..
+        } = node
+        {
             node = payload;
         }
         matches!(node, Self::Resource { .. })
@@ -93,9 +124,10 @@ impl Value {
                 Arc::new(items.iter().map(Self::deep_copy).collect()),
                 *cells,
             ),
-            Self::Result { ok, payload } => Self::Result {
-                ok: *ok,
-                payload: Box::new(payload.deep_copy()),
+            Self::Union { kind, tag, payload } => Self::Union {
+                kind: *kind,
+                tag: *tag,
+                payload: payload.as_ref().map(|value| Box::new(value.deep_copy())),
             },
             _ => self.clone(),
         }
@@ -109,8 +141,12 @@ impl Value {
                 "[{}]",
                 xs.iter().map(Self::text).collect::<Vec<_>>().join(", ")
             ),
-            Self::Result { ok, payload } => {
-                format!("{}({})", if *ok { "Ok" } else { "Err" }, payload.text())
+            Self::Union { kind, tag, payload } => {
+                let name = kind.variant_name(*tag).unwrap_or("<invalid-variant>");
+                payload.as_ref().map_or_else(
+                    || name.to_owned(),
+                    |value| format!("{name}({})", value.text()),
+                )
             }
             Self::Resource { .. } => "<resource>".into(),
         }
@@ -119,8 +155,16 @@ impl Value {
         match (self, ty) {
             (Self::Int(_), Ty::I64) | (Self::Bool(_), Ty::Bool) | (Self::Unit, Ty::Unit) => true,
             (Self::Array(xs, _), Ty::Array(element)) => xs.iter().all(|x| x.has_ty(element)),
-            (Self::Result { ok, payload }, Ty::Result(success, error)) => {
-                payload.has_ty(if *ok { success } else { error })
+            (Self::Union { kind, tag, payload }, ty) if ty.union_descriptor().is_some() => {
+                let descriptor = ty.union_descriptor().unwrap();
+                *kind == descriptor.kind
+                    && descriptor.variant(*tag).is_some_and(|variant| {
+                        match (&variant.payload, payload) {
+                            (Some(expected), Some(value)) => value.has_ty(expected),
+                            (None, None) => true,
+                            _ => false,
+                        }
+                    })
             }
             (
                 Self::Resource {
@@ -135,7 +179,7 @@ impl Value {
     fn cells(&self) -> u64 {
         match self {
             Self::Array(_, n) => *n,
-            Self::Result { payload, .. } => 1 + payload.cells(),
+            Self::Union { payload, .. } => 1 + payload.as_ref().map_or(0, |value| value.cells()),
             _ => 1,
         }
     }
@@ -167,11 +211,26 @@ fn equal_pairs(left: &Value, right: &Value) -> u64 {
             }
             work
         }
-        (Value::Result { ok: a, payload: x }, Value::Result { ok: b, payload: y }) => {
-            if a != b {
+        (
+            Value::Union {
+                kind: ak,
+                tag: a,
+                payload: x,
+            },
+            Value::Union {
+                kind: bk,
+                tag: b,
+                payload: y,
+            },
+        ) => {
+            if ak != bk || a != b {
                 2
             } else {
-                2u64.saturating_add(equal_pairs(x, y))
+                2u64.saturating_add(
+                    x.as_ref()
+                        .zip(y.as_ref())
+                        .map_or(0, |(x, y)| equal_pairs(x, y)),
+                )
             }
         }
         _ => 2,
@@ -244,13 +303,15 @@ impl MockReplyValue {
                 let values: Vec<_> = records
                     .into_iter()
                     .map(|record| match record {
-                        Ok(n) => Value::Result {
-                            ok: true,
-                            payload: Box::new(Value::Int(n)),
+                        Ok(n) => Value::Union {
+                            kind: UnionKind::Result,
+                            tag: VariantTag(0),
+                            payload: Some(Box::new(Value::Int(n))),
                         },
-                        Err(n) => Value::Result {
-                            ok: false,
-                            payload: Box::new(Value::Int(n)),
+                        Err(n) => Value::Union {
+                            kind: UnionKind::Result,
+                            tag: VariantTag(1),
+                            payload: Some(Box::new(Value::Int(n))),
                         },
                     })
                     .collect();
@@ -262,9 +323,10 @@ impl MockReplyValue {
             Self::Unit(Ok(())) => (true, Value::Unit),
             Self::Unit(Err(n)) => (false, Value::Int(n)),
         };
-        Value::Result {
-            ok,
-            payload: Box::new(payload),
+        Value::Union {
+            kind: UnionKind::Result,
+            tag: VariantTag(u8::from(!ok)),
+            payload: Some(Box::new(payload)),
         }
     }
 }
@@ -284,28 +346,57 @@ pub fn run_with_limits(
 ) -> Execution {
     let limits = match profile {
         ReducedExecutionProfile::Normal => ExecutionLimits::NORMAL,
+        ReducedExecutionProfile::JNormal => ExecutionLimits {
+            profile_id: "f0-0003-b-v1",
+            ..ExecutionLimits::NORMAL
+        },
         ReducedExecutionProfile::Types32 => ExecutionLimits {
             profile_id: "f0-0002-b-test-types-32-v2",
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::JTypes32 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-types-32-v1",
             ..ExecutionLimits::NORMAL
         },
         ReducedExecutionProfile::FlowFunction32 => ExecutionLimits {
             profile_id: "f0-0002-b-test-flow-32-v2",
             ..ExecutionLimits::NORMAL
         },
+        ReducedExecutionProfile::JFlowFunction32 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-flow-32-v1",
+            ..ExecutionLimits::NORMAL
+        },
         ReducedExecutionProfile::FlowCompilation32 => ExecutionLimits {
             profile_id: "f0-0002-b-test-flow-global-32-v2",
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::JFlowCompilation32 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-flow-global-32-v1",
             ..ExecutionLimits::NORMAL
         },
         ReducedExecutionProfile::Effects32 => ExecutionLimits {
             profile_id: "f0-0002-b-test-effects-32-v2",
             ..ExecutionLimits::NORMAL
         },
+        ReducedExecutionProfile::JEffects32 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-effects-32-v1",
+            ..ExecutionLimits::NORMAL
+        },
         ReducedExecutionProfile::IrItems32 => ExecutionLimits {
             profile_id: "f0-0002-b-test-ir-32-v2",
             ..ExecutionLimits::NORMAL
         },
+        ReducedExecutionProfile::JIrItems32 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-ir-32-v1",
+            ..ExecutionLimits::NORMAL
+        },
         ReducedExecutionProfile::Frames8 => ExecutionLimits {
             profile_id: "f0-0002-b-test-frames-8-v2",
+            frames: 8,
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::JFrames8 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-frames-8-v1",
             frames: 8,
             ..ExecutionLimits::NORMAL
         },
@@ -314,8 +405,18 @@ pub fn run_with_limits(
             cells: 64,
             ..ExecutionLimits::NORMAL
         },
+        ReducedExecutionProfile::JCells64 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-cells-64-v1",
+            cells: 64,
+            ..ExecutionLimits::NORMAL
+        },
         ReducedExecutionProfile::Observations64 => ExecutionLimits {
             profile_id: "f0-0002-b-test-observations-64-v2",
+            observations: 64,
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::JObservations64 => ExecutionLimits {
+            profile_id: "f0-0003-b-test-observations-64-v1",
             observations: 64,
             ..ExecutionLimits::NORMAL
         },
@@ -399,14 +500,24 @@ fn run_verified(
             Outcome::Unit
         }
         Ok(FrameReturn {
-            value: Some(Value::Result { ok: true, payload }),
+            value:
+                Some(Value::Union {
+                    kind: UnionKind::Result,
+                    tag: VariantTag(0),
+                    payload: Some(payload),
+                }),
             ..
         }) if *payload == Value::Unit => {
             state.cells = state.cells.saturating_sub(2);
             Outcome::Ok
         }
         Ok(FrameReturn {
-            value: Some(Value::Result { ok: false, payload }),
+            value:
+                Some(Value::Union {
+                    kind: UnionKind::Result,
+                    tag: VariantTag(1),
+                    payload: Some(payload),
+                }),
             ..
         }) => {
             if let Value::Int(error) = *payload {
@@ -572,7 +683,11 @@ impl Machine {
         }
         self.cells = self.cells.saturating_sub(value.cells());
         let mut active = value;
-        while let Value::Result { payload, .. } = active {
+        while let Value::Union {
+            payload: Some(payload),
+            ..
+        } = active
+        {
             active = *payload;
         }
         if let Value::Resource { id, label, .. } = active {
@@ -1013,29 +1128,58 @@ impl Machine {
                         }
                         Some(Value::Array(Arc::new(xs), total))
                     }
-                    Op::BuildResult { ok, payload } => {
+                    Op::BuildVariant { tag, payload } => {
                         if !self.charge_work(1, &ins.span)
                             || !self.charge_work(1, &ins.span)
                             || !self.cell(&ins.span)
                         {
                             break;
                         }
-                        let payload = Self::take(&mut temps, *payload)?.into_owned()?;
-                        Some(Value::Result {
-                            ok: *ok,
-                            payload: Box::new(payload),
+                        let kind = ins
+                            .ty
+                            .as_ref()
+                            .and_then(Ty::union_descriptor)
+                            .ok_or("union type")?
+                            .kind;
+                        let payload = payload
+                            .map(|payload| {
+                                Self::take(&mut temps, payload)?.into_owned().map(Box::new)
+                            })
+                            .transpose()?;
+                        Some(Value::Union {
+                            kind,
+                            tag: *tag,
+                            payload,
                         })
                     }
-                    Op::BranchResult { value, .. } => {
+                    Op::BranchVariant { value, .. } => {
                         let source = Self::take(&mut temps, *value)?.into_owned()?;
-                        let Value::Result { ok, payload } = source else {
+                        let Value::Union {
+                            kind,
+                            tag,
+                            payload: Some(payload),
+                        } = source
+                        else {
                             return Err("propagation value type");
                         };
-                        if ok {
+                        if kind.variant_name(tag).is_none() {
+                            return Err("propagation variant tag");
+                        }
+                        if tag
+                            == if kind == UnionKind::Result {
+                                VariantTag(0)
+                            } else {
+                                VariantTag(1)
+                            }
+                        {
                             self.cells = self.cells.saturating_sub(1);
                             Some(*payload)
                         } else {
-                            returned = Some(Value::Result { ok: false, payload });
+                            returned = Some(Value::Union {
+                                kind,
+                                tag,
+                                payload: Some(payload),
+                            });
                             break 'cfg;
                         }
                     }
@@ -1362,13 +1506,15 @@ impl Machine {
                                     return Err("try_add argument type");
                                 };
                                 let result = match a.checked_add(*b) {
-                                    Some(sum) => Value::Result {
-                                        ok: true,
-                                        payload: Box::new(Value::Int(sum)),
+                                    Some(sum) => Value::Union {
+                                        kind: UnionKind::Result,
+                                        tag: VariantTag(0),
+                                        payload: Some(Box::new(Value::Int(sum))),
                                     },
-                                    None => Value::Result {
-                                        ok: false,
-                                        payload: Box::new(Value::Int(30)),
+                                    None => Value::Union {
+                                        kind: UnionKind::Result,
+                                        tag: VariantTag(1),
+                                        payload: Some(Box::new(Value::Int(30))),
                                     },
                                 };
                                 if !self.charge_work(2, &ins.span)

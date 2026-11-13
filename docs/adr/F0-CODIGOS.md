@@ -5,7 +5,7 @@ Este archivo es el único registro de significado, propietario y subcausas.
 Las tablas de los ADRs referencian entradas; no crean catálogos paralelos.
 No modifica los diagnósticos emitidos por F0-0001 ni la base 0.2.
 
-El registro vigente contiene **70 códigos NX-E** y siete códigos experimentales de `F0-0002-sim`; los inventarios menores en las secciones históricas describen sus fechas, no el registro actual. Las inserciones de F0-0002 enlazan su sección normativa. Los detalles del perfil se definen una sola vez en ese ADR y se incorporan aquí por referencia.
+El registro vigente contiene **73 códigos NX-E** y siete códigos experimentales de `F0-0002-sim`; los inventarios menores en las secciones históricas describen sus fechas, no el registro actual. Las inserciones de F0-0002 enlazan su sección normativa. Los detalles de los perfiles se definen en sus ADR y se incorporan aquí por referencia.
 
 **Superficie: sujeto a F0-D15.** Grafías, tokens, ediciones y spans de ejemplos anteriores se conservan como referencias documentales sujetas a la sintaxis oficial única. No habilitan compatibilidad ni otra sintaxis activa.
 
@@ -90,6 +90,7 @@ El registro vigente contiene **70 códigos NX-E** y siete códigos experimentale
 | NX-E1211 | D12 §5 | Violación intrínseca: destrucción automática de estado de futuro puede suspender. No requiere un with escrito por el usuario. |
 | NX-E1212 | D12 §7 | request_cancel se dirige a un grupo distinto del propietario del handle. |
 | NX-E1213 | D12 §1, D10 | Yield dentro de un cuerpo invocable ordinario: su invocable léxico más próximo no es gen fn ni async. Incluye closures ordinarias anidadas en gen. En async se conserva NX-E1206/yield_in_async. |
+| NX-E1214 | F0-0003 §8.2 | Propagación `?` cuyo invocable inmediato es `gen fn`; subcause null, types/types.check, token `?`, Data {}. Pendiente de emisión en J11. |
 | NX-E1301 | D13 §2 | Forma corta de closure reconocida por ImplicitClosureBody y rechazada por faltar return: `implicit_closure_body`; span del operando completo y => relacionado, nunca NX-E0002 por esa forma. Una expresión final analizada como sentencia válida no es esta forma: su caída sin retorno usa NX-E1317. |
 | NX-E1302 | D13 §1/§4 | `missing_else`: if expresión sin else; `missing_branch_value`: continuación sin value:; `invalid_value_target`: value: sin bloque destinatario directo; `missing_value_operand`: value: sin expresión, también por salto tras :; `non_final_branch_value`: value: no es la última sentencia directa de su rama. Value sin : es Name ordinario (D13 §1). |
 | NX-E1303 | D13 §3 | Tipos de caminos normales no unificables conforme a igualdad nominal. |
@@ -113,6 +114,8 @@ El registro vigente contiene **70 códigos NX-E** y siete códigos experimentale
 | NX-E1322 | D13 §10 | Método duplicado en bloques extend del mismo módulo y tipo nominal. |
 | NX-E1323 | D13 §8 | `alias_cycle`: expansión circular de aliases; `constant_cycle`: dependencia circular de constantes; `recursive_value_layout`: tamaño de tipo recursivo sin indirección. |
 | NX-E1324 | D13 §1.1/D10 | Return con operando dentro del cuerpo de generador; su tipo declarado es Item, no un resultado final de return. Incluye operando unidad. |
+| NX-E1325 | F0-0003 §8.2 | `constructor_type`: constructor de otra unión, Data `constructor`, `scrutinee_type`; `constructor_arity`: aridad incorrecta, Data `constructor`, `expected_arity`, `found_arity`. Ambos son types/types.check sobre el patrón completo; pendiente de emisión en J03. |
+| NX-E1326 | F0-0003 §8.2 | `break_outside_loop`, `continue_outside_loop`: control sin bucle del invocable inmediato; types/types.check sobre el token, Data {}; pendiente de emisión en J13. |
 
 Una cota de efectos fallida conserva la causa `known_effect` o
 `unknown_effect` en effect_evidence, no como código inventado. Siempre lleva

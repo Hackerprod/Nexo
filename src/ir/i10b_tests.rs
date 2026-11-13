@@ -1065,7 +1065,7 @@ fn verifier_checks_work_charge_metadata_independently() {
         .block
         .instructions
         .iter_mut()
-        .find(|instruction| matches!(instruction.op, Op::BranchResult { .. }))
+        .find(|instruction| matches!(instruction.op, Op::BranchVariant { .. }))
         .unwrap()
         .charges
         .clear();
@@ -1464,12 +1464,12 @@ fn verifier_allows_prefixed_charge_ownership_after_rehash() {
         (
             "fn Make()->Result<I64,I64>{return Ok(1);}fn Main(){}",
             "Make",
-            |op| matches!(op, Op::BuildResult { .. }),
+            |op| matches!(op, Op::BuildVariant { .. }),
         ),
         (
             "fn Inc(n:view I64)->Result<I64,I64>{return Err(9);}fn Prop()->Result<(),I64>{let x=Inc(2)?;return Ok(());}fn Main(){}",
             "Prop",
-            |op| matches!(op, Op::BranchResult { .. }),
+            |op| matches!(op, Op::BranchVariant { .. }),
         ),
         ("fn F(){}fn Main(){F();}", "Main", |op| {
             matches!(op, Op::CallDirect { .. })
