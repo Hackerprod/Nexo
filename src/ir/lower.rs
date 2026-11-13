@@ -3884,31 +3884,19 @@ fn place_name(expr: &Expr) -> Option<&str> {
     }
 }
 fn place_parts(expr: &Expr) -> Result<(&Expr, Vec<&Expr>), CompileError> {
-    let mut node = expr;
-    let mut indexes = Vec::new();
-    loop {
-        match node {
-            Expr::Group(inner, _) => node = inner,
-            Expr::Index { target, index, .. } => {
-                indexes.push(index.as_ref());
-                node = target;
-            }
-            Expr::Name(..) => {
-                indexes.reverse();
-                return Ok((node, indexes));
-            }
-            _ => return Err(CompileError::InvalidIr("nonlocal place")),
-        }
-    }
+    parse::place_parts(expr).ok_or(CompileError::InvalidIr("nonlocal place"))
 }
 fn index_selectors(expr: &Expr) -> Vec<Span> {
     fn collect(expr: &Expr, out: &mut Vec<Span>) {
-        if let Expr::Index {
-            target, selector, ..
-        } = expr
-        {
-            collect(target, out);
-            out.push(selector.clone());
+        match expr {
+            Expr::Group(inner, _) => collect(inner, out),
+            Expr::Index {
+                target, selector, ..
+            } => {
+                collect(target, out);
+                out.push(selector.clone());
+            }
+            _ => {}
         }
     }
     let mut selectors = Vec::new();

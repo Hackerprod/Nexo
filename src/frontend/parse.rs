@@ -2576,8 +2576,27 @@ fn place_root_failure(expr: &Expr) -> Option<u64> {
         other => Some(other.span().start),
     }
 }
+pub(crate) fn place_parts(expr: &Expr) -> Option<(&Expr, Vec<&Expr>)> {
+    let mut node = expr;
+    let mut indexes = Vec::new();
+    loop {
+        match node {
+            Expr::Group(inner, _) => node = inner,
+            Expr::Index { target, index, .. } => {
+                indexes.push(index.as_ref());
+                node = target;
+            }
+            Expr::Name(..) => {
+                indexes.reverse();
+                return Some((node, indexes));
+            }
+            _ => return None,
+        }
+    }
+}
+
 fn is_place_expr(expr: &Expr) -> bool {
-    place_root_failure(expr).is_none()
+    place_parts(expr).is_some()
 }
 fn has_call_root(expr: &Expr) -> bool {
     match expr {

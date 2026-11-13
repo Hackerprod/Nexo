@@ -6,7 +6,7 @@ use super::names::{self, Resolved, ResolvedUse};
 use crate::diagnostic::{DataValue, Diagnostic, Operation, RelatedRole, RelatedSpan, Span, Stage};
 use crate::frontend::{
     lex::{self, Kind, Token},
-    parse::{Ast, Block, Else, Expr, Function, Mode, Statement, Type as SyntaxType},
+    parse::{self, Ast, Block, Else, Expr, Function, Mode, Statement, Type as SyntaxType},
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -2733,14 +2733,12 @@ impl Checker<'_> {
     }
 
     fn place_root_binding_site(&self, place: &Expr) -> Option<u64> {
-        match place {
-            Expr::Group(inner, _) | Expr::Index { target: inner, .. } => {
-                self.place_root_binding_site(inner)
-            }
-            Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
-                Some(ResolvedUse::Local(local)) => Some(local.name_span.start),
-                _ => None,
-            },
+        let (root, _) = parse::place_parts(place)?;
+        let Expr::Name(_, span) = root else {
+            return None;
+        };
+        match self.resolved.uses.get(&span.start) {
+            Some(ResolvedUse::Local(local)) => Some(local.name_span.start),
             _ => None,
         }
     }
@@ -6219,16 +6217,51 @@ impl Checker<'_> {
                 Ok(declared_result.clone())
             }
             "AssertEq" => {
+                fn result_constructor(expression: &Expr) -> bool {
+                    match expression {
+                        Expr::Group(inner, _) => result_constructor(inner),
+                        Expr::Call { target, .. } => matches!(
+                            &**target,
+                            Expr::Name(name, _) if name == "Ok" || name == "Err"
+                        ),
+                        _ => false,
+                    }
+                }
                 let mut values: [Option<Type>; 2] = [None, None];
                 let mut evidence: [Option<PendingOperandEvidence>; 2] = [None, None];
                 let mut invalid = false;
+                let mut sibling_context_applied = false;
                 for (arg, &slot) in args.iter().zip(slots) {
                     let prior_taint = self.tainted;
                     self.tainted = false;
                     let prior_errors = self.errors.len();
                     let pending_start = self.pending.len();
                     let pending_generation = self.pending_generation;
-                    let result = self.expr(&arg.value, None, None);
+                    let expected_from_first = (slot == 1)
+                        .then(|| values[0].as_ref())
+                        .flatten()
+                        .filter(|ty| {
+                            matches!(ty, Type::Result(..))
+                                && internal_state(ty).is_none()
+                                && result_constructor(&arg.value)
+                        });
+                    let result = if let Some(expected) = expected_from_first {
+                        sibling_context_applied = true;
+                        self.check_against_context(
+                            &arg.value,
+                            CheckContext {
+                                expected: Some(expected),
+                                expected_span: Some(&Self::primary_span(ordered(0))),
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: true,
+                                deferred_element: false,
+                            },
+                        )
+                    } else {
+                        self.expr(&arg.value, None, None)
+                    };
                     let tainted = self.tainted;
                     let site = Self::primary_span(&arg.value);
                     let recover = (tainted || matches!(result, Ok(Type::Tainted)))
@@ -6341,7 +6374,7 @@ impl Checker<'_> {
                                     require_resolved: composite,
                                 },
                             )));
-                    } else {
+                    } else if !sibling_context_applied {
                         self.unify(
                             left,
                             right,

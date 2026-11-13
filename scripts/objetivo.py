@@ -93,8 +93,8 @@ def run_one(binary: Path, source: Path) -> tuple[bool, str]:
         expected = expected_path.read_text(encoding="utf-8")
         actual = "".join(line + "\n" for line in result.get("stdout", []))
         if actual != expected:
-        return False, "run: la salida difiere de .out"
-    return True, "?"
+            return False, "run: la salida difiere de .out"
+    return True, "\u2014"
 
 
 def rows(binary: Path) -> list[dict[str, str]]:
@@ -153,12 +153,17 @@ def main() -> int:
     print(f"\nProgramas que ejecutan: {count}/{len(items)}")
     if args.actualizar:
         current = INDEX.read_text(encoding="utf-8") if INDEX.exists() else "# Corpus objetivo\n\n"
-        sections = current.split("<!-- tabla-programas -->")
-        prefix = sections[0]
-        suffix = sections[2] if len(sections) > 2 else ""
-        INDEX.write_text(prefix + "<!-- tabla-programas -->\n" + table(items) +
-                         "\n<!-- /tabla-programas -->" + suffix,
-                         encoding="utf-8", newline="\n")
+        start_marker = "<!-- tabla-programas -->"
+        end_marker = "<!-- /tabla-programas -->"
+        if start_marker in current:
+            prefix, tail = current.split(start_marker, 1)
+            suffix = tail.split(end_marker, 1)[1] if end_marker in tail else ""
+            updated = (prefix + start_marker + "\n" + table(items) +
+                       "\n" + end_marker + suffix)
+        else:
+            updated = (current.rstrip("\r\n") + "\n\n" + start_marker + "\n" +
+                       table(items) + "\n" + end_marker + "\n")
+        INDEX.write_text(updated, encoding="utf-8", newline="\n")
         update_handoff(count, len(items))
     return 0
 

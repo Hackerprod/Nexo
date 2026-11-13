@@ -281,3 +281,13 @@ D5 resuelve en notas, sin enmienda normativa, el comportamiento no especificado 
 La población Release `--quick-release` y las campañas se reprodujeron dos veces con SHA-256 idénticos `8bd129ebec20d79ca67683784589a3683ca37f1ce5d626a1c19275a2682b7f57` y `becb61067d6dcad6776db87384a2eef49e96e239f3789ccaa54703e5516e11e9`. Sin commit, push ni red; se regenerará dos veces el estado final después de este HANDOFF y RECOVERY. Revisión independiente, decisión de fase del propietario, I11b y puertas F0 siguen pendientes.
 
 Programas objetivo que ejecutan: 10 de 29 (corpus/objetivo/, scripts/objetivo.py)
+
+## I11b — cierre local de implementación (2026-11-12)
+
+La matriz V01–V13 y el inventario de 68 pruebas `#[ignore]` están en `docs/validation/F0-0002-I11b-matriz.md`; las 68 tienen motivo explícito. Las pruebas ignoradas de integración pasaron (14 casos). La pasada Release de la biblioteca ejecutó las campañas ignoradas; los 7 fallos restantes son razones locales de escala no normativas y el test de razón temporal I10a, registrados como NB-I11b-01..08 en `Pending.md`. Los testigos de escala que rebasaban cuotas del perfil se redujeron conservando la relación 4×, sin cambiar cuotas de producción.
+
+RD: 152/152 pares check/run en debug y release, cero diferencias de snapshot. Fuzz Release: parser, JSON mock y argv con 20.000 casos cada uno y diferencial mock de 100.000; cero pánicos, `internal_error`, `InvalidIr` o cuelgues. El diferencial CLI nuevo comprobó 5 fuentes válidas y 10 inválidas de corpus/pass y corpus/fail en ambos perfiles; check/run conserva estado y diagnóstico. `corpus/objetivo/` ejecuta 10 de 29 programas.
+
+Pendientes de I11b incluyen mediciones no normativas y los tres repros de contexto posterior de `Ok`, listados en Pending y en la matriz. B1 está corregido; V06 sigue abierto por B2.
+
+Validación de suites I11b en clon limpio: `sh scripts/validate.sh` exit 0; fmt y Clippy `-D warnings`; debug 1.543/0/67 y release 1.545/0/68. Por separado, `scripts/i07c_rd_conformidad.py --verify` dio RD 152/152 check/run por perfil, cero diferencias; el diferencial nuevo de corpus pasa en ambos sentidos. Inventario de ignorados: 68/68 con razón; las 14 pruebas de integración pasan. Ocho observaciones de métricas locales no normativas están registradas en `Pending.md`. Objetivo actualizado: 10/29.

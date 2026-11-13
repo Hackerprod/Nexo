@@ -56,6 +56,50 @@ fn cli_check_and_run_use_official_b_pipeline() {
 }
 
 #[test]
+fn parenthesized_indexed_places_run_with_expected_output() {
+    let cases: [(&[u8], &[u8]); 6] = [
+        (b"fn Main(){var a=[1]; (a[0]) = 2; Print(a);}", b"[2]\n"),
+        (b"fn Main(){var a=[[1,2]]; (a[0])[1]=5;}", b""),
+        (b"fn Main(){var a=[1,2]; ((a[0])) = 7;}", b""),
+        (b"fn Main(){var a=[[1]]; (a[0][0]) = 2;}", b""),
+        (b"fn Main(){var a=[1,2]; ((a)[0]) = 2;}", b""),
+        (
+            b"fn F(x: edit I64){x=3;} fn Main(){var a=[1]; F(edit (a[0]));}",
+            b"",
+        ),
+    ];
+    for (source, expected_stdout) in cases {
+        let check = checked("check", source);
+        assert_eq!(check.status.code(), Some(0), "{}", text(&check.stderr));
+        assert_eq!(check.stdout, b"nexo-check:ok\n");
+        assert!(check.stderr.is_empty());
+
+        let run = checked("run", source);
+        assert_eq!(run.status.code(), Some(0), "{}", text(&run.stderr));
+        assert_eq!(run.stdout, expected_stdout);
+        assert_eq!(run.stderr, b"nexo-result:()\n");
+    }
+}
+
+#[test]
+fn assert_eq_result_constructor_uses_first_operand_context() {
+    for source in [
+        b"fn Main(){let r:Result<I64,I64>=Ok(1); AssertEq(r,Ok(1));}".as_slice(),
+        b"fn Main(){let r=TryAdd(1,2); AssertEq(r,Ok(3));}".as_slice(),
+    ] {
+        let check = checked("check", source);
+        assert_eq!(check.status.code(), Some(0), "{}", text(&check.stderr));
+        assert_eq!(check.stdout, b"nexo-check:ok\n");
+        assert!(check.stderr.is_empty());
+
+        let run = checked("run", source);
+        assert_eq!(run.status.code(), Some(0), "{}", text(&run.stderr));
+        assert!(run.stdout.is_empty());
+        assert_eq!(run.stderr, b"nexo-result:()\n");
+    }
+}
+
+#[test]
 fn hypothetical_unresolved_index_write_has_no_internal_error() {
     // F0-0002 §4.1.2.3: without an Array constructor, the selector's
     // conditional I64 context is inactive in hypothetical code.

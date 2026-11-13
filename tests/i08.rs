@@ -733,6 +733,20 @@ fn deferred_result_alias_conflict_pins_current_t01_diagnostic() {
 }
 
 #[test]
+fn assert_eq_first_result_type_context_resolves_ok_component() {
+    let source = "fn Main(){let r:Result<I64,I64>=Ok(1); AssertEq(r,Ok(1));}";
+    ir::check_scalar(FILE, source).expect("the first AssertEq operand supplies the Result type");
+    assert_eq!(run(source).outcome, Outcome::Unit);
+}
+
+#[test]
+fn assert_eq_intrinsic_result_context_resolves_ok_component() {
+    let source = "fn Main(){let r=TryAdd(1,2); AssertEq(r,Ok(3));}";
+    ir::check_scalar(FILE, source).expect("TryAdd supplies the first operand's Result type");
+    assert_eq!(run(source).outcome, Outcome::Unit);
+}
+
+#[test]
 fn published_result_call_examples_match_outcomes() {
     let success = "fn Inc(n:view I64)->Result<I64,I64>{return Ok(n+1);}fn Main()->Result<(),I64>{let x=Inc(2)?;return Ok(());}";
     assert_eq!(run(success).outcome, Outcome::Ok);

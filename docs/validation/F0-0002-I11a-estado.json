@@ -1036,9 +1036,9 @@
   ],
   "cut": "I11a",
   "document_hashes_sha256": {
-    "HANDOFF.md": "89461add85a83d518e7e31e9c4ee347ad973f0def43905dd70f239db073f9333",
-    "Pending.md": "123796d0d06aaf01182e14297c5d84aa810e587a9693a7dc0ccc3b033b09539a",
-    "RECOVERY.md": "64c403c88f73e2aa0f5e5c657e1a302cce8fa430311d05e7847e433a772be560",
+    "HANDOFF.md": "9b5a58a10edaca68b586fc988feded0658d14b7071d5dc7962c3565e9098b650",
+    "Pending.md": "6a3899c2111abf0ecb354011d284541586ed18a4bc11b70c1b17cef7dcdb7a01",
+    "RECOVERY.md": "2ec9c25ef6e70f6c3a801f61ae4ade6eb8f2130ee1250d74690c1124e4f74815",
     "docs/F0_ACUERDOS.md": "8f96bdce434cb83825f813310acbd0ef6e4d52dc59e0faa6f7d2ee26d3a5acee",
     "docs/adr/F0-0002-second-slice.md": "1692e26b46cfa7454bb1d1c3575a52a3598911057fb13173928307130bc0dff3",
     "docs/adr/F0-0004-text-and-user-types.md": "f475181ab632e9328c8168c9650cc6f3279514563a2ebeca79377ec2953b9e39",

@@ -130,22 +130,22 @@ fn corpus_cli_check_run_diagnostics_match_across_profiles() {
                     );
                 }
             }
-            for command in 0..2 {
+            for (current_output, other_output) in outputs[0].iter().zip(&outputs[1]) {
                 assert_eq!(
-                    outputs[0][command].status.code(),
-                    outputs[1][command].status.code(),
+                    current_output.status.code(),
+                    other_output.status.code(),
                     "profile exit parity for {}",
                     source.display()
                 );
                 assert_eq!(
-                    outputs[0][command].stdout,
-                    outputs[1][command].stdout,
+                    current_output.stdout,
+                    other_output.stdout,
                     "profile stdout parity for {}",
                     source.display()
                 );
                 assert_eq!(
-                    outputs[0][command].stderr,
-                    outputs[1][command].stderr,
+                    current_output.stderr,
+                    other_output.stderr,
                     "profile diagnostic parity for {}",
                     source.display()
                 );
