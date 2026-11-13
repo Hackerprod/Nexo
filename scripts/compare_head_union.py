@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare CLI bytes with the committed HEAD on programs without Option/match."""
+"""Compare CLI bytes with HEAD, including unguarded, nonnested matches."""
 
 import io
 import itertools
@@ -91,7 +91,18 @@ def all_sources() -> list[tuple[str, str, Path | None]]:
     for index, (first, second, context) in enumerate(itertools.islice(combinations, 300)):
         source = f"fn Main(){{var r={first};r={second};{context}}}"
         rows.append((f"f0007-reassignment:{index:03}", source, None))
-    return [row for row in rows if not re.search(r"\b(?:Option|Some|None|match)\b", row[1])]
+    previous = [row for row in rows if not re.search(r"\b(?:Option|Some|None|match)\b", row[1])]
+    match_sources = [
+        (f"match:{name}", source, None)
+        for name, source in test_sources()
+        if name.replace("\\", "/").startswith((
+            "tests/j03_match.rs:", "tests/j04_match_ownership.rs:",
+            "tests/j04_match_semantics.rs:",
+        ))
+        and len(re.findall(r"\bmatch\b", source)) == 1
+        and not re.search(r"\bif\b", source)
+    ]
+    return previous + match_sources
 
 
 def invoke(binary: Path, args: list[str]) -> tuple[int, bytes, bytes]:
@@ -100,7 +111,7 @@ def invoke(binary: Path, args: list[str]) -> tuple[int, bytes, bytes]:
 
 
 def compare() -> None:
-    with tempfile.TemporaryDirectory(prefix="nexo-union-diff-") as temporary:
+    with tempfile.TemporaryDirectory(prefix="nexo-union-diff-", dir="D:/") as temporary:
         directory = Path(temporary)
         head = build_head(directory)
         suffix = ".exe" if os.name == "nt" else ""
@@ -125,6 +136,8 @@ def compare() -> None:
             for mode in ("debug", "release"):
                 for command in ("check", "run"):
                     args = [command, str(path), "--format", "json"]
+                    if name.startswith("match:"):
+                        args.extend(["--profile", "f0-0003-b-v1"])
                     if command == "run" and env:
                         args.extend(["--mock-env", str(env)])
                     before = invoke(head[mode], args)

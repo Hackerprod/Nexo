@@ -222,6 +222,19 @@ de patrones anteriores sin guarda usa NX-E1304/unreachable_arm. Una guarda
 no aporta cobertura; una literal true tampoco. Se denuncia el primer brazo
 inalcanzable y se suprime el no_exhaustive derivado de ese mismo match inválido.
 
+Un error de tipos en la guarda no invalida el patrón ni su cálculo de cobertura:
+`fn Main(){match true{true if 1=>{}}}` emite NX-E0102/type_mismatch
+en `1` [29,30) y NX-E1304/non_exhaustive en `match` [10,15), con
+`missing_pattern=false`. Su par válido
+`fn Main(){match true{true=>{},false=>{}}}` no emite diagnósticos.
+Solo un error de tipos del patrón impide la cobertura derivada del mismo match.
+
+Las restricciones de la guarda participan en la inferencia del payload de un
+patrón aunque el scrutinee sea `None`:
+`fn Main(){match None{Some(x) if x==1=>{},_=>{}}}` determina `Option<I64>` y es válido. En cambio,
+`fn Main(){match None{Some(x) if true=>{},_=>{}}}` deja el payload sin tipo
+y emite NX-E0113 en `None` [16,20), con `unresolved_components=["$.some"]`.
+
 Tras casar estructura, todos los nombres de patrón se exponen provisionalmente
 como lecturas para la guarda. Solo si esta devuelve true se adquieren permisos
 edit o se transfieren payloads. False libera las lecturas y prueba el siguiente

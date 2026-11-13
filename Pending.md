@@ -391,7 +391,7 @@ El corte entrega el perfil `f0-0003-b-v1` con sus ocho reducidos, el catálogo y
 |---|---|---|---|
 | NB-J01-01 | Con el perfil nuevo, un programa con un `Some(1)` anterior a un error sintáctico posterior da la barrera de capacidad pendiente J02 en lugar del error de sintaxis que la base daba; F0-0003 §2.2 dice que los errores sintácticos preceden al alcance. Con `Option<I64>` ya ocurría igual en la base. | `fn Main(){let x=Some(1);let y:Result=Ok(1);}` con `--profile f0-0003-b-v1`: NX-E0006/J02; la base da NX-E0002 parse en `[36,37)`. | J02 |
 | NB-J01-02 | Queda código específico de `Result` junto al descriptor de unión: `Ty::Result` (`src/ir/model.rs`), `InferTy::Result`, la rama `(Type::Result, Type::Result)` de la unificación y las restricciones `ResultConstructor` y `DomainResult` de `src/check/types.rs`. Deuda estructural que J02 debe absorber al añadir `Option` por el mismo descriptor. | Sin programa: comportamiento idéntico a la base. | J02 |
-| NB-J01-03 | `tests/j01_profile.rs` comprueba solo subcadenas y no cubre las barreras de J04, J05, J07, J08, J09, J12 y J14. | Sin programa. | J04 a J14, cada uno al retirar su barrera |
+| NB-J01-03 | `tests/j01_profile.rs` comprueba solo subcadenas; las barreras J04 y J05 ya se retiraron con pruebas dirigidas. Persisten las barreras J07, J08, J09, J12 y J14. | Sin programa. | J07 a J14, cada uno al retirar su barrera |
 | NB-J01-04 | Las descripciones de `explain` de NX-E1325 y NX-E1326 son una sola frase para dos subcausas. | `explain NX-E1325` y `explain NX-E1326`. | J02 |
 | NB-J01-05 | `scripts/compare_head_union.py` depende de rutas bajo el directorio de trabajo temporal. | Ejecutar el script desde un clon sin ese directorio. | Endurecimiento de scripts |
 | NB-J01-06 | El mutante `result_child_order` (orden de los hijos de `Result`) sobrevive sin programa que lo exhiba. | Sin programa. | Endurecimiento posterior |
@@ -399,7 +399,7 @@ El corte entrega el perfil `f0-0003-b-v1` con sus ocho reducidos, el catálogo y
 
 ## F0-0003 — continuación J02 a J04 (2026-11-13)
 
-NB-J01-01, NB-J01-02, NB-J01-04 y NB-J01-05 quedaron corregidos: la sintaxis inválida precede a las capacidades posteriores, `Result` y `Option` usan la unión nominal del mismo unificador, `explain` distingue las subcausas y el diferencial con HEAD se ejecuta sin rutas locales especiales. NB-J02J03-01 quedó resuelto al extender el alcance a J04 sin cambiar los programas objetivo; 12 y 13 ejecutan. NB-J01-03 conserva solo las barreras posteriores a J04. NB-J01-06 sigue sin programa causal.
+NB-J01-01, NB-J01-02, NB-J01-04 y NB-J01-05 quedaron corregidos: la sintaxis inválida precede a las capacidades posteriores, `Result` y `Option` usan la unión nominal del mismo unificador, `explain` distingue las subcausas y el diferencial con HEAD se ejecuta sin rutas locales especiales. NB-J02J03-01 quedó resuelto al extender el alcance a J04 sin cambiar los programas objetivo; 12 y 13 ejecutan. NB-J01-03 conserva solo las barreras posteriores a J05. NB-J01-06 sigue sin programa causal.
 
 | Id | Observación | Evidencia y pendiente |
 |---|---|---|
@@ -412,3 +412,11 @@ NB-J01-01, NB-J01-02, NB-J01-04 y NB-J01-05 quedaron corregidos: la sintaxis inv
 | NB-J04-04 | El criterio de `related_spans` de `unreachable_arm` fuera de M02 queda sin evidencia dirigida; no cambia la regla de cobertura. | `fn Main(){match true{true=>{},false=>{},_=>{}}}` cubre M02; faltan patrones anidados. | Endurecimiento de J03 |
 | NB-J04-05 | Una invocación del fuzz tardó 20 s bajo ocho procesos; el mismo programa tardó 15 ms al repetirlo y no se reprodujo el cuelgue. | Fuzz de 22.400 fuentes con ocho procesos; la fuente de la invocación aislada no se conservó. | Endurecimiento del arnés de fuzz |
 | NB-J04-06 | **Corregido:** un literal de patrón bajo un componente aún diferido producía un NX-E0102 con tipo esperado vacío; su serialización fallaba y la CLI incluía `null` en `diagnostics`. Ahora el patrón espera la resolución del scrutinee y el constructor conserva el NX-E0113 causal. | `match Ok(1){Ok(1)=>{},_=>{}}`, `match None{Some(1)=>{},_=>{}}` y `match Err(true){Err(true)=>{},_=>{}}` emiten cada uno un NX-E0113, tanto en `check` como en `run`, sin `null` ni error interno; `tests/j04_match_semantics.rs` fija los positivos con tipo determinable. | J02–J04, corregido |
+
+## F0-0003 — guardas de `match` (2026-11-13)
+
+La barrera J05 quedó retirada del perfil B con Q01–Q04/Q06/Q07, cobertura y limpieza de recursos verificadas localmente. La pasada única de seis mutaciones de núcleo detectó las seis y restauró los archivos por SHA-256; no hubo supervivientes que registrar. Permanecen las capacidades J06–J14 y la revisión independiente del corte; la aprobación de fase corresponde al propietario.
+
+## F0-0003 — selección anidada y diagnósticos de guardas (2026-11-13)
+
+El `internal_error` de `match` anidado con scrutinee exterior ligado quedó corregido en el borde imposible del CFG: la limpieza contabiliza también los temporales vivos de selecciones envolventes. El error de una guarda deja analizar brazos y cuerpos posteriores en names, types y ownership; la operación prohibida de la guarda no compromete mutación ni transferencia. Las regresiones de `tests/j05_match_guards.rs` conservan los dos NX-E0101, los dos NX-E0102, NX-E1305 junto a NX-E0202, y los casos positivos anidados. F0-0003 §3.3 fija la cobertura tras un error de tipo de guarda y la inferencia de `None` desde la guarda. No se abrió una campaña de mutación adicional.

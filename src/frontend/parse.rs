@@ -276,6 +276,12 @@ pub enum Statement {
         value: Option<Expr>,
         span: Span,
     },
+    GuardControl {
+        token: String,
+        value: Option<Expr>,
+        token_span: Span,
+        span: Span,
+    },
     Value {
         value: Option<Expr>,
         marker: Option<Span>,
@@ -373,6 +379,7 @@ pub(crate) fn statement_span(s: &Statement) -> &Span {
         Statement::Let { span, .. }
         | Statement::Assign { span, .. }
         | Statement::Return { span, .. }
+        | Statement::GuardControl { span, .. }
         | Statement::Value { span, .. }
         | Statement::If { span, .. }
         | Statement::While { span, .. }
@@ -425,6 +432,7 @@ pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
         work: None,
         new_profile: false,
         pending_match: None,
+        guard_context: 0,
     };
     parser.budget_error(
         "syntax_nesting",
@@ -471,6 +479,7 @@ fn parse_with_split_tokens_counted(
             work: None,
             new_profile,
             pending_match: None,
+            guard_context: 0,
         };
         return Err(parser.budget_error(
             "source_bytes",
@@ -554,6 +563,7 @@ fn parse_inner(
         work,
         new_profile,
         pending_match: None,
+        guard_context: 0,
     }
     .program()
 }
@@ -844,6 +854,9 @@ fn unadmitted_edit_in_statement(statement: &Statement) -> Option<Span> {
         | Statement::Return {
             value: Some(value), ..
         }
+        | Statement::GuardControl {
+            value: Some(value), ..
+        }
         | Statement::Value {
             value: Some(value), ..
         } => unadmitted_edit_in_expr(value, false),
@@ -863,7 +876,9 @@ fn unadmitted_edit_in_statement(statement: &Statement) -> Option<Span> {
         } => unadmitted_edit_in_expr(condition, false).or_else(|| unadmitted_edit_in_block(body)),
         Statement::Match(selection) => unadmitted_edit_in_match(selection),
         Statement::Block(block) => unadmitted_edit_in_block(block),
-        Statement::Return { value: None, .. } | Statement::Value { value: None, .. } => None,
+        Statement::Return { value: None, .. }
+        | Statement::GuardControl { value: None, .. }
+        | Statement::Value { value: None, .. } => None,
     }
 }
 
@@ -970,6 +985,9 @@ fn non_unit_return(statement: &Statement) -> Option<Span> {
         }
         | Statement::Return {
             value: Some(value), ..
+        }
+        | Statement::GuardControl {
+            value: Some(value), ..
         } => expr_non_unit_return(value),
         _ => None,
     }
@@ -1026,6 +1044,7 @@ struct Parser<'a> {
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
     pending_match: Option<(&'static str, Span)>,
+    guard_context: usize,
 }
 impl Parser<'_> {
     fn program(mut self) -> ParseResult {
@@ -1571,6 +1590,30 @@ impl Parser<'_> {
         let st = self.peek().span.start as usize;
         if self.new_profile && self.word("match") {
             return Ok(Statement::Match(self.match_form(false)?));
+        }
+        if self.guard_context > 0
+            && matches!(self.peek().text.as_str(), "break" | "continue" | "yield")
+        {
+            let token = self.take();
+            let value =
+                if token.text == "yield" && self.starts_expr() && !self.line_break_before_next() {
+                    Some(self.expr(0)?)
+                } else {
+                    None
+                };
+            let end = self.terminator(
+                st,
+                value
+                    .as_ref()
+                    .map_or_else(|| token.span.clone(), |value| value.span().clone()),
+                TerminatedStatement::Other,
+            )?;
+            return Ok(Statement::GuardControl {
+                token: token.text,
+                value,
+                token_span: token.span,
+                span: self.span(st, end),
+            });
         }
         if let Some(id) = deferred_feature(&self.peek().text) {
             return Err(self.feature(id, self.peek().span.clone()));
@@ -2402,11 +2445,16 @@ impl Parser<'_> {
             collect_pattern_bindings(&pattern, &mut bindings);
             self.local_scopes.push(bindings);
             let guard_span = self.word("if").then(|| self.take().span);
-            if let Some(span) = &guard_span {
+            if !self.new_profile
+                && let Some(span) = &guard_span
+            {
                 self.note_pending("match_guard", span.clone());
             }
             let guard = if guard_span.is_some() {
-                Some(self.expr(0)?)
+                self.guard_context += 1;
+                let parsed = self.expr(0);
+                self.guard_context -= 1;
+                Some(parsed?)
             } else {
                 None
             };
@@ -3024,9 +3072,9 @@ fn statement_expression_height(statement: &Statement) -> usize {
         Statement::Let { value, .. }
         | Statement::Assign { value, .. }
         | Statement::Expr { value, .. } => expression_height(value),
-        Statement::Return { value, .. } | Statement::Value { value, .. } => {
-            value.as_ref().map_or(0, expression_height)
-        }
+        Statement::Return { value, .. }
+        | Statement::GuardControl { value, .. }
+        | Statement::Value { value, .. } => value.as_ref().map_or(0, expression_height),
         Statement::If {
             condition,
             then_block,
@@ -3111,6 +3159,7 @@ mod b_tests {
             work: None,
             new_profile: false,
             pending_match: None,
+            guard_context: 0,
         };
         parser.expect_type_close().unwrap();
         assert_eq!(
@@ -3227,6 +3276,7 @@ mod b_tests {
                 work: None,
                 new_profile: false,
                 pending_match: None,
+                guard_context: 0,
             };
             let result = parser.statement(false, 0);
             assert_eq!(result.is_err(), expect_error, "{source}");

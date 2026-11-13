@@ -255,7 +255,13 @@ pub fn compile_scalar_with_profile(
     run_entry: bool,
 ) -> Result<Program, CompileError> {
     let limits = analysis_limits(profile);
-    compile_scalar_with_analysis_limits(file, source, run_entry, limits)
+    let mut result = compile_scalar_with_analysis_limits(file, source, run_entry, limits);
+    if let Err(CompileError::Rejected(errors)) = &mut result {
+        for error in errors {
+            error.profile_id = limits.profile_id.into();
+        }
+    }
+    result
 }
 
 #[cfg(test)]
@@ -3019,6 +3025,7 @@ impl Lower<'_> {
                 )),
                 Statement::Let { .. } => {}
                 Statement::Match(_) => {}
+                Statement::GuardControl { .. } => {}
                 Statement::Assign { span, .. } => {
                     let Statement::Assign { place, .. } = statement else {
                         unreachable!();
@@ -3287,6 +3294,17 @@ impl Lower<'_> {
             }
             Statement::Match(selection) => {
                 self.match_selection(selection, false, depth, None, diagnostics)?;
+            }
+            Statement::GuardControl { token_span, .. } => {
+                return Err(CompileError::Rejected(vec![
+                    crate::check::names::diagnostic(
+                        "NX-E1305",
+                        Some("guard_control"),
+                        diagnostic::Stage::Ownership,
+                        diagnostic::Operation::OwnershipCheck,
+                        token_span.clone(),
+                    ),
+                ]));
             }
         }
         Ok(())
@@ -3982,7 +4000,19 @@ impl Lower<'_> {
                 expected,
             ),
             Expr::Match(selection) => {
-                self.match_selection(selection, true, depth, Some(&inferred), &mut Vec::new())
+                let mut diagnostics = Vec::new();
+                let result =
+                    self.match_selection(selection, true, depth, Some(&inferred), &mut diagnostics);
+                if diagnostics.is_empty() {
+                    result
+                } else {
+                    match result {
+                        Ok(_) | Err(CompileError::Dependent) => Err(CompileError::Rejected(
+                            diagnostics.into_iter().map(Box::new).collect(),
+                        )),
+                        Err(error) => Err(branch_error(error, diagnostics)),
+                    }
+                }
             }
         }
     }
@@ -4050,6 +4080,7 @@ fn statement_span(stmt: &Statement) -> Span {
         Statement::Let { span, .. }
         | Statement::Assign { span, .. }
         | Statement::Return { span, .. }
+        | Statement::GuardControl { span, .. }
         | Statement::Value { span, .. }
         | Statement::If { span, .. }
         | Statement::While { span, .. }

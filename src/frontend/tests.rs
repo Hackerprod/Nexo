@@ -359,6 +359,12 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
                     expression(value, source);
                 }
             }
+            Statement::GuardControl { value, span, .. } => {
+                assert_eq!(source.as_bytes()[span.end as usize - 1], b';');
+                if let Some(value) = value {
+                    expression(value, source);
+                }
+            }
             Statement::Expr { value, span } => {
                 assert_eq!(source.as_bytes()[span.end as usize - 1], b';');
                 expression(value, source);

@@ -562,6 +562,9 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
             Statement::Return {
                 value: Some(value), ..
             }
+            | Statement::GuardControl {
+                value: Some(value), ..
+            }
             | Statement::Value {
                 value: Some(value), ..
             } => expression(value, types),
@@ -587,7 +590,9 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
                 expression(&Expr::Match(Box::new(selection.clone())), types)
             }
             Statement::Block(b) => block(b, types),
-            Statement::Return { value: None, .. } | Statement::Value { value: None, .. } => {}
+            Statement::Return { value: None, .. }
+            | Statement::GuardControl { value: None, .. }
+            | Statement::Value { value: None, .. } => {}
         }
     }
     fn block(block: &Block, types: &mut InferredTypes) {
@@ -3396,7 +3401,9 @@ impl Checker<'_> {
                 self.expression_reads_binding(place, site)
                     || self.expression_reads_binding(value, site)
             }
-            Statement::Return { value, .. } | Statement::Value { value, .. } => value
+            Statement::Return { value, .. }
+            | Statement::GuardControl { value, .. }
+            | Statement::Value { value, .. } => value
                 .as_ref()
                 .is_some_and(|value| self.expression_reads_binding(value, site)),
             Statement::If {
@@ -4173,6 +4180,7 @@ impl Checker<'_> {
                         Statement::Let { span, .. }
                         | Statement::Assign { span, .. }
                         | Statement::Return { span, .. }
+                        | Statement::GuardControl { span, .. }
                         | Statement::Value { span, .. }
                         | Statement::If { span, .. }
                         | Statement::While { span, .. }
@@ -4575,6 +4583,12 @@ impl Checker<'_> {
                         names::sort_related(&mut d);
                     }
                     return Err(d);
+                }
+                Ok(())
+            }
+            Statement::GuardControl { value, .. } => {
+                if let Some(value) = value {
+                    self.expr(value, None, None)?;
                 }
                 Ok(())
             }
@@ -6193,7 +6207,16 @@ impl Checker<'_> {
                 names::sort_related(&mut diagnostic);
                 return Err(diagnostic);
             }
-            previous.push(&arm.pattern);
+            if let Some(guard) = &arm.guard {
+                if let Err(error) = self.expr(guard, Some(&Type::Bool), arm.guard_span.as_ref()) {
+                    if error.operation == Operation::AnalysisLimit {
+                        return Err(error);
+                    }
+                    self.record_error(error);
+                }
+            } else {
+                previous.push(&arm.pattern);
+            }
             if expression {
                 let (value, failed, _) = self.branch(
                     &arm.body,

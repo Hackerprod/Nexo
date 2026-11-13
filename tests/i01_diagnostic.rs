@@ -574,9 +574,10 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
     (
         "NX-E1305",
         &[
-            (Some("guard_effect"), "outside_profile"),
-            (Some("guard_mutation"), "outside_profile"),
-            (Some("guard_transfer"), "outside_profile"),
+            (Some("guard_effect"), "in_profile"),
+            (Some("guard_mutation"), "in_profile"),
+            (Some("guard_transfer"), "in_profile"),
+            (Some("guard_control"), "in_profile"),
         ],
     ),
     ("NX-E1307", &[(None, "outside_profile")]),
@@ -800,9 +801,10 @@ fn availability_matches_independent_full_registry_expectations() {
         (
             "NX-E1305",
             &[
-                (Some("guard_effect"), "outside_profile"),
-                (Some("guard_mutation"), "outside_profile"),
-                (Some("guard_transfer"), "outside_profile"),
+                (Some("guard_effect"), "in_profile"),
+                (Some("guard_mutation"), "in_profile"),
+                (Some("guard_transfer"), "in_profile"),
+                (Some("guard_control"), "in_profile"),
             ],
         ),
         ("NX-E1307", &[(None, "outside_profile")]),
@@ -904,7 +906,7 @@ fn availability_matches_independent_full_registry_expectations() {
         }
     }
     assert_eq!(EXPECTED.len(), 72);
-    assert_eq!(combinations, 117);
+    assert_eq!(combinations, 118);
 }
 
 fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Diagnostic {
@@ -920,6 +922,8 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
             (Stage::Ownership, Operation::Branch)
         }
         "NX-E1302" => (Stage::Parse, Operation::SyntaxParse),
+        "NX-E1305" if subcause == Some("guard_effect") => (Stage::Effects, Operation::EffectsCheck),
+        "NX-E1305" => (Stage::Ownership, Operation::OwnershipCheck),
         "NX-E0003" => (Stage::Parse, Operation::AnalysisLimit),
         "NX-E0004" => (
             Stage::Input,
@@ -979,6 +983,11 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         }
         "NX-E1304" if subcause == Some("non_exhaustive") => {
             data.insert("missing_pattern".into(), V::String("None".into()));
+        }
+        "NX-E1305" if subcause == Some("guard_effect") => {
+            data.insert("effect_model".into(), V::String("f0-0003-sim-v1".into()));
+            data.insert("effect_evidence".into(), V::String("unknown_effect".into()));
+            data.insert("required_effect".into(), V::String("alloc".into()));
         }
         "NX-E1325" if subcause == Some("constructor_arity") => {
             data.insert("constructor".into(), V::String("prelude:Some".into()));
@@ -1056,7 +1065,11 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
     let mut d = Diagnostic {
         schema_version: diagnostic::SCHEMA_VERSION,
         diagnostic_namespace: Namespace::NexoProposedV1,
-        profile_id: diagnostic::PROFILE_ID.into(),
+        profile_id: if code == "NX-E1305" {
+            "f0-0003-b-v1".into()
+        } else {
+            diagnostic::PROFILE_ID.into()
+        },
         code: code.into(),
         subcause: subcause.map(str::to_owned),
         rule: subcause.map_or_else(|| code.to_owned(), |c| format!("{code}/{c}")),
@@ -1288,7 +1301,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
         }
     }
     assert_eq!(type_fixtures, 59);
-    assert_eq!(accepted, 139, "valid ADR constructed diagnostics");
+    assert_eq!(accepted, 143, "valid ADR constructed diagnostics");
     for code in ["NX-E0005", "NX-E0006", "R0101"] {
         let mut d = if code == "R0101" {
             let mut d = diagnostic_for_catalog("NX-E0006", None);

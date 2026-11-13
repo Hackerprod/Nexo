@@ -2081,6 +2081,14 @@ fn subcause_description(code: &str, subcause: &str) -> Option<String> {
         ("NX-E1325", "constructor_type") => "Constructor de patrón de otra unión nominal.",
         ("NX-E1326", "break_outside_loop") => "break requiere un bucle en este invocable.",
         ("NX-E1326", "continue_outside_loop") => "continue requiere un bucle en este invocable.",
+        ("NX-E1305", "guard_effect") => {
+            "La guarda no admite efectos de alloc, block, suspend, io ni efectos desconocidos."
+        }
+        ("NX-E1305", "guard_mutation") => {
+            "La guarda no puede solicitar permiso de edición ni mutar."
+        }
+        ("NX-E1305", "guard_transfer") => "La guarda no puede transferir ni destruir valores.",
+        ("NX-E1305", "guard_control") => "La guarda no puede abandonar su evaluación.",
         _ => return None,
     };
     Some(description.into())
@@ -2361,7 +2369,13 @@ fn explanation_for(code: &str, subcause: Option<&str>, description: String) -> E
     };
     let available = availability(code, subcause);
     let example_profile_id =
-        (available == "in_profile" && !negative_source.is_empty()).then(|| PROFILE_ID.into());
+        (available == "in_profile" && !negative_source.is_empty()).then(|| {
+            if code == "NX-E1305" {
+                "f0-0003-b-v1".into()
+            } else {
+                PROFILE_ID.into()
+            }
+        });
     Explanation {
         subcause: subcause.map(str::to_owned),
         explanation_id: rule(code, subcause),
@@ -2381,6 +2395,22 @@ fn explanation_for(code: &str, subcause: Option<&str>, description: String) -> E
 
 fn published_source(code: &str, subcause: Option<&str>) -> (&'static str, &'static str) {
     match (code, subcause) {
+        ("NX-E1305", Some("guard_effect")) => (
+            "fn Main(){match true{true if MockUnknown()==()=>{},_=>{}}}",
+            "fn Main(){match true{true if true=>{},_=>{}}}",
+        ),
+        ("NX-E1305", Some("guard_mutation")) => (
+            "fn P(x:edit I64)->Bool{return true;}fn Main(){var x=0;match true{true if P(edit x)=>{},_=>{}}}",
+            "fn P(x:edit I64)->Bool{return true;}fn Main(){var x=0;match true{true if true=>{},_=>{}}}",
+        ),
+        ("NX-E1305", Some("guard_transfer")) => (
+            "fn P(x:move I64)->Bool{return true;}fn Main(){let x=0;match true{true if P(move x)=>{},_=>{}}}",
+            "fn P(x:move I64)->Bool{return true;}fn Main(){let x=0;match true{true if true=>{},_=>{}}}",
+        ),
+        ("NX-E1305", Some("guard_control")) => (
+            "fn Main()->Result<(),I64>{match true{true if TryAdd(1,2)?==3=>{},_=>{}}return Ok(());}",
+            "fn Main()->Result<(),I64>{match true{true if TryAdd(1,2)==Ok(3)=>{},_=>{}}return Ok(());}",
+        ),
         ("NX-E1304", Some("non_exhaustive")) => (
             "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{}}}",
             "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{},None=>{}}}",
@@ -3300,25 +3330,31 @@ static CATALOG: &[CatalogEntry] = &[
     },
     CatalogEntry {
         code: "NX-E1305",
-        description: "Guarda no permitida: guard_effect, guard_mutation, guard_transfer.",
+        description: "Guarda no permitida: guard_effect, guard_mutation, guard_transfer, guard_control.",
         subcauses: &[
             CatalogSubcause {
                 name: "guard_effect",
-                availability: "outside_profile",
-                stage: "",
-                operation: "",
+                availability: "in_profile",
+                stage: "effects",
+                operation: "effects.check",
             },
             CatalogSubcause {
                 name: "guard_mutation",
-                availability: "outside_profile",
-                stage: "",
-                operation: "",
+                availability: "in_profile",
+                stage: "ownership",
+                operation: "ownership.check",
             },
             CatalogSubcause {
                 name: "guard_transfer",
-                availability: "outside_profile",
-                stage: "",
-                operation: "",
+                availability: "in_profile",
+                stage: "ownership",
+                operation: "ownership.check",
+            },
+            CatalogSubcause {
+                name: "guard_control",
+                availability: "in_profile",
+                stage: "ownership",
+                operation: "ownership.check",
             },
         ],
         availability: "outside_profile",

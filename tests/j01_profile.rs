@@ -84,12 +84,6 @@ fn j01_effect_diagnostic_names_the_new_model_without_changing_a2() {
 #[test]
 fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
     for (source, scope, stage, feature) in [
-        (
-            "fn Main(){match true{true if true=>{},_=>{}}}",
-            "J05",
-            "types",
-            "match",
-        ),
         ("fn Main(){let f=fn [](){};}", "J06", "types", "closure"),
         ("gen fn G(){}fn Main(){}", "J10", "types", "generator"),
         (
@@ -121,6 +115,19 @@ fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
             "{old_output}"
         );
     }
+}
+
+#[test]
+fn j05_match_guards_are_available_only_in_the_j_profile() {
+    let source = "fn Main(){match true{true if true=>{},_=>{}}}";
+    let (status, output) = check(source, "f0-0003-b-v1");
+    assert_eq!(status, 0, "{output}");
+    let (old_status, old_output) = check(source, "f0-0002-b-v2");
+    assert_eq!(old_status, 1, "{old_output}");
+    assert!(
+        old_output.contains("\"feature_id\":\"match\""),
+        "{old_output}"
+    );
 }
 
 #[test]

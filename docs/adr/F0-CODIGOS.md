@@ -95,7 +95,7 @@ El registro vigente contiene **73 códigos NX-E** y siete códigos experimentale
 | NX-E1302 | D13 §1/§4 | `missing_else`: if expresión sin else; `missing_branch_value`: continuación sin value:; `invalid_value_target`: value: sin bloque destinatario directo; `missing_value_operand`: value: sin expresión, también por salto tras :; `non_final_branch_value`: value: no es la última sentencia directa de su rama. Value sin : es Name ordinario (D13 §1). |
 | NX-E1303 | D13 §3 | Tipos de caminos normales no unificables conforme a igualdad nominal. |
 | NX-E1304 | D13 §4 | `non_exhaustive`: faltan casos; `unreachable_arm`: todos los valores del patrón están cubiertos por la unión de patrones de brazos anteriores sin guarda; no exige un único brazo anterior que lo cubra (D13 §4). |
-| NX-E1305 | D13 §4 | Guarda no permitida: `guard_effect`, `guard_mutation`, `guard_transfer`. |
+| NX-E1305 | D13 §4; F0-0003 §3.3 | Guarda no permitida: `guard_effect`, `guard_mutation`, `guard_transfer`, `guard_control`. |
 | NX-E1307 | D13 §6 | Procedencia del valor de rama insuficiente para su destino, cuando el portador no tiene diagnóstico específico de closure/futuro. |
 | NX-E1308 | D13 §9 | `private_access`: acceso fuera del dominio privado; `private_reexport`: intento de elevar visibilidad mediante pub use. |
 | NX-E1309 | D13 §10 | `alias_collision`: alias local de declaraciones distintas; `duplicate_import`: mismo import repetido. |

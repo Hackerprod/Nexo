@@ -1,0 +1,59 @@
+{
+  "mode": "quick-release",
+  "mutations": [
+    {
+      "id": "guarded_pattern_cannot_cover",
+      "file": "src/check/types.rs",
+      "original_sha256": "14febb998e81393d70ccd22d3df5d4e318137b5ed07fd34f75cd06fca2ea8092",
+      "mutated_sha256": "4cc7ab9126f925f0c555b20e4fffa8ffb7f090769f8099ed606bff1a70e1c4e6",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j05_match_guards guarded_arm_does_not_prove_coverage_and_unmatched_guard_is_not_evaluated"
+    },
+    {
+      "id": "move_intent",
+      "file": "src/ir/lower_match.rs",
+      "original_sha256": "af2f2f04878db4877fcb975f885b7e4e8c10571424515cb6f1f16ee692044b8b",
+      "mutated_sha256": "f570cdba3f8334a8163bf02acee287a7e03317787162c35450a02963f65b2ca8",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j05_match_guards q03_move_intent_is_rejected_without_consuming_root"
+    },
+    {
+      "id": "edit_intent",
+      "file": "src/ir/lower_match.rs",
+      "original_sha256": "af2f2f04878db4877fcb975f885b7e4e8c10571424515cb6f1f16ee692044b8b",
+      "mutated_sha256": "5cc90c9d206104bb7824fc79b3f14a11cbfc8ef69e2f4c8b6088fa27df745eb1",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j05_match_guards q02_edit_intent_is_rejected_without_mutating_root"
+    },
+    {
+      "id": "provisional_extraction",
+      "file": "src/ir/lower_match.rs",
+      "original_sha256": "af2f2f04878db4877fcb975f885b7e4e8c10571424515cb6f1f16ee692044b8b",
+      "mutated_sha256": "fb2688ffe544bb0b885ba1ac95d3b02e2f6ffa8cc9e419cb15e55abce4487a18",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j05_match_guards false_guard_releases_provisional_binding_before_owner_extraction"
+    },
+    {
+      "id": "guard_false_edge",
+      "file": "src/ir/lower_match.rs",
+      "original_sha256": "af2f2f04878db4877fcb975f885b7e4e8c10571424515cb6f1f16ee692044b8b",
+      "mutated_sha256": "a909ec6750b5b3e5a648c97cdc87603fccc96061e85f564ba4f1609da2ba8e64",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j05_match_guards false_guard_releases_provisional_binding_before_owner_extraction"
+    },
+    {
+      "id": "independent_effect_sites",
+      "file": "src/ir/effects.rs",
+      "original_sha256": "41d0152eb49dda05ef429c0e36229118758f9f539de533d57cd0a93441234c79",
+      "mutated_sha256": "6480ab9928ebf24ac6a3d7299145b497bfa28330b9b414542b58aecaf0098519",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j05_match_guards independent_guard_effect_sites_each_report_one_diagnostic"
+    }
+  ]
+}

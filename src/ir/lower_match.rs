@@ -7,6 +7,187 @@ use crate::union::{UnionKind, VariantTag};
 struct MatchSource {
     local: Option<LocalId>,
     loan: Option<TempId>,
+    provisional: bool,
+}
+
+fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
+    fn record(found: &mut Vec<(&'static str, Span)>, cause: &'static str, span: Span) {
+        found.push((cause, span));
+    }
+    fn block(block: &parse::Block, found: &mut Vec<(&'static str, Span)>) {
+        for statement in &block.statements {
+            statement_violation(statement, found);
+        }
+    }
+    fn statement_violation(statement: &parse::Statement, found: &mut Vec<(&'static str, Span)>) {
+        match statement {
+            parse::Statement::Let { value, .. } | parse::Statement::Expr { value, .. } => {
+                walk(value, found)
+            }
+            parse::Statement::Assign { place, value, .. } => {
+                record(found, "guard_mutation", place.span().clone());
+                walk(place, found);
+                walk(value, found);
+            }
+            parse::Statement::Return { value, span } => {
+                record(
+                    found,
+                    "guard_control",
+                    Span {
+                        file: span.file.clone(),
+                        start: span.start,
+                        end: span.start + 6,
+                    },
+                );
+                if let Some(value) = value {
+                    walk(value, found);
+                }
+            }
+            parse::Statement::GuardControl {
+                token_span, value, ..
+            } => {
+                record(found, "guard_control", token_span.clone());
+                if let Some(value) = value {
+                    walk(value, found);
+                }
+            }
+            parse::Statement::Value { value, .. } => {
+                if let Some(value) = value {
+                    walk(value, found);
+                }
+            }
+            parse::Statement::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                walk(condition, found);
+                block(then_block, found);
+                if let Some(other) = otherwise {
+                    statement_violation(other, found);
+                }
+            }
+            parse::Statement::While {
+                condition, body, ..
+            } => {
+                walk(condition, found);
+                block(body, found);
+            }
+            parse::Statement::Match(selection) => selection_violation(selection, found),
+            parse::Statement::Block(body) => block(body, found),
+        }
+    }
+    fn selection_violation(selection: &parse::Match, found: &mut Vec<(&'static str, Span)>) {
+        if let Some(span) = &selection.mode_span {
+            record(
+                found,
+                if selection.mode == Some(Mode::Consume) {
+                    "guard_transfer"
+                } else {
+                    "guard_mutation"
+                },
+                span.clone(),
+            );
+        }
+        walk(&selection.scrutinee, found);
+        for arm in &selection.arms {
+            if let Some(guard) = &arm.guard {
+                walk(guard, found);
+            }
+            block(&arm.body, found);
+        }
+    }
+    fn walk(expr: &parse::Expr, found: &mut Vec<(&'static str, Span)>) {
+        match expr {
+            parse::Expr::Unary { mode, value, span } => {
+                let cause = match mode {
+                    Mode::Consume => Some("guard_transfer"),
+                    Mode::Inout => Some("guard_mutation"),
+                    Mode::Read
+                        if span.start == value.span().start && span.end > value.span().end =>
+                    {
+                        Some("guard_control")
+                    }
+                    _ => None,
+                };
+                if let Some(cause) = cause {
+                    let token = if cause == "guard_control" {
+                        Span {
+                            file: span.file.clone(),
+                            start: span.end - 1,
+                            end: span.end,
+                        }
+                    } else {
+                        Span {
+                            file: span.file.clone(),
+                            start: span.start,
+                            end: span.start + 4,
+                        }
+                    };
+                    record(found, cause, token);
+                }
+                walk(value, found);
+            }
+            parse::Expr::Call { target, args, .. } => {
+                if matches!(target.as_ref(), parse::Expr::Name(name, _) if name == "Drop") {
+                    record(found, "guard_transfer", target.span().clone());
+                }
+                walk(target, found);
+                for arg in args {
+                    walk(&arg.value, found);
+                }
+            }
+            parse::Expr::Array(items, _) => {
+                for item in items {
+                    walk(item, found);
+                }
+            }
+            parse::Expr::Group(inner, _) => walk(inner, found),
+            parse::Expr::Binary { left, right, .. } => {
+                walk(left, found);
+                walk(right, found);
+            }
+            parse::Expr::Index { target, index, .. } => {
+                walk(target, found);
+                walk(index, found);
+            }
+            parse::Expr::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                walk(condition, found);
+                block(then_block, found);
+                if let Some(other) = otherwise {
+                    match other.as_ref() {
+                        parse::Else::Block(body) => block(body, found),
+                        parse::Else::If(inner) => walk(inner, found),
+                    }
+                }
+            }
+            parse::Expr::Match(selection) => selection_violation(selection, found),
+            parse::Expr::Name(..)
+            | parse::Expr::Integer(..)
+            | parse::Expr::Bool(..)
+            | parse::Expr::Unit(..) => {}
+        }
+    }
+    let mut found = Vec::new();
+    walk(expr, &mut found);
+    found.sort_by_key(|(cause, span)| {
+        (
+            span.start,
+            match *cause {
+                "guard_control" => 0,
+                "guard_transfer" => 1,
+                _ => 2,
+            },
+        )
+    });
+    found.dedup_by(|(_, left), (_, right)| left.start == right.start);
+    found
 }
 
 impl Lower<'_> {
@@ -217,13 +398,13 @@ impl Lower<'_> {
         let checkpoint = self.consumed_undo.len();
         let temp_checkpoint = self.temp_undo.len();
         let branch_mode = self.emission;
-        let mut previous_branch: Option<BlockId> = None;
+        let mut previous_branches: Vec<BlockId> = Vec::new();
         let mut ends = Vec::new();
         let mut states = Vec::new();
         let mut slot = None;
         self.dead_depth += 1;
-        for (index, arm) in selection.arms.iter().enumerate() {
-            if let Some(branch) = previous_branch {
+        for arm in &selection.arms {
+            for branch in previous_branches.drain(..) {
                 let next = BlockId(self.blocks.len());
                 if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
                     *no = next;
@@ -231,40 +412,90 @@ impl Lower<'_> {
             }
             let condition = self.match_condition(root, &selected_ty, &arm.pattern)?;
             let branch = if branch_mode == EmissionMode::Live {
-                let final_arm = index + 1 == selection.arms.len();
-                let no = if final_arm {
-                    BlockId(self.blocks.len() + 1)
-                } else {
-                    BlockId(usize::MAX)
-                };
-                let yes = BlockId(self.blocks.len() + if final_arm { 2 } else { 1 });
                 let branch = self.finish_block(Terminator::BranchBool {
                     condition: condition.ok_or(CompileError::InvalidIr("match condition"))?,
-                    yes,
-                    no,
+                    yes: BlockId(self.blocks.len() + 1),
+                    no: BlockId(usize::MAX),
                     span: arm.pattern.span().clone(),
                     charges: Vec::new(),
                 });
-                if final_arm {
-                    let close_span = Span {
-                        file: selection.span.file.clone(),
-                        start: selection.span.end.saturating_sub(1),
-                        end: selection.span.end,
-                    };
-                    self.statement_op(Op::DropLocal(root), close_span.clone(), Access::Own, false);
-                    if let Some(held) = loan_temp {
-                        self.statement_op(Op::DropValue(held), close_span, Access::Own, false);
-                    }
-                    self.finish_block(Terminator::Unreachable {
-                        span: arm.pattern.span().clone(),
-                        charges: Vec::new(),
-                    });
-                }
                 Some(branch)
             } else {
                 None
             };
-            previous_branch = branch;
+            if let Some(branch) = branch {
+                previous_branches.push(branch);
+            }
+            if let Some(guard) = &arm.guard {
+                let violations = guard_violations(guard);
+                for (subcause, primary) in &violations {
+                    diagnostics.push(*crate::check::names::diagnostic(
+                        "NX-E1305",
+                        Some(subcause),
+                        diagnostic::Stage::Ownership,
+                        diagnostic::Operation::OwnershipCheck,
+                        primary.clone(),
+                    ));
+                }
+                let saved = self.scope;
+                self.scope = ScopeId(self.next_scope);
+                self.next_scope += 1;
+                self.scope_parents.push(Some(saved));
+                self.scopes.push(Vec::new());
+                self.bind_match_pattern(
+                    root,
+                    &selected_ty,
+                    &arm.pattern,
+                    &mut Vec::new(),
+                    selection,
+                    MatchSource {
+                        local: loan_root,
+                        loan: loan_temp,
+                        provisional: true,
+                    },
+                )?;
+                // A forbidden guard has no committed effects. Use a Bool
+                // condition so the same arm and fallthrough analysis can
+                // continue and report independent ownership sites.
+                let checked = if violations.is_empty() {
+                    self.expr(guard, depth + 1, Some(&Ty::Bool))?
+                } else {
+                    self.emitted(
+                        Op::ConstBool(true),
+                        Ty::Bool,
+                        guard.span().clone(),
+                        Access::Own,
+                        false,
+                    )
+                };
+                let guard_names = self
+                    .scopes
+                    .last()
+                    .cloned()
+                    .ok_or(CompileError::InvalidIr("guard scope"))?;
+                for name in guard_names.iter().rev() {
+                    let id = self.get(name)?;
+                    self.statement_op(
+                        Op::DropLocal(id),
+                        arm.body.close_span.clone(),
+                        Access::Own,
+                        false,
+                    );
+                }
+                self.leave_scope(saved)?;
+                if branch_mode == EmissionMode::Live {
+                    let guard_branch = self.finish_block(Terminator::BranchBool {
+                        condition: checked
+                            .temp()
+                            .ok_or(CompileError::InvalidIr("match guard condition"))?,
+                        yes: BlockId(self.blocks.len() + 1),
+                        no: BlockId(usize::MAX),
+                        span: guard.span().clone(),
+                        charges: Vec::new(),
+                    });
+                    previous_branches.push(guard_branch);
+                }
+            }
             let saved = self.scope;
             self.scope = ScopeId(self.next_scope);
             self.next_scope += 1;
@@ -279,6 +510,7 @@ impl Lower<'_> {
                 MatchSource {
                     local: loan_root,
                     loan: loan_temp,
+                    provisional: false,
                 },
             )?;
             let value = if expression {
@@ -341,6 +573,40 @@ impl Lower<'_> {
             self.restore_temps(temp_checkpoint);
         }
         self.dead_depth -= 1;
+        if branch_mode == EmissionMode::Live {
+            let fallback = BlockId(self.blocks.len());
+            for branch in previous_branches {
+                if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
+                    *no = fallback;
+                }
+            }
+            let close_span = Span {
+                file: selection.span.file.clone(),
+                start: selection.span.end.saturating_sub(1),
+                end: selection.span.end,
+            };
+            self.statement_op(Op::DropLocal(root), close_span.clone(), Access::Own, false);
+            if let Some(held) = loan_temp {
+                self.statement_op(Op::DropValue(held), close_span, Access::Own, false);
+            }
+            // The no-arm edge is unreachable after coverage checking, but it
+            // still has to account for temporaries held by enclosing matches.
+            // Each nested selection uses this same cleanup path.
+            let mut held: Vec<_> = self.live_temps.iter().copied().collect();
+            held.sort_by_key(|temp| std::cmp::Reverse(temp.0));
+            for temp in held {
+                self.statement_op(
+                    Op::DropValue(temp),
+                    selection.span.clone(),
+                    Access::Own,
+                    false,
+                );
+            }
+            self.finish_block(Terminator::Unreachable {
+                span: selection.span.clone(),
+                charges: Vec::new(),
+            });
+        }
         let join = BlockId(self.blocks.len());
         for end in ends {
             if let Terminator::Jump { target, .. } = &mut self.blocks[end.0].terminator {
@@ -532,7 +798,10 @@ impl Lower<'_> {
                         }
                     )) =>
             {
-                if *mode == Some(Mode::Consume) && self.locals[root.0].parameter_mode.is_some() {
+                if !source.provisional
+                    && *mode == Some(Mode::Consume)
+                    && self.locals[root.0].parameter_mode.is_some()
+                {
                     return Err(self.pattern_permission_error(
                         selection,
                         source.local.unwrap_or(root),
@@ -540,7 +809,10 @@ impl Lower<'_> {
                         "consume",
                     ));
                 }
-                if *mode == Some(Mode::Inout) && selection.mode != Some(Mode::Inout) {
+                if !source.provisional
+                    && *mode == Some(Mode::Inout)
+                    && selection.mode != Some(Mode::Inout)
+                {
                     return Err(self.pattern_permission_error(
                         selection,
                         source.local.unwrap_or(root),
@@ -554,8 +826,8 @@ impl Lower<'_> {
                         .get(&span.start)
                         .ok_or(CompileError::InvalidIr("match binding type"))?,
                 )?;
-                let moved = *mode == Some(Mode::Consume);
-                let edited = *mode == Some(Mode::Inout);
+                let moved = !source.provisional && *mode == Some(Mode::Consume);
+                let edited = !source.provisional && *mode == Some(Mode::Inout);
                 let id = LocalId(self.locals.len());
                 self.locals.push(Local {
                     id,

@@ -173,6 +173,18 @@ fn erase_statement_spans(statement: &mut Statement) {
                 erase_expr_spans(value);
             }
         }
+        Statement::GuardControl {
+            value,
+            span,
+            token_span,
+            ..
+        } => {
+            blank(span);
+            blank(token_span);
+            if let Some(value) = value {
+                erase_expr_spans(value);
+            }
+        }
         Statement::Value {
             value,
             marker,

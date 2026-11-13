@@ -5,7 +5,7 @@ use crate::diagnostic::{
     Cause, CauseKind, CauseOperation, DataValue, Entity, EntityKind, Evidence, Operation,
     RelatedRole, RelatedSpan, Span, Stage,
 };
-use crate::frontend::parse::{Ast, Statement, WithClause};
+use crate::frontend::parse::{Ast, Else, Expr, Statement, WithClause};
 
 use super::model::{EffectSummary, Function, Op, Program, Ty};
 
@@ -739,6 +739,101 @@ fn add(a: EffectSummary, b: EffectSummary) -> EffectSummary {
     }
 }
 
+fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
+    fn expr(value: &Expr, out: &mut Vec<Span>) {
+        match value {
+            Expr::Match(selection) => selection_spans(selection, out),
+            Expr::Array(items, _) => {
+                for item in items {
+                    expr(item, out);
+                }
+            }
+            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => expr(inner, out),
+            Expr::Binary { left, right, .. } => {
+                expr(left, out);
+                expr(right, out);
+            }
+            Expr::Call { target, args, .. } => {
+                expr(target, out);
+                for arg in args {
+                    expr(&arg.value, out);
+                }
+            }
+            Expr::Index { target, index, .. } => {
+                expr(target, out);
+                expr(index, out);
+            }
+            Expr::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                expr(condition, out);
+                guard_spans(then_block, out);
+                if let Some(other) = otherwise {
+                    match other.as_ref() {
+                        Else::Block(block) => guard_spans(block, out),
+                        Else::If(value) => expr(value, out),
+                    }
+                }
+            }
+            Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+        }
+    }
+    fn selection_spans(selection: &crate::frontend::parse::Match, out: &mut Vec<Span>) {
+        expr(&selection.scrutinee, out);
+        for arm in &selection.arms {
+            if let Some(guard) = &arm.guard {
+                out.push(guard.span().clone());
+                expr(guard, out);
+            }
+            guard_spans(&arm.body, out);
+        }
+    }
+    for statement in &block.statements {
+        match statement {
+            Statement::Match(selection) => selection_spans(selection, out),
+            Statement::Let { value, .. } | Statement::Expr { value, .. } => expr(value, out),
+            Statement::Assign { place, value, .. } => {
+                expr(place, out);
+                expr(value, out);
+            }
+            Statement::Return { value, .. }
+            | Statement::GuardControl { value, .. }
+            | Statement::Value { value, .. } => {
+                if let Some(value) = value {
+                    expr(value, out);
+                }
+            }
+            Statement::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                expr(condition, out);
+                guard_spans(then_block, out);
+                if let Some(other) = otherwise {
+                    let synthetic = crate::frontend::parse::Block {
+                        statements: vec![(**other).clone()],
+                        span: crate::frontend::parse::statement_span(other).clone(),
+                        close_span: crate::frontend::parse::statement_span(other).clone(),
+                    };
+                    guard_spans(&synthetic, out);
+                }
+            }
+            Statement::While {
+                condition, body, ..
+            } => {
+                expr(condition, out);
+                guard_spans(body, out);
+            }
+            Statement::Block(body) => guard_spans(body, out),
+        }
+    }
+}
+
 #[cfg(test)]
 fn call_components(program: &Program) -> Vec<Vec<usize>> {
     let rank: Vec<_> = (0..program.functions.functions().len()).collect();
@@ -921,10 +1016,110 @@ pub(super) fn analyze(
     }
 
     let mut errors = Vec::new();
+    let mut reported_guard_sites = HashSet::new();
     for (index, f) in program.functions.functions().iter().enumerate() {
         let Some(source_function) = source_functions.get(f.name.as_str()).copied() else {
             continue;
         };
+        let mut guards = Vec::new();
+        guard_spans(&source_function.body, &mut guards);
+        for guard in guards {
+            let in_guard = |span: &Span| guard.start <= span.start && span.end <= guard.end;
+            let mut candidates: Vec<(u64, usize, u8, Witness)> = Vec::new();
+            for witness in &local[index] {
+                if in_guard(&witness.primary)
+                    && let Some((rank, (bit, _, _))) =
+                        EFFECTS.iter().enumerate().find(|(_, (bit, _, _))| {
+                            (witness.summary.known | witness.summary.unknown) & bit != 0
+                        })
+                {
+                    candidates.push((witness.primary.start, rank, *bit, witness.clone()));
+                }
+            }
+            for block in std::iter::once(&f.block).chain(&f.blocks) {
+                for instruction in &block.instructions {
+                    let Op::CallDirect { function, .. } = &instruction.op else {
+                        continue;
+                    };
+                    if !in_guard(&instruction.span) {
+                        continue;
+                    }
+                    let Some(&target) = indices.get(function) else {
+                        continue;
+                    };
+                    let Some((rank, (bit, _, _))) =
+                        EFFECTS.iter().enumerate().find(|(_, (bit, _, _))| {
+                            (summaries[target].known | summaries[target].unknown) & bit != 0
+                        })
+                    else {
+                        continue;
+                    };
+                    let Some(mut witness) = find_witness(program, ast, &local, target, *bit) else {
+                        continue;
+                    };
+                    let primary = call_head(&instruction.span, &f.source_text);
+                    witness.primary = primary.clone();
+                    witness.chain.insert(
+                        0,
+                        Cause {
+                            kind: CauseKind::Call,
+                            operation: CauseOperation::FunctionCall,
+                            span: Some(primary.clone()),
+                            entity: Some(Entity {
+                                kind: EntityKind::Function,
+                                id: format!(
+                                    "function:{}",
+                                    source_functions
+                                        .get(program.functions.functions()[target].name.as_str())
+                                        .map_or(0, |function| function.name_span.start)
+                                ),
+                            }),
+                            evidence: Evidence::Verified,
+                        },
+                    );
+                    candidates.push((primary.start, rank, *bit, witness));
+                }
+            }
+            candidates.sort_by_key(|(site, rank, _, _)| (*site, *rank));
+            for (_, _, bit, witness) in candidates {
+                if !reported_guard_sites.insert((index, witness.primary.start, witness.primary.end))
+                {
+                    continue;
+                }
+                let required = EFFECTS
+                    .iter()
+                    .find(|(candidate, _, _)| *candidate == bit)
+                    .map(|(_, name, _)| *name)
+                    .unwrap_or("alloc");
+                let mut d = crate::check::names::diagnostic(
+                    "NX-E1305",
+                    Some("guard_effect"),
+                    Stage::Effects,
+                    Operation::EffectsCheck,
+                    witness.primary,
+                );
+                d.message = "La guarda tiene un efecto prohibido.".into();
+                d.cause_chain = witness.chain;
+                d.data.insert(
+                    "effect_model".into(),
+                    DataValue::String("f0-0003-sim-v1".into()),
+                );
+                d.data.insert(
+                    "effect_evidence".into(),
+                    DataValue::String(
+                        if witness.summary.known & bit != 0 {
+                            "known_effect"
+                        } else {
+                            "unknown_effect"
+                        }
+                        .into(),
+                    ),
+                );
+                d.data
+                    .insert("required_effect".into(), DataValue::String(required.into()));
+                errors.push(*d);
+            }
+        }
         let restrictions: Vec<_> = match source_function.with_clause.as_ref() {
             Some(WithClause::Simple(items)) => items.iter().collect(),
             Some(WithClause::Operations(ops)) => ops
@@ -1466,6 +1661,7 @@ fn return_spans_statement(statement: &Statement, source: &str) -> Vec<Span> {
             .collect(),
         Statement::Let { .. }
         | Statement::Assign { .. }
+        | Statement::GuardControl { .. }
         | Statement::Value { .. }
         | Statement::Expr { .. } => Vec::new(),
     }

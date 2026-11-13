@@ -245,6 +245,24 @@ fn stmt(statement: &Statement, out: &mut Writer) {
             }
             out.terminator(span.end as usize);
         }
+        Statement::GuardControl {
+            token,
+            value,
+            span,
+            token_span,
+        } => {
+            at(
+                out,
+                token,
+                Role::Word,
+                token_span.start as usize,
+                token_span.end as usize,
+            );
+            if let Some(value) = value {
+                expr(value, out, 0);
+            }
+            out.terminator(span.end as usize);
+        }
         Statement::Value {
             value,
             marker,

@@ -463,7 +463,9 @@ impl Resolver {
                 self.expr(place, false)?;
                 self.expr(value, false)
             }
-            Statement::Return { value, .. } | Statement::Value { value, .. } => {
+            Statement::Return { value, .. }
+            | Statement::GuardControl { value, .. }
+            | Statement::Value { value, .. } => {
                 if let Some(e) = value {
                     self.expr(e, false)?;
                 }
@@ -650,13 +652,16 @@ impl Resolver {
         self.expr(&selection.scrutinee, false)?;
         for arm in &selection.arms {
             self.scopes.push(HashMap::new());
-            let checked = (|| {
-                self.pattern(&arm.pattern)?;
-                if let Some(guard) = &arm.guard {
-                    self.expr(guard, false)?;
-                }
-                self.block(&arm.body, true)
-            })();
+            let pattern = self.pattern(&arm.pattern);
+            if let Err(error) = pattern {
+                self.errors.push(error);
+            }
+            if let Some(guard) = &arm.guard
+                && let Err(error) = self.expr(guard, false)
+            {
+                self.errors.push(error);
+            }
+            let checked = self.block(&arm.body, true);
             self.scopes.pop();
             checked?;
         }

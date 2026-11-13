@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare J02-J04, corpus and RD across CLI commands and build modes."""
+"""Compare J02-J05, corpus and RD across CLI commands and build modes."""
 from __future__ import annotations
 
 import json
@@ -17,7 +17,7 @@ RUST_STRING = re.compile(r'r#"(.*?)"#|"((?:\\.|[^"\\])*)"', re.S)
 
 def examples() -> list[tuple[str, str, str, Path | None, Path | None]]:
     rows = []
-    for name in ("j02_option", "j03_match", "j04_match_ownership", "j04_match_semantics"):
+    for name in ("j02_option", "j03_match", "j04_match_ownership", "j04_match_semantics", "j05_match_guards"):
         path = ROOT / "tests" / f"{name}.rs"
         for index, match in enumerate(RUST_STRING.finditer(path.read_text(encoding="utf-8"))):
             raw = match.group(1) if match.group(1) is not None else match.group(2)
