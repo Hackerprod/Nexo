@@ -203,7 +203,7 @@ def main() -> int:
         cells_output = cargo_test(
             mode,
             "--test",
-            "i11a_val57",
+            "run_cli_diagnostics_and_cells",
             "cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets",
             "--",
             "--exact",
@@ -214,7 +214,7 @@ def main() -> int:
         liveness_output = cargo_test(
             mode,
             "--test",
-            "i11a_val57",
+            "run_cli_diagnostics_and_cells",
             "cells64_write_and_reply_literal_arguments_keep_the_current_frontier",
             "--",
             "--exact",
@@ -225,7 +225,7 @@ def main() -> int:
         prior_cells_output = cargo_test(
             mode,
             "--test",
-            "i11a_val56",
+            "mock_env_json_and_read_boundaries",
             "read_err_and_mixed_record_reservations_cover_cells_64_boundaries",
             "--",
             "--exact",
@@ -233,11 +233,11 @@ def main() -> int:
         if "test result: ok" not in prior_cells_output:
             sys.stderr.write(prior_cells_output)
             raise SystemExit(f"legacy cells-64 Err/mixed frontier failed: {mode}")
-        cli_output = cargo_test(mode, "--test", "i11a_val57")
+        cli_output = cargo_test(mode, "--test", "run_cli_diagnostics_and_cells")
         if "8 passed" not in cli_output or "0 failed" not in cli_output:
             sys.stderr.write(cli_output)
             raise SystemExit(f"val57 regression suite failed: {mode}")
-        profile_output = cargo_test(mode, "--test", "i11a_val58", "--", "--nocapture")
+        profile_output = cargo_test(mode, "--test", "runtime_profiles_and_resource_limits", "--", "--nocapture")
         if (
             "16 passed" not in profile_output
             or "1 ignored" not in profile_output
@@ -253,7 +253,7 @@ def main() -> int:
         ir_items_output = cargo_test(
             mode,
             "--test",
-            "i11a_val58",
+            "runtime_profiles_and_resource_limits",
             "normal_ir_item_limit_is_profiled_and_reports_the_declared_budget",
             "--",
             "--ignored",
@@ -264,7 +264,7 @@ def main() -> int:
             sys.stderr.write(ir_items_output)
             raise SystemExit(f"normal ir_items source boundary failed: {mode}")
 
-        profile_wiring_output = cargo_test(mode, "--test", "i11a_val60")
+        profile_wiring_output = cargo_test(mode, "--test", "analysis_profiles_and_quotas")
         if "3 passed" not in profile_wiring_output or "0 failed" not in profile_wiring_output:
             sys.stderr.write(profile_wiring_output)
             raise SystemExit(f"I11a CLI profile wiring and error-route matrix failed: {mode}")
@@ -272,7 +272,7 @@ def main() -> int:
         cli_argv_output = cargo_test(
             mode,
             "--test",
-            "i11a_val62_cli",
+            "run_argv_matrix",
             "generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle",
             "--",
             "--exact",
@@ -339,7 +339,7 @@ def main() -> int:
                     "record_counts": list(range(28, 35)),
                     "patterns": ["all_err", "alternating_ok_err"],
                     "exact_diagnostic": "R0002",
-                    "test": "i11a_val56::read_err_and_mixed_record_reservations_cover_cells_64_boundaries",
+                    "test": "mock_env_json_and_read_boundaries::read_err_and_mixed_record_reservations_cover_cells_64_boundaries",
                 },
                 "cells_64_read_record_matrix": {
                     "result_record_counts": [0, 1, 2, 30],
@@ -347,7 +347,7 @@ def main() -> int:
                     "outer_read_results": ["ok", "err"],
                     "frontier_observed": [64, 65],
                     "empty_ok_reservation_cells": 2,
-                    "test": "i11a_val57::cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets",
+                    "test": "run_cli_diagnostics_and_cells::cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets",
                 },
                 "write_reply_literal_argument_liveness": {
                     "profile": "cells-64",
@@ -356,14 +356,14 @@ def main() -> int:
                     "observed_over_limit": 65,
                     "operations": ["MockWriteI64(25)", "MockReply(200)"],
                     "normative_status": "A2 does not specify whether evaluated literal arguments remain live while reserving the result",
-                    "test": "i11a_val57::cells64_write_and_reply_literal_arguments_keep_the_current_frontier",
+                    "test": "run_cli_diagnostics_and_cells::cells64_write_and_reply_literal_arguments_keep_the_current_frontier",
                 },
                 "prior_err_and_mixed_cell_frontier": {
-                    "test": "i11a_val56::read_err_and_mixed_record_reservations_cover_cells_64_boundaries",
+                    "test": "mock_env_json_and_read_boundaries::read_err_and_mixed_record_reservations_cover_cells_64_boundaries",
                     "status": "retained_and_reexecuted",
                 },
                 "runtime_profile_limit_matrix": {
-                    "test": "i11a_val58::runtime_profile_table_drives_work_frames_cells_and_observation_boundaries",
+                    "test": "runtime_profiles_and_resource_limits::runtime_profile_table_drives_work_frames_cells_and_observation_boundaries",
                     "profiles": [
                         "f0-0002-b-v2",
                         "f0-0002-b-test-types-32-v2",
@@ -383,7 +383,7 @@ def main() -> int:
                         "cells_L_plus_one": "R0002 live_value_cells observed=65537",
                     },
                     "ir32_analysis_preemption": {
-                        "test": "i11a_val58::ir_32_analysis_profile_reports_its_own_limit_before_runtime_execution",
+                        "test": "runtime_profiles_and_resource_limits::ir_32_analysis_profile_reports_its_own_limit_before_runtime_execution",
                         "analysis_limit": 32,
                         "standard_resource_witnesses": ["work", "call_frames", "live_value_cells", "observation_bytes"],
                         "preemption": "NX-E0003 ir_items limit=32 observed=33 before runtime",
@@ -391,9 +391,9 @@ def main() -> int:
                     },
                 },
                 "analysis_profile_cli_wiring": {
-                    "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier",
-                    "boundary_test": "i11a_val60::reduced_analysis_source_frontiers_are_transcribed_from_the_profile_table",
-                    "error_routes_test": "i11a_val60::selected_profile_is_preserved_on_input_and_mock_environment_failures",
+                    "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier",
+                    "boundary_test": "analysis_profiles_and_quotas::reduced_analysis_source_frontiers_are_transcribed_from_the_profile_table",
+                    "error_routes_test": "analysis_profiles_and_quotas::selected_profile_is_preserved_on_input_and_mock_environment_failures",
                     "profiles": [
                         "f0-0002-b-v2",
                         "f0-0002-b-test-types-32-v2",
@@ -429,7 +429,7 @@ def main() -> int:
                     "repetition": ["once", "same_value", "different_values"],
                     "cases": 1904,
                     "comparison": "literal exit code, stdout bytes, and stderr bytes",
-                    "test": "i11a_val62_cli::generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle",
+                    "test": "run_argv_matrix::generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle",
                     "normative_basis": ["A2 §12.4", "D15 §7.1", "D4", "coordination decision D5"],
                 },
                 "unicode_escape_key_value_matrix": {
@@ -447,10 +447,10 @@ def main() -> int:
                     "limit": 262_144,
                     "observed": 262_145,
                     "source_case_count": 1,
-                    "test": "i11a_val58::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget",
+                    "test": "runtime_profiles_and_resource_limits::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget",
                 },
                 "temporary_resource_entry_tick_matrix": {
-                    "test": "i11a_val58::entry_tick_exhaustion_closes_every_temporary_resource_primitive",
+                    "test": "runtime_profiles_and_resource_limits::entry_tick_exhaustion_closes_every_temporary_resource_primitive",
                     "primitives": [
                         "MockReadRecords(MockOpen(1))?",
                         "Inspect(MockOpen(1))",
@@ -491,14 +491,14 @@ def main() -> int:
                         "mock_env_too_large",
                         "compile_error",
                     ],
-                    "test": "i11a_val57::run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings",
+                    "test": "run_cli_diagnostics_and_cells::run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings",
                 },
                 "unreadable_cli_shapes_and_formats": {
                     "file_shapes": ["missing", "directory"],
                     "formats": ["json", "text"],
                     "expected_reason": "mock_env_unreadable",
-                    "test": "i11a_val56::unreadable_environment_is_exact_json_and_text_for_missing_and_directory",
-                    "read_error_after_open_test": "i11a_val56::read_failure_after_open_is_reported_as_unreadable",
+                    "test": "mock_env_json_and_read_boundaries::unreadable_environment_is_exact_json_and_text_for_missing_and_directory",
+                    "read_error_after_open_test": "mock_env_json_and_read_boundaries::read_failure_after_open_is_reported_as_unreadable",
                 },
             }
         )

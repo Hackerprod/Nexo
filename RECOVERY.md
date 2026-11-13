@@ -173,14 +173,14 @@ Regeneración actual del estado: `docs/validation/F0-0002-I11a-estado.json`; sus
 
 ## Recuperación I11a val57 — estado local vigente (2026-11-09)
 
-Las regresiones val57 están en `tests/i11a_val57.rs`; ejecutar `cargo test --locked --offline --test i11a_val57`. La suite normal de `tests/mock_oracle.rs` corre la campaña estructural reducida determinista (36.576 mutaciones más 28 fronteras) sin `#[ignore]`. `python -B scripts/i11a_campanas.py` reproduce 100.000 casos debug/202611091201 y 300.000 release/202611091202, además de 562.999 mutaciones documentales por perfil. `python -B scripts/i11a_mutaciones.py` reaplica secuencialmente la población completa en una copia desechable; estado medido: 219 registros, 203 muertos, 15 equivalentes, una deuda D2 y cero supervivientes no equivalentes, restauración SHA-256 en cada caso.
+Las regresiones val57 están en `tests/run_cli_diagnostics_and_cells.rs`; ejecutar `cargo test --locked --offline --test run_cli_diagnostics_and_cells`. La suite normal de `tests/mock_oracle.rs` corre la campaña estructural reducida determinista (36.576 mutaciones más 28 fronteras) sin `#[ignore]`. `python -B scripts/i11a_campanas.py` reproduce 100.000 casos debug/202611091201 y 300.000 release/202611091202, además de 562.999 mutaciones documentales por perfil. `python -B scripts/i11a_mutaciones.py` reaplica secuencialmente la población completa en una copia desechable; estado medido: 219 registros, 203 muertos, 15 equivalentes, una deuda D2 y cero supervivientes no equivalentes, restauración SHA-256 en cada caso.
 
 La matriz cells-64 comprueba 0/1/2/30 registros Ok/Err/mezclados, el Err exterior, eventos y las fronteras observadas 64/65; Ok vacío reserva 2 celdas. D3 conserva como laguna de A2 §11.6 ll. 1063–1064 la vida del argumento literal de `MockWriteI64`/`MockReply` durante la reserva del resultado. La política vinculante para duplicados y valores `--` de opciones se documenta con sus citas en `docs/validation/F0-0002-I11a-implementation-notes.md`. Las secciones I11a fechadas con métricas anteriores son históricas y quedan supersedidas por val57. Regenerar `docs/validation/F0-0002-I11a-estado.json` después de toda modificación a documentos hashados. Revisión independiente, aprobación del propietario, I11b y puertas F0 siguen pendientes.
 
 Verificación local final: `sh scripts/validate.sh` en copia limpia sin artefactos temporales ni `target` iniciales terminó con código 0; debug 1490 aprobadas/66 ignoradas, release 1492/67, fmt, Clippy `-D warnings`, RD 152/152 en ambos perfiles y cero diferencias. La copia/target se retiraron. Revisión independiente y decisión de fase del propietario siguen pendientes.
 ## Recuperación I11a val58 — estado local
 
-El árbol de trabajo corrige el cierre de recursos temporales cuando R0001 deniega el tick de entrada a `MockReadRecords`, `Inspect` o `Drop`, incluido `Drop(MockBlockingOpen(1))`. La única ruta de limpieza es `dispose_intrinsic_resources` → `dispose` → `emit_reserved_event`. Las regresiones de `tests/i11a_val58.rs` comparan B, span, diagnóstico, eventos, bytes y reserva en texto/JSON.
+El árbol de trabajo corrige el cierre de recursos temporales cuando R0001 deniega el tick de entrada a `MockReadRecords`, `Inspect` o `Drop`, incluido `Drop(MockBlockingOpen(1))`. La única ruta de limpieza es `dispose_intrinsic_resources` → `dispose` → `emit_reserved_event`. Las regresiones de `tests/runtime_profiles_and_resource_limits.rs` comparan B, span, diagnóstico, eventos, bytes y reserva en texto/JSON.
 
 Registro histórico de val58: campañas `python -B scripts/i11a_campanas.py` (debug 202611091301/100000, release 202611091302/300000; matriz de fronteras de perfil y testigo normal `ir_items`) y población de aquella ronda: 295 registros, 279 muertos, 15 equivalencias justificadas y D2 como deuda, sin supervivientes no equivalentes y SHA restaurado por registro. Para regenerar la población Release vigente, ejecutar `python -B scripts/i11a_mutaciones.py --quick-release`. D3 y las observaciones normativas de repetición de `explain`, `observed` de reserva de cierre y `profile_id` desconocido quedan en notas/JSON como deudas, no equivalencias.
 
@@ -202,7 +202,7 @@ Verificación final después de alinear catálogo/CLI: `sh scripts/validate.sh` 
 
 ## Recuperación tras val59 (2026-11-10)
 
-El corte corrigió `observed` de la adquisición `MockOpen` para contar el evento de apertura más el cierre reservado antes de abrir (A2 §11.5 ll. 967–970; §12.4 ll. 1594–1596) y hace único `--format` en `explain` según A2 §13.10 l. 2210. Las seis regresiones están en `tests/i11a_val59.rs`; la suite val58 tiene 16 activas y una ignorada, no los recuentos históricos previos de 14/15.
+El corte corrigió `observed` de la adquisición `MockOpen` para contar el evento de apertura más el cierre reservado antes de abrir (A2 §11.5 ll. 967–970; §12.4 ll. 1594–1596) y hace único `--format` en `explain` según A2 §13.10 l. 2210. Las seis regresiones están en `tests/explain_and_print_output.rs`; la suite val58 tiene 16 activas y una ignorada, no los recuentos históricos previos de 14/15.
 
 Registro histórico de val59: campañas con `python -B scripts/i11a_campanas.py` y población de aquella ronda, SHA-256 `0a8dbe7b7312e5fd87ab0d72bc9d917cc0b498b3b26486588c4672a9f6a35849` y `b3f17316dc3d71359ff025d637d67ac139adb8890afe38d1b453fd5ee70aab92`; 341 registros, 324 muertos, 16 equivalencias, D2 como deuda y cero supervivientes no equivalentes, todos restaurados. La población Release vigente se reproduce con `python -B scripts/i11a_mutaciones.py --quick-release`.
 
@@ -210,7 +210,7 @@ Validación en clon limpio sin archivos temporales ni artefactos de compilación
 
 ## Recuperación tras val60 — avance local (2026-11-11)
 
-Las pruebas de perfiles/diagnósticos están en `tests/i11a_val60.rs`. Reproducir la población con `python -B scripts/i11a_mutaciones.py --quick-release`, las campañas con `python -B scripts/i11a_campanas.py` y el estado con `python -B scripts/i11a_estado.py`. Sin `--quick-release`, el script genera el artefacto del perfil debug y omite las comprobaciones adicionales de `from_id`, por lo que no reproduce el JSON versionado. La población Release incluye los mutantes no equivalentes y las equivalencias de `ReducedProfile::from_id`; además verifica cada literal/variante del despacho por separado.
+Las pruebas de perfiles/diagnósticos están en `tests/analysis_profiles_and_quotas.rs`. Reproducir la población con `python -B scripts/i11a_mutaciones.py --quick-release`, las campañas con `python -B scripts/i11a_campanas.py` y el estado con `python -B scripts/i11a_estado.py`. Sin `--quick-release`, el script genera el artefacto del perfil debug y omite las comprobaciones adicionales de `from_id`, por lo que no reproduce el JSON versionado. La población Release incluye los mutantes no equivalentes y las equivalencias de `ReducedProfile::from_id`; además verifica cada literal/variante del despacho por separado.
 
 ## Recuperación posterior al cierre de verificación val60 (2026-11-11)
 
@@ -220,7 +220,7 @@ La auditoría extendida que incluye `F0-0002-I11a-estado.json` y `scripts/i11a_e
 
 ## Recuperación posterior a val61 (2026-11-12)
 
-La regresión CLI está en `tests/val61_kills.rs`; la población Release vigente se vuelve a generar con `python -B scripts/i11a_mutaciones.py --quick-release`. Sin el flag se genera el perfil debug y se omiten las comprobaciones adicionales de `from_id`, por lo que el artefacto no coincide con el JSON versionado. Población repetida byte a byte: 357 registros, 335 muertos, 21 equivalencias, D2 como deuda y cero supervivientes no equivalentes; SHA-256 `07fff7450c9cc2922c275351509b96768dcbebff4e85a3dc256dc6305c2283eb`. Las campañas se reprodujeron dos veces, SHA-256 `6e95dfd9dcb5ead8ee2835c94d2604e008cf0699499b312637a67d4809a57e8d`.
+La regresión CLI está en `tests/run_argv_dash_value_semantics.rs`; la población Release vigente se vuelve a generar con `python -B scripts/i11a_mutaciones.py --quick-release`. Sin el flag se genera el perfil debug y se omiten las comprobaciones adicionales de `from_id`, por lo que el artefacto no coincide con el JSON versionado. Población repetida byte a byte: 357 registros, 335 muertos, 21 equivalencias, D2 como deuda y cero supervivientes no equivalentes; SHA-256 `07fff7450c9cc2922c275351509b96768dcbebff4e85a3dc256dc6305c2283eb`. Las campañas se reprodujeron dos veces, SHA-256 `6e95dfd9dcb5ead8ee2835c94d2604e008cf0699499b312637a67d4809a57e8d`.
 
 La validación local debug/release y el clon limpio sin metadatos Git, temporales ni target inicial terminaron sin fallos: 1523/67 y 1525/68; RD 152/152 en ambos perfiles y cero diferencias de snapshot; fmt y Clippy `-D warnings` incluidos. Clon y target eliminados. Regenerar dos veces el estado después de las notas finales; revisión independiente, I11b, puertas F0 y aprobación de fase siguen pendientes.
 
@@ -230,7 +230,7 @@ Tras este último cambio documental, `scripts/i11a_estado.py` se ejecutó dos ve
 
 ## Recuperación posterior a val62 (2026-11-12)
 
-Las nueve regresiones nuevas están en `tests/val62_kills.rs`; `tests/i11a_val62_cli.rs` genera 1.904 casos de argv con oráculo D5/D15/A2 y `mock_oracle` comprueba cada escape Unicode y par sustituto en clave/valor. La población rápida Release se repitió con `nohup` y fue idéntica: 399 registros (370 muertos, 28 equivalencias, D2), cero supervivientes no equivalentes, todos los SHA restaurados; 18/18 `from_id`. SHA-256 `8bd129ebec20d79ca67683784589a3683ca37f1ce5d626a1c19275a2682b7f57`. Campañas repetidas: SHA-256 `becb61067d6dcad6776db87384a2eef49e96e239f3789ccaa54703e5516e11e9`.
+Las nueve regresiones nuevas están en `tests/cli_argument_and_unicode_edges.rs`; `tests/run_argv_matrix.rs` genera 1.904 casos de argv con oráculo D5/D15/A2 y `mock_oracle` comprueba cada escape Unicode y par sustituto en clave/valor. La población rápida Release se repitió con `nohup` y fue idéntica: 399 registros (370 muertos, 28 equivalencias, D2), cero supervivientes no equivalentes, todos los SHA restaurados; 18/18 `from_id`. SHA-256 `8bd129ebec20d79ca67683784589a3683ca37f1ce5d626a1c19275a2682b7f57`. Campañas repetidas: SHA-256 `becb61067d6dcad6776db87384a2eef49e96e239f3789ccaa54703e5516e11e9`.
 
 La validación completa en clon limpio, RD, auditorías finales y regeneración del estado tras documentos siguen pendientes. No reanudar cambios de producción salvo un fallo observado en esta pasada; no hay commit ni push.
 
@@ -247,3 +247,7 @@ La matriz completa, los defectos de núcleo y el inventario de pruebas ignoradas
 Evidencia dirigida: por separado, `scripts/i07c_rd_conformidad.py --verify` dio RD 152/152 check/run en cada perfil, sin diferencias; fuzz parser/JSON/argv 20.000 casos por familia y diferencial mock 100.000 sin pánicos, errores internos, IR inválido o cuelgues; corpus 5 válidos y 10 inválidos, con check/run y debug/release concordantes. Progreso objetivo actual: 10/29. No modificar baseline ni cambiar los umbrales no normativos al reanudar. Revisión independiente y aprobación de fase siguen pendientes.
 
 Validación de suites I11b en clon limpio: exit 0, fmt, Clippy `-D warnings`, debug 1.543/0/67 y release 1.545/0/68. Diferencial de corpus cruzado pasó en ambos sentidos. Por separado, `scripts/i07c_rd_conformidad.py --verify` dio RD 152/152 y cero diferencias de snapshot por perfil. Las 68 pruebas ignoradas tienen motivo; las 14 de integración pasan. Las mediciones de escala/tiempo sin cifra ADR permanecen en Pending como NB-I11b-01..08. Objetivo actualizado: 10/29; la siguiente operación es regenerar dos veces el estado hashado.
+
+## Higiene de nombres de pruebas (2026-11-13)
+
+Las referencias en scripts y artefactos usan los nombres actuales de los nueve targets. Para listar/compilar: `cargo test --locked --offline --release --test <target> -- --list`. La verificaci?n limpia confirm? debug 1.543/67, release 1.545/68 y RD 152/152 por perfil. El humo de un mutante aislado termin? detectado; el generador de campa?as no ofrece tama?o reducido, as? que no se lanz? la campa?a completa.

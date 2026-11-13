@@ -26,10 +26,10 @@ HASHED_DOCUMENTS = [
 
 # Explicit measurements from the full verification run on this date. Values
 # derivable from result artifacts and the RD fixture are computed below.
-MEASURED_ON = "2026-11-12"
+MEASURED_ON = "2026-11-13"
 MEASURED_TESTS = {
-    "debug": {"passed": 1535, "failed": 0, "ignored": 67},
-    "release": {"passed": 1537, "failed": 0, "ignored": 68},
+    "debug": {"passed": 1543, "failed": 0, "ignored": 67},
+    "release": {"passed": 1545, "failed": 0, "ignored": 68},
 }
 MEASURED_RD_SNAPSHOT_DIFFERENCES = 0
 

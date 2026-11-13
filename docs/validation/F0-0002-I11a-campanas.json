@@ -2,7 +2,7 @@
   "campaigns": [
     {
       "analysis_profile_cli_wiring": {
-        "boundary_test": "i11a_val60::reduced_analysis_source_frontiers_are_transcribed_from_the_profile_table",
+        "boundary_test": "analysis_profiles_and_quotas::reduced_analysis_source_frontiers_are_transcribed_from_the_profile_table",
         "diagnostic_classes": [
           "NX-E0003",
           "NX-E0004",
@@ -15,7 +15,7 @@
           "text",
           "json"
         ],
-        "error_routes_test": "i11a_val60::selected_profile_is_preserved_on_input_and_mock_environment_failures",
+        "error_routes_test": "analysis_profiles_and_quotas::selected_profile_is_preserved_on_input_and_mock_environment_failures",
         "normative_basis": [
           "A2 §11.4–§11.6",
           "D15 §6.1",
@@ -32,7 +32,7 @@
           "f0-0002-b-test-cells-64-v2",
           "f0-0002-b-test-observations-64-v2"
         ],
-        "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+        "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
       },
       "batch_cases": 1000,
       "campaign": "independent_parser_and_runtime_oracle",
@@ -53,7 +53,7 @@
           33,
           34
         ],
-        "test": "i11a_val56::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
+        "test": "mock_env_json_and_read_boundaries::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
       },
       "cells_64_read_record_matrix": {
         "empty_ok_reservation_cells": 2,
@@ -76,7 +76,7 @@
           2,
           30
         ],
-        "test": "i11a_val57::cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
+        "test": "run_cli_diagnostics_and_cells::cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
       },
       "cli_option_matrix": {
         "formats": [
@@ -110,7 +110,7 @@
           "mock_env_too_large",
           "compile_error"
         ],
-        "test": "i11a_val57::run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
+        "test": "run_cli_diagnostics_and_cells::run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
       },
       "document_mutation_campaign": {
         "accepted": 2836,
@@ -173,7 +173,7 @@
         "observed": 262145,
         "profile": "f0-0002-b-v2",
         "source_case_count": 1,
-        "test": "i11a_val58::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget"
+        "test": "runtime_profiles_and_resource_limits::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget"
       },
       "parser_categories": 128,
       "parser_category_counts": [
@@ -308,7 +308,7 @@
       ],
       "prior_err_and_mixed_cell_frontier": {
         "status": "retained_and_reexecuted",
-        "test": "i11a_val56::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
+        "test": "mock_env_json_and_read_boundaries::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
       },
       "rejection_counts": {
         "invalid_mock_json": 52151,
@@ -345,7 +345,7 @@
           "same_value",
           "different_values"
         ],
-        "test": "i11a_val62_cli::generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle",
+        "test": "run_argv_matrix::generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle",
         "values": [
           "option_absent",
           "value_absent",
@@ -378,7 +378,7 @@
             "live_value_cells",
             "observation_bytes"
           ],
-          "test": "i11a_val58::ir_32_analysis_profile_reports_its_own_limit_before_runtime_execution"
+          "test": "runtime_profiles_and_resource_limits::ir_32_analysis_profile_reports_its_own_limit_before_runtime_execution"
         },
         "minimum_per_profile_resource": 3,
         "observation64_preempts_cells64_frontier": {
@@ -401,7 +401,7 @@
           "live_value_cells",
           "observation_bytes"
         ],
-        "test": "i11a_val58::runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+        "test": "runtime_profiles_and_resource_limits::runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
       },
       "schema_enumeration": {
         "cases": 302,
@@ -471,7 +471,7 @@
         ],
         "required_observation_bytes": 47,
         "required_reserved_observation_bytes": 0,
-        "test": "i11a_val58::entry_tick_exhaustion_closes_every_temporary_resource_primitive",
+        "test": "runtime_profiles_and_resource_limits::entry_tick_exhaustion_closes_every_temporary_resource_primitive",
         "work_limit": 1000000
       },
       "unicode_escape_key_value_matrix": {
@@ -494,8 +494,8 @@
           "json",
           "text"
         ],
-        "read_error_after_open_test": "i11a_val56::read_failure_after_open_is_reported_as_unreadable",
-        "test": "i11a_val56::unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
+        "read_error_after_open_test": "mock_env_json_and_read_boundaries::read_failure_after_open_is_reported_as_unreadable",
+        "test": "mock_env_json_and_read_boundaries::unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
       },
       "work_boundary": {
         "diagnostic": "R0001",
@@ -512,12 +512,12 @@
           "MockReply(200)"
         ],
         "profile": "cells-64",
-        "test": "i11a_val57::cells64_write_and_reply_literal_arguments_keep_the_current_frontier"
+        "test": "run_cli_diagnostics_and_cells::cells64_write_and_reply_literal_arguments_keep_the_current_frontier"
       }
     },
     {
       "analysis_profile_cli_wiring": {
-        "boundary_test": "i11a_val60::reduced_analysis_source_frontiers_are_transcribed_from_the_profile_table",
+        "boundary_test": "analysis_profiles_and_quotas::reduced_analysis_source_frontiers_are_transcribed_from_the_profile_table",
         "diagnostic_classes": [
           "NX-E0003",
           "NX-E0004",
@@ -530,7 +530,7 @@
           "text",
           "json"
         ],
-        "error_routes_test": "i11a_val60::selected_profile_is_preserved_on_input_and_mock_environment_failures",
+        "error_routes_test": "analysis_profiles_and_quotas::selected_profile_is_preserved_on_input_and_mock_environment_failures",
         "normative_basis": [
           "A2 §11.4–§11.6",
           "D15 §6.1",
@@ -547,7 +547,7 @@
           "f0-0002-b-test-cells-64-v2",
           "f0-0002-b-test-observations-64-v2"
         ],
-        "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+        "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
       },
       "batch_cases": 1000,
       "campaign": "independent_parser_and_runtime_oracle",
@@ -568,7 +568,7 @@
           33,
           34
         ],
-        "test": "i11a_val56::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
+        "test": "mock_env_json_and_read_boundaries::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
       },
       "cells_64_read_record_matrix": {
         "empty_ok_reservation_cells": 2,
@@ -591,7 +591,7 @@
           2,
           30
         ],
-        "test": "i11a_val57::cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
+        "test": "run_cli_diagnostics_and_cells::cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
       },
       "cli_option_matrix": {
         "formats": [
@@ -625,7 +625,7 @@
           "mock_env_too_large",
           "compile_error"
         ],
-        "test": "i11a_val57::run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
+        "test": "run_cli_diagnostics_and_cells::run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
       },
       "document_mutation_campaign": {
         "accepted": 2836,
@@ -688,7 +688,7 @@
         "observed": 262145,
         "profile": "f0-0002-b-v2",
         "source_case_count": 1,
-        "test": "i11a_val58::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget"
+        "test": "runtime_profiles_and_resource_limits::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget"
       },
       "parser_categories": 128,
       "parser_category_counts": [
@@ -823,7 +823,7 @@
       ],
       "prior_err_and_mixed_cell_frontier": {
         "status": "retained_and_reexecuted",
-        "test": "i11a_val56::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
+        "test": "mock_env_json_and_read_boundaries::read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
       },
       "rejection_counts": {
         "invalid_mock_json": 156461,
@@ -860,7 +860,7 @@
           "same_value",
           "different_values"
         ],
-        "test": "i11a_val62_cli::generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle",
+        "test": "run_argv_matrix::generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle",
         "values": [
           "option_absent",
           "value_absent",
@@ -893,7 +893,7 @@
             "live_value_cells",
             "observation_bytes"
           ],
-          "test": "i11a_val58::ir_32_analysis_profile_reports_its_own_limit_before_runtime_execution"
+          "test": "runtime_profiles_and_resource_limits::ir_32_analysis_profile_reports_its_own_limit_before_runtime_execution"
         },
         "minimum_per_profile_resource": 3,
         "observation64_preempts_cells64_frontier": {
@@ -916,7 +916,7 @@
           "live_value_cells",
           "observation_bytes"
         ],
-        "test": "i11a_val58::runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+        "test": "runtime_profiles_and_resource_limits::runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
       },
       "schema_enumeration": {
         "cases": 302,
@@ -986,7 +986,7 @@
         ],
         "required_observation_bytes": 47,
         "required_reserved_observation_bytes": 0,
-        "test": "i11a_val58::entry_tick_exhaustion_closes_every_temporary_resource_primitive",
+        "test": "runtime_profiles_and_resource_limits::entry_tick_exhaustion_closes_every_temporary_resource_primitive",
         "work_limit": 1000000
       },
       "unicode_escape_key_value_matrix": {
@@ -1009,8 +1009,8 @@
           "json",
           "text"
         ],
-        "read_error_after_open_test": "i11a_val56::read_failure_after_open_is_reported_as_unreadable",
-        "test": "i11a_val56::unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
+        "read_error_after_open_test": "mock_env_json_and_read_boundaries::read_failure_after_open_is_reported_as_unreadable",
+        "test": "mock_env_json_and_read_boundaries::unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
       },
       "work_boundary": {
         "diagnostic": "R0001",
@@ -1027,7 +1027,7 @@
           "MockReply(200)"
         ],
         "profile": "cells-64",
-        "test": "i11a_val57::cells64_write_and_reply_literal_arguments_keep_the_current_frontier"
+        "test": "run_cli_diagnostics_and_cells::cells64_write_and_reply_literal_arguments_keep_the_current_frontier"
       }
     }
   ],

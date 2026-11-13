@@ -102,7 +102,7 @@ Los tests ignorados se inventariaron por nombre y motivo más abajo. Las observa
 | `tests/i10b_campaign.rs::runtime_work_time_ratio_uses_a_calibrated_threshold` | release timing campaign; calibrates runtime work ratio against a linear control |
 | `tests/i11a.rs::i11a_seeded_runtime_campaign` | deterministic I11a campaign; execute with scripts/i11a_campanas.py |
 | `tests/i11a.rs::i11a_seeded_mixed_queue_campaign` | deterministic I11a mixed queue campaign; execute with scripts/i11a_campanas.py |
-| `tests/i11a_val58.rs::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget` | normal-profile ir_items source witness; execute through scripts/i11a_campanas.py |
+| `tests/runtime_profiles_and_resource_limits.rs::normal_ir_item_limit_is_profiled_and_reports_the_declared_budget` | normal-profile ir_items source witness; execute through scripts/i11a_campanas.py |
 | `tests/mock_oracle.rs::mock_oracle_exhaustive_document_mutation_campaign` | exhaustive byte and structural-sequence mutations over valid mock documents |
 | `tests/mock_oracle.rs::mock_oracle_work_cells_priority_probe` | probe no normativo: A2 no ordena el agotamiento simultáneo de trabajo y celdas |
 | `tests/mock_oracle.rs::mock_oracle_differential_campaign` | seeded independent I11a parser/runtime differential campaign |

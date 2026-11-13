@@ -11,7 +11,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "ddd332449b3ecdedf34c397985aa98dc799f26616edfdd6f50a4d3decd3923f7",
@@ -20,7 +20,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "237085f18c073dd49219d333dc822033c081d20413c8181b4d2bc0cf6dd625ac",
@@ -29,7 +29,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "9672cc86d02c0975dc8af2d171b8d366afa4aabf0bddbb2affb2b57fc7320ed5",
@@ -38,7 +38,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "782aff4d1b9328c79ecd6af7fa4f229f27e0e1c86e37eaac563c8ce8a8a17703",
@@ -47,7 +47,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "f1067f719275733cbd3322b9b1fe029e14c6d505d19801c31430e5a397e534e7",
@@ -56,7 +56,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "82c482be3eafcb9925e6244ec9d5fa28262335fc0b80b419e12b7c7a5d10570c",
@@ -65,7 +65,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "95b61f42cab98aaa2d722a0a73fea642d315541ae7d40a565cea1031d0e60c76",
@@ -74,7 +74,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "c8266c4fac2f5e45099ead390f6c37c2449de818cb0eea6f2e41b089f3f064a8",
@@ -83,7 +83,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "11c4f98dbded4a3aa43fb9441b4f801f02d2fc3abbf1932eeb19724c1f22345d",
@@ -92,7 +92,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "60abd24f543669268a1b9e13c061564494b4b2941e41d73197c769cfc5df234a",
@@ -101,7 +101,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "24588efed3e1c20ff8b8d17ea19c18df2e43ab301abff52f6e07e56a90c5623f",
@@ -110,7 +110,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "0a7b425065dd42c38b4f0b9d984ba28bcdd24cc864a7bd5b2c6a1252e11c0dcf",
@@ -119,7 +119,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "69e05a18c485130fc3bf9fe82110b58480033d4386ee3223b81e7b9284fb702e",
@@ -128,7 +128,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "58df0fd55b031cab4df9c83c09cf490cfc5a2e3a21e5fa2a30c09d506a7c0f18",
@@ -137,7 +137,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "a18b158cfd06f71dec334c9eea49b694bca95d48b1ed61c8514cfddb6383b9ab",
@@ -146,7 +146,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "34b165e1675c90a356f75b15843858e79918730f8db53f458dbe378265e86e18",
@@ -155,7 +155,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "id",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "mutated_sha256": "f744d8b71e29d91ec0cede0ccfc53204be3732db5d334ca24f2208700d694ada",
@@ -164,7 +164,7 @@
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "site": "variant",
       "status": "killed",
-      "test": "i11a_val60::analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "analysis_profiles_and_quotas::analysis_quota_profiles_are_selected_by_their_cli_identifier"
     }
   ],
   "mutation_axes": {
@@ -923,7 +923,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_types32_profile_reports_the_exact_source_budget_boundary"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_types32_profile_reports_the_exact_source_budget_boundary"
     },
     {
       "id": "n_effects_write_io",
@@ -1683,7 +1683,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val55 mock_json_boolean_payloads_are_schema_errors"
+      "test": "cargo test --release --test mock_env_records_and_failures mock_json_boolean_payloads_are_schema_errors"
     },
     {
       "id": "v55_canon_plus",
@@ -1763,7 +1763,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val55 mock_reply_events_preserve_negative_status_sign_on_both_results"
+      "test": "cargo test --release --test mock_env_records_and_failures mock_reply_events_preserve_negative_status_sign_on_both_results"
     },
     {
       "id": "v55_read_err_event_abs",
@@ -1824,7 +1824,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val55 mock_environment_open_failures_report_unreadable_for_all_file_shapes"
+      "test": "cargo test --release --test mock_env_records_and_failures mock_environment_open_failures_report_unreadable_for_all_file_shapes"
     },
     {
       "id": "m56_dup_during_parse",
@@ -1840,7 +1840,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 one_trailing_byte_after_a_complete_document_is_invalid_json"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries one_trailing_byte_after_a_complete_document_is_invalid_json"
     },
     {
       "id": "m56_trailing_schema",
@@ -1848,7 +1848,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 one_trailing_byte_after_a_complete_document_is_invalid_json"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries one_trailing_byte_after_a_complete_document_is_invalid_json"
     },
     {
       "id": "m56_depth_schema",
@@ -1864,7 +1864,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 truncation_inside_a_json_string_is_invalid_json_not_schema"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries truncation_inside_a_json_string_is_invalid_json_not_schema"
     },
     {
       "id": "m56_control_in_string_schema",
@@ -1896,7 +1896,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 result_objects_reject_every_key_other_than_ok_and_err"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries result_objects_reject_every_key_other_than_ok_and_err"
     },
     {
       "id": "m56_record_value_zero",
@@ -1912,7 +1912,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val55 mock_json_boolean_payloads_are_schema_errors"
+      "test": "cargo test --release --test mock_env_records_and_failures mock_json_boolean_payloads_are_schema_errors"
     },
     {
       "id": "m56_hex_decimal_only",
@@ -1928,7 +1928,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 only_json_whitespace_bytes_separate_tokens"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries only_json_whitespace_bytes_separate_tokens"
     },
     {
       "id": "m56_del_rejected",
@@ -1936,7 +1936,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 raw_del_in_json_strings_is_valid_json_and_reaches_schema_validation"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries raw_del_in_json_strings_is_valid_json_and_reaches_schema_validation"
     },
     {
       "id": "m56_array_trailing_comma",
@@ -1944,7 +1944,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 trailing_commas_in_objects_and_arrays_are_invalid_json"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries trailing_commas_in_objects_and_arrays_are_invalid_json"
     },
     {
       "id": "m56_object_trailing_comma",
@@ -1952,7 +1952,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 trailing_commas_in_objects_and_arrays_are_invalid_json"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries trailing_commas_in_objects_and_arrays_are_invalid_json"
     },
     {
       "id": "m56_surrogate_start",
@@ -2032,7 +2032,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries read_err_and_mixed_record_reservations_cover_cells_64_boundaries"
     },
     {
       "id": "m56_read_work_ok_records_only",
@@ -2056,7 +2056,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val55 mock_reply_events_preserve_negative_status_sign_on_both_results"
+      "test": "cargo test --release --test mock_env_records_and_failures mock_reply_events_preserve_negative_status_sign_on_both_results"
     },
     {
       "id": "m56_write_err_swapped",
@@ -2104,7 +2104,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
     },
     {
       "id": "m56_driver_error_exit1",
@@ -2112,7 +2112,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries unreadable_environment_is_exact_json_and_text_for_missing_and_directory"
     },
     {
       "id": "m56_too_large_reason_unreadable",
@@ -2128,7 +2128,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 read_failure_after_open_is_reported_as_unreadable"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries read_failure_after_open_is_reported_as_unreadable"
     },
     {
       "id": "m56_json_reason_as_schema",
@@ -2136,7 +2136,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val56 json_format_reports_invalid_json_reason_for_syntax_frontiers"
+      "test": "cargo test --release --test mock_env_json_and_read_boundaries json_format_reports_invalid_json_reason_for_syntax_frontiers"
     },
     {
       "id": "m56_check_write_untyped",
@@ -2160,7 +2160,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 malformed_and_noncanonical_json_numbers_keep_their_rejection_phase"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells malformed_and_noncanonical_json_numbers_keep_their_rejection_phase"
     },
     {
       "id": "n57_exp_no_digit_ok",
@@ -2168,7 +2168,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 malformed_and_noncanonical_json_numbers_keep_their_rejection_phase"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells malformed_and_noncanonical_json_numbers_keep_their_rejection_phase"
     },
     {
       "id": "n57_exp_sign_plus_rejected",
@@ -2176,7 +2176,7 @@
       "production_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "restored_sha256": "4216ac0a6d792a541d8f8550e12874efd6da44b620e38dbbbfb9a059ce951ab8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 malformed_and_noncanonical_json_numbers_keep_their_rejection_phase"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells malformed_and_noncanonical_json_numbers_keep_their_rejection_phase"
     },
     {
       "id": "n57_read_empty_cells1",
@@ -2184,7 +2184,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
     },
     {
       "id": "n57_json_fault_exit_success",
@@ -2192,7 +2192,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 result_diagnostic_and_fault_classes_have_exact_outputs_in_both_formats"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells result_diagnostic_and_fault_classes_have_exact_outputs_in_both_formats"
     },
     {
       "id": "n57_text_fault_exit_success",
@@ -2200,7 +2200,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 result_diagnostic_and_fault_classes_have_exact_outputs_in_both_formats"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells result_diagnostic_and_fault_classes_have_exact_outputs_in_both_formats"
     },
     {
       "id": "n57_format_repeat_ok",
@@ -2208,7 +2208,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
     },
     {
       "id": "n57_profile_repeat_ok",
@@ -2216,7 +2216,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
     },
     {
       "id": "n57_mock_value_dashdash_ok",
@@ -2224,7 +2224,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 repeated_options_and_option_names_used_as_values_are_usage_errors"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells repeated_options_and_option_names_used_as_values_are_usage_errors"
     },
     {
       "id": "n57_invalid_format_accepted",
@@ -2232,7 +2232,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
     },
     {
       "id": "n57_unknown_option_ignored",
@@ -2240,7 +2240,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
     },
     {
       "id": "w58_next_resource_plus2",
@@ -2256,7 +2256,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "w58_branch_ok_cells_keep",
@@ -2264,7 +2264,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "w58_read_resource_not_kept_temp",
@@ -2272,7 +2272,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "w58_dispose_cells_keep",
@@ -2280,7 +2280,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "w58_open_work2",
@@ -2336,7 +2336,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "w58_limit_obs64",
@@ -2344,7 +2344,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_observation_profile_checks_all_sides_of_the_limit_with_and_without_a_resource"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_observation_profile_checks_all_sides_of_the_limit_with_and_without_a_resource"
     },
     {
       "id": "w58_limit_frames8",
@@ -2352,7 +2352,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
     },
     {
       "id": "w58_profile_effects32_id",
@@ -2360,7 +2360,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 selected_profile_is_preserved_in_runtime_and_static_diagnostics"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits selected_profile_is_preserved_in_runtime_and_static_diagnostics"
     },
     {
       "id": "w58_log_reserve_ge",
@@ -2368,7 +2368,7 @@
       "production_sha256": "ef64e614215f95d8ce50af551e3b61f8e6115a2a7f56763238f04a9aad1293aa",
       "restored_sha256": "ef64e614215f95d8ce50af551e3b61f8e6115a2a7f56763238f04a9aad1293aa",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 observations_reservation_uses_complete_proposal_and_preserves_prior_lines"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits observations_reservation_uses_complete_proposal_and_preserves_prior_lines"
     },
     {
       "id": "w58_log_emit_reserved_no_release",
@@ -2376,7 +2376,7 @@
       "production_sha256": "ef64e614215f95d8ce50af551e3b61f8e6115a2a7f56763238f04a9aad1293aa",
       "restored_sha256": "ef64e614215f95d8ce50af551e3b61f8e6115a2a7f56763238f04a9aad1293aa",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
     },
     {
       "id": "w58_effects_write_pure",
@@ -2400,7 +2400,7 @@
       "production_sha256": "298535e3ec9020cdb33246be1929f013bc099efd315656b127c4a9510b1ebb8d",
       "restored_sha256": "298535e3ec9020cdb33246be1929f013bc099efd315656b127c4a9510b1ebb8d",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 mock_intrinsics_declare_io_and_read_records_also_declares_alloc"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits mock_intrinsics_declare_io_and_read_records_also_declares_alloc"
     },
     {
       "id": "w58_effects_open_pure",
@@ -2440,7 +2440,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 mock_environment_and_compilation_diagnostics_match_exact_contract_outputs"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells mock_environment_and_compilation_diagnostics_match_exact_contract_outputs"
     },
     {
       "id": "w58_main_unreadable_exit1",
@@ -2464,7 +2464,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 compile_time_diagnostics_and_unknown_profile_json_keep_selected_profile_ids"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits compile_time_diagnostics_and_unknown_profile_json_keep_selected_profile_ids"
     },
     {
       "id": "w58_main_unknown_profile_text",
@@ -2472,7 +2472,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
     },
     {
       "id": "w58_main_json_bytes_swap",
@@ -2488,7 +2488,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 result_diagnostic_and_fault_classes_have_exact_outputs_in_both_formats"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells result_diagnostic_and_fault_classes_have_exact_outputs_in_both_formats"
     },
     {
       "id": "w58_main_explain_err_exit1",
@@ -2512,7 +2512,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells run_option_surface_matrix_has_exact_usage_errors_and_accepts_supported_siblings"
     },
     {
       "id": "w58_main_ok_text_stdout",
@@ -2536,7 +2536,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 indexed_result_element_copy_uses_each_cell_at_the_work_frontier"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits indexed_result_element_copy_uses_each_cell_at_the_work_frontier"
     },
     {
       "id": "w58_initial_entry_skips_resource_cleanup",
@@ -2544,7 +2544,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 entry_tick_exhaustion_closes_every_temporary_resource_primitive"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits entry_tick_exhaustion_closes_every_temporary_resource_primitive"
     },
     {
       "id": "w58_drop_entry_skips_resource_cleanup",
@@ -2552,7 +2552,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 entry_tick_exhaustion_closes_every_temporary_resource_primitive"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits entry_tick_exhaustion_closes_every_temporary_resource_primitive"
     },
     {
       "id": "w58_drop_reserve_before_dispose",
@@ -2560,7 +2560,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 drop_destroys_resource_before_materializing_unit_at_the_cell_boundary"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits drop_destroys_resource_before_materializing_unit_at_the_cell_boundary"
     },
     {
       "id": "w58_catalog_profile_old_id",
@@ -2568,7 +2568,7 @@
       "production_sha256": "462f3286cd36abf068869f5a370f9cb66fb5761af690746cd765d46879961df5",
       "restored_sha256": "462f3286cd36abf068869f5a370f9cb66fb5761af690746cd765d46879961df5",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 profile_catalog_matches_official_b_cli_identifiers"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits profile_catalog_matches_official_b_cli_identifiers"
     },
     {
       "id": "w58_normal_work_minus1",
@@ -2576,7 +2576,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_normal_frames_minus1",
@@ -2584,7 +2584,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_normal_cells_plus1",
@@ -2592,7 +2592,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_normal_obs_minus1",
@@ -2600,7 +2600,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_frames8_minus1",
@@ -2608,7 +2608,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
     },
     {
       "id": "w58_cells64_minus1",
@@ -2616,7 +2616,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_obs64_minus1",
@@ -2624,7 +2624,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_observation_profile_checks_all_sides_of_the_limit_with_and_without_a_resource"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_observation_profile_checks_all_sides_of_the_limit_with_and_without_a_resource"
     },
     {
       "id": "w58_types32_minus1",
@@ -2632,7 +2632,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_types32_profile_reports_the_exact_source_budget_boundary"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_types32_profile_reports_the_exact_source_budget_boundary"
     },
     {
       "id": "w58_flow32_plus1",
@@ -2704,7 +2704,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 normal_type_solver_limit_is_reached_by_repeated_deep_array_comparisons"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits normal_type_solver_limit_is_reached_by_repeated_deep_array_comparisons"
     },
     {
       "id": "w58_normal_types_plus1",
@@ -2712,7 +2712,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 normal_type_solver_limit_is_reached_by_repeated_deep_array_comparisons"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits normal_type_solver_limit_is_reached_by_repeated_deep_array_comparisons"
     },
     {
       "id": "w58_normal_flow_function_minus1",
@@ -2784,7 +2784,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_r_work_limit_plus1",
@@ -2792,7 +2792,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_r_work_observed_plus1",
@@ -2800,7 +2800,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_r_work_consumed_plus1",
@@ -2808,7 +2808,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_r_frames_observed_plus1",
@@ -2816,7 +2816,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_r_cells_observed_plus1",
@@ -2824,7 +2824,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_r_observation_observed_plus1",
@@ -2832,7 +2832,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "w58_main_profile_default",
@@ -2840,7 +2840,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
     },
     {
       "id": "w58_main_format_default",
@@ -2848,7 +2848,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
     },
     {
       "id": "w58_main_profile_value_ignored",
@@ -2856,7 +2856,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
     },
     {
       "id": "w58_main_format_value_ignored",
@@ -2864,7 +2864,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
     },
     {
       "id": "x59_op_r0002_not_runtime_limit",
@@ -2872,7 +2872,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "x59_cells_kind_name",
@@ -2880,7 +2880,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "x59_print_array_sep",
@@ -2888,7 +2888,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits runtime_profile_table_drives_work_frames_cells_and_observation_boundaries"
     },
     {
       "id": "x59_print_result_tag",
@@ -2912,7 +2912,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
     },
     {
       "id": "x59_equal_arr_hdr1",
@@ -2960,7 +2960,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val59 explain_rejects_a_repeated_subcause_even_when_every_value_is_valid"
+      "test": "cargo test --release --test explain_and_print_output explain_rejects_a_repeated_subcause_even_when_every_value_is_valid"
     },
     {
       "id": "x59_explain_format_any",
@@ -2968,7 +2968,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val59 explain_format_accepts_only_text_or_json"
+      "test": "cargo test --release --test explain_and_print_output explain_format_accepts_only_text_or_json"
     },
     {
       "id": "x59_obs_push_ge",
@@ -2976,7 +2976,7 @@
       "production_sha256": "ef64e614215f95d8ce50af551e3b61f8e6115a2a7f56763238f04a9aad1293aa",
       "restored_sha256": "ef64e614215f95d8ce50af551e3b61f8e6115a2a7f56763238f04a9aad1293aa",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_observation_profile_checks_all_sides_of_the_limit_with_and_without_a_resource"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_observation_profile_checks_all_sides_of_the_limit_with_and_without_a_resource"
     },
     {
       "id": "x59_close_text_swap",
@@ -3000,7 +3000,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_read_reservations_cover_zero_one_two_and_large_ok_err_record_sets"
     },
     {
       "id": "x59_reply_err_text",
@@ -3016,7 +3016,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "x59_cells_limit_plus1",
@@ -3024,7 +3024,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells cells64_faults_exit_one_in_both_formats_and_empty_read_uses_two_cells"
     },
     {
       "id": "x59_frames_limit_field",
@@ -3032,7 +3032,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits reduced_frames_profile_accepts_seven_and_eight_and_rejects_nine_frames"
     },
     {
       "id": "x59_explain_text_newline",
@@ -3040,7 +3040,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val59 explain_text_separates_entries_and_ends_with_one_lf"
+      "test": "cargo test --release --test explain_and_print_output explain_text_separates_entries_and_ends_with_one_lf"
     },
     {
       "id": "x59_check_ok_text",
@@ -3072,7 +3072,7 @@
       "production_sha256": "462f3286cd36abf068869f5a370f9cb66fb5761af690746cd765d46879961df5",
       "restored_sha256": "462f3286cd36abf068869f5a370f9cb66fb5761af690746cd765d46879961df5",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val59 published_reduced_profile_quotas_match_the_catalog_and_d15"
+      "test": "cargo test --release --test explain_and_print_output published_reduced_profile_quotas_match_the_catalog_and_d15"
     },
     {
       "id": "x59_doc_cells64_d15",
@@ -3080,7 +3080,7 @@
       "production_sha256": "c57133648e83ced7763d024dc09f28bb41d60166e4f734639b0d152b87857e13",
       "restored_sha256": "c57133648e83ced7763d024dc09f28bb41d60166e4f734639b0d152b87857e13",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val59 published_reduced_profile_quotas_match_the_catalog_and_d15"
+      "test": "cargo test --release --test explain_and_print_output published_reduced_profile_quotas_match_the_catalog_and_d15"
     },
     {
       "id": "y59_retained_no_rev",
@@ -3112,7 +3112,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val59 print_formats_unit_arrays_and_result_values_exactly"
+      "test": "cargo test --release --test explain_and_print_output print_formats_unit_arrays_and_result_values_exactly"
     },
     {
       "id": "y59_len_plus1",
@@ -3152,7 +3152,7 @@
       "production_sha256": "ab8ec3c5d80a1c34f7884e11fd53391db866b368319057b68ed82d015e907c15",
       "restored_sha256": "ab8ec3c5d80a1c34f7884e11fd53391db866b368319057b68ed82d015e907c15",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val59 explain_json_entries_are_comma_separated_in_a_single_object"
+      "test": "cargo test --release --test explain_and_print_output explain_json_entries_are_comma_separated_in_a_single_object"
     },
     {
       "id": "y59_explain_sort_rev",
@@ -3208,7 +3208,7 @@
       "production_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "restored_sha256": "88e85c0321bce96456ccd7c145b485ab90c8ec624af37faa9672b3a5febb58e8",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val58 observations_reservation_uses_complete_proposal_and_preserves_prior_lines"
+      "test": "cargo test --release --test runtime_profiles_and_resource_limits observations_reservation_uses_complete_proposal_and_preserves_prior_lines"
     },
     {
       "id": "z60_flowglobal_alias",
@@ -3216,7 +3216,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val60 analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "cargo test --release --test analysis_profiles_and_quotas analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "id": "a60_lw_flow32_to_global",
@@ -3224,7 +3224,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val60 analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "cargo test --release --test analysis_profiles_and_quotas analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "id": "a60_lw_flow32_to_normal",
@@ -3232,7 +3232,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val60 analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "cargo test --release --test analysis_profiles_and_quotas analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "id": "a60_lw_types32_to_normal",
@@ -3240,7 +3240,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val60 analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "cargo test --release --test analysis_profiles_and_quotas analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "id": "a60_lw_effects32_to_normal",
@@ -3248,7 +3248,7 @@
       "production_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "restored_sha256": "5cfac13e89b79ecaa955cc7f0127438bf7d7cbf9ca008216369b97b32999fbc3",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val60 analysis_quota_profiles_are_selected_by_their_cli_identifier"
+      "test": "cargo test --release --test analysis_profiles_and_quotas analysis_quota_profiles_are_selected_by_their_cli_identifier"
     },
     {
       "id": "z60_main_input_profile_drop",
@@ -3256,7 +3256,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val60 selected_profile_is_preserved_on_input_and_mock_environment_failures"
+      "test": "cargo test --release --test analysis_profiles_and_quotas selected_profile_is_preserved_on_input_and_mock_environment_failures"
     },
     {
       "id": "z60_main_input_view_truncated",
@@ -3264,7 +3264,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val60 selected_profile_is_preserved_on_input_and_mock_environment_failures"
+      "test": "cargo test --release --test analysis_profiles_and_quotas selected_profile_is_preserved_on_input_and_mock_environment_failures"
     },
     {
       "id": "v61_main_mock_dash_value",
@@ -3272,7 +3272,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills single_dash_mock_environment_values_are_paths"
+      "test": "cargo test --release --test run_argv_dash_value_semantics single_dash_mock_environment_values_are_paths"
     },
     {
       "id": "v61_main_mock_contains_dashdash",
@@ -3280,7 +3280,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills embedded_double_dash_mock_environment_value_is_a_path"
+      "test": "cargo test --release --test run_argv_dash_value_semantics embedded_double_dash_mock_environment_value_is_a_path"
     },
     {
       "id": "v61_main_profile_single_dash",
@@ -3288,7 +3288,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills single_dash_profile_value_reaches_profile_selection"
+      "test": "cargo test --release --test run_argv_dash_value_semantics single_dash_profile_value_reaches_profile_selection"
     },
     {
       "id": "v61_main_profile_contains_dashdash",
@@ -3296,7 +3296,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills embedded_double_dash_profile_value_reaches_profile_selection"
+      "test": "cargo test --release --test run_argv_dash_value_semantics embedded_double_dash_profile_value_reaches_profile_selection"
     },
     {
       "id": "v62_dash_mock_single",
@@ -3304,7 +3304,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills single_dash_mock_environment_values_are_paths"
+      "test": "cargo test --release --test run_argv_dash_value_semantics single_dash_mock_environment_values_are_paths"
     },
     {
       "id": "v62_dash_mock_singlestr",
@@ -3312,7 +3312,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills single_dash_mock_environment_values_are_paths"
+      "test": "cargo test --release --test run_argv_dash_value_semantics single_dash_mock_environment_values_are_paths"
     },
     {
       "id": "v62_dash_mock_contains",
@@ -3320,7 +3320,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills embedded_double_dash_mock_environment_value_is_a_path"
+      "test": "cargo test --release --test run_argv_dash_value_semantics embedded_double_dash_mock_environment_value_is_a_path"
     },
     {
       "id": "v62_dash_mock_exact",
@@ -3328,7 +3328,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_dash_mock_empty",
@@ -3336,7 +3336,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills empty_mock_environment_value_is_a_path"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges empty_mock_environment_value_is_a_path"
     },
     {
       "id": "v62_dash_mock_triple",
@@ -3344,7 +3344,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_dash_mock_none",
@@ -3352,7 +3352,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_dash_profile_single",
@@ -3360,7 +3360,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills single_dash_profile_value_reaches_profile_selection"
+      "test": "cargo test --release --test run_argv_dash_value_semantics single_dash_profile_value_reaches_profile_selection"
     },
     {
       "id": "v62_dash_profile_contains",
@@ -3368,7 +3368,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val61_kills embedded_double_dash_profile_value_reaches_profile_selection"
+      "test": "cargo test --release --test run_argv_dash_value_semantics embedded_double_dash_profile_value_reaches_profile_selection"
     },
     {
       "id": "v62_dash_profile_exact",
@@ -3376,7 +3376,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_dash_profile_empty",
@@ -3384,7 +3384,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills empty_profile_value_reaches_profile_selection"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges empty_profile_value_reaches_profile_selection"
     },
     {
       "id": "v62_dash_profile_triple",
@@ -3392,7 +3392,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_dash_profile_none",
@@ -3400,7 +3400,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_rep_profile_nocheck",
@@ -3408,7 +3408,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 repeated_options_and_option_names_used_as_values_are_usage_errors"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells repeated_options_and_option_names_used_as_values_are_usage_errors"
     },
     {
       "id": "v62_rep_format_nocheck",
@@ -3416,7 +3416,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 repeated_options_and_option_names_used_as_values_are_usage_errors"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells repeated_options_and_option_names_used_as_values_are_usage_errors"
     },
     {
       "id": "v62_rep_mock_nocheck",
@@ -3432,7 +3432,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 repeated_options_and_option_names_used_as_values_are_usage_errors"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells repeated_options_and_option_names_used_as_values_are_usage_errors"
     },
     {
       "id": "v62_rep_format_nomark",
@@ -3440,7 +3440,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val57 repeated_options_and_option_names_used_as_values_are_usage_errors"
+      "test": "cargo test --release --test run_cli_diagnostics_and_cells repeated_options_and_option_names_used_as_values_are_usage_errors"
     },
     {
       "id": "v62_rep_mock_nomark",
@@ -3456,7 +3456,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills single_dash_source_paths_are_sources"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges single_dash_source_paths_are_sources"
     },
     {
       "id": "v62_outer_triple",
@@ -3464,7 +3464,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills options_may_precede_or_follow_the_source"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges options_may_precede_or_follow_the_source"
     },
     {
       "id": "v62_outer_dashdash_len",
@@ -3472,7 +3472,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills bare_double_dash_is_not_a_source_path_or_end_of_options"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges bare_double_dash_is_not_a_source_path_or_end_of_options"
     },
     {
       "id": "v62_unknown_option_ignored",
@@ -3480,7 +3480,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_two_files_last_wins",
@@ -3488,7 +3488,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_command_prefix_run",
@@ -3496,7 +3496,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills only_exact_command_names_are_accepted"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges only_exact_command_names_are_accepted"
     },
     {
       "id": "v62_check_accepts_mock",
@@ -3512,7 +3512,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills profile_identifiers_are_case_sensitive"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges profile_identifiers_are_case_sensitive"
     },
     {
       "id": "v62_format_empty_ok",
@@ -3520,7 +3520,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test val62_kills empty_format_value_is_invalid_arguments"
+      "test": "cargo test --release --test cli_argument_and_unicode_edges empty_format_value_is_invalid_arguments"
     },
     {
       "id": "v62_profile_last_oob",
@@ -3528,7 +3528,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_format_last_oob",
@@ -3536,7 +3536,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_mock_last_oob",
@@ -3544,7 +3544,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_order_profile_needs_nofile",
@@ -3552,7 +3552,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_order_format_needs_nomock",
@@ -3560,7 +3560,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_order_mock_needs_file",
@@ -3568,7 +3568,7 @@
       "production_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "restored_sha256": "33c63b7c103d6c0ee74984bb84387410eb2176d9de9512ffd6b08b13589247f9",
       "status": "killed",
-      "test": "cargo test --release --test i11a_val62_cli generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
+      "test": "cargo test --release --test run_argv_matrix generated_run_cli_argv_matrix_matches_d5_d15_a2_oracle"
     },
     {
       "id": "v62_env_highsurr_range",
@@ -4203,12 +4203,12 @@
     "D3_write_reply_argument_liveness": {
       "basis": "A2 §11.6 ll. 1063–1064 fija el coste de las primitivas write/reply, pero no declara si el literal argumento permanece vivo al reservar el resultado; §11.6 ll. 1071–1073 prohíbe adelantar liberaciones de argumentos prestados, no determina el tiempo de vida de este literal. La prueba de cells-64 conserva el comportamiento actual sin atribuirlo al ADR.",
       "status": "normative_gap",
-      "test": "i11a_val57::cells64_write_and_reply_literal_arguments_keep_the_current_frontier"
+      "test": "run_cli_diagnostics_and_cells::cells64_write_and_reply_literal_arguments_keep_the_current_frontier"
     },
     "unknown_profile_json_profile_id": {
       "basis": "A2 §12.4 l. 1495 publica los perfiles y §12.4 l. 1631 incluye unknown_profile entre las razones driver_error; §12.4 l. 1606 exige profile_id como cadena, pero no prescribe si el error de selección conserva el identificador desconocido o usa el perfil predeterminado. El JSON actual conserva el texto no reconocido (p. ej. bogus).",
       "status": "normative_gap",
-      "test": "i11a_val58::profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
+      "test": "runtime_profiles_and_resource_limits::profile_selection_matrix_covers_defaults_all_profiles_and_unknown_ids"
     }
   },
   "population_profile": "release_quick",
