@@ -20,7 +20,10 @@ fn rejected(source: &str, run: bool) -> Vec<Box<Diagnostic>> {
 }
 
 fn run(source: &str) -> interp::Execution {
-    interp::run_scalar(&ir::compile_scalar(FILE, source).expect(source))
+    interp::run_scalar(
+        &ir::compile_scalar(FILE, source).expect(source),
+        Default::default(),
+    )
 }
 
 #[test]

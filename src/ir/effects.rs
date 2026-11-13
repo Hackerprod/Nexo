@@ -131,7 +131,10 @@ fn resource_types(ty: &Ty, variant: Option<bool>) -> Vec<&'static str> {
 fn intrinsic_effect(intrinsic: super::model::Intrinsic) -> (u8, u8, &'static str) {
     use super::model::Intrinsic::*;
     match intrinsic {
-        Print | Inspect | MockOpen | MockBlockingOpen => (IO, 0, "intrinsic.call"),
+        Print | Inspect | MockOpen | MockBlockingOpen | MockWriteI64 | MockRequest | MockReply => {
+            (IO, 0, "intrinsic.call")
+        }
+        MockReadRecords => (ALLOC | IO, 0, "intrinsic.call"),
         MockUnknown => (0, ALL, "intrinsic.call"),
         Fail | AssertEq | DropData | Len | TryAdd => (0, 0, "intrinsic.call"),
     }
@@ -266,6 +269,10 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                         super::model::Intrinsic::Inspect => "inspect",
                         super::model::Intrinsic::TryAdd => "try_add",
                         super::model::Intrinsic::MockUnknown => "mock_unknown",
+                        super::model::Intrinsic::MockReadRecords => "mock_read_records",
+                        super::model::Intrinsic::MockWriteI64 => "mock_write_i64",
+                        super::model::Intrinsic::MockRequest => "mock_request",
+                        super::model::Intrinsic::MockReply => "mock_reply",
                     };
                     if *intrinsic == super::model::Intrinsic::DropData {
                         let arg = args.first().copied();

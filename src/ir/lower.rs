@@ -23,7 +23,7 @@ fn count_loan_work() {}
 
 #[derive(Debug)]
 // InvalidIr is a guard on an invariant, never a source diagnostic. The
-// source path is parse -> names/limits/types -> lowering -> verify_function
+// source path is parse -> names/types -> lowering -> verify_function
 // -> verify_program. The source and forged-IR tests below exercise both sides
 // of every guard family; see the per-site inventory in the D15 implementation
 // notes. The exclusive-prefix case is screened in parse::function.
@@ -56,6 +56,7 @@ pub enum CompileError {
 
 #[derive(Clone, Copy)]
 struct AnalysisLimits {
+    type_solver_steps: u64,
     flow_function: u64,
     flow_compilation: u64,
     effects: u64,
@@ -66,6 +67,7 @@ struct AnalysisLimits {
 
 impl AnalysisLimits {
     const NORMAL: Self = Self {
+        type_solver_steps: 1_000_000,
         flow_function: 1_000_000,
         flow_compilation: 4_000_000,
         effects: 1_000_000,
@@ -75,13 +77,91 @@ impl AnalysisLimits {
     };
 }
 
-#[cfg(test)]
 #[derive(Clone, Copy)]
-pub(crate) enum ReducedProfile {
+pub enum ReducedProfile {
+    Normal,
+    Types32,
     FlowFunction32,
     FlowCompilation32,
     Effects32,
     IrItems32,
+    Frames8,
+    Cells64,
+    Observations64,
+}
+impl ReducedProfile {
+    pub fn from_id(id: &str) -> Option<Self> {
+        Some(match id {
+            "f0-0002-b-v2" => Self::Normal,
+            "f0-0002-b-test-types-32-v2" => Self::Types32,
+            "f0-0002-b-test-flow-32-v2" => Self::FlowFunction32,
+            "f0-0002-b-test-flow-global-32-v2" => Self::FlowCompilation32,
+            "f0-0002-b-test-effects-32-v2" => Self::Effects32,
+            "f0-0002-b-test-ir-32-v2" => Self::IrItems32,
+            "f0-0002-b-test-frames-8-v2" => Self::Frames8,
+            "f0-0002-b-test-cells-64-v2" => Self::Cells64,
+            "f0-0002-b-test-observations-64-v2" => Self::Observations64,
+            _ => return None,
+        })
+    }
+}
+
+fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
+    match profile {
+        ReducedProfile::Normal => AnalysisLimits::NORMAL,
+        ReducedProfile::Types32 => AnalysisLimits {
+            type_solver_steps: 32,
+            profile_id: "f0-0002-b-test-types-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::FlowFunction32 => AnalysisLimits {
+            flow_function: 32,
+            profile_id: "f0-0002-b-test-flow-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::FlowCompilation32 => AnalysisLimits {
+            flow_compilation: 32,
+            profile_id: "f0-0002-b-test-flow-global-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::Effects32 => AnalysisLimits {
+            effects: 32,
+            profile_id: "f0-0002-b-test-effects-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::IrItems32 => AnalysisLimits {
+            ir_items: 32,
+            profile_id: "f0-0002-b-test-ir-32-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::Frames8 => AnalysisLimits {
+            profile_id: "f0-0002-b-test-frames-8-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::Cells64 => AnalysisLimits {
+            profile_id: "f0-0002-b-test-cells-64-v2",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::Observations64 => AnalysisLimits {
+            profile_id: "f0-0002-b-test-observations-64-v2",
+            ..AnalysisLimits::NORMAL
+        },
+    }
+}
+
+#[cfg(test)]
+pub(crate) fn analysis_limits_for_test(
+    profile: ReducedProfile,
+) -> (&'static str, u64, u64, u64, u64, u64) {
+    let limits = analysis_limits(profile);
+    (
+        limits.profile_id,
+        limits.type_solver_steps,
+        limits.flow_function,
+        limits.flow_compilation,
+        limits.effects,
+        limits.ir_items,
+    )
 }
 
 /// Produces an opaque, verified artifact. No interpreter entry accepts an AST.
@@ -107,35 +187,14 @@ pub(crate) fn compile_scalar_with_flow_limit(
     compile_scalar_with_analysis_limits(file, source, false, limits)
 }
 
-#[cfg(test)]
-pub(crate) fn compile_scalar_with_profile(
+pub fn compile_scalar_with_profile(
     file: &str,
     source: &str,
     profile: ReducedProfile,
+    run_entry: bool,
 ) -> Result<Program, CompileError> {
-    let limits = match profile {
-        ReducedProfile::FlowFunction32 => AnalysisLimits {
-            flow_function: 32,
-            profile_id: "f0-0002-b-test-flow-32-v2",
-            ..AnalysisLimits::NORMAL
-        },
-        ReducedProfile::FlowCompilation32 => AnalysisLimits {
-            flow_compilation: 32,
-            profile_id: "f0-0002-b-test-flow-global-32-v2",
-            ..AnalysisLimits::NORMAL
-        },
-        ReducedProfile::Effects32 => AnalysisLimits {
-            effects: 32,
-            profile_id: "f0-0002-b-test-effects-32-v2",
-            ..AnalysisLimits::NORMAL
-        },
-        ReducedProfile::IrItems32 => AnalysisLimits {
-            ir_items: 32,
-            profile_id: "f0-0002-b-test-ir-32-v2",
-            ..AnalysisLimits::NORMAL
-        },
-    };
-    compile_scalar_with_analysis_limits(file, source, false, limits)
+    let limits = analysis_limits(profile);
+    compile_scalar_with_analysis_limits(file, source, run_entry, limits)
 }
 
 #[cfg(test)]
@@ -169,22 +228,17 @@ fn compile_scalar_with_analysis_limits(
     limits: AnalysisLimits,
 ) -> Result<Program, CompileError> {
     let ast = parse::parse(file, source).map_err(|d| CompileError::Rejected(vec![d]))?;
-    // A capability limit exits check_ast with exactly one
-    // implementation_limit diagnostic and no inferred types. On the normal
-    // path below, any nonempty checker error set is returned after lowering;
-    // that early exit only avoids doing unusable lowering work.
-    let checked = crate::check::check_for_compilation(file, source, &ast, false);
+    let checked = crate::check::check_for_compilation_with_type_limit(
+        file,
+        source,
+        &ast,
+        false,
+        limits.type_solver_steps,
+        limits.profile_id,
+    );
     if let Some(reason) = checked.internal_error {
         let _ = reason;
         return Err(CompileError::InvalidIr("internal_error"));
-    }
-    if !checked.errors.is_empty()
-        && checked
-            .errors
-            .iter()
-            .any(|d| d.feature_id.as_deref() == Some("implementation_limit"))
-    {
-        return Err(CompileError::Rejected(checked.errors));
     }
     let inferred = &checked.inferred;
     #[cfg(test)]
@@ -3398,6 +3452,10 @@ impl Lower<'_> {
                     "Inspect" => Intrinsic::Inspect,
                     "TryAdd" => Intrinsic::TryAdd,
                     "MockUnknown" => Intrinsic::MockUnknown,
+                    "MockReadRecords" => Intrinsic::MockReadRecords,
+                    "MockWriteI64" => Intrinsic::MockWriteI64,
+                    "MockRequest" => Intrinsic::MockRequest,
+                    "MockReply" => Intrinsic::MockReply,
                     _ => return Err(CompileError::InvalidIr("user or deferred call")),
                 };
                 if intrinsic == Intrinsic::DropData
@@ -3462,6 +3520,12 @@ impl Lower<'_> {
                         ("a".into(), ParameterMode::Consume, Ty::I64),
                         ("b".into(), ParameterMode::Consume, Ty::I64),
                     ],
+                    Intrinsic::MockReadRecords => {
+                        vec![("r".into(), ParameterMode::Read, Ty::MockResource)]
+                    }
+                    Intrinsic::MockWriteI64 => vec![("n".into(), ParameterMode::Read, Ty::I64)],
+                    Intrinsic::MockRequest => vec![],
+                    Intrinsic::MockReply => vec![("status".into(), ParameterMode::Read, Ty::I64)],
                     Intrinsic::Fail | Intrinsic::MockUnknown => vec![],
                 };
                 let (prepared, acquired, diverged) =
@@ -3481,6 +3545,10 @@ impl Lower<'_> {
                     | Intrinsic::MockBlockingOpen
                     | Intrinsic::Inspect => 1,
                     Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+                    Intrinsic::MockReadRecords | Intrinsic::MockWriteI64 | Intrinsic::MockReply => {
+                        1
+                    }
+                    Intrinsic::MockRequest => 0,
                     Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                 };
                 if args.len() != arity {
@@ -3500,6 +3568,10 @@ impl Lower<'_> {
                             | Intrinsic::MockOpen
                             | Intrinsic::MockBlockingOpen
                             | Intrinsic::Inspect
+                            | Intrinsic::MockReadRecords
+                            | Intrinsic::MockWriteI64
+                            | Intrinsic::MockRequest
+                            | Intrinsic::MockReply
                     ),
                 );
                 self.end_call_loans(acquired);

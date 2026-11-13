@@ -25,7 +25,10 @@ fn first_byte(span: (u64, u64)) -> (u64, u64) {
 }
 
 fn run(source: &str) -> Execution {
-    nexo::interp::run_scalar(&compile(source).expect("must statically check"))
+    nexo::interp::run_scalar(
+        &compile(source).expect("must statically check"),
+        Default::default(),
+    )
 }
 
 #[allow(clippy::vec_box)] // Mirrors the pipeline's diagnostic collection.
@@ -73,7 +76,7 @@ fn positive_corpus() {
         let source = fs::read_to_string(&path).unwrap();
         let program = compile_scalar(path.to_str().unwrap(), &source)
             .unwrap_or_else(|e| panic!("{}: {e:?}", path.display()));
-        let result = nexo::interp::run_scalar(&program);
+        let result = nexo::interp::run_scalar(&program, Default::default());
         assert_eq!(
             result.outcome,
             Outcome::Unit,
@@ -371,47 +374,14 @@ fn invalid_assignment_root_and_deferred_selector_reject_before_lowering() {
 }
 
 #[test]
-fn pending_capabilities_have_exact_diagnostic_fields_and_valid_inverse() {
-    for (source, scope, span) in [
-        ("fn Main(){MockRequest();}", "I11a", (10, 21)),
-        ("fn Main(){MockReadRecords(MockOpen(1));}", "I11a", (10, 25)),
-        ("fn Main(){MockWriteI64(1);}", "I11a", (10, 22)),
-        ("fn Main(){MockReply(1);}", "I11a", (10, 19)),
+fn i11a_mock_primitive_sources_pass_static_analysis() {
+    for source in [
+        "fn Main(){let r=MockOpen(1);let xs=MockReadRecords(r);}",
+        "fn Main()->Result<(),I64>{MockWriteI64(25)?;return Ok(());}",
+        "fn Main()->Result<(),I64>{let x=MockRequest()?;return Ok(());}",
+        "fn Main()->Result<(),I64>{MockReply(200)?;return Ok(());}",
     ] {
-        let errors = rejected(source);
-        assert_eq!(errors.len(), 1, "{source}");
-        let error = &errors[0];
-        assert_eq!(error.code, "NX-E0006", "{source}");
-        assert_eq!(error.subcause, None);
-        assert_eq!(error.rule, "NX-E0006");
-        assert_eq!(error.explanation_id.as_deref(), Some("NX-E0006"));
-        assert_eq!(error.stage.as_str(), "types");
-        assert_eq!(error.operation.as_str(), "types.check");
-        assert_eq!(error.feature_id.as_deref(), Some("implementation_limit"));
-        assert_eq!(
-            error.message,
-            format!("Capacidad pendiente de implementación en {scope}.")
-        );
-        assert_eq!(
-            error.primary_span.as_ref().map(|s| (s.start, s.end)),
-            Some(span)
-        );
-        assert!(error.related_spans.is_empty());
-        assert!(error.cause_chain.is_empty());
-        assert!(error.repair.is_empty());
-        assert!(error.expected_tokens.is_empty());
-        assert!(error.unexpected_token.is_none());
-        assert!(error.parser_context.is_none());
-        assert!(error.recognized_prefix.is_none());
-        assert_eq!(
-            error.data,
-            std::collections::BTreeMap::from([(
-                "pending_scope".into(),
-                DataValue::String(scope.into())
-            )])
-        );
-        error.validate(FILE, source).unwrap();
-        compile("fn Main(){}").unwrap();
+        compile(source).unwrap_or_else(|errors| panic!("{source}: {errors:?}"));
     }
 }
 

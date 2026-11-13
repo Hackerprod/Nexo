@@ -8,7 +8,7 @@ use crate::frontend::parse;
 fn unavailable_checker_worker_is_an_internal_failure() {
     let source = "fn Main(){}";
     let ast = parse::parse("worker.n", source).unwrap();
-    let failure = super::check_ast_with_worker_failure("worker.n", source, &ast, false, true);
+    let failure = super::check_ast_with_worker_failure("worker.n", source, &ast, true, 1_000_000);
     assert_eq!(
         failure.internal_error,
         Some("type checker worker unavailable")
@@ -77,6 +77,26 @@ fn direct_checker_checks_child_of_unavailable_try_operator() {
     assert_eq!(
         d.data.get("found_type"),
         Some(&DataValue::String("Bool".into()))
+    );
+}
+
+#[test]
+fn mock_write_i64_rejects_non_i64_argument() {
+    let source = "fn Main(){MockWriteI64(true);}";
+    let diagnostics = check_proposed(FILE, source, false).unwrap_err();
+    assert_eq!(diagnostics.len(), 1, "{diagnostics:?}");
+    exact(
+        &diagnostics[0],
+        "NX-E0102",
+        Some("type_mismatch"),
+        Stage::Types,
+        Operation::TypesCheck,
+        (23, 27),
+        &[(RelatedRole::FoundType, 23, 27)],
+        &[
+            ("expected_type", datum("I64")),
+            ("found_type", datum("Bool")),
+        ],
     );
 }
 

@@ -322,6 +322,9 @@ def candidates(base: str) -> list[dict]:
         })
     for index, item in enumerate(population, 1):
         item["id"] = f"M{index:05d}"
+    for item in population:
+        if item.get("operator") == "implementation_limit_fixture_positive":
+            item["historical"] = "I11a implementó la capacidad mock; se conserva solo como registro de mutación histórica."
     return population
 
 

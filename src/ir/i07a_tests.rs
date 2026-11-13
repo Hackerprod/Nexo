@@ -15,7 +15,7 @@ fn divergent_condition_operands_do_not_create_unreachable_cfg_blocks() {
         let program = compile_scalar("divergent_condition_operand.n", source)
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
         assert!(
-            crate::interp::run_scalar(&program)
+            crate::interp::run_scalar(&program, Default::default())
                 .observations
                 .stdout()
                 .is_empty()
@@ -31,7 +31,7 @@ fn hypothetical_bottom_values_in_both_arms_need_no_ir_slot() {
     ] {
         let program = compile_scalar("bottom_branch_arms.n", source).unwrap();
         assert!(
-            crate::interp::run_scalar(&program)
+            crate::interp::run_scalar(&program, Default::default())
                 .observations
                 .stdout()
                 .is_empty()
@@ -80,7 +80,7 @@ fn deferred_binding_reads_preserve_bottom_type_across_uses() {
         let program = compile_scalar("deferred_binding_uses.n", &source)
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
         assert!(
-            crate::interp::run_scalar(&program)
+            crate::interp::run_scalar(&program, Default::default())
                 .observations
                 .stdout()
                 .is_empty()
@@ -100,7 +100,7 @@ fn divergent_index_of_borrowed_argument_is_checked_without_ir_operand() {
     let source = "fn G(x: view I64) {}\nfn Main() {\n    let a = [1];\n    G(a[if true then {\n        return;\n    } else {\n        return;\n    }]);\n}\n";
     let program = compile_scalar("loan_divergent_index.n", source).unwrap();
     assert!(
-        crate::interp::run_scalar(&program)
+        crate::interp::run_scalar(&program, Default::default())
             .observations
             .stdout()
             .is_empty()
@@ -192,7 +192,7 @@ fn dead_binary_placeholder_does_not_change_branch_flow() {
     let source = "fn Main() {\n    return;\n    Print(if false then 4 + 3 else {\n        return;\n    });\n}\n";
     let program = compile_scalar("dead_binary.n", source).unwrap();
     assert!(
-        crate::interp::run_scalar(&program)
+        crate::interp::run_scalar(&program, Default::default())
             .observations
             .stdout()
             .is_empty()
@@ -228,7 +228,9 @@ fn while_backedge_rechecks_complete_branching_condition() {
     for (source, expected) in sources {
         let program = compile_scalar("branching_loop.n", source).unwrap();
         assert_eq!(
-            crate::interp::run_scalar(&program).observations.stdout(),
+            crate::interp::run_scalar(&program, Default::default())
+                .observations
+                .stdout(),
             [expected]
         );
     }
@@ -294,7 +296,9 @@ fn dead_declaration_in_returning_branch_does_not_break_later_value() {
     let source = "fn Main() {\n    Print(if true then 1 else {\n        return;\n        let v = 4;\n        value: v;\n    });\n}\n";
     let program = compile_scalar("dead_local.n", source).unwrap();
     assert_eq!(
-        crate::interp::run_scalar(&program).observations.stdout(),
+        crate::interp::run_scalar(&program, Default::default())
+            .observations
+            .stdout(),
         ["1"]
     );
 }
@@ -435,7 +439,7 @@ fn value_immediately_after_return_is_checked_without_emission() {
         .count();
     assert_eq!(dead_literals, 0, "dead value must not emit an instruction");
     assert!(
-        crate::interp::run_scalar(&program)
+        crate::interp::run_scalar(&program, Default::default())
             .observations
             .stdout()
             .is_empty()
@@ -542,7 +546,7 @@ fn directed_divergence_positions_match_reference_acceptance_and_diagnostics() {
         let result = compile_scalar("divergence_campaign.n", &source);
         match (expected, result) {
             (None, Ok(program)) => {
-                let execution = crate::interp::run_scalar(&program);
+                let execution = crate::interp::run_scalar(&program, Default::default());
                 assert!(
                     execution.observations.stdout().is_empty(),
                     "seed {seed}: {source}"
@@ -569,7 +573,7 @@ fn divergent_if_condition_checks_both_hypothetical_branches() {
     let valid = "fn Main() {\n    Print(if (if true then {\n        return;\n    } else {\n        return;\n    }) then 1 else 2);\n}\n";
     let program = compile_scalar("divergent_condition.n", valid).unwrap();
     assert!(
-        crate::interp::run_scalar(&program)
+        crate::interp::run_scalar(&program, Default::default())
             .observations
             .stdout()
             .is_empty()
@@ -587,7 +591,9 @@ fn divergent_else_if_and_deferred_call_argument_keep_branch_structure() {
     let valid = "fn Main() {\n    Print(if true then 1 else (if true then {\n        return;\n    } else {\n        return;\n    }));\n}\n";
     let program = compile_scalar("else_if_never.n", valid).unwrap();
     assert_eq!(
-        crate::interp::run_scalar(&program).observations.stdout(),
+        crate::interp::run_scalar(&program, Default::default())
+            .observations
+            .stdout(),
         ["1"]
     );
     let invalid = "fn H(x: view I64) {}\nfn Main() {\n    let v = if true then {\n        return;\n    } else {\n        return;\n    };\n    Print(if true then 1 else {\n        H(v);\n    });\n}\n";
@@ -706,12 +712,14 @@ fn missing_branch_value_suppresses_dependent_missing_return() {
 fn equality_copies_indexed_left_value_before_rhs_write() {
     let source = "fn Main() {\n    var a = [2];\n    Print(a[0] == (if true then {\n        a[0] = 5;\n        value: 2;\n    } else 2));\n}\n";
     let program = compile_scalar("eq_copy.n", source).unwrap();
-    let result = crate::interp::run_scalar(&program);
+    let result = crate::interp::run_scalar(&program, Default::default());
     assert_eq!(result.observations.stdout(), ["true"]);
     let addition = "fn Main() {\n    var a = [2];\n    Print(a[0] + (if true then {\n        a[0] = 5;\n        value: 2;\n    } else 2));\n}\n";
     let program = compile_scalar("add_copy.n", addition).unwrap();
     assert_eq!(
-        crate::interp::run_scalar(&program).observations.stdout(),
+        crate::interp::run_scalar(&program, Default::default())
+            .observations
+            .stdout(),
         ["4"]
     );
     let call = "fn H(x: view I64, y: view I64) {}\nfn Main() {\n    var a = [2];\n    H(a[0], if true then {\n        a[0] = 5;\n        value: 2;\n    } else 2);\n}\n";
@@ -824,7 +832,7 @@ fn divergent_later_argument_releases_pending_read_and_inout_loans() {
         "fn H(a: edit I64, b: view I64) {}\nfn Main() {\n    var a = 1;\n    H(edit a, if true then {\n        return;\n    } else {\n        return;\n    });\n}\n",
     ] {
         let program = compile_scalar("diverge_loan.n", source).unwrap();
-        let result = crate::interp::run_scalar(&program);
+        let result = crate::interp::run_scalar(&program, Default::default());
         assert!(
             matches!(result.outcome, crate::interp::Outcome::Unit),
             "{source}: {result:?}"
@@ -845,7 +853,7 @@ fn if_values_after_other_operands_remain_available_across_cfg_edges() {
         ),
     ] {
         let program = compile_scalar("live_temp.n", source).unwrap();
-        let result = crate::interp::run_scalar(&program);
+        let result = crate::interp::run_scalar(&program, Default::default());
         assert_eq!(result.observations.stdout(), [expected.trim_end()]);
     }
 }
@@ -854,7 +862,7 @@ fn if_values_after_other_operands_remain_available_across_cfg_edges() {
 fn nested_branch_values_work_in_later_arguments_indexes_and_assignments() {
     let source = "fn F(a: view I64, b: view I64, c: view I64) {\n    AssertEq(a + b + c, 6);\n}\nfn Main() {\n    F(1, 2, if true then 3 else 4);\n    var a = [1, 2, 3];\n    a[if true then 1 else 0] = if false then 8 else 9;\n    Print(a[1]);\n    Print((if true then 1 else 2) + (if true then 2 else 3));\n}\n";
     let program = compile_scalar("nested_live.n", source).unwrap();
-    let run = crate::interp::run_scalar(&program);
+    let run = crate::interp::run_scalar(&program, Default::default());
     assert_eq!(run.observations.stdout(), ["9", "3"]);
 }
 
@@ -862,7 +870,7 @@ fn nested_branch_values_work_in_later_arguments_indexes_and_assignments() {
 fn read_loan_survives_branch_value_in_later_call_argument() {
     let source = "fn F(r: view MockResource, n: view I64) {\n    Inspect(r);\n    Print(n);\n}\nfn Main() {\n    let r = MockOpen(7);\n    F(r, if true then 2 else 3);\n    Inspect(r);\n}\n";
     let program = compile_scalar("loan_live.n", source).unwrap();
-    let run = crate::interp::run_scalar(&program);
+    let run = crate::interp::run_scalar(&program, Default::default());
     assert_eq!(run.observations.stdout(), ["2"]);
     assert_eq!(
         run.observations.events(),
@@ -874,7 +882,7 @@ fn read_loan_survives_branch_value_in_later_call_argument() {
 fn fault_in_branch_argument_releases_earlier_live_read_loan_and_owner() {
     let source = "fn F(r: view MockResource, n: view I64) {\n    Inspect(r);\n}\nfn Main() {\n    let r = MockOpen(7);\n    F(r, if true then {\n        Fail();\n        value: 2;\n    } else 3);\n}\n";
     let program = compile_scalar("branch_fault.n", source).unwrap();
-    let run = crate::interp::run_scalar(&program);
+    let run = crate::interp::run_scalar(&program, Default::default());
     assert!(matches!(
         run.outcome,
         crate::interp::Outcome::SimulatorFault
@@ -946,8 +954,8 @@ fn true_branch_and_instruction_scope_have_distinct_hash_roles() {
     main.block.instructions[0].scope = model::ScopeId(1);
     assert_eq!(model::content_hash(main), original);
     assert_eq!(super::verify::verify_function(main), Ok(()));
-    let original_run = crate::interp::run_scalar(&program);
-    let scope_run = crate::interp::run_scalar(&scope_only);
+    let original_run = crate::interp::run_scalar(&program, Default::default());
+    let scope_run = crate::interp::run_scalar(&scope_only, Default::default());
     assert_eq!(
         original_run.observations.stdout(),
         scope_run.observations.stdout()
@@ -1207,7 +1215,9 @@ fn consumed_scoped_binding_has_no_second_cleanup_instruction() {
             .any(|ins| matches!(ins.op, Op::DropLocal(_)))
     );
     assert_eq!(
-        crate::interp::run_scalar(&program).observations.events(),
+        crate::interp::run_scalar(&program, Default::default())
+            .observations
+            .events(),
         ["open:0:1", "close:0:1"]
     );
 }
@@ -1250,7 +1260,9 @@ fn a_returning_branch_coerces_to_the_other_branch_value_type() {
         let program =
             compile_scalar("coerce_never.n", source).unwrap_or_else(|e| panic!("{source}: {e:?}"));
         assert_eq!(
-            crate::interp::run_scalar(&program).observations.stdout(),
+            crate::interp::run_scalar(&program, Default::default())
+                .observations
+                .stdout(),
             [expected]
         );
     }
@@ -1430,7 +1442,7 @@ fn generated_cfg_programs_match_independent_integer_model() {
         );
         let program = compile_scalar("generated.n", &source)
             .unwrap_or_else(|error| panic!("seed {seed}: {error:?}"));
-        let result = crate::interp::run_scalar(&program);
+        let result = crate::interp::run_scalar(&program, Default::default());
         assert!(
             matches!(result.outcome, crate::interp::Outcome::Unit),
             "seed {seed}: {result:?}"
@@ -2005,7 +2017,7 @@ fn nested_cfg_compiles_and_runs_from_small_caller_stacks() {
                 for opening in ["if true{", "while false{"] {
                     let source = format!("fn Main(){{{}{}}}", opening.repeat(80), "}".repeat(80),);
                     let program = compile_scalar("cfg_stack.n", &source).unwrap();
-                    let execution = crate::interp::run_scalar(&program);
+                    let execution = crate::interp::run_scalar(&program, Default::default());
                     assert!(matches!(execution.outcome, crate::interp::Outcome::Unit));
                 }
             })
@@ -2020,7 +2032,7 @@ fn dead_code_after_all_returning_branch_does_not_reuse_live_temp_ids() {
     let source = "fn G(x: view I64) -> I64 {\n    return x;\n}\nfn Main() {\n    {\n        return;\n        G(G(1));\n    }\n    if true {\n        return;\n    } else {\n        return;\n    }\n    G(G(1));\n}\n";
     let program = compile_scalar("dead_cfg.n", source).unwrap();
     assert!(matches!(
-        crate::interp::run_scalar(&program).outcome,
+        crate::interp::run_scalar(&program, Default::default()).outcome,
         crate::interp::Outcome::Unit
     ));
 }
@@ -2950,8 +2962,12 @@ fn injected_divergence_matches_live_twin_diagnostics() {
                 assert!(!expected_rejection, "incorrect acceptance at seed {seed}");
                 if ineffective {
                     assert_eq!(
-                        crate::interp::run_scalar(&dead).observations.stdout(),
-                        crate::interp::run_scalar(&alive).observations.stdout(),
+                        crate::interp::run_scalar(&dead, Default::default())
+                            .observations
+                            .stdout(),
+                        crate::interp::run_scalar(&alive, Default::default())
+                            .observations
+                            .stdout(),
                         "seed {seed}"
                     );
                 }

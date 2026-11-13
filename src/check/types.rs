@@ -6422,6 +6422,7 @@ impl Checker<'_> {
 }
 
 #[allow(clippy::vec_box)] // Semantic diagnostics retain the shared boxed representation.
+#[cfg(test)]
 pub(crate) fn check_with_partial(
     file: &str,
     source: &str,
@@ -6431,7 +6432,7 @@ pub(crate) fn check_with_partial(
     check_with_partial_limit(file, source, ast, resolved, 1_000_000)
 }
 
-fn check_with_partial_limit(
+pub(crate) fn check_with_partial_limit(
     file: &str,
     source: &str,
     ast: &Ast,

@@ -145,7 +145,10 @@ fn nested_if_names_depth_boundaries_match_parser_and_run() {
         check_scalar("names_depth.n", &source).unwrap();
         let program = compile_scalar("names_depth.n", &source).unwrap();
         assert!(
-            !matches!(run_scalar(&program).outcome, Outcome::InternalError(_)),
+            !matches!(
+                run_scalar(&program, Default::default()).outcome,
+                Outcome::InternalError(_)
+            ),
             "height {height}"
         );
     }
@@ -171,7 +174,7 @@ fn official_expression_tree_depth_127_and_128_boundaries() {
     assert_eq!(source_127.len(), 3_065);
     let program = check_scalar("expression_depth.n", &source_127).unwrap();
     assert!(!matches!(
-        run_scalar(&program).outcome,
+        run_scalar(&program, Default::default()).outcome,
         Outcome::InternalError(_)
     ));
     let source_128 = expression_depth(128);
@@ -329,9 +332,12 @@ fn global_flow_limit_currently_keeps_later_nonloop_property_diagnostics() {
             .collect::<String>()
     );
     let source = format!("{first}fn Later(){{let z=0;Drop(z);Print(z);}}fn Main(){{}}");
-    let Err(CompileError::Rejected(errors)) =
-        compile_scalar_with_profile("global_later.n", &source, ReducedProfile::FlowCompilation32)
-    else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+        "global_later.n",
+        &source,
+        ReducedProfile::FlowCompilation32,
+        false,
+    ) else {
         panic!("the reduced global budget must reject the first function");
     };
     assert!(errors.iter().any(|error| {
@@ -572,12 +578,17 @@ fn effect_fixpoint_charges_each_operation_and_callsite_to_global_limit() {
 
 #[test]
 fn effect_program_accepts_exact_budget_and_rejects_first_excess() {
+    // A2 §11.5 l. 973 requires the 31/32/33 source-adjacent profiles.
     let source = |count: usize| {
         (0..count)
             .map(|index| format!("fn F{index}(){{}}"))
             .collect::<String>()
             + "fn Main(){}"
     };
+    let below = source(30);
+    compile_scalar_with_profile("effects_below.n", &below, ReducedProfile::Effects32, false)
+        .unwrap();
+
     let exact = source(31);
     let program = compile_scalar("effects_exact.n", &exact).unwrap();
     let emitted = program
@@ -587,12 +598,16 @@ fn effect_program_accepts_exact_budget_and_rejects_first_excess() {
         .map(|function| function.block.instructions.len())
         .sum::<usize>();
     assert_eq!(emitted, 32, "one effect-work unit per empty function");
-    compile_scalar_with_profile("effects_exact.n", &exact, ReducedProfile::Effects32).unwrap();
+    compile_scalar_with_profile("effects_exact.n", &exact, ReducedProfile::Effects32, false)
+        .unwrap();
 
     let excess = source(32);
-    let Err(CompileError::Rejected(errors)) =
-        compile_scalar_with_profile("effects_excess.n", &excess, ReducedProfile::Effects32)
-    else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+        "effects_excess.n",
+        &excess,
+        ReducedProfile::Effects32,
+        false,
+    ) else {
         panic!("the first program unit beyond the effect limit must reject");
     };
     let diagnostic = errors
@@ -621,6 +636,7 @@ fn reduced_analysis_profiles_are_selected_through_internal_rust_api() {
         "profile_local.n",
         &nested(1),
         ReducedProfile::FlowFunction32,
+        false,
     ) else {
         panic!("function flow profile must enforce its reduced limit");
     };
@@ -638,6 +654,7 @@ fn reduced_analysis_profiles_are_selected_through_internal_rust_api() {
         "profile_global.n",
         &source,
         ReducedProfile::FlowCompilation32,
+        false,
     ) else {
         panic!("compilation flow profile must enforce its reduced limit");
     };
@@ -693,9 +710,12 @@ fn reduced_analysis_profiles_are_selected_through_internal_rust_api() {
         ));
     }
     effects.push_str("fn Main(){}");
-    let Err(CompileError::Rejected(errors)) =
-        compile_scalar_with_profile("profile_effects.n", &effects, ReducedProfile::Effects32)
-    else {
+    let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+        "profile_effects.n",
+        &effects,
+        ReducedProfile::Effects32,
+        false,
+    ) else {
         panic!("effects profile must enforce its reduced limit");
     };
     let effects_quota = errors.iter().find(|d| d.code == "NX-E0003").unwrap();
@@ -707,7 +727,7 @@ fn reduced_analysis_profiles_are_selected_through_internal_rust_api() {
 
     let ir = "fn Main(){let a=0;let b=1;let c=2;let d=3;let e=4;}";
     let Err(CompileError::Rejected(ir_errors)) =
-        compile_scalar_with_profile("profile_ir.n", ir, ReducedProfile::IrItems32)
+        compile_scalar_with_profile("profile_ir.n", ir, ReducedProfile::IrItems32, false)
     else {
         panic!("IR profile must enforce its reduced limit");
     };
@@ -719,6 +739,110 @@ fn reduced_analysis_profiles_are_selected_through_internal_rust_api() {
     );
     assert_eq!(ir_quota.data.get("limit"), Some(&DataValue::UInt(32)));
     ir_quota.validate("profile_ir.n", ir).unwrap();
+}
+
+#[test]
+fn analysis_profile_limit_table_matches_the_published_values() {
+    // Independent transcription of A2 §11.4–§11.5. It makes a ±1 change to
+    // any normal or reduced analysis limit fail without deriving expectations
+    // from the compiler under test.
+    let table = [
+        (
+            ReducedProfile::Normal,
+            "f0-0002-b-v2",
+            1_000_000,
+            1_000_000,
+            4_000_000,
+            1_000_000,
+            262_144,
+        ),
+        (
+            ReducedProfile::Types32,
+            "f0-0002-b-test-types-32-v2",
+            32,
+            1_000_000,
+            4_000_000,
+            1_000_000,
+            262_144,
+        ),
+        (
+            ReducedProfile::FlowFunction32,
+            "f0-0002-b-test-flow-32-v2",
+            1_000_000,
+            32,
+            4_000_000,
+            1_000_000,
+            262_144,
+        ),
+        (
+            ReducedProfile::FlowCompilation32,
+            "f0-0002-b-test-flow-global-32-v2",
+            1_000_000,
+            1_000_000,
+            32,
+            1_000_000,
+            262_144,
+        ),
+        (
+            ReducedProfile::Effects32,
+            "f0-0002-b-test-effects-32-v2",
+            1_000_000,
+            1_000_000,
+            4_000_000,
+            32,
+            262_144,
+        ),
+        (
+            ReducedProfile::IrItems32,
+            "f0-0002-b-test-ir-32-v2",
+            1_000_000,
+            1_000_000,
+            4_000_000,
+            1_000_000,
+            32,
+        ),
+        (
+            ReducedProfile::Frames8,
+            "f0-0002-b-test-frames-8-v2",
+            1_000_000,
+            1_000_000,
+            4_000_000,
+            1_000_000,
+            262_144,
+        ),
+        (
+            ReducedProfile::Cells64,
+            "f0-0002-b-test-cells-64-v2",
+            1_000_000,
+            1_000_000,
+            4_000_000,
+            1_000_000,
+            262_144,
+        ),
+        (
+            ReducedProfile::Observations64,
+            "f0-0002-b-test-observations-64-v2",
+            1_000_000,
+            1_000_000,
+            4_000_000,
+            1_000_000,
+            262_144,
+        ),
+    ];
+    for (profile, id, types, flow_function, flow_compilation, effects, ir_items) in table {
+        assert_eq!(
+            super::lower::analysis_limits_for_test(profile),
+            (
+                id,
+                types,
+                flow_function,
+                flow_compilation,
+                effects,
+                ir_items
+            ),
+            "{id}"
+        );
+    }
 }
 
 #[test]

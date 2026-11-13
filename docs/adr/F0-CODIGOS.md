@@ -176,7 +176,7 @@ Los feature_id siguientes son identificadores cerrados del perfil, no subcausas 
 | for_iteration | For y su protocolo de iteración. |
 | function_value | Uso almacenado, retornado o pasado de una función como valor. |
 | generator | Gen fn, yield y operaciones de generador. |
-| implementation_limit | Capacidad pendiente de implementación en I10a, I10b o I11a; frontera sobre AST/tipos resueltos, no prohibición del lenguaje (F0-D15 §7.1). |
+| implementation_limit | Rechazo temporal de una capacidad pendiente sobre AST/tipos resueltos, no prohibición del lenguaje. Los scopes I08/I09/I10a/I10b/I11a se conservan como valores históricos; las capacidades I10a/I10b/I11a ya no emiten este rechazo (F0-D15 §7.1). |
 | inferred_non_unit_result | Función sin anotación de resultado que requiere inferir un resultado distinto de unidad. |
 | loop_control | Break o continue. |
 | match | Selección por patrones; `pending_scope = F0-0003` identifica el diseño de la selección necesaria para `next`/`Option`, sin prometer toda la selección por patrones de la base en ese corte. |
@@ -275,11 +275,11 @@ no se aceptan como seguros al agotar ningún presupuesto.
 
 ### Perfil de análisis de F0-0002
 
-Procedencia normativa: [F0-0002 §§11.1, 11.4–11.5, 11.8 y 13.12–13.13](F0-0002-second-slice.md). El perfil vigente es `f0-0002-v2`. Sustituye la contabilidad densa de propiedad del antecedente v1; no crea un dialecto. Las unidades, recorrido por prioridad de índice con punto fijo local (equivalente a RPO solo en los CFG estructurados descritos), reinicios por identidad de función y acumulación global se definen exclusivamente en §11.1. Tipos y efectos conservan 1.000.000 unidades globales; IR, 262.144. Propiedad tiene 1.000.000 locales y 4.000.000 globales. Las guardas estructurales conservan los límites de esa tabla, con altura compartida por parser/lowering.
+Procedencia normativa: [F0-0002 §§11.1, 11.4–11.5, 11.8 y 13.12–13.13](F0-0002-second-slice.md). La identidad B vigente es `f0-0002-b-v2` según F0-D15 §6.1; su cuota es la de `f0-0002-v2` de A2. Sustituye la contabilidad densa de propiedad del antecedente v1; no crea un dialecto. Las unidades, recorrido por prioridad de índice con punto fijo local (equivalente a RPO solo en los CFG estructurados descritos), reinicios por identidad de función y acumulación global se definen exclusivamente en §11.1. Tipos y efectos conservan 1.000.000 unidades globales; IR, 262.144. Propiedad tiene 1.000.000 locales y 4.000.000 globales. Las guardas estructurales conservan los límites de esa tabla, con altura compartida por parser/lowering.
 
 NX-E0003 conserva `subcause=null`, `operation=analysis.limit`, `limit`, `observed` y `profile_id`. El perfil incorpora `budget_scope=function|compilation`, `incomplete_analysis` igual a `stage` y `analysis_function` exclusivamente en propiedad local. No se añade un budget_kind para cada ámbito. El intento excedido es `observed=limit+1`; si coinciden límites local y global prevalece el global. Se conservan diagnósticos de estados convergidos —el prefijo estable definido en F0-0002 §11.1 si se corta el punto fijo—, una entrada por uso, como subconjunto exacto de la ejecución sin cuota; se añade el límite y se ordena por span. El primario de un límite local es no vacío y está dentro de la función identificada por analysis_function, en el cargo rechazado; B-D1 exige además el sufijo anidado y la lista ordenada de F0-0002 §11.8.B. Tras límite local se analizan funciones posteriores dentro del saldo global. No se entrega artefacto verificado con análisis incompleto.
 
-Los perfiles reducidos y generadores de §11.4 son obligatorios: `f0-0002-test-types-32-v2`, `f0-0002-test-flow-32-v2`, `f0-0002-test-flow-global-32-v2`, `f0-0002-test-effects-32-v2` y `f0-0002-test-ir-32-v2`. El positivo mínimo es `fn main(){}`; los negativos aislantes usan 64 bindings anotados, 64 inicializaciones, 64 llamadas directas o 64 bindings con slots, según la guarda. El perfil flow local reduce solo su límite por función; flow-global reduce solo el global. Fronteras 31/32/33 del contador y alcanzabilidad desde fuente se informan separadas: un fallo por otra guarda no satisface la fila.
+Los perfiles reducidos y generadores de §11.4 son obligatorios. Sus identificadores B de CLI, según F0-D15 §6.1, son `f0-0002-b-test-types-32-v2`, `f0-0002-b-test-flow-32-v2`, `f0-0002-b-test-flow-global-32-v2`, `f0-0002-b-test-effects-32-v2` y `f0-0002-b-test-ir-32-v2`. El positivo mínimo B es `fn Main(){}`; los negativos aislantes usan 64 bindings anotados, 64 inicializaciones, 64 llamadas directas o 64 bindings con slots, según la guarda. El perfil flow local reduce solo su límite por función; flow-global reduce solo el global. Fronteras 31/32/33 del contador y alcanzabilidad desde fuente se informan separadas: un fallo por otra guarda no satisface la fila.
 
 Las familias normales son las de §11.8: A, 93.307 bytes, excede tipos; C, 18.240 bytes, excede efectos; D, 840.882 bytes, excede IR. La antigua fuente B de 23.491 bytes ahora debe aceptarse (B-A1); B-A2–B-A4 son positivos adicionales y B-L1/B-G1/B-D1 prueban límite local, global y conservación, con tamaños y esperados en §11.8.B. Se elimina la obligación de cobrar todos los componentes visibles y la garantía indiscriminada por tamaño de fuente. Las expectativas normativas se distinguen de las mediciones explícitas de B-D1 en §11.8.B: 71.843/71.880 bytes, 61.407 ítems (61.421 contando la IR parcial de later) y rechazo del cargo de propiedad 1.000.001; no acreditan implementación de los metadatos v2.
 
@@ -387,19 +387,21 @@ Se añaden:
 | R0002 | F0-0002/interp | Se excede una cuota estructural de ejecución. runtime_budget_kind pertenece exclusivamente a call_frames, live_value_cells u observation_bytes. Exige limit, observed, profile_id y span de la operación desencadenante. No utiliza budget_kind. |
 | R0103 | F0-0002/interp | La resta comprobada de dos i64 no es representable como i64. No se realiza wrapping. |
 
-Los límites de `f0-0002-v2` son 1.000.000 unidades de trabajo, 256 frames, 65.536 celdas vivas y 65.536 bytes de observaciones comprometidos. Se cuenta salida más eventos, incluidos prefijos y LF, mediante la codificación virtual de F0-0002 §12.4; no se cuenta el envoltorio JSON de transporte.
+Los límites de `f0-0002-b-v2` son 1.000.000 unidades de trabajo, 256 frames, 65.536 celdas vivas y 65.536 bytes de observaciones comprometidos. Se cuenta salida más eventos, incluidos prefijos y LF, mediante la codificación virtual de F0-0002 §12.4; no se cuenta el envoltorio JSON de transporte.
 
 La ocupación de observaciones suma bytes emitidos y reservas de cierre. Antes de adquirir un recurso se reserva el tamaño exacto de su cierre. La limpieza no se interrumpe por agotamiento de trabajo ni omite los eventos reservados.
 
 Observed es el cargo u ocupación propuestos que excederían el límite. Una reserva rechazada no modifica la ocupación comprometida. El primer cargo excedido de trabajo tiene observed = limit + 1; una reserva estructural agregada puede excederlo en más de uno.
 
-Se publican estos perfiles adicionales, que heredan todo lo demás de `f0-0002-v2`:
+Se publican estos perfiles adicionales, que heredan todo lo demás de `f0-0002-b-v2`:
 
 | profile_id | Único cambio |
 |---|---|
-| f0-0002-test-frames-8-v2 | call_frames = 8. |
-| f0-0002-test-cells-64-v2 | live_value_cells = 64. |
-| f0-0002-test-observations-64-v2 | observation_bytes = 64. |
+| `f0-0002-b-test-frames-8-v2` | call_frames = 8. |
+| `f0-0002-b-test-cells-64-v2` | live_value_cells = 64. |
+| `f0-0002-b-test-observations-64-v2` | observation_bytes = 64. |
+
+El perfil `cells-64` conserva exactamente 64 celdas: A2 §11.5 ll. 967–970 fija testigos de 63, 64 y 65 celdas solicitadas, incluida la cabecera del array.
 
 F0-0002 §11 publica recetas aislantes para cada cuota normal y fronteras en los perfiles reducidos. La duplicación histórica de arrays migra a R0002 con runtime_budget_kind = live_value_cells. Una prueba separada de bucle sin crecimiento conserva el objetivo R0001 y limpieza del recurso.
 
@@ -558,9 +560,9 @@ nexo explain NX-Edddd
 nexo explain NX-Edddd --subcause nombre
 ```
 
-La explicación describe regla, causa, ejemplo negativo, positivo y consecuencias de las reparaciones. `nexo explain NX-E0006` devuelve **30 entradas**, una por feature_id de la tabla cerrada, en el mismo orden por bytes, con `feature_ids = [ID]`, `subcause = null`, `explanation_id = NX-E0006`, `availability = in_profile` y `example_profile_id = f0-0002-b-v2`. Los ejemplos negativo/positivo son la primera fila B por número de F0-D15 §8.7 para ese ID y su edición completa; `unsupported_type` usa F2-F29 y `methods` F2-F23. Procedencia: [F0-0002 §13.10](F0-0002-second-slice.md), enmendado por [F0-D15 §§3.6, 6.1 y 6.4](F0-D15-sintaxis-oficial.md).
+La explicación describe regla, causa, ejemplo negativo, positivo y consecuencias de las reparaciones. `nexo explain NX-E0006` devuelve **30 entradas**, una por feature_id de la tabla cerrada, en el mismo orden por bytes, con `feature_ids = [ID]`, `subcause = null` y `explanation_id = NX-E0006`. Las entradas vigentes usan `availability = in_profile` y `example_profile_id = f0-0002-b-v2`; `implementation_limit` es histórico, con `availability = historical` y `example_profile_id = null` (F0-D15 §7.1, fila I11a). Los ejemplos negativo/positivo vigentes son la primera fila B por número de F0-D15 §8.7 para ese ID y su edición completa; `unsupported_type` usa F2-F29 y `methods` F2-F23. Procedencia: [F0-0002 §13.10](F0-0002-second-slice.md), enmendado por [F0-D15 §§3.6, 6.1 y 6.4](F0-D15-sintaxis-oficial.md).
 
-Para `implementation_limit`, la explicación enumera I10a, I10b e I11a como capacidades pendientes, sin atribuir una prohibición al lenguaje. El negativo vigente es `fn Main(){MockRequest();}` con `pending_scope = I11a` y primario `[10,21)`; `fn Main() with no_io{}` es válido tras I09. El antiguo negativo `fn Main()->Result<(),I64>{return Ok(());}` con I08 es histórico y ahora se acepta. Cuando no quede ninguna capacidad pendiente, el ejemplo pasa a histórico (F0-D15 §§6.1 y 7.1). NX-E1301 conserva `availability = historical`, `example_profile_id = null` y ejemplos históricos, no fuentes B aceptables (F0-D15 §6.1).
+Para `implementation_limit`, `fn Main(){MockRequest();}` y `fn Main() with no_io{}` son aceptados; la primera fuente conserva únicamente su referencia histórica. La entrada de `explain` usa `availability = historical` y `example_profile_id = null`, sin una negativa vigente (F0-D15 §7.1, fila I11a). El antiguo negativo `fn Main()->Result<(),I64>{return Ok(());}` con I08 también es histórico y ahora se acepta. NX-E1301 conserva `availability = historical`, `example_profile_id = null` y ejemplos históricos, no fuentes B aceptables (F0-D15 §6.1).
 
 Una consulta con código o subcausa inexistentes devuelve un error de uso; no fabrica documentación. Las etiquetas locales de fixtures de F0-0002 se citan fuera de ese ADR con prefijo `F2-`, sin renombrar las fixtures de D11, D13 o del catálogo (F0-0002 §13.10).
 
@@ -593,12 +595,11 @@ Para NX-E0006, `data.pending_scope` es obligatorio y queda cerrado a la tabla si
 | closure, generator, option, match | F0-0003 | Diseño diferido de estas construcciones. |
 | Los otros 25 identificadores de alcance | later_adr | Alcance diferido; excluye implementation_limit. |
 | implementation_limit (histórico) | I08 | Rechazo temporal de Result, Ok/Err, `?`, TryAdd y firmas Result de entrada antes de I08. Ya no se emite; firmas incompatibles conservan NX-E0112. |
-| implementation_limit | I11a | Interfaz mock de entrada pendiente: MockReadRecords, MockWriteI64, MockRequest y MockReply. Las cláusulas `with` y `MockUnknown` ya se comprueban en I09. |
-| implementation_limit | I10a | Perfiles reducidos y garantías completas de análisis: solicitud explícita del arnés interno de un perfil no disponible; no rechaza programas ordinarios ni sustituye fallos de cuotas/metadatos. La opción CLI se rechaza con exit 2. |
-| implementation_limit | I10b | Cuotas completas de ejecución, contabilidad y reservas de observación: solicitud del arnés interno de un perfil o protocolo no disponible. El subconjunto ordinario conserva sus guardas; no sustituye discrepancias de ticks/reservas. La opción CLI se rechaza con exit 2. |
-| implementation_limit | I11a | Interfaz mock de entrada y tres flujos integrados: primera llamada aún no ejecutable a MockReadRecords, MockWriteI64, MockRequest o MockReply, aunque I08 ya admita Result. I11b integra evidencia, no añade una capacidad que justifique rechazo. |
+| implementation_limit (histórico) | I11a | `MockReadRecords`, `MockWriteI64`, `MockRequest` y `MockReply` se ejecutan mediante `--mock-env`; los tres flujos de A2 §12.1–12.3 son aceptados. I11b integra evidencia y no justifica un rechazo. |
+| implementation_limit (histórico) | I10a | Los cinco perfiles reducidos de análisis están publicados y disponibles en `check`/`run`; se aplican sus cuotas y diagnósticos sin `implementation_limit`. |
+| implementation_limit (histórico) | I10b | Los perfiles reducidos `frames-8`, `cells-64` y `observations-64` están publicados y disponibles en `check`/`run`; se aplican cuotas, contabilidad y reservas sin `implementation_limit`. |
 
-`implementation_limit` usa `stage = types`, `operation = types.check`, `rule = explanation_id = NX-E0006`, `subcause = null`, namespace Nexo-proposed-v1, severity error y perfil B vigente. El primario señala la primera construcción que necesita la capacidad o EOF vacío para una petición del arnés sin construcción fuente. `data` contiene únicamente `pending_scope`; related_spans, cause_chain, repair y expected_tokens están vacíos; unexpected_token, parser_context, recognized_prefix y expected_tokens_kind son null. El mensaje literal es `Capacidad pendiente de implementación en {pending_scope}.`, con el valor sustituido; exit 1, sin salida de programa ni eventos. Entre varias capacidades se elige el menor inicio fuente y, a igualdad de sitio, I10a, I10b, I11a entre las pendientes desde I09; I09 sigue admitido como valor histórico; una barrera anterior conserva prioridad. No se reconoce por patrones de fuente ni convierte fallos internos en diagnósticos de programa (F0-D15 §7.1).
+`implementation_limit` usa `stage = types`, `operation = types.check`, `rule = explanation_id = NX-E0006`, `subcause = null`, namespace Nexo-proposed-v1, severity error y perfil B vigente. El primario señala la primera construcción que necesita la capacidad o EOF vacío para una petición del arnés sin construcción fuente. `data` contiene únicamente `pending_scope`; related_spans, cause_chain, repair y expected_tokens están vacíos; unexpected_token, parser_context, recognized_prefix y expected_tokens_kind son null. El mensaje literal es `Capacidad pendiente de implementación en {pending_scope}.`, con el valor sustituido; exit 1, sin salida de programa ni eventos. La precedencia histórica entre capacidades coincidentes era por menor inicio fuente y, a igualdad de sitio, I10a, I10b, I11a después de I09; I08/I09/I10a/I10b/I11a son valores históricos ya no emitidos. Una barrera anterior conserva prioridad. No se reconoce por patrones de fuente ni convierte fallos internos en diagnósticos de programa (F0-D15 §7.1).
 
 El rechazo temporal no acredita conformidad ni sustituye los esperados semánticos, de inferencia/procedencia, presupuestos/metadatos o ticks/spans/reservas de F0-0002 §17.2. Cada capacidad deja de emitir su rechazo cuando se implementa (F0-D15 §§6.1, 7.1 y 7.3).
 

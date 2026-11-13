@@ -2004,11 +2004,15 @@ pub fn explain(code: &str, subcause: Option<&str>) -> Result<Vec<Explanation>, E
             .map(|id| Explanation {
                 subcause: None,
                 explanation_id: code.into(),
-                availability: feature_availability,
+                availability: if *id == "implementation_limit" {
+                    "historical"
+                } else {
+                    feature_availability
+                },
                 description: feature_description(id),
                 negative_source: feature_negative_source(id),
                 positive_source: feature_positive_source(id),
-                example_profile_id: Some(PROFILE_ID.into()),
+                example_profile_id: (*id != "implementation_limit").then(|| PROFILE_ID.into()),
                 feature_ids: vec![(*id).into()],
                 // §13.6/§13.10 publish no repair consequences per NX-E0006 feature.
                 repair_consequences: vec![],
@@ -2054,9 +2058,9 @@ struct FeatureFixture {
 static FEATURE_FIXTURES: &[FeatureFixture] = &[
     FeatureFixture {
         id: "implementation_limit",
-        description: "Capacidad pendiente de implementación en I10a, I10b o I11a.",
+        description: "Histórico: la capacidad de interfaz mock se implementó en I11a.",
         negative: "fn Main(){MockRequest();}",
-        repair: "Quitar MockRequest() mientras I11a siga pendiente",
+        repair: "Sin reparación: el ejemplo negativo quedó histórico al implementarse I11a.",
     },
     FeatureFixture {
         id: "inferred_non_unit_result",
@@ -3716,6 +3720,13 @@ mod tests {
             feature_negative_source("implementation_limit"),
             "fn Main(){MockRequest();}"
         );
+        let item = explain("NX-E0006", None)
+            .unwrap()
+            .into_iter()
+            .find(|x| x.feature_ids == ["implementation_limit"])
+            .unwrap();
+        assert_eq!(item.availability, "historical");
+        assert_eq!(item.example_profile_id, None);
         let mut d = sample();
         d.profile_id = PROFILE_ID.into();
         d.feature_id = Some("legacy_move".into());

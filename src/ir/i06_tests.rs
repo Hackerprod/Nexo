@@ -4,7 +4,10 @@ use crate::interp::{Outcome, run_scalar};
 #[test]
 fn inout_reborrow_returns_modified_value() {
     let source = "fn Inc(x: edit I64) {\n    x = x + 1;\n}\nfn Dos(x: edit I64) {\n    Inc(edit x);\n    Inc(edit x);\n}\nfn Main() {\n    var x = 0;\n    Dos(edit x);\n    AssertEq(x, 2);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("i06.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::Unit);
     assert!(result.diagnostics.is_empty());
 }
@@ -251,13 +254,19 @@ fn named_exclusive_loan_keeps_full_argument_origin_in_verified_ir() {
         loan,
         (first as usize, first, first + "x: edit a[0]".len() as u64)
     );
-    assert_eq!(run_scalar(&program).outcome, Outcome::Unit);
+    assert_eq!(
+        run_scalar(&program, Default::default()).outcome,
+        Outcome::Unit
+    );
 }
 
 #[test]
 fn two_read_loans_of_the_same_root_remain_compatible() {
     let source = "fn F(x: view Array<I64>, y: view Array<I64>) {}\nfn Main() {\n    var a = [1];\n    F(a, a);\n}\n";
-    let result = run_scalar(&compile_scalar("reads.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("reads.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::Unit);
     assert!(result.diagnostics.is_empty());
 }
@@ -295,6 +304,7 @@ fn valid_pairs_and_permissions() {
     for source in valid {
         let result = run_scalar(
             &compile_scalar("i06.n", source).unwrap_or_else(|e| panic!("{source}: {e:?}")),
+            Default::default(),
         );
         assert_eq!(
             result.outcome,
@@ -339,11 +349,17 @@ fn valid_pairs_and_permissions() {
 #[test]
 fn indexed_destination_rechecks_after_rhs_call_modifies_root() {
     let source = "fn Resize(a: edit Array<I64>) -> I64 {\n    a = [7];\n    return 9;\n}\nfn Main() {\n    var a = [1, 2];\n    a[1] = Resize(edit a);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("i06.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0102");
     let source = "fn Resize(a: edit Array<I64>) -> I64 {\n    a = [7, 8, 9];\n    return 4;\n}\nfn Main() {\n    var a = [1];\n    a[1] = Resize(edit a);\n    AssertEq(a, [7, 4, 9]);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("i06.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::Unit, "{:?}", result.diagnostics);
 }
 
@@ -574,15 +590,21 @@ fn development_substitution_executes_new_inout_body() {
         "fn Inc(x: edit I64) {\n    x = x + 2;\n}\nfn Main() {\n    var x = 0;\n    Inc(edit x);\n    AssertEq(x, 2);\n}\n",
     )
     .unwrap();
-    assert_eq!(run_scalar(&base).outcome, Outcome::SimulatorFault);
+    assert_eq!(
+        run_scalar(&base, Default::default()).outcome,
+        Outcome::SimulatorFault
+    );
     base.substitute_for_development("Inc", &donor).unwrap();
-    assert_eq!(run_scalar(&base).outcome, Outcome::Unit);
+    assert_eq!(run_scalar(&base, Default::default()).outcome, Outcome::Unit);
 }
 
 #[test]
 fn inout_resource_replacement_preserves_single_owner_and_cleanup_order() {
     let source = "fn Replace(r: edit MockResource) {\n    r = MockOpen(2);\n    Inspect(r);\n}\nfn Main() {\n    var r = MockOpen(1);\n    Replace(edit r);\n    Inspect(r);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("i06.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::Unit);
     assert_eq!(
         result.observations.events(),
@@ -600,7 +622,10 @@ fn inout_resource_replacement_preserves_single_owner_and_cleanup_order() {
 #[test]
 fn inout_owner_is_restored_on_fault_and_frame_limit() {
     let source = "fn Change(r: edit MockResource) {\n    r = MockOpen(2);\n    Fail();\n}\nfn Main() {\n    var r = MockOpen(1);\n    Change(edit r);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("i06.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0301");
     assert_eq!(
@@ -609,7 +634,10 @@ fn inout_owner_is_restored_on_fault_and_frame_limit() {
     );
 
     let source = "fn Recur(r: edit MockResource) {\n    Recur(edit r);\n}\nfn Main() {\n    var r = MockOpen(1);\n    Recur(edit r);\n}\n";
-    let result = run_scalar(&compile_scalar("i06.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("i06.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0002");
     assert_eq!(result.observations.events(), ["open:0:1", "close:0:1"]);
@@ -664,7 +692,7 @@ fn generated_inout_and_copy_programs_match_independent_integer_model() {
         ));
         let compiled = compile_scalar("model.n", &source)
             .unwrap_or_else(|e| panic!("case {case}: {e:?}: {source}"));
-        let result = run_scalar(&compiled);
+        let result = run_scalar(&compiled, Default::default());
         assert_eq!(
             result.outcome,
             Outcome::Unit,
@@ -695,7 +723,7 @@ fn semantic_loan_fuzz_never_constructs_invalid_ir() {
         let source = programs[(i * 7919) % programs.len()].replace("=1", &format!("={}", i % 31));
         match compile_scalar("fuzz.n", &source) {
             Ok(program) => {
-                let result = run_scalar(&program);
+                let result = run_scalar(&program, Default::default());
                 for d in result.diagnostics {
                     d.validate("fuzz.n", &source).unwrap();
                 }
@@ -745,7 +773,7 @@ fn loan_source_fuzz_validates_diagnostics_and_never_panics() {
         );
         match compile_scalar("fuzz.n", &source) {
             Ok(program) => {
-                let result = run_scalar(&program);
+                let result = run_scalar(&program, Default::default());
                 assert!(
                     !matches!(result.outcome, Outcome::InternalError(_)),
                     "{source}"
@@ -770,7 +798,7 @@ fn loan_compiler_and_interpreter_work_from_small_caller_stacks() {
         std::thread::Builder::new().stack_size(stack).spawn(|| {
             let source = "fn Inc(x: edit I64) {\n    x = x + 1;\n}\nfn Twice(x: edit I64) {\n    Inc(edit x);\n    Inc(edit x);\n}\nfn Main() {\n    var a = [0, 0];\n    Twice(edit a[0]);\n    AssertEq(a, [2, 0]);\n}\n";
             let program = compile_scalar("stack.n", source).unwrap();
-            let result = run_scalar(&program);
+            let result = run_scalar(&program, Default::default());
             assert_eq!(result.outcome, Outcome::Unit);
         }).unwrap().join().unwrap();
     }
@@ -1083,7 +1111,10 @@ fn indexed_inout_does_not_add_live_cells() {
         .join(",");
     let source =
         format!("fn Take(x:edit Array<I64>){{}} fn Main(){{var a=[[{values}]];Take(edit a[0]);}}");
-    let result = run_scalar(&compile_scalar("cells.n", &source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("cells.n", &source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::Unit, "{:?}", result.diagnostics);
     assert!(result.diagnostics.is_empty());
 }
@@ -1102,7 +1133,10 @@ fn large_indexed_inout_uses_existing_owner_cells() {
                 "G"
             }
         );
-        let result = run_scalar(&compile_scalar("big.n", &source).unwrap());
+        let result = run_scalar(
+            &compile_scalar("big.n", &source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(
             result.outcome,
             Outcome::Unit,
@@ -1116,7 +1150,10 @@ fn large_indexed_inout_uses_existing_owner_cells() {
 #[test]
 fn indexed_inout_replacement_restores_nested_value_and_owner() {
     let source = "fn Replace(x: edit Array<I64>) {\n    x = [7, 8];\n}\nfn Main() {\n    var a = [[1], [2]];\n    Replace(edit a[0]);\n    AssertEq(a, [[7, 8], [2]]);\n}\n";
-    let result = run_scalar(&compile_scalar("nested.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("nested.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::Unit, "{:?}", result.diagnostics);
     assert!(result.diagnostics.is_empty());
 }
@@ -1133,7 +1170,7 @@ fn indexed_inout_owner_survives_each_callee_runtime_fault() {
         let source =
             format!("fn F(x:edit Array<I64>){{{body}}} fn Main(){{var a=[[1]];F(edit a[0]);}}");
         let program = compile_scalar("fault.n", &source).unwrap();
-        let result = run_scalar(&program);
+        let result = run_scalar(&program, Default::default());
         assert_eq!(
             result.outcome,
             Outcome::SimulatorFault,
@@ -1154,7 +1191,10 @@ fn indexed_inout_replacement_updates_root_cell_count() {
     let source = format!(
         "fn Grow(x:edit Array<I64>){{x=[0,0];}} fn Main(){{var a=[[0],[{values}]];Grow(edit a[0]);let b=a;}}"
     );
-    let result = run_scalar(&compile_scalar("cells.n", &source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("cells.n", &source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -1167,7 +1207,10 @@ fn indexed_inout_replacement_updates_root_cell_count() {
 #[test]
 fn indexed_write_runs_the_disposal_path_for_replaced_value() {
     let source = "fn Main() {\n    var a = [1];\n    a[0] = 2;\n}\n";
-    let result = run_scalar(&compile_scalar("dispose.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("dispose.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.outcome, Outcome::Unit);
     assert_eq!(result.disposals, 2);
 }
@@ -1457,7 +1500,7 @@ fn sequential_operands_never_escape_as_invalid_ir() {
                 match result {
                     Ok(program) => {
                         executed += 1;
-                        let execution = run_scalar(&program);
+                        let execution = run_scalar(&program, Default::default());
                         assert!(
                             !matches!(execution.outcome, Outcome::InternalError(_)),
                             "{source}: {:?}",

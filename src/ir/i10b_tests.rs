@@ -27,7 +27,7 @@ fn empty_function_charges_entry_then_final_unit() {
         ),
         (10, 11)
     );
-    let execution = run_scalar(&program);
+    let execution = run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(execution.work_consumed, 2);
 }
@@ -54,7 +54,7 @@ fn runtime_index_diagnostics_use_selector_and_full_context_for_dg_cases() {
     ];
     for (source, start, end, context_start, context_end) in cases {
         let program = compile_scalar("dg_i10b.n", source).unwrap();
-        let result = run_scalar(&program);
+        let result = run_scalar(&program, Default::default());
         let diagnostic = &result.diagnostics[0];
         assert_eq!(diagnostic.code, "R0102");
         assert_eq!(diagnostic.operation.as_str(), "value.index");
@@ -87,7 +87,7 @@ fn runtime_index_diagnostics_use_selector_and_full_context_for_dg_cases() {
     ];
     for (source, start, end, context_start, context_end) in variants {
         let program = compile_scalar("index_variant_i10b.n", source).unwrap();
-        let diagnostic = &run_scalar(&program).diagnostics[0];
+        let diagnostic = &run_scalar(&program, Default::default()).diagnostics[0];
         assert_eq!(
             diagnostic.primary_span.as_ref().map(|s| (s.start, s.end)),
             Some((start, end))
@@ -101,7 +101,10 @@ fn runtime_index_diagnostics_use_selector_and_full_context_for_dg_cases() {
         );
     }
     let borrowed = "fn F(x:view I64){}fn Main(){var a=[[0]];F(x:a[0][2]);}";
-    let result = run_scalar(&compile_scalar("dg_label_i10b.n", borrowed).unwrap());
+    let result = run_scalar(
+        &compile_scalar("dg_label_i10b.n", borrowed).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.diagnostics.len(), 1, "{result:#?}");
     let diagnostic = &result.diagnostics[0];
     assert_eq!(diagnostic.code, "R0102");
@@ -132,7 +135,7 @@ fn runtime_index_diagnostics_use_selector_and_full_context_for_dg_cases() {
 fn equality_stops_at_the_first_different_payload_pair() {
     let source = "fn Main(){AssertEq([1,2],[9,2]);}";
     let program = compile_scalar("equality_work_i10b.n", source).unwrap();
-    let result = run_scalar(&program);
+    let result = run_scalar(&program, Default::default());
     assert_eq!(result.outcome, Outcome::SimulatorFault);
     assert_eq!(result.diagnostics[0].code, "R0201");
     assert_eq!(result.work_consumed, 21);
@@ -141,7 +144,11 @@ fn equality_stops_at_the_first_different_payload_pair() {
 #[test]
 fn published_work_table_totals_and_deltas_are_preserved() {
     let baseline = "fn Main(){var a=[3,4];var v=7;}";
-    let base = run_scalar(&compile_scalar("ledger_i10b.n", baseline).unwrap()).work_consumed;
+    let base = run_scalar(
+        &compile_scalar("ledger_i10b.n", baseline).unwrap(),
+        Default::default(),
+    )
+    .work_consumed;
     let delta_rows = [
         (baseline.replace(";}", ";var w=v;}"), 3),
         (baseline.replace(";}", ";var b=[v,v];}"), 7),
@@ -156,23 +163,40 @@ fn published_work_table_totals_and_deltas_are_preserved() {
         (baseline.replace(";}", ";Print(a[0]+0);}"), 14),
     ];
     for (source, expected_delta) in delta_rows {
-        let actual = run_scalar(&compile_scalar("ledger_i10b.n", &source).unwrap()).work_consumed;
+        let actual = run_scalar(
+            &compile_scalar("ledger_i10b.n", &source).unwrap(),
+            Default::default(),
+        )
+        .work_consumed;
         assert_eq!(actual - base, expected_delta, "{source}");
     }
 
     let function_source = "fn F(n:view I64)->I64{return n;}fn Main(){var a=[3,4];var v=7;F(v);}";
     let function_baseline = "fn F(n:view I64)->I64{return n;}fn Main(){var a=[3,4];var v=7;}";
-    let function_total =
-        run_scalar(&compile_scalar("ledger_i10b.n", function_source).unwrap()).work_consumed;
-    let function_base =
-        run_scalar(&compile_scalar("ledger_i10b.n", function_baseline).unwrap()).work_consumed;
+    let function_total = run_scalar(
+        &compile_scalar("ledger_i10b.n", function_source).unwrap(),
+        Default::default(),
+    )
+    .work_consumed;
+    let function_base = run_scalar(
+        &compile_scalar("ledger_i10b.n", function_baseline).unwrap(),
+        Default::default(),
+    )
+    .work_consumed;
     assert_eq!(function_total - function_base, 8);
 
     let nested = "fn Main(){var c=[[7]];}";
     let nested_source = "fn Main(){var c=[[7]];Print(c[0][0]);}";
-    let nested_delta = run_scalar(&compile_scalar("ledger_i10b.n", nested_source).unwrap())
-        .work_consumed
-        - run_scalar(&compile_scalar("ledger_i10b.n", nested).unwrap()).work_consumed;
+    let nested_delta = run_scalar(
+        &compile_scalar("ledger_i10b.n", nested_source).unwrap(),
+        Default::default(),
+    )
+    .work_consumed
+        - run_scalar(
+            &compile_scalar("ledger_i10b.n", nested).unwrap(),
+            Default::default(),
+        )
+        .work_consumed;
     assert_eq!(nested_delta, 13);
 
     let totals = [
@@ -186,7 +210,11 @@ fn published_work_table_totals_and_deltas_are_preserved() {
         ("fn Main(){Print(1);}", 10),
     ];
     for (source, expected) in totals {
-        let actual = run_scalar(&compile_scalar("ledger_i10b.n", source).unwrap()).work_consumed;
+        let actual = run_scalar(
+            &compile_scalar("ledger_i10b.n", source).unwrap(),
+            Default::default(),
+        )
+        .work_consumed;
         assert_eq!(actual, expected, "{source}");
     }
 }
@@ -327,7 +355,10 @@ fn omitted_work_rows_and_recorded_else_if_gap_are_fixed() {
         ("fn Main(){var x=0;if x<0{}else if x<2{}else{}}", 20),
     ];
     for (source, expected) in rows {
-        let actual = run_scalar(&compile_scalar("work_rows_i10b.n", source).unwrap());
+        let actual = run_scalar(
+            &compile_scalar("work_rows_i10b.n", source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(actual.outcome, Outcome::Unit, "{source}");
         assert_eq!(actual.work_consumed, expected, "{source}");
     }
@@ -336,7 +367,10 @@ fn omitted_work_rows_and_recorded_else_if_gap_are_fixed() {
         "fn Main(){let x=[1]==[1,2];}",
         "fn Main(){let x=[1,2]==[1];}",
     ] {
-        let actual = run_scalar(&compile_scalar("array_len_eq_i10b.n", source).unwrap());
+        let actual = run_scalar(
+            &compile_scalar("array_len_eq_i10b.n", source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(actual.outcome, Outcome::Unit, "{source}");
         assert_eq!(actual.work_consumed, 17, "{source}");
     }
@@ -344,7 +378,10 @@ fn omitted_work_rows_and_recorded_else_if_gap_are_fixed() {
         "fn Main(){AssertEq([1],[1,2]);}",
         "fn Main(){AssertEq([1,2],[1]);}",
     ] {
-        let actual = run_scalar(&compile_scalar("array_len_assert_i10b.n", source).unwrap());
+        let actual = run_scalar(
+            &compile_scalar("array_len_assert_i10b.n", source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(actual.diagnostics[0].code, "R0201", "{source}");
         assert_eq!(actual.work_consumed, 17, "{source}");
     }
@@ -358,7 +395,10 @@ fn return_unit_budget_origin_is_the_return_keyword_for_all_terminator_forms() {
         ("fn F(){\nreturn\n}\nfn Main(){while true{F();}}", (8, 14)),
     ];
     for (source, expected) in cases {
-        let execution = run_scalar(&compile_scalar("return_origin_i10b.n", source).unwrap());
+        let execution = run_scalar(
+            &compile_scalar("return_origin_i10b.n", source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(execution.diagnostics[0].code, "R0001", "{source}");
         assert_eq!(
             execution.diagnostics[0]
@@ -375,8 +415,10 @@ fn return_unit_budget_origin_is_the_return_keyword_for_all_terminator_forms() {
 #[test]
 fn boundary_mutation_witnesses_cover_condition_statement_and_index_preorder_origins() {
     let condition_source = "fn Main(){{}{}while true{}}";
-    let condition =
-        run_scalar(&compile_scalar("condition_origin_i10b.n", condition_source).unwrap());
+    let condition = run_scalar(
+        &compile_scalar("condition_origin_i10b.n", condition_source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(condition.diagnostics[0].code, "R0001");
     assert_eq!(
         condition.diagnostics[0]
@@ -389,7 +431,10 @@ fn boundary_mutation_witnesses_cover_condition_statement_and_index_preorder_orig
     let prefix = "fn Main(){var i=0;while i<71427{i=i+1;}";
     for (body, expected) in [("if true{}", (57, 59)), ("while false{}", (57, 62))] {
         let source = format!("{prefix}{}{}{}", "{}".repeat(9), body, "}");
-        let execution = run_scalar(&compile_scalar("if_while_origin_i10b.n", &source).unwrap());
+        let execution = run_scalar(
+            &compile_scalar("if_while_origin_i10b.n", &source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(execution.diagnostics[0].code, "R0001", "{source}");
         assert_eq!(
             execution.diagnostics[0]
@@ -407,7 +452,10 @@ fn boundary_mutation_witnesses_cover_condition_statement_and_index_preorder_orig
             "{prefix}{}var c=[[7]];Print(c[0][0]);}}",
             "{}".repeat(padding)
         );
-        let execution = run_scalar(&compile_scalar("index_order_origin_i10b.n", &source).unwrap());
+        let execution = run_scalar(
+            &compile_scalar("index_order_origin_i10b.n", &source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(execution.diagnostics[0].code, "R0001", "{source}");
         assert_eq!(
             execution.diagnostics[0]
@@ -425,6 +473,7 @@ fn boundary_mutation_witnesses_cover_condition_statement_and_index_preorder_orig
             "fn Main(){var a=[1];while true{a[0]=1;}}",
         )
         .unwrap(),
+        Default::default(),
     );
     assert_eq!(assign.diagnostics[0].code, "R0001");
     assert_eq!(
@@ -444,13 +493,20 @@ fn drop_work_and_result_tag_equality_stop_at_the_first_pair() {
         ("fn Main(){var a=[1];Drop(a);}", 12),
     ] {
         assert_eq!(
-            run_scalar(&compile_scalar("drop_work_i10b.n", source).unwrap()).work_consumed,
+            run_scalar(
+                &compile_scalar("drop_work_i10b.n", source).unwrap(),
+                Default::default()
+            )
+            .work_consumed,
             expected,
             "{source}"
         );
     }
     let source = "fn Main()->Result<(),I64>{let a:Result<I64,I64>=Ok(1);let b:Result<I64,I64>=Err(1);AssertEq(a,b);return Ok(());}";
-    let result = run_scalar(&compile_scalar("result_tag_eq_i10b.n", source).unwrap());
+    let result = run_scalar(
+        &compile_scalar("result_tag_eq_i10b.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.diagnostics[0].code, "R0201");
     assert_eq!(result.work_consumed, 23);
 }
@@ -475,7 +531,7 @@ fn drop_binding_machine_charge_is_observable_on_a_verified_ir_route() {
         .replace_for_development("Main", forged)
         .unwrap();
     program.substitute_for_development("Main", &donor).unwrap();
-    let execution = run_scalar(&program);
+    let execution = run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(execution.work_consumed, 7);
 }
@@ -490,7 +546,7 @@ fn lowering_does_not_find_statement_origins_by_token_start() {
 fn work_limit_rejects_the_first_loop_rhs_charge_and_preserves_boundary_cases() {
     let loop_source = "fn Main(){var i=0;while true{i=i+1;}}";
     let program = compile_scalar("loop_boundary_i10b.n", loop_source).unwrap();
-    let rejected = run_scalar(&program);
+    let rejected = run_scalar(&program, Default::default());
     assert_eq!(rejected.diagnostics[0].code, "R0001");
     assert_eq!(
         rejected.diagnostics[0]
@@ -503,7 +559,10 @@ fn work_limit_rejects_the_first_loop_rhs_charge_and_preserves_boundary_cases() {
 
     let prefix = "fn Main(){var i=0;while i<71427{i=i+1;}";
     let drop_source = format!("{prefix}var a=[1];Drop(a);}}");
-    let drop_result = run_scalar(&compile_scalar("drop_boundary_i10b.n", &drop_source).unwrap());
+    let drop_result = run_scalar(
+        &compile_scalar("drop_boundary_i10b.n", &drop_source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(drop_result.diagnostics[0].code, "R0001");
     assert_eq!(
         drop_result.diagnostics[0]
@@ -519,7 +578,10 @@ fn work_limit_rejects_the_first_loop_rhs_charge_and_preserves_boundary_cases() {
 
     let suffix = "var q=1;var w=q;{}{}{}}";
     let final_source = format!("{prefix}{suffix}");
-    let final_result = run_scalar(&compile_scalar("final_boundary_i10b.n", &final_source).unwrap());
+    let final_result = run_scalar(
+        &compile_scalar("final_boundary_i10b.n", &final_source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(final_result.diagnostics[0].code, "R0001");
     assert_eq!(
         final_result.diagnostics[0]
@@ -546,7 +608,10 @@ fn nested_try_charges_use_the_complete_operands_and_boundary_pair() {
         )
     }
     let outer = source(71_425, 36);
-    let result = run_scalar(&compile_scalar("nested_try_i10b.n", &outer).unwrap());
+    let result = run_scalar(
+        &compile_scalar("nested_try_i10b.n", &outer).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.diagnostics[0].code, "R0001");
     assert_eq!(
         result.diagnostics[0]
@@ -556,7 +621,10 @@ fn nested_try_charges_use_the_complete_operands_and_boundary_pair() {
         Some((229, 238))
     );
     let inner = source(71_425, 33);
-    let result = run_scalar(&compile_scalar("nested_try_i10b.n", &inner).unwrap());
+    let result = run_scalar(
+        &compile_scalar("nested_try_i10b.n", &inner).unwrap(),
+        Default::default(),
+    );
     assert_eq!(
         result.diagnostics[0]
             .primary_span
@@ -565,11 +633,17 @@ fn nested_try_charges_use_the_complete_operands_and_boundary_pair() {
         Some((225, 230))
     );
     let safe = source(71_422, 47);
-    let result = run_scalar(&compile_scalar("nested_try_i10b.n", &safe).unwrap());
+    let result = run_scalar(
+        &compile_scalar("nested_try_i10b.n", &safe).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.work_consumed, 1_000_000);
     assert_eq!(result.outcome, Outcome::Ok);
     let denied = source(71_422, 48);
-    let result = run_scalar(&compile_scalar("nested_try_i10b.n", &denied).unwrap());
+    let result = run_scalar(
+        &compile_scalar("nested_try_i10b.n", &denied).unwrap(),
+        Default::default(),
+    );
     assert_eq!(result.diagnostics[0].code, "R0001");
     assert_eq!(
         result.diagnostics[0]
@@ -743,7 +817,7 @@ fn verifier_rejects_administrative_charges_on_a_multiblock_route() {
 fn finite_loop_matches_the_published_source_ledger() {
     let source = "fn Main(){var i=0;while i<3{i=i+1;}}";
     let program = compile_scalar("loop_i10b.n", source).unwrap();
-    let execution = run_scalar(&program);
+    let execution = run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(execution.work_consumed, 56);
     let function = program.functions().function("Main").unwrap();
@@ -764,7 +838,8 @@ fn indexed_assignment_delta_and_result_error_include_semantic_charges() {
     let with_write = compile_scalar("indexed_i10b.n", "fn Main(){var a=[0,0];a[1]=5;}").unwrap();
     let without_write = compile_scalar("indexed_i10b.n", "fn Main(){var a=[0,0];}").unwrap();
     assert_eq!(
-        run_scalar(&with_write).work_consumed - run_scalar(&without_write).work_consumed,
+        run_scalar(&with_write, Default::default()).work_consumed
+            - run_scalar(&without_write, Default::default()).work_consumed,
         6
     );
 
@@ -779,20 +854,23 @@ fn indexed_assignment_delta_and_result_error_include_semantic_charges() {
             .flat_map(|instruction| &instruction.charges)
             .any(|charge| (charge.origin.start, charge.origin.end) == (try_origin, try_origin + 7))
     );
-    let execution = run_scalar(&program);
+    let execution = run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, Outcome::Err(9));
     assert_eq!(execution.work_consumed, 15);
 
     let success = "fn Inc(n:view I64)->Result<I64,I64>{return Ok(n+1);}fn Main()->Result<(),I64>{let x=Inc(2)?;return Ok(());}";
     let program = compile_scalar("result_ok_i10b.n", success).unwrap();
-    assert_eq!(run_scalar(&program).work_consumed, 25);
+    assert_eq!(run_scalar(&program, Default::default()).work_consumed, 25);
 }
 
 #[test]
 fn runtime_profiles_change_only_the_named_quota() {
     let program = compile_scalar("profile_i10b.n", "fn Main(){}").unwrap();
-    let execution =
-        crate::interp::run_with_limits(&program, crate::interp::ReducedExecutionProfile::Cells64);
+    let execution = crate::interp::run_with_limits(
+        &program,
+        Default::default(),
+        crate::interp::ReducedExecutionProfile::Cells64,
+    );
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(execution.work_consumed, 2);
 }
@@ -802,8 +880,11 @@ fn final_unit_cell_denial_points_at_closing_brace_and_body_context() {
     let values = std::iter::repeat_n("0", 63).collect::<Vec<_>>().join(",");
     let source = format!("fn Main(){{let a=[{values}];}}");
     let program = compile_scalar("final_cells_i10b.n", &source).unwrap();
-    let execution =
-        crate::interp::run_with_limits(&program, crate::interp::ReducedExecutionProfile::Cells64);
+    let execution = crate::interp::run_with_limits(
+        &program,
+        Default::default(),
+        crate::interp::ReducedExecutionProfile::Cells64,
+    );
     let diagnostic = &execution.diagnostics[0];
     assert_eq!(diagnostic.code, "R0002");
     assert_eq!(
@@ -836,8 +917,11 @@ fn reduced_frame_and_observation_profiles_report_exact_quota() {
     }
     functions.push_str("fn F9(){}fn Main(){F0();}");
     let program = compile_scalar("frames_i10b.n", &functions).unwrap();
-    let execution =
-        crate::interp::run_with_limits(&program, crate::interp::ReducedExecutionProfile::Frames8);
+    let execution = crate::interp::run_with_limits(
+        &program,
+        Default::default(),
+        crate::interp::ReducedExecutionProfile::Frames8,
+    );
     assert_eq!(execution.diagnostics[0].code, "R0002");
     assert_eq!(
         execution.diagnostics[0].profile_id,
@@ -853,6 +937,7 @@ fn reduced_frame_and_observation_profiles_report_exact_quota() {
     let program = compile_scalar("observations_i10b.n", &source).unwrap();
     let execution = crate::interp::run_with_limits(
         &program,
+        Default::default(),
         crate::interp::ReducedExecutionProfile::Observations64,
     );
     assert_eq!(execution.diagnostics[0].code, "R0002");
@@ -874,11 +959,14 @@ fn final_unit_work_family_reaches_the_exact_boundary() {
     for (padding, expected) in [(7, 999_999), (8, 1_000_000)] {
         let source = format!("{prefix}{}{}{}", "}", "{}".repeat(padding), "}");
         let program = compile_scalar("final_work_i10b.n", &source).unwrap();
-        assert_eq!(run_scalar(&program).work_consumed, expected);
+        assert_eq!(
+            run_scalar(&program, Default::default()).work_consumed,
+            expected
+        );
     }
     let source = format!("{prefix}{}{}{}", "}", "{}".repeat(9), "}");
     let program = compile_scalar("final_work_i10b.n", &source).unwrap();
-    let execution = run_scalar(&program);
+    let execution = run_scalar(&program, Default::default());
     assert_eq!(execution.work_consumed, 1_000_000);
     let diagnostic = &execution.diagnostics[0];
     assert_eq!(diagnostic.code, "R0001");

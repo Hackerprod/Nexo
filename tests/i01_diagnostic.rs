@@ -306,6 +306,14 @@ fn explain_accepts_the_entry_subcauses_and_reports_availability() {
         let item = diagnostic::explain(code, subcause).unwrap();
         assert_eq!(item[0].availability, expected, "{code}/{subcause:?}");
     }
+    let limits = diagnostic::explain("NX-E0006", None).unwrap();
+    let historical = limits
+        .iter()
+        .find(|entry| entry.feature_ids == ["implementation_limit"])
+        .unwrap();
+    assert_eq!(historical.availability, "historical");
+    assert_eq!(historical.example_profile_id, None);
+    assert_eq!(historical.negative_source, "fn Main(){MockRequest();}");
 }
 
 #[test]
@@ -849,7 +857,14 @@ fn availability_matches_independent_full_registry_expectations() {
             let entries = diagnostic::explain(code, *subcause).unwrap();
             if *code == "NX-E0006" {
                 assert_eq!(entries.len(), 30);
-                assert!(entries.iter().all(|e| e.availability == *availability));
+                assert!(entries.iter().all(|e| {
+                    e.availability
+                        == if e.feature_ids == ["implementation_limit"] {
+                            "historical"
+                        } else {
+                            *availability
+                        }
+                }));
             } else {
                 assert_eq!(entries.len(), 1, "{code}/{subcause:?}");
                 assert_eq!(
@@ -1416,7 +1431,11 @@ fn feature_explanations_match_literal_f01_f33_fixtures() {
         assert_eq!(entry.positive_source, *positive, "{id}");
         assert_eq!(
             entry.example_profile_id.as_deref(),
-            Some("f0-0002-b-v2"),
+            if *id == "implementation_limit" {
+                None
+            } else {
+                Some("f0-0002-b-v2")
+            },
             "{id}"
         );
         assert!(entry.repair_consequences.is_empty(), "{id}");

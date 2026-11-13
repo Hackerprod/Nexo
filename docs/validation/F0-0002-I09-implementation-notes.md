@@ -33,7 +33,7 @@ Reglas de salida comprobadas con fuentes:
 
 Los bindings Result siempre usan la unión de variantes, por lo que `Result<MockBlockingResource,I64>=Err(1)` y el espejo `Result<I64,MockBlockingResource>=Ok(1)` incumplen `no_block`. Solo se acepta evidencia de variante para temporales Ok/Err consumidos por Drop, para temporales prestados a una función de usuario y para el borde Err de `?`. Dado que la sintaxis B no puede aportar un tipo a `Drop(Ok(...))` sin dejar el otro parámetro de Result irresuelto, `typed_result_temporary_drop_uses_its_ir_variant_evidence` fabrica IR desde un binding tipado y cambia su consumo a DropData. El tipo `Result<MockBlockingResource,MockResource>` distingue el destructor activo del inactivo y mata la mutación que invierte Ok/Err. El fixture de `?` que retorna un payload de recurso desde `F()?` y `return Ok(move n)` se acepta, sin falso E0413.
 
-`fn Main() with no_io,no_alloc{MockUnknown();}` produce E0412 y luego E0415 con primario `[30,41)` y `unknown_effect`. `fn Main() with no_io,no_alloc{Print(1);let a=[1];}` produce E0415 `[30,35)` y luego E0412 `[45,48)`; Print solo aporta `io`. También se fija que una primera restricción satisfecha (`no_alloc`) no impida emitir el incumplimiento posterior (`no_io`) para Print. `fn Main(){MockRequest();}` continúa como ejemplo I11a `implementation_limit`, primario `[10,21)`.
+`fn Main() with no_io,no_alloc{MockUnknown();}` produce E0412 y luego E0415 con primario `[30,41)` y `unknown_effect`. `fn Main() with no_io,no_alloc{Print(1);let a=[1];}` produce E0415 `[30,35)` y luego E0412 `[45,48)`; Print solo aporta `io`. También se fija que una primera restricción satisfecha (`no_alloc`) no impida emitir el incumplimiento posterior (`no_io`) para Print. El negativo `fn Main(){MockRequest();}` en esta nota es un dato histórico de I09/I11a, primario `[10,21)`; tras I11a se acepta la llamada y consume la respuesta de `mock_request`.
 
 ## Lagunas ADR y límites
 
@@ -86,9 +86,9 @@ La regresión del span Return excluye el `;`; la salida de `return;` ocupa solo 
 
 `verifier_rejects_a_return_exit_on_a_non_return_terminator` añade un sitio forjado en una salida de bloque que termina con Branch/Jump; Return no puede anclarse ahí.
 
-El verificador rechaza ahora un span Fallthrough cuyo inicio cae al final del texto; `verifier_rejects_a_fallthrough_span_at_source_end` muta tanto ancla como instruccion para aislar el limite de cierre.
+El verificador rechaza ahora un span Fallthrough cuyo inicio cae al final del texto; `verifier_rejects_a_fallthrough_span_at_source_end` muta tanto ancla como instrucción para aislar el límite de cierre.
 
-El mutante `>=` a `>` de ese limite se omite porque la consulta `source_text.get(index)` incluida en la misma condicion ya rechaza `index == len`; el cambio no altera la aceptacion.
+El mutante `>=` a `>` de ese límite se omite porque la consulta `source_text.get(index)` incluida en la misma condición ya rechaza `index == len`; el cambio no altera la aceptación.
 
 La prueba de cierre también alinea una ancla e instrucción con un byte interior distinto de `}` para comprobar la segunda rama de validación, además del EOF.
 

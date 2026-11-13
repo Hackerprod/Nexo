@@ -8,6 +8,7 @@ pub enum Channel {
 pub struct Observation {
     pub channel: Channel,
     pub text: String,
+    pub prefix: String,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Log {
@@ -70,7 +71,39 @@ impl Log {
             return Err(proposed);
         }
         self.bytes += n;
-        self.observations.push(Observation { channel, text });
+        self.observations.push(Observation {
+            channel,
+            text,
+            prefix: prefix.to_owned(),
+        });
+        Ok(())
+    }
+    pub(crate) fn push_batch(&mut self, batch: Vec<(Channel, String, String)>) -> Result<(), u64> {
+        let added = batch
+            .iter()
+            .try_fold(0u64, |sum, (channel, text, prefix)| {
+                let _ = channel;
+                let n = u64::try_from(prefix.len() + text.len() + 1).map_err(|_| u64::MAX)?;
+                sum.checked_add(n).ok_or(u64::MAX)
+            })?;
+        let proposed = self
+            .bytes
+            .checked_add(self.reserved)
+            .and_then(|n| n.checked_add(added))
+            .ok_or(u64::MAX)?;
+        if proposed > self.limit {
+            return Err(proposed);
+        }
+        self.bytes += added;
+        self.observations.extend(
+            batch
+                .into_iter()
+                .map(|(channel, text, prefix)| Observation {
+                    channel,
+                    text,
+                    prefix,
+                }),
+        );
         Ok(())
     }
     pub fn reserve(&mut self, bytes: u64) -> Result<(), u64> {
@@ -108,6 +141,7 @@ impl Log {
         self.observations.push(Observation {
             channel: Channel::Event,
             text,
+            prefix: prefix.to_owned(),
         });
         Ok(())
     }

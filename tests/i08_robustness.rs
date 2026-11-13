@@ -14,7 +14,7 @@ fn result_entry_and_propagation_on_small_stacks() {
             .spawn(move || {
                 let good = "fn F()->Result<I64,I64>{return Err(9);}fn Main()->Result<(),I64>{let x=F()?;return Ok(());}";
                 let program = ir::compile_scalar(FILE, good).unwrap();
-                assert_eq!(interp::run_scalar(&program).outcome, Outcome::Err(9));
+                assert_eq!(interp::run_scalar(&program, Default::default()).outcome, Outcome::Err(9));
                 let bad = "fn Main()->Result<(),Bool>{let x=TryAdd(1,2)?;return Ok(());}";
                 assert!(matches!(ir::check_scalar(FILE, bad), Err(CompileError::Rejected(_))));
                 assert!(matches!(ir::compile_scalar(FILE, bad), Err(CompileError::Rejected(_))));
@@ -53,7 +53,7 @@ fn mutated_result_sources_do_not_panic_or_reach_invalid_ir() {
             let _ = ir::check_scalar(FILE, &source);
             match ir::compile_scalar(FILE, &source) {
                 Ok(program) => {
-                    let execution = interp::run_scalar(&program);
+                    let execution = interp::run_scalar(&program, Default::default());
                     assert!(!matches!(execution.outcome, Outcome::InternalError(_)));
                 }
                 Err(CompileError::Rejected(_)) => {}

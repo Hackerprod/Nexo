@@ -90,6 +90,10 @@ pub enum Intrinsic {
     Inspect,
     TryAdd,
     MockUnknown,
+    MockReadRecords,
+    MockWriteI64,
+    MockRequest,
+    MockReply,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ParameterMode {
@@ -634,6 +638,10 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Intrinsic::Inspect => 8,
                         Intrinsic::TryAdd => 9,
                         Intrinsic::MockUnknown => 10,
+                        Intrinsic::MockReadRecords => 11,
+                        Intrinsic::MockWriteI64 => 12,
+                        Intrinsic::MockRequest => 13,
+                        Intrinsic::MockReply => 14,
                     });
                     number(&mut bytes, args.len());
                     for id in args {

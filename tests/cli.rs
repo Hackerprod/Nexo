@@ -395,7 +395,6 @@ fn cli_array_equality_releases_loans_before_write() {
 fn cli_rejects_options_before_reading_any_source() {
     let missing = "target/test-fixtures/no-such-source.n";
     for args in [
-        vec!["check", missing, "--profile", "x"],
         vec!["run", "--profile=x", missing],
         vec!["check", "--format", missing],
         vec!["run", missing, "--mock-env=x"],
@@ -418,9 +417,29 @@ fn cli_rejects_options_before_reading_any_source() {
             "{args:?}"
         );
     }
+    let unknown = invoke(&["check", missing, "--profile", "x"]);
+    assert_eq!(unknown.status.code(), Some(2));
+    assert!(unknown.stdout.is_empty());
+    assert_eq!(unknown.stderr, b"nexo-driver:unknown_profile\n");
     let empty = invoke(&[]);
     assert_eq!(empty.status.code(), Some(2));
     assert_eq!(empty.stderr, b"nexo-driver:invalid_arguments\n");
+}
+
+#[test]
+fn cli_unknown_profile_precedes_source_read_and_json_format_is_structured() {
+    let missing = "target/test-fixtures/no-such-source.n";
+    let unknown = invoke(&["check", missing, "--profile", "x"]);
+    assert_eq!(unknown.status.code(), Some(2));
+    assert!(unknown.stdout.is_empty());
+    assert_eq!(unknown.stderr, b"nexo-driver:unknown_profile\n");
+
+    let path = source_file(b"fn Main(){}");
+    let checked = invoke(&["check", path.to_str().unwrap(), "--format", "json"]);
+    std::fs::remove_file(path).unwrap();
+    assert_eq!(checked.status.code(), Some(0));
+    assert_eq!(checked.stderr, b"");
+    assert!(text(&checked.stdout).contains(r#""outcome":{"kind":"checked"}"#));
 }
 
 #[test]
@@ -540,24 +559,18 @@ fn cli_preserves_corpus_semantics_and_events() {
 }
 
 #[test]
-fn cli_pending_capabilities_report_scope_and_source_site() {
+fn cli_mock_primitive_is_supported_after_i11a() {
     let source = "fn Main(){MockRequest();}";
     let output = checked("run", source.as_bytes());
-    assert_eq!(output.status.code(), Some(1), "{source}");
+    assert_eq!(
+        output.status.code(),
+        Some(0),
+        "{source}: {:?}",
+        output.stderr
+    );
     assert!(output.stdout.is_empty());
     let rendered = text(&output.stderr);
-    assert!(
-        rendered.starts_with("NX-E0006:1:11: Capacidad pendiente de implementación en I11a.\n"),
-        "{source}: {rendered}"
-    );
-    assert!(
-        rendered.contains("feature_id: implementation_limit"),
-        "{rendered}"
-    );
-    assert!(
-        rendered.contains("\"pending_scope\":\"I11a\""),
-        "{rendered}"
-    );
+    assert_eq!(rendered, "mock-io:request:err:-9000\nnexo-result:()\n");
 }
 
 #[test]
@@ -574,4 +587,294 @@ fn cli_result_outcomes_keep_err_separate_from_runtime_faults() {
     assert_eq!(error.status.code(), Some(1));
     assert!(error.stdout.is_empty());
     assert_eq!(text(&error.stderr), "nexo-result:Err(30)\n");
+}
+
+#[test]
+fn cli_json_preserves_err_types_channels_and_exit_status() {
+    let source = b"fn Main()->Result<(),I64>{MockWriteI64(25)?;return Ok(());} ";
+    let env = source_file(br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"err":"40"}],"mock_request":[],"mock_reply":[]}"#);
+    let src = source_file(source);
+    let output = invoke(&[
+        "run",
+        "--format",
+        "json",
+        src.to_str().unwrap(),
+        "--mock-env",
+        env.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(1));
+    assert!(output.stderr.is_empty());
+    assert_eq!(
+        text(&output.stdout),
+        concat!(
+            r#"{"schema_version":1,"profile_id":"f0-0002-b-v2","outcome":{"kind":"err","error":"40"},"stdout":[],"events":["write_i64:25:err:40"],"observations":[{"channel":"event","text":"write_i64:25:err:40"}],"observation_bytes":28,"reserved_observation_bytes":0,"diagnostics":[]}"#,
+            "\n"
+        )
+    );
+    std::fs::remove_file(src).unwrap();
+    std::fs::remove_file(env).unwrap();
+
+    let source = b"fn Main()->Result<(),I64>{MockWriteI64(25)?;return Ok(());} ";
+    let env = source_file(br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"ok":null}],"mock_request":[],"mock_reply":[]}"#);
+    let src = source_file(source);
+    let output = invoke(&[
+        "run",
+        "--format",
+        "json",
+        src.to_str().unwrap(),
+        "--mock-env",
+        env.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(0));
+    assert_eq!(
+        text(&output.stdout),
+        concat!(
+            r#"{"schema_version":1,"profile_id":"f0-0002-b-v2","outcome":{"kind":"ok"},"stdout":["25"],"events":["write_i64:25:ok"],"observations":[{"channel":"event","text":"write_i64:25:ok"},{"channel":"stdout","text":"25"}],"observation_bytes":27,"reserved_observation_bytes":0,"diagnostics":[]}"#,
+            "\n"
+        )
+    );
+    std::fs::remove_file(src).unwrap();
+    std::fs::remove_file(env).unwrap();
+}
+
+#[test]
+fn cli_mock_read_temporary_has_exact_ok_and_err_json() {
+    // A2 §12.4, «Esquema del entorno», l. 1501, «Eventos exactos», ll. 1544–1555.
+    let source = b"fn Main()->Result<(),I64>{let a=MockReadRecords(MockOpen(1))?;return Ok(());} ";
+    let src = source_file(source);
+    let check = invoke(&["check", src.to_str().unwrap()]);
+    assert_eq!(check.status.code(), Some(0));
+    assert_eq!(check.stdout, b"nexo-check:ok\n");
+    assert!(check.stderr.is_empty());
+
+    let values = [
+        (
+            br#"{"schema_version":1,"mock_read_records":[{"ok":[]}],"mock_write_i64":[],"mock_request":[],"mock_reply":[]}"#.as_slice(),
+            0,
+            r#"{"schema_version":1,"profile_id":"f0-0002-b-v2","outcome":{"kind":"ok"},"stdout":[],"events":["open:0:1","read_records:0:ok:0","close:0:1"],"observations":[{"channel":"event","text":"open:0:1"},{"channel":"event","text":"read_records:0:ok:0"},{"channel":"event","text":"close:0:1"}],"observation_bytes":75,"reserved_observation_bytes":0,"diagnostics":[]}"#,
+        ),
+        (
+            br#"{"schema_version":1,"mock_read_records":[{"err":"10"}],"mock_write_i64":[],"mock_request":[],"mock_reply":[]}"#,
+            1,
+            r#"{"schema_version":1,"profile_id":"f0-0002-b-v2","outcome":{"kind":"err","error":"10"},"stdout":[],"events":["open:0:1","read_records:0:err:10","close:0:1"],"observations":[{"channel":"event","text":"open:0:1"},{"channel":"event","text":"read_records:0:err:10"},{"channel":"event","text":"close:0:1"}],"observation_bytes":77,"reserved_observation_bytes":0,"diagnostics":[]}"#,
+        ),
+    ];
+    for (environment, code, expected) in values {
+        let env = source_file(environment);
+        let output = invoke(&[
+            "run",
+            "--format",
+            "json",
+            src.to_str().unwrap(),
+            "--mock-env",
+            env.to_str().unwrap(),
+        ]);
+        assert_eq!(output.status.code(), Some(code));
+        assert!(output.stderr.is_empty());
+        assert_eq!(text(&output.stdout), format!("{expected}\n"));
+        std::fs::remove_file(env).unwrap();
+    }
+    std::fs::remove_file(src).unwrap();
+}
+
+#[test]
+fn cli_mock_environment_option_is_run_only_and_reports_exact_schema_reason() {
+    let src = source_file(b"fn Main(){}");
+    let env = source_file(br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[]}"#);
+    let output = invoke(&[
+        "check",
+        src.to_str().unwrap(),
+        "--mock-env",
+        env.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    assert_eq!(output.stderr, b"nexo-driver:invalid_arguments\n");
+
+    let invalids: [&[u8]; 4] = [
+        br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[{"ok":"01"}],"mock_reply":[]}"#,
+        br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[{"ok":"-01"}],"mock_reply":[]}"#,
+        br#"{"schema_version":1.0,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[]}"#,
+        br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"ok":true}],"mock_request":[],"mock_reply":[]}"#,
+    ];
+    for invalid in invalids {
+        std::fs::write(&env, invalid).unwrap();
+        let output = invoke(&[
+            "run",
+            "--format",
+            "json",
+            src.to_str().unwrap(),
+            "--mock-env",
+            env.to_str().unwrap(),
+        ]);
+        assert_eq!(output.status.code(), Some(2));
+        assert_eq!(
+            text(&output.stdout),
+            concat!(
+                r#"{"schema_version":1,"profile_id":"f0-0002-b-v2","outcome":{"kind":"driver_error","reason":"invalid_mock_schema"},"stdout":[],"events":[],"observations":[],"observation_bytes":0,"reserved_observation_bytes":0,"diagnostics":[]}"#,
+                "\n"
+            )
+        );
+    }
+    std::fs::remove_file(src).unwrap();
+    std::fs::remove_file(env).unwrap();
+}
+
+#[test]
+fn cli_rejects_repeated_mock_environment_option() {
+    // A2 §12.4, «Invocación y selección de perfil», ll. 1488–1497.
+    let src = source_file(b"fn Main(){}");
+    let env = source_file(
+        br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[]}"#,
+    );
+    let output = invoke(&[
+        "run",
+        src.to_str().unwrap(),
+        "--mock-env",
+        env.to_str().unwrap(),
+        "--mock-env",
+        env.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(output.stdout.is_empty());
+    assert_eq!(output.stderr, b"nexo-driver:invalid_arguments\n");
+    std::fs::remove_file(src).unwrap();
+    std::fs::remove_file(env).unwrap();
+}
+
+#[test]
+fn cli_reports_mock_environment_size_limit_reason() {
+    let src = source_file(b"fn Main(){}");
+    let env = source_file(b"{}");
+    let mut oversized = br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[]}"#.to_vec();
+    oversized.resize(1_048_577, b' ');
+    std::fs::write(&env, oversized).unwrap();
+    let output = invoke(&[
+        "run",
+        "--format",
+        "json",
+        src.to_str().unwrap(),
+        "--mock-env",
+        env.to_str().unwrap(),
+    ]);
+    assert_eq!(output.status.code(), Some(2));
+    assert!(text(&output.stdout).contains(r#""reason":"mock_env_too_large""#));
+    std::fs::remove_file(src).unwrap();
+    std::fs::remove_file(env).unwrap();
+}
+
+#[test]
+fn cli_request_requires_io_effect_and_reply_effect_name_is_specific() {
+    for (source, expected) in [
+        (
+            "fn Main() with no_io {let x=MockRequest();}",
+            "prelude:mock_request",
+        ),
+        (
+            "fn F() with no_io {MockReply(200);} fn Main(){F();}",
+            "prelude:mock_reply",
+        ),
+    ] {
+        let nexo::ir::CompileError::Rejected(errors) =
+            nexo::ir::compile_scalar("effects.n", source).unwrap_err()
+        else {
+            panic!("expected effect diagnostic")
+        };
+        assert!(
+            errors.iter().any(|diagnostic| {
+                diagnostic.code == "NX-E0415"
+                    && diagnostic
+                        .cause_chain
+                        .first()
+                        .and_then(|cause| cause.entity.as_ref())
+                        .is_some_and(|entity| entity.id == expected)
+            }),
+            "{source}: {errors:?}"
+        );
+    }
+}
+
+#[test]
+fn cli_mock_write_requires_io_effect() {
+    // D15 §2.3, l. 97: MockWriteI64 declara el efecto io.
+    let source = "fn Main() with no_io{MockWriteI64(1);}";
+    let nexo::ir::CompileError::Rejected(errors) =
+        nexo::ir::compile_scalar("write-effect.n", source).unwrap_err()
+    else {
+        panic!("expected effect diagnostic")
+    };
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let error = &errors[0];
+    assert_eq!(error.code, "NX-E0415");
+    assert_eq!(error.subcause, None);
+    assert_eq!(error.stage.as_str(), "effects");
+    assert_eq!(error.operation.as_str(), "intrinsic.call");
+    assert_eq!(error.message, "La función Main infringe no_io.");
+    assert_eq!(
+        error
+            .primary_span
+            .as_ref()
+            .map(|span| (span.start, span.end)),
+        Some((21, 33))
+    );
+    assert_eq!(
+        error.data,
+        [
+            (
+                "contract_origin".into(),
+                nexo::diagnostic::DataValue::Object(
+                    [
+                        ("end".into(), nexo::diagnostic::DataValue::UInt(20)),
+                        (
+                            "file".into(),
+                            nexo::diagnostic::DataValue::String("write-effect.n".into()),
+                        ),
+                        ("start".into(), nexo::diagnostic::DataValue::UInt(15)),
+                    ]
+                    .into(),
+                ),
+            ),
+            (
+                "effect_evidence".into(),
+                nexo::diagnostic::DataValue::String("known_effect".into()),
+            ),
+            (
+                "effect_model".into(),
+                nexo::diagnostic::DataValue::String("f0-0002-sim-v1".into()),
+            ),
+            (
+                "required_effect".into(),
+                nexo::diagnostic::DataValue::String("io".into()),
+            ),
+        ]
+        .into()
+    );
+    assert!(error.unexpected_token.is_none());
+    assert!(error.expected_tokens.is_empty());
+    assert!(error.feature_id.is_none());
+    assert_eq!(error.related_spans.len(), 1);
+    assert_eq!(
+        error.related_spans[0].role,
+        nexo::diagnostic::RelatedRole::Contract
+    );
+    assert_eq!(error.related_spans[0].span.file, "write-effect.n");
+    assert_eq!(
+        (
+            error.related_spans[0].span.start,
+            error.related_spans[0].span.end
+        ),
+        (15, 20)
+    );
+    assert_eq!(error.cause_chain.len(), 1);
+    let cause = &error.cause_chain[0];
+    assert_eq!(cause.operation.as_str(), "intrinsic.call");
+    assert_eq!(cause.evidence, nexo::diagnostic::Evidence::Verified);
+    assert_eq!(
+        cause.span.as_ref().map(|span| (span.start, span.end)),
+        Some((21, 33))
+    );
+    let entity = cause.entity.as_ref().unwrap();
+    assert_eq!(entity.kind, nexo::diagnostic::EntityKind::Intrinsic);
+    assert_eq!(entity.id, "prelude:mock_write_i64");
+    error.validate("write-effect.n", source).unwrap();
 }

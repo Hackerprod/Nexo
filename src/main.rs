@@ -25,40 +25,53 @@ fn main() -> ExitCode {
         }
         return explain_command(&args);
     }
-    // Reject every option and malformed invocation before opening the source.
-    if args_os.len() != 2 || !(args_os[0] == OsStr::new("check") || args_os[0] == OsStr::new("run"))
-    {
-        eprintln!("nexo-driver:invalid_arguments");
-        return ExitCode::from(2);
-    }
-    let Some(file) = args_os[1].to_str() else {
-        eprintln!("nexo-driver:invalid_arguments");
-        return ExitCode::from(2);
+    let Some((command, file, mock_path, profile_id, format)) = parse_invocation(&args_os) else {
+        return driver_error(None, "invalid_arguments", false);
     };
-    if file.starts_with("--") {
-        eprintln!("nexo-driver:invalid_arguments");
-        return ExitCode::from(2);
+    if nexo::ir::ReducedProfile::from_id(&profile_id).is_none() {
+        return driver_error(Some(&profile_id), "unknown_profile", format == "json");
     }
     let bytes = match fs::File::open(file) {
         Ok(handle) => match diagnostic::read_bounded(handle) {
             Ok(bytes) => bytes,
-            Err(error) => return input_failure(file, error, 0),
+            Err(error) => return input_failure(file, error, 0, &profile_id, format),
         },
-        Err(error) => return input_failure(file, InputError::Unreadable(error.to_string()), 0),
+        Err(error) => {
+            return input_failure(
+                file,
+                InputError::Unreadable(error.to_string()),
+                0,
+                &profile_id,
+                format,
+            );
+        }
     };
     let bytes_len = bytes.len();
     let source = match diagnostic::decode_utf8(bytes) {
         Ok(source) => source,
-        Err(error) => return input_failure(file, error, bytes_len),
+        Err(error) => return input_failure(file, error, bytes_len, &profile_id, format),
     };
-    let compiled = if args_os[0] == OsStr::new("check") {
-        nexo::ir::check_scalar(file, &source)
-    } else {
-        nexo::ir::compile_scalar(file, &source)
+    let Some(profile) = nexo::ir::ReducedProfile::from_id(&profile_id) else {
+        unreachable!()
     };
+    let compiled = nexo::ir::compile_scalar_with_profile(file, &source, profile, command == "run");
     let program = match compiled {
         Ok(program) => program,
-        Err(nexo::ir::CompileError::Rejected(errors)) => {
+        Err(nexo::ir::CompileError::Rejected(mut errors)) => {
+            for error in &mut errors {
+                error.profile_id = profile_id.clone();
+            }
+            if format == "json" {
+                return diagnostic_result(
+                    file,
+                    &source,
+                    bytes_len,
+                    &profile_id,
+                    "rejected",
+                    &errors,
+                    1,
+                );
+            }
             for error in errors {
                 if render_error(
                     &error,
@@ -77,21 +90,114 @@ fn main() -> ExitCode {
         }
         Err(error) => {
             let (status, message) = internal_error_exit(&error);
+            if format == "json" {
+                return driver_error(Some(&profile_id), "internal_error", true);
+            }
             eprintln!("{message}");
             return ExitCode::from(status);
         }
     };
-    if args_os[0] == OsStr::new("check") {
+    if command == "check" {
+        if format == "json" {
+            println!(
+                "{}",
+                execution_json(&profile_id, r#"{"kind":"checked"}"#, &[], 0, 0, &[])
+            );
+            return ExitCode::SUCCESS;
+        }
         println!("nexo-check:ok");
         return ExitCode::SUCCESS;
     }
+    let mock_env = if let Some(path) = mock_path {
+        let env_bytes = match fs::File::open(path) {
+            Ok(handle) => match diagnostic::read_bounded(handle) {
+                Ok(bytes) => bytes,
+                Err(InputError::TooLarge { .. }) => {
+                    return driver_error(Some(&profile_id), "mock_env_too_large", format == "json");
+                }
+                Err(_) => {
+                    return driver_error(
+                        Some(&profile_id),
+                        "mock_env_unreadable",
+                        format == "json",
+                    );
+                }
+            },
+            Err(_) => {
+                return driver_error(Some(&profile_id), "mock_env_unreadable", format == "json");
+            }
+        };
+        match nexo::interp::MockEnvironment::parse(&env_bytes) {
+            Ok(mock_env) => mock_env,
+            Err(nexo::interp::MockEnvironmentError::InvalidJson) => {
+                return driver_error(Some(&profile_id), "invalid_mock_json", format == "json");
+            }
+            Err(nexo::interp::MockEnvironmentError::InvalidSchema) => {
+                return driver_error(Some(&profile_id), "invalid_mock_schema", format == "json");
+            }
+            Err(nexo::interp::MockEnvironmentError::TooLarge) => {
+                return driver_error(Some(&profile_id), "mock_env_too_large", format == "json");
+            }
+        }
+    } else {
+        nexo::interp::MockEnvironment::empty()
+    };
     // run_scalar verifies the program immediately before execution.
-    let execution = nexo::interp::run_scalar(&program);
+    let runtime_profile = nexo::interp::ReducedExecutionProfile::from_id(&profile_id).unwrap();
+    let execution = nexo::interp::run_with_limits(&program, mock_env, runtime_profile);
+    if format == "json" {
+        let outcome = match execution.outcome {
+            nexo::interp::Outcome::Unit => r#"{"kind":"unit"}"#.to_owned(),
+            nexo::interp::Outcome::Ok => r#"{"kind":"ok"}"#.to_owned(),
+            nexo::interp::Outcome::Err(error) => format!(r#"{{"kind":"err","error":"{error}"}}"#),
+            nexo::interp::Outcome::SimulatorFault => r#"{"kind":"simulator_fault"}"#.to_owned(),
+            nexo::interp::Outcome::InternalError(_) => {
+                r#"{"kind":"driver_error","reason":"internal_error"}"#.to_owned()
+            }
+        };
+        let diagnostics_json: Vec<String> = execution
+            .diagnostics
+            .iter()
+            .map(|d| {
+                d.to_json_view(
+                    file,
+                    SourceView {
+                        bytes_len,
+                        text: Some(&source),
+                    },
+                )
+                .unwrap_or_else(|_| "null".to_owned())
+            })
+            .collect();
+        println!(
+            "{}",
+            execution_json(
+                &profile_id,
+                &outcome,
+                &execution
+                    .observations
+                    .observations()
+                    .iter()
+                    .map(|o| (o.channel, o.text.as_str(), o.prefix.as_str()))
+                    .collect::<Vec<_>>(),
+                execution.observations.bytes(),
+                execution.observations.reserved_bytes(),
+                &diagnostics_json
+            )
+        );
+        return match execution.outcome {
+            nexo::interp::Outcome::Err(_) | nexo::interp::Outcome::SimulatorFault => {
+                ExitCode::FAILURE
+            }
+            nexo::interp::Outcome::InternalError(_) => ExitCode::from(2),
+            _ => ExitCode::SUCCESS,
+        };
+    }
     for observation in execution.observations.observations() {
         match observation.channel {
             nexo::interp::observation::Channel::Stdout => println!("{}", observation.text),
             nexo::interp::observation::Channel::Event => {
-                eprintln!("mock-resource:{}", observation.text)
+                eprintln!("{}{}", observation.prefix, observation.text)
             }
         }
     }
@@ -130,6 +236,200 @@ fn main() -> ExitCode {
     }
 }
 
+fn parse_invocation(
+    args: &[std::ffi::OsString],
+) -> Option<(&str, &str, Option<&str>, String, &str)> {
+    let command = args.first()?.to_str()?;
+    if command != "check" && command != "run" {
+        return None;
+    }
+    let mut file = None;
+    let mut mock = None;
+    let mut profile = diagnostic::PROFILE_ID.to_owned();
+    let mut format = "text";
+    let mut seen_profile = false;
+    let mut seen_format = false;
+    let mut seen_mock = false;
+    let mut i = 1;
+    while i < args.len() {
+        let arg = args[i].to_str()?;
+        if arg.starts_with("--") {
+            if arg.contains('=') {
+                return None;
+            }
+            match arg {
+                "--profile"
+                    if !seen_profile
+                        && i + 1 < args.len()
+                        && !args[i + 1].to_string_lossy().starts_with("--") =>
+                {
+                    seen_profile = true;
+                    i += 1;
+                    profile = args[i].to_str()?.to_owned();
+                }
+                "--format"
+                    if !seen_format
+                        && i + 1 < args.len()
+                        && !args[i + 1].to_string_lossy().starts_with("--") =>
+                {
+                    seen_format = true;
+                    i += 1;
+                    format = args[i].to_str()?;
+                    if format != "text" && format != "json" {
+                        return None;
+                    }
+                }
+                "--mock-env"
+                    if command == "run"
+                        && !seen_mock
+                        && i + 1 < args.len()
+                        && !args[i + 1].to_string_lossy().starts_with("--") =>
+                {
+                    seen_mock = true;
+                    i += 1;
+                    mock = Some(args[i].to_str()?);
+                }
+                _ => return None,
+            }
+        } else if file.replace(arg).is_some() {
+            return None;
+        }
+        i += 1;
+    }
+    Some((command, file?, mock, profile, format))
+}
+
+fn driver_error(profile: Option<&str>, reason: &str, json: bool) -> ExitCode {
+    if json {
+        println!(
+            "{}",
+            execution_json(
+                profile.unwrap_or(diagnostic::PROFILE_ID),
+                &format!(
+                    r#"{{"kind":"driver_error","reason":{}}}"#,
+                    json_quote(reason)
+                ),
+                &[],
+                0,
+                0,
+                &[]
+            )
+        );
+    } else {
+        eprintln!("nexo-driver:{reason}");
+    }
+    ExitCode::from(2)
+}
+
+fn diagnostic_result(
+    file: &str,
+    source: &str,
+    bytes_len: usize,
+    profile: &str,
+    kind: &str,
+    errors: &[Box<Diagnostic>],
+    status: u8,
+) -> ExitCode {
+    diagnostic_result_view(
+        file,
+        SourceView {
+            bytes_len,
+            text: Some(source),
+        },
+        profile,
+        kind,
+        errors,
+        status,
+    )
+}
+
+fn diagnostic_result_view(
+    file: &str,
+    source: SourceView<'_>,
+    profile: &str,
+    kind: &str,
+    errors: &[Box<Diagnostic>],
+    status: u8,
+) -> ExitCode {
+    let rendered: Vec<String> = errors
+        .iter()
+        .map(|d| {
+            d.to_json_view(file, source)
+                .unwrap_or_else(|_| "null".into())
+        })
+        .collect();
+    let outcome = format!(r#"{{"kind":"{kind}"}}"#);
+    println!(
+        "{}",
+        execution_json(profile, &outcome, &[], 0, 0, &rendered)
+    );
+    ExitCode::from(status)
+}
+
+fn execution_json(
+    profile: &str,
+    outcome: &str,
+    observations: &[(nexo::interp::observation::Channel, &str, &str)],
+    bytes: u64,
+    reserved: u64,
+    diagnostics: &[String],
+) -> String {
+    let stdout = observations
+        .iter()
+        .filter(|(c, _, _)| *c == nexo::interp::observation::Channel::Stdout)
+        .map(|(_, t, _)| json_quote(t))
+        .collect::<Vec<_>>()
+        .join(",");
+    let events = observations
+        .iter()
+        .filter(|(c, _, _)| *c == nexo::interp::observation::Channel::Event)
+        .map(|(_, t, _)| json_quote(t))
+        .collect::<Vec<_>>()
+        .join(",");
+    let obs = observations
+        .iter()
+        .map(|(c, t, _)| {
+            format!(
+                r#"{{"channel":"{}","text":{}}}"#,
+                if *c == nexo::interp::observation::Channel::Stdout {
+                    "stdout"
+                } else {
+                    "event"
+                },
+                json_quote(t)
+            )
+        })
+        .collect::<Vec<_>>()
+        .join(",");
+    format!(
+        r#"{{"schema_version":1,"profile_id":{},"outcome":{},"stdout":[{}],"events":[{}],"observations":[{}],"observation_bytes":{},"reserved_observation_bytes":{},"diagnostics":[{}]}}"#,
+        json_quote(profile),
+        outcome,
+        stdout,
+        events,
+        obs,
+        bytes,
+        reserved,
+        diagnostics.join(",")
+    )
+}
+fn json_quote(text: &str) -> String {
+    let mut out = String::from("\"");
+    for c in text.chars() {
+        match c {
+            '"' => out.push_str("\\\""),
+            '\\' => out.push_str("\\\\"),
+            '\n' => out.push_str("\\n"),
+            '\r' => out.push_str("\\r"),
+            '\t' => out.push_str("\\t"),
+            c if c < ' ' => out.push_str(&format!("\\u{:04x}", c as u32)),
+            c => out.push(c),
+        }
+    }
+    out.push('"');
+    out
+}
+
 fn internal_error_exit(_error: &nexo::ir::CompileError) -> (u8, &'static str) {
     (2, "nexo-driver:internal_error")
 }
@@ -160,7 +460,13 @@ fn render_error(error: &Diagnostic, file: &str, view: SourceView<'_>) -> Result<
     }
 }
 
-fn input_failure(file: &str, error: InputError, bytes_len: usize) -> ExitCode {
+fn input_failure(
+    file: &str,
+    error: InputError,
+    bytes_len: usize,
+    profile: &str,
+    format: &str,
+) -> ExitCode {
     let (diagnostic, status, view) = match error {
         InputError::Unreadable(_) => {
             let mut d = diagnostic_base(
@@ -249,6 +555,18 @@ fn input_failure(file: &str, error: InputError, bytes_len: usize) -> ExitCode {
             )
         }
     };
+    let mut diagnostic = diagnostic;
+    diagnostic.profile_id = profile.to_owned();
+    if format == "json" {
+        return diagnostic_result_view(
+            file,
+            view,
+            profile,
+            "input_error",
+            &[Box::new(diagnostic)],
+            status,
+        );
+    }
     if render_error(&diagnostic, file, view).is_err() {
         return ExitCode::from(2);
     }
@@ -294,6 +612,7 @@ fn explain_command(args: &[String]) -> ExitCode {
     let mut code = None;
     let mut subcause = None;
     let mut format = pre_scan_format(args);
+    let mut format_seen = false;
     let mut i = 0;
     while i < args.len() {
         match args[i].as_str() {
@@ -301,7 +620,12 @@ fn explain_command(args: &[String]) -> ExitCode {
                 subcause = Some(args[i + 1].as_str());
                 i += 2;
             }
-            "--format" if i + 1 < args.len() && matches!(args[i + 1].as_str(), "text" | "json") => {
+            "--format"
+                if !format_seen
+                    && i + 1 < args.len()
+                    && matches!(args[i + 1].as_str(), "text" | "json") =>
+            {
+                format_seen = true;
                 format = args[i + 1].as_str();
                 i += 2;
             }

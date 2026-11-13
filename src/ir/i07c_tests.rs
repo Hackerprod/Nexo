@@ -2398,7 +2398,9 @@ fn array_equality_lowers_both_operands_as_borrows() {
         .collect();
     assert_eq!(borrowed, ["a", "b"]);
     assert_eq!(
-        crate::interp::run_scalar(&program).observations.stdout(),
+        crate::interp::run_scalar(&program, Default::default())
+            .observations
+            .stdout(),
         vec!["true"]
     );
 }
@@ -3324,7 +3326,11 @@ fn bottom_equality_arrays_and_alias_copies_keep_types_and_data_independent() {
     }
     let twin = "fn Main(){var v=[0];var w=v;v=[1];w=[2];w[0]=9;AssertEq(v,[1]);AssertEq(w,[9]);}";
     let program = compile_scalar("fixture.n", twin).unwrap();
-    assert!(crate::interp::run_scalar(&program).diagnostics.is_empty());
+    assert!(
+        crate::interp::run_scalar(&program, Default::default())
+            .diagnostics
+            .is_empty()
+    );
 }
 
 #[test]
@@ -5600,10 +5606,18 @@ fn deferred_array_comparison_diagnostic_follows_first_incompatible_constraint() 
 fn empty_array_element_is_resolved_by_later_local_assignment() {
     let source = "fn Main(){var a=[];a=[1];AssertEq(a,[1]);}";
     let program = compile_scalar("fixture.n", source).unwrap();
-    assert!(crate::interp::run_scalar(&program).diagnostics.is_empty());
+    assert!(
+        crate::interp::run_scalar(&program, Default::default())
+            .diagnostics
+            .is_empty()
+    );
     let equality = "fn Main(){let a=[1];let b=[]==a;AssertEq(b,false);}";
     let program = compile_scalar("fixture.n", equality).unwrap();
-    assert!(crate::interp::run_scalar(&program).diagnostics.is_empty());
+    assert!(
+        crate::interp::run_scalar(&program, Default::default())
+            .diagnostics
+            .is_empty()
+    );
     for nested in [
         "fn Main(){var a=[];a=[[1]];AssertEq(a,[[1]]);}",
         "fn Main(){var a=[[]];a=[[1]];AssertEq(a,[[1]]);}",
@@ -5611,7 +5625,11 @@ fn empty_array_element_is_resolved_by_later_local_assignment() {
         "fn Main(){var a=[];var b=[];AssertEq(a,b);a=[1];b=[2];AssertEq(a,[1]);AssertEq(b,[2]);}",
     ] {
         let program = compile_scalar("fixture.n", nested).unwrap();
-        assert!(crate::interp::run_scalar(&program).diagnostics.is_empty());
+        assert!(
+            crate::interp::run_scalar(&program, Default::default())
+                .diagnostics
+                .is_empty()
+        );
     }
     let unresolved = rejected("fn Main(){var a=[];}");
     assert_eq!(unresolved.len(), 1, "{unresolved:?}");
@@ -6459,7 +6477,7 @@ fn run_deferred_check_run_fuzz(pairs: usize, seed: u64) -> std::collections::Has
             } else {
                 checked.unwrap_or_else(|e| panic!("case {case}: {source}: {e:?}"));
                 let program = compiled.unwrap_or_else(|e| panic!("case {case}: {source}: {e:?}"));
-                let execution = crate::interp::run_scalar(&program);
+                let execution = crate::interp::run_scalar(&program, Default::default());
                 assert!(
                     execution.diagnostics.is_empty(),
                     "case {case}: {source}: {execution:?}"

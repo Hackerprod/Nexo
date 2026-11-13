@@ -328,7 +328,7 @@ fn shadowed_resource_declaration_uses_the_later_token() {
 fn dead_transfer_does_not_change_later_diagnostic_or_execution() {
     let source = "fn Main() {\n    let r = MockOpen(1);\n    {\n        return;\n        Drop(r);\n    }\n    Inspect(r);\n}\n";
     let program = compile_scalar("dead.n", source).unwrap();
-    let execution = run_scalar(&program);
+    let execution = run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(
         execution.observations.events(),
@@ -417,7 +417,10 @@ fn failed_argument_cleans_prepared_temporaries_before_locals_in_reverse_order() 
             ],
         ),
     ] {
-        let e = run_scalar(&compile_scalar("cleanup.n", source).unwrap());
+        let e = run_scalar(
+            &compile_scalar("cleanup.n", source).unwrap(),
+            Default::default(),
+        );
         assert_eq!(e.outcome, Outcome::SimulatorFault);
         assert_eq!(e.diagnostics[0].code, "R0101");
         assert_eq!(e.observations.events(), events);
@@ -482,7 +485,7 @@ fn failed_let_poison_suppresses_dependent_uses_and_allows_independent_errors() {
 
 #[test]
 fn named_owner_arguments_keep_parameter_slots_and_reverse_callee_cleanup() {
-    let e = run_scalar(&compile_scalar("named.n", "fn G(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    G(b: MockOpen(1), a: MockOpen(2));\n}\n").unwrap());
+    let e = run_scalar(&compile_scalar("named.n", "fn G(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    G(b: MockOpen(1), a: MockOpen(2));\n}\n").unwrap(), Default::default());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -492,7 +495,7 @@ fn named_owner_arguments_keep_parameter_slots_and_reverse_callee_cleanup() {
 
 #[test]
 fn borrowed_owner_temporaries_close_in_reverse_written_order() {
-    let e = run_scalar(&compile_scalar("borrow.n", "fn G(a: view MockResource, b: view MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    G(MockOpen(1), MockOpen(2));\n}\n").unwrap());
+    let e = run_scalar(&compile_scalar("borrow.n", "fn G(a: view MockResource, b: view MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    G(MockOpen(1), MockOpen(2));\n}\n").unwrap(), Default::default());
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -510,7 +513,10 @@ fn borrowed_owner_temporaries_close_in_reverse_written_order() {
 #[test]
 fn mixed_argument_modes_use_each_declared_slot() {
     let source = "fn G(a: view MockResource, b: move MockResource) {\n    Inspect(a);\n    Inspect(b);\n}\nfn Main() {\n    let r = MockOpen(1);\n    G(r, MockOpen(2));\n    Inspect(r);\n}\n";
-    let e = run_scalar(&compile_scalar("modes.n", source).unwrap());
+    let e = run_scalar(
+        &compile_scalar("modes.n", source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(e.outcome, Outcome::Unit);
     assert_eq!(
         e.observations.events(),
@@ -536,7 +542,10 @@ fn rejected_frame_entry_closes_two_transfers_in_reverse_argument_order() {
         ));
     }
     source.push_str("fn F256(a: move MockResource, b: move MockResource) {}\nfn Main() {\n    F0(MockOpen(1), MockOpen(2));\n}\n");
-    let e = run_scalar(&compile_scalar("frames.n", &source).unwrap());
+    let e = run_scalar(
+        &compile_scalar("frames.n", &source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -555,7 +564,10 @@ fn rejected_frame_entry_does_not_close_borrowed_argument() {
         ));
     }
     source.push_str("fn F256(a: view MockResource, b: move MockResource) {}\nfn Main() {\n    let a = MockOpen(1);\n    F0(a, MockOpen(2));\n}\n");
-    let e = run_scalar(&compile_scalar("frames.n", &source).unwrap());
+    let e = run_scalar(
+        &compile_scalar("frames.n", &source).unwrap(),
+        Default::default(),
+    );
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0002");
     assert_eq!(
@@ -752,7 +764,7 @@ fn generated_calls_resources_and_early_returns_match_independent_reference() {
         let expected = expected.finish();
         let p = compile_scalar("generated.n", &source)
             .unwrap_or_else(|e| panic!("case {n}: {e:?}\n{source}"));
-        let result = run_scalar(&p);
+        let result = run_scalar(&p, Default::default());
         assert_eq!(result.outcome, Outcome::Unit, "case {n}");
         assert!(result.diagnostics.is_empty(), "case {n}");
         assert_eq!(
@@ -827,7 +839,7 @@ fn malformed_call_and_resource_sources_never_panic_and_diagnostics_validate() {
                 }
             }
             Ok(p) => {
-                let run = run_scalar(&p);
+                let run = run_scalar(&p, Default::default());
                 for d in run.diagnostics {
                     d.validate("fuzz.n", &source).unwrap();
                 }
@@ -853,7 +865,7 @@ fn call_lowering_and_execution_survive_small_caller_stacks() {
                 .stack_size(bytes)
                 .spawn(move || {
                     let p = compile_scalar("small.n", source).unwrap();
-                    let result = run_scalar(&p);
+                    let result = run_scalar(&p, Default::default());
                     assert!(!matches!(result.outcome, Outcome::InternalError(_)));
                     for d in &result.diagnostics {
                         d.validate("small.n", source).unwrap();

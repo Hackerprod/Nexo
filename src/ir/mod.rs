@@ -8,11 +8,10 @@ pub(crate) mod work;
 
 #[cfg(test)]
 pub(crate) use lower::compile_scalar_with_flow_limit;
-pub use lower::{CompileError, check_scalar, compile_scalar};
 #[cfg(test)]
-pub(crate) use lower::{
-    ReducedProfile, compile_scalar_with_profile, compile_scalar_with_sparse_ownership,
-};
+pub(crate) use lower::compile_scalar_with_sparse_ownership;
+pub use lower::{CompileError, check_scalar, compile_scalar};
+pub use lower::{ReducedProfile, compile_scalar_with_profile};
 pub use model::Program;
 
 #[cfg(test)]

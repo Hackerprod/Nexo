@@ -6,7 +6,6 @@ change invalidate the fixture until it is explicitly regenerated and reviewed.
 """
 
 import argparse
-import contextlib
 from collections import Counter
 import hashlib
 import json
@@ -156,8 +155,7 @@ def parse_text(stderr: str) -> list[dict]:
 def verify(binary: Path, rows: list[dict]) -> int:
     failed = 0
     snapshots = 0
-    (ROOT / ".scratch").mkdir(exist_ok=True)
-    with contextlib.nullcontext(Path(tempfile.mkdtemp(prefix="i07c-rd-", dir=ROOT / ".scratch"))) as temporary:
+    with tempfile.TemporaryDirectory(prefix="i07c-rd-", dir=ROOT) as temporary:
         path = Path(temporary) / "case.n"
         for row in rows:
             path.write_bytes(row["source"].encode("ascii"))

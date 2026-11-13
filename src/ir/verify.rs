@@ -617,8 +617,12 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     | Intrinsic::Len
                     | Intrinsic::MockOpen
                     | Intrinsic::MockBlockingOpen
-                    | Intrinsic::Inspect => 1,
+                    | Intrinsic::Inspect
+                    | Intrinsic::MockReadRecords
+                    | Intrinsic::MockWriteI64
+                    | Intrinsic::MockReply => 1,
                     Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+                    Intrinsic::MockRequest => 0,
                     Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                 };
                 if args.len() != arity {
@@ -632,9 +636,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     if let Some(Some(loan)) = loan_id_by_temp.get(first_id.0) {
                         pending_end.push(loan.0);
                     }
-                    let first_is_read = *intrinsic == Intrinsic::Inspect
-                        && !borrowed.get(first_id.0).copied().unwrap_or(false)
-                        && temps[first_id.0].has_resource_destructor();
+                    let first_is_read =
+                        matches!(intrinsic, Intrinsic::Inspect | Intrinsic::MockReadRecords)
+                            && !borrowed.get(first_id.0).copied().unwrap_or(false)
+                            && temps[first_id.0].has_resource_destructor();
                     let first = if first_is_read {
                         peek(*first_id, &temps, &live)?
                     } else {
@@ -658,6 +663,14 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         && !matches!(first, Ty::MockResource | Ty::MockBlockingResource)
                     {
                         return Err("inspect argument type");
+                    }
+                    if *intrinsic == Intrinsic::MockReadRecords && first != Ty::MockResource {
+                        return Err("mock read resource type");
+                    }
+                    if matches!(intrinsic, Intrinsic::MockWriteI64 | Intrinsic::MockReply)
+                        && first != Ty::I64
+                    {
+                        return Err("mock io argument type");
                     }
                     if *intrinsic == Intrinsic::Print && !first.copyable() {
                         return Err("print resource");
@@ -698,6 +711,17 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     Intrinsic::MockOpen => Ty::MockResource,
                     Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
                     Intrinsic::TryAdd => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
+                    Intrinsic::MockReadRecords => Ty::Result(
+                        Box::new(Ty::Array(Box::new(Ty::Result(
+                            Box::new(Ty::I64),
+                            Box::new(Ty::I64),
+                        )))),
+                        Box::new(Ty::I64),
+                    ),
+                    Intrinsic::MockWriteI64 | Intrinsic::MockReply => {
+                        Ty::Result(Box::new(Ty::Unit), Box::new(Ty::I64))
+                    }
+                    Intrinsic::MockRequest => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
                     _ => Ty::Unit,
                 })
             }
@@ -802,7 +826,11 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     intrinsic: Intrinsic::Print
                         | Intrinsic::MockOpen
                         | Intrinsic::MockBlockingOpen
-                        | Intrinsic::Inspect,
+                        | Intrinsic::Inspect
+                        | Intrinsic::MockReadRecords
+                        | Intrinsic::MockWriteI64
+                        | Intrinsic::MockRequest
+                        | Intrinsic::MockReply,
                     ..
                 }
             )
@@ -2010,8 +2038,12 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         | Intrinsic::Len
                         | Intrinsic::MockOpen
                         | Intrinsic::MockBlockingOpen
-                        | Intrinsic::Inspect => 1,
+                        | Intrinsic::Inspect
+                        | Intrinsic::MockReadRecords
+                        | Intrinsic::MockWriteI64
+                        | Intrinsic::MockReply => 1,
                         Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+                        Intrinsic::MockRequest => 0,
                         Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                     };
                     if args.len() != arity {
@@ -2026,9 +2058,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         }
                         let borrowed = temps.info(*id)?.is_borrowed
                             || temps.info(*id)?.exclusive_root.is_some();
-                        let owned_resource_read = *intrinsic == Intrinsic::Inspect
-                            && !borrowed
-                            && temps.info(*id)?.ty.has_resource_destructor();
+                        let owned_resource_read =
+                            matches!(intrinsic, Intrinsic::Inspect | Intrinsic::MockReadRecords)
+                                && !borrowed
+                                && temps.info(*id)?.ty.has_resource_destructor();
                         Some(temps.read(*id, !owned_resource_read)?)
                     } else {
                         None
@@ -2058,6 +2091,14 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     {
                         return Err("open argument type");
                     }
+                    if *intrinsic == Intrinsic::MockReadRecords && first != Some(Ty::MockResource) {
+                        return Err("mock read resource type");
+                    }
+                    if matches!(intrinsic, Intrinsic::MockWriteI64 | Intrinsic::MockReply)
+                        && first != Some(Ty::I64)
+                    {
+                        return Err("mock io argument type");
+                    }
                     if *intrinsic == Intrinsic::Inspect
                         && !matches!(
                             first.as_ref(),
@@ -2076,6 +2117,17 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         Intrinsic::MockOpen => Ty::MockResource,
                         Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
                         Intrinsic::TryAdd => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
+                        Intrinsic::MockReadRecords => Ty::Result(
+                            Box::new(Ty::Array(Box::new(Ty::Result(
+                                Box::new(Ty::I64),
+                                Box::new(Ty::I64),
+                            )))),
+                            Box::new(Ty::I64),
+                        ),
+                        Intrinsic::MockWriteI64 | Intrinsic::MockReply => {
+                            Ty::Result(Box::new(Ty::Unit), Box::new(Ty::I64))
+                        }
+                        Intrinsic::MockRequest => Ty::Result(Box::new(Ty::I64), Box::new(Ty::I64)),
                         _ => Ty::Unit,
                     })
                 }
@@ -2197,7 +2249,11 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         intrinsic: Intrinsic::Print
                             | Intrinsic::MockOpen
                             | Intrinsic::MockBlockingOpen
-                            | Intrinsic::Inspect,
+                            | Intrinsic::Inspect
+                            | Intrinsic::MockReadRecords
+                            | Intrinsic::MockWriteI64
+                            | Intrinsic::MockRequest
+                            | Intrinsic::MockReply,
                         ..
                     }
                 )

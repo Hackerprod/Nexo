@@ -1309,8 +1309,8 @@ fn multi_token_construct_comment_gaps_preserve_execution() {
             let formatted = super::format::format("gaps-run.n", &source).unwrap();
             let original = crate::ir::compile_scalar("gaps-run.n", &source).unwrap();
             let rewritten = crate::ir::compile_scalar("gaps-run.n", &formatted).unwrap();
-            let before = crate::interp::run_scalar(&original);
-            let after = crate::interp::run_scalar(&rewritten);
+            let before = crate::interp::run_scalar(&original, Default::default());
+            let after = crate::interp::run_scalar(&rewritten, Default::default());
             assert!(before.diagnostics.is_empty(), "{source:?}");
             assert!(after.diagnostics.is_empty(), "{formatted:?}");
             assert_eq!(before.outcome, after.outcome, "{source:?} => {formatted:?}");
@@ -1342,10 +1342,13 @@ fn accepted_commented_sources_keep_run_result_after_format() {
         let template = templates[id % templates.len()].replace("{n}", &value.to_string());
         let source = template.replace('~', &format!("{newline}// c{id}{newline}"));
         let formatted = super::format::format("run-format.n", &source).unwrap();
-        let before =
-            crate::interp::run_scalar(&crate::ir::compile_scalar("run-format.n", &source).unwrap());
+        let before = crate::interp::run_scalar(
+            &crate::ir::compile_scalar("run-format.n", &source).unwrap(),
+            Default::default(),
+        );
         let after = crate::interp::run_scalar(
             &crate::ir::compile_scalar("run-format.n", &formatted).unwrap(),
+            Default::default(),
         );
         assert!(before.diagnostics.is_empty(), "{id}: {source:?}");
         assert!(after.diagnostics.is_empty(), "{id}: {formatted:?}");

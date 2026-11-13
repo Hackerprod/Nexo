@@ -1,5 +1,6 @@
 use std::sync::Arc;
 
+use super::mock_env::{MockEnvironment, Reply};
 use super::observation::Log;
 use crate::diagnostic::{
     self, DataValue, Diagnostic, Namespace, Operation, RelatedRole, RelatedSpan, Severity, Stage,
@@ -24,8 +25,8 @@ pub struct Execution {
     #[cfg(test)]
     pub(crate) disposals: u64,
 }
-#[derive(Clone, Copy)]
-struct ExecutionLimits {
+#[derive(Clone, Copy, Debug)]
+pub struct ExecutionLimits {
     profile_id: &'static str,
     work: u64,
     frames: u64,
@@ -41,12 +42,33 @@ impl ExecutionLimits {
         observations: 65_536,
     };
 }
-#[cfg(test)]
 #[derive(Clone, Copy)]
-pub(crate) enum ReducedExecutionProfile {
+pub enum ReducedExecutionProfile {
+    Normal,
+    Types32,
+    FlowFunction32,
+    FlowCompilation32,
+    Effects32,
+    IrItems32,
     Frames8,
     Cells64,
     Observations64,
+}
+impl ReducedExecutionProfile {
+    pub fn from_id(id: &str) -> Option<Self> {
+        Some(match id {
+            "f0-0002-b-v2" => Self::Normal,
+            "f0-0002-b-test-types-32-v2" => Self::Types32,
+            "f0-0002-b-test-flow-32-v2" => Self::FlowFunction32,
+            "f0-0002-b-test-flow-global-32-v2" => Self::FlowCompilation32,
+            "f0-0002-b-test-effects-32-v2" => Self::Effects32,
+            "f0-0002-b-test-ir-32-v2" => Self::IrItems32,
+            "f0-0002-b-test-frames-8-v2" => Self::Frames8,
+            "f0-0002-b-test-cells-64-v2" => Self::Cells64,
+            "f0-0002-b-test-observations-64-v2" => Self::Observations64,
+            _ => return None,
+        })
+    }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum Value {
@@ -210,17 +232,78 @@ struct FrameReturn {
     inout: Vec<Option<Value>>,
 }
 
-pub fn run_scalar(program: &Program) -> Execution {
+enum MockReplyValue {
+    Read(Reply<Vec<Reply<i64>>>),
+    Unit(Reply<()>),
+    Scalar(Reply<i64>),
+}
+impl MockReplyValue {
+    fn into_value(self) -> Value {
+        let (ok, payload) = match self {
+            Self::Read(Ok(records)) => {
+                let values: Vec<_> = records
+                    .into_iter()
+                    .map(|record| match record {
+                        Ok(n) => Value::Result {
+                            ok: true,
+                            payload: Box::new(Value::Int(n)),
+                        },
+                        Err(n) => Value::Result {
+                            ok: false,
+                            payload: Box::new(Value::Int(n)),
+                        },
+                    })
+                    .collect();
+                let cells = 1 + (values.len() as u64) * 2;
+                (true, Value::Array(Arc::new(values), cells))
+            }
+            Self::Read(Err(n)) | Self::Scalar(Err(n)) => (false, Value::Int(n)),
+            Self::Scalar(Ok(n)) => (true, Value::Int(n)),
+            Self::Unit(Ok(())) => (true, Value::Unit),
+            Self::Unit(Err(n)) => (false, Value::Int(n)),
+        };
+        Value::Result {
+            ok,
+            payload: Box::new(payload),
+        }
+    }
+}
+
+pub fn run_scalar(program: &Program, mock_env: MockEnvironment) -> Execution {
     // Source programs arrive through compile_scalar, which verifies the IR.
     // The worker failure branches describe host failure, not a source form.
     // unicode_sources_never_reach_internal_failure and the source/IR model
     // tests exercise the accepted path; forged-IR verifier tests cover the
     // rejection side of the boundary.
-    run_with_execution_limits(program, ExecutionLimits::NORMAL)
+    run_with_execution_limits(program, mock_env, ExecutionLimits::NORMAL)
 }
-#[cfg(test)]
-pub(crate) fn run_with_limits(program: &Program, profile: ReducedExecutionProfile) -> Execution {
+pub fn run_with_limits(
+    program: &Program,
+    mock_env: MockEnvironment,
+    profile: ReducedExecutionProfile,
+) -> Execution {
     let limits = match profile {
+        ReducedExecutionProfile::Normal => ExecutionLimits::NORMAL,
+        ReducedExecutionProfile::Types32 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-types-32-v2",
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::FlowFunction32 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-flow-32-v2",
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::FlowCompilation32 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-flow-global-32-v2",
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::Effects32 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-effects-32-v2",
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::IrItems32 => ExecutionLimits {
+            profile_id: "f0-0002-b-test-ir-32-v2",
+            ..ExecutionLimits::NORMAL
+        },
         ReducedExecutionProfile::Frames8 => ExecutionLimits {
             profile_id: "f0-0002-b-test-frames-8-v2",
             frames: 8,
@@ -237,13 +320,17 @@ pub(crate) fn run_with_limits(program: &Program, profile: ReducedExecutionProfil
             ..ExecutionLimits::NORMAL
         },
     };
-    run_with_execution_limits(program, limits)
+    run_with_execution_limits(program, mock_env, limits)
 }
-fn run_with_execution_limits(program: &Program, limits: ExecutionLimits) -> Execution {
+fn run_with_execution_limits(
+    program: &Program,
+    mock_env: MockEnvironment,
+    limits: ExecutionLimits,
+) -> Execution {
     std::thread::scope(|scope| {
         match std::thread::Builder::new()
             .stack_size(16 * 1024 * 1024)
-            .spawn_scoped(scope, || run_verified(program, limits))
+            .spawn_scoped(scope, || run_verified(program, mock_env, limits))
         {
             Ok(worker) => worker
                 .join()
@@ -262,7 +349,11 @@ fn internal_execution(reason: &'static str) -> Execution {
         disposals: 0,
     }
 }
-fn run_verified(program: &Program, limits: ExecutionLimits) -> Execution {
+fn run_verified(
+    program: &Program,
+    mock_env: MockEnvironment,
+    limits: ExecutionLimits,
+) -> Execution {
     let mut state = Machine {
         log: Log::with_limit(limits.observations),
         limits,
@@ -271,6 +362,7 @@ fn run_verified(program: &Program, limits: ExecutionLimits) -> Execution {
         fault: None,
         frames: 0,
         next_resource: 0,
+        mock_env,
         #[cfg(test)]
         disposals: 0,
     };
@@ -355,10 +447,116 @@ struct Machine {
     fault: Option<Box<Diagnostic>>,
     frames: u64,
     next_resource: u64,
+    mock_env: MockEnvironment,
     #[cfg(test)]
     disposals: u64,
 }
 impl Machine {
+    fn mock_call(
+        &mut self,
+        intrinsic: Intrinsic,
+        values: &[TempValue],
+        locals: &[Option<Value>],
+        span: &diagnostic::Span,
+    ) -> Result<Option<Value>, &'static str> {
+        let (reply, event, stdout, cells, work) = match intrinsic {
+            Intrinsic::MockReadRecords => {
+                let Value::Resource { id, .. } = values[0].as_value(locals)? else {
+                    return Err("mock read resource type");
+                };
+                let reply = self
+                    .mock_env
+                    .read_records
+                    .front()
+                    .cloned()
+                    .unwrap_or(Err(-9000));
+                let cells = match &reply {
+                    Ok(records) => 2u64.saturating_add((records.len() as u64).saturating_mul(2)),
+                    Err(_) => 2,
+                };
+                let work = match &reply {
+                    Ok(records) => 2u64.saturating_add((records.len() as u64).saturating_mul(2)),
+                    Err(_) => 2,
+                };
+                let event = match &reply {
+                    Ok(records) => format!("read_records:{id}:ok:{}", records.len()),
+                    Err(error) => format!("read_records:{id}:err:{error}"),
+                };
+                (MockReplyValue::Read(reply), event, None, cells, work)
+            }
+            Intrinsic::MockWriteI64 => {
+                let Value::Int(number) = values[0].as_value(locals)? else {
+                    return Err("mock write value type");
+                };
+                let reply = self
+                    .mock_env
+                    .write_i64
+                    .front()
+                    .cloned()
+                    .unwrap_or(Err(-9000));
+                let event = match &reply {
+                    Ok(()) => format!("write_i64:{number}:ok"),
+                    Err(error) => format!("write_i64:{number}:err:{error}"),
+                };
+                let stdout = reply.as_ref().ok().map(|_| number.to_string());
+                let work = 2 + u64::from(stdout.is_some());
+                (MockReplyValue::Unit(reply), event, stdout, 2, work)
+            }
+            Intrinsic::MockRequest => {
+                let reply = self.mock_env.request.front().cloned().unwrap_or(Err(-9000));
+                let event = match &reply {
+                    Ok(value) => format!("request:ok:{value}"),
+                    Err(error) => format!("request:err:{error}"),
+                };
+                (MockReplyValue::Scalar(reply), event, None, 2, 2)
+            }
+            Intrinsic::MockReply => {
+                let Value::Int(status) = values[0].as_value(locals)? else {
+                    return Err("mock reply status type");
+                };
+                let reply = self.mock_env.reply.front().cloned().unwrap_or(Err(-9000));
+                let event = match &reply {
+                    Ok(()) => format!("reply:{status}:ok"),
+                    Err(error) => format!("reply:{status}:err:{error}"),
+                };
+                (MockReplyValue::Unit(reply), event, None, 2, 2)
+            }
+            _ => return Err("not a mock io intrinsic"),
+        };
+        if !self.charge_work(work, span) || !self.reserve_cells(cells, span) {
+            return Ok(None);
+        }
+        let mut batch = vec![(
+            super::observation::Channel::Event,
+            event,
+            "mock-io:".to_owned(),
+        )];
+        if let Some(line) = stdout {
+            batch.push((super::observation::Channel::Stdout, line, String::new()));
+        }
+        if let Err(observed) = self.log.push_batch(batch) {
+            self.cells = self.cells.saturating_sub(cells);
+            self.observation_fault(span, observed);
+            return Ok(None);
+        }
+        match intrinsic {
+            Intrinsic::MockReadRecords => {
+                self.mock_env.read_records.pop_front();
+            }
+            Intrinsic::MockWriteI64 => {
+                self.mock_env.write_i64.pop_front();
+            }
+            Intrinsic::MockRequest => {
+                self.mock_env.request.pop_front();
+            }
+            Intrinsic::MockReply => {
+                self.mock_env.reply.pop_front();
+            }
+            _ => unreachable!(),
+        }
+        Ok(Some(reply.into_value()))
+    }
+
     fn final_unit_context(&mut self, context: &diagnostic::Span) {
         if let Some(fault) = self.fault.as_mut() {
             fault.related_spans = vec![RelatedSpan {
@@ -380,6 +578,17 @@ impl Machine {
         if let Value::Resource { id, label, .. } = active {
             self.log
                 .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
+        }
+        Ok(())
+    }
+    fn dispose_intrinsic_resources(
+        &mut self,
+        values: &mut Vec<TempValue>,
+    ) -> Result<(), &'static str> {
+        for value in values.drain(..).rev() {
+            if matches!(&value, TempValue::Own(owned) if owned.owns_resource()) {
+                self.dispose(value.into_owned()?)?;
+            }
         }
         Ok(())
     }
@@ -639,11 +848,14 @@ impl Machine {
                 {
                     let mut path = Vec::with_capacity(indexes.len());
                     for id in indexes {
-                        let Value::Int(index) = Self::take(&mut temps, *id)?.into_owned()? else {
+                        let taken = Self::take(&mut temps, *id)?;
+                        let Value::Int(index) = taken.as_value(&locals)? else {
                             return Err("loan index type");
                         };
-                        self.cells = self.cells.saturating_sub(1);
-                        path.push(index);
+                        if matches!(taken, TempValue::Own(_)) {
+                            self.cells = self.cells.saturating_sub(1);
+                        }
+                        path.push(*index);
                     }
                     let mut selected = locals
                         .get(root.0)
@@ -689,11 +901,14 @@ impl Machine {
                 {
                     let mut path = Vec::with_capacity(indexes.len());
                     for id in indexes {
-                        let Value::Int(index) = Self::take(&mut temps, *id)?.into_owned()? else {
+                        let taken = Self::take(&mut temps, *id)?;
+                        let Value::Int(index) = taken.as_value(&locals)? else {
                             return Err("borrow index type");
                         };
-                        self.cells = self.cells.saturating_sub(1);
-                        path.push(index);
+                        if matches!(taken, TempValue::Own(_)) {
+                            self.cells = self.cells.saturating_sub(1);
+                        }
+                        path.push(*index);
                     }
                     let mut value = locals
                         .get(local.0)
@@ -831,11 +1046,14 @@ impl Machine {
                     } => {
                         let mut path = Vec::with_capacity(indexes.len());
                         for id in indexes {
-                            let Value::Int(n) = Self::take(&mut temps, *id)?.into_owned()? else {
+                            let taken = Self::take(&mut temps, *id)?;
+                            let Value::Int(n) = taken.as_value(&locals)? else {
                                 return Err("index value type");
                             };
-                            self.cells = self.cells.saturating_sub(1);
-                            path.push(n);
+                            if matches!(taken, TempValue::Own(_)) {
+                                self.cells = self.cells.saturating_sub(1);
+                            }
+                            path.push(*n);
                         }
                         let mut selected = locals
                             .get(local.0)
@@ -874,10 +1092,12 @@ impl Machine {
                             .ok_or("empty local")?;
                         let mut valid = true;
                         for (position, id) in indexes.iter().enumerate() {
-                            let Some(TempValue::Own(Value::Int(n))) =
-                                temps.get(id.0).and_then(Option::as_ref)
-                            else {
-                                return Err("check index temporary");
+                            let index = temps
+                                .get(id.0)
+                                .and_then(Option::as_ref)
+                                .ok_or("check index temporary")?;
+                            let Value::Int(n) = index.as_value(&locals)? else {
+                                return Err("check index type");
                             };
                             if let Some(next) = selected.element(*n) {
                                 selected = next;
@@ -894,17 +1114,19 @@ impl Machine {
                     }
                     Op::IndexValue { base, index, site } => {
                         let base = Self::take(&mut temps, *base)?.into_owned()?;
-                        let Value::Int(n) = Self::take(&mut temps, *index)?.into_owned()? else {
+                        let taken = Self::take(&mut temps, *index)?;
+                        let Value::Int(n) = taken.as_value(&locals)? else {
                             return Err("index value type");
                         };
                         let size = base.cells();
-                        let Some(selected) = base.element(n) else {
-                            self.cells = self.cells.saturating_sub(size + 1);
+                        let own = u64::from(matches!(taken, TempValue::Own(_)));
+                        let Some(selected) = base.element(*n) else {
+                            self.cells = self.cells.saturating_sub(size + own);
                             self.index_fault(site, 0);
                             break;
                         };
                         let selected = selected.clone();
-                        self.cells = self.cells.saturating_sub(size + 1 - selected.cells());
+                        self.cells = self.cells.saturating_sub(size + own - selected.cells());
                         Some(selected)
                     }
                     Op::Binary { op, left, right } => {
@@ -967,11 +1189,14 @@ impl Machine {
                     } => {
                         let mut path = Vec::with_capacity(indexes.len());
                         for id in indexes {
-                            let Value::Int(n) = Self::take(&mut temps, *id)?.into_owned()? else {
+                            let taken = Self::take(&mut temps, *id)?;
+                            let Value::Int(n) = taken.as_value(&locals)? else {
                                 return Err("index value type");
                             };
-                            self.cells = self.cells.saturating_sub(1);
-                            path.push(n);
+                            if matches!(taken, TempValue::Own(_)) {
+                                self.cells = self.cells.saturating_sub(1);
+                            }
+                            path.push(*n);
                         }
                         let replacement = Self::take(&mut temps, *value)?.into_owned()?;
                         let root = locals
@@ -1011,12 +1236,14 @@ impl Machine {
                             }
                         }
                         if !self.charge_work(1, &ins.span) {
+                            self.dispose_intrinsic_resources(&mut values)?;
                             break;
                         }
                         let mut pre_reserved_output = false;
                         let mut precharged_output_work = false;
                         if *intrinsic == Intrinsic::DropData {
                             if !self.charge_work(1, &ins.span) {
+                                self.dispose_intrinsic_resources(&mut values)?;
                                 break;
                             }
                             precharged_output_work = true;
@@ -1086,15 +1313,16 @@ impl Machine {
                                 let id = self.next_resource;
                                 let close = format!("close:{id}:{label}");
                                 let close_bytes = ("mock-resource:".len() + close.len() + 1) as u64;
-                                if let Err(observed) = self.log.reserve(close_bytes) {
+                                let open = format!("open:{id}:{label}");
+                                let open_bytes = ("mock-resource:".len() + open.len() + 1) as u64;
+                                let acquisition_bytes = close_bytes + open_bytes;
+                                if let Err(observed) = self.log.reserve(acquisition_bytes) {
                                     self.cells -= 1;
                                     self.observation_fault(&ins.span, observed);
                                     break;
                                 }
-                                if let Err(observed) = self
-                                    .log
-                                    .push_event(format!("open:{id}:{label}"), "mock-resource:")
-                                {
+                                self.log.release_reservation(open_bytes)?;
+                                if let Err(observed) = self.log.push_event(open, "mock-resource:") {
                                     self.log.release_reservation(close_bytes)?;
                                     self.cells -= 1;
                                     self.observation_fault(&ins.span, observed);
@@ -1115,24 +1343,14 @@ impl Machine {
                                 };
                                 let text = format!("inspect:{id}:{label}");
                                 if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
-                                    for v in values.drain(..).rev() {
-                                        if matches!(&v, TempValue::Own(value) if value.owns_resource())
-                                        {
-                                            self.dispose(v.into_owned()?)?;
-                                        }
-                                    }
+                                    self.dispose_intrinsic_resources(&mut values)?;
                                     break;
                                 }
                                 pre_reserved_output = true;
                                 if let Err(observed) = self.log.push_event(text, "mock-resource:") {
                                     self.cells -= 1;
                                     self.observation_fault(&ins.span, observed);
-                                    for v in values.drain(..).rev() {
-                                        if matches!(&v, TempValue::Own(value) if value.owns_resource())
-                                        {
-                                            self.dispose(v.into_owned()?)?;
-                                        }
-                                    }
+                                    self.dispose_intrinsic_resources(&mut values)?;
                                     break;
                                 }
                                 Value::Unit
@@ -1161,9 +1379,24 @@ impl Machine {
                                 pre_reserved_output = true;
                                 result
                             }
+                            Intrinsic::MockReadRecords
+                            | Intrinsic::MockWriteI64
+                            | Intrinsic::MockRequest
+                            | Intrinsic::MockReply => {
+                                let Some(result) =
+                                    self.mock_call(*intrinsic, &values, &locals, &ins.span)?
+                                else {
+                                    if *intrinsic == Intrinsic::MockReadRecords {
+                                        self.dispose_intrinsic_resources(&mut values)?;
+                                    }
+                                    break;
+                                };
+                                pre_reserved_output = true;
+                                result
+                            }
                         };
                         for (id, value) in argument_ids.into_iter().zip(values).rev() {
-                            if *intrinsic == Intrinsic::Inspect
+                            if matches!(intrinsic, Intrinsic::Inspect | Intrinsic::MockReadRecords)
                                 && matches!(&value, TempValue::Own(owned) if owned.owns_resource())
                             {
                                 temps.insert(id.0, Some(value));
@@ -1493,6 +1726,7 @@ mod tests {
             fault: None,
             frames: 0,
             next_resource: 0,
+            mock_env: MockEnvironment::empty(),
             disposals: 0,
         }
     }
@@ -1799,6 +2033,58 @@ mod tests {
         assert!(m.log.events().is_empty());
         assert_eq!(m.log.reserved_bytes(), 0);
         assert_eq!(m.cells, 0);
+    }
+
+    #[test]
+    fn rejected_mock_batch_releases_reserved_result_cells() {
+        let program = crate::ir::compile_scalar(
+            "batch.n",
+            "fn Main()->Result<(),I64>{MockWriteI64(25)?;return Ok(());}",
+        )
+        .unwrap();
+        let mut m = machine();
+        m.mock_env = MockEnvironment::parse(
+            br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"ok":null}],"mock_request":[],"mock_reply":[]}"#,
+        )
+        .unwrap();
+        m.log.push_stdout("x".repeat(65_520)).unwrap();
+        m.run(program.functions().function("Main").unwrap())
+            .unwrap();
+        assert_eq!(
+            m.fault.as_ref().map(|diagnostic| diagnostic.code.as_str()),
+            Some("R0002")
+        );
+        assert_eq!(m.cells, 0);
+    }
+
+    #[test]
+    fn write_request_and_reply_each_reserve_two_result_cells() {
+        for (source, environment) in [
+            (
+                "fn Main(){MockWriteI64(25);}",
+                br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"ok":null}],"mock_request":[],"mock_reply":[]}"#.as_slice(),
+            ),
+            (
+                "fn Main(){MockRequest();}",
+                br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[{"ok":"1"}],"mock_reply":[]}"#,
+            ),
+            (
+                "fn Main(){MockReply(200);}",
+                br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[{"ok":null}]}"#,
+            ),
+        ] {
+            let program = crate::ir::compile_scalar("primitive-cells.n", source).unwrap();
+            let mut m = machine();
+            m.mock_env = MockEnvironment::parse(environment).unwrap();
+            m.cells = 65_535;
+            m.run(program.functions().function("Main").unwrap())
+                .unwrap();
+            let fault = m.fault.as_ref().expect("two-cell result reservation");
+            assert_eq!(fault.code, "R0002", "{source}");
+            assert_eq!(fault.data["runtime_budget_kind"], DataValue::String("live_value_cells".into()));
+            assert_eq!(fault.data["observed"], DataValue::UInt(65_537));
+            assert_eq!(m.cells, 65_535);
+        }
     }
 
     #[test]

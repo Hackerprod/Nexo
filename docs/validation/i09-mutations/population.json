@@ -1498,7 +1498,8 @@
       "literal": "        negative: \"fn Main(){MockRequest();}\",",
       "replacement": "        negative: \"fn Main(){}\",",
       "site_count": 1,
-      "id": "M00148"
+      "id": "M00148",
+      "historical": "I11a implementó la capacidad mock; se conserva solo como registro de mutación histórica."
     },
     {
       "file": "src/interp/machine.rs",

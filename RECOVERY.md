@@ -149,3 +149,93 @@ Registro local I10a: población de 91 reescrituras únicas y 91 resultados; 82 d
 ## Recuperación del corte local I10b
 
 Val43 detectó B1–B4 en I10b. La implementación local corrigió sus causas y registró G6 con test; los artefactos de campañas, estado y mutaciones se regeneran mediante sus scripts versionados. Debug/release, RD 152/152, clippy, fmt y `sh scripts/validate.sh` en clon limpio se ejecutaron; el target del clon se limpió y la copia se eliminó. La población real de 90 mutaciones reporta 85 detectadas y cinco supervivientes equivalentes, con restauración SHA-256 por caso; los 15 no equivalentes murieron. La revisión independiente y aprobación de fase del propietario siguen pendientes.
+
+Estado local I11a (2026-11-07): campañas y validación final descritas en `docs/validation/F0-0002-I11a-implementation-notes.md` completadas localmente. La matriz de pruebas, campañas y métricas se regenera con `scripts/i11a_estado.py`; `scripts/i11a_campanas.py` ejecuta las campañas runtime deterministas. La validación limpia usa un solo clon/target y elimina su target al terminar. No modificar la ADR ni fixtures de la zona diferida.
+
+Actualización I11a (2026-11-07): campañas registradas con semillas 117212 debug (100.000 casos) y 117211 release (300.000), reproducidas byte a byte. Suites debug/release (1090/53 y 1092/54), RD 152/152, formato, Clippy y `sh scripts/validate.sh` en clon limpio concluyeron; el clon fue retirado. Mutaciones reales: 40 detectadas, seis equivalentes justificadas, cero supervivientes no equivalentes y SHA-256 restaurado en todos los casos. Estado, campañas y mutaciones se regeneraron byte a byte. Continúan pendientes la revisión independiente, I11b y la aprobación de fase del propietario.
+
+Actualización I11a (2026-11-07): la cobertura de los doce mutantes supervivientes quedó añadida y los cambios de `env_dup_keys` y los dos sitios de verificación se reproducen como mutaciones ejecutables. La población actual contiene 55 mutaciones detectadas, cuatro equivalencias restantes y cero supervivientes no equivalentes; SHA-256 restaurado en todos los registros. Campañas uniforme/mixta con semillas 117212/117213 debug y 117211/117214 release. La validación final de `sh scripts/validate.sh` se ejecutó en una copia limpia sin archivos temporales: 1457/63 debug, 1459/64 release y RD 152/152 sin diferencias. Continúan pendientes la revisión independiente, I11b y la aprobación de fase del propietario.
+
+## Recuperación I11a — oráculo y cobertura actual (2026-11-08)
+
+Reproducir `tests/mock_oracle.rs` y las campañas con `python scripts/i11a_campanas.py`. Semillas nuevas: 202611080801/debug/100000 y 202611080802/release/300000; 64 categorías parser, cobertura mínima 1562/4687 por categoría, lotes runtime de 100/300 y frontera de trabajo R0001 a `observed=1000001`. `python scripts/i11a_mutaciones.py` ejecuta la población completa en copia desechable, debug, una mutación por vez; registra 142 detectadas y seis equivalencias justificadas con SHA restaurados. `python scripts/i11a_estado.py` regenera el estado desde los JSON y fixture RD. La validación en clon limpio, sin artefactos previos, registró debug 1459/64, release 1461/65, fmt, Clippy `-D warnings`, RD 152/152 y cero diferencias de snapshot; clon y target retirados. No hubo cambio de producción ni commit. Revisión independiente, I11b y aprobación del propietario siguen pendientes.
+## Recuperación de la corrección I11a val55 (2026-11-08)
+
+D1 implementa la precedencia sintaxis-antes-de-esquema indicada por A2 §12.4 y F0-0004 §6.1. La campaña vigente usa 202611080803/debug/100000 y 202611080804/release/300000, cubre 128 categorías con mínimos 781/2343 y registra casos de apertura, lecturas indexadas, colas, extremos y errores. La población final: 167 mutaciones, 151 detectadas, 15 equivalencias, una deuda D2, cero supervivientes no equivalentes y SHA restaurado. Los SHA-256 reproducidos de campañas y mutaciones son `23ad575022f49230a6a2d2c064008c3acf9f4e48d6554cb464dab7d4714477a8` y `d79198a891f15361643d1f755efe2ab3908dc461f4dc8cc1953068037898f211`.
+
+Verificación en clon limpio sin temporales ni `target`: debug 1469/65, release 1471/66, RD 152/152, cero diferencias, fmt y Clippy `-D warnings`; clon y target retirados. El probe D2 conserva los JSON exactos de R0001 y R0002 sin hacer normativa su precedencia. Tras actualizar `HANDOFF.md`, `Pending.md`, `RECOVERY.md` o las notas, regenerar el estado con `python -B scripts/i11a_estado.py`, que incorpora sus hashes SHA-256. Revisión independiente, aprobación del propietario, I11b y puertas F0 siguen pendientes.
+
+## Recuperación val56 I11a (2026-11-09)
+
+`python scripts/i11a_campanas.py` reproduce debug 202611090901/100000 y release 202611090902/300000, cada perfil con 128 categorías, 302 casos de esquema, la frontera cells-64 y 494139 mutaciones de documento. `python scripts/i11a_mutaciones.py` reaplica 193 mutaciones ejecutables más 15 equivalencias; el artefacto contiene 192 muertas, una deuda D2, cero supervivientes no equivalentes y SHA restaurado en los 208 registros. La verificación limpia final (`sh scripts/validate.sh`) salió 0: debug 1481/66, release 1483/67, fmt y Clippy `-D warnings`; RD 152/152 en ambos perfiles, cero diferencias; el clon se creó sin artefactos temporales ni `target` y fue retirado. Tras cambiar HANDOFF/Pending/RECOVERY/notas, regenerar `docs/validation/F0-0002-I11a-estado.json` con `python -B scripts/i11a_estado.py`. Revisión independiente de cierre, I11b, puertas F0 y aprobación del propietario siguen pendientes.
+
+Regeneración actual del estado: `docs/validation/F0-0002-I11a-estado.json`; sus hashes de documentos corresponden a estos archivos.
+
+## Recuperación I11a val57 — estado local vigente (2026-11-09)
+
+Las regresiones val57 están en `tests/i11a_val57.rs`; ejecutar `cargo test --locked --offline --test i11a_val57`. La suite normal de `tests/mock_oracle.rs` corre la campaña estructural reducida determinista (36.576 mutaciones más 28 fronteras) sin `#[ignore]`. `python -B scripts/i11a_campanas.py` reproduce 100.000 casos debug/202611091201 y 300.000 release/202611091202, además de 562.999 mutaciones documentales por perfil. `python -B scripts/i11a_mutaciones.py` reaplica secuencialmente la población completa en una copia desechable; estado medido: 219 registros, 203 muertos, 15 equivalentes, una deuda D2 y cero supervivientes no equivalentes, restauración SHA-256 en cada caso.
+
+La matriz cells-64 comprueba 0/1/2/30 registros Ok/Err/mezclados, el Err exterior, eventos y las fronteras observadas 64/65; Ok vacío reserva 2 celdas. D3 conserva como laguna de A2 §11.6 ll. 1063–1064 la vida del argumento literal de `MockWriteI64`/`MockReply` durante la reserva del resultado. La política vinculante para duplicados y valores `--` de opciones se documenta con sus citas en `docs/validation/F0-0002-I11a-implementation-notes.md`. Las secciones I11a fechadas con métricas anteriores son históricas y quedan supersedidas por val57. Regenerar `docs/validation/F0-0002-I11a-estado.json` después de toda modificación a documentos hashados. Revisión independiente, aprobación del propietario, I11b y puertas F0 siguen pendientes.
+
+Verificación local final: `sh scripts/validate.sh` en copia limpia sin artefactos temporales ni `target` iniciales terminó con código 0; debug 1490 aprobadas/66 ignoradas, release 1492/67, fmt, Clippy `-D warnings`, RD 152/152 en ambos perfiles y cero diferencias. La copia/target se retiraron. Revisión independiente y decisión de fase del propietario siguen pendientes.
+## Recuperación I11a val58 — estado local
+
+El árbol de trabajo corrige el cierre de recursos temporales cuando R0001 deniega el tick de entrada a `MockReadRecords`, `Inspect` o `Drop`, incluido `Drop(MockBlockingOpen(1))`. La única ruta de limpieza es `dispose_intrinsic_resources` → `dispose` → `emit_reserved_event`. Las regresiones de `tests/i11a_val58.rs` comparan B, span, diagnóstico, eventos, bytes y reserva en texto/JSON.
+
+Registro histórico de val58: campañas `python -B scripts/i11a_campanas.py` (debug 202611091301/100000, release 202611091302/300000; matriz de fronteras de perfil y testigo normal `ir_items`) y población de aquella ronda: 295 registros, 279 muertos, 15 equivalencias justificadas y D2 como deuda, sin supervivientes no equivalentes y SHA restaurado por registro. Para regenerar la población Release vigente, ejecutar `python -B scripts/i11a_mutaciones.py --quick-release`. D3 y las observaciones normativas de repetición de `explain`, `observed` de reserva de cierre y `profile_id` desconocido quedan en notas/JSON como deudas, no equivalencias.
+
+Antes de regenerar el estado, actualizar estas notas junto con `Pending.md`, `HANDOFF.md` y las notas de implementación; `scripts/i11a_estado.py` incorpora sus hashes. Verificar en clon limpio sin directorios temporales ni `target` con `sh scripts/validate.sh`. La validación independiente val58, I11b, revisión/aprobación del propietario y puertas F0 permanecen pendientes; no hay commit.
+
+La última verificación local en clon limpio terminó con exit 0: 1505/67 debug y 1507/68 release; RD 152/152 y cero diferencias, Clippy `-D warnings`, fmt. El testigo normal `ir_items` se ejecutó aparte en debug/release. Campañas y mutaciones se repitieron byte a byte con SHA-256 `0a8dbe7b…` y `8749eaa6…`; C: conservó 9,90 GiB libres durante el clon y 11,62 GiB al retirarlo. Regenerar ahora el estado para incorporar los hashes documentales finales.
+
+## Recuperación tras revisión auxiliar val58 (2026-11-10)
+
+El auxiliar reportó un posible fallo de orden en `Drop`. La fuente lo refuta: el ciclo de destrucción de argumentos precede a la reserva de la celda unidad (`src/interp/machine.rs:1397–1412`). La regresión `drop_destroys_resource_before_materializing_unit_at_the_cell_boundary` produce la salida JSON literal esperada en cells-64; `w58_drop_reserve_before_dispose` mata el mutant que adelanta esa reserva. No se cambió producción.
+
+D15 §7.1 y F0-CODIGOS ahora identifican I10a/I10b como históricos y aclaran que sus perfiles reducidos están publicados/aceptados. En la medición auxiliar previa a sincronizar perfiles, val58 tenía 15 activas y una ignorada de `ir_items`; el recuento vigente quedó en 16 activas y una ignorada. Campañas SHA `0a8dbe7b…`; mutaciones 296 (280 muertas, 15 equivalentes, deuda D2), SHA `6a1e761093cbeea40eab5808816f1bd700b48cf1cf950a930ae343b293e71256`. La revisión auxiliar no es el validador Sonnet 5.5: repetir la revisión designada después de cerrar estos cambios. Estado/hashes y validación limpia se actualizan a continuación.
+
+Validación limpia final: `sh scripts/validate.sh` salió 0, debug 1506/67 y release 1508/68; fmt/Clippy incluidos. El RD directo dio 152/152 pares check/run y cero diferencias de snapshot. Clon/target se eliminaron; mínimo libre 9,81 GiB. Después del RD en binario recién construido, `cargo clean` retiró el target local. Regenerar `F0-0002-I11a-estado.json` tras actualizar todos los documentos hashados.
+
+La inspección auxiliar siguiente halló IDs históricos en la tabla «Runtime experimental de F0-0002» de F0-CODIGOS. El catálogo usa ahora `f0-0002-b-v2` y los ocho IDs reducidos B; D15 deja explícito que la CLI admite las identidades de §6.1, no los literales A2. El nuevo test `profile_catalog_matches_official_b_cli_identifiers` compara los nueve nombres documentados y D15; el mutante `w58_catalog_profile_old_id` cambia uno a un ID antiguo y la regresión falla. La población ampliada debe quedar en 297 registros y se reaplica desde `scripts/i11a_mutaciones.py`.
+
+Verificación final después de alinear catálogo/CLI: `sh scripts/validate.sh` en clon efímero salió 0; debug 1507/67 y release 1509/68, fmt/Clippy; RD directo 152/152 y cero diferencias snapshot. Campañas SHA `0a8dbe7b7312e5fd87ab0d72bc9d917cc0b498b3b26486588c4672a9f6a35849`; mutaciones 297 (281 muertas, 15 equivalentes, D2), SHA `7645fa4fcb75439f8444d4cb1ddbd08629b4846987ddfabb8ec38e86e11aefd4`. Clon y target retirados, `cargo clean` aplicado al target de RD. Regenerar estado después de estos cambios documentales.
+
+## Recuperación tras val59 (2026-11-10)
+
+El corte corrigió `observed` de la adquisición `MockOpen` para contar el evento de apertura más el cierre reservado antes de abrir (A2 §11.5 ll. 967–970; §12.4 ll. 1594–1596) y hace único `--format` en `explain` según A2 §13.10 l. 2210. Las seis regresiones están en `tests/i11a_val59.rs`; la suite val58 tiene 16 activas y una ignorada, no los recuentos históricos previos de 14/15.
+
+Registro histórico de val59: campañas con `python -B scripts/i11a_campanas.py` y población de aquella ronda, SHA-256 `0a8dbe7b7312e5fd87ab0d72bc9d917cc0b498b3b26486588c4672a9f6a35849` y `b3f17316dc3d71359ff025d637d67ac139adb8890afe38d1b453fd5ee70aab92`; 341 registros, 324 muertos, 16 equivalencias, D2 como deuda y cero supervivientes no equivalentes, todos restaurados. La población Release vigente se reproduce con `python -B scripts/i11a_mutaciones.py --quick-release`.
+
+Validación en clon limpio sin archivos temporales ni artefactos de compilación iniciales: debug 1513/67 y release 1515/68; `sh scripts/validate.sh` incluye fmt y Clippy `-D warnings`. RD: 152/152 pares en ambos perfiles, cero diferencias de snapshot. El estado se regenera tras cualquier edición de HANDOFF/Pending/RECOVERY/notas; los hashes internos deben coincidir con los ficheros actuales. Pendientes: cobertura sistemática fuera del replay medido, D2/D3 y `unknown_profile` JSON, revisión independiente posterior a val59, I11b, puertas F0 y aprobación del propietario.
+
+## Recuperación tras val60 — avance local (2026-11-11)
+
+Las pruebas de perfiles/diagnósticos están en `tests/i11a_val60.rs`. Reproducir la población con `python -B scripts/i11a_mutaciones.py --quick-release`, las campañas con `python -B scripts/i11a_campanas.py` y el estado con `python -B scripts/i11a_estado.py`. Sin `--quick-release`, el script genera el artefacto del perfil debug y omite las comprobaciones adicionales de `from_id`, por lo que no reproduce el JSON versionado. La población Release incluye los mutantes no equivalentes y las equivalencias de `ReducedProfile::from_id`; además verifica cada literal/variante del despacho por separado.
+
+## Recuperación posterior al cierre de verificación val60 (2026-11-11)
+
+Población Release final: 351 registros; 331 muertos, 19 equivalencias justificadas, D2 como deuda, cero supervivientes no equivalentes y restauración SHA en todos. Las 18 mutaciones de las nueve filas del despacho se detectan. Campañas reproducidas dos veces con SHA-256 `6e95dfd9dcb5ead8ee2835c94d2604e008cf0699499b312637a67d4809a57e8d`; mutaciones reproducibles, SHA-256 `5c9c6a6a5006ca372e91a645f6878e8cff97073efbcf4462a8eb640191a429a8`. Auditoría documental tras JSON: 210/210 pares válidos. `validate.sh` en clon limpio sin metadatos Git ni artefactos de compilación iniciales: exit 0; debug 1516/67, Release 1518/68, Clippy/fmt, RD 152/152 por perfil y cero diferencias. Regenerar ahora el estado dos veces para incluir los hashes de esta versión de HANDOFF/Pending/RECOVERY/notas.
+
+La auditoría extendida que incluye `F0-0002-I11a-estado.json` y `scripts/i11a_estado.py` verificó 232 pares sección/línea, todos válidos. Regenerar otra vez el estado tras este apunte.
+
+## Recuperación posterior a val61 (2026-11-12)
+
+La regresión CLI está en `tests/val61_kills.rs`; la población Release vigente se vuelve a generar con `python -B scripts/i11a_mutaciones.py --quick-release`. Sin el flag se genera el perfil debug y se omiten las comprobaciones adicionales de `from_id`, por lo que el artefacto no coincide con el JSON versionado. Población repetida byte a byte: 357 registros, 335 muertos, 21 equivalencias, D2 como deuda y cero supervivientes no equivalentes; SHA-256 `07fff7450c9cc2922c275351509b96768dcbebff4e85a3dc256dc6305c2283eb`. Las campañas se reprodujeron dos veces, SHA-256 `6e95dfd9dcb5ead8ee2835c94d2604e008cf0699499b312637a67d4809a57e8d`.
+
+La validación local debug/release y el clon limpio sin metadatos Git, temporales ni target inicial terminaron sin fallos: 1523/67 y 1525/68; RD 152/152 en ambos perfiles y cero diferencias de snapshot; fmt y Clippy `-D warnings` incluidos. Clon y target eliminados. Regenerar dos veces el estado después de las notas finales; revisión independiente, I11b, puertas F0 y aprobación de fase siguen pendientes.
+
+El estado se regeneró dos veces tras las notas finales, con bytes idénticos y los once hashes documentales concordantes.
+
+Tras este último cambio documental, `scripts/i11a_estado.py` se ejecutó dos veces; salidas idénticas y los once hashes internos coinciden. No hay commit ni push; la revisión independiente y aprobación de fase siguen pendientes.
+
+## Recuperación posterior a val62 (2026-11-12)
+
+Las nueve regresiones nuevas están en `tests/val62_kills.rs`; `tests/i11a_val62_cli.rs` genera 1.904 casos de argv con oráculo D5/D15/A2 y `mock_oracle` comprueba cada escape Unicode y par sustituto en clave/valor. La población rápida Release se repitió con `nohup` y fue idéntica: 399 registros (370 muertos, 28 equivalencias, D2), cero supervivientes no equivalentes, todos los SHA restaurados; 18/18 `from_id`. SHA-256 `8bd129ebec20d79ca67683784589a3683ca37f1ce5d626a1c19275a2682b7f57`. Campañas repetidas: SHA-256 `becb61067d6dcad6776db87384a2eef49e96e239f3789ccaa54703e5516e11e9`.
+
+La validación completa en clon limpio, RD, auditorías finales y regeneración del estado tras documentos siguen pendientes. No reanudar cambios de producción salvo un fallo observado en esta pasada; no hay commit ni push.
+
+## Cierre de verificación val62 (2026-11-12)
+
+Validación final: `sh scripts/validate.sh` en clon limpio exit 0; fmt, Clippy `-D warnings`, debug 1.535/67 y release 1.537/68. RD pasó 152/152 check/run en ambos perfiles, sin diferencias de snapshot. Clon y target eliminados. Higiene sin hallazgos; auditoría de citas con 214 extremos y cero errores adicionales a los avisos repetidos del auditor para B-G1, verificados manualmente bajo el subapartado B de §11.8.
+
+Reproducir campañas con `python -B scripts/i11a_campanas.py`; SHA-256 `becb61067d6dcad6776db87384a2eef49e96e239f3789ccaa54703e5516e11e9`. Reproducir población Release con `python -B scripts/i11a_mutaciones.py --quick-release` (se usó `nohup` y polling breve); SHA-256 `8bd129ebec20d79ca67683784589a3683ca37f1ce5d626a1c19275a2682b7f57`, 399 registros, cero supervivientes no equivalentes. Regenerar `F0-0002-I11a-estado.json` después de notas/Pending/HANDOFF/RECOVERY y verificar dos veces bytes idénticos y los once hashes internos. No commit ni push; revisión independiente, aprobación de fase, I11b, puertas F0 y D2/D3 siguen pendientes.

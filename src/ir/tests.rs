@@ -123,7 +123,7 @@ fn access_prefix_contexts_never_escape_as_invalid_ir() {
         );
         match compile_scalar("access.n", &source) {
             Ok(program) => {
-                let execution = run_scalar(&program);
+                let execution = run_scalar(&program, Default::default());
                 assert!(
                     !matches!(execution.outcome, Outcome::InternalError(_)),
                     "{source}"
@@ -170,7 +170,7 @@ fn unicode_sources_never_reach_internal_failure() {
         source.push_str(&base[at..]);
         match compile_scalar("unicode.n", &source) {
             Ok(program) => {
-                let execution = run_scalar(&program);
+                let execution = run_scalar(&program, Default::default());
                 assert!(
                     !matches!(execution.outcome, Outcome::InternalError(_)),
                     "{source}"
@@ -255,7 +255,7 @@ fn function_and_other_nonlocal_assignment_fuzz_has_no_internal_error() {
 
 fn execute(source: &str) -> crate::interp::Execution {
     let program = compile_scalar("fixture.n", source).unwrap();
-    let result = run_scalar(&program);
+    let result = run_scalar(&program, Default::default());
     for d in &result.diagnostics {
         d.validate("fixture.n", source).unwrap();
     }
@@ -323,7 +323,7 @@ fn array_equality_releases_operand_loans_before_later_access() {
             .unwrap_or_else(|error| panic!("check {source}: {error:?}"));
         let program = compile_scalar("equality-loan.n", source)
             .unwrap_or_else(|error| panic!("{source}: {error:?}"));
-        let result = run_scalar(&program);
+        let result = run_scalar(&program, Default::default());
         assert_eq!(result.outcome, Outcome::Unit, "{source}: {result:?}");
         assert!(result.diagnostics.is_empty(), "{source}: {result:?}");
     }
@@ -438,7 +438,7 @@ fn indexed_place_effects_never_escape_as_invalid_ir() {
                 match result {
                     Ok(program) => {
                         accepted_compilations += 1;
-                        let execution = run_scalar(&program);
+                        let execution = run_scalar(&program, Default::default());
                         assert!(
                             !matches!(execution.outcome, Outcome::InternalError(_)),
                             "{source}: {execution:?}"
@@ -882,9 +882,15 @@ fn function_ids_keep_names_while_table_indices_follow_canonical_order() {
 fn verified_function_table_substitution_changes_development_execution() {
     let mut a = compile_scalar("fixture.n", "fn Main() {\n    Print(1);\n}\n").unwrap();
     let b = compile_scalar("fixture.n", "fn Main() {\n    Print(2);\n}\n").unwrap();
-    assert_eq!(run_scalar(&a).observations.stdout(), vec!["1"]);
+    assert_eq!(
+        run_scalar(&a, Default::default()).observations.stdout(),
+        vec!["1"]
+    );
     a.substitute_for_development("Main", &b).unwrap();
-    assert_eq!(run_scalar(&a).observations.stdout(), vec!["2"]);
+    assert_eq!(
+        run_scalar(&a, Default::default()).observations.stdout(),
+        vec!["2"]
+    );
 }
 #[test]
 fn function_identity_survives_other_functions_and_substitution_checks_signature() {
@@ -904,7 +910,12 @@ fn function_identity_survives_other_functions_and_substitution_checks_signature(
     assert_ne!(original.table_index, edited.table_index);
     assert_ne!(original.content_hash, edited.content_hash);
     receiver.substitute_for_development("Main", &donor).unwrap();
-    assert_eq!(run_scalar(&receiver).observations.stdout(), vec!["2"]);
+    assert_eq!(
+        run_scalar(&receiver, Default::default())
+            .observations
+            .stdout(),
+        vec!["2"]
+    );
 
     let reordered =
         compile_scalar("fixture.n", "fn Main() {\n    Print(3);\n}\nfn Zzz() {}\n").unwrap();
@@ -915,7 +926,12 @@ fn function_identity_survives_other_functions_and_substitution_checks_signature(
     receiver
         .substitute_for_development("Main", &reordered)
         .unwrap();
-    assert_eq!(run_scalar(&receiver).observations.stdout(), vec!["3"]);
+    assert_eq!(
+        run_scalar(&receiver, Default::default())
+            .observations
+            .stdout(),
+        vec!["3"]
+    );
 
     let mut receiver = compile_scalar("fixture.n", "fn Helper() {}\nfn Main() {}\n").unwrap();
     let changed = compile_scalar(
@@ -1010,7 +1026,10 @@ fn deepest_admitted_scalar_families_compile_on_small_caller_stacks() {
                         let s = source(family, depth);
                         match compile_scalar("fixture.n", &s) {
                             Ok(program) => {
-                                assert_eq!(run_scalar(&program).outcome, Outcome::Unit);
+                                assert_eq!(
+                                    run_scalar(&program, Default::default()).outcome,
+                                    Outcome::Unit
+                                );
                                 last = depth;
                             }
                             Err(CompileError::Rejected(errors)) => {
@@ -1040,9 +1059,17 @@ fn arrays_and_user_calls_execute_only_after_verification() {
         "fn Main() {\n    Print(1);\n    let a = [2];\n}\n",
     )
     .unwrap();
-    assert_eq!(run_scalar(&arrays).observations.stdout(), &["1"]);
+    assert_eq!(
+        run_scalar(&arrays, Default::default())
+            .observations
+            .stdout(),
+        &["1"]
+    );
     let called = compile_scalar("fixture.n", "fn F() {}\nfn Main() {\n    F();\n}\n").unwrap();
-    assert_eq!(run_scalar(&called).outcome, Outcome::Unit);
+    assert_eq!(
+        run_scalar(&called, Default::default()).outcome,
+        Outcome::Unit
+    );
     assert!(matches!(
         compile_scalar("fixture.n", "fn Main() {\n    let x = 1;\n    x = 2;\n}\n"),
         Err(CompileError::Rejected(_))
@@ -1248,7 +1275,7 @@ fn missing_return_at_normal_exit_uses_published_s11_and_l06_spans() {
 fn cfg_statement_if_selects_one_branch() {
     let source = "fn Main() {\n    var x = 0;\n    if true {\n        x = 1;\n    } else {\n        x = 2;\n    }\n    AssertEq(x, 1);\n}\n";
     let program = compile_scalar("if.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1259,7 +1286,7 @@ fn cfg_statement_if_selects_one_branch() {
 fn cfg_while_rechecks_condition_and_updates_local() {
     let source = "fn Main() {\n    var x = 0;\n    while x < 3 {\n        x = x + 1;\n    }\n    AssertEq(x, 3);\n}\n";
     let program = compile_scalar("while.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1271,7 +1298,7 @@ fn cfg_expression_if_delivers_explicit_unit() {
     // F0-0002 §14.8 L05.
     let source = "fn Main() {\n    let x = if true then () else ();\n    AssertEq(x, ());\n}\n";
     let program = compile_scalar("value.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1330,7 +1357,7 @@ fn cfg_join_reports_maybe_consumed_resource() {
 fn cfg_returning_branch_does_not_poison_join() {
     let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    if b {\n        Drop(r);\n        return;\n    }\n    Inspect(r);\n}\nfn Main() {\n    F(true);\n    F(false);\n}\n";
     let program = compile_scalar("join.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1341,7 +1368,7 @@ fn cfg_returning_branch_does_not_poison_join() {
 fn cfg_first_value_arm_continues_when_else_returns() {
     let source = "fn F(b: view Bool) -> I64 {\n    return if b then 2 else {\n        return 3;\n    };\n}\nfn Main() {\n    AssertEq(F(true), 2);\n    AssertEq(F(false), 3);\n}\n";
     let program = compile_scalar("first_arm.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1352,7 +1379,7 @@ fn cfg_first_value_arm_continues_when_else_returns() {
 fn cfg_returning_loop_body_excludes_consumption_from_false_exit() {
     let source = "fn F(b: view Bool) {\n    let r = MockOpen(1);\n    while b {\n        Drop(r);\n        return;\n    }\n    Inspect(r);\n}\nfn Main() {\n    F(false);\n    F(true);\n}\n";
     let program = compile_scalar("loop_return_owner.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1415,7 +1442,7 @@ fn cfg_availability_merge_distinguishes_all_consumed_and_reinitialized() {
 
     let restored = "fn F(b: view Bool) {\n    var r = MockOpen(1);\n    if b {\n        Drop(r);\n        r = MockOpen(2);\n    } else {\n        Drop(r);\n        r = MockOpen(3);\n    }\n    Inspect(r);\n}\nfn Main() {\n    F(true);\n    F(false);\n}\n";
     let program = compile_scalar("restored.n", restored).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1531,7 +1558,7 @@ fn cfg_published_branch_repairs_execute() {
         "fn Main() {\n    let value = 1;\n    AssertEq(value, 1);\n}\n",
     ] {
         let program = compile_scalar("branch_repair.n", source).unwrap();
-        let execution = crate::interp::run_scalar(&program);
+        let execution = crate::interp::run_scalar(&program, Default::default());
         assert!(
             matches!(execution.outcome, crate::interp::Outcome::Unit),
             "{source}: {execution:?}"
@@ -1551,7 +1578,9 @@ fn cfg_hash_tracks_branch_contents_and_development_substitution() {
     assert_eq!(hash, same.functions.function("F").unwrap().content_hash);
     assert_ne!(hash, donor.functions.function("F").unwrap().content_hash);
     assert_eq!(
-        crate::interp::run_scalar(&program).observations.stdout(),
+        crate::interp::run_scalar(&program, Default::default())
+            .observations
+            .stdout(),
         ["1"]
     );
     program
@@ -1559,7 +1588,9 @@ fn cfg_hash_tracks_branch_contents_and_development_substitution() {
         .replace_for_development("F", donor.functions.function("F").unwrap().clone())
         .unwrap();
     assert_eq!(
-        crate::interp::run_scalar(&program).observations.stdout(),
+        crate::interp::run_scalar(&program, Default::default())
+            .observations
+            .stdout(),
         ["3"]
     );
 }
@@ -1653,7 +1684,7 @@ fn cfg_missing_return_considers_every_normal_path() {
     }
     let source = "fn F(b: view Bool) -> I64 {\n    if b {\n        return 1;\n    } else {\n        return 2;\n    }\n}\nfn Main() {\n    AssertEq(F(true), 1);\n    AssertEq(F(false), 2);\n}\n";
     let program = compile_scalar("return.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1664,14 +1695,14 @@ fn cfg_missing_return_considers_every_normal_path() {
 fn cfg_expression_if_excludes_returning_continuations() {
     let source = "fn F(b: view Bool) -> I64 {\n    return if b then {\n        return 3;\n    } else 2;\n}\nfn Main() {\n    AssertEq(F(true), 3);\n    AssertEq(F(false), 2);\n}\n";
     let program = compile_scalar("value_return.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
     );
     let source = "fn F(b: view Bool) -> I64 {\n    return if b then {\n        return 3;\n    } else {\n        return 2;\n    };\n}\nfn Main() {\n    AssertEq(F(true), 3);\n    AssertEq(F(false), 2);\n}\n";
     let program = compile_scalar("value_return.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1682,7 +1713,7 @@ fn cfg_expression_if_excludes_returning_continuations() {
 fn cfg_else_if_expression_selects_each_value() {
     let source = "fn F(x: view I64) -> I64 {\n    return if x < 0 then 1 else (if x < 2 then 2 else 3);\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1693,7 +1724,7 @@ fn cfg_else_if_expression_selects_each_value() {
 fn cfg_else_if_statement_selects_each_arm() {
     let source = "fn F(x: view I64) -> I64 {\n    var y = 0;\n    if x < 0 {\n        y = 1;\n    } else if x < 2 {\n        y = 2;\n    } else {\n        y = 3;\n    }\n    return y;\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1705,7 +1736,7 @@ fn cfg_nested_while_recreates_and_cleans_body_local_each_iteration() {
     // F0-0002 §6.3 and §6.4: each body entry owns a fresh resource instance.
     let source = "fn Main() {\n    var x = 0;\n    while x < 2 {\n        var y = 0;\n        while y < 2 {\n            let r = MockOpen(x + x + y);\n            Inspect(r);\n            y = y + 1;\n        }\n        x = x + 1;\n    }\n}\n";
     let program = compile_scalar("nested.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1736,7 +1767,7 @@ fn cfg_infinite_loop_uses_work_quota_and_cleans_resource() {
         "fn Main() {\n    let r = MockOpen(1);\n    while true {}\n}\n",
     )
     .unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::SimulatorFault),
         "{execution:?}"
@@ -1750,7 +1781,7 @@ fn cfg_l02_repaired_value_line_break_executes() {
     // F0-0002 §14.8 L02: grouping begins before the LF.
     let source = "fn F() -> I64 {\n    return if true then (1) else 2;\n}\nfn Main() {\n    AssertEq(F(), 1);\n}\n";
     let program = compile_scalar("l02.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1778,7 +1809,7 @@ fn cfg_deferred_forms_have_executable_repairs() {
         "fn Main() {\n    while false {}\n}\n",
     ] {
         let program = compile_scalar("feature.n", source).unwrap();
-        let execution = crate::interp::run_scalar(&program);
+        let execution = crate::interp::run_scalar(&program, Default::default());
         assert!(
             matches!(execution.outcome, crate::interp::Outcome::Unit),
             "{execution:?}"
@@ -1790,7 +1821,7 @@ fn cfg_deferred_forms_have_executable_repairs() {
 fn cfg_else_if_all_returning_paths_need_no_tail_return() {
     let source = "fn F(x: view I64) -> I64 {\n    if x < 0 {\n        return 1;\n    } else if x < 2 {\n        return 2;\n    } else {\n        return 3;\n    }\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain_return.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1801,7 +1832,7 @@ fn cfg_else_if_all_returning_paths_need_no_tail_return() {
 fn cfg_nested_expression_if_all_returning_paths_need_no_value_slot() {
     let source = "fn F(x: view I64) -> I64 {\n    return if x < 0 then {\n        return 1;\n    } else (if x < 2 then {\n        return 2;\n    } else {\n        return 3;\n    });\n}\nfn Main() {\n    AssertEq(F(0 - 1), 1);\n    AssertEq(F(1), 2);\n    AssertEq(F(3), 3);\n}\n";
     let program = compile_scalar("chain_return.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1812,7 +1843,7 @@ fn cfg_nested_expression_if_all_returning_paths_need_no_value_slot() {
 fn cfg_while_body_with_all_returning_arms_preserves_false_exit() {
     let source = "fn F(b: view Bool) -> I64 {\n    while b {\n        if true {\n            return 1;\n        } else {\n            return 2;\n        }\n    }\n    return 3;\n}\nfn Main() {\n    AssertEq(F(true), 1);\n    AssertEq(F(false), 3);\n}\n";
     let program = compile_scalar("loop_return.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1837,7 +1868,7 @@ fn cfg_unreachable_tail_still_checks_ownership_without_rejoining() {
 fn cfg_value_union_transfers_resource_and_cleans_unselected_owner() {
     let source = "fn F(b: view Bool) -> MockResource {\n    let a = MockOpen(1);\n    let c = MockOpen(2);\n    return if b then move a else move c;\n}\nfn Main() {\n    let x = F(true);\n    Inspect(x);\n}\n";
     let program = compile_scalar("resource_union.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1858,7 +1889,7 @@ fn cfg_value_union_transfers_resource_and_cleans_unselected_owner() {
 fn cfg_branch_call_keeps_loan_permissions_and_writeback() {
     let source = "fn Bump(x: edit I64) {\n    x = x + 1;\n}\nfn Main() {\n    var a = 0;\n    if true {\n        Bump(edit a);\n    } else {}\n    AssertEq(a, 1);\n}\n";
     let program = compile_scalar("branch_loan.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1870,7 +1901,7 @@ fn cfg_return_from_loop_cleans_other_live_owners_before_result_delivery() {
     // F0-0002 §6.4: the result remains owned while callee locals close.
     let source = "fn F() -> MockResource {\n    let r = MockOpen(1);\n    while true {\n        let s = MockOpen(2);\n        return move s;\n    }\n    return move r;\n}\nfn Main() {\n    let x = F();\n    Inspect(x);\n}\n";
     let program = compile_scalar("loop_return_resource.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -1891,7 +1922,7 @@ fn cfg_return_from_loop_cleans_other_live_owners_before_result_delivery() {
 fn cfg_loop_drops_array_cells_each_iteration() {
     let source = "fn Main() {\n    var x = 0;\n    while x < 1000 {\n        let a = [1, 2, 3, 4, 5, 6, 7, 8];\n        AssertEq(Len(a), 8);\n        x = x + 1;\n    }\n}\n";
     let program = compile_scalar("loop_cells.n", source).unwrap();
-    let execution = crate::interp::run_scalar(&program);
+    let execution = crate::interp::run_scalar(&program, Default::default());
     assert!(
         matches!(execution.outcome, crate::interp::Outcome::Unit),
         "{execution:?}"
@@ -2002,7 +2033,7 @@ fn borrowed_index_reports_invalid_path_before_reading_selected_value() {
     }
     f.content_hash = super::model::content_hash(f);
     super::verify::verify_program(&p).unwrap();
-    let e = run_scalar(&p);
+    let e = run_scalar(&p, Default::default());
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(e.diagnostics[0].code, "R0102");
 }
@@ -2572,7 +2603,7 @@ fn failed_development_substitution_restores_previous_function() {
         receiver.functions().function("Main").unwrap().content_hash,
         before
     );
-    let e = run_scalar(&receiver);
+    let e = run_scalar(&receiver, Default::default());
     assert_eq!(e.observations.stdout(), ["1"]);
 }
 #[test]
@@ -3218,7 +3249,7 @@ fn read_index_without_optional_early_probe_still_checks_bounds() {
     }
     f.content_hash = super::model::content_hash(f);
     super::verify::verify_program(&p).unwrap();
-    let e = run_scalar(&p);
+    let e = run_scalar(&p, Default::default());
     assert_eq!(e.outcome, Outcome::SimulatorFault);
     assert_eq!(
         (
@@ -3570,7 +3601,7 @@ fn array_sources_with_mutated_syntax_never_panic_and_validate_rejections() {
         let source = String::from_utf8(bytes).unwrap();
         match compile_scalar("fuzz.n", &source) {
             Ok(program) => {
-                let e = run_scalar(&program);
+                let e = run_scalar(&program, Default::default());
                 assert!(!matches!(e.outcome, Outcome::InternalError(_)), "{source}");
                 for d in e.diagnostics {
                     d.validate("fuzz.n", &source).unwrap();
@@ -3600,7 +3631,7 @@ fn nested_arrays_compile_and_run_from_small_calling_stacks() {
                     );
                     match compile_scalar("stack.n", &source) {
                         Ok(p) => {
-                            let e = run_scalar(&p);
+                            let e = run_scalar(&p, Default::default());
                             assert_eq!(e.outcome, Outcome::Unit, "depth {depth}");
                             assert_eq!(e.observations.stdout(), vec!["1"]);
                         }
@@ -3734,7 +3765,7 @@ fn malformed_source_campaign_never_panics_and_all_diagnostics_validate() {
         }
         match compile_scalar("fuzz.n", &source) {
             Ok(program) => {
-                let e = run_scalar(&program);
+                let e = run_scalar(&program, Default::default());
                 for d in &e.diagnostics {
                     d.validate("fuzz.n", &source).unwrap()
                 }

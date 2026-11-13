@@ -132,7 +132,7 @@ fn generated_result_programs_preserve_check_run_and_cleanup() {
         let compiled = ir::compile_scalar(FILE, &source);
         match (checked, compiled, code) {
             (Ok(_), Ok(program), None) => {
-                let execution = interp::run_scalar(&program);
+                let execution = interp::run_scalar(&program, Default::default());
                 assert_eq!(
                     Some(execution.outcome.clone()),
                     expected,

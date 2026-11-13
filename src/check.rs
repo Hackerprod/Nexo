@@ -1,4 +1,3 @@
-mod limits;
 pub mod names;
 #[cfg(test)]
 mod tests;
@@ -76,7 +75,7 @@ fn check_proposed_with_worker_failure(
         source,
         &ast,
         run_entry,
-        check_ast_with_worker_failure(file, source, &ast, false, force_unavailable),
+        check_ast_with_worker_failure(file, source, &ast, force_unavailable, 1_000_000),
     );
     if let Some(reason) = report.internal_error {
         return Err(CheckProposedError::Internal(reason));
@@ -97,19 +96,46 @@ pub(crate) struct CompilationCheck {
 }
 
 #[allow(clippy::vec_box)] // Diagnostics share the boxed representation across stages.
+#[cfg(test)]
 pub(crate) fn check_for_compilation(
     file: &str,
     source: &str,
     ast: &crate::frontend::parse::Ast,
     run_entry: bool,
 ) -> CompilationCheck {
-    check_with_entry(
+    check_for_compilation_with_type_limit(
         file,
         source,
         ast,
         run_entry,
-        check_ast(file, source, ast, true),
+        1_000_000,
+        crate::diagnostic::PROFILE_ID,
     )
+}
+
+pub(crate) fn check_for_compilation_with_type_limit(
+    file: &str,
+    source: &str,
+    ast: &crate::frontend::parse::Ast,
+    run_entry: bool,
+    type_steps_limit: u64,
+    profile_id: &str,
+) -> CompilationCheck {
+    let mut report = check_with_entry(
+        file,
+        source,
+        ast,
+        run_entry,
+        check_ast(file, source, ast, type_steps_limit),
+    );
+    for error in &mut report.errors {
+        if error.code == "NX-E0003"
+            && matches!(error.data.get("budget_kind"), Some(crate::diagnostic::DataValue::String(kind)) if kind == "type_solver_steps")
+        {
+            error.profile_id = profile_id.to_owned();
+        }
+    }
+    report
 }
 
 #[cfg(test)]
@@ -125,7 +151,7 @@ pub(crate) fn check_for_compilation_with_worker_failure(
         source,
         ast,
         run_entry,
-        check_ast_with_worker_failure(file, source, ast, true, force_unavailable),
+        check_ast_with_worker_failure(file, source, ast, force_unavailable, 1_000_000),
     )
 }
 
@@ -151,17 +177,17 @@ fn check_ast(
     file: &str,
     source: &str,
     ast: &crate::frontend::parse::Ast,
-    enforce_capabilities: bool,
+    type_steps_limit: u64,
 ) -> CompilationCheck {
-    check_ast_with_worker_failure(file, source, ast, enforce_capabilities, false)
+    check_ast_with_worker_failure(file, source, ast, false, type_steps_limit)
 }
 
 fn check_ast_with_worker_failure(
     file: &str,
     source: &str,
     ast: &crate::frontend::parse::Ast,
-    enforce_capabilities: bool,
     force_unavailable: bool,
+    type_steps_limit: u64,
 ) -> CompilationCheck {
     std::thread::scope(|scope| {
         let worker = if force_unavailable {
@@ -183,18 +209,14 @@ fn check_ast_with_worker_failure(
                             };
                         }
                     };
-                    if enforce_capabilities
-                        && let Some(limit) = limits::first_pending(file, source, ast, &resolved)
-                    {
-                        return CompilationCheck {
-                            inferred: types::InferredTypes::default(),
-                            resolved: Some(resolved),
-                            errors: vec![limit],
-                            internal_error: None,
-                        };
-                    }
                     let types::TypeCheckReport { inferred, errors } =
-                        types::check_with_partial(file, source, ast, &resolved);
+                        types::check_with_partial_limit(
+                            file,
+                            source,
+                            ast,
+                            &resolved,
+                            type_steps_limit,
+                        );
                     CompilationCheck {
                         inferred,
                         resolved: Some(resolved),

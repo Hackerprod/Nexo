@@ -38,7 +38,7 @@ fn generated_work_counters_match_the_independent_loop_ledger() {
         let source = loop_program(iterations);
         let program = ir::compile_scalar(FILE, &source)
             .unwrap_or_else(|error| panic!("seed={seed} index={index} source={source}: {error:?}"));
-        let execution = interp::run_scalar(&program);
+        let execution = interp::run_scalar(&program, Default::default());
         assert_eq!(execution.outcome, interp::Outcome::Unit, "index={index}");
         assert!(
             execution.diagnostics.is_empty(),
@@ -63,12 +63,12 @@ fn runtime_work_time_ratio_uses_a_calibrated_threshold() {
     fn median_runtime(iterations: u64) -> (f64, u64) {
         let source = loop_program(iterations);
         let program = ir::compile_scalar(FILE, &source).unwrap();
-        let warm = interp::run_scalar(&program);
+        let warm = interp::run_scalar(&program, Default::default());
         assert_eq!(warm.work_consumed, 14 * iterations + 14);
         let mut samples = Vec::with_capacity(7);
         for _ in 0..7 {
             let began = std::time::Instant::now();
-            let execution = interp::run_scalar(&program);
+            let execution = interp::run_scalar(&program, Default::default());
             samples.push(began.elapsed().as_secs_f64());
             assert_eq!(execution.work_consumed, 14 * iterations + 14);
         }

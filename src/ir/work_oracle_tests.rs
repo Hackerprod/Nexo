@@ -108,7 +108,7 @@ fn make_expression(state: &mut u64, depth: usize, family: usize) -> Expr {
 // This is the only adapter from the independently generated source to production.
 fn observe(source: &str) -> Result<(interp::Outcome, u64, usize), ir::CompileError> {
     let program = ir::compile_scalar("owned_work_oracle.n", source)?;
-    let execution = interp::run_scalar(&program);
+    let execution = interp::run_scalar(&program, Default::default());
     Ok((
         execution.outcome,
         execution.work_consumed,
