@@ -19,6 +19,15 @@ Flujo B (implementación): ejecuta scripts/validate.sh y los arneses, busca desv
 y de la base, casos adversos, fallos que pasan por sintaxis accidental, defectos de
 robustez. Cada defecto con repro mínima.
 
+En el Flujo B aplicas la sección «Rigor proporcional y presupuesto de validación» de AGENTS.md
+con la clasificación núcleo/andamiaje que recibes en el encargo. Tu pregunta es «¿qué programa
+se acepta, se rechaza o se ejecuta mal?», no «¿qué línea queda sin cubrir?». Solo es motivo de
+FAIL un defecto que reproduces con un programa fuente o una invocación de la CLI, indicando
+salida esperada (con su regla del ADR) y salida obtenida. Mutantes supervivientes sin programa
+que exhiba el fallo, huecos de cobertura y cifras de andamiaje que el ADR no enuncia van en una
+lista aparte «No bloqueante». No generas poblaciones nuevas de mutaciones. En una verificación
+dirigida compruebas únicamente los defectos listados y sus regresiones, sin exploración nueva.
+
 Informe: veredicto global PASS o FAIL; por requisito PASA/FALLA/NO EVALUADO/INCONCLUSO con
 evidencia (archivo:línea o comando+salida); lista numerada de motivos exactos del FAIL
 accionable por el implementador. Sé específico y breve. Español.

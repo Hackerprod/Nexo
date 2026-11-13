@@ -348,3 +348,45 @@ clase, no solo en el intérprete. Consecuencias registradas:
   `docs/proposals/compilador-maestro-recarga-evaluacion.md`.
 - Las reglas 4 (generadores y tareas suspendidas) y 7 (equivalencia con ejecución limpia) se revisan
   en el mismo ADR con ese criterio, con el arnés diferencial como mínimo obligatorio.
+
+## 10. Rigor proporcional y presupuesto de validación (decisión del propietario, 2026-11-12)
+
+**Motivo.** Revisión del proceso a los 24 días del primer commit. I01–I07b (nueve pasos) se cerraron
+en tres días; desde I07c el ritmo cayó, e I11a (cuatro primitivas simuladas) acumuló trece rondas de
+validación (val51–val63) en una semana, varias sin cambios en el código de producción: cerraban
+mutantes supervivientes, no defectos del lenguaje. El árbol tiene unas 38.000 líneas de producción y
+57.000 de tests, mientras el corpus contiene cinco programas válidos y el lenguaje carece de texto y de
+tipos de usuario. El roadmap define el prototipo de F0 como desechable, pide «revisar para promover, no
+para permitir empezar a explorar», nombra el «proceso paralizante» como riesgo de F0 y exige fijar el
+presupuesto de cada revisión antes de empezarla (§8).
+
+**Decisión.** El rigor se asigna según la permanencia de lo que se valida y cada validación tiene una
+salida fijada de antemano. Las reglas operativas están en `AGENTS.md`, «Rigor proporcional y presupuesto
+de validación»: clasificación de requisitos en núcleo y andamiaje, evidencia exigida a cada clase,
+defecto reproducible con un programa como único motivo de bloqueo, una pasada de mutaciones por corte
+solo sobre núcleo, máximo de dos rondas completas, resolución de lagunas en el ADR, progreso medido por
+programas objetivo y respaldo diario del trabajo en curso.
+
+**Qué no se relaja.** Implementador y validador siguen siendo distintos. Un defecto de núcleo bloquea
+siempre y deja regresión. Se mantienen el fuzz sin pánicos, el diferencial debug/release y `check`/`run`,
+los esperados transcritos del ADR y el registro visible de todo defecto encontrado, bloquee o no. Las
+puertas del roadmap (dos revisores sin discrepancias, aprobación de fase por el propietario) siguen
+pendientes y visibles. La decisión de 2026-10-25 («los bloqueantes menores bloquean») se conserva para
+los incumplimientos de núcleo y para los documentos de diseño del Flujo A.
+
+**Orden de trabajo que se deriva.**
+1. I11a se cierra con la validación en curso clasificada según las reglas nuevas; no se abren más
+   rondas completas. Las observaciones no bloqueantes pasan a `Pending.md`.
+2. I11b conserva el contenido que le asigna F0-0002 §17 (debug/release, suite migrada, reparaciones y
+   matriz V01–V13, que es el criterio de PASS del corte) y se ejecuta con las reglas nuevas, sin
+   campañas de mutación adicionales.
+3. Se crean los programas objetivo de `corpus/objetivo/`.
+4. Corte vertical: F0-0004 §1.1 fija el orden F0-0003 → F0-0005 → F0-0004 completos. Por el Flujo A
+   se redacta un ADR breve que seleccione y ordene las subtareas ya diseñadas de J, F5-L y K
+   estrictamente necesarias para ejecutar la aplicación de consola de F0-0004 §11, de modo que esa
+   aplicación corra antes de completar el resto de cada corte. El ADR no añade semántica: solo
+   selecciona y ordena. Si una subtarea no puede separarse sin cambiar una regla revisada, lo declara y
+   para ella rige el orden original.
+
+**Reversibilidad.** Decisión de proceso; no modifica `docs/baseline/` ni la semántica de ningún ADR. El
+propietario puede revertirla o ajustar el presupuesto de rondas en esta misma sección.
