@@ -1366,6 +1366,17 @@ puerta al implementar la contabilidad completa. La discrepancia pública
 heredada de Option/match/guardas J02–J05 queda registrada en `Pending.md`
 como NB-J14-01 y no se amplía aquí.
 
+**Contabilidad y retirada de la puerta J14 (2026-11-14).** Los cargos de §7
+permiten eliminar el único rechazo temporal de `lower`;
+`check` y `run` del perfil `f0-0003-b-v1` comprueban y ejecutan los positivos
+J02–J13 por la misma ruta pública. La aceptación temprana de Option, match y
+guardas queda conforme con §8.1 desde este corte. Por ejemplo,
+`fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{},None=>{}}}`
+produce `diagnostics=[]` y unidad; la variante sin el brazo `None`,
+`fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{}}}`,
+produce `NX-E1304/non_exhaustive` en `match` [36,41) y no ejecuta.
+Las exclusiones permanentes L01, L02 y G08 de §2.2 siguen vigentes.
+
 | Fuente y texto exacto que se enmienda | Nueva redacción para este perfil | Filas afectadas |
 |---|---|---|
 | D15 §3.6: «`pending_scope` es `F0-0003` para `closure/generator/option/match`, `later_adr` para los restantes de alcance; `implementation_limit` usa exclusivamente `I08`, `I09`, `I10a`, `I10b` o `I11a` según §7.1.» | Sustituir por tabla cerrada §2 para f0-0003-b-v1; retirar los rechazos globales incorporados. Se amplían las etapas de implementation_limit de forma expresa, no se encubre un InvalidIr. | §2/J02–J14; L01/L02 |

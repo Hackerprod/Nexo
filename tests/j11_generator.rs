@@ -1,8 +1,9 @@
+mod common;
 use nexo::interp::{MockEnvironment, Outcome};
 use nexo::ir::CompileError;
 
 fn diagnostic(source: &str) -> Box<nexo::diagnostic::Diagnostic> {
-    match nexo::ir::compile_for_internal_harness("<memory>", source, true).unwrap_err() {
+    match common::compile_j("<memory>", source, true).unwrap_err() {
         CompileError::Rejected(mut diagnostics) => {
             assert_eq!(diagnostics.len(), 1, "{source}");
             diagnostics.remove(0)
@@ -84,9 +85,7 @@ fn generator_yield_next_and_return_rules_have_paired_sources() {
         assert_eq!(error.subcause.as_deref(), subcause, "{negative}");
         let got = error.primary_span.unwrap();
         assert_eq!((got.start, got.end), span, "{negative}");
-        let execution =
-            nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
-                .unwrap();
+        let execution = common::run_j("<memory>", positive, MockEnvironment::default()).unwrap();
         assert_eq!(execution.outcome, Outcome::Unit, "{positive}");
         assert!(execution.diagnostics.is_empty(), "{positive}");
     }
@@ -95,8 +94,7 @@ fn generator_yield_next_and_return_rules_have_paired_sources() {
 #[test]
 fn next_returns_one_item_then_repeated_none() {
     let source = "gen fn G(){yield ();}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),Some(()));AssertEq(Iterator.Next(edit g),None);AssertEq(Iterator.Next(edit g),None);}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("<memory>", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
     assert!(execution.observations.observations().is_empty());
@@ -105,8 +103,7 @@ fn next_returns_one_item_then_repeated_none() {
 #[test]
 fn suspended_generator_moves_with_its_continuation_and_owned_resource() {
     let source = "gen fn G(r:move MockResource)->I64{yield 1;Inspect(r);yield 2;}fn Main(){var g=G(MockOpen(4));AssertEq(Iterator.Next(edit g),Some(1));var h=move g;AssertEq(Iterator.Next(edit h),Some(2));AssertEq(Iterator.Next(edit h),None);}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("<memory>", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
     assert_eq!(
@@ -118,8 +115,7 @@ fn suspended_generator_moves_with_its_continuation_and_owned_resource() {
 #[test]
 fn yield_inside_while_resumes_after_operand_without_repeating_prior_steps() {
     let source = "gen fn G()->I64{var n=0;while n<3{yield n;n=n+1;}}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),Some(0));AssertEq(Iterator.Next(edit g),Some(1));AssertEq(Iterator.Next(edit g),Some(2));AssertEq(Iterator.Next(edit g),None);}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("<memory>", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
 }
@@ -127,8 +123,7 @@ fn yield_inside_while_resumes_after_operand_without_repeating_prior_steps() {
 #[test]
 fn yielded_resource_is_transferred_to_the_option_owner_once() {
     let source = "gen fn G()->MockResource{yield MockOpen(7);}fn Main(){var g=G();let item=Iterator.Next(edit g);match move item{Some(move r)=>{Drop(r);},None=>{}}}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("<memory>", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(execution.observations.events(), ["open:0:7", "close:0:7"]);
 }
@@ -149,8 +144,6 @@ fn generator_question_mark_and_shadowed_iterator_limit_forms() {
     assert_eq!(error.code, "NX-E0006");
     assert_eq!(error.feature_id.as_deref(), Some("user_types"));
     let positive = "gen fn G(){}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),None);}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
-            .unwrap();
+    let execution = common::run_j("<memory>", positive, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
 }

@@ -1,10 +1,10 @@
-use nexo::ir::{CompileError, compile_for_internal_harness};
+mod common;
+use nexo::ir::CompileError;
 
 #[test]
 fn closure_map_requires_call_operation() {
     let source = "fn Main(){let f=fn []() with {drop(no_io)}{};}";
-    let Err(CompileError::Rejected(errors)) = compile_for_internal_harness("w09.n", source, true)
-    else {
+    let Err(CompileError::Rejected(errors)) = common::compile_j("w09.n", source, true) else {
         panic!("W09 must reject a map without call");
     };
     assert_eq!(errors.len(), 1);
@@ -61,8 +61,7 @@ fn written_closure_operation_bounds_use_capture_witnesses() {
         ),
     ];
     for (source, code, operation, primary, contract, effect, causes) in cases {
-        let Err(CompileError::Rejected(errors)) =
-            compile_for_internal_harness("effects.n", source, true)
+        let Err(CompileError::Rejected(errors)) = common::compile_j("effects.n", source, true)
         else {
             panic!("the operation bound must reject: {source}");
         };
@@ -123,16 +122,14 @@ fn written_closure_operation_bounds_use_capture_witnesses() {
 #[test]
 fn latent_body_is_separate_from_creation_and_drop() {
     let latent = "fn F() with no_io{let f=fn [](){Print(1);};}fn Main(){F();}";
-    let program = compile_for_internal_harness("latent.n", latent, true).unwrap();
+    let program = common::compile_j("latent.n", latent, true).unwrap();
     let execution = nexo::interp::run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
     assert!(execution.observations.observations().is_empty());
 
     let invoked = "fn F() with no_io{let f=fn [](){Print(1);};f();}fn Main(){}";
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("invoked.n", invoked, false)
-    else {
+    let Err(CompileError::Rejected(errors)) = common::compile_j("invoked.n", invoked, false) else {
         panic!("invocation makes the body effect visible");
     };
     assert_eq!(errors.len(), 1);
@@ -143,8 +140,7 @@ fn latent_body_is_separate_from_creation_and_drop() {
 #[test]
 fn owned_capture_destructor_is_part_of_enclosing_function() {
     let source = "fn F(r:move MockResource) with no_io{let f=fn [move r](){};}fn Main(){}";
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("drop-effect.n", source, false)
+    let Err(CompileError::Rejected(errors)) = common::compile_j("drop-effect.n", source, false)
     else {
         panic!("the closure destructor performs IO");
     };
@@ -156,8 +152,7 @@ fn owned_capture_destructor_is_part_of_enclosing_function() {
 #[test]
 fn unknown_call_effect_stays_latent_until_invocation() {
     let latent = "fn Main(){let f=fn []() with {call(no_io)}{MockUnknown();};}";
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("unknown-bound.n", latent, false)
+    let Err(CompileError::Rejected(errors)) = common::compile_j("unknown-bound.n", latent, false)
     else {
         panic!("unknown call effect cannot satisfy no_io");
     };
@@ -172,14 +167,14 @@ fn unknown_call_effect_stays_latent_until_invocation() {
     errors[0].validate("unknown-bound.n", latent).unwrap();
 
     let unbounded = "fn F() with no_io{let f=fn [](){MockUnknown();};}fn Main(){}";
-    compile_for_internal_harness("unknown-latent.n", unbounded, false).unwrap();
+    common::compile_j("unknown-latent.n", unbounded, false).unwrap();
 }
 
 #[test]
 fn function_bound_sees_invoked_closure_body() {
     let source = "fn F() with no_io{let f=fn [](){Print(1);};f();}fn Main(){}";
     let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("closure-call-effect.n", source, false)
+        common::compile_j("closure-call-effect.n", source, false)
     else {
         panic!("no_io must include the called body");
     };
@@ -204,16 +199,14 @@ fn operation_bounds_accept_the_adr_repairs() {
         "fn Main(){let r=1;let f=fn [move r]() with {drop(no_io),call(unrestricted)}{};}",
     ];
     for source in sources {
-        compile_for_internal_harness("repair.n", source, true).unwrap();
+        common::compile_j("repair.n", source, true).unwrap();
     }
 }
 
 #[test]
 fn recursive_function_closure_cycle_propagates_effect() {
     let source = "fn F() with no_io{let f=fn [](){Print(1);F();};f();}fn Main(){}";
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("cycle.n", source, false)
-    else {
+    let Err(CompileError::Rejected(errors)) = common::compile_j("cycle.n", source, false) else {
         panic!("cycle must propagate the closure body effect");
     };
     assert_eq!(errors.len(), 1);
@@ -224,8 +217,7 @@ fn recursive_function_closure_cycle_propagates_effect() {
 #[test]
 fn nested_owned_closure_drop_is_visible_in_outer_contract() {
     let source = "fn Main(){let r=MockOpen(1);let inner=fn [move r](){};let outer=fn [move inner]() with {drop(no_io),call(unrestricted)}{};}";
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("nested-drop.n", source, true)
+    let Err(CompileError::Rejected(errors)) = common::compile_j("nested-drop.n", source, true)
     else {
         panic!("the outer environment owns the inner resource");
     };

@@ -1,8 +1,9 @@
+mod common;
 use nexo::interp::{MockEnvironment, Outcome};
 use nexo::ir::CompileError;
 
 fn rejected(source: &str) -> Box<nexo::diagnostic::Diagnostic> {
-    let error = nexo::ir::compile_for_internal_harness("<memory>", source, true).unwrap_err();
+    let error = common::compile_j("<memory>", source, true).unwrap_err();
     let CompileError::Rejected(mut diagnostics) = error else {
         panic!("unexpected compiler failure")
     };
@@ -13,8 +14,7 @@ fn rejected(source: &str) -> Box<nexo::diagnostic::Diagnostic> {
 #[test]
 fn cold_generator_discards_owned_parameter_without_running_body() {
     let source = "gen fn G(r:move MockResource)->I64{Inspect(r);}fn Main(){let g=G(MockOpen(4));}";
-    let execution =
-        nexo::ir::run_for_internal_harness("cold.n", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("cold.n", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
     assert_eq!(execution.observations.events(), ["open:0:4", "close:0:4"]);
@@ -23,8 +23,7 @@ fn cold_generator_discards_owned_parameter_without_running_body() {
 #[test]
 fn generator_arguments_evaluate_in_written_order_and_close_in_slot_order() {
     let source = "gen fn G(a:move MockResource,b:move MockResource)->I64{}fn Main(){let g=G(b:MockOpen(2),a:MockOpen(1));}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("<memory>", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert_eq!(
         execution.observations.events(),
@@ -35,8 +34,7 @@ fn generator_arguments_evaluate_in_written_order_and_close_in_slot_order() {
 #[test]
 fn generator_scalar_view_is_materialized_and_does_not_retain_a_caller_loan() {
     let source = "gen fn G(x:view I64)->I64{}fn Main(){var x=1;let g=G(x);x=2;}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("<memory>", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
 }
@@ -77,9 +75,7 @@ fn generator_layout_rejects_direct_recursive_state() {
         Some(&nexo::diagnostic::DataValue::String("later_adr".into()))
     );
     let positive = "gen fn G()->I64{let g=H();}gen fn H()->I64{}fn Main(){}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
-            .unwrap();
+    let execution = common::run_j("<memory>", positive, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
 }
@@ -87,7 +83,6 @@ fn generator_layout_rejects_direct_recursive_state() {
 #[test]
 fn shadowed_generator_name_called_as_a_closure_is_not_a_layout_cycle() {
     let source = "gen fn G()->I64{let G=fn [](){};G();yield 1;}fn Main(){var g=G();let n=Iterator.Next(edit g);AssertEq(n,Some(1));}";
-    let execution =
-        nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap();
+    let execution = common::run_j("<memory>", source, MockEnvironment::default()).unwrap();
     assert_eq!(execution.outcome, Outcome::Unit);
 }

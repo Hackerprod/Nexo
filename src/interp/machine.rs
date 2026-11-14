@@ -280,18 +280,17 @@ impl Value {
             Self::Union { payload, .. } => 1 + payload.as_ref().map_or(0, |value| value.cells()),
             Self::Closure { fields, .. } => 1 + fields.iter().map(Self::cells).sum::<u64>(),
             Self::Generator(generator) => {
-                1 + generator.slots.len() as u64
-                    + generator
-                        .slots
-                        .iter()
-                        .zip(&generator.borrowed)
-                        .filter_map(
-                            |(value, borrowed)| {
-                                if *borrowed { None } else { value.as_ref() }
-                            },
-                        )
-                        .map(|value| value.cells().saturating_sub(1))
-                        .sum::<u64>()
+                1 + generator
+                    .slots
+                    .iter()
+                    .zip(&generator.borrowed)
+                    .filter_map(
+                        |(value, borrowed)| {
+                            if *borrowed { None } else { value.as_ref() }
+                        },
+                    )
+                    .map(Value::cells)
+                    .sum::<u64>()
                     + generator
                         .temps
                         .iter()
@@ -1021,6 +1020,1021 @@ impl Machine {
         self.run_frame_impl(function, program, args, call_span, None)
     }
 
+    #[inline(never)]
+    fn call_closure(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        program: Option<&Program>,
+        locals: &mut [Option<Value>],
+        temps: &mut [Option<TempValue>],
+    ) -> Result<Option<Value>, &'static str> {
+        let Op::CallClosure {
+            site,
+            receiver,
+            mode,
+            capture_count,
+            args,
+            signature,
+        } = &ins.op
+        else {
+            return Err("closure instruction");
+        };
+        enum EditTarget {
+            Origin(LoanValue),
+            Field(LocalId, usize),
+            Consumed,
+        }
+        let program = program.ok_or("call table unavailable")?;
+        let target = program
+            .functions
+            .function(&format!("$closure:{site}"))
+            .ok_or("unknown closure body")?;
+        if target.parameters.len() != signature.len() || *capture_count > signature.len() {
+            return Err("closure frame signature");
+        }
+        let receiver_temp = Self::take(temps, *receiver)?;
+        let mut retained = Vec::new();
+        let (captured, receiver_root) = match mode {
+            ParameterMode::Read => {
+                let value = receiver_temp.as_value(locals)?.clone();
+                if let TempValue::Own(owner) = receiver_temp {
+                    retained.push(owner);
+                }
+                (value, None)
+            }
+            ParameterMode::Inout => {
+                let TempValue::Exclusive(root, path) = receiver_temp else {
+                    return Err("closure edit receiver loan");
+                };
+                if !path.is_empty() {
+                    return Err("closure edit receiver path");
+                }
+                (
+                    locals[root.0]
+                        .as_ref()
+                        .ok_or("closure edit receiver")?
+                        .clone(),
+                    Some(root),
+                )
+            }
+            ParameterMode::Consume => (receiver_temp.into_owned()?, None),
+        };
+        let Value::Closure {
+            site: actual,
+            fields,
+        } = captured
+        else {
+            return Err("closure receiver value");
+        };
+        if actual != *site || fields.len() != *capture_count {
+            return Err("closure receiver identity");
+        }
+        if *mode == ParameterMode::Consume {
+            self.cells = self.cells.saturating_sub(1);
+        }
+        let mut passed: Vec<Option<(Value, bool)>> = vec![None; signature.len()];
+        let mut edit_targets: Vec<Option<EditTarget>> = (0..*capture_count).map(|_| None).collect();
+        for (index, field) in fields.into_iter().enumerate() {
+            match signature[index].1 {
+                ParameterMode::Read => {
+                    let borrowed = match &field {
+                        Value::Loan(loan) => loan
+                            .slot
+                            .borrow()
+                            .as_ref()
+                            .ok_or("expired closure loan")?
+                            .deep_copy(),
+                        owned => owned.deep_copy(),
+                    };
+                    if *mode == ParameterMode::Consume {
+                        retained.push(field);
+                    }
+                    passed[index] = Some((borrowed, true));
+                }
+                ParameterMode::Inout => {
+                    if *mode == ParameterMode::Read {
+                        return Err("closure capture receiver mode");
+                    }
+                    let value = if let Value::Loan(loan) = &field {
+                        let value = locals[loan.root.0].take().ok_or("closure edit origin")?;
+                        edit_targets[index] = Some(EditTarget::Origin(loan.clone()));
+                        if *mode == ParameterMode::Consume {
+                            retained.push(field);
+                        }
+                        value
+                    } else if let Some(root) = receiver_root {
+                        let Value::Closure { fields, .. } =
+                            locals[root.0].as_mut().ok_or("closure edit owner")?
+                        else {
+                            return Err("closure edit owner type");
+                        };
+                        edit_targets[index] = Some(EditTarget::Field(root, index));
+                        std::mem::replace(&mut fields[index], Value::Unit)
+                    } else {
+                        edit_targets[index] = Some(EditTarget::Consumed);
+                        field
+                    };
+                    passed[index] = Some((value, true));
+                }
+                ParameterMode::Consume => {
+                    if *mode != ParameterMode::Consume {
+                        return Err("closure capture receiver mode");
+                    }
+                    if matches!(field, Value::Loan(_)) {
+                        return Err("consuming borrowed capture");
+                    }
+                    passed[index] = Some((field, false));
+                }
+            }
+        }
+        let mut arg_targets = vec![None; signature.len()];
+        for (slot, id) in args {
+            let slot = capture_count + slot;
+            let temp = Self::take(temps, *id)?;
+            let item = match signature[slot].1 {
+                ParameterMode::Read => {
+                    let borrowed = temp.as_value(locals)?.clone();
+                    if let TempValue::Own(owner) = temp {
+                        retained.push(owner);
+                    }
+                    (borrowed, true)
+                }
+                ParameterMode::Consume => (temp.into_owned()?, false),
+                ParameterMode::Inout => {
+                    let TempValue::Exclusive(root, path) = temp else {
+                        return Err("closure edit argument loan");
+                    };
+                    let value = if path.is_empty() {
+                        locals
+                            .get_mut(root.0)
+                            .ok_or("closure edit argument root")?
+                            .take()
+                            .ok_or("closure edit argument unavailable")?
+                    } else {
+                        let root_value = locals
+                            .get_mut(root.0)
+                            .ok_or("closure edit argument root")?
+                            .as_mut()
+                            .ok_or("closure edit argument unavailable")?;
+                        let selected =
+                            get_mut_path(root_value, &path).ok_or("closure edit argument path")?;
+                        let value = std::mem::replace(selected, Value::Unit);
+                        adjust_size(root_value, &path, value.cells(), 1);
+                        value
+                    };
+                    arg_targets[slot] = Some((root, path));
+                    (value, true)
+                }
+            };
+            passed[slot] = Some(item);
+        }
+        let prepared = passed
+            .into_iter()
+            .map(|item| item.ok_or("missing closure call slot"))
+            .collect::<Result<Vec<_>, _>>()?;
+        let mut result = self.run_frame(target, Some(program), prepared, &ins.span)?;
+        for (index, target) in edit_targets.into_iter().enumerate() {
+            if let Some(target) = target {
+                let value = result.inout[index].take().ok_or("closure edit return")?;
+                match target {
+                    EditTarget::Origin(loan) => {
+                        *loan.slot.borrow_mut() = Some(value.deep_copy());
+                        if locals[loan.root.0].replace(value).is_some() {
+                            return Err("closure edit occupied origin");
+                        }
+                    }
+                    EditTarget::Field(root, field) => {
+                        let Value::Closure { fields, .. } =
+                            locals[root.0].as_mut().ok_or("closure edit owner")?
+                        else {
+                            return Err("closure edit owner type");
+                        };
+                        if fields[field] != Value::Unit {
+                            return Err("closure edit occupied field");
+                        }
+                        fields[field] = value;
+                    }
+                    EditTarget::Consumed => self.dispose(value)?,
+                }
+            }
+        }
+        for (slot, target) in arg_targets.into_iter().enumerate().skip(*capture_count) {
+            if let Some((root, path)) = target {
+                let value = result.inout[slot]
+                    .take()
+                    .ok_or("closure edit argument return")?;
+                if path.is_empty() {
+                    if locals[root.0].replace(value).is_some() {
+                        return Err("closure edit occupied argument");
+                    }
+                } else {
+                    let root_value = locals[root.0]
+                        .as_mut()
+                        .ok_or("closure edit argument root")?;
+                    let node =
+                        get_mut_path(root_value, &path).ok_or("closure edit argument path")?;
+                    let previous = std::mem::replace(node, value);
+                    if previous != Value::Unit {
+                        return Err("closure edit argument placeholder");
+                    }
+                    let size = node.cells();
+                    adjust_size(root_value, &path, 1, size);
+                }
+            }
+        }
+        for value in retained.into_iter().rev() {
+            self.dispose(value)?;
+        }
+        Ok(result.value)
+    }
+
+    #[inline(never)]
+    fn call_direct(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        program: Option<&Program>,
+        locals: &mut [Option<Value>],
+        temps: &mut [Option<TempValue>],
+    ) -> Result<Option<Option<Value>>, &'static str> {
+        let Op::CallDirect {
+            function: callee,
+            args,
+            signature,
+        } = &ins.op
+        else {
+            return Err("direct call instruction");
+        };
+        let program = program.ok_or("call table unavailable")?;
+        let target = program
+            .functions
+            .function(&callee.0)
+            .ok_or("unknown callee")?;
+        let mut passed: Vec<Option<(Value, bool)>> = vec![None; signature.len()];
+        let mut retained = Vec::new();
+        let mut targets = vec![None; signature.len()];
+        for (slot, id) in args {
+            let temp = Self::take(temps, *id)?;
+            let item = match signature[*slot].1 {
+                ParameterMode::Read => {
+                    let borrowed = temp.as_value(locals)?.clone();
+                    if let TempValue::Own(owner) = temp {
+                        retained.push(owner);
+                    }
+                    (borrowed, true)
+                }
+                ParameterMode::Consume => (temp.into_owned()?, false),
+                ParameterMode::Inout => {
+                    let TempValue::Exclusive(root, path) = temp else {
+                        return Err("edit argument loan");
+                    };
+                    let value = if path.is_empty() {
+                        locals
+                            .get_mut(root.0)
+                            .ok_or("edit root")?
+                            .take()
+                            .ok_or("edit unavailable root")?
+                    } else {
+                        let root_value = locals
+                            .get_mut(root.0)
+                            .ok_or("edit root")?
+                            .as_mut()
+                            .ok_or("edit unavailable root")?;
+                        // Move the selected owner into the callee. The unit is an
+                        // inaccessible structural placeholder, not a live Nexo cell.
+                        let selected = get_mut_path(root_value, &path).ok_or("edit index path")?;
+                        let value = std::mem::replace(selected, Value::Unit);
+                        adjust_size(root_value, &path, value.cells(), 1);
+                        value
+                    };
+                    targets[*slot] = Some((root, path));
+                    (value, true)
+                }
+            };
+            passed[*slot] = Some(item);
+        }
+        let prepared = passed
+            .into_iter()
+            .map(|v| v.ok_or("missing call slot"))
+            .collect::<Result<Vec<_>, _>>()?;
+        if self.fault.is_some() {
+            return Ok(None);
+        }
+        let result = self.run_frame(target, Some(program), prepared, &ins.span)?;
+        for (slot, returned) in result.inout.into_iter().enumerate() {
+            if let Some(value) = returned {
+                let (root, path) = targets[slot].take().ok_or("edit return target")?;
+                if path.is_empty() {
+                    if locals[root.0].replace(value).is_some() {
+                        return Err("edit occupied root");
+                    }
+                } else {
+                    let root_value = locals[root.0].as_mut().ok_or("edit missing root")?;
+                    let node = get_mut_path(root_value, &path).ok_or("edit return path")?;
+                    let previous = std::mem::replace(node, value);
+                    if previous != Value::Unit {
+                        return Err("edit placeholder replaced");
+                    }
+                    let new_size = node.cells();
+                    adjust_size(root_value, &path, 1, new_size);
+                }
+            }
+        }
+        for value in retained.into_iter().rev() {
+            self.dispose(value)?;
+        }
+        if self.fault.is_some() {
+            return Ok(None);
+        }
+        Ok(Some(result.value))
+    }
+
+    #[inline(never)]
+    fn call_intrinsic(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        locals: &mut [Option<Value>],
+        temps: &mut Vec<Option<TempValue>>,
+    ) -> Result<Option<Value>, &'static str> {
+        let Op::CallIntrinsic { intrinsic, args } = &ins.op else {
+            return Err("intrinsic instruction");
+        };
+        let argument_ids = args.clone();
+        let mut values = Vec::with_capacity(args.len());
+        for id in args {
+            values.push(Self::take(temps, *id)?);
+            if !matches!(values.last(), Some(TempValue::Own(value)) if value.owns_resource()) {
+                self.cells = self
+                    .cells
+                    .saturating_sub(values.last().map_or(0, TempValue::owned_cells));
+            }
+        }
+        if !self.charge_work(1, &ins.span) {
+            self.dispose_intrinsic_resources(&mut values)?;
+            return Ok(None);
+        }
+        let mut pre_reserved_output = false;
+        let mut precharged_output_work = false;
+        if *intrinsic == Intrinsic::DropData {
+            if !self.charge_work(1, &ins.span) {
+                self.dispose_intrinsic_resources(&mut values)?;
+                return Ok(None);
+            }
+            precharged_output_work = true;
+        }
+        let output = match intrinsic {
+            Intrinsic::Print => {
+                let value = values[0].as_value(locals)?;
+                if !self.charge_work(value.cells(), &ins.span) {
+                    return Ok(None);
+                }
+                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                    return Ok(None);
+                }
+                let line = value.text();
+                if let Err(observed) = self.log.push_stdout(line) {
+                    self.cells = self.cells.saturating_sub(1);
+                    self.fault(
+                        "R0002",
+                        &ins.span,
+                        vec![
+                            (
+                                "runtime_budget_kind",
+                                DataValue::String("observation_bytes".into()),
+                            ),
+                            ("limit", DataValue::UInt(self.limits.observations)),
+                            ("observed", DataValue::UInt(observed)),
+                        ],
+                    );
+                    return Ok(None);
+                }
+                Value::Unit
+            }
+            Intrinsic::AssertEq => {
+                let left = values[0].as_value(locals)?;
+                let right = values[1].as_value(locals)?;
+                if !self.charge_work(equal_pairs(left, right), &ins.span) {
+                    return Ok(None);
+                }
+                if left != right {
+                    self.fault("R0201", &ins.span, vec![]);
+                    return Ok(None);
+                }
+                Value::Unit
+            }
+            Intrinsic::DropData | Intrinsic::MockUnknown => Value::Unit,
+            Intrinsic::Fail => {
+                self.fault("R0301", &ins.span, vec![]);
+                return Ok(None);
+            }
+            Intrinsic::Len => {
+                let Value::Array(xs, _) = values[0].as_value(locals)? else {
+                    return Err("len domain");
+                };
+                let n = i64::try_from(xs.len()).map_err(|_| "array length overflow")?;
+                Value::Int(n)
+            }
+            Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
+                let Value::Int(label) = values[0].as_value(locals)? else {
+                    return Err("open label type");
+                };
+                let label = *label;
+                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                    return Ok(None);
+                }
+                pre_reserved_output = true;
+                let id = self.next_resource;
+                let close = format!("close:{id}:{label}");
+                let close_bytes = ("mock-resource:".len() + close.len() + 1) as u64;
+                let open = format!("open:{id}:{label}");
+                let open_bytes = ("mock-resource:".len() + open.len() + 1) as u64;
+                let acquisition_bytes = close_bytes + open_bytes;
+                if let Err(observed) = self.log.reserve(acquisition_bytes) {
+                    self.cells -= 1;
+                    self.observation_fault(&ins.span, observed);
+                    return Ok(None);
+                }
+                self.log.release_reservation(open_bytes)?;
+                if let Err(observed) = self.log.push_event(open, "mock-resource:") {
+                    self.log.release_reservation(close_bytes)?;
+                    self.cells -= 1;
+                    self.observation_fault(&ins.span, observed);
+                    return Ok(None);
+                }
+                self.next_resource += 1;
+                Value::Resource {
+                    id,
+                    label,
+                    blocking: *intrinsic == Intrinsic::MockBlockingOpen,
+                }
+            }
+            Intrinsic::Inspect => {
+                let Value::Resource { id, label, .. } = values[0].as_value(locals)? else {
+                    return Err("inspect type");
+                };
+                let text = format!("inspect:{id}:{label}");
+                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                    self.dispose_intrinsic_resources(&mut values)?;
+                    return Ok(None);
+                }
+                pre_reserved_output = true;
+                if let Err(observed) = self.log.push_event(text, "mock-resource:") {
+                    self.cells -= 1;
+                    self.observation_fault(&ins.span, observed);
+                    self.dispose_intrinsic_resources(&mut values)?;
+                    return Ok(None);
+                }
+                Value::Unit
+            }
+            Intrinsic::TryAdd => {
+                let (Value::Int(a), Value::Int(b)) =
+                    (values[0].as_value(locals)?, values[1].as_value(locals)?)
+                else {
+                    return Err("try_add argument type");
+                };
+                let result = match a.checked_add(*b) {
+                    Some(sum) => Value::Union {
+                        kind: UnionKind::Result,
+                        tag: VariantTag(0),
+                        payload: Some(Box::new(Value::Int(sum))),
+                    },
+                    None => Value::Union {
+                        kind: UnionKind::Result,
+                        tag: VariantTag(1),
+                        payload: Some(Box::new(Value::Int(30))),
+                    },
+                };
+                if !self.charge_work(2, &ins.span) || !self.reserve_cells(2, &ins.span) {
+                    return Ok(None);
+                }
+                pre_reserved_output = true;
+                result
+            }
+            Intrinsic::MockReadRecords
+            | Intrinsic::MockWriteI64
+            | Intrinsic::MockRequest
+            | Intrinsic::MockReply => {
+                let Some(result) = self.mock_call(*intrinsic, &values, locals, &ins.span)? else {
+                    if *intrinsic == Intrinsic::MockReadRecords {
+                        self.dispose_intrinsic_resources(&mut values)?;
+                    }
+                    return Ok(None);
+                };
+                pre_reserved_output = true;
+                result
+            }
+        };
+        for (id, value) in argument_ids.into_iter().zip(values).rev() {
+            if matches!(intrinsic, Intrinsic::Inspect | Intrinsic::MockReadRecords)
+                && matches!(&value, TempValue::Own(owned) if owned.owns_resource())
+            {
+                temps.insert(id.0, Some(value));
+            } else if matches!(&value, TempValue::Own(owned) if owned.owns_resource()) {
+                self.dispose(value.into_owned()?)?;
+            }
+        }
+        if *intrinsic != Intrinsic::Print
+            && !pre_reserved_output
+            && ((!precharged_output_work && !self.charge_work(1, &ins.span))
+                || !self.cell(&ins.span))
+        {
+            return Ok(None);
+        }
+        Ok(Some(output))
+    }
+
+    #[inline(never)]
+    fn resume_generator(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        program: Option<&Program>,
+        locals: &mut [Option<Value>],
+        temps: &mut [Option<TempValue>],
+    ) -> Result<Option<Value>, &'static str> {
+        let Op::ResumeGenerator { receiver, .. } = &ins.op else {
+            return Err("generator resume instruction");
+        };
+        if !self.charge_work(1, &ins.span) {
+            return Ok(None);
+        }
+        let program = program.ok_or("call table unavailable")?;
+        let receiver = Self::take(temps, *receiver)?;
+        let TempValue::Exclusive(root, path) = receiver else {
+            return Err("generator receiver loan");
+        };
+        if !path.is_empty() {
+            return Err("generator receiver path");
+        }
+        let completed = matches!(
+            locals.get(root.0).and_then(Option::as_ref),
+            Some(Value::Generator(generator)) if generator.state == GeneratorState::Completed
+        );
+        if completed && !self.charge_work(1, &ins.span) {
+            return Ok(None);
+        }
+        if !completed && self.frames >= self.limits.frames {
+            self.fault(
+                "R0002",
+                &ins.span,
+                vec![
+                    (
+                        "runtime_budget_kind",
+                        DataValue::String("call_frames".into()),
+                    ),
+                    ("limit", DataValue::UInt(self.limits.frames)),
+                    ("observed", DataValue::UInt(self.limits.frames + 1)),
+                ],
+            );
+            return Ok(None);
+        }
+        // Keep the output tag live while the body completes and
+        // disposes its slots; completion may not free room first.
+        if !self.cell(&ins.span) {
+            return Ok(None);
+        }
+        let state_value = locals
+            .get_mut(root.0)
+            .ok_or("generator root")?
+            .take()
+            .ok_or("generator missing")?;
+        let Value::Generator(generator) = state_value else {
+            return Err("generator value");
+        };
+        let GeneratorValue {
+            site,
+            slots,
+            temps: saved_temps,
+            borrowed,
+            edits,
+            state,
+        } = *generator;
+        let output = if state == GeneratorState::Completed {
+            locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
+                site,
+                slots,
+                temps: saved_temps,
+                borrowed,
+                edits,
+                state,
+            })));
+            None
+        } else {
+            let target = program
+                .functions
+                .functions()
+                .iter()
+                .find(|function| function.generator_site == Some(site))
+                .ok_or("generator body")?;
+            let block = match state {
+                GeneratorState::Created => 0,
+                GeneratorState::Suspended(block) => block,
+                GeneratorState::Completed => {
+                    return Err("completed generator resumed");
+                }
+            };
+            let result = self.run_frame_impl(
+                target,
+                Some(program),
+                Vec::new(),
+                &ins.span,
+                Some((slots, saved_temps, borrowed, edits, block)),
+            )?;
+            if let Some((item, slots, temps, borrowed, edits, next)) = result.suspension {
+                locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
+                    site,
+                    slots,
+                    temps,
+                    borrowed,
+                    edits,
+                    state: GeneratorState::Suspended(next),
+                })));
+                Some(item)
+            } else {
+                if let Some(value) = result.value {
+                    self.dispose(value)?;
+                }
+                locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
+                    site,
+                    slots: vec![None; target.locals.len()],
+                    temps: Vec::new(),
+                    borrowed: vec![false; target.locals.len()],
+                    edits: vec![None; target.locals.len()],
+                    state: GeneratorState::Completed,
+                })));
+                None
+            }
+        };
+        if self.fault.is_some() || !self.charge_work(1, &ins.span) {
+            if let Some(item) = output {
+                self.dispose(item)?;
+            }
+            self.cells = self.cells.saturating_sub(1);
+            return Ok(None);
+        }
+        Ok(Some(Value::Union {
+            kind: UnionKind::Option,
+            tag: VariantTag(u8::from(output.is_some())),
+            payload: output.map(Box::new),
+        }))
+    }
+
+    #[inline(never)]
+    fn build_generator(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        program: Option<&Program>,
+        locals: &mut [Option<Value>],
+        temps: &mut [Option<TempValue>],
+    ) -> Result<Option<Value>, &'static str> {
+        let Op::BuildGenerator {
+            function: callee,
+            args,
+            signature,
+        } = &ins.op
+        else {
+            return Err("generator construction instruction");
+        };
+        // The source call/name were charged by lowering. A cold
+        // construction still pays its entry and state header.
+        if !self.charge_work(1, &ins.span) || !self.charge_work(1, &ins.span) {
+            return Ok(None);
+        }
+        if self.frames >= self.limits.frames {
+            self.fault(
+                "R0002",
+                &ins.span,
+                vec![
+                    (
+                        "runtime_budget_kind",
+                        DataValue::String("call_frames".into()),
+                    ),
+                    ("limit", DataValue::UInt(self.limits.frames)),
+                    ("observed", DataValue::UInt(self.limits.frames + 1)),
+                ],
+            );
+            return Ok(None);
+        }
+        if !self.cell(&ins.span) {
+            return Ok(None);
+        }
+        let program = program.ok_or("call table unavailable")?;
+        let target = program
+            .functions
+            .function(&callee.0)
+            .ok_or("unknown generator")?;
+        if target.generator_item.is_none() || signature.len() != target.parameters.len() {
+            return Err("generator signature");
+        }
+        let mut slots = vec![None; target.locals.len()];
+        let mut failed = false;
+        for (slot, id) in args {
+            let temp = Self::take(temps, *id)?;
+            let field = match signature[*slot].1 {
+                ParameterMode::Read => {
+                    let value = temp.as_value(locals)?;
+                    if !self.charge_work(value.cells(), &ins.span)
+                        || !self.reserve_cells(value.cells(), &ins.span)
+                    {
+                        failed = true;
+                        break;
+                    }
+                    value.deep_copy()
+                }
+                ParameterMode::Consume => temp.into_owned()?,
+                ParameterMode::Inout => return Err("generator edit parameter"),
+            };
+            let local = target
+                .parameters
+                .get(*slot)
+                .ok_or("generator parameter")?
+                .local;
+            slots[local.0] = Some(field);
+        }
+        if failed {
+            for value in slots.into_iter().rev().flatten() {
+                self.dispose(value)?;
+            }
+            self.cells = self.cells.saturating_sub(1);
+            return Ok(None);
+        }
+        Ok(Some(Value::Generator(Box::new(GeneratorValue {
+            site: target.generator_site.ok_or("generator site")?,
+            slots,
+            temps: Vec::new(),
+            borrowed: vec![false; target.locals.len()],
+            edits: vec![None; target.locals.len()],
+            state: GeneratorState::Created,
+        }))))
+    }
+
+    #[inline(never)]
+    fn binary_op(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        locals: &[Option<Value>],
+        temps: &mut [Option<TempValue>],
+    ) -> Result<Option<Value>, &'static str> {
+        let Op::Binary { op, left, right } = &ins.op else {
+            return Err("binary instruction");
+        };
+        let l = Self::take(temps, *left)?;
+        let r = Self::take(temps, *right)?;
+        self.cells = self.cells.saturating_sub(l.owned_cells() + r.owned_cells());
+        let lv = l.as_value(locals)?;
+        let rv = r.as_value(locals)?;
+        let v = match (op, lv, rv) {
+            (Binary::Add, Value::Int(a), Value::Int(b)) => match a.checked_add(*b) {
+                Some(n) => Value::Int(n),
+                None => {
+                    self.fault("R0101", &ins.span, vec![]);
+                    return Ok(None);
+                }
+            },
+            (Binary::Sub, Value::Int(a), Value::Int(b)) => match a.checked_sub(*b) {
+                Some(n) => Value::Int(n),
+                None => {
+                    self.fault("R0103", &ins.span, vec![]);
+                    return Ok(None);
+                }
+            },
+            (Binary::Less, Value::Int(a), Value::Int(b)) => {
+                if !self.charge_work(2, &ins.span) {
+                    return Ok(None);
+                }
+                Value::Bool(a < b)
+            }
+            (Binary::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
+            (Binary::Equal, a, b) => {
+                if !self.charge_work(equal_pairs(a, b), &ins.span) {
+                    return Ok(None);
+                }
+                Value::Bool(a == b)
+            }
+            _ => return Err("verified binary domain"),
+        };
+        if (*op != Binary::And && !self.charge_work(1, &ins.span)) || !self.cell(&ins.span) {
+            return Ok(None);
+        }
+        Ok(Some(v))
+    }
+
+    #[inline(never)]
+    fn write_place(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        locals: &mut [Option<Value>],
+        edit_aliases: &[Option<EditAlias>],
+        temps: &mut [Option<TempValue>],
+    ) -> Result<(), &'static str> {
+        let Op::WritePlace { local, value } = &ins.op else {
+            return Err("write place instruction");
+        };
+        let v = Self::take(temps, *value)?.into_owned()?;
+        if let Some((root, indexes, path)) = edit_aliases.get(local.0).and_then(Clone::clone) {
+            let old = if path.is_empty() {
+                if indexes.is_empty() {
+                    locals
+                        .get_mut(root.0)
+                        .ok_or("edit root")?
+                        .replace(v.deep_copy())
+                        .ok_or("edit root empty")?
+                } else {
+                    let source = locals
+                        .get_mut(root.0)
+                        .and_then(Option::as_mut)
+                        .ok_or("edit root")?;
+                    std::mem::replace(
+                        get_mut_path(source, &indexes).ok_or("edit index")?,
+                        v.deep_copy(),
+                    )
+                }
+            } else {
+                let source = locals
+                    .get_mut(root.0)
+                    .and_then(Option::as_mut)
+                    .ok_or("edit root")?;
+                let Some((&tag, prefix)) = path.split_last() else {
+                    return Err("edit path");
+                };
+                let Value::Union {
+                    tag: actual,
+                    payload,
+                    ..
+                } = get_mut_path(source, &indexes)
+                    .ok_or("edit index")?
+                    .at_variant_path_mut(prefix)
+                    .ok_or("edit prefix")?
+                else {
+                    return Err("edit variant");
+                };
+                if *actual != tag {
+                    return Err("edit tag");
+                }
+                *payload
+                    .replace(Box::new(v.deep_copy()))
+                    .ok_or("edit payload")?
+            };
+            if !indexes.is_empty() {
+                let source = locals
+                    .get_mut(root.0)
+                    .and_then(Option::as_mut)
+                    .ok_or("edit root")?;
+                adjust_size(source, &indexes, old.cells(), v.cells());
+            }
+            *locals.get_mut(local.0).ok_or("edit local")? = Some(v);
+            self.dispose(old)?;
+        } else {
+            let dest = locals.get_mut(local.0).ok_or("write index")?;
+            if let Some(old) = dest.replace(v) {
+                self.dispose(old)?;
+            }
+        }
+        Ok(())
+    }
+
+    #[inline(never)]
+    fn read_index(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        locals: &[Option<Value>],
+        temps: &mut [Option<TempValue>],
+    ) -> Result<Option<Value>, &'static str> {
+        let Op::ReadIndex {
+            local,
+            indexes,
+            site,
+        } = &ins.op
+        else {
+            return Err("read index instruction");
+        };
+        let mut path = Vec::with_capacity(indexes.len());
+        for id in indexes {
+            let taken = Self::take(temps, *id)?;
+            let Value::Int(n) = taken.as_value(locals)? else {
+                return Err("index value type");
+            };
+            if matches!(taken, TempValue::Own(_)) {
+                self.cells = self.cells.saturating_sub(1);
+            }
+            path.push(*n);
+        }
+        let mut selected = locals
+            .get(local.0)
+            .ok_or("read index local")?
+            .as_ref()
+            .ok_or("empty local")?;
+        let mut valid = true;
+        for (position, index) in path.into_iter().enumerate() {
+            if let Some(next) = selected.element(index) {
+                selected = next;
+            } else {
+                valid = false;
+                self.index_fault(site, position);
+                break;
+            }
+        }
+        if !valid {
+            return Ok(None);
+        }
+        if !self.charge_work(selected.cells(), &ins.span)
+            || !self.reserve_cells(selected.cells(), &ins.span)
+        {
+            return Ok(None);
+        }
+        Ok(Some(selected.deep_copy()))
+    }
+
+    #[inline(never)]
+    fn check_index(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        locals: &[Option<Value>],
+        temps: &[Option<TempValue>],
+    ) -> Result<bool, &'static str> {
+        let Op::CheckIndex {
+            local,
+            indexes,
+            site,
+        } = &ins.op
+        else {
+            return Err("check index instruction");
+        };
+        let mut selected = locals
+            .get(local.0)
+            .ok_or("check index local")?
+            .as_ref()
+            .ok_or("empty local")?;
+        let mut valid = true;
+        for (position, id) in indexes.iter().enumerate() {
+            let index = temps
+                .get(id.0)
+                .and_then(Option::as_ref)
+                .ok_or("check index temporary")?;
+            let Value::Int(n) = index.as_value(locals)? else {
+                return Err("check index type");
+            };
+            if let Some(next) = selected.element(*n) {
+                selected = next;
+            } else {
+                valid = false;
+                self.index_fault(site, position);
+                break;
+            }
+        }
+        if !valid {
+            return Ok(false);
+        }
+        Ok(true)
+    }
+
+    #[inline(never)]
+    fn build_closure(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        locals: &[Option<Value>],
+        loan_slots: &mut [Option<Rc<RefCell<Option<Value>>>>],
+        loan_origins: &mut HashMap<TempId, LocalId>,
+        temps: &mut [Option<TempValue>],
+    ) -> Result<Option<Value>, &'static str> {
+        let Op::BuildClosure { site, fields, .. } = &ins.op else {
+            return Err("closure construction instruction");
+        };
+        let mut captured = Vec::with_capacity(fields.len());
+        for &(kind, temp) in fields {
+            let value = Self::take(temps, temp)?;
+            if matches!(
+                kind,
+                crate::ir::model::CaptureKind::View | crate::ir::model::CaptureKind::Edit
+            ) {
+                let root = loan_origins.remove(&temp).ok_or("retained loan origin")?;
+                let slot = if let Some(slot) = &loan_slots[root.0] {
+                    Rc::clone(slot)
+                } else {
+                    let initial = locals[root.0]
+                        .as_ref()
+                        .ok_or("retained loan root")?
+                        .deep_copy();
+                    let slot = Rc::new(RefCell::new(Some(initial)));
+                    loan_slots[root.0] = Some(Rc::clone(&slot));
+                    slot
+                };
+                let _ = value;
+                captured.push(Value::Loan(LoanValue { root, slot }));
+            } else {
+                captured.push(value.into_owned()?);
+            }
+        }
+        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+            for value in captured.into_iter().rev() {
+                self.dispose(value)?;
+            }
+            return Ok(None);
+        }
+        Ok(Some(Value::Closure {
+            site: *site,
+            fields: captured,
+        }))
+    }
+
     fn run_frame_impl(
         &mut self,
         function: &Function,
@@ -1142,6 +2156,19 @@ impl Machine {
         let mut suspension = None;
         'cfg: loop {
             for ins in &current.instructions {
+                if function.generator_item.is_some()
+                    && matches!(ins.op, Op::ConstUnit)
+                    && ins.charges.last().is_some_and(|charge| {
+                        charge.origin.start > ins.span.start && charge.origin.end == ins.span.end
+                    })
+                {
+                    Self::install_temp(
+                        &mut temps,
+                        ins.output.ok_or("generator completion output")?,
+                        TempValue::Own(Value::Unit),
+                    )?;
+                    continue;
+                }
                 let implicit_final_unit = matches!(ins.op, Op::ConstUnit)
                     && ins.charges.last().is_some_and(|charge| {
                         charge.origin.start > ins.span.start && charge.origin.end == ins.span.end
@@ -1384,10 +2411,14 @@ impl Machine {
                     Op::BeginLoan { .. } => return Err("loan dispatch"),
                     Op::EndLoan(_) => None,
                     Op::TestVariant { local, path, tag } => {
-                        let found = locals.get(local.0).and_then(Option::as_ref)
-                            .and_then(|value| value.at_variant_path(path))
-                            .is_some_and(|value| matches!(value, Value::Union { tag: actual, .. } if actual == tag));
-                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                        let selected = locals
+                            .get(local.0)
+                            .and_then(Option::as_ref)
+                            .and_then(|value| value.at_variant_path(path));
+                        let found = selected.is_some_and(|value| matches!(value, Value::Union { tag: actual, .. } if actual == tag));
+                        if (selected.is_some() && !self.charge_work(1, &ins.span))
+                            || !self.cell(&ins.span)
+                        {
                             break;
                         }
                         Some(Value::Bool(found))
@@ -1397,20 +2428,21 @@ impl Machine {
                         path,
                         literal,
                     } => {
-                        let found = locals
+                        let selected = locals
                             .get(local.0)
                             .and_then(Option::as_ref)
-                            .and_then(|value| value.at_variant_path(path))
-                            .is_some_and(|value| match (value, literal) {
-                                (Value::Int(actual), MatchLiteral::I64(expected)) => {
-                                    actual == expected
-                                }
-                                (Value::Bool(actual), MatchLiteral::Bool(expected)) => {
-                                    actual == expected
-                                }
-                                _ => false,
-                            });
-                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                            .and_then(|value| value.at_variant_path(path));
+                        let found = selected.is_some_and(|value| match (value, literal) {
+                            (Value::Int(actual), MatchLiteral::I64(expected)) => actual == expected,
+                            (Value::Bool(actual), MatchLiteral::Bool(expected)) => {
+                                actual == expected
+                            }
+                            (_, MatchLiteral::Any) => true,
+                            _ => false,
+                        });
+                        if (selected.is_some() && !self.charge_work(1, &ins.span))
+                            || !self.cell(&ins.span)
+                        {
                             break;
                         }
                         Some(Value::Bool(found))
@@ -1502,48 +2534,22 @@ impl Machine {
                         }
                         Some(Value::Array(Rc::new(xs), total))
                     }
-                    Op::BuildClosure { site, fields, .. } => {
-                        let mut captured = Vec::with_capacity(fields.len());
-                        for &(kind, temp) in fields {
-                            let value = Self::take(&mut temps, temp)?;
-                            if matches!(
-                                kind,
-                                crate::ir::model::CaptureKind::View
-                                    | crate::ir::model::CaptureKind::Edit
-                            ) {
-                                let root =
-                                    loan_origins.remove(&temp).ok_or("retained loan origin")?;
-                                let slot = if let Some(slot) = &loan_slots[root.0] {
-                                    Rc::clone(slot)
-                                } else {
-                                    let initial = locals[root.0]
-                                        .as_ref()
-                                        .ok_or("retained loan root")?
-                                        .deep_copy();
-                                    let slot = Rc::new(RefCell::new(Some(initial)));
-                                    loan_slots[root.0] = Some(Rc::clone(&slot));
-                                    slot
-                                };
-                                let _ = value;
-                                captured.push(Value::Loan(LoanValue { root, slot }));
-                            } else {
-                                captured.push(value.into_owned()?);
-                            }
-                        }
-                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
-                            for value in captured.into_iter().rev() {
-                                self.dispose(value)?;
-                            }
+                    Op::BuildClosure { .. } => {
+                        let Some(value) = self.build_closure(
+                            ins,
+                            &locals,
+                            &mut loan_slots,
+                            &mut loan_origins,
+                            &mut temps,
+                        )?
+                        else {
                             break;
-                        }
-                        Some(Value::Closure {
-                            site: *site,
-                            fields: captured,
-                        })
+                        };
+                        Some(value)
                     }
                     Op::BuildVariant { tag, payload } => {
                         if !self.charge_work(1, &ins.span)
-                            || !self.charge_work(1, &ins.span)
+                            || (payload.is_some() && !self.charge_work(1, &ins.span))
                             || !self.cell(&ins.span)
                         {
                             break;
@@ -1596,75 +2602,14 @@ impl Machine {
                             break 'cfg;
                         }
                     }
-                    Op::ReadIndex {
-                        local,
-                        indexes,
-                        site,
-                    } => {
-                        let mut path = Vec::with_capacity(indexes.len());
-                        for id in indexes {
-                            let taken = Self::take(&mut temps, *id)?;
-                            let Value::Int(n) = taken.as_value(&locals)? else {
-                                return Err("index value type");
-                            };
-                            if matches!(taken, TempValue::Own(_)) {
-                                self.cells = self.cells.saturating_sub(1);
-                            }
-                            path.push(*n);
-                        }
-                        let mut selected = locals
-                            .get(local.0)
-                            .ok_or("read index local")?
-                            .as_ref()
-                            .ok_or("empty local")?;
-                        let mut valid = true;
-                        for (position, index) in path.into_iter().enumerate() {
-                            if let Some(next) = selected.element(index) {
-                                selected = next;
-                            } else {
-                                valid = false;
-                                self.index_fault(site, position);
-                                break;
-                            }
-                        }
-                        if !valid {
+                    Op::ReadIndex { .. } => {
+                        let Some(value) = self.read_index(ins, &locals, &mut temps)? else {
                             break;
-                        }
-                        if !self.charge_work(selected.cells(), &ins.span)
-                            || !self.reserve_cells(selected.cells(), &ins.span)
-                        {
-                            break;
-                        }
-                        Some(selected.deep_copy())
+                        };
+                        Some(value)
                     }
-                    Op::CheckIndex {
-                        local,
-                        indexes,
-                        site,
-                    } => {
-                        let mut selected = locals
-                            .get(local.0)
-                            .ok_or("check index local")?
-                            .as_ref()
-                            .ok_or("empty local")?;
-                        let mut valid = true;
-                        for (position, id) in indexes.iter().enumerate() {
-                            let index = temps
-                                .get(id.0)
-                                .and_then(Option::as_ref)
-                                .ok_or("check index temporary")?;
-                            let Value::Int(n) = index.as_value(&locals)? else {
-                                return Err("check index type");
-                            };
-                            if let Some(next) = selected.element(*n) {
-                                selected = next;
-                            } else {
-                                valid = false;
-                                self.index_fault(site, position);
-                                break;
-                            }
-                        }
-                        if !valid {
+                    Op::CheckIndex { .. } => {
+                        if !self.check_index(ins, &locals, &temps)? {
                             break;
                         }
                         None
@@ -1686,114 +2631,14 @@ impl Machine {
                         self.cells = self.cells.saturating_sub(size + own - selected.cells());
                         Some(selected)
                     }
-                    Op::Binary { op, left, right } => {
-                        let l = Self::take(&mut temps, *left)?;
-                        let r = Self::take(&mut temps, *right)?;
-                        self.cells = self.cells.saturating_sub(l.owned_cells() + r.owned_cells());
-                        let lv = l.as_value(&locals)?;
-                        let rv = r.as_value(&locals)?;
-                        let v = match (op, lv, rv) {
-                            (Binary::Add, Value::Int(a), Value::Int(b)) => {
-                                match a.checked_add(*b) {
-                                    Some(n) => Value::Int(n),
-                                    None => {
-                                        self.fault("R0101", &ins.span, vec![]);
-                                        break;
-                                    }
-                                }
-                            }
-                            (Binary::Sub, Value::Int(a), Value::Int(b)) => {
-                                match a.checked_sub(*b) {
-                                    Some(n) => Value::Int(n),
-                                    None => {
-                                        self.fault("R0103", &ins.span, vec![]);
-                                        break;
-                                    }
-                                }
-                            }
-                            (Binary::Less, Value::Int(a), Value::Int(b)) => {
-                                if !self.charge_work(2, &ins.span) {
-                                    break;
-                                }
-                                Value::Bool(a < b)
-                            }
-                            (Binary::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
-                            (Binary::Equal, a, b) => {
-                                if !self.charge_work(equal_pairs(a, b), &ins.span) {
-                                    break;
-                                }
-                                Value::Bool(a == b)
-                            }
-                            _ => return Err("verified binary domain"),
-                        };
-                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                    Op::Binary { .. } => {
+                        let Some(value) = self.binary_op(ins, &locals, &mut temps)? else {
                             break;
-                        }
-                        Some(v)
+                        };
+                        Some(value)
                     }
-                    Op::WritePlace { local, value } => {
-                        let v = Self::take(&mut temps, *value)?.into_owned()?;
-                        if let Some((root, indexes, path)) =
-                            edit_aliases.get(local.0).and_then(Clone::clone)
-                        {
-                            let old = if path.is_empty() {
-                                if indexes.is_empty() {
-                                    locals
-                                        .get_mut(root.0)
-                                        .ok_or("edit root")?
-                                        .replace(v.deep_copy())
-                                        .ok_or("edit root empty")?
-                                } else {
-                                    let source = locals
-                                        .get_mut(root.0)
-                                        .and_then(Option::as_mut)
-                                        .ok_or("edit root")?;
-                                    std::mem::replace(
-                                        get_mut_path(source, &indexes).ok_or("edit index")?,
-                                        v.deep_copy(),
-                                    )
-                                }
-                            } else {
-                                let source = locals
-                                    .get_mut(root.0)
-                                    .and_then(Option::as_mut)
-                                    .ok_or("edit root")?;
-                                let Some((&tag, prefix)) = path.split_last() else {
-                                    return Err("edit path");
-                                };
-                                let Value::Union {
-                                    tag: actual,
-                                    payload,
-                                    ..
-                                } = get_mut_path(source, &indexes)
-                                    .ok_or("edit index")?
-                                    .at_variant_path_mut(prefix)
-                                    .ok_or("edit prefix")?
-                                else {
-                                    return Err("edit variant");
-                                };
-                                if *actual != tag {
-                                    return Err("edit tag");
-                                }
-                                *payload
-                                    .replace(Box::new(v.deep_copy()))
-                                    .ok_or("edit payload")?
-                            };
-                            if !indexes.is_empty() {
-                                let source = locals
-                                    .get_mut(root.0)
-                                    .and_then(Option::as_mut)
-                                    .ok_or("edit root")?;
-                                adjust_size(source, &indexes, old.cells(), v.cells());
-                            }
-                            *locals.get_mut(local.0).ok_or("edit local")? = Some(v);
-                            self.dispose(old)?;
-                        } else {
-                            let dest = locals.get_mut(local.0).ok_or("write index")?;
-                            if let Some(old) = dest.replace(v) {
-                                self.dispose(old)?;
-                            }
-                        }
+                    Op::WritePlace { .. } => {
+                        self.write_place(ins, &mut locals, &edit_aliases, &mut temps)?;
                         None
                     }
                     Op::WriteIndex {
@@ -1869,644 +2714,38 @@ impl Machine {
                         }
                         None
                     }
-                    Op::CallIntrinsic { intrinsic, args } => {
-                        let argument_ids = args.clone();
-                        let mut values = Vec::with_capacity(args.len());
-                        for id in args {
-                            values.push(Self::take(&mut temps, *id)?);
-                            if !matches!(values.last(), Some(TempValue::Own(value)) if value.owns_resource())
-                            {
-                                self.cells = self.cells.saturating_sub(
-                                    values.last().map_or(0, TempValue::owned_cells),
-                                );
-                            }
-                        }
-                        if !self.charge_work(1, &ins.span) {
-                            self.dispose_intrinsic_resources(&mut values)?;
+                    Op::CallIntrinsic { .. } => {
+                        let Some(value) = self.call_intrinsic(ins, &mut locals, &mut temps)? else {
                             break;
-                        }
-                        let mut pre_reserved_output = false;
-                        let mut precharged_output_work = false;
-                        if *intrinsic == Intrinsic::DropData {
-                            if !self.charge_work(1, &ins.span) {
-                                self.dispose_intrinsic_resources(&mut values)?;
-                                break;
-                            }
-                            precharged_output_work = true;
-                        }
-                        let output = match intrinsic {
-                            Intrinsic::Print => {
-                                let value = values[0].as_value(&locals)?;
-                                if !self.charge_work(value.cells(), &ins.span) {
-                                    break;
-                                }
-                                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
-                                    break;
-                                }
-                                let line = value.text();
-                                if let Err(observed) = self.log.push_stdout(line) {
-                                    self.cells = self.cells.saturating_sub(1);
-                                    self.fault(
-                                        "R0002",
-                                        &ins.span,
-                                        vec![
-                                            (
-                                                "runtime_budget_kind",
-                                                DataValue::String("observation_bytes".into()),
-                                            ),
-                                            ("limit", DataValue::UInt(self.limits.observations)),
-                                            ("observed", DataValue::UInt(observed)),
-                                        ],
-                                    );
-                                    break;
-                                }
-                                Value::Unit
-                            }
-                            Intrinsic::AssertEq => {
-                                let left = values[0].as_value(&locals)?;
-                                let right = values[1].as_value(&locals)?;
-                                if !self.charge_work(equal_pairs(left, right), &ins.span) {
-                                    break;
-                                }
-                                if left != right {
-                                    self.fault("R0201", &ins.span, vec![]);
-                                    break;
-                                }
-                                Value::Unit
-                            }
-                            Intrinsic::DropData | Intrinsic::MockUnknown => Value::Unit,
-                            Intrinsic::Fail => {
-                                self.fault("R0301", &ins.span, vec![]);
-                                break;
-                            }
-                            Intrinsic::Len => {
-                                let Value::Array(xs, _) = values[0].as_value(&locals)? else {
-                                    return Err("len domain");
-                                };
-                                let n =
-                                    i64::try_from(xs.len()).map_err(|_| "array length overflow")?;
-                                Value::Int(n)
-                            }
-                            Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
-                                let Value::Int(label) = values[0].as_value(&locals)? else {
-                                    return Err("open label type");
-                                };
-                                let label = *label;
-                                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
-                                    break;
-                                }
-                                pre_reserved_output = true;
-                                let id = self.next_resource;
-                                let close = format!("close:{id}:{label}");
-                                let close_bytes = ("mock-resource:".len() + close.len() + 1) as u64;
-                                let open = format!("open:{id}:{label}");
-                                let open_bytes = ("mock-resource:".len() + open.len() + 1) as u64;
-                                let acquisition_bytes = close_bytes + open_bytes;
-                                if let Err(observed) = self.log.reserve(acquisition_bytes) {
-                                    self.cells -= 1;
-                                    self.observation_fault(&ins.span, observed);
-                                    break;
-                                }
-                                self.log.release_reservation(open_bytes)?;
-                                if let Err(observed) = self.log.push_event(open, "mock-resource:") {
-                                    self.log.release_reservation(close_bytes)?;
-                                    self.cells -= 1;
-                                    self.observation_fault(&ins.span, observed);
-                                    break;
-                                }
-                                self.next_resource += 1;
-                                Value::Resource {
-                                    id,
-                                    label,
-                                    blocking: *intrinsic == Intrinsic::MockBlockingOpen,
-                                }
-                            }
-                            Intrinsic::Inspect => {
-                                let Value::Resource { id, label, .. } =
-                                    values[0].as_value(&locals)?
-                                else {
-                                    return Err("inspect type");
-                                };
-                                let text = format!("inspect:{id}:{label}");
-                                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
-                                    self.dispose_intrinsic_resources(&mut values)?;
-                                    break;
-                                }
-                                pre_reserved_output = true;
-                                if let Err(observed) = self.log.push_event(text, "mock-resource:") {
-                                    self.cells -= 1;
-                                    self.observation_fault(&ins.span, observed);
-                                    self.dispose_intrinsic_resources(&mut values)?;
-                                    break;
-                                }
-                                Value::Unit
-                            }
-                            Intrinsic::TryAdd => {
-                                let (Value::Int(a), Value::Int(b)) =
-                                    (values[0].as_value(&locals)?, values[1].as_value(&locals)?)
-                                else {
-                                    return Err("try_add argument type");
-                                };
-                                let result = match a.checked_add(*b) {
-                                    Some(sum) => Value::Union {
-                                        kind: UnionKind::Result,
-                                        tag: VariantTag(0),
-                                        payload: Some(Box::new(Value::Int(sum))),
-                                    },
-                                    None => Value::Union {
-                                        kind: UnionKind::Result,
-                                        tag: VariantTag(1),
-                                        payload: Some(Box::new(Value::Int(30))),
-                                    },
-                                };
-                                if !self.charge_work(2, &ins.span)
-                                    || !self.reserve_cells(2, &ins.span)
-                                {
-                                    break;
-                                }
-                                pre_reserved_output = true;
-                                result
-                            }
-                            Intrinsic::MockReadRecords
-                            | Intrinsic::MockWriteI64
-                            | Intrinsic::MockRequest
-                            | Intrinsic::MockReply => {
-                                let Some(result) =
-                                    self.mock_call(*intrinsic, &values, &locals, &ins.span)?
-                                else {
-                                    if *intrinsic == Intrinsic::MockReadRecords {
-                                        self.dispose_intrinsic_resources(&mut values)?;
-                                    }
-                                    break;
-                                };
-                                pre_reserved_output = true;
-                                result
-                            }
                         };
-                        for (id, value) in argument_ids.into_iter().zip(values).rev() {
-                            if matches!(intrinsic, Intrinsic::Inspect | Intrinsic::MockReadRecords)
-                                && matches!(&value, TempValue::Own(owned) if owned.owns_resource())
-                            {
-                                temps.insert(id.0, Some(value));
-                            } else if matches!(&value, TempValue::Own(owned) if owned.owns_resource())
-                            {
-                                self.dispose(value.into_owned()?)?;
-                            }
-                        }
-                        if *intrinsic != Intrinsic::Print
-                            && !pre_reserved_output
-                            && ((!precharged_output_work && !self.charge_work(1, &ins.span))
-                                || !self.cell(&ins.span))
-                        {
-                            break;
-                        }
-                        Some(output)
+                        Some(value)
                     }
-                    Op::CallDirect {
-                        function: callee,
-                        args,
-                        signature,
-                    } => {
-                        let program = program.ok_or("call table unavailable")?;
-                        let target = program
-                            .functions
-                            .function(&callee.0)
-                            .ok_or("unknown callee")?;
-                        let mut passed: Vec<Option<(Value, bool)>> = vec![None; signature.len()];
-                        let mut retained = Vec::new();
-                        let mut targets = vec![None; signature.len()];
-                        for (slot, id) in args {
-                            let temp = Self::take(&mut temps, *id)?;
-                            let item = match signature[*slot].1 {
-                                ParameterMode::Read => {
-                                    let borrowed = temp.as_value(&locals)?.clone();
-                                    if let TempValue::Own(owner) = temp {
-                                        retained.push(owner);
-                                    }
-                                    (borrowed, true)
-                                }
-                                ParameterMode::Consume => (temp.into_owned()?, false),
-                                ParameterMode::Inout => {
-                                    let TempValue::Exclusive(root, path) = temp else {
-                                        return Err("edit argument loan");
-                                    };
-                                    let value = if path.is_empty() {
-                                        locals
-                                            .get_mut(root.0)
-                                            .ok_or("edit root")?
-                                            .take()
-                                            .ok_or("edit unavailable root")?
-                                    } else {
-                                        let root_value = locals
-                                            .get_mut(root.0)
-                                            .ok_or("edit root")?
-                                            .as_mut()
-                                            .ok_or("edit unavailable root")?;
-                                        // Move the selected owner into the callee. The unit is an
-                                        // inaccessible structural placeholder, not a live Nexo cell.
-                                        let selected = get_mut_path(root_value, &path)
-                                            .ok_or("edit index path")?;
-                                        let value = std::mem::replace(selected, Value::Unit);
-                                        adjust_size(root_value, &path, value.cells(), 1);
-                                        value
-                                    };
-                                    targets[*slot] = Some((root, path));
-                                    (value, true)
-                                }
-                            };
-                            passed[*slot] = Some(item);
-                        }
-                        let prepared = passed
-                            .into_iter()
-                            .map(|v| v.ok_or("missing call slot"))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        if self.fault.is_some() {
-                            break;
-                        }
-                        let result = self.run_frame(target, Some(program), prepared, &ins.span)?;
-                        for (slot, returned) in result.inout.into_iter().enumerate() {
-                            if let Some(value) = returned {
-                                let (root, path) =
-                                    targets[slot].take().ok_or("edit return target")?;
-                                if path.is_empty() {
-                                    if locals[root.0].replace(value).is_some() {
-                                        return Err("edit occupied root");
-                                    }
-                                } else {
-                                    let root_value =
-                                        locals[root.0].as_mut().ok_or("edit missing root")?;
-                                    let node = get_mut_path(root_value, &path)
-                                        .ok_or("edit return path")?;
-                                    let previous = std::mem::replace(node, value);
-                                    if previous != Value::Unit {
-                                        return Err("edit placeholder replaced");
-                                    }
-                                    let new_size = node.cells();
-                                    adjust_size(root_value, &path, 1, new_size);
-                                }
-                            }
-                        }
-                        for value in retained.into_iter().rev() {
-                            self.dispose(value)?;
-                        }
-                        if self.fault.is_some() {
-                            break;
-                        }
-                        result.value
-                    }
-                    Op::BuildGenerator {
-                        function: callee,
-                        args,
-                        signature,
-                    } => {
-                        let program = program.ok_or("call table unavailable")?;
-                        let target = program
-                            .functions
-                            .function(&callee.0)
-                            .ok_or("unknown generator")?;
-                        if target.generator_item.is_none()
-                            || signature.len() != target.parameters.len()
-                        {
-                            return Err("generator signature");
-                        }
-                        let mut slots = vec![None; target.locals.len()];
-                        for (slot, id) in args {
-                            let temp = Self::take(&mut temps, *id)?;
-                            let field = match signature[*slot].1 {
-                                ParameterMode::Read => temp.as_value(&locals)?.deep_copy(),
-                                ParameterMode::Consume => temp.into_owned()?,
-                                ParameterMode::Inout => return Err("generator edit parameter"),
-                            };
-                            let local = target
-                                .parameters
-                                .get(*slot)
-                                .ok_or("generator parameter")?
-                                .local;
-                            slots[local.0] = Some(field);
-                        }
-                        Some(Value::Generator(Box::new(GeneratorValue {
-                            site: target.generator_site.ok_or("generator site")?,
-                            slots,
-                            temps: Vec::new(),
-                            borrowed: vec![false; target.locals.len()],
-                            edits: vec![None; target.locals.len()],
-                            state: GeneratorState::Created,
-                        })))
-                    }
-                    Op::ResumeGenerator { receiver, .. } => {
-                        let program = program.ok_or("call table unavailable")?;
-                        let receiver = Self::take(&mut temps, *receiver)?;
-                        let TempValue::Exclusive(root, path) = receiver else {
-                            return Err("generator receiver loan");
-                        };
-                        if !path.is_empty() {
-                            return Err("generator receiver path");
-                        }
-                        let state_value = locals
-                            .get_mut(root.0)
-                            .ok_or("generator root")?
-                            .take()
-                            .ok_or("generator missing")?;
-                        let Value::Generator(generator) = state_value else {
-                            return Err("generator value");
-                        };
-                        let GeneratorValue {
-                            site,
-                            slots,
-                            temps: saved_temps,
-                            borrowed,
-                            edits,
-                            state,
-                        } = *generator;
-                        let output = if state == GeneratorState::Completed {
-                            locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
-                                site,
-                                slots,
-                                temps: saved_temps,
-                                borrowed,
-                                edits,
-                                state,
-                            })));
-                            None
-                        } else {
-                            let target = program
-                                .functions
-                                .functions()
-                                .iter()
-                                .find(|function| function.generator_site == Some(site))
-                                .ok_or("generator body")?;
-                            let block = match state {
-                                GeneratorState::Created => 0,
-                                GeneratorState::Suspended(block) => block,
-                                GeneratorState::Completed => {
-                                    return Err("completed generator resumed");
-                                }
-                            };
-                            let result = self.run_frame_impl(
-                                target,
-                                Some(program),
-                                Vec::new(),
-                                &ins.span,
-                                Some((slots, saved_temps, borrowed, edits, block)),
-                            )?;
-                            if let Some((item, slots, temps, borrowed, edits, next)) =
-                                result.suspension
-                            {
-                                locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
-                                    site,
-                                    slots,
-                                    temps,
-                                    borrowed,
-                                    edits,
-                                    state: GeneratorState::Suspended(next),
-                                })));
-                                Some(item)
-                            } else {
-                                if let Some(value) = result.value {
-                                    self.dispose(value)?;
-                                }
-                                locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
-                                    site,
-                                    slots: vec![None; target.locals.len()],
-                                    temps: Vec::new(),
-                                    borrowed: vec![false; target.locals.len()],
-                                    edits: vec![None; target.locals.len()],
-                                    state: GeneratorState::Completed,
-                                })));
-                                None
-                            }
-                        };
-                        Some(Value::Union {
-                            kind: UnionKind::Option,
-                            tag: VariantTag(u8::from(output.is_some())),
-                            payload: output.map(Box::new),
-                        })
-                    }
-                    Op::CallClosure {
-                        site,
-                        receiver,
-                        mode,
-                        capture_count,
-                        args,
-                        signature,
-                    } => {
-                        enum EditTarget {
-                            Origin(LoanValue),
-                            Field(LocalId, usize),
-                            Consumed,
-                        }
-                        let program = program.ok_or("call table unavailable")?;
-                        let target = program
-                            .functions
-                            .function(&format!("$closure:{site}"))
-                            .ok_or("unknown closure body")?;
-                        if target.parameters.len() != signature.len()
-                            || *capture_count > signature.len()
-                        {
-                            return Err("closure frame signature");
-                        }
-                        let receiver_temp = Self::take(&mut temps, *receiver)?;
-                        let mut retained = Vec::new();
-                        let (captured, receiver_root) = match mode {
-                            ParameterMode::Read => {
-                                let value = receiver_temp.as_value(&locals)?.clone();
-                                if let TempValue::Own(owner) = receiver_temp {
-                                    retained.push(owner);
-                                }
-                                (value, None)
-                            }
-                            ParameterMode::Inout => {
-                                let TempValue::Exclusive(root, path) = receiver_temp else {
-                                    return Err("closure edit receiver loan");
-                                };
-                                if !path.is_empty() {
-                                    return Err("closure edit receiver path");
-                                }
-                                (
-                                    locals[root.0]
-                                        .as_ref()
-                                        .ok_or("closure edit receiver")?
-                                        .clone(),
-                                    Some(root),
-                                )
-                            }
-                            ParameterMode::Consume => (receiver_temp.into_owned()?, None),
-                        };
-                        let Value::Closure {
-                            site: actual,
-                            fields,
-                        } = captured
+                    Op::CallDirect { .. } => {
+                        let Some(value) =
+                            self.call_direct(ins, program, &mut locals, &mut temps)?
                         else {
-                            return Err("closure receiver value");
+                            break;
                         };
-                        if actual != *site || fields.len() != *capture_count {
-                            return Err("closure receiver identity");
-                        }
-                        if *mode == ParameterMode::Consume {
-                            self.cells = self.cells.saturating_sub(1);
-                        }
-                        let mut passed: Vec<Option<(Value, bool)>> = vec![None; signature.len()];
-                        let mut edit_targets: Vec<Option<EditTarget>> =
-                            (0..*capture_count).map(|_| None).collect();
-                        for (index, field) in fields.into_iter().enumerate() {
-                            match signature[index].1 {
-                                ParameterMode::Read => {
-                                    let borrowed = match &field {
-                                        Value::Loan(loan) => loan
-                                            .slot
-                                            .borrow()
-                                            .as_ref()
-                                            .ok_or("expired closure loan")?
-                                            .deep_copy(),
-                                        owned => owned.deep_copy(),
-                                    };
-                                    if *mode == ParameterMode::Consume {
-                                        retained.push(field);
-                                    }
-                                    passed[index] = Some((borrowed, true));
-                                }
-                                ParameterMode::Inout => {
-                                    if *mode == ParameterMode::Read {
-                                        return Err("closure capture receiver mode");
-                                    }
-                                    let value = if let Value::Loan(loan) = &field {
-                                        let value = locals[loan.root.0]
-                                            .take()
-                                            .ok_or("closure edit origin")?;
-                                        edit_targets[index] =
-                                            Some(EditTarget::Origin(loan.clone()));
-                                        if *mode == ParameterMode::Consume {
-                                            retained.push(field);
-                                        }
-                                        value
-                                    } else if let Some(root) = receiver_root {
-                                        let Value::Closure { fields, .. } =
-                                            locals[root.0].as_mut().ok_or("closure edit owner")?
-                                        else {
-                                            return Err("closure edit owner type");
-                                        };
-                                        edit_targets[index] = Some(EditTarget::Field(root, index));
-                                        std::mem::replace(&mut fields[index], Value::Unit)
-                                    } else {
-                                        edit_targets[index] = Some(EditTarget::Consumed);
-                                        field
-                                    };
-                                    passed[index] = Some((value, true));
-                                }
-                                ParameterMode::Consume => {
-                                    if *mode != ParameterMode::Consume {
-                                        return Err("closure capture receiver mode");
-                                    }
-                                    if matches!(field, Value::Loan(_)) {
-                                        return Err("consuming borrowed capture");
-                                    }
-                                    passed[index] = Some((field, false));
-                                }
-                            }
-                        }
-                        let mut arg_targets = vec![None; signature.len()];
-                        for (slot, id) in args {
-                            let slot = capture_count + slot;
-                            let temp = Self::take(&mut temps, *id)?;
-                            let item = match signature[slot].1 {
-                                ParameterMode::Read => {
-                                    let borrowed = temp.as_value(&locals)?.clone();
-                                    if let TempValue::Own(owner) = temp {
-                                        retained.push(owner);
-                                    }
-                                    (borrowed, true)
-                                }
-                                ParameterMode::Consume => (temp.into_owned()?, false),
-                                ParameterMode::Inout => {
-                                    let TempValue::Exclusive(root, path) = temp else {
-                                        return Err("closure edit argument loan");
-                                    };
-                                    let value = if path.is_empty() {
-                                        locals
-                                            .get_mut(root.0)
-                                            .ok_or("closure edit argument root")?
-                                            .take()
-                                            .ok_or("closure edit argument unavailable")?
-                                    } else {
-                                        let root_value = locals
-                                            .get_mut(root.0)
-                                            .ok_or("closure edit argument root")?
-                                            .as_mut()
-                                            .ok_or("closure edit argument unavailable")?;
-                                        let selected = get_mut_path(root_value, &path)
-                                            .ok_or("closure edit argument path")?;
-                                        let value = std::mem::replace(selected, Value::Unit);
-                                        adjust_size(root_value, &path, value.cells(), 1);
-                                        value
-                                    };
-                                    arg_targets[slot] = Some((root, path));
-                                    (value, true)
-                                }
-                            };
-                            passed[slot] = Some(item);
-                        }
-                        let prepared = passed
-                            .into_iter()
-                            .map(|item| item.ok_or("missing closure call slot"))
-                            .collect::<Result<Vec<_>, _>>()?;
-                        let mut result =
-                            self.run_frame(target, Some(program), prepared, &ins.span)?;
-                        for (index, target) in edit_targets.into_iter().enumerate() {
-                            if let Some(target) = target {
-                                let value =
-                                    result.inout[index].take().ok_or("closure edit return")?;
-                                match target {
-                                    EditTarget::Origin(loan) => {
-                                        *loan.slot.borrow_mut() = Some(value.deep_copy());
-                                        if locals[loan.root.0].replace(value).is_some() {
-                                            return Err("closure edit occupied origin");
-                                        }
-                                    }
-                                    EditTarget::Field(root, field) => {
-                                        let Value::Closure { fields, .. } =
-                                            locals[root.0].as_mut().ok_or("closure edit owner")?
-                                        else {
-                                            return Err("closure edit owner type");
-                                        };
-                                        if fields[field] != Value::Unit {
-                                            return Err("closure edit occupied field");
-                                        }
-                                        fields[field] = value;
-                                    }
-                                    EditTarget::Consumed => self.dispose(value)?,
-                                }
-                            }
-                        }
-                        for (slot, target) in
-                            arg_targets.into_iter().enumerate().skip(*capture_count)
-                        {
-                            if let Some((root, path)) = target {
-                                let value = result.inout[slot]
-                                    .take()
-                                    .ok_or("closure edit argument return")?;
-                                if path.is_empty() {
-                                    if locals[root.0].replace(value).is_some() {
-                                        return Err("closure edit occupied argument");
-                                    }
-                                } else {
-                                    let root_value = locals[root.0]
-                                        .as_mut()
-                                        .ok_or("closure edit argument root")?;
-                                    let node = get_mut_path(root_value, &path)
-                                        .ok_or("closure edit argument path")?;
-                                    let previous = std::mem::replace(node, value);
-                                    if previous != Value::Unit {
-                                        return Err("closure edit argument placeholder");
-                                    }
-                                    let size = node.cells();
-                                    adjust_size(root_value, &path, 1, size);
-                                }
-                            }
-                        }
-                        for value in retained.into_iter().rev() {
-                            self.dispose(value)?;
-                        }
-                        result.value
+                        value
+                    }
+                    Op::BuildGenerator { .. } => {
+                        let Some(value) =
+                            self.build_generator(ins, program, &mut locals, &mut temps)?
+                        else {
+                            break;
+                        };
+                        Some(value)
+                    }
+                    Op::ResumeGenerator { .. } => {
+                        let Some(value) =
+                            self.resume_generator(ins, program, &mut locals, &mut temps)?
+                        else {
+                            break;
+                        };
+                        Some(value)
+                    }
+                    Op::CallClosure { .. } => {
+                        self.call_closure(ins, program, &mut locals, &mut temps)?
                     }
                     Op::DropValue(id) => {
                         let v = Self::take(&mut temps, *id)?;

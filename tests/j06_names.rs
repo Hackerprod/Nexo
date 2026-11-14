@@ -1,3 +1,4 @@
+mod common;
 use std::fs;
 use std::process::Command;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -97,7 +98,7 @@ fn resource_capture_cannot_copy() {
 #[test]
 fn copied_scalar_capture_constructs_and_cleans_without_calling_body() {
     let source = "fn Main(){let x=1;let f=fn [copy x](){};}";
-    let program = nexo::ir::compile_for_internal_harness("j06-positive.n", source, true).unwrap();
+    let program = common::compile_j("j06-positive.n", source, true).unwrap();
     let execution = nexo::interp::run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
@@ -107,7 +108,7 @@ fn copied_scalar_capture_constructs_and_cleans_without_calling_body() {
 #[test]
 fn moved_resource_capture_closes_once_without_calling_body() {
     let source = "fn Main(){let r=MockOpen(1);let f=fn [move r](){};}";
-    let program = nexo::ir::compile_for_internal_harness("j06-resource.n", source, true).unwrap();
+    let program = common::compile_j("j06-resource.n", source, true).unwrap();
     let execution = nexo::interp::run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
@@ -123,10 +124,9 @@ fn moved_resource_capture_closes_once_without_calling_body() {
 }
 
 #[test]
-fn objective_14_executes_through_library_harness() {
+fn objective_14_executes_through_public_library_api() {
     let source = include_str!("../corpus/objetivo/14_closure_capture.n");
-    let execution =
-        nexo::ir::run_for_internal_harness("objective-14.n", source, Default::default()).unwrap();
+    let execution = common::run_j("objective-14.n", source, Default::default()).unwrap();
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
     assert!(execution.observations.observations().is_empty());
@@ -135,7 +135,7 @@ fn objective_14_executes_through_library_harness() {
 #[test]
 fn local_call_constrains_unannotated_closure_parameter() {
     let source = "fn Main(){let f=fn [](x:view){return x;};AssertEq(f(3),3);}";
-    let program = nexo::ir::compile_for_internal_harness("j06-infer.n", source, true).unwrap();
+    let program = common::compile_j("j06-infer.n", source, true).unwrap();
     let execution = nexo::interp::run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
@@ -146,7 +146,7 @@ fn local_call_constrains_unannotated_closure_parameter() {
 fn copied_array_capture_keeps_independent_value() {
     let source =
         "fn Main(){var a=[1];let f=fn [copy a]()->I64{return a[0];};a[0]=2;AssertEq(f(),1);}";
-    let program = nexo::ir::compile_for_internal_harness("j06-array.n", source, true).unwrap();
+    let program = common::compile_j("j06-array.n", source, true).unwrap();
     let execution = nexo::interp::run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
@@ -155,7 +155,7 @@ fn copied_array_capture_keeps_independent_value() {
 #[test]
 fn copied_mutable_capture_changes_only_its_environment_field() {
     let source = "fn Main(){var x=1;var f=fn [copy x](){x=2;};edit f();AssertEq(x,1);}";
-    let program = nexo::ir::compile_for_internal_harness("copy-mutable.n", source, true).unwrap();
+    let program = common::compile_j("copy-mutable.n", source, true).unwrap();
     let execution = nexo::interp::run_scalar(&program, Default::default());
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(

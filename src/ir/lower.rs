@@ -247,7 +247,7 @@ pub(crate) fn compile_scalar_with_flow_limit(
     };
     // This test hook intentionally uses a quota that has no published profile.
     // Production entries always pass through diagnostic schema validation.
-    compile_scalar_with_analysis_limits_unchecked(file, source, false, limits, false)
+    compile_scalar_with_analysis_limits_unchecked(file, source, false, limits)
 }
 
 pub fn compile_scalar_with_profile(
@@ -257,7 +257,7 @@ pub fn compile_scalar_with_profile(
     run_entry: bool,
 ) -> Result<Program, CompileError> {
     let limits = analysis_limits(profile);
-    let mut result = compile_scalar_with_analysis_limits(file, source, run_entry, limits, false);
+    let mut result = compile_scalar_with_analysis_limits(file, source, run_entry, limits);
     if let Err(CompileError::Rejected(errors)) = &mut result {
         for error in errors {
             error.profile_id = limits.profile_id.into();
@@ -279,7 +279,6 @@ pub(crate) fn compile_scalar_with_sparse_ownership(
             force_sparse_ownership: true,
             ..AnalysisLimits::NORMAL
         },
-        false,
     )
 }
 
@@ -288,44 +287,7 @@ fn compile_scalar_with_entry(
     source: &str,
     run_entry: bool,
 ) -> Result<Program, CompileError> {
-    compile_scalar_with_analysis_limits(file, source, run_entry, AnalysisLimits::NORMAL, false)
-}
-
-/// Library entry for the J02–J13 execution harness. It bypasses only the
-/// public emission gate; analysis, lowering, verification and execution use
-/// the same paths as the CLI.
-pub fn compile_for_internal_harness(
-    file: &str,
-    source: &str,
-    run_entry: bool,
-) -> Result<Program, CompileError> {
-    let mut result = compile_scalar_with_analysis_limits(
-        file,
-        source,
-        run_entry,
-        AnalysisLimits {
-            profile_id: "f0-0003-b-v1",
-            ..AnalysisLimits::NORMAL
-        },
-        true,
-    );
-    if let Err(CompileError::Rejected(errors)) = &mut result {
-        for error in errors {
-            error.profile_id = "f0-0003-b-v1".into();
-        }
-    }
-    result
-}
-
-/// Compile, verify and execute through the internal J02–J13 harness entry.
-/// The public emission gate is the only step bypassed.
-pub fn run_for_internal_harness(
-    file: &str,
-    source: &str,
-    environment: crate::interp::MockEnvironment,
-) -> Result<crate::interp::Execution, CompileError> {
-    let program = compile_for_internal_harness(file, source, true)?;
-    Ok(crate::interp::run_scalar(&program, environment))
+    compile_scalar_with_analysis_limits(file, source, run_entry, AnalysisLimits::NORMAL)
 }
 
 fn compile_scalar_with_analysis_limits(
@@ -333,15 +295,8 @@ fn compile_scalar_with_analysis_limits(
     source: &str,
     run_entry: bool,
     limits: AnalysisLimits,
-    bypass_emission_gate: bool,
 ) -> Result<Program, CompileError> {
-    let mut result = compile_scalar_with_analysis_limits_unchecked(
-        file,
-        source,
-        run_entry,
-        limits,
-        bypass_emission_gate,
-    );
+    let mut result = compile_scalar_with_analysis_limits_unchecked(file, source, run_entry, limits);
     if let Err(CompileError::Rejected(errors)) = &mut result {
         for error in errors {
             error.profile_id = limits.profile_id.into();
@@ -359,7 +314,6 @@ fn compile_scalar_with_analysis_limits_unchecked(
     source: &str,
     run_entry: bool,
     limits: AnalysisLimits,
-    bypass_emission_gate: bool,
 ) -> Result<Program, CompileError> {
     let ast = if limits.profile_id.starts_with("f0-0003-") {
         parse::parse_new_profile(file, source)
@@ -442,38 +396,6 @@ fn compile_scalar_with_analysis_limits_unchecked(
         crate::check::names::entry(file, source, resolved, &ast)
             .map_err(|error| CompileError::Rejected(vec![error]))?;
     }
-    // J14 owns public emission of the new IR. Analysis and verification run
-    // first so their source diagnostics remain visible through the CLI.
-    let first_new_site = inferred
-        .closures
-        .keys()
-        .map(|site| (*site, 2))
-        .chain(
-            ast.functions
-                .iter()
-                .filter(|function| function.is_generator)
-                .map(|function| (function.span.start, 3)),
-        )
-        .min_by_key(|(site, _)| *site);
-    if !bypass_emission_gate && let Some((site, width)) = first_new_site {
-        let mut error = crate::check::names::diagnostic(
-            "NX-E0006",
-            None,
-            diagnostic::Stage::Lower,
-            diagnostic::Operation::IrLower,
-            Span {
-                file: file.into(),
-                start: site,
-                end: site + width,
-            },
-        );
-        error.feature_id = Some("implementation_limit".into());
-        error.data.insert(
-            "pending_scope".into(),
-            diagnostic::DataValue::String("J14".into()),
-        );
-        return Err(CompileError::Rejected(vec![error]));
-    }
     Ok(program)
 }
 
@@ -494,7 +416,6 @@ pub(super) fn compile_scalar_with_unbounded_ir_for_scale(
             ir_items: u64::MAX,
             ..AnalysisLimits::NORMAL
         },
-        false,
     )
 }
 
@@ -2181,6 +2102,10 @@ impl Lower<'_> {
             .temp()
             .ok_or(CompileError::InvalidIr("for loan"))?;
         let option_ty = Ty::option(Box::new(item.clone()));
+        self.pending_charges.push(WorkCharge {
+            ticks: 1,
+            origin: for_token.clone(),
+        });
         let next = self
             .emitted(
                 Op::ResumeGenerator {
@@ -4172,6 +4097,12 @@ impl Lower<'_> {
                 guarded,
                 span,
             } if token == "yield" && !guarded => {
+                if self.emission == EmissionMode::Live {
+                    self.pending_charges.push(WorkCharge {
+                        ticks: 1,
+                        origin: token_span.clone(),
+                    });
+                }
                 let flow = if let Some(value) = value {
                     self.expr(value, depth, None)?
                 } else {
@@ -4299,6 +4230,12 @@ impl Lower<'_> {
                 guarded: false,
                 ..
             } if matches!(token.as_str(), "break" | "continue") => {
+                if self.emission == EmissionMode::Live {
+                    self.pending_charges.push(WorkCharge {
+                        ticks: 1,
+                        origin: token_span.clone(),
+                    });
+                }
                 self.loop_control(token, token_span)?;
             }
             Statement::GuardControl { token_span, .. } => {
@@ -4481,6 +4418,17 @@ impl Lower<'_> {
                         },
                         false,
                     );
+                    if matches!(
+                        capture.mode,
+                        parse::CaptureMode::View | parse::CaptureMode::Edit
+                    ) && self.emission == EmissionMode::Live
+                        && let Some(last) = self.instructions.last_mut()
+                    {
+                        last.charges.push(WorkCharge {
+                            ticks: 1,
+                            origin: capture.capture_span.clone(),
+                        });
+                    }
                     let Some(temp) = flow.temp() else {
                         return Ok(Flow::Diverged { ty: Some(inferred) });
                     };

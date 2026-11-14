@@ -656,6 +656,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     (selected, literal),
                     (Ty::I64, super::model::MatchLiteral::I64(_))
                         | (Ty::Bool, super::model::MatchLiteral::Bool(_))
+                        | (_, super::model::MatchLiteral::Any)
                 ) {
                     return Err("match literal type");
                 }
@@ -2446,6 +2447,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         (selected, literal),
                         (Ty::I64, super::model::MatchLiteral::I64(_))
                             | (Ty::Bool, super::model::MatchLiteral::Bool(_))
+                            | (_, super::model::MatchLiteral::Any)
                     ) {
                         return Err("match literal type");
                     }

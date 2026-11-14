@@ -1,5 +1,6 @@
+mod common;
 use nexo::interp::{Outcome, run_scalar};
-use nexo::ir::{CompileError, compile_for_internal_harness};
+use nexo::ir::CompileError;
 
 fn next(seed: &mut u64) -> u64 {
     *seed ^= *seed << 13;
@@ -42,8 +43,8 @@ fn sweep(cases: usize) {
 }
 
 fn probe(case: usize, source: &str) {
-    let checked = compile_for_internal_harness("<closure-fuzz>", source, false);
-    let runnable = compile_for_internal_harness("<closure-fuzz>", source, true);
+    let checked = common::compile_j("<closure-fuzz>", source, false);
+    let runnable = common::compile_j("<closure-fuzz>", source, true);
     match (checked, runnable) {
         (Ok(_), Ok(program)) => {
             let execution = run_scalar(&program, Default::default());
@@ -161,9 +162,7 @@ fn generated_closures_never_panic_or_emit_invalid_diagnostics() {
 #[test]
 fn distinct_closure_sites_use_canonical_types_in_diagnostic() {
     let source = "fn Main(){var x=1;var f=if true then {value:fn [view x](){AssertEq(x,1);};}else{value:fn [](){};};edit f();}";
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("distinct.n", source, true)
-    else {
+    let Err(CompileError::Rejected(errors)) = common::compile_j("distinct.n", source, true) else {
         panic!("closures from distinct sites have distinct nominal types");
     };
     assert_eq!(errors.len(), 1);

@@ -1,8 +1,9 @@
+mod common;
 use nexo::interp::{MockEnvironment, Outcome};
 use nexo::ir::CompileError;
 
 fn diagnostic(source: &str) -> nexo::diagnostic::Diagnostic {
-    match nexo::ir::compile_for_internal_harness("<memory>", source, true).unwrap_err() {
+    match common::compile_j("<memory>", source, true).unwrap_err() {
         CompileError::Rejected(mut diagnostics) => {
             assert_eq!(diagnostics.len(), 1, "{source}");
             *diagnostics.remove(0)
@@ -33,9 +34,7 @@ fn generator_contracts_require_resume_and_reject_call() {
         assert_eq!(error.subcause.as_deref(), Some(subcause));
         let primary = error.primary_span.unwrap();
         assert_eq!((primary.start, primary.end), span);
-        let result =
-            nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
-                .unwrap();
+        let result = common::run_j("<memory>", positive, MockEnvironment::default()).unwrap();
         assert_eq!(result.outcome, Outcome::Unit);
     }
 }
@@ -64,9 +63,7 @@ fn yield_and_next_contribute_suspend_to_written_contracts() {
         assert_eq!(error.code, "NX-E0414", "{negative}");
         let primary = error.primary_span.unwrap();
         assert_eq!((primary.start, primary.end), span, "{negative}");
-        let result =
-            nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
-                .unwrap();
+        let result = common::run_j("<memory>", positive, MockEnvironment::default()).unwrap();
         assert_eq!(result.outcome, Outcome::Unit);
     }
 }
@@ -94,9 +91,7 @@ fn retained_edit_capture_must_end_before_yield() {
     );
     let positive =
         "gen fn G()->I64{var x=0;var f=fn [edit x](){x=1;};edit f();Drop(f);yield 1;}fn Main(){}";
-    let result =
-        nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
-            .unwrap();
+    let result = common::run_j("<memory>", positive, MockEnvironment::default()).unwrap();
     assert_eq!(result.outcome, Outcome::Unit);
 }
 
@@ -121,14 +116,14 @@ fn suspend_safety_follows_wrapped_closure_permissions() {
     let positive =
         "gen fn G()->I64{var x=0;let o=Some(fn [edit x](){x=1;});Drop(o);yield 1;}fn Main(){}";
     assert_eq!(
-        nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
+        common::run_j("<memory>", positive, MockEnvironment::default())
             .unwrap()
             .outcome,
         Outcome::Unit
     );
     let read = "gen fn G()->I64{let x=1;let f=fn [view x]()->I64{return x;};yield 1;AssertEq(f(),1);}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),Some(1));}";
     assert_eq!(
-        nexo::ir::run_for_internal_harness("<memory>", read, MockEnvironment::default())
+        common::run_j("<memory>", read, MockEnvironment::default())
             .unwrap()
             .outcome,
         Outcome::Unit
@@ -147,7 +142,7 @@ fn generator_drop_contract_includes_retained_blocking_resource() {
     );
     let positive = "gen fn G(r:move MockResource)->I64 with {resume(unrestricted),drop(no_block)}{}fn Main(){}";
     assert_eq!(
-        nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
+        common::run_j("<memory>", positive, MockEnvironment::default())
             .unwrap()
             .outcome,
         Outcome::Unit
@@ -161,7 +156,7 @@ fn implicit_generator_cleanup_propagates_blocking_drop_to_owner() {
     assert_eq!(error.code, "NX-E0413");
     let positive = "gen fn G(r:move MockResource){}fn F(r:move MockResource) with no_block{let g=G(move r);}fn Main(){}";
     assert_eq!(
-        nexo::ir::run_for_internal_harness("<memory>", positive, MockEnvironment::default())
+        common::run_j("<memory>", positive, MockEnvironment::default())
             .unwrap()
             .outcome,
         Outcome::Unit
@@ -171,7 +166,7 @@ fn implicit_generator_cleanup_propagates_blocking_drop_to_owner() {
 #[test]
 fn generator_drop_effect_transits_through_an_owning_closure() {
     let negative = "gen fn G(r:move MockBlockingResource)->I64{yield 1;}fn Main() with no_block{let g=G(MockBlockingOpen(1));let f=fn [move g](){};Drop(f);}";
-    let result = nexo::ir::compile_for_internal_harness("<memory>", negative, true);
+    let result = common::compile_j("<memory>", negative, true);
     let nexo::ir::CompileError::Rejected(errors) = result.unwrap_err() else {
         panic!("wrong error");
     };
@@ -181,7 +176,7 @@ fn generator_drop_effect_transits_through_an_owning_closure() {
     );
     let positive = negative.replace(" with no_block", "");
     assert_eq!(
-        nexo::ir::run_for_internal_harness("<memory>", &positive, MockEnvironment::default())
+        common::run_j("<memory>", &positive, MockEnvironment::default())
             .unwrap()
             .outcome,
         Outcome::Unit

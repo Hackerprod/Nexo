@@ -1,9 +1,10 @@
+mod common;
 use nexo::diagnostic::{CauseOperation, DataValue, RelatedRole};
 use nexo::ir::CompileError;
 
 fn rejected(source: &str) -> nexo::diagnostic::Diagnostic {
     let CompileError::Rejected(mut errors) =
-        nexo::ir::compile_for_internal_harness("<memory>", source, true).unwrap_err()
+        common::compile_j("<memory>", source, true).unwrap_err()
     else {
         panic!("compiler failed without a source diagnostic: {source}")
     };
@@ -23,7 +24,7 @@ fn for_edit_keeps_permanent_feature_exclusion() {
     let span = error.primary_span.unwrap();
     assert_eq!((span.start, span.end), (39, 43));
     assert!(
-        nexo::ir::compile_for_internal_harness(
+        common::compile_j(
             "<memory>",
             "gen fn G()->I64{yield 1;}fn Main(){for x in G(){}}",
             true
@@ -39,10 +40,7 @@ fn inferred_generator_result_reports_return_value() {
     assert!(error.related_spans.is_empty());
     let span = error.primary_span.unwrap();
     assert_eq!((span.start, span.end), (11, 17));
-    assert!(
-        nexo::ir::compile_for_internal_harness("<memory>", "gen fn G(){return;}fn Main(){}", true)
-            .is_ok()
-    );
+    assert!(common::compile_j("<memory>", "gen fn G(){return;}fn Main(){}", true).is_ok());
 }
 
 #[test]
@@ -59,7 +57,7 @@ fn for_iterable_domain_reports_concrete_option() {
         Some(&DataValue::String("Option<I64>".into()))
     );
     assert!(
-        nexo::ir::compile_for_internal_harness(
+        common::compile_j(
             "<memory>",
             "gen fn G()->I64{yield 1;}fn Main(){for x in G(){}}",
             true
@@ -89,14 +87,7 @@ fn generator_result_relation_covers_arrow_and_type() {
             .any(|related| related.role == RelatedRole::ExpectedType
                 && (related.span.start, related.span.end) == (10, 15))
     );
-    assert!(
-        nexo::ir::compile_for_internal_harness(
-            "<memory>",
-            "gen fn G()->I64{return;}fn Main(){}",
-            true
-        )
-        .is_ok()
-    );
+    assert!(common::compile_j("<memory>", "gen fn G()->I64{return;}fn Main(){}", true).is_ok());
 }
 
 #[test]
@@ -117,7 +108,7 @@ fn yield_safety_names_the_carrier_binding() {
         .find(|cause| cause.operation == CauseOperation::SuspendSafe)
         .unwrap();
     assert_eq!(cause.entity.as_ref().unwrap().id, "binding:28");
-    assert!(nexo::ir::compile_for_internal_harness("<memory>", "gen fn G()->I64{var x=0;var f=fn [edit x](){x=1;};edit f();Drop(f);yield 1;}fn Main(){}", true).is_ok());
+    assert!(common::compile_j("<memory>", "gen fn G()->I64{var x=0;var f=fn [edit x](){x=1;};edit f();Drop(f);yield 1;}fn Main(){}", true).is_ok());
 }
 
 #[test]
@@ -135,7 +126,7 @@ fn consuming_closure_call_has_schema_valid_effect_cause() {
             .is_ok()
     );
     assert!(
-        nexo::ir::compile_for_internal_harness(
+        common::compile_j(
             "<memory>",
             "fn F(p0:move MockResource){let f=fn [move p0](){};move f();}fn Main(){}",
             true

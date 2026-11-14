@@ -1,3 +1,4 @@
+mod common;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::{fs, process::Command};
 
@@ -82,26 +83,14 @@ fn j01_effect_diagnostic_names_the_new_model_without_changing_a2() {
 }
 
 #[test]
-fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
-    for (source, scope, stage, feature) in [
-        ("fn Main(){let f=fn [](){};}", "J14", "lower", "closure"),
-        ("gen fn G(){}fn Main(){}", "J14", "lower", "generator"),
+fn completed_capabilities_are_public_without_changing_a2_rejection() {
+    for (source, feature) in [
+        ("fn Main(){let f=fn [](){};}", "closure"),
+        ("gen fn G(){}fn Main(){}", "generator"),
     ] {
         let (status, output) = check(source, "f0-0003-b-v1");
-        assert_eq!(status, 1, "{output}");
-        assert!(output.contains("\"code\":\"NX-E0006\""), "{output}");
-        assert!(
-            output.contains("\"feature_id\":\"implementation_limit\""),
-            "{output}"
-        );
-        assert!(
-            output.contains(&format!("\"pending_scope\":\"{scope}\"")),
-            "{output}"
-        );
-        assert!(
-            output.contains(&format!("\"stage\":\"{stage}\"")),
-            "{output}"
-        );
+        assert_eq!(status, 0, "{output}");
+        assert!(output.contains("\"diagnostics\":[]"), "{output}");
         let (old_status, old_output) = check(source, "f0-0002-b-v2");
         assert_eq!(old_status, 1, "{old_output}");
         assert!(
@@ -127,7 +116,7 @@ fn array_iteration_keeps_its_permanent_feature_boundary() {
 }
 
 #[test]
-fn generator_and_iteration_analysis_diagnostics_precede_the_emission_gate() {
+fn generator_and_iteration_analysis_diagnostics_are_public() {
     for (source, code, stage) in [
         (
             "gen fn G(r:view MockResource)->I64{yield 1;}fn Main(){}",
@@ -154,13 +143,13 @@ fn generator_and_iteration_analysis_diagnostics_precede_the_emission_gate() {
 }
 
 #[test]
-fn objective_14_reaches_the_public_j14_emission_gate() {
+fn objective_14_executes_through_the_public_profile() {
     let path = concat!(
         env!("CARGO_MANIFEST_DIR"),
         "/corpus/objetivo/14_closure_capture.n"
     );
     let source = fs::read_to_string(path).unwrap();
-    let execution = nexo::ir::run_for_internal_harness(path, &source, Default::default()).unwrap();
+    let execution = common::run_j(path, &source, Default::default()).unwrap();
     assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
     assert!(execution.diagnostics.is_empty());
     assert!(execution.observations.observations().is_empty());
@@ -176,23 +165,15 @@ fn objective_14_reaches_the_public_j14_emission_gate() {
             ])
             .output()
             .unwrap();
-        assert_eq!(output.status.code(), Some(1));
+        assert_eq!(output.status.code(), Some(0));
         let text = String::from_utf8(output.stdout).unwrap();
-        assert!(text.contains("\"code\":\"NX-E0006\""), "{text}");
-        assert!(
-            text.contains("\"feature_id\":\"implementation_limit\""),
-            "{text}"
-        );
-        assert!(text.contains("\"pending_scope\":\"J14\""), "{text}");
-        assert!(text.contains("\"stage\":\"lower\""), "{text}");
-        assert!(text.contains("\"operation\":\"ir.lower\""), "{text}");
-        assert!(text.contains("\"start\":106,\"end\":108"), "{text}");
+        assert!(text.contains("\"diagnostics\":[]"), "{text}");
         assert!(text.contains("\"observations\":[]"), "{text}");
     }
 }
 
 #[test]
-fn closure_analysis_rejections_remain_public_before_j14() {
+fn closure_analysis_rejections_are_public() {
     for (source, code) in [
         (
             "fn Main(){let x=1;let f=fn []()->I64{return x;};}",

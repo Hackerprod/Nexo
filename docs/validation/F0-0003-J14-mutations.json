@@ -1,0 +1,54 @@
+{
+  "mutations": [
+    {
+      "name": "generator_header_work",
+      "site": "src/interp/machine.rs",
+      "fixture": "published_new_operation_work_totals",
+      "expected": "fixture fails",
+      "status": "killed",
+      "production_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409",
+      "mutant_sha256": "704e45725b6c647f4f657e40099b764cb34bc0b12ee84b647a7a9589e0aacea3",
+      "restored_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409"
+    },
+    {
+      "name": "next_advance_work",
+      "site": "src/interp/machine.rs",
+      "fixture": "published_new_operation_work_totals",
+      "expected": "fixture fails",
+      "status": "killed",
+      "production_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409",
+      "mutant_sha256": "7cf5ae8d4b39fc920da369d46f5cb4dac5807d279d4417ffdcd1eb18faeaf7eb",
+      "restored_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409"
+    },
+    {
+      "name": "next_tag_reservation",
+      "site": "src/interp/machine.rs",
+      "fixture": "next_output_tag_coexists_with_suspended_generator_headers",
+      "expected": "fixture fails",
+      "status": "killed",
+      "production_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409",
+      "mutant_sha256": "8b1a68ceab1ac86fff39b09cc839ab8972155b59cb709c37a79bc2ea032a36c4",
+      "restored_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409"
+    },
+    {
+      "name": "cold_empty_slot_cells",
+      "site": "src/interp/machine.rs",
+      "fixture": "cold_empty_slots_do_not_release_phantom_cells_on_drop",
+      "expected": "fixture fails",
+      "status": "killed",
+      "production_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409",
+      "mutant_sha256": "0d98c317dac0445aa5ea11fdc92c6897e04ccbe415e4eee44e43c8b75fe9ffaa",
+      "restored_sha256": "3bbaba7df6b15694b808fbea3b56d8c8b96e7db4945871e757f42b2e056c7409"
+    },
+    {
+      "name": "public_emission",
+      "site": "src/ir/lower.rs",
+      "fixture": "published_new_operation_work_totals",
+      "expected": "fixture fails",
+      "status": "killed",
+      "production_sha256": "d335b7ba284d382b60c7d7f00d8383682cef0607fe7dd703d7bf8782855da018",
+      "mutant_sha256": "bbc1435dbff157ba91a4aea2f608e11814ee4c97b0cbec259bcb78947548bd48",
+      "restored_sha256": "d335b7ba284d382b60c7d7f00d8383682cef0607fe7dd703d7bf8782855da018"
+    }
+  ]
+}

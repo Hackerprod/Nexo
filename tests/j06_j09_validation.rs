@@ -1,16 +1,17 @@
+mod common;
 use nexo::diagnostic::{Diagnostic, Operation, Stage};
-use nexo::ir::{CompileError, compile_for_internal_harness};
+use nexo::ir::CompileError;
 use std::process::Command;
 
 fn accepted(source: &str) {
-    let program = compile_for_internal_harness("validation.n", source, true).unwrap();
+    let program = common::compile_j("validation.n", source, true).unwrap();
     let result = nexo::interp::run_scalar(&program, Default::default());
     assert_eq!(result.outcome, nexo::interp::Outcome::Unit);
     assert!(result.diagnostics.is_empty(), "{:?}", result.diagnostics);
 }
 
 fn rejected(source: &str, code: &str, subcause: Option<&str>) -> Box<Diagnostic> {
-    let result = compile_for_internal_harness("validation.n", source, true);
+    let result = common::compile_j("validation.n", source, true);
     let Err(CompileError::Rejected(errors)) = result else {
         panic!("expected source diagnostic for {source}: {result:?}");
     };
@@ -22,8 +23,7 @@ fn rejected(source: &str, code: &str, subcause: Option<&str>) -> Box<Diagnostic>
 }
 
 fn rejected_each(source: &str, code: &str, subcause: Option<&str>) {
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("validation.n", source, true)
+    let Err(CompileError::Rejected(errors)) = common::compile_j("validation.n", source, true)
     else {
         panic!("expected source diagnostic for {source}");
     };
@@ -36,8 +36,7 @@ fn rejected_each(source: &str, code: &str, subcause: Option<&str>) {
 }
 
 fn rejected_contains(source: &str, code: &str, subcause: Option<&str>) {
-    let Err(CompileError::Rejected(errors)) =
-        compile_for_internal_harness("validation.n", source, true)
+    let Err(CompileError::Rejected(errors)) = common::compile_j("validation.n", source, true)
     else {
         panic!("expected source diagnostic for {source}");
     };
@@ -151,13 +150,18 @@ fn compound_data_domain_excludes_nested_closures() {
 }
 
 #[test]
-fn cli_serializes_closure_rejections_without_null() {
-    for (source, code) in [
+fn cli_serializes_closure_diagnostics_and_public_acceptance_without_null() {
+    for (source, status, code) in [
         (
             "fn Main(){var x=1;let f=fn [edit x](){};let g=fn [view x](){};}",
+            1,
             "NX-E1105",
         ),
-        ("fn Main(){let f=fn [](x:view I64){return x;};}", "NX-E0006"),
+        (
+            "fn Main(){let f=fn [](x:view I64){return x;};}",
+            0,
+            "\"diagnostics\":[]",
+        ),
     ] {
         let file = std::env::temp_dir().join(format!(
             "nexo-closure-diagnostic-{}-{}.n",
@@ -178,7 +182,7 @@ fn cli_serializes_closure_rejections_without_null() {
                 .output()
                 .unwrap();
             let json = String::from_utf8(output.stdout).unwrap();
-            assert_eq!(output.status.code(), Some(1), "{source}: {json}");
+            assert_eq!(output.status.code(), Some(status), "{source}: {json}");
             assert!(json.contains(code), "{source}: {json}");
             assert!(!json.contains("\"diagnostics\":[null]"), "{source}: {json}");
             assert!(!json.contains("internal_error"), "{source}: {json}");

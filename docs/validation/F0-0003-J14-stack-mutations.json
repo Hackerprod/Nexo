@@ -1,0 +1,38 @@
+[
+  {
+    "name": "generator_header_charge",
+    "status": "killed",
+    "original_sha256": "3ce5c3d904c199587ebbed82a0a2b031c0f4341bfefaeb25c2c0923598bfe78a",
+    "restored_sha256": "3ce5c3d904c199587ebbed82a0a2b031c0f4341bfefaeb25c2c0923598bfe78a",
+    "site": "src/interp/machine.rs",
+    "function": "build_generator",
+    "before": "|| !self.charge_work(1, &ins.span)",
+    "after": "|| !self.charge_work(0, &ins.span)",
+    "fixture": "tests/j14_accounting.rs::published_new_operation_work_totals",
+    "mutant_sha256": "edde6ab5baad6d5045832918a9fb5977e28be0a2bed72ad8735841ec78a26a4f"
+  },
+  {
+    "name": "advance_entry_charge",
+    "status": "killed",
+    "original_sha256": "3ce5c3d904c199587ebbed82a0a2b031c0f4341bfefaeb25c2c0923598bfe78a",
+    "restored_sha256": "3ce5c3d904c199587ebbed82a0a2b031c0f4341bfefaeb25c2c0923598bfe78a",
+    "site": "src/interp/machine.rs",
+    "function": "resume_generator",
+    "before": "if !self.charge_work(1, &ins.span)",
+    "after": "if !self.charge_work(0, &ins.span)",
+    "fixture": "tests/j14_accounting.rs::published_new_operation_work_totals",
+    "mutant_sha256": "96eed205b7bd3804cf765700a87417145ee9e903a3a661458f6524050ab06f29"
+  },
+  {
+    "name": "closure_header_charge",
+    "status": "killed",
+    "original_sha256": "3ce5c3d904c199587ebbed82a0a2b031c0f4341bfefaeb25c2c0923598bfe78a",
+    "restored_sha256": "3ce5c3d904c199587ebbed82a0a2b031c0f4341bfefaeb25c2c0923598bfe78a",
+    "site": "src/interp/machine.rs",
+    "function": "build_closure",
+    "before": "if !self.charge_work(1, &ins.span) || !self.cell(&ins.span)",
+    "after": "if !self.charge_work(0, &ins.span) || !self.cell(&ins.span)",
+    "fixture": "tests/j14_accounting.rs::published_new_operation_work_totals",
+    "mutant_sha256": "9dba2460b889e50c9dc71e66bc9fa134c54e9a37cadca0afd3dfe2edc01465c2"
+  }
+]

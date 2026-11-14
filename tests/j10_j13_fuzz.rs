@@ -1,5 +1,6 @@
-use nexo::interp::{Outcome, run_scalar};
-use nexo::ir::{CompileError, compile_for_internal_harness};
+mod common;
+use nexo::interp::{Outcome, ReducedExecutionProfile, run_with_limits};
+use nexo::ir::CompileError;
 
 fn next(seed: &mut u64) -> u64 {
     *seed ^= *seed << 13;
@@ -9,24 +10,30 @@ fn next(seed: &mut u64) -> u64 {
 }
 
 fn probe(case: usize, source: &str) {
-    let checked = std::panic::catch_unwind(|| {
-        compile_for_internal_harness("<generator-fuzz>", source, false)
-    })
-    .unwrap_or_else(|_| panic!("panic in check, case {case}: {source}"));
-    let runnable =
-        std::panic::catch_unwind(|| compile_for_internal_harness("<generator-fuzz>", source, true))
-            .unwrap_or_else(|_| panic!("panic in run compilation, case {case}: {source}"));
+    let checked = std::panic::catch_unwind(|| common::compile_j("<generator-fuzz>", source, false))
+        .unwrap_or_else(|_| panic!("panic in check, case {case}: {source}"));
+    let runnable = std::panic::catch_unwind(|| common::compile_j("<generator-fuzz>", source, true))
+        .unwrap_or_else(|_| panic!("panic in run compilation, case {case}: {source}"));
     match (checked, runnable) {
         (Ok(_), Ok(program)) => {
-            let execution = std::panic::catch_unwind(|| run_scalar(&program, Default::default()))
+            let reduced = match case % 3 {
+                0 => ReducedExecutionProfile::JFrames8,
+                1 => ReducedExecutionProfile::JCells64,
+                _ => ReducedExecutionProfile::JObservations64,
+            };
+            for profile in [ReducedExecutionProfile::JNormal, reduced] {
+                let execution = std::panic::catch_unwind(|| {
+                    run_with_limits(&program, Default::default(), profile)
+                })
                 .unwrap_or_else(|_| panic!("panic in execution, case {case}: {source}"));
-            assert!(
-                !matches!(execution.outcome, Outcome::InternalError(_)),
-                "{case}: {source}"
-            );
-            for diagnostic in &execution.diagnostics {
-                diagnostic.validate("<generator-fuzz>", source).unwrap();
-                diagnostic.to_json("<generator-fuzz>", source).unwrap();
+                assert!(
+                    !matches!(execution.outcome, Outcome::InternalError(_)),
+                    "{case}: {source}"
+                );
+                for diagnostic in &execution.diagnostics {
+                    diagnostic.validate("<generator-fuzz>", source).unwrap();
+                    diagnostic.to_json("<generator-fuzz>", source).unwrap();
+                }
             }
         }
         (Err(CompileError::Rejected(a)), Err(CompileError::Rejected(b))) => {

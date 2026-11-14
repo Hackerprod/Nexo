@@ -204,6 +204,12 @@ impl Lower<'_> {
         expected: Option<&Ty>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<Flow, CompileError> {
+        if self.emission == EmissionMode::Live {
+            self.pending_charges.push(WorkCharge {
+                ticks: 1,
+                origin: selection.keyword_span.clone(),
+            });
+        }
         let selected_ty = self.resolved_expr(&selection.scrutinee)?;
         let selected = match selection.mode {
             Some(Mode::Consume) => {
@@ -728,7 +734,11 @@ impl Lower<'_> {
         tests: &mut Vec<TempId>,
     ) -> Result<(), CompileError> {
         let op = match pattern {
-            Pattern::Wildcard(_) => None,
+            Pattern::Wildcard(_) => Some(Op::TestLiteral {
+                local: root,
+                path: path.clone(),
+                literal: MatchLiteral::Any,
+            }),
             Pattern::Name { name, .. }
                 if name == "None"
                     && matches!(
@@ -745,7 +755,11 @@ impl Lower<'_> {
                     tag: VariantTag(0),
                 })
             }
-            Pattern::Name { .. } => None,
+            Pattern::Name { .. } => Some(Op::TestLiteral {
+                local: root,
+                path: path.clone(),
+                literal: MatchLiteral::Any,
+            }),
             Pattern::Integer(value, _) => Some(Op::TestLiteral {
                 local: root,
                 path: path.clone(),
@@ -768,11 +782,16 @@ impl Lower<'_> {
                     .kind
                     .variant_tag(name)
                     .ok_or(CompileError::InvalidIr("pattern variant"))?;
-                let op = Some(Op::TestVariant {
+                let op = Op::TestVariant {
                     local: root,
                     path: path.clone(),
                     tag,
-                });
+                };
+                if let Some(test) =
+                    self.emit(op, Ty::Bool, pattern.span().clone(), Access::Read, false)
+                {
+                    tests.push(test);
+                }
                 if let Some(arg) = args.first() {
                     let payload = union
                         .variant(tag)
@@ -782,7 +801,7 @@ impl Lower<'_> {
                     self.match_tests(root, payload, arg, path, tests)?;
                     path.pop();
                 }
-                op
+                return Ok(());
             }
         };
         if let Some(op) = op

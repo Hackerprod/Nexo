@@ -152,6 +152,7 @@ pub enum Binary {
 pub enum MatchLiteral {
     I64(i64),
     Bool(bool),
+    Any,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Intrinsic {
@@ -781,6 +782,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                             bytes.push(2);
                             bytes.push(u8::from(*value));
                         }
+                        MatchLiteral::Any => bytes.push(3),
                     }
                 }
                 Op::ProjectPayload { local, path } | Op::ExtractPayload { local, path } => {

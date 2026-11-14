@@ -1,9 +1,10 @@
+mod common;
 use nexo::interp::{MockEnvironment, Outcome};
 use nexo::ir::CompileError;
 use std::process::Command;
 
 fn run(source: &str) -> nexo::interp::Execution {
-    nexo::ir::run_for_internal_harness("<memory>", source, MockEnvironment::default()).unwrap()
+    common::run_j("<memory>", source, MockEnvironment::default()).unwrap()
 }
 
 #[test]
@@ -39,7 +40,7 @@ fn match_place_return_and_propagation_release_selection_loan() {
         "fn F()->Result<(),I64>{let b=true;match b{true=>{let x=TryAdd(1,2)?;},false=>{}}return Ok(());}fn Main(){let x=F();}",
     ] {
         assert!(
-            nexo::ir::compile_for_internal_harness("<memory>", source, true).is_ok(),
+            common::compile_j("<memory>", source, true).is_ok(),
             "{source}"
         );
     }
@@ -48,8 +49,7 @@ fn match_place_return_and_propagation_release_selection_loan() {
 #[test]
 fn match_edit_loan_is_incompatible_with_yield() {
     let source = "gen fn G()->I64{var o=Some(1);match edit o{Some(edit n)=>{yield 1;n=2;},None=>{}}}fn Main(){}";
-    let CompileError::Rejected(errors) =
-        nexo::ir::compile_for_internal_harness("<memory>", source, true).unwrap_err()
+    let CompileError::Rejected(errors) = common::compile_j("<memory>", source, true).unwrap_err()
     else {
         panic!("expected suspend safety diagnostic")
     };
@@ -84,11 +84,11 @@ fn for_exit_joins_only_reachable_edges() {
     let returning = format!(
         "{prefix}fn Main(){{let r=MockOpen(1);for x in G(){{Drop(r);return;}}Inspect(r);}}"
     );
-    assert!(nexo::ir::compile_for_internal_harness("<memory>", &returning, true).is_ok());
+    assert!(common::compile_j("<memory>", &returning, true).is_ok());
     let breaking =
         format!("{prefix}fn Main(){{let r=MockOpen(1);for x in G(){{Drop(r);break;}}Inspect(r);}}");
     let CompileError::Rejected(errors) =
-        nexo::ir::compile_for_internal_harness("<memory>", &breaking, true).unwrap_err()
+        common::compile_j("<memory>", &breaking, true).unwrap_err()
     else {
         panic!("expected ownership diagnostic")
     };
@@ -115,7 +115,7 @@ fn while_break_and_continue_close_the_lexical_loop() {
         ("fn Main(){continue;}", "continue_outside_loop", (10, 18)),
     ] {
         let CompileError::Rejected(mut errors) =
-            nexo::ir::compile_for_internal_harness("<memory>", source, true).unwrap_err()
+            common::compile_j("<memory>", source, true).unwrap_err()
         else {
             panic!("wrong error");
         };
@@ -164,7 +164,7 @@ fn for_requires_owned_generator_and_rejects_edit_binding() {
     ];
     for (negative, code, subcause, span, positive) in cases {
         let CompileError::Rejected(mut errors) =
-            nexo::ir::compile_for_internal_harness("<memory>", negative, true).unwrap_err()
+            common::compile_j("<memory>", negative, true).unwrap_err()
         else {
             panic!("wrong error: {negative}");
         };
@@ -182,7 +182,7 @@ fn for_requires_owned_generator_and_rejects_edit_binding() {
 fn for_implicit_next_carries_suspend_effect() {
     let negative = "gen fn G()->I64{yield 1;}fn Main() with no_suspend{for x in G(){}}";
     let CompileError::Rejected(mut errors) =
-        nexo::ir::compile_for_internal_harness("<memory>", negative, true).unwrap_err()
+        common::compile_j("<memory>", negative, true).unwrap_err()
     else {
         panic!("wrong error");
     };
@@ -198,7 +198,7 @@ fn for_implicit_next_carries_suspend_effect() {
 }
 
 #[test]
-fn goal_generator_sum_runs_through_internal_harness() {
+fn goal_generator_sum_runs_through_public_profile() {
     let source = include_str!("../corpus/objetivo/15_generator_sum.n");
     let result = run(source);
     assert_eq!(result.outcome, Outcome::Unit);
@@ -210,7 +210,7 @@ fn goal_generator_sum_runs_through_internal_harness() {
 fn ex04_success_events_match_adr_section_11() {
     let source = include_str!("../corpus/objetivo/11_ex04_generador.n");
     let environment = MockEnvironment::parse(br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"ok":null},{"ok":null},{"ok":null}],"mock_request":[{"ok":"3"}],"mock_reply":[]}"#).unwrap();
-    let result = nexo::ir::run_for_internal_harness("<memory>", source, environment).unwrap();
+    let result = common::run_j("<memory>", source, environment).unwrap();
     assert_eq!(result.outcome, Outcome::Ok);
     assert_eq!(result.observations.stdout(), ["0", "1", "4"]);
     assert_eq!(
@@ -283,7 +283,7 @@ fn ex04_error_and_early_exit_paths_close_the_generator() {
     ];
     for (json, outcome, stdout, events) in cases {
         let environment = MockEnvironment::parse(json).unwrap();
-        let result = nexo::ir::run_for_internal_harness("<memory>", source, environment).unwrap();
+        let result = common::run_j("<memory>", source, environment).unwrap();
         assert_eq!(result.outcome, outcome);
         assert_eq!(result.observations.stdout(), stdout);
         assert_eq!(result.observations.events(), events);
@@ -291,8 +291,7 @@ fn ex04_error_and_early_exit_paths_close_the_generator() {
     }
     let break_source = source.replace("MockWriteI64(valor)?;", "MockWriteI64(valor)?;break;");
     let environment = MockEnvironment::parse(br#"{"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"ok":null},{"ok":null},{"ok":null}],"mock_request":[{"ok":"3"}],"mock_reply":[]}"#).unwrap();
-    let result =
-        nexo::ir::run_for_internal_harness("<memory>", &break_source, environment).unwrap();
+    let result = common::run_j("<memory>", &break_source, environment).unwrap();
     assert_eq!(result.outcome, Outcome::Ok);
     assert_eq!(result.observations.stdout(), ["0"]);
     assert_eq!(
@@ -327,7 +326,7 @@ fn return_from_for_discards_suspended_iterator_once() {
 fn loop_control_does_not_cross_an_inner_closure() {
     let source = "fn Main(){while true{let f=fn [](){break;};break;}}";
     let CompileError::Rejected(mut errors) =
-        nexo::ir::compile_for_internal_harness("<memory>", source, true).unwrap_err()
+        common::compile_j("<memory>", source, true).unwrap_err()
     else {
         panic!("wrong error");
     };
@@ -338,29 +337,29 @@ fn loop_control_does_not_cross_an_inner_closure() {
 }
 
 #[test]
-fn goal_programs_stay_behind_the_public_j14_emission_gate() {
+fn goal_programs_execute_through_public_cli() {
     for name in ["11_ex04_generador.n", "15_generator_sum.n"] {
         let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("corpus/objetivo")
             .join(name);
         for command in ["check", "run"] {
-            let output = Command::new(env!("CARGO_BIN_EXE_nexo"))
-                .args([
-                    command,
-                    path.to_str().unwrap(),
-                    "--profile",
-                    "f0-0003-b-v1",
-                    "--format",
-                    "json",
-                ])
-                .output()
-                .unwrap();
-            assert_eq!(output.status.code(), Some(1), "{name} {command}");
+            let mut invocation = Command::new(env!("CARGO_BIN_EXE_nexo"));
+            invocation.args([
+                command,
+                path.to_str().unwrap(),
+                "--profile",
+                "f0-0003-b-v1",
+                "--format",
+                "json",
+            ]);
+            let environment = path.with_extension("env.json");
+            if command == "run" && environment.exists() {
+                invocation.args(["--mock-env", environment.to_str().unwrap()]);
+            }
+            let output = invocation.output().unwrap();
+            assert_eq!(output.status.code(), Some(0), "{name} {command}");
             let text = String::from_utf8(output.stdout).unwrap();
-            assert!(text.contains("\"code\":\"NX-E0006\""), "{text}");
-            assert!(text.contains("\"pending_scope\":\"J14\""), "{text}");
-            assert!(text.contains("\"stage\":\"lower\""), "{text}");
-            assert!(text.contains("\"operation\":\"ir.lower\""), "{text}");
+            assert!(text.contains("\"diagnostics\":[]"), "{text}");
         }
     }
 }
@@ -369,7 +368,7 @@ fn goal_programs_stay_behind_the_public_j14_emission_gate() {
 fn for_backedge_rejects_repeated_consumption_of_an_outer_owner() {
     let source =
         "gen fn G()->I64{yield 1;yield 2;}fn Main(){let r=MockOpen(5);for x in G(){Drop(move r);}}";
-    let result = nexo::ir::compile_for_internal_harness("<memory>", source, true);
+    let result = common::compile_j("<memory>", source, true);
     let CompileError::Rejected(errors) = result.unwrap_err() else {
         panic!("wrong error");
     };
