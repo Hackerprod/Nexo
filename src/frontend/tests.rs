@@ -386,6 +386,10 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
                 expression(condition, source);
                 assert_simple_terminators(body, source);
             }
+            Statement::For { iterable, body, .. } => {
+                expression(iterable, source);
+                assert_simple_terminators(body, source);
+            }
             Statement::If {
                 condition,
                 then_block,

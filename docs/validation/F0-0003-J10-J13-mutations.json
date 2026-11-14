@@ -1,0 +1,41 @@
+{
+  "mode": "quick-debug",
+  "mutations": [
+    {
+      "id": "generator_layout_cycle",
+      "file": "src/check/types.rs",
+      "original_sha256": "e3eb485716ec8c795868c1ffb539512acedfbcd9a1e33b796885af5d3d576bdb",
+      "mutated_sha256": "8a1cdd2c5e796d96c7e58f8ee638cbcc6ce7f141235cf6a091797fe836e191b2",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j10_generator generator_layout_rejects_direct_recursive_state"
+    },
+    {
+      "id": "yield_continuation",
+      "file": "src/ir/lower.rs",
+      "original_sha256": "f2f087163e10451b542dbbeb4671be3d60b174dd362009634dac66cc464ddaa9",
+      "mutated_sha256": "fec9d080060f85bb6f64f171261e74c0642993ec820626170973c863e61c5f87",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j11_generator next_returns_one_item_then_repeated_none"
+    },
+    {
+      "id": "captured_generator_drop_effect",
+      "file": "src/ir/effects.rs",
+      "original_sha256": "f24d854db4d4cd178916ee8879a4ccddeef431022b6313cffaca67b9e402a416",
+      "mutated_sha256": "568e2a368d5c9b2d82e3fd846b134bf912fbc5717e40c3b3f0bfc963ac8a3ea3",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j12_generator generator_drop_effect_transits_through_an_owning_closure"
+    },
+    {
+      "id": "for_option_branch",
+      "file": "src/ir/lower.rs",
+      "original_sha256": "f2f087163e10451b542dbbeb4671be3d60b174dd362009634dac66cc464ddaa9",
+      "mutated_sha256": "6b38c98164f6ea94ce426a31569b62c35e197f0e857b62cc71e6203714e83d8f",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j13_iteration for_moves_items_and_completes_generator"
+    }
+  ]
+}

@@ -22,6 +22,10 @@ pub(super) enum InferTy {
     MockBlockingResource,
     Array(Arc<InferTy>),
     Union(UnionKind, Arc<InferTy>, Option<Arc<InferTy>>),
+    Generator {
+        site: u64,
+        item: Arc<InferTy>,
+    },
     Closure {
         site: u64,
         copyable: bool,
@@ -73,6 +77,10 @@ impl From<&SyntaxType> for InferTy {
                 Arc::new(Self::from(err.as_ref())),
             ),
             SyntaxType::Option(some) => Self::option(Arc::new(Self::from(some.as_ref()))),
+            SyntaxType::Generator { site, item } => Self::Generator {
+                site: *site,
+                item: Arc::new(Self::from(item.as_ref())),
+            },
             SyntaxType::Closure {
                 site,
                 copyable,
@@ -109,6 +117,10 @@ fn syntax_type(value: &InferTy) -> Option<SyntaxType> {
             site: *site,
             copyable: *copyable,
             owns_resource: *owns_resource,
+        }),
+        InferTy::Generator { site, item } => Some(SyntaxType::Generator {
+            site: *site,
+            item: Box::new(syntax_type(item)?),
         }),
         InferTy::Union(..) => None,
         InferTy::Deferred(_) | InferTy::Never | InferTy::Tainted => None,
@@ -160,6 +172,10 @@ fn pretty(ty: &Type) -> Option<String> {
                 output.push_str("Closure@");
                 output.push_str(&site.to_string());
             }
+            Part::Type(SyntaxType::Generator { site, .. }) => {
+                output.push_str("Generator@");
+                output.push_str(&site.to_string());
+            }
         }
     }
     Some(output)
@@ -193,6 +209,7 @@ fn copyable(ty: &Type) -> bool {
             | Type::MockResource
             | Type::MockBlockingResource => return false,
             Type::Closure { copyable: true, .. } => {}
+            Type::Generator { .. } => return false,
             Type::Deferred(_) | Type::Never | Type::Tainted => return false,
         }
     }
@@ -254,6 +271,7 @@ fn contains_resource(ty: &Type) -> bool {
     while let Some(node) = work.pop() {
         match node {
             Type::MockResource | Type::MockBlockingResource => return true,
+            Type::Generator { .. } => return true,
             Type::Closure {
                 owns_resource: true,
                 ..
@@ -298,6 +316,7 @@ fn has_resource_array(ty: &Type) -> bool {
             | Type::MockResource
             | Type::MockBlockingResource
             | Type::Closure { .. }
+            | Type::Generator { .. }
             | Type::Deferred(_)
             | Type::Never
             | Type::Tainted => {}
@@ -750,6 +769,10 @@ fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> 
                     expr(condition, Mode::Read, source, resolved, found);
                     block(body, source, resolved, found);
                 }
+                Statement::For { iterable, body, .. } => {
+                    expr(iterable, Mode::Read, source, resolved, found);
+                    block(body, source, resolved, found);
+                }
                 Statement::Match(selection) => {
                     expr(
                         &selection.scrutinee,
@@ -914,6 +937,10 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
                 condition, body, ..
             } => {
                 expression(condition, types);
+                block(body, types);
+            }
+            Statement::For { iterable, body, .. } => {
+                expression(iterable, types);
                 block(body, types);
             }
             Statement::Match(selection) => {
@@ -1119,6 +1146,8 @@ struct Checker<'a> {
     tainted: bool,
     result: Type,
     result_span: Option<Span>,
+    generator_item: Option<Type>,
+    loop_depth: usize,
     errors: Vec<Box<Diagnostic>>,
 }
 
@@ -1248,6 +1277,8 @@ impl Checker<'_> {
         }
         let previous_result = self.result.clone();
         let previous_result_span = self.result_span.clone();
+        let previous_generator_item = self.generator_item.take();
+        let previous_loop_depth = std::mem::replace(&mut self.loop_depth, 0);
         let result = if let Some(written) = &closure.result {
             Type::from(written)
         } else if !closure_has_value_return(&closure.body) {
@@ -1262,6 +1293,8 @@ impl Checker<'_> {
         let checked = self.block(&closure.body);
         self.result = previous_result;
         self.result_span = previous_result_span;
+        self.generator_item = previous_generator_item;
+        self.loop_depth = previous_loop_depth;
         checked?;
         let result = self
             .resolved_syntax_type(&result)
@@ -3931,6 +3964,10 @@ impl Checker<'_> {
                 self.expression_reads_binding(condition, site)
                     || self.block_reads_binding(body, site)
             }
+            Statement::For { iterable, body, .. } => {
+                self.expression_reads_binding(iterable, site)
+                    || self.block_reads_binding(body, site)
+            }
             Statement::Block(block) => self.block_reads_binding(block, site),
             Statement::Match(selection) => {
                 self.expression_reads_binding(&Expr::Match(Box::new(selection.clone())), site)
@@ -4082,6 +4119,7 @@ impl Checker<'_> {
                 | Type::MockResource
                 | Type::MockBlockingResource
                 | Type::Closure { .. }
+                | Type::Generator { .. }
                 | Type::Deferred(_)
                 | Type::Never
                 | Type::Tainted => {}
@@ -4136,6 +4174,48 @@ impl Checker<'_> {
     }
 
     fn function(&mut self, f: &Function) -> Result<(), Box<Diagnostic>> {
+        if f.is_generator {
+            for (parameter, signature) in f
+                .params
+                .iter()
+                .zip(&self.resolved.signatures[&f.name].params)
+            {
+                if parameter.mode == Mode::Inout
+                    || (parameter.mode == Mode::Read
+                        && !matches!(
+                            parameter.ty,
+                            SyntaxType::I64 | SyntaxType::Bool | SyntaxType::Unit
+                        ))
+                {
+                    let mode = if parameter.mode == Mode::Inout {
+                        "edit"
+                    } else {
+                        "view"
+                    };
+                    let span = self
+                        .tokens
+                        .iter()
+                        .find(|token| {
+                            token.span.start >= parameter.span.start
+                                && token.span.end <= parameter.span.end
+                                && token.text == mode
+                        })
+                        .map_or_else(|| parameter.span.clone(), |token| token.span.clone());
+                    let mut error = names::diagnostic(
+                        "NX-E1110",
+                        None,
+                        Stage::Ownership,
+                        Operation::OwnershipCheck,
+                        span,
+                    );
+                    error.related_spans.push(RelatedSpan {
+                        role: RelatedRole::Declaration,
+                        span: signature.name_span.clone(),
+                    });
+                    return Err(error);
+                }
+            }
+        }
         // The span sets below may retain old entries without changing a
         // later lookup: source spans are unique across functions. Locals,
         // expr_vars and expression_types must be cleared because the report
@@ -4201,11 +4281,25 @@ impl Checker<'_> {
         // Binding name offsets have the same per-file uniqueness property.
         self.invalid.clear();
         self.tainted = false;
-        self.result = f.result.as_ref().map(Type::from).unwrap_or(Type::Unit);
+        self.result = if f.is_generator {
+            Type::Unit
+        } else {
+            f.result.as_ref().map(Type::from).unwrap_or(Type::Unit)
+        };
+        self.generator_item = f
+            .is_generator
+            .then(|| f.result.as_ref().map(Type::from).unwrap_or(Type::Unit));
+        self.loop_depth = 0;
         self.result_span = f
             .result
             .as_ref()
-            .and_then(|_| self.type_annotation_span(f.name_span.end, f.body.span.start, "->"));
+            .and_then(|_| self.type_annotation_span(f.name_span.end, f.body.span.start, "->"))
+            .map(|mut span| {
+                if f.is_generator {
+                    span.start = span.start.saturating_sub(2);
+                }
+                span
+            });
         if let Some(span) = &self.result_span {
             self.check_depth(&self.result, span)?;
         }
@@ -4709,6 +4803,7 @@ impl Checker<'_> {
                         | Statement::Value { span, .. }
                         | Statement::If { span, .. }
                         | Statement::While { span, .. }
+                        | Statement::For { span, .. }
                         | Statement::Expr { span, .. } => span,
                         Statement::Match(selection) => &selection.span,
                         Statement::Block(block) => &block.span,
@@ -5069,6 +5164,27 @@ impl Checker<'_> {
                 rhs_result
             }
             Statement::Return { value, span } => {
+                if value.is_some() && self.generator_item.is_some() {
+                    let primary = Span {
+                        file: self.file.into(),
+                        start: span.start,
+                        end: span.start + 6,
+                    };
+                    let mut error = names::diagnostic(
+                        "NX-E1324",
+                        None,
+                        Stage::Types,
+                        Operation::TypesCheck,
+                        primary,
+                    );
+                    if let Some(expected) = &self.result_span {
+                        error.related_spans.push(RelatedSpan {
+                            role: RelatedRole::ExpectedType,
+                            span: expected.clone(),
+                        });
+                    }
+                    return Err(error);
+                }
                 if let Some(value) = value {
                     let expected = self.result.clone();
                     let origin = self.result_span.clone();
@@ -5129,7 +5245,53 @@ impl Checker<'_> {
                 }
                 Ok(())
             }
-            Statement::GuardControl { value, .. } => {
+            Statement::GuardControl {
+                token,
+                token_span,
+                value,
+                guarded,
+                ..
+            } => {
+                if matches!(token.as_str(), "break" | "continue") && !guarded {
+                    if self.loop_depth == 0 {
+                        return Err(names::diagnostic(
+                            "NX-E1326",
+                            Some(if token == "break" {
+                                "break_outside_loop"
+                            } else {
+                                "continue_outside_loop"
+                            }),
+                            Stage::Types,
+                            Operation::TypesCheck,
+                            token_span.clone(),
+                        ));
+                    }
+                    return Ok(());
+                }
+                if token == "yield" && !guarded {
+                    if let Some(item) = self.generator_item.clone() {
+                        if let Some(value) = value {
+                            let origin = self.result_span.clone();
+                            self.expr(value, Some(&item), origin.as_ref())?;
+                        } else if item != Type::Unit {
+                            return Err(mismatch(
+                                token_span.clone(),
+                                token_span.clone(),
+                                self.result_span.clone(),
+                                &pretty(&item).unwrap_or_default(),
+                                &Type::Unit,
+                            ));
+                        }
+                        return Ok(());
+                    }
+                    return Err(names::diagnostic(
+                        "NX-E1213",
+                        None,
+                        Stage::Types,
+                        Operation::TypesCheck,
+                        token_span.clone(),
+                    ));
+                }
                 if let Some(value) = value {
                     self.expr(value, None, None)?;
                 }
@@ -5163,7 +5325,62 @@ impl Checker<'_> {
                 condition, body, ..
             } => {
                 self.statement_condition(condition)?;
-                self.block(body)
+                self.loop_depth += 1;
+                let checked = self.block(body);
+                self.loop_depth -= 1;
+                checked
+            }
+            Statement::For {
+                name_span,
+                iterable,
+                body,
+                ..
+            } => {
+                let got = self.expr(iterable, None, None)?;
+                let got = self
+                    .resolved_syntax_type(&got)
+                    .map(|ty| Type::from(&ty))
+                    .unwrap_or(got);
+                let item = match got {
+                    Type::Generator { item, .. } => (*item).clone(),
+                    Type::Array(_) => {
+                        let mut error = names::diagnostic(
+                            "NX-E0006",
+                            None,
+                            Stage::Types,
+                            Operation::TypesCheck,
+                            iterable.span().clone(),
+                        );
+                        error.feature_id = Some("for_iteration".into());
+                        error.data.insert(
+                            "pending_scope".into(),
+                            DataValue::String("later_adr".into()),
+                        );
+                        return Err(error);
+                    }
+                    other if pretty(&other).is_none() => Type::Tainted,
+                    other => {
+                        return Err(mismatch(
+                            Self::primary_span(iterable),
+                            Self::primary_span(iterable),
+                            None,
+                            "domain:iterable",
+                            &other,
+                        ));
+                    }
+                };
+                self.locals.insert(
+                    name_span.start,
+                    Known {
+                        ty: item,
+                        origin: name_span.clone(),
+                        variable: None,
+                    },
+                );
+                self.loop_depth += 1;
+                let checked = self.block(body);
+                self.loop_depth -= 1;
+                checked
             }
             Statement::Match(selection) => self.selection(selection, false, None, None).map(|_| ()),
         }
@@ -5496,6 +5713,20 @@ impl Checker<'_> {
                 value,
                 span,
             } => {
+                if self.generator_item.is_some() {
+                    let question = Span {
+                        file: span.file.clone(),
+                        start: span.end - 1,
+                        end: span.end,
+                    };
+                    return Err(names::diagnostic(
+                        "NX-E1214",
+                        None,
+                        Stage::Types,
+                        Operation::TypesCheck,
+                        question,
+                    ));
+                }
                 let operand = self.expr(value, None, None)?;
                 if self.tainted || operand == Type::Tainted {
                     return Ok(Type::Tainted);
@@ -7697,6 +7928,21 @@ impl Checker<'_> {
             .value
         };
         match name {
+            "Iterator.Next" => {
+                let argument = ordered(0);
+                let got = self.expr(argument, None, None)?;
+                if let Type::Generator { item, .. } = got {
+                    Ok(Type::option(item))
+                } else {
+                    Err(mismatch(
+                        Self::primary_span(argument),
+                        Self::primary_span(argument),
+                        None,
+                        "domain:generator",
+                        &got,
+                    ))
+                }
+            }
             "MockOpen" | "MockBlockingOpen" | "MockWriteI64" | "MockReply" => {
                 self.expr(ordered(0), Some(&Type::I64), None)?;
                 Ok(declared_result.clone())
@@ -8034,6 +8280,173 @@ pub(crate) fn check_with_partial(
     check_with_partial_limit(file, source, ast, resolved, 1_000_000)
 }
 
+fn cyclic_generator<'a>(ast: &'a Ast, resolved: &Resolved) -> Option<&'a Function> {
+    fn calls_in_expression(
+        expr: &Expr,
+        names: &HashMap<&str, usize>,
+        resolved: &Resolved,
+        edges: &mut HashSet<usize>,
+    ) {
+        match expr {
+            Expr::Call { target, args, span } => {
+                if let Some(names::CallBinding {
+                    target: ResolvedUse::Function(name),
+                    ..
+                }) = resolved.calls.get(&(span.start, span.end))
+                    && let Some(index) = names.get(name.as_str())
+                {
+                    edges.insert(*index);
+                }
+                calls_in_expression(target, names, resolved, edges);
+                for arg in args {
+                    calls_in_expression(&arg.value, names, resolved, edges);
+                }
+            }
+            Expr::Array(items, _) => {
+                for item in items {
+                    calls_in_expression(item, names, resolved, edges);
+                }
+            }
+            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                calls_in_expression(inner, names, resolved, edges);
+            }
+            Expr::Binary { left, right, .. }
+            | Expr::Index {
+                target: left,
+                index: right,
+                ..
+            } => {
+                calls_in_expression(left, names, resolved, edges);
+                calls_in_expression(right, names, resolved, edges);
+            }
+            Expr::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                calls_in_expression(condition, names, resolved, edges);
+                calls_in_block(then_block, names, resolved, edges);
+                match otherwise.as_deref() {
+                    Some(Else::Block(block)) => calls_in_block(block, names, resolved, edges),
+                    Some(Else::If(next)) => calls_in_expression(next, names, resolved, edges),
+                    None => {}
+                }
+            }
+            Expr::Match(selection) => {
+                calls_in_expression(&selection.scrutinee, names, resolved, edges);
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        calls_in_expression(guard, names, resolved, edges);
+                    }
+                    calls_in_block(&arm.body, names, resolved, edges);
+                }
+            }
+            // A closure body executes only when called; its captures are already
+            // represented by values constructed in the enclosing body.
+            Expr::Closure(_)
+            | Expr::Name(..)
+            | Expr::Integer(..)
+            | Expr::Bool(..)
+            | Expr::Unit(..) => {}
+        }
+    }
+    fn calls_in_block(
+        block: &Block,
+        names: &HashMap<&str, usize>,
+        resolved: &Resolved,
+        edges: &mut HashSet<usize>,
+    ) {
+        for statement in &block.statements {
+            match statement {
+                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                    calls_in_expression(value, names, resolved, edges)
+                }
+                Statement::Assign { place, value, .. } => {
+                    calls_in_expression(place, names, resolved, edges);
+                    calls_in_expression(value, names, resolved, edges);
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        calls_in_expression(value, names, resolved, edges);
+                    }
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    calls_in_expression(condition, names, resolved, edges);
+                    calls_in_block(then_block, names, resolved, edges);
+                    if let Some(otherwise) = otherwise {
+                        calls_in_block(
+                            &Block {
+                                statements: vec![*otherwise.clone()],
+                                span: block.span.clone(),
+                                close_span: block.close_span.clone(),
+                            },
+                            names,
+                            resolved,
+                            edges,
+                        );
+                    }
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    calls_in_expression(condition, names, resolved, edges);
+                    calls_in_block(body, names, resolved, edges);
+                }
+                Statement::For { iterable, body, .. } => {
+                    calls_in_expression(iterable, names, resolved, edges);
+                    calls_in_block(body, names, resolved, edges);
+                }
+                Statement::Match(selection) => calls_in_expression(
+                    &Expr::Match(Box::new(selection.clone())),
+                    names,
+                    resolved,
+                    edges,
+                ),
+                Statement::Block(inner) => calls_in_block(inner, names, resolved, edges),
+            }
+        }
+    }
+    let generators: Vec<&Function> = ast
+        .functions
+        .iter()
+        .filter(|function| function.is_generator)
+        .collect();
+    let names: HashMap<&str, usize> = generators
+        .iter()
+        .enumerate()
+        .map(|(index, function)| (function.name.as_str(), index))
+        .collect();
+    let graph: Vec<HashSet<usize>> = generators
+        .iter()
+        .map(|function| {
+            let mut edges = HashSet::new();
+            calls_in_block(&function.body, &names, resolved, &mut edges);
+            edges
+        })
+        .collect();
+    for (root, function) in generators.iter().enumerate() {
+        let mut seen = HashSet::new();
+        let mut pending: Vec<usize> = graph[root].iter().copied().collect();
+        while let Some(index) = pending.pop() {
+            if index == root {
+                return Some(function);
+            }
+            if seen.insert(index) {
+                pending.extend(graph[index].iter().copied());
+            }
+        }
+    }
+    None
+}
+
 pub(crate) fn check_with_partial_limit(
     file: &str,
     source: &str,
@@ -8050,6 +8463,24 @@ pub(crate) fn check_with_partial_limit(
             };
         }
     };
+    if let Some(function) = cyclic_generator(ast, resolved) {
+        let mut error = names::diagnostic(
+            "NX-E0006",
+            None,
+            Stage::Types,
+            Operation::TypesCheck,
+            function.name_span.clone(),
+        );
+        error.feature_id = Some("generator".into());
+        error.data.insert(
+            "pending_scope".into(),
+            DataValue::String("later_adr".into()),
+        );
+        return TypeCheckReport {
+            inferred: InferredTypes::default(),
+            errors: vec![error],
+        };
+    }
     let mut checker = Checker {
         file,
         tokens,
@@ -8106,6 +8537,8 @@ pub(crate) fn check_with_partial_limit(
         tainted: false,
         result: Type::Unit,
         result_span: None,
+        generator_item: None,
+        loop_depth: 0,
         errors: Vec::new(),
     };
     let mut inferred = InferredTypes::default();
@@ -9153,6 +9586,8 @@ mod quota_tests {
             tainted: false,
             result: Type::Unit,
             result_span: None,
+            generator_item: None,
+            loop_depth: 0,
             errors: Vec::new(),
             closures: HashMap::new(),
         }

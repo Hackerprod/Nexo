@@ -528,14 +528,14 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
     ("NX-E1107", &[(None, "in_profile")]),
     ("NX-E1108", &[(None, "outside_profile")]),
     ("NX-E1109", &[(None, "outside_profile")]),
-    ("NX-E1110", &[(None, "outside_profile")]),
+    ("NX-E1110", &[(None, "in_profile")]),
     ("NX-E1111", &[(None, "in_profile")]),
     ("NX-E1112", &[(None, "outside_profile")]),
     ("NX-E1113", &[(None, "outside_profile")]),
     ("NX-E1114", &[(None, "outside_profile")]),
     ("NX-E1201", &[(None, "outside_profile")]),
     ("NX-E1202", &[(None, "outside_profile")]),
-    ("NX-E1204", &[(None, "outside_profile")]),
+    ("NX-E1204", &[(None, "in_profile")]),
     ("NX-E1205", &[(None, "outside_profile")]),
     (
         "NX-E1206",
@@ -548,7 +548,8 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
     ("NX-E1210", &[(None, "outside_profile")]),
     ("NX-E1211", &[(None, "outside_profile")]),
     ("NX-E1212", &[(None, "outside_profile")]),
-    ("NX-E1213", &[(None, "outside_profile")]),
+    ("NX-E1213", &[(None, "in_profile")]),
+    ("NX-E1214", &[(None, "in_profile")]),
     (
         "NX-E1301",
         &[(Some("implicit_closure_body"), "outside_profile")],
@@ -638,7 +639,7 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
             (Some("recursive_value_layout"), "outside_profile"),
         ],
     ),
-    ("NX-E1324", &[(None, "outside_profile")]),
+    ("NX-E1324", &[(None, "in_profile")]),
     (
         "NX-E1325",
         &[
@@ -649,8 +650,8 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
     (
         "NX-E1326",
         &[
-            (Some("break_outside_loop"), "outside_profile"),
-            (Some("continue_outside_loop"), "outside_profile"),
+            (Some("break_outside_loop"), "in_profile"),
+            (Some("continue_outside_loop"), "in_profile"),
         ],
     ),
 ];
@@ -755,14 +756,14 @@ fn availability_matches_independent_full_registry_expectations() {
         ("NX-E1107", &[(None, "in_profile")]),
         ("NX-E1108", &[(None, "outside_profile")]),
         ("NX-E1109", &[(None, "outside_profile")]),
-        ("NX-E1110", &[(None, "outside_profile")]),
+        ("NX-E1110", &[(None, "in_profile")]),
         ("NX-E1111", &[(None, "in_profile")]),
         ("NX-E1112", &[(None, "outside_profile")]),
         ("NX-E1113", &[(None, "outside_profile")]),
         ("NX-E1114", &[(None, "outside_profile")]),
         ("NX-E1201", &[(None, "outside_profile")]),
         ("NX-E1202", &[(None, "outside_profile")]),
-        ("NX-E1204", &[(None, "outside_profile")]),
+        ("NX-E1204", &[(None, "in_profile")]),
         ("NX-E1205", &[(None, "outside_profile")]),
         (
             "NX-E1206",
@@ -775,7 +776,8 @@ fn availability_matches_independent_full_registry_expectations() {
         ("NX-E1210", &[(None, "outside_profile")]),
         ("NX-E1211", &[(None, "outside_profile")]),
         ("NX-E1212", &[(None, "outside_profile")]),
-        ("NX-E1213", &[(None, "outside_profile")]),
+        ("NX-E1213", &[(None, "in_profile")]),
+        ("NX-E1214", &[(None, "in_profile")]),
         (
             "NX-E1301",
             &[(Some("implicit_closure_body"), "outside_profile")],
@@ -865,7 +867,7 @@ fn availability_matches_independent_full_registry_expectations() {
                 (Some("recursive_value_layout"), "outside_profile"),
             ],
         ),
-        ("NX-E1324", &[(None, "outside_profile")]),
+        ("NX-E1324", &[(None, "in_profile")]),
         (
             "NX-E1325",
             &[
@@ -876,8 +878,8 @@ fn availability_matches_independent_full_registry_expectations() {
         (
             "NX-E1326",
             &[
-                (Some("break_outside_loop"), "outside_profile"),
-                (Some("continue_outside_loop"), "outside_profile"),
+                (Some("break_outside_loop"), "in_profile"),
+                (Some("continue_outside_loop"), "in_profile"),
             ],
         ),
     ];
@@ -905,8 +907,8 @@ fn availability_matches_independent_full_registry_expectations() {
             combinations += 1;
         }
     }
-    assert_eq!(EXPECTED.len(), 72);
-    assert_eq!(combinations, 118);
+    assert_eq!(EXPECTED.len(), 73);
+    assert_eq!(combinations, 119);
 }
 
 fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Diagnostic {
@@ -950,8 +952,10 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         "NX-E0415" => (Stage::Effects, Operation::IntrinsicCall),
         "NX-E1105" => (Stage::Ownership, Operation::OwnershipAccess),
         "NX-E1101" | "NX-E1102" => (Stage::Names, Operation::NamesResolve),
-        "NX-E1104" | "NX-E1107" => (Stage::Ownership, Operation::OwnershipCheck),
+        "NX-E1104" | "NX-E1107" | "NX-E1110" => (Stage::Ownership, Operation::OwnershipCheck),
+        "NX-E1204" => (Stage::Ownership, Operation::OwnershipCheck),
         "NX-E1111" => (Stage::Types, Operation::TypesCheck),
+        "NX-E1213" | "NX-E1214" | "NX-E1324" | "NX-E1326" => (Stage::Types, Operation::TypesCheck),
         "NX-E1317" => (Stage::Ownership, Operation::Return),
         _ => panic!("unexpected in-profile fixture {code}/{subcause:?}"),
     };
@@ -1057,6 +1061,10 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
             data.insert("required_mode".into(), V::String("inout".into()));
             data.insert("requested_mode".into(), V::String("read".into()));
         }
+        "NX-E1204" => {
+            data.insert("property_evidence".into(), V::String("incompatible".into()));
+            data.insert("suspension_kind".into(), V::String("yield".into()));
+        }
         _ => {}
     }
     let span = Span {
@@ -1074,7 +1082,18 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         diagnostic_namespace: Namespace::NexoProposedV1,
         profile_id: if matches!(
             code,
-            "NX-E1305" | "NX-E1101" | "NX-E1102" | "NX-E1104" | "NX-E1107" | "NX-E1111"
+            "NX-E1305"
+                | "NX-E1101"
+                | "NX-E1102"
+                | "NX-E1104"
+                | "NX-E1107"
+                | "NX-E1110"
+                | "NX-E1111"
+                | "NX-E1204"
+                | "NX-E1213"
+                | "NX-E1214"
+                | "NX-E1324"
+                | "NX-E1326"
         ) || (code == "NX-E0417" && subcause == Some("missing_body_operation"))
         {
             "f0-0003-b-v1".into()
@@ -1312,7 +1331,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
         }
     }
     assert_eq!(type_fixtures, 59);
-    assert_eq!(accepted, 149, "valid ADR constructed diagnostics");
+    assert_eq!(accepted, 156, "valid ADR constructed diagnostics");
     for code in ["NX-E0005", "NX-E0006", "R0101"] {
         let mut d = if code == "R0101" {
             let mut d = diagnostic_for_catalog("NX-E0006", None);

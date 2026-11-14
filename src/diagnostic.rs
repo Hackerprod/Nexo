@@ -115,6 +115,41 @@ pub struct Cause {
     pub entity: Option<Entity>,
     pub evidence: Evidence,
 }
+impl Cause {
+    /// Derive the kind from the operation so a producer cannot construct an
+    /// invalid kind/operation pair when forwarding an effect witness.
+    pub fn for_operation(
+        operation: CauseOperation,
+        span: Option<Span>,
+        entity: Option<Entity>,
+        evidence: Evidence,
+    ) -> Self {
+        let kind = match operation {
+            CauseOperation::FunctionCall
+            | CauseOperation::IntrinsicCall
+            | CauseOperation::ClosureCreate
+            | CauseOperation::ClosureCall
+            | CauseOperation::GeneratorCreate
+            | CauseOperation::GeneratorNext => CauseKind::Call,
+            CauseOperation::ValueCopy => CauseKind::Copy,
+            CauseOperation::ValueConsume => CauseKind::Consume,
+            CauseOperation::BorrowRead | CauseOperation::BorrowInout => CauseKind::Borrow,
+            CauseOperation::BorrowReborrow => CauseKind::Reborrow,
+            CauseOperation::ValueDrop | CauseOperation::ResourceDrop => CauseKind::Drop,
+            CauseOperation::FlowBackedge => CauseKind::Backedge,
+            CauseOperation::BuildArray
+            | CauseOperation::GeneratorYield
+            | CauseOperation::SuspendSafe => CauseKind::Effect,
+        };
+        Self {
+            kind,
+            operation,
+            span,
+            entity,
+            evidence,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Token {
@@ -872,7 +907,22 @@ impl Diagnostic {
                 {
                     ("types", "types.check")
                 }
+                "generator"
+                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Types =>
+                {
+                    ("types", "types.check")
+                }
+                "for_iteration"
+                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Types =>
+                {
+                    ("types", "types.check")
+                }
                 "receiver_mode" if self.profile_id.starts_with("f0-0003-") => {
+                    ("names", "names.resolve")
+                }
+                "methods"
+                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Names =>
+                {
                     ("names", "names.resolve")
                 }
                 "implementation_limit" => ("types", "types.check"),
@@ -926,6 +976,9 @@ impl Diagnostic {
                         "value.drop",
                         "closure.create",
                         "closure.call",
+                        "generator.create",
+                        "generator.next",
+                        "generator.yield",
                     ]
                     .contains(&self.operation.as_str())
                 {
@@ -1349,7 +1402,13 @@ impl Diagnostic {
             }
             if let Some(DataValue::String(expected)) = self.data.get("expected_type") {
                 let domain_allowed = match (self.subcause.as_deref(), expected.as_str()) {
-                    (Some("type_mismatch"), "domain:copyable_data" | "domain:result") => true,
+                    (
+                        Some("type_mismatch"),
+                        "domain:copyable_data"
+                        | "domain:result"
+                        | "domain:generator"
+                        | "domain:iterable",
+                    ) => true,
                     (Some("not_indexable"), "domain:array") => true,
                     (Some("resource_required"), "domain:mock_resource") => true,
                     _ => !expected.starts_with("domain:"),
@@ -1429,7 +1488,7 @@ impl Diagnostic {
             let expected = if self.feature_id.as_deref() == Some("implementation_limit") {
                 None
             } else if self.profile_id.starts_with("f0-0003-")
-                && self.feature_id.as_deref() == Some("closure")
+                && matches!(self.feature_id.as_deref(), Some("closure" | "generator"))
             {
                 Some("later_adr")
             } else if matches!(
@@ -1652,6 +1711,8 @@ fn valid_diagnostic_type(value: &str, expected: bool) -> bool {
             "domain:array",
             "domain:mock_resource",
             "domain:result",
+            "domain:generator",
+            "domain:iterable",
         ]
         .contains(&value)
     {
@@ -3137,9 +3198,9 @@ static CATALOG: &[CatalogEntry] = &[
         code: "NX-E1110",
         description: "Generador F2 que retenga una closure prestada válida al construir, sin escape previo.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "ownership",
+        operation: "ownership.check",
     },
     CatalogEntry {
         code: "NX-E1111",
@@ -3193,9 +3254,9 @@ static CATALOG: &[CatalogEntry] = &[
         code: "NX-E1204",
         description: "No se deriva SuspendSafe para un campo/permiso retenido en suspensión, por incompatibilidad o contrato desconocido; property_evidence y cause_chain explican el fallo. suspension_kind = await o yield es dato, no otra regla.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "ownership",
+        operation: "ownership.check",
     },
     CatalogEntry {
         code: "NX-E1205",
@@ -3262,15 +3323,15 @@ static CATALOG: &[CatalogEntry] = &[
         code: "NX-E1213",
         description: "Yield dentro de un cuerpo invocable ordinario: su invocable léxico más próximo no es gen fn ni async. Incluye closures ordinarias anidadas en gen. En async se conserva NX-E1206/yield_in_async.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "types",
+        operation: "types.check",
     },
     CatalogEntry {
         code: "NX-E1214",
         description: "El cuerpo generador no propaga con ?.",
         subcauses: &[],
-        availability: "outside_profile",
+        availability: "in_profile",
         stage: "types",
         operation: "types.check",
     },
@@ -3636,9 +3697,9 @@ static CATALOG: &[CatalogEntry] = &[
         code: "NX-E1324",
         description: "Return con operando dentro del cuerpo de generador; su tipo declarado es Item, no un resultado final de return. Incluye operando unidad.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "types",
+        operation: "types.check",
     },
     CatalogEntry {
         code: "NX-E1325",
@@ -3667,13 +3728,13 @@ static CATALOG: &[CatalogEntry] = &[
         subcauses: &[
             CatalogSubcause {
                 name: "break_outside_loop",
-                availability: "outside_profile",
+                availability: "in_profile",
                 stage: "types",
                 operation: "types.check",
             },
             CatalogSubcause {
                 name: "continue_outside_loop",
-                availability: "outside_profile",
+                availability: "in_profile",
                 stage: "types",
                 operation: "types.check",
             },

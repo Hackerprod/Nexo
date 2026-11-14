@@ -1249,6 +1249,14 @@ fn verifier_checks_work_charge_metadata_on_cfg_terminators() {
                     },
                 });
             }
+            Terminator::Yield { charges, .. } => charges.push(super::model::WorkCharge {
+                ticks: 0,
+                origin: crate::diagnostic::Span {
+                    file,
+                    start: 0,
+                    end: 0,
+                },
+            }),
         }
         forged.content_hash = super::model::content_hash(&forged);
         assert_eq!(
@@ -1549,6 +1557,7 @@ impl TerminatorCharges for Terminator {
             | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => charges,
+            Terminator::Yield { charges, .. } => charges,
         }
     }
 }

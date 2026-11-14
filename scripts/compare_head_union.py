@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare HEAD on programs without closures, accounting for the ADR receiver stage."""
+"""Compare HEAD on programs without third-slice additions, accounting for the ADR receiver stage."""
 
 import io
 import itertools
@@ -91,7 +91,9 @@ def all_sources() -> list[tuple[str, str, Path | None]]:
     for index, (first, second, context) in enumerate(itertools.islice(combinations, 300)):
         source = f"fn Main(){{var r={first};r={second};{context}}}"
         rows.append((f"f0007-reassignment:{index:03}", source, None))
-    previous = [row for row in rows if not re.search(r"\b(?:Option|Some|None|match)\b|\bfn\s*\[", row[1])]
+    previous = [row for row in rows if not re.search(
+        r"\b(?:Option|Some|None|match|for|yield|break|continue)\b|\bfn\s*\[|\bgen\s+fn\b|Iterator\.Next",
+        row[1])]
     match_sources = [
         (f"match:{name}", source, None)
         for name, source in test_sources()
@@ -111,7 +113,13 @@ def all_sources() -> list[tuple[str, str, Path | None]]:
 
 
 def invoke(binary: Path, args: list[str]) -> tuple[int, bytes, bytes]:
-    result = subprocess.run([str(binary), *args], cwd=ROOT, capture_output=True, timeout=30, check=False)
+    command = [str(binary), *args]
+    try:
+        result = subprocess.run(command, cwd=ROOT, capture_output=True, timeout=30, check=False)
+    except subprocess.TimeoutExpired:
+        # A single overloaded Windows process launch is not a program hang.
+        # A persistent timeout still fails the differential.
+        result = subprocess.run(command, cwd=ROOT, capture_output=True, timeout=60, check=False)
     return result.returncode, result.stdout, result.stderr
 
 

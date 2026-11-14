@@ -480,6 +480,7 @@ fn analyze_dense(
         let targets: &[super::model::BlockId] = match &block.terminator {
             Terminator::Return { .. } | Terminator::Unreachable { .. } => &[],
             Terminator::Jump { target, .. } => std::slice::from_ref(target),
+            Terminator::Yield { resume, .. } => std::slice::from_ref(resume),
             Terminator::BranchBool { yes, no, .. } => {
                 // The two successors are handled below without allocating.
                 for target in [yes, no] {
@@ -599,6 +600,7 @@ fn propagate(
             | Terminator::Return { span, .. }
             | Terminator::Jump { span, .. }
             | Terminator::BranchBool { span, .. } => span,
+            Terminator::Yield { span, .. } => span,
         };
         join(prior, &edge_state, budget, span)?
     } else {

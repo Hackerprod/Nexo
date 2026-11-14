@@ -752,6 +752,7 @@ fn analyze_inner(
                         | Terminator::Return { span, .. }
                         | Terminator::Jump { span, .. }
                         | Terminator::BranchBool { span, .. } => span,
+                        Terminator::Yield { span, .. } => span,
                     };
                     if target <= index {
                         let edge = backedges[index].as_ref().expect("validated backedge");
@@ -772,6 +773,7 @@ fn analyze_inner(
             match &block.terminator {
                 Terminator::Return { .. } | Terminator::Unreachable { .. } => {}
                 Terminator::Jump { target, .. } => propagate(target.0)?,
+                Terminator::Yield { resume, .. } => propagate(resume.0)?,
                 Terminator::BranchBool { yes, no, .. } => {
                     propagate(yes.0)?;
                     propagate(no.0)?;

@@ -80,7 +80,13 @@ fn print_inner(ast: &Ast, cst: Option<&Cst>) -> Writer {
     };
     for function in &ast.functions {
         let start = function.span.start as usize;
-        at(&mut out, "fn", Role::Function, start, start + 2);
+        let fn_start = if function.is_generator {
+            at(&mut out, "gen", Role::Word, start, start + 3);
+            start + 4
+        } else {
+            start
+        };
+        at(&mut out, "fn", Role::Function, fn_start, fn_start + 2);
         word_at(
             &mut out,
             &function.name,
@@ -174,6 +180,7 @@ fn ty(value: &Type, out: &mut Writer, bound: usize) -> usize {
             after(out, ">", Role::TypeClose, end)
         }
         Type::Closure { .. } => after(out, "Closure", Role::Word, bound),
+        Type::Generator { .. } => after(out, "Generator", Role::Word, bound),
     }
 }
 fn block(value: &Block, out: &mut Writer, structural: bool) {
@@ -251,6 +258,7 @@ fn stmt(statement: &Statement, out: &mut Writer) {
             value,
             span,
             token_span,
+            ..
         } => {
             at(
                 out,
@@ -291,6 +299,26 @@ fn stmt(statement: &Statement, out: &mut Writer) {
             let start = statement_span(statement).start as usize;
             at(out, "while", Role::Word, start, start + 5);
             expr(condition, out, 0);
+            block(body, out, true);
+        }
+        Statement::For {
+            name,
+            name_span,
+            iterable,
+            body,
+            ..
+        } => {
+            let start = statement_span(statement).start as usize;
+            at(out, "for", Role::Word, start, start + 3);
+            at(
+                out,
+                name,
+                Role::Word,
+                name_span.start as usize,
+                name_span.end as usize,
+            );
+            after(out, "in", Role::Word, name_span.end as usize);
+            expr(iterable, out, 0);
             block(body, out, true);
         }
         Statement::If {

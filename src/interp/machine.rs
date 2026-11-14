@@ -113,7 +113,23 @@ enum Value {
         site: u64,
         fields: Vec<Value>,
     },
+    Generator(Box<GeneratorValue>),
     Loan(LoanValue),
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct GeneratorValue {
+    site: u64,
+    slots: Vec<Option<Value>>,
+    temps: Vec<Option<TempValue>>,
+    borrowed: Vec<bool>,
+    edits: Vec<Option<EditAlias>>,
+    state: GeneratorState,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum GeneratorState {
+    Created,
+    Suspended(usize),
+    Completed,
 }
 #[derive(Clone, Debug)]
 struct LoanValue {
@@ -170,6 +186,19 @@ impl Value {
             match node {
                 Self::Resource { .. } => return true,
                 Self::Closure { fields, .. } => pending.extend(fields),
+                Self::Generator(generator) => {
+                    pending.extend(generator.slots.iter().zip(&generator.borrowed).filter_map(
+                        |(value, borrowed)| {
+                            if *borrowed { None } else { value.as_ref() }
+                        },
+                    ));
+                    pending.extend(generator.temps.iter().flatten().filter_map(
+                        |temp| match temp {
+                            TempValue::Own(value) => Some(value),
+                            _ => None,
+                        },
+                    ));
+                }
                 Self::Union {
                     payload: Some(value),
                     ..
@@ -214,6 +243,7 @@ impl Value {
             }
             Self::Resource { .. } => "<resource>".into(),
             Self::Closure { .. } => "<closure>".into(),
+            Self::Generator(_) => "<generator>".into(),
             Self::Loan(_) => "<loan>".into(),
         }
     }
@@ -240,6 +270,7 @@ impl Value {
             )
             | (Self::Resource { blocking: true, .. }, Ty::MockBlockingResource) => true,
             (Self::Closure { site: actual, .. }, Ty::Closure { site, .. }) => actual == site,
+            (Self::Generator(generator), Ty::Generator { site, .. }) => generator.site == *site,
             _ => false,
         }
     }
@@ -248,6 +279,26 @@ impl Value {
             Self::Array(_, n) => *n,
             Self::Union { payload, .. } => 1 + payload.as_ref().map_or(0, |value| value.cells()),
             Self::Closure { fields, .. } => 1 + fields.iter().map(Self::cells).sum::<u64>(),
+            Self::Generator(generator) => {
+                1 + generator.slots.len() as u64
+                    + generator
+                        .slots
+                        .iter()
+                        .zip(&generator.borrowed)
+                        .filter_map(
+                            |(value, borrowed)| {
+                                if *borrowed { None } else { value.as_ref() }
+                            },
+                        )
+                        .map(|value| value.cells().saturating_sub(1))
+                        .sum::<u64>()
+                    + generator
+                        .temps
+                        .iter()
+                        .flatten()
+                        .map(TempValue::owned_cells)
+                        .sum::<u64>()
+            }
             Self::Loan(_) => 1,
             _ => 1,
         }
@@ -305,6 +356,7 @@ fn equal_pairs(left: &Value, right: &Value) -> u64 {
         _ => 2,
     }
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
 enum TempValue {
     Own(Value),
     Borrow(crate::ir::model::LocalId),
@@ -313,6 +365,21 @@ enum TempValue {
     Exclusive(crate::ir::model::LocalId, Vec<i64>),
 }
 type EditAlias = (crate::ir::model::LocalId, Vec<i64>, Vec<VariantTag>);
+type ResumeState = (
+    Vec<Option<Value>>,
+    Vec<Option<TempValue>>,
+    Vec<bool>,
+    Vec<Option<EditAlias>>,
+    usize,
+);
+type Suspension = (
+    Value,
+    Vec<Option<Value>>,
+    Vec<Option<TempValue>>,
+    Vec<bool>,
+    Vec<Option<EditAlias>>,
+    usize,
+);
 impl TempValue {
     fn owned_cells(&self) -> u64 {
         match self {
@@ -359,6 +426,7 @@ impl TempValue {
 struct FrameReturn {
     value: Option<Value>,
     inout: Vec<Option<Value>>,
+    suspension: Option<Suspension>,
 }
 
 enum MockReplyValue {
@@ -760,6 +828,21 @@ impl Machine {
                     ..
                 } => pending.push(*value),
                 Value::Closure { fields, .. } => pending.extend(fields),
+                Value::Generator(generator) => {
+                    pending.extend(
+                        generator
+                            .slots
+                            .into_iter()
+                            .zip(generator.borrowed)
+                            .filter_map(|(value, borrowed)| (!borrowed).then_some(value).flatten()),
+                    );
+                    pending.extend(generator.temps.into_iter().flatten().filter_map(|temp| {
+                        match temp {
+                            TempValue::Own(value) => Some(value),
+                            _ => None,
+                        }
+                    }));
+                }
                 Value::Resource { id, label, .. } => {
                     self.log
                         .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
@@ -935,7 +1018,33 @@ impl Machine {
         args: Vec<(Value, bool)>,
         call_span: &diagnostic::Span,
     ) -> Result<FrameReturn, &'static str> {
+        self.run_frame_impl(function, program, args, call_span, None)
+    }
+
+    fn run_frame_impl(
+        &mut self,
+        function: &Function,
+        program: Option<&Program>,
+        args: Vec<(Value, bool)>,
+        call_span: &diagnostic::Span,
+        resume: Option<ResumeState>,
+    ) -> Result<FrameReturn, &'static str> {
         if !self.charge_work(WorkPlanner::units(WorkEvent::Entry), call_span) {
+            if let Some((slots, temps, borrowed, _, _)) = resume {
+                for temp in temps.into_iter().rev().flatten() {
+                    if let TempValue::Own(value) = temp {
+                        self.dispose(value)?;
+                    }
+                }
+                for value in slots
+                    .into_iter()
+                    .zip(borrowed)
+                    .rev()
+                    .filter_map(|(value, borrowed)| (!borrowed).then_some(value).flatten())
+                {
+                    self.dispose(value)?;
+                }
+            }
             let mut inout = (0..args.len()).map(|_| None).collect::<Vec<_>>();
             for (slot, (v, borrowed)) in args.into_iter().enumerate().rev() {
                 if function.parameters[slot].mode == ParameterMode::Inout {
@@ -944,7 +1053,11 @@ impl Machine {
                     self.dispose(v)?;
                 }
             }
-            return Ok(FrameReturn { value: None, inout });
+            return Ok(FrameReturn {
+                value: None,
+                inout,
+                suspension: None,
+            });
         }
         if self.frames >= self.limits.frames {
             self.fault(
@@ -962,6 +1075,21 @@ impl Machine {
                     ),
                 ],
             );
+            if let Some((slots, temps, borrowed, _, _)) = resume {
+                for temp in temps.into_iter().rev().flatten() {
+                    if let TempValue::Own(value) = temp {
+                        self.dispose(value)?;
+                    }
+                }
+                for value in slots
+                    .into_iter()
+                    .zip(borrowed)
+                    .rev()
+                    .filter_map(|(value, borrowed)| (!borrowed).then_some(value).flatten())
+                {
+                    self.dispose(value)?;
+                }
+            }
             let mut inout = (0..args.len()).map(|_| None).collect::<Vec<_>>();
             for (slot, (v, borrowed)) in args.into_iter().enumerate().rev() {
                 if function.parameters[slot].mode == ParameterMode::Inout {
@@ -970,16 +1098,31 @@ impl Machine {
                     self.dispose(v)?;
                 }
             }
-            return Ok(FrameReturn { value: None, inout });
+            return Ok(FrameReturn {
+                value: None,
+                inout,
+                suspension: None,
+            });
         }
         self.frames += 1;
-        let mut locals: Vec<Option<Value>> = vec![None; function.locals.len()];
+        let resuming = resume.is_some();
+        let resume_block = resume.as_ref().map_or(0, |(_, _, _, _, block)| *block);
+        let mut locals: Vec<Option<Value>> = resume.as_ref().map_or_else(
+            || vec![None; function.locals.len()],
+            |(slots, _, _, _, _)| slots.clone(),
+        );
         let mut loan_slots: Vec<Option<Rc<RefCell<Option<Value>>>>> =
             vec![None; function.locals.len()];
         let mut loan_origins: HashMap<TempId, LocalId> = HashMap::new();
-        let mut borrowed_locals = vec![false; function.locals.len()];
-        let mut edit_aliases: Vec<Option<EditAlias>> = vec![None; function.locals.len()];
-        if args.len() != function.parameters.len() {
+        let mut borrowed_locals = resume.as_ref().map_or_else(
+            || vec![false; function.locals.len()],
+            |(_, _, borrowed, _, _)| borrowed.clone(),
+        );
+        let mut edit_aliases: Vec<Option<EditAlias>> = resume.as_ref().map_or_else(
+            || vec![None; function.locals.len()],
+            |(_, _, _, edits, _)| edits.clone(),
+        );
+        if !resuming && args.len() != function.parameters.len() {
             return Err("frame argument count");
         }
         for (p, (v, borrowed)) in function.parameters.iter().zip(args) {
@@ -989,9 +1132,14 @@ impl Machine {
             borrowed_locals[p.local.0] = borrowed;
             locals[p.local.0] = Some(v);
         }
-        let mut temps: Vec<Option<TempValue>> = Vec::new();
-        let mut current = &function.block;
+        let mut temps: Vec<Option<TempValue>> =
+            resume.map_or_else(Vec::new, |(_, temps, _, _, _)| temps);
+        let mut current = match resume_block {
+            0 => &function.block,
+            block => function.blocks.get(block - 1).ok_or("resume block")?,
+        };
         let mut returned = None;
+        let mut suspension = None;
         'cfg: loop {
             for ins in &current.instructions {
                 let implicit_final_unit = matches!(ins.op, Op::ConstUnit)
@@ -2006,6 +2154,134 @@ impl Machine {
                         }
                         result.value
                     }
+                    Op::BuildGenerator {
+                        function: callee,
+                        args,
+                        signature,
+                    } => {
+                        let program = program.ok_or("call table unavailable")?;
+                        let target = program
+                            .functions
+                            .function(&callee.0)
+                            .ok_or("unknown generator")?;
+                        if target.generator_item.is_none()
+                            || signature.len() != target.parameters.len()
+                        {
+                            return Err("generator signature");
+                        }
+                        let mut slots = vec![None; target.locals.len()];
+                        for (slot, id) in args {
+                            let temp = Self::take(&mut temps, *id)?;
+                            let field = match signature[*slot].1 {
+                                ParameterMode::Read => temp.as_value(&locals)?.deep_copy(),
+                                ParameterMode::Consume => temp.into_owned()?,
+                                ParameterMode::Inout => return Err("generator edit parameter"),
+                            };
+                            let local = target
+                                .parameters
+                                .get(*slot)
+                                .ok_or("generator parameter")?
+                                .local;
+                            slots[local.0] = Some(field);
+                        }
+                        Some(Value::Generator(Box::new(GeneratorValue {
+                            site: target.generator_site.ok_or("generator site")?,
+                            slots,
+                            temps: Vec::new(),
+                            borrowed: vec![false; target.locals.len()],
+                            edits: vec![None; target.locals.len()],
+                            state: GeneratorState::Created,
+                        })))
+                    }
+                    Op::ResumeGenerator { receiver, .. } => {
+                        let program = program.ok_or("call table unavailable")?;
+                        let receiver = Self::take(&mut temps, *receiver)?;
+                        let TempValue::Exclusive(root, path) = receiver else {
+                            return Err("generator receiver loan");
+                        };
+                        if !path.is_empty() {
+                            return Err("generator receiver path");
+                        }
+                        let state_value = locals
+                            .get_mut(root.0)
+                            .ok_or("generator root")?
+                            .take()
+                            .ok_or("generator missing")?;
+                        let Value::Generator(generator) = state_value else {
+                            return Err("generator value");
+                        };
+                        let GeneratorValue {
+                            site,
+                            slots,
+                            temps: saved_temps,
+                            borrowed,
+                            edits,
+                            state,
+                        } = *generator;
+                        let output = if state == GeneratorState::Completed {
+                            locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
+                                site,
+                                slots,
+                                temps: saved_temps,
+                                borrowed,
+                                edits,
+                                state,
+                            })));
+                            None
+                        } else {
+                            let target = program
+                                .functions
+                                .functions()
+                                .iter()
+                                .find(|function| function.generator_site == Some(site))
+                                .ok_or("generator body")?;
+                            let block = match state {
+                                GeneratorState::Created => 0,
+                                GeneratorState::Suspended(block) => block,
+                                GeneratorState::Completed => {
+                                    return Err("completed generator resumed");
+                                }
+                            };
+                            let result = self.run_frame_impl(
+                                target,
+                                Some(program),
+                                Vec::new(),
+                                &ins.span,
+                                Some((slots, saved_temps, borrowed, edits, block)),
+                            )?;
+                            if let Some((item, slots, temps, borrowed, edits, next)) =
+                                result.suspension
+                            {
+                                locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
+                                    site,
+                                    slots,
+                                    temps,
+                                    borrowed,
+                                    edits,
+                                    state: GeneratorState::Suspended(next),
+                                })));
+                                Some(item)
+                            } else {
+                                if let Some(value) = result.value {
+                                    self.dispose(value)?;
+                                }
+                                locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
+                                    site,
+                                    slots: vec![None; target.locals.len()],
+                                    temps: Vec::new(),
+                                    borrowed: vec![false; target.locals.len()],
+                                    edits: vec![None; target.locals.len()],
+                                    state: GeneratorState::Completed,
+                                })));
+                                None
+                            }
+                        };
+                        Some(Value::Union {
+                            kind: UnionKind::Option,
+                            tag: VariantTag(u8::from(output.is_some())),
+                            payload: output.map(Box::new),
+                        })
+                    }
                     Op::CallClosure {
                         site,
                         receiver,
@@ -2282,6 +2558,7 @@ impl Machine {
                 | crate::ir::model::Terminator::Return { charges, .. }
                 | crate::ir::model::Terminator::Jump { charges, .. }
                 | crate::ir::model::Terminator::BranchBool { charges, .. } => charges,
+                crate::ir::model::Terminator::Yield { charges, .. } => charges,
             };
             for charge in charges {
                 if !self.charge_work(charge.ticks, &charge.origin) {
@@ -2326,32 +2603,43 @@ impl Machine {
                         function.blocks.get(target.0 - 1).ok_or("branch target")?
                     };
                 }
+                crate::ir::model::Terminator::Yield { value, resume, .. } => {
+                    let item = Self::take(&mut temps, *value)?.into_owned()?;
+                    suspension = Some((item, resume.0));
+                    break 'cfg;
+                }
             }
         }
-        for v in temps.into_iter().rev().flatten() {
-            if let TempValue::Own(value) = v {
-                self.dispose(value)?;
+        if suspension.is_none() {
+            for v in temps.iter_mut().rev().filter_map(Option::take) {
+                if let TempValue::Own(value) = v {
+                    self.dispose(value)?;
+                }
             }
         }
         let mut inout = (0..function.parameters.len())
             .map(|_| None)
             .collect::<Vec<_>>();
-        for (slot, p) in function.parameters.iter().enumerate() {
-            if p.mode == ParameterMode::Inout {
-                inout[slot] = locals[p.local.0].take();
+        if suspension.is_none() {
+            for (slot, p) in function.parameters.iter().enumerate() {
+                if p.mode == ParameterMode::Inout {
+                    inout[slot] = locals[p.local.0].take();
+                }
             }
-        }
-        for id in &function.cleanup {
-            if let Some(old) = locals.get_mut(id.0).ok_or("cleanup index")?.take()
-                && !borrowed_locals[id.0]
-            {
-                self.dispose(old)?;
+            for id in &function.cleanup {
+                if let Some(old) = locals.get_mut(id.0).ok_or("cleanup index")?.take()
+                    && !borrowed_locals[id.0]
+                {
+                    self.dispose(old)?;
+                }
             }
         }
         self.frames -= 1;
         Ok(FrameReturn {
             value: returned,
             inout,
+            suspension: suspension
+                .map(|(item, block)| (item, locals, temps, borrowed_locals, edit_aliases, block)),
         })
     }
 }
@@ -2403,6 +2691,7 @@ impl TerminatorSpan for crate::ir::model::BasicBlock {
             | crate::ir::model::Terminator::Return { span, .. } => span.clone(),
             crate::ir::model::Terminator::Jump { span, .. }
             | crate::ir::model::Terminator::BranchBool { span, .. } => span.clone(),
+            crate::ir::model::Terminator::Yield { span, .. } => span.clone(),
         }
     }
 }

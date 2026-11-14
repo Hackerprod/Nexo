@@ -142,6 +142,7 @@ pub struct Ast {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Function {
+    pub is_generator: bool,
     pub name: String,
     pub name_span: Span,
     pub params: Vec<Parameter>,
@@ -204,6 +205,11 @@ pub enum Type {
     Array(Box<Type>),
     Result(Box<Type>, Box<Type>),
     Option(Box<Type>),
+    /// Concrete owned state returned by a generator declaration.
+    Generator {
+        site: u64,
+        item: Box<Type>,
+    },
     /// Anonymous nominal identity of a checked closure literal. Source type
     /// grammar never constructs this variant directly.
     Closure {
@@ -317,6 +323,7 @@ pub enum Statement {
     GuardControl {
         token: String,
         value: Option<Expr>,
+        guarded: bool,
         token_span: Span,
         span: Span,
     },
@@ -333,6 +340,13 @@ pub enum Statement {
     },
     While {
         condition: Expr,
+        body: Block,
+        span: Span,
+    },
+    For {
+        name: String,
+        name_span: Span,
+        iterable: Expr,
         body: Block,
         span: Span,
     },
@@ -423,6 +437,7 @@ pub(crate) fn statement_span(s: &Statement) -> &Span {
         | Statement::Value { span, .. }
         | Statement::If { span, .. }
         | Statement::While { span, .. }
+        | Statement::For { span, .. }
         | Statement::Expr { span, .. } => span,
         Statement::Match(selection) => &selection.span,
     }
@@ -914,6 +929,9 @@ fn unadmitted_edit_in_statement(statement: &Statement) -> Option<Span> {
         Statement::While {
             condition, body, ..
         } => unadmitted_edit_in_expr(condition, false).or_else(|| unadmitted_edit_in_block(body)),
+        Statement::For { iterable, body, .. } => {
+            unadmitted_edit_in_expr(iterable, false).or_else(|| unadmitted_edit_in_block(body))
+        }
         Statement::Match(selection) => unadmitted_edit_in_match(selection),
         Statement::Block(block) => unadmitted_edit_in_block(block),
         Statement::Return { value: None, .. }
@@ -1092,7 +1110,7 @@ impl Parser<'_> {
         let start = 0;
         let mut fs = Vec::new();
         while !self.eof() {
-            if self.word("fn") {
+            if self.word("fn") || (self.new_profile && self.word("gen")) {
                 if fs.len() == 1_024
                     && let Some(name) = self.tokens.get(self.at + 1)
                     && name.kind == Kind::Name
@@ -1105,7 +1123,12 @@ impl Parser<'_> {
                         Stage::Parse,
                     ));
                 }
-                fs.push(self.function()?)
+                let generator_span = if self.word("gen") {
+                    Some(self.take().span)
+                } else {
+                    None
+                };
+                fs.push(self.function(generator_span)?)
             } else {
                 if let Some(id) = deferred_feature(&self.peek().text) {
                     return Err(self.feature(id, self.peek().span.clone()));
@@ -1124,8 +1147,11 @@ impl Parser<'_> {
             self.split_type_closes,
         ))
     }
-    fn function(&mut self) -> Result<Function, Box<Diagnostic>> {
-        let start = self.take().span.start as usize;
+    fn function(&mut self, generator_span: Option<Span>) -> Result<Function, Box<Diagnostic>> {
+        let start = generator_span
+            .as_ref()
+            .map_or(self.peek().span.start, |span| span.start) as usize;
+        self.expect("fn", "grammar.Function", &["fn"], start)?;
         let name = self.expect_name("function_name", &["Name"], start)?;
         let ns = name.span.clone();
         self.expect("(", "grammar.Function", &["("], start)?;
@@ -1235,7 +1261,7 @@ impl Parser<'_> {
             return Err(self.feature("provenance_clauses", self.peek().span.clone()));
         }
         let with_clause = if self.eat("with") {
-            Some(self.with_clause(&name, false)?)
+            Some(self.with_clause(&name, false, generator_span.is_some())?)
         } else {
             None
         };
@@ -1268,6 +1294,7 @@ impl Parser<'_> {
             return Err(self.syntax(prefix, "inout_place", &["Place"], span.start as usize));
         }
         if result.is_none()
+            && generator_span.is_none()
             && let Some(ret) = body.statements.iter().find_map(non_unit_return)
         {
             let mut d = self.feature("inferred_non_unit_result", ns.clone());
@@ -1281,6 +1308,7 @@ impl Parser<'_> {
         }
         let end = body.span.end as usize;
         Ok(Function {
+            is_generator: generator_span.is_some(),
             name: name.text,
             name_span: ns,
             params,
@@ -1372,7 +1400,7 @@ impl Parser<'_> {
             return Err(self.feature("provenance_clauses", self.peek().span.clone()));
         }
         let with_clause = if self.eat("with") {
-            Some(self.with_clause(&fn_token, true)?)
+            Some(self.with_clause(&fn_token, true, false)?)
         } else {
             None
         };
@@ -1399,6 +1427,7 @@ impl Parser<'_> {
         &mut self,
         function_name: &Token,
         closure: bool,
+        generator: bool,
     ) -> Result<WithClause, Box<Diagnostic>> {
         if !self.at_text("{") && !self.starts_restriction() {
             return Err(self.err("grammar.WithClause", WITH_FIRST, self.prev_start(), None));
@@ -1441,7 +1470,12 @@ impl Parser<'_> {
                     return Err(d);
                 }
                 first_operation.insert(name.text.clone(), name.span.clone());
-                if !closure && name.text != "call" && invalid.is_none() {
+                let forbidden = if generator {
+                    !matches!(name.text.as_str(), "create" | "resume" | "drop")
+                } else {
+                    !closure && name.text != "call"
+                };
+                if forbidden && invalid.is_none() {
                     invalid = Some(name.span.clone());
                 }
                 self.expect(
@@ -1499,7 +1533,10 @@ impl Parser<'_> {
                 });
                 return Err(d);
             }
-            if !operations.iter().any(|op| op.name == "call") {
+            if !operations
+                .iter()
+                .any(|op| op.name == if generator { "resume" } else { "call" })
+            {
                 return Err(self.with_error(
                     "missing_body_operation",
                     self.span(open.span.start as usize, close.span.end as usize),
@@ -1685,7 +1722,10 @@ impl Parser<'_> {
             let statement = self.statement(value_target, st)?;
             if matches!(
                 &statement,
-                Statement::If { .. } | Statement::While { .. } | Statement::Block(_)
+                Statement::If { .. }
+                    | Statement::While { .. }
+                    | Statement::For { .. }
+                    | Statement::Block(_)
             ) && self.at_text(";")
                 && self.peek().span.start == self.peek().span.end
             {
@@ -1741,7 +1781,9 @@ impl Parser<'_> {
         if self.new_profile && self.word("match") {
             return Ok(Statement::Match(self.match_form(false)?));
         }
-        if self.guard_context > 0
+        if (self.guard_context > 0
+            || (self.new_profile
+                && matches!(self.peek().text.as_str(), "yield" | "break" | "continue")))
             && matches!(self.peek().text.as_str(), "break" | "continue" | "yield")
         {
             let token = self.take();
@@ -1761,11 +1803,14 @@ impl Parser<'_> {
             return Ok(Statement::GuardControl {
                 token: token.text,
                 value,
+                guarded: self.guard_context > 0,
                 token_span: token.span,
                 span: self.span(st, end),
             });
         }
-        if let Some(id) = deferred_feature(&self.peek().text) {
+        if let Some(id) = deferred_feature(&self.peek().text)
+            && !(self.new_profile && id == "for_iteration")
+        {
             return Err(self.feature(id, self.peek().span.clone()));
         }
         if self.word("let") || self.word("var") {
@@ -1923,6 +1968,33 @@ impl Parser<'_> {
                 condition: c,
                 body: b,
                 span: self.span(st, end),
+            });
+        }
+        if self.new_profile && self.eat("for") {
+            if self.at_text("edit") {
+                let span = self.take().span;
+                let mut error = self.feature("for_iteration", span);
+                error.feature_id = Some("for_iteration".into());
+                error.message = "Recognized construct is outside the profile.".into();
+                error.data.insert(
+                    "pending_scope".into(),
+                    DataValue::String("later_adr".into()),
+                );
+                return Err(error);
+            }
+            let name = self.expect_name("grammar.ForBinding", &["Name"], st)?;
+            self.expect("in", "grammar.ForBinding", &["in"], st)?;
+            let iterable = self.expr(0)?;
+            self.local_scopes.push(HashSet::from([name.text.clone()]));
+            let body = self.block();
+            self.local_scopes.pop();
+            let body = body?;
+            return Ok(Statement::For {
+                name: name.text,
+                name_span: name.span,
+                iterable,
+                span: self.span(st, body.span.end as usize),
+                body,
             });
         }
         if self.at_text("{") {
@@ -2172,13 +2244,23 @@ impl Parser<'_> {
                         crate::prelude::pending_intrinsic(&format!("Iterator.{}", next.text))
                             .is_some()
                     })
-                    && !self.function_names.contains("Iterator")
-                    && !self
-                        .local_scopes
-                        .iter()
-                        .any(|scope| scope.contains("Iterator"))
                 {
-                    return Err(self.feature("generator", self.tokens[self.at + 1].span.clone()));
+                    if self.function_names.contains("Iterator")
+                        || self
+                            .local_scopes
+                            .iter()
+                            .any(|scope| scope.contains("Iterator"))
+                    {
+                        return Err(self.feature("methods", self.peek().span.clone()));
+                    }
+                    let start = lhs.span().start as usize;
+                    self.take();
+                    let member = self.take();
+                    lhs = Expr::Name(
+                        format!("Iterator.{}", member.text),
+                        self.span(start, member.span.end as usize),
+                    );
+                    continue;
                 }
                 return Err(self.feature("methods", self.peek().span.clone()));
             }
@@ -2913,6 +2995,10 @@ impl Parser<'_> {
             d.stage = Stage::Names;
             d.operation = Operation::NamesResolve;
         }
+        if id == "methods" && self.new_profile && self.slice(&s) == "." {
+            d.stage = Stage::Names;
+            d.operation = Operation::NamesResolve;
+        }
         if matches!(id, "unsupported_type" | "option") {
             d.operation = Operation::TypesCheck;
         }
@@ -3280,6 +3366,13 @@ fn statement_expression_height(statement: &Statement) -> usize {
         Statement::While {
             condition, body, ..
         } => expression_height(condition).max(
+            body.statements
+                .iter()
+                .map(statement_expression_height)
+                .max()
+                .unwrap_or(0),
+        ),
+        Statement::For { iterable, body, .. } => expression_height(iterable).max(
             body.statements
                 .iter()
                 .map(statement_expression_height)

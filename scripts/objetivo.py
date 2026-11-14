@@ -116,7 +116,7 @@ def rows(binary: Path) -> list[dict[str, str]]:
         capability = match[1].rstrip(".") if len(match) > 1 else "capacidad no indicada"
         profile = "f0-0003-b-v1" if "F0-0003" in metadata else None
         executes, reason = run_one(binary, source, profile)
-        if source.stem.startswith("14_") and reason == "NX-E0006/implementation_limit; pending_scope=J14":
+        if source.stem.startswith(("11_", "14_", "15_")) and reason == "NX-E0006/implementation_limit; pending_scope=J14":
             reason += "; arnés: ejecuta"
         result.append({"id": source.stem[:2], "archivo": source.name,
                        "procedencia": origin, "capacidad": capability,

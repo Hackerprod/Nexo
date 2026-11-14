@@ -444,7 +444,18 @@ fn compile_scalar_with_analysis_limits_unchecked(
     }
     // J14 owns public emission of the new IR. Analysis and verification run
     // first so their source diagnostics remain visible through the CLI.
-    if !bypass_emission_gate && let Some(site) = inferred.closures.keys().min().copied() {
+    let first_new_site = inferred
+        .closures
+        .keys()
+        .map(|site| (*site, 2))
+        .chain(
+            ast.functions
+                .iter()
+                .filter(|function| function.is_generator)
+                .map(|function| (function.span.start, 3)),
+        )
+        .min_by_key(|(site, _)| *site);
+    if !bypass_emission_gate && let Some((site, width)) = first_new_site {
         let mut error = crate::check::names::diagnostic(
             "NX-E0006",
             None,
@@ -453,7 +464,7 @@ fn compile_scalar_with_analysis_limits_unchecked(
             Span {
                 file: file.into(),
                 start: site,
-                end: site + 2,
+                end: site + width,
             },
         );
         error.feature_id = Some("implementation_limit".into());
@@ -591,6 +602,10 @@ pub(super) fn collect_closures(ast: &Ast) -> Vec<&parse::Closure> {
                 expression(condition, out);
                 block(body, out);
             }
+            Statement::For { iterable, body, .. } => {
+                expression(iterable, out);
+                block(body, out);
+            }
             Statement::Match(selection) => {
                 expression(&selection.scrutinee, out);
                 for arm in &selection.arms {
@@ -656,6 +671,7 @@ fn compile_ast_with_flow_limit(
             });
         }
         all_functions.push(parse::Function {
+            is_generator: false,
             name: format!("$closure:{}", info.site),
             name_span: closure.fn_span.clone(),
             params,
@@ -679,12 +695,24 @@ fn compile_ast_with_flow_limit(
                 Ok((p.name.clone(), mode, lower_type(&p.ty)?))
             })
             .collect::<Result<Vec<_>, CompileError>>()?;
-        let result = f
-            .result
-            .as_ref()
-            .map(lower_type)
-            .transpose()?
-            .unwrap_or(Ty::Unit);
+        let result = if f.is_generator {
+            Ty::Generator {
+                site: f.name_span.start,
+                item: Box::new(
+                    f.result
+                        .as_ref()
+                        .map(lower_type)
+                        .transpose()?
+                        .unwrap_or(Ty::Unit),
+                ),
+            }
+        } else {
+            f.result
+                .as_ref()
+                .map(lower_type)
+                .transpose()?
+                .unwrap_or(Ty::Unit)
+        };
         user_functions.insert(f.name.clone(), (params, result));
     }
     let functions: Vec<_> = all_functions.iter().collect();
@@ -694,6 +722,7 @@ fn compile_ast_with_flow_limit(
     let mut ir_limit_span = None;
     for (index, source) in functions.into_iter().enumerate() {
         let result = match source.result.as_ref() {
+            _ if source.is_generator => Ty::Unit,
             None | Some(Type::Unit) => Ty::Unit,
             Some(Type::I64) => Ty::I64,
             Some(Type::Bool) => Ty::Bool,
@@ -730,6 +759,8 @@ fn compile_ast_with_flow_limit(
                     .any(|t| t.text == "while")
             },
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -957,6 +988,16 @@ fn compile_ast_with_flow_limit(
             block: entry,
             blocks: other_blocks,
             result,
+            generator_site: source.is_generator.then_some(source.name_span.start),
+            generator_item: source.is_generator.then(|| {
+                source
+                    .result
+                    .as_ref()
+                    .map(lower_type)
+                    .transpose()
+                    .expect("checked item type")
+                    .unwrap_or(Ty::Unit)
+            }),
             cleanup: Vec::new(),
             effects: None,
             exit_info: Vec::new(),
@@ -1110,7 +1151,8 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
         Op::IndexValue { .. } | Op::Binary { .. } | Op::WritePlace { .. } => 2,
         Op::WriteIndex { indexes, .. } => 2 + indexes.len() as u64,
-        Op::CallDirect { args, .. } => 1 + args.len() as u64,
+        Op::CallDirect { args, .. } | Op::BuildGenerator { args, .. } => 1 + args.len() as u64,
+        Op::ResumeGenerator { .. } => 2,
         Op::CallClosure { args, .. } => 2 + args.len() as u64,
     }
 }
@@ -1127,6 +1169,7 @@ fn ir_terminator_count(terminator: &Terminator) -> u64 {
         Terminator::Return { value, .. } => u64::from(value.is_some()),
         Terminator::Jump { .. } => 1,
         Terminator::BranchBool { .. } => 3,
+        Terminator::Yield { .. } => 2,
     }
 }
 
@@ -1196,6 +1239,8 @@ struct Lower<'a> {
     tokens: Arc<Vec<lex::Token>>,
     defer_ownership: bool,
     active_loans: HashMap<LocalId, Vec<ActiveLoan>>,
+    loop_stack: Vec<LoopContext>,
+    match_boundaries: Vec<MatchBoundary>,
     retained_locals: HashMap<LocalId, Vec<RetainedLoan>>,
     retained_temps: HashMap<TempId, Vec<RetainedLoan>>,
     requested_receiver: Option<(ParameterMode, Span)>,
@@ -1204,6 +1249,77 @@ struct Lower<'a> {
 }
 
 impl Lower<'_> {
+    fn loop_control(&mut self, token: &str, span: &Span) -> Result<(), CompileError> {
+        if self.emission == EmissionMode::Analyze {
+            self.terminated = Some(Termination::Diverged);
+            return Ok(());
+        }
+        let context = self
+            .loop_stack
+            .last()
+            .ok_or(CompileError::InvalidIr("loop control without loop"))?;
+        let scope_depth = context.scope_depth;
+        let continue_target = context.continue_target;
+        let cleanup_span = context.cleanup_span.clone();
+        let match_depth = context.match_depth;
+        let dropping: Vec<_> = self.scopes[scope_depth..]
+            .iter()
+            .rev()
+            .flat_map(|scope| scope.iter().rev())
+            .filter_map(|name| self.visible.get(name).and_then(|ids| ids.last()).copied())
+            .collect();
+        self.cleanup_match_boundaries(match_depth);
+        for id in dropping {
+            if !self.poisoned.contains(&id) && !self.consumed_at.contains_key(&id) {
+                self.statement_op(Op::DropLocal(id), cleanup_span.clone(), Access::Own, false);
+            }
+        }
+        let id = self.finish_block(Terminator::Jump {
+            target: if token == "break" {
+                BlockId(usize::MAX)
+            } else {
+                continue_target
+            },
+            span: span.clone(),
+            charges: vec![],
+        });
+        if token == "break" {
+            self.loop_stack
+                .last_mut()
+                .expect("loop context")
+                .breaks
+                .push(id);
+        } else if continue_target.0 == usize::MAX {
+            self.loop_stack
+                .last_mut()
+                .expect("loop context")
+                .continues
+                .push(id);
+        }
+        self.emission = EmissionMode::Analyze;
+        self.terminated = Some(Termination::Diverged);
+        Ok(())
+    }
+
+    fn cleanup_match_boundaries(&mut self, keep: usize) {
+        let leaving: Vec<_> = self.match_boundaries[keep..]
+            .iter()
+            .rev()
+            .cloned()
+            .collect();
+        for boundary in leaving {
+            self.statement_op(
+                Op::DropLocal(boundary.root),
+                boundary.span.clone(),
+                Access::Own,
+                false,
+            );
+            if let Some(held) = boundary.held {
+                self.statement_op(Op::DropValue(held), boundary.span, Access::Own, false);
+            }
+        }
+    }
+
     fn release_retained(&mut self, loans: Vec<RetainedLoan>) {
         for retained in loans.into_iter().rev() {
             if let Some(active) = self.active_loans.get_mut(&retained.root)
@@ -1315,6 +1431,20 @@ enum EmissionMode {
 enum Termination {
     Return(TempId),
     Diverged,
+}
+struct LoopContext {
+    continue_target: BlockId,
+    scope_depth: usize,
+    cleanup_span: Span,
+    breaks: Vec<BlockId>,
+    continues: Vec<BlockId>,
+    match_depth: usize,
+}
+#[derive(Clone)]
+struct MatchBoundary {
+    root: LocalId,
+    held: Option<TempId>,
+    span: Span,
 }
 #[derive(Clone)]
 enum Flow {
@@ -1509,11 +1639,12 @@ impl Lower<'_> {
                 }
                 self.temp_live(*value, false);
             }
-            Op::CallDirect { args, .. } => {
+            Op::CallDirect { args, .. } | Op::BuildGenerator { args, .. } => {
                 for &(_, id) in args {
                     self.temp_live(id, false);
                 }
             }
+            Op::ResumeGenerator { receiver, .. } => self.temp_live(*receiver, false),
             _ => {}
         }
     }
@@ -1894,7 +2025,20 @@ impl Lower<'_> {
         for (id, state) in &condition_state {
             self.set_availability(*id, state.clone());
         }
-        self.scoped_block(body, depth, diagnostics)?;
+        self.loop_stack.push(LoopContext {
+            continue_target: condition_header,
+            scope_depth: self.scopes.len(),
+            cleanup_span: body.close_span.clone(),
+            breaks: Vec::new(),
+            continues: Vec::new(),
+            match_depth: self.match_boundaries.len(),
+        });
+        let body_result = self.scoped_block(body, depth, diagnostics);
+        let loop_context = self
+            .loop_stack
+            .pop()
+            .ok_or(CompileError::InvalidIr("loop stack"))?;
+        body_result?;
         self.emission = entry_emission;
         let body_return = self.terminated.take();
         let body_end = if body_return == Some(Termination::Diverged) {
@@ -1924,7 +2068,298 @@ impl Lower<'_> {
         if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
             *no = exit;
         }
+        for id in loop_context.breaks {
+            if let Terminator::Jump { target, .. } = &mut self.blocks[id.0].terminator {
+                *target = exit;
+            }
+        }
         let _ = (preheader, body_end);
+        Ok(())
+    }
+    fn for_statement(
+        &mut self,
+        statement: &Statement,
+        depth: usize,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Result<(), CompileError> {
+        let Statement::For {
+            name,
+            name_span,
+            iterable,
+            body,
+            span,
+        } = statement
+        else {
+            return Err(CompileError::InvalidIr("for statement"));
+        };
+        let flow = self.expr(iterable, depth, None)?;
+        let Some(Ty::Generator { item, .. }) = flow.ty() else {
+            return Err(CompileError::InvalidIr("for iterable type"));
+        };
+        let item = item.as_ref().clone();
+        let generator_ty = flow
+            .ty()
+            .ok_or(CompileError::InvalidIr("for iterator type"))?
+            .clone();
+        if flow.diverged() || self.emission == EmissionMode::Analyze {
+            let saved = self.scope;
+            self.scope = ScopeId(self.next_scope);
+            self.next_scope += 1;
+            self.scope_parents.push(Some(saved));
+            self.scopes.push(vec![name.into()]);
+            let id = LocalId(self.locals.len());
+            self.locals.push(Local {
+                id,
+                name: name.into(),
+                name_span: name_span.clone(),
+                ty: item,
+                mutable: false,
+                scope: self.scope,
+                parameter_mode: None,
+            });
+            self.name_spans.push(name_span.clone());
+            self.visible.entry(name.into()).or_default().push(id);
+            self.emission = EmissionMode::Analyze;
+            let checked = self.scoped_block(body, depth, diagnostics);
+            self.leave_scope(saved)?;
+            return checked;
+        }
+        let iterator = LocalId(self.locals.len());
+        self.name_spans.push(span.clone());
+        self.locals.push(Local {
+            id: iterator,
+            name: String::new(),
+            name_span: span.clone(),
+            ty: generator_ty.clone(),
+            mutable: true,
+            scope: self.scope,
+            parameter_mode: None,
+        });
+        let state = flow
+            .temp()
+            .ok_or(CompileError::InvalidIr("for iterator flow"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: iterator,
+                value: state,
+            },
+            iterable.span().clone(),
+            Access::Write,
+            false,
+        );
+        self.finish_block(Terminator::Jump {
+            target: BlockId(self.blocks.len() + 1),
+            span: span.clone(),
+            charges: vec![],
+        });
+        let header = BlockId(self.blocks.len());
+        let for_token = Span {
+            file: span.file.clone(),
+            start: span.start,
+            end: span.start + 3,
+        };
+        let loan_id = LoanId(span.start as usize);
+        let loan = self
+            .emitted(
+                Op::BeginLoan {
+                    root: iterator,
+                    indexes: Vec::new(),
+                    site: IndexSite {
+                        context: for_token.clone(),
+                        selectors: Vec::new(),
+                    },
+                    loan: loan_id,
+                    origin_span: for_token.clone(),
+                    permission: LoanPermission::Inout,
+                    parent: None,
+                },
+                generator_ty,
+                for_token.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("for loan"))?;
+        let option_ty = Ty::option(Box::new(item.clone()));
+        let next = self
+            .emitted(
+                Op::ResumeGenerator {
+                    receiver: loan,
+                    item: item.clone(),
+                },
+                option_ty.clone(),
+                for_token.clone(),
+                Access::Own,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("for next"))?;
+        self.statement_op(Op::EndLoan(loan_id), for_token.clone(), Access::Own, false);
+        let option = LocalId(self.locals.len());
+        self.name_spans.push(for_token.clone());
+        self.locals.push(Local {
+            id: option,
+            name: String::new(),
+            name_span: for_token.clone(),
+            ty: option_ty,
+            mutable: true,
+            scope: self.scope,
+            parameter_mode: None,
+        });
+        self.statement_op(
+            Op::WritePlace {
+                local: option,
+                value: next,
+            },
+            for_token.clone(),
+            Access::Write,
+            false,
+        );
+        let test = self
+            .emitted(
+                Op::TestVariant {
+                    local: option,
+                    path: Vec::new(),
+                    tag: crate::union::VariantTag(1),
+                },
+                Ty::Bool,
+                for_token.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("for option test"))?;
+        let branch = self.finish_block(Terminator::BranchBool {
+            condition: test,
+            yes: BlockId(self.blocks.len() + 1),
+            no: BlockId(usize::MAX),
+            span: for_token.clone(),
+            charges: vec![],
+        });
+        let saved = self.scope;
+        let scope_depth = self.scopes.len();
+        self.scope = ScopeId(self.next_scope);
+        self.next_scope += 1;
+        self.scope_parents.push(Some(saved));
+        self.scopes.push(vec![name.into()]);
+        let binding = LocalId(self.locals.len());
+        self.locals.push(Local {
+            id: binding,
+            name: name.into(),
+            name_span: name_span.clone(),
+            ty: item.clone(),
+            mutable: false,
+            scope: self.scope,
+            parameter_mode: None,
+        });
+        self.name_spans.push(name_span.clone());
+        self.visible.entry(name.into()).or_default().push(binding);
+        let payload = self
+            .emitted(
+                Op::ExtractPayload {
+                    local: option,
+                    path: vec![crate::union::VariantTag(1)],
+                },
+                item,
+                name_span.clone(),
+                Access::Write,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("for payload"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: binding,
+                value: payload,
+            },
+            name_span.clone(),
+            Access::Write,
+            false,
+        );
+        self.loop_stack.push(LoopContext {
+            continue_target: BlockId(usize::MAX),
+            scope_depth,
+            cleanup_span: body.close_span.clone(),
+            breaks: Vec::new(),
+            continues: Vec::new(),
+            match_depth: self.match_boundaries.len(),
+        });
+        let availability_checkpoint = self.consumed_undo.len();
+        self.dead_depth += 1;
+        let body_result = self.scoped_block(body, depth, diagnostics);
+        let loop_context = self
+            .loop_stack
+            .pop()
+            .ok_or(CompileError::InvalidIr("for loop stack"))?;
+        body_result?;
+        self.emission = EmissionMode::Live;
+        let body_return = self.terminated.take();
+        let normal_backedge = body_return.is_none();
+        if body_return != Some(Termination::Diverged) {
+            if !self.consumed_at.contains_key(&binding) {
+                self.statement_op(
+                    Op::DropLocal(binding),
+                    body.close_span.clone(),
+                    Access::Own,
+                    false,
+                );
+            }
+            self.finish_block(match body_return {
+                Some(Termination::Return(value)) => Terminator::Return {
+                    value: Some(value),
+                    span: body.span.clone(),
+                    charges: vec![],
+                },
+                _ => Terminator::Jump {
+                    target: BlockId(self.blocks.len() + 1),
+                    span: body.span.clone(),
+                    charges: vec![],
+                },
+            });
+        }
+        self.leave_scope(saved)?;
+        self.restore_availability(availability_checkpoint);
+        self.dead_depth -= 1;
+        if normal_backedge || !loop_context.continues.is_empty() {
+            let advance = BlockId(self.blocks.len());
+            self.statement_op(
+                Op::DropLocal(option),
+                body.close_span.clone(),
+                Access::Own,
+                false,
+            );
+            self.finish_block(Terminator::Jump {
+                target: header,
+                span: body.span.clone(),
+                charges: vec![],
+            });
+            for id in loop_context.continues {
+                if let Terminator::Jump { target, .. } = &mut self.blocks[id.0].terminator {
+                    *target = advance;
+                }
+            }
+        }
+        let exit = BlockId(self.blocks.len());
+        if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
+            *no = exit;
+        }
+        for id in loop_context.breaks {
+            if let Terminator::Jump { target, .. } = &mut self.blocks[id.0].terminator {
+                *target = exit;
+            }
+        }
+        self.statement_op(
+            Op::DropLocal(option),
+            body.close_span.clone(),
+            Access::Own,
+            false,
+        );
+        self.statement_op(
+            Op::DropLocal(iterator),
+            body.close_span.clone(),
+            Access::Own,
+            false,
+        );
         Ok(())
     }
     fn if_statement(
@@ -2233,6 +2668,9 @@ impl Lower<'_> {
         if self.emission == EmissionMode::Analyze {
             return BlockId(usize::MAX);
         }
+        if matches!(terminator, Terminator::Return { .. }) && !self.match_boundaries.is_empty() {
+            self.cleanup_match_boundaries(0);
+        }
         let mut terminator = terminator;
         let pending = std::mem::take(&mut self.pending_charges);
         match &mut terminator {
@@ -2240,6 +2678,9 @@ impl Lower<'_> {
             | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => {
+                charges.splice(0..0, pending);
+            }
+            Terminator::Yield { charges, .. } => {
                 charges.splice(0..0, pending);
             }
         }
@@ -2268,6 +2709,8 @@ impl Lower<'_> {
             self.temp_live(*value, false);
         } else if let Terminator::BranchBool { condition, .. } = &terminator {
             self.temp_live(*condition, false);
+        } else if let Terminator::Yield { value, .. } = &terminator {
+            self.temp_live(*value, false);
         }
         super::count_cfg_work(1);
         let id = BlockId(self.blocks.len());
@@ -3430,7 +3873,9 @@ impl Lower<'_> {
                 } => self
                     .pending_charges
                     .push(WorkPlanner::charge(WorkEvent::EmptyValue, span.clone())),
-                Statement::If { span, .. } | Statement::While { span, .. } => {
+                Statement::If { span, .. }
+                | Statement::While { span, .. }
+                | Statement::For { span, .. } => {
                     let origin = self
                         .tokens
                         .iter()
@@ -3713,11 +4158,148 @@ impl Lower<'_> {
                 body,
                 span,
             } => self.while_statement(condition, body, span, depth, diagnostics)?,
+            Statement::For { .. } => self.for_statement(statement, depth, diagnostics)?,
             Statement::Value { .. } => {
                 return Err(CompileError::InvalidIr("control flow"));
             }
             Statement::Match(selection) => {
                 self.match_selection(selection, false, depth, None, diagnostics)?;
+            }
+            Statement::GuardControl {
+                token,
+                value,
+                token_span,
+                guarded,
+                span,
+            } if token == "yield" && !guarded => {
+                let flow = if let Some(value) = value {
+                    self.expr(value, depth, None)?
+                } else {
+                    self.emitted(
+                        Op::ConstUnit,
+                        Ty::Unit,
+                        token_span.clone(),
+                        Access::Own,
+                        false,
+                    )
+                };
+                if flow.diverged() || self.emission == EmissionMode::Analyze {
+                    return Ok(());
+                }
+                let incompatible = self
+                    .retained_locals
+                    .iter()
+                    .flat_map(|(holder, loans)| loans.iter().map(move |loan| (*holder, loan)))
+                    .filter(|(_, loan)| loan.active.permission == LoanPermission::Inout)
+                    .min_by_key(|(holder, loan)| (holder.0, loan.active.loan.0));
+                if let Some((holder, loan)) = incompatible {
+                    let mut error = crate::check::names::diagnostic(
+                        "NX-E1204",
+                        None,
+                        diagnostic::Stage::Ownership,
+                        diagnostic::Operation::OwnershipCheck,
+                        token_span.clone(),
+                    );
+                    error.data.insert(
+                        "property_evidence".into(),
+                        diagnostic::DataValue::String("incompatible".into()),
+                    );
+                    error.data.insert(
+                        "suspension_kind".into(),
+                        diagnostic::DataValue::String("yield".into()),
+                    );
+                    error.related_spans.push(diagnostic::RelatedSpan {
+                        role: diagnostic::RelatedRole::Declaration,
+                        span: self.locals[holder.0].name_span.clone(),
+                    });
+                    error.related_spans.push(diagnostic::RelatedSpan {
+                        role: diagnostic::RelatedRole::Origin,
+                        span: loan.active.span.clone(),
+                    });
+                    error.cause_chain.push(diagnostic::Cause {
+                        kind: diagnostic::CauseKind::Effect,
+                        operation: diagnostic::CauseOperation::SuspendSafe,
+                        span: Some(token_span.clone()),
+                        entity: Some(self.local_entity(holder)),
+                        evidence: diagnostic::Evidence::Verified,
+                    });
+                    error.cause_chain.push(diagnostic::Cause {
+                        kind: diagnostic::CauseKind::Borrow,
+                        operation: diagnostic::CauseOperation::BorrowInout,
+                        span: Some(loan.active.span.clone()),
+                        entity: Some(diagnostic::Entity {
+                            kind: diagnostic::EntityKind::Loan,
+                            id: format!("loan:{}:0", loan.active.loan.0),
+                        }),
+                        evidence: diagnostic::Evidence::Verified,
+                    });
+                    return Err(CompileError::Rejected(vec![error]));
+                }
+                if let Some((root, loan)) = self
+                    .active_loans
+                    .iter()
+                    .flat_map(|(root, loans)| loans.iter().map(move |loan| (*root, loan)))
+                    .filter(|(_, loan)| loan.permission == LoanPermission::Inout)
+                    .min_by_key(|(root, loan)| (root.0, loan.loan.0))
+                {
+                    let mut error = crate::check::names::diagnostic(
+                        "NX-E1204",
+                        None,
+                        diagnostic::Stage::Ownership,
+                        diagnostic::Operation::OwnershipCheck,
+                        token_span.clone(),
+                    );
+                    error.data.insert(
+                        "property_evidence".into(),
+                        diagnostic::DataValue::String("incompatible".into()),
+                    );
+                    error.data.insert(
+                        "suspension_kind".into(),
+                        diagnostic::DataValue::String("yield".into()),
+                    );
+                    error.related_spans.push(diagnostic::RelatedSpan {
+                        role: diagnostic::RelatedRole::Declaration,
+                        span: self.locals[root.0].name_span.clone(),
+                    });
+                    error.related_spans.push(diagnostic::RelatedSpan {
+                        role: diagnostic::RelatedRole::Origin,
+                        span: loan.span.clone(),
+                    });
+                    error.cause_chain.push(diagnostic::Cause::for_operation(
+                        diagnostic::CauseOperation::SuspendSafe,
+                        Some(token_span.clone()),
+                        Some(self.local_entity(root)),
+                        diagnostic::Evidence::Verified,
+                    ));
+                    error.cause_chain.push(diagnostic::Cause::for_operation(
+                        diagnostic::CauseOperation::BorrowInout,
+                        Some(loan.span.clone()),
+                        Some(diagnostic::Entity {
+                            kind: diagnostic::EntityKind::Loan,
+                            id: format!("loan:{}:0", loan.loan.0),
+                        }),
+                        diagnostic::Evidence::Verified,
+                    ));
+                    return Err(CompileError::Rejected(vec![error]));
+                }
+                let item = flow
+                    .temp()
+                    .ok_or(CompileError::InvalidIr("yield item flow"))?;
+                let resume = BlockId(self.blocks.len() + 1);
+                self.finish_block(Terminator::Yield {
+                    value: item,
+                    resume,
+                    span: span.clone(),
+                    charges: vec![],
+                });
+            }
+            Statement::GuardControl {
+                token,
+                token_span,
+                guarded: false,
+                ..
+            } if matches!(token.as_str(), "break" | "continue") => {
+                self.loop_control(token, token_span)?;
             }
             Statement::GuardControl { token_span, .. } => {
                 return Err(CompileError::Rejected(vec![
@@ -4294,6 +4876,42 @@ impl Lower<'_> {
                     return Ok(result_flow);
                 }
                 let name = place_name(target).ok_or(CompileError::InvalidIr("call target"))?;
+                if name == "Iterator.Next" {
+                    let argument = args
+                        .first()
+                        .ok_or(CompileError::InvalidIr("next argument"))?;
+                    let generator = self.resolved_expr(&argument.value)?;
+                    let Ty::Generator { item, .. } = &generator else {
+                        return Err(CompileError::InvalidIr("next receiver type"));
+                    };
+                    let item = item.as_ref().clone();
+                    let params = vec![("g".into(), ParameterMode::Inout, generator)];
+                    let (prepared, acquired, diverged) =
+                        self.prepare_call_arguments(args, &params, depth, true, true)?;
+                    self.release_call_loans(&acquired);
+                    if diverged {
+                        return Ok(Flow::Diverged { ty: Some(inferred) });
+                    }
+                    if self.emission == EmissionMode::Analyze {
+                        return Ok(Flow::Value {
+                            temp: None,
+                            ty: inferred,
+                        });
+                    }
+                    let receiver = prepared
+                        .first()
+                        .ok_or(CompileError::InvalidIr("next receiver flow"))?
+                        .1;
+                    let result_flow = self.emitted(
+                        Op::ResumeGenerator { receiver, item },
+                        inferred,
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    );
+                    self.end_call_loans(acquired);
+                    return Ok(result_flow);
+                }
                 if self.visible.get(name).and_then(|v| v.last()).is_some() {
                     self.get(name)?;
                     return Err(CompileError::InvalidIr(
@@ -4317,17 +4935,21 @@ impl Lower<'_> {
                         });
                     }
                     let signature = params;
-                    let result_flow = self.emitted(
+                    let operation = if matches!(inferred, Ty::Generator { .. }) {
+                        Op::BuildGenerator {
+                            function: FunctionId(name.into()),
+                            args: prepared,
+                            signature,
+                        }
+                    } else {
                         Op::CallDirect {
                             function: FunctionId(name.into()),
                             args: prepared,
                             signature,
-                        },
-                        inferred,
-                        span.clone(),
-                        Access::Own,
-                        false,
-                    );
+                        }
+                    };
+                    let result_flow =
+                        self.emitted(operation, inferred, span.clone(), Access::Own, false);
                     self.end_call_loans(acquired);
                     return Ok(result_flow);
                 }
@@ -4893,6 +5515,10 @@ pub(super) fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
             copyable: *copyable,
             owns_resource: *owns_resource,
         },
+        Type::Generator { site, item } => Ty::Generator {
+            site: *site,
+            item: Box::new(lower_type(item)?),
+        },
     })
 }
 fn statement_span(stmt: &Statement) -> Span {
@@ -4904,6 +5530,7 @@ fn statement_span(stmt: &Statement) -> Span {
         | Statement::Value { span, .. }
         | Statement::If { span, .. }
         | Statement::While { span, .. }
+        | Statement::For { span, .. }
         | Statement::Expr { span, .. } => span.clone(),
         Statement::Match(selection) => selection.span.clone(),
         Statement::Block(block) => block.span.clone(),
@@ -5095,6 +5722,8 @@ mod tests {
             tokens: Arc::new(lex::lex("flow_contract.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5277,6 +5906,8 @@ mod tests {
             tokens: Arc::new(lex::lex("bottom_flow.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5344,6 +5975,8 @@ mod tests {
             tokens: Arc::new(lex::lex("orphan_call.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5416,6 +6049,8 @@ mod tests {
             tokens: Arc::new(lex::lex("scope_error.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5462,6 +6097,8 @@ mod tests {
             tokens: Arc::new(lex::lex("while_error_checkpoint.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5573,6 +6210,8 @@ mod tests {
             tokens: Arc::new(lex::lex("branch_scope.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5618,6 +6257,8 @@ mod tests {
             tokens: Arc::new(lex::lex("loan_write.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5688,6 +6329,8 @@ mod tests {
             tokens: Arc::new(lex::lex("dead_state.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5765,6 +6408,8 @@ mod tests {
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,
@@ -5855,6 +6500,8 @@ mod tests {
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            loop_stack: Vec::new(),
+            match_boundaries: Vec::new(),
             retained_locals: HashMap::new(),
             retained_temps: HashMap::new(),
             requested_receiver: None,

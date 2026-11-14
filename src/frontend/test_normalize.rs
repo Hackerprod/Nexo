@@ -247,6 +247,18 @@ fn erase_statement_spans(statement: &mut Statement) {
             erase_expr_spans(condition);
             erase_block_spans(body);
         }
+        Statement::For {
+            name_span,
+            iterable,
+            body,
+            span,
+            ..
+        } => {
+            blank(name_span);
+            blank(span);
+            erase_expr_spans(iterable);
+            erase_block_spans(body);
+        }
         Statement::Block(block) => erase_block_spans(block),
         Statement::Match(selection) => erase_match_spans(selection),
     }

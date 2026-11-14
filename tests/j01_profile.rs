@@ -85,13 +85,7 @@ fn j01_effect_diagnostic_names_the_new_model_without_changing_a2() {
 fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
     for (source, scope, stage, feature) in [
         ("fn Main(){let f=fn [](){};}", "J14", "lower", "closure"),
-        ("gen fn G(){}fn Main(){}", "J10", "types", "generator"),
-        (
-            "fn Main(){for x in [1] {}}",
-            "J13",
-            "parse",
-            "for_iteration",
-        ),
+        ("gen fn G(){}fn Main(){}", "J14", "lower", "generator"),
     ] {
         let (status, output) = check(source, "f0-0003-b-v1");
         assert_eq!(status, 1, "{output}");
@@ -114,6 +108,48 @@ fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
             old_output.contains(&format!("\"feature_id\":\"{feature}\"")),
             "{old_output}"
         );
+    }
+}
+
+#[test]
+fn array_iteration_keeps_its_permanent_feature_boundary() {
+    let (status, output) = check("fn Main(){for x in [1] {}}", "f0-0003-b-v1");
+    assert_eq!(status, 1);
+    assert!(
+        output.contains("\"feature_id\":\"for_iteration\""),
+        "{output}"
+    );
+    assert!(
+        output.contains("\"pending_scope\":\"later_adr\""),
+        "{output}"
+    );
+    assert!(output.contains("\"stage\":\"types\""), "{output}");
+}
+
+#[test]
+fn generator_and_iteration_analysis_diagnostics_precede_the_emission_gate() {
+    for (source, code, stage) in [
+        (
+            "gen fn G(r:view MockResource)->I64{yield 1;}fn Main(){}",
+            "NX-E1110",
+            "ownership",
+        ),
+        (
+            "gen fn G()->I64{yield 1;}fn Main() with no_suspend{var g=G();Iterator.Next(edit g);}",
+            "NX-E0414",
+            "effects",
+        ),
+        ("fn Main(){for x in 1{}}", "NX-E0102", "types"),
+        ("fn Main(){break;}", "NX-E1326", "types"),
+    ] {
+        let (status, output) = check(source, "f0-0003-b-v1");
+        assert_eq!(status, 1, "{source}: {output}");
+        assert!(output.contains(&format!("\"code\":\"{code}\"")), "{output}");
+        assert!(
+            output.contains(&format!("\"stage\":\"{stage}\"")),
+            "{output}"
+        );
+        assert!(!output.contains("\"pending_scope\":\"J14\""), "{output}");
     }
 }
 
@@ -219,7 +255,10 @@ fn j01_pending_prelude_entries_have_j_scopes() {
     assert_eq!(UnionKind::Option.variant_tag("None").unwrap().0, 0);
     let (status, output) = check("fn Main(){Iterator.Next(1);}", "f0-0003-b-v1");
     assert_eq!(status, 1, "{output}");
-    assert!(output.contains("\"pending_scope\":\"J11\""), "{output}");
+    assert!(
+        output.contains("\"subcause\":\"argument_mode_mismatch\""),
+        "{output}"
+    );
 }
 
 #[test]

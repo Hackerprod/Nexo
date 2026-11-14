@@ -35,6 +35,10 @@ pub enum Ty {
     },
     MockResource,
     MockBlockingResource,
+    Generator {
+        site: u64,
+        item: Box<Ty>,
+    },
     Closure {
         site: u64,
         copyable: bool,
@@ -91,6 +95,7 @@ impl Ty {
             }
             Self::Array(inner) => inner.has_resource_destructor(),
             Self::Closure { owns_resource, .. } => *owns_resource,
+            Self::Generator { .. } => true,
             Self::Never | Self::I64 | Self::Bool | Self::Unit => false,
         }
     }
@@ -99,6 +104,7 @@ impl Ty {
         match self {
             Self::MockResource | Self::MockBlockingResource => false,
             Self::Closure { copyable, .. } => *copyable,
+            Self::Generator { .. } => false,
             Self::Array(inner) => inner.copyable(),
             Self::Union { first, second, .. } => {
                 first.copyable() && second.as_ref().is_none_or(|ty| ty.copyable())
@@ -117,7 +123,11 @@ impl Ty {
                         pending.push((second, within_array));
                     }
                 }
-                Self::MockResource | Self::MockBlockingResource if within_array => return true,
+                Self::MockResource | Self::MockBlockingResource | Self::Generator { .. }
+                    if within_array =>
+                {
+                    return true;
+                }
                 _ => {}
             }
         }
@@ -295,6 +305,15 @@ pub enum Op {
         args: Vec<(usize, TempId)>,
         signature: Vec<(String, ParameterMode, Ty)>,
     },
+    BuildGenerator {
+        function: FunctionId,
+        args: Vec<(usize, TempId)>,
+        signature: Vec<(String, ParameterMode, Ty)>,
+    },
+    ResumeGenerator {
+        receiver: TempId,
+        item: Ty,
+    },
     CallClosure {
         site: u64,
         receiver: TempId,
@@ -352,6 +371,12 @@ pub enum Terminator {
         span: Span,
         charges: Vec<WorkCharge>,
     },
+    Yield {
+        value: TempId,
+        resume: BlockId,
+        span: Span,
+        charges: Vec<WorkCharge>,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct BasicBlock {
@@ -405,6 +430,8 @@ pub struct Function {
     /// Additional CFG blocks. The entry block remains `block` for linear artifacts.
     pub blocks: Vec<BasicBlock>,
     pub result: Ty,
+    pub generator_site: Option<u64>,
+    pub generator_item: Option<Ty>,
     pub cleanup: Vec<LocalId>,
     /// Filled by the post-ownership effects pass before an artifact is sealed.
     pub effects: Option<EffectSummary>,
@@ -552,6 +579,12 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     bytes.push(u8::from(*copyable));
                     bytes.push(u8::from(*owns_resource));
                 }
+                Item::Type(Ty::Generator { site, item }) => {
+                    bytes.push(11);
+                    bytes.extend_from_slice(&site.to_le_bytes());
+                    pending.push(Item::End);
+                    pending.push(Item::Type(item));
+                }
                 Item::Type(Ty::Array(child)) => {
                     bytes.push(4);
                     pending.push(Item::End);
@@ -586,6 +619,10 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
     let source_base = f.source_text.find(&format!("fn {}", f.name)).unwrap_or(0) as u64;
     let mut bytes = vec![1];
     ty(&mut bytes, &f.result);
+    if let Some(item) = &f.generator_item {
+        bytes.push(37);
+        ty(&mut bytes, item);
+    }
     number(&mut bytes, f.parameters.len());
     for p in &f.parameters {
         number(&mut bytes, p.local.0);
@@ -885,8 +922,17 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     function,
                     args,
                     signature,
+                }
+                | Op::BuildGenerator {
+                    function,
+                    args,
+                    signature,
                 } => {
-                    bytes.push(19);
+                    bytes.push(if matches!(ins.op, Op::BuildGenerator { .. }) {
+                        36
+                    } else {
+                        19
+                    });
                     number(&mut bytes, function.0.len());
                     bytes.extend_from_slice(function.0.as_bytes());
                     number(&mut bytes, signature.len());
@@ -905,6 +951,11 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         number(&mut bytes, *slot);
                         number(&mut bytes, id.0);
                     }
+                }
+                Op::ResumeGenerator { receiver, item } => {
+                    bytes.push(38);
+                    number(&mut bytes, receiver.0);
+                    ty(&mut bytes, item);
                 }
                 Op::CallClosure {
                     site,
@@ -1011,6 +1062,11 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     number(&mut bytes, yes.0);
                     number(&mut bytes, no.0);
                 }
+                Terminator::Yield { value, resume, .. } => {
+                    bytes.push(5);
+                    number(&mut bytes, value.0);
+                    number(&mut bytes, resume.0);
+                }
             }
         }
         let charges = match &block.terminator {
@@ -1018,6 +1074,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
             | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => charges,
+            Terminator::Yield { charges, .. } => charges,
         };
         bytes.extend_from_slice(&(charges.len() as u64).to_le_bytes());
         for charge in charges {

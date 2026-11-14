@@ -75,6 +75,19 @@ fn call_head(span: &Span, source: &str) -> Span {
     }
 }
 
+fn next_head(span: &Span, source: &str) -> Span {
+    let start = span.start as usize;
+    let end = span.end as usize;
+    let Some(offset) = source.get(start..end).and_then(|slice| slice.find(".Next")) else {
+        return call_head(span, source);
+    };
+    Span {
+        file: span.file.clone(),
+        start: (start + offset + 1) as u64,
+        end: (start + offset + 5) as u64,
+    }
+}
+
 fn resource_effect(ty: &Ty) -> u8 {
     match ty {
         Ty::MockResource => IO,
@@ -98,6 +111,7 @@ fn copies_array(ty: &Ty) -> bool {
 
 fn closure_operation_effect(
     ty: &Ty,
+    functions: &[Function],
     inferred: &crate::check::types::InferredTypes,
     operation: &str,
     depth: usize,
@@ -121,24 +135,26 @@ fn closure_operation_effect(
                 bits | match operation {
                     "copy" => {
                         (u8::from(copies_array(&field)) * ALLOC)
-                            | closure_operation_effect(&field, inferred, "copy", depth + 1)
+                            | closure_operation_effect(
+                                &field,
+                                functions,
+                                inferred,
+                                "copy",
+                                depth + 1,
+                            )
                     }
-                    "drop" => {
-                        resource_effect(&field)
-                            | closure_operation_effect(&field, inferred, "drop", depth + 1)
-                    }
+                    "drop" => generator_drop_bits(&field, functions, inferred, &mut HashSet::new()),
                     "leftover" if capture.usage != crate::frontend::parse::Mode::Consume => {
-                        resource_effect(&field)
-                            | closure_operation_effect(&field, inferred, "drop", depth + 1)
+                        generator_drop_bits(&field, functions, inferred, &mut HashSet::new())
                     }
                     _ => 0,
                 }
             })
         }),
         Ty::Union { first, second, .. } => {
-            closure_operation_effect(first, inferred, operation, depth + 1)
+            closure_operation_effect(first, functions, inferred, operation, depth + 1)
                 | second.as_ref().map_or(0, |ty| {
-                    closure_operation_effect(ty, inferred, operation, depth + 1)
+                    closure_operation_effect(ty, functions, inferred, operation, depth + 1)
                 })
         }
         _ => 0,
@@ -147,6 +163,7 @@ fn closure_operation_effect(
 
 fn closure_local_witnesses(
     f: &Function,
+    functions: &[Function],
     inferred: &crate::check::types::InferredTypes,
 ) -> Vec<Witness> {
     let temp_types: HashMap<_, _> = std::iter::once(&f.block)
@@ -159,19 +176,19 @@ fn closure_local_witnesses(
         for ins in &block.instructions {
             let (bits, operation, entity) = match &ins.op {
                 Op::CopyValue(local) => (
-                    closure_operation_effect(&f.locals[local.0].ty, inferred, "copy", 0),
+                    closure_operation_effect(&f.locals[local.0].ty, functions, inferred, "copy", 0),
                     CauseOperation::ValueCopy,
                     Some(local_entity(f, *local)),
                 ),
                 Op::DropBinding(local) | Op::DropLocal(local) => (
-                    closure_operation_effect(&f.locals[local.0].ty, inferred, "drop", 0),
+                    closure_operation_effect(&f.locals[local.0].ty, functions, inferred, "drop", 0),
                     CauseOperation::ValueDrop,
                     Some(local_entity(f, *local)),
                 ),
                 Op::DropValue(temp) => (
-                    temp_types
-                        .get(temp)
-                        .map_or(0, |ty| closure_operation_effect(ty, inferred, "drop", 0)),
+                    temp_types.get(temp).map_or(0, |ty| {
+                        closure_operation_effect(ty, functions, inferred, "drop", 0)
+                    }),
                     CauseOperation::ValueDrop,
                     None,
                 ),
@@ -181,7 +198,9 @@ fn closure_local_witnesses(
                 } => (
                     args.first()
                         .and_then(|temp| temp_types.get(temp))
-                        .map_or(0, |ty| closure_operation_effect(ty, inferred, "drop", 0)),
+                        .map_or(0, |ty| {
+                            closure_operation_effect(ty, functions, inferred, "drop", 0)
+                        }),
                     CauseOperation::ValueDrop,
                     None,
                 ),
@@ -196,6 +215,7 @@ fn closure_local_witnesses(
                             copyable: false,
                             owns_resource: false,
                         },
+                        functions,
                         inferred,
                         "leftover",
                         0,
@@ -215,24 +235,20 @@ fn closure_local_witnesses(
                 },
                 primary: ins.span.clone(),
                 operation,
-                chain: vec![Cause {
-                    kind: if operation == CauseOperation::ValueCopy {
-                        CauseKind::Copy
-                    } else {
-                        CauseKind::Drop
-                    },
+                chain: vec![Cause::for_operation(
                     operation,
-                    span: Some(ins.span.clone()),
+                    Some(ins.span.clone()),
                     entity,
-                    evidence: Evidence::Verified,
-                }],
+                    Evidence::Verified,
+                )],
                 related: Vec::new(),
             });
         }
     }
     for exit in &f.exit_info {
         for local in &exit.live_locals {
-            let bits = closure_operation_effect(&f.locals[local.0].ty, inferred, "drop", 0);
+            let bits =
+                closure_operation_effect(&f.locals[local.0].ty, functions, inferred, "drop", 0);
             if bits == 0 {
                 continue;
             }
@@ -343,7 +359,12 @@ fn explicit_drop_sources(f: &Function) -> HashMap<usize, super::model::LocalId> 
     dropped
 }
 
-fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
+fn function_intrinsic_effect_with_context(
+    f: &Function,
+    functions: &[Function],
+    inferred: &crate::check::types::InferredTypes,
+) -> Vec<Witness> {
+    let drop_bits = |ty: &Ty| generator_drop_bits(ty, functions, inferred, &mut HashSet::new());
     let drop_sources = explicit_drop_sources(f);
     let exit_sites: HashMap<_, _> = f
         .exit_info
@@ -458,7 +479,7 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                         if let Some(local) = drop_sources.get(&ins.origin.0) {
                             let local_ty = &f.locals[local.0].ty;
                             (
-                                resource_effect(local_ty),
+                                drop_bits(local_ty),
                                 0,
                                 CauseOperation::ValueDrop,
                                 format!("binding:{}", f.locals[local.0].name_span.start),
@@ -469,7 +490,15 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                             let variant =
                                 arg.and_then(|id| temp_variants.get(id.0).copied().flatten());
                             (
-                                ty.map_or(0, |ty| variant_effect(ty, variant)),
+                                ty.map_or(0, |ty| {
+                                    variant_effect(ty, variant)
+                                        | generator_deferred_drop_bits(
+                                            ty,
+                                            functions,
+                                            inferred,
+                                            &mut HashSet::new(),
+                                        )
+                                }),
                                 0,
                                 CauseOperation::ValueDrop,
                                 "temporary".to_owned(),
@@ -485,7 +514,7 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                     }
                 }
                 Op::DropBinding(local) => (
-                    resource_effect(&f.locals[local.0].ty),
+                    drop_bits(&f.locals[local.0].ty),
                     0,
                     CauseOperation::ValueDrop,
                     format!("binding:{}", f.locals[local.0].name_span.start),
@@ -495,7 +524,7 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                         .get(&(block.id.0, index))
                         .is_some_and(|exit| exit.live_locals.contains(local))
                     {
-                        resource_effect(&f.locals[local.0].ty)
+                        drop_bits(&f.locals[local.0].ty)
                     } else {
                         0
                     },
@@ -509,6 +538,12 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                         .and_then(Option::as_ref)
                         .map_or(0, |ty| {
                             variant_effect(ty, temp_variants.get(temp.0).copied().flatten())
+                                | generator_deferred_drop_bits(
+                                    ty,
+                                    functions,
+                                    inferred,
+                                    &mut HashSet::new(),
+                                )
                         });
                     (
                         effect,
@@ -825,7 +860,7 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
                 continue;
             }
             let ty = &f.locals[local.0].ty;
-            let effect = resource_effect(ty);
+            let effect = drop_bits(ty);
             if effect == 0 {
                 continue;
             }
@@ -876,7 +911,42 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
             });
         }
     }
+    if let Some(site) = f.generator_site {
+        for block in std::iter::once(&f.block).chain(&f.blocks) {
+            if let super::model::Terminator::Yield { span, .. } = &block.terminator {
+                let token = call_head(span, &f.source_text);
+                out.push(Witness {
+                    summary: EffectSummary {
+                        known: SUSPEND,
+                        unknown: 0,
+                    },
+                    primary: token.clone(),
+                    operation: CauseOperation::GeneratorYield,
+                    chain: vec![Cause {
+                        kind: CauseKind::Effect,
+                        operation: CauseOperation::GeneratorYield,
+                        span: Some(token),
+                        entity: Some(Entity {
+                            kind: EntityKind::Function,
+                            id: format!("function:{site}"),
+                        }),
+                        evidence: Evidence::Verified,
+                    }],
+                    related: Vec::new(),
+                });
+            }
+        }
+    }
     out
+}
+
+#[cfg(test)]
+fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
+    function_intrinsic_effect_with_context(
+        f,
+        std::slice::from_ref(f),
+        &crate::check::types::InferredTypes::default(),
+    )
 }
 
 trait LocalTypeName {
@@ -994,6 +1064,10 @@ fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
                 expr(condition, out);
                 guard_spans(body, out);
             }
+            Statement::For { iterable, body, .. } => {
+                expr(iterable, out);
+                guard_spans(body, out);
+            }
             Statement::Block(body) => guard_spans(body, out),
         }
     }
@@ -1026,6 +1100,9 @@ fn call_components_by_rank(program: &Program, rank: &[usize]) -> Vec<Vec<usize>>
                         .get(&super::model::FunctionId(format!("$closure:{site}")))
                         .copied()
                 {
+                    edges[index].push(target);
+                }
+                if let Some(target) = resume_target(function, instruction, functions) {
                     edges[index].push(target);
                 }
             }
@@ -1094,6 +1171,81 @@ fn call_components_by_rank(program: &Program, rank: &[usize]) -> Vec<Vec<usize>>
     components
 }
 
+fn resume_target(
+    caller: &Function,
+    instruction: &super::model::Instruction,
+    functions: &[Function],
+) -> Option<usize> {
+    let Op::ResumeGenerator { receiver, .. } = instruction.op else {
+        return None;
+    };
+    let site = std::iter::once(&caller.block)
+        .chain(&caller.blocks)
+        .flat_map(|block| &block.instructions)
+        .find(|candidate| candidate.output == Some(receiver))
+        .and_then(|candidate| candidate.ty.as_ref())
+        .and_then(|ty| match ty {
+            Ty::Generator { site, .. } => Some(*site),
+            _ => None,
+        })?;
+    functions
+        .iter()
+        .position(|function| function.generator_site == Some(site))
+}
+
+fn generator_drop_bits(
+    ty: &Ty,
+    functions: &[Function],
+    inferred: &crate::check::types::InferredTypes,
+    visited: &mut HashSet<u64>,
+) -> u8 {
+    match ty {
+        Ty::Generator { site, .. } => {
+            if !visited.insert(*site) {
+                return 0;
+            }
+            let bits = functions
+                .iter()
+                .find(|function| function.generator_site == Some(*site))
+                .map_or(0, |function| {
+                    function.locals.iter().fold(0, |bits, local| {
+                        bits | generator_drop_bits(&local.ty, functions, inferred, visited)
+                    })
+                });
+            visited.remove(site);
+            bits
+        }
+        Ty::Closure { .. } => closure_operation_effect(ty, functions, inferred, "drop", 0),
+        Ty::Union { first, second, .. } => {
+            generator_drop_bits(first, functions, inferred, visited)
+                | second.as_ref().map_or(0, |ty| {
+                    generator_drop_bits(ty, functions, inferred, visited)
+                })
+        }
+        _ => resource_effect(ty),
+    }
+}
+
+fn generator_deferred_drop_bits(
+    ty: &Ty,
+    functions: &[Function],
+    inferred: &crate::check::types::InferredTypes,
+    visited: &mut HashSet<u64>,
+) -> u8 {
+    match ty {
+        Ty::Generator { .. } | Ty::Closure { .. } => {
+            generator_drop_bits(ty, functions, inferred, visited)
+        }
+        Ty::Union { first, second, .. } => {
+            generator_deferred_drop_bits(first, functions, inferred, visited)
+                | second.as_ref().map_or(0, |ty| {
+                    generator_deferred_drop_bits(ty, functions, inferred, visited)
+                })
+        }
+        _ => 0,
+    }
+}
+
 pub(super) fn analyze(
     program: &mut Program,
     ast: &Ast,
@@ -1114,8 +1266,13 @@ pub(super) fn analyze(
         .collect();
     let mut local = Vec::new();
     for f in program.functions.functions() {
-        let mut witnesses = function_intrinsic_effect(f);
-        witnesses.extend(closure_local_witnesses(f, inferred));
+        let mut witnesses =
+            function_intrinsic_effect_with_context(f, program.functions.functions(), inferred);
+        witnesses.extend(closure_local_witnesses(
+            f,
+            program.functions.functions(),
+            inferred,
+        ));
         local.push(witnesses);
     }
     let functions = program.functions.functions();
@@ -1196,6 +1353,23 @@ pub(super) fn analyze(
                                 },
                             );
                         }
+                        if let Some(target) = resume_target(function, instruction, functions) {
+                            charge_effect(
+                                &mut effect_steps,
+                                &instruction.span,
+                                effect_limit,
+                                profile_id,
+                            )
+                            .map_err(|error| vec![*error])?;
+                            summary = add(
+                                summary,
+                                if members.contains(&target) {
+                                    old[target]
+                                } else {
+                                    summaries[target]
+                                },
+                            );
+                        }
                     }
                 }
                 next[*index] = summary;
@@ -1211,7 +1385,76 @@ pub(super) fn analyze(
         f.effects = Some(*summary);
     }
 
+    let functions = program.functions.functions();
     let mut errors = Vec::new();
+    for source in ast.functions.iter().filter(|source| source.is_generator) {
+        let Some(WithClause::Operations(operations)) = &source.with_clause else {
+            continue;
+        };
+        let Some(function) = functions
+            .iter()
+            .find(|function| function.name == source.name)
+        else {
+            continue;
+        };
+        let drop_bits = function.locals.iter().fold(0, |bits, local| {
+            bits | generator_drop_bits(&local.ty, functions, inferred, &mut HashSet::new())
+        });
+        for operation in operations
+            .iter()
+            .filter(|operation| operation.name == "drop")
+        {
+            for restriction in &operation.restrictions {
+                let Some(required) = restriction.name.strip_prefix("no_") else {
+                    continue;
+                };
+                let Some(&(bit, _, code)) = EFFECTS.iter().find(|(_, name, _)| *name == required)
+                else {
+                    continue;
+                };
+                if drop_bits & bit == 0 {
+                    continue;
+                }
+                let mut error = crate::check::names::diagnostic(
+                    code,
+                    None,
+                    Stage::Effects,
+                    Operation::ValueDrop,
+                    source.name_span.clone(),
+                );
+                error.related_spans.push(RelatedSpan {
+                    role: RelatedRole::Contract,
+                    span: restriction.span.clone(),
+                });
+                error.data.insert(
+                    "effect_model".into(),
+                    DataValue::String("f0-0003-sim-v1".into()),
+                );
+                error.data.insert(
+                    "effect_evidence".into(),
+                    DataValue::String("known_effect".into()),
+                );
+                error
+                    .data
+                    .insert("required_effect".into(), DataValue::String(required.into()));
+                error.data.insert(
+                    "contract_origin".into(),
+                    DataValue::Object(
+                        [
+                            (
+                                "file".into(),
+                                DataValue::String(restriction.span.file.clone()),
+                            ),
+                            ("start".into(), DataValue::UInt(restriction.span.start)),
+                            ("end".into(), DataValue::UInt(restriction.span.end)),
+                        ]
+                        .into(),
+                    ),
+                );
+                errors.push(*error);
+            }
+        }
+    }
     for closure in super::lower::collect_closures(ast) {
         let Some(info) = inferred.closures.get(&closure.fn_span.start) else {
             continue;
@@ -1256,11 +1499,11 @@ pub(super) fn analyze(
                 let contributes = match operation_name {
                     "create" if capture.mode == crate::frontend::parse::CaptureMode::Copy => {
                         (u8::from(copies_array(&ty)) * ALLOC)
-                            | closure_operation_effect(&ty, inferred, "copy", 0)
+                            | closure_operation_effect(&ty, functions, inferred, "copy", 0)
                     }
                     "copy" if capture.mode != crate::frontend::parse::CaptureMode::View => {
                         (u8::from(copies_array(&ty)) * ALLOC)
-                            | closure_operation_effect(&ty, inferred, "copy", 0)
+                            | closure_operation_effect(&ty, functions, inferred, "copy", 0)
                     }
                     "drop"
                         if matches!(
@@ -1269,7 +1512,7 @@ pub(super) fn analyze(
                                 | crate::frontend::parse::CaptureMode::Move
                         ) =>
                     {
-                        resource_effect(&ty) | closure_operation_effect(&ty, inferred, "drop", 0)
+                        generator_drop_bits(&ty, functions, inferred, &mut HashSet::new())
                     }
                     _ => 0,
                 };
@@ -1371,6 +1614,13 @@ pub(super) fn analyze(
                 && let Some(witness) = find_witness(program, ast, &local, target, bit)
             {
                 error.cause_chain = witness.chain;
+                error.primary_span = Some(witness.primary);
+                error.operation = match witness.operation {
+                    CauseOperation::GeneratorNext => Operation::GeneratorNext,
+                    CauseOperation::GeneratorYield => Operation::GeneratorYield,
+                    CauseOperation::ClosureCall => Operation::ClosureCall,
+                    _ => Operation::FunctionCall,
+                };
             }
             errors.push(*error);
         }
@@ -1483,7 +1733,14 @@ pub(super) fn analyze(
             Some(WithClause::Simple(items)) => items.iter().collect(),
             Some(WithClause::Operations(ops)) => ops
                 .iter()
-                .filter(|op| op.name == "call")
+                .filter(|op| {
+                    op.name
+                        == if source_function.is_generator {
+                            "resume"
+                        } else {
+                            "call"
+                        }
+                })
                 .flat_map(|op| op.restrictions.iter())
                 .collect(),
             None => Vec::new(),
@@ -1567,6 +1824,8 @@ pub(super) fn analyze(
                 CauseOperation::ValueDrop | CauseOperation::ResourceDrop => Operation::ValueDrop,
                 CauseOperation::FunctionCall => Operation::FunctionCall,
                 CauseOperation::ClosureCall => Operation::ClosureCall,
+                CauseOperation::GeneratorNext => Operation::GeneratorNext,
+                CauseOperation::GeneratorYield => Operation::GeneratorYield,
                 _ => Operation::IntrinsicCall,
             });
             d.related_spans.sort_by(|a, b| {
@@ -1602,11 +1861,12 @@ pub(super) fn analyze(
 
 pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
     let functions = program.functions.functions();
+    let inferred = crate::check::types::InferredTypes::default();
     let functions_by_id: HashMap<_, _> = functions.iter().map(|f| (f.id.clone(), f)).collect();
     let local: Vec<_> = functions
         .iter()
         .map(|f| {
-            function_intrinsic_effect(f)
+            function_intrinsic_effect_with_context(f, functions, &inferred)
                 .into_iter()
                 .fold(EffectSummary::default(), |s, w| add(s, w.summary))
         })
@@ -1641,6 +1901,15 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
                         || callee_summary.unknown & !summary.unknown != 0
                     {
                         return Err("effect summary closure inclusion");
+                    }
+                }
+                if let Some(target) = resume_target(f, ins, functions) {
+                    let callee_summary =
+                        functions[target].effects.ok_or("effect summary missing")?;
+                    if callee_summary.known & !summary.known != 0
+                        || callee_summary.unknown & !summary.unknown != 0
+                    {
+                        return Err("effect summary resume inclusion");
                     }
                 }
             }
@@ -1761,6 +2030,7 @@ pub(super) fn populate_exit_info(
                     | Ty::MockBlockingResource
                     | Ty::Union { .. }
                     | Ty::Closure { .. }
+                    | Ty::Generator { .. }
             )
         })
         .map(|l| l.id.0)
@@ -1789,6 +2059,7 @@ pub(super) fn populate_exit_info(
             };
             match block.terminator {
                 Terminator::Jump { target, .. } => add(target),
+                Terminator::Yield { resume, .. } => add(resume),
                 Terminator::BranchBool { yes, no, .. } => {
                     add(yes);
                     add(no);
@@ -2030,6 +2301,7 @@ fn return_spans_statement(statement: &Statement, source: &str) -> Vec<Span> {
             spans
         }
         Statement::While { body, .. } => return_spans(body, source),
+        Statement::For { body, .. } => return_spans(body, source),
         Statement::Match(selection) => selection
             .arms
             .iter()
@@ -3732,6 +4004,17 @@ fn find_witness(
                         CauseOperation::ClosureCall,
                         *site,
                     ),
+                    Op::ResumeGenerator { .. } => {
+                        let Some(target) = resume_target(function, instruction, functions) else {
+                            continue;
+                        };
+                        let target = &functions[target];
+                        (
+                            target.id.0.clone(),
+                            CauseOperation::GeneratorNext,
+                            target.generator_site.unwrap_or(0),
+                        )
+                    }
                     _ => continue,
                 };
                 let Some(&target_index) = indices.get(target_name.as_str()) else {
@@ -3742,7 +4025,11 @@ fn find_witness(
                     Cause {
                         kind: CauseKind::Call,
                         operation: cause_operation,
-                        span: Some(call_head(&instruction.span, &function.source_text)),
+                        span: Some(if cause_operation == CauseOperation::GeneratorNext {
+                            next_head(&instruction.span, &function.source_text)
+                        } else {
+                            call_head(&instruction.span, &function.source_text)
+                        }),
                         entity: Some(Entity {
                             kind: EntityKind::Function,
                             id: format!("function:{declaration}"),

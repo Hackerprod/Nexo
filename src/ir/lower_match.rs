@@ -74,6 +74,10 @@ fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
                 walk(condition, found);
                 block(body, found);
             }
+            parse::Statement::For { iterable, body, .. } => {
+                walk(iterable, found);
+                block(body, found);
+            }
             parse::Statement::Match(selection) => selection_violation(selection, found),
             parse::Statement::Block(body) => block(body, found),
         }
@@ -394,6 +398,15 @@ impl Lower<'_> {
                 false,
             );
         }
+        self.match_boundaries.push(MatchBoundary {
+            root,
+            held: loan_temp,
+            span: Span {
+                file: selection.span.file.clone(),
+                start: selection.span.end.saturating_sub(1),
+                end: selection.span.end,
+            },
+        });
         let result_ty = expected.cloned().unwrap_or(Ty::Unit);
         let prior_locals = root.0;
         let checkpoint = self.consumed_undo.len();
@@ -615,6 +628,7 @@ impl Lower<'_> {
             }
         }
         let all_diverge = states.iter().all(|(_, continues)| !continues);
+        self.match_boundaries.pop();
         self.merge_match_states(states, prior_locals);
         if all_diverge {
             self.terminated = Some(Termination::Diverged);

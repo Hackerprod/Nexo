@@ -61,6 +61,44 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
         }
         verify_function(function)?;
     }
+    let generators: Vec<_> = program
+        .functions
+        .entries
+        .iter()
+        .filter(|function| function.generator_item.is_some())
+        .collect();
+    let identities: std::collections::HashMap<_, _> = generators
+        .iter()
+        .enumerate()
+        .map(|(index, function)| (function.name.as_str(), index))
+        .collect();
+    let graph: Vec<Vec<usize>> = generators
+        .iter()
+        .map(|function| {
+            std::iter::once(&function.block)
+                .chain(&function.blocks)
+                .flat_map(|block| &block.instructions)
+                .filter_map(|instruction| match &instruction.op {
+                    Op::BuildGenerator { function, .. } => {
+                        identities.get(function.0.as_str()).copied()
+                    }
+                    _ => None,
+                })
+                .collect()
+        })
+        .collect();
+    for root in 0..graph.len() {
+        let mut seen = std::collections::HashSet::new();
+        let mut pending = graph[root].clone();
+        while let Some(index) = pending.pop() {
+            if index == root {
+                return Err("generator inline layout cycle");
+            }
+            if seen.insert(index) {
+                pending.extend(&graph[index]);
+            }
+        }
+    }
     let mut closures = std::collections::HashMap::new();
     for function in &program.functions.entries {
         for ins in std::iter::once(&function.block)
@@ -110,18 +148,40 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
             if !valid_charges(function, &ins.charges) {
                 return Err("work charge origin");
             }
-            if let Op::CallDirect {
-                function: callee,
-                signature,
-                ..
-            } = &ins.op
-            {
+            if let Some((callee, signature, build)) = match &ins.op {
+                Op::CallDirect {
+                    function,
+                    signature,
+                    ..
+                } => Some((function, signature, false)),
+                Op::BuildGenerator {
+                    function,
+                    signature,
+                    ..
+                } => Some((function, signature, true)),
+                _ => None,
+            } {
                 let target = program
                     .functions
                     .function(&callee.0)
                     .ok_or("unknown callee")?;
-                if signature.len() != target.parameters.len()
-                    || ins.ty.as_ref() != Some(&target.result)
+                let expected = if build {
+                    let site = target.generator_site.ok_or("generator identity")?;
+                    let item = target.generator_item.as_ref().ok_or("generator item")?;
+                    if target.result != Ty::Unit {
+                        return Err("generator body result");
+                    }
+                    Ty::Generator {
+                        site,
+                        item: Box::new(item.clone()),
+                    }
+                } else {
+                    if target.generator_site.is_some() {
+                        return Err("direct call to generator body");
+                    }
+                    target.result.clone()
+                };
+                if signature.len() != target.parameters.len() || ins.ty.as_ref() != Some(&expected)
                 {
                     return Err("callee signature");
                 }
@@ -188,6 +248,7 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
                 | Terminator::Return { charges, .. }
                 | Terminator::Jump { charges, .. }
                 | Terminator::BranchBool { charges, .. } => charges,
+                Terminator::Yield { charges, .. } => charges,
             };
             if !valid_charges(function, charges) {
                 return Err("terminator charges");
@@ -219,6 +280,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Terminator::Return { charges, .. }
             | Terminator::Jump { charges, .. }
             | Terminator::BranchBool { charges, .. } => charges,
+            Terminator::Yield { charges, .. } => charges,
         };
         if !valid_charges(function, charges) {
             return Err("work charge origin");
@@ -475,6 +537,32 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     }
                 }
                 ins.ty.clone()
+            }
+            Op::ResumeGenerator { receiver, item } => {
+                if loan_permission.get(receiver.0) != Some(&Some(LoanPermission::Inout)) {
+                    return Err("generator receiver permission");
+                }
+                let root = borrow_sources
+                    .get(receiver.0)
+                    .and_then(|root| *root)
+                    .ok_or("generator receiver root")?;
+                active_exclusive[root.0] = active_exclusive[root.0]
+                    .checked_sub(1)
+                    .ok_or("exclusive loan count")?;
+                if let Some(Some(loan)) = loan_id_by_temp.get(receiver.0) {
+                    pending_end.push(loan.0);
+                }
+                let ty = take(
+                    *receiver,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?;
+                if !matches!(ty, Ty::Generator { item: actual, .. } if actual.as_ref() == item) {
+                    return Err("generator receiver type");
+                }
+                Some(Ty::option(Box::new(item.clone())))
             }
             Op::BuildClosure {
                 site,
@@ -991,6 +1079,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             }
             Op::CallDirect {
                 args, signature, ..
+            }
+            | Op::BuildGenerator {
+                args, signature, ..
             } => {
                 if args.len() != signature.len() {
                     return Err("call arity");
@@ -1283,7 +1374,8 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
         Terminator::Return { value: None, .. } => return Err("missing return value"),
         Terminator::Unreachable { .. }
         | Terminator::Jump { .. }
-        | Terminator::BranchBool { .. } => {
+        | Terminator::BranchBool { .. }
+        | Terminator::Yield { .. } => {
             return Err("unexpected control terminator");
         }
     }
@@ -1800,6 +1892,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             Terminator::Return { value: None, .. } => return Err("missing return value"),
             Terminator::Jump { target, span, .. } => (vec![target.0], span),
             Terminator::BranchBool { yes, no, span, .. } => (vec![yes.0, no.0], span),
+            Terminator::Yield { resume, span, .. } => (vec![resume.0], span),
         };
         if !valid_span(span) {
             return Err("terminator origin");
@@ -2662,6 +2755,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 }
                 Op::CallDirect {
                     args, signature, ..
+                }
+                | Op::BuildGenerator {
+                    args, signature, ..
                 } => {
                     if args.len() != signature.len() {
                         return Err("call arity");
@@ -2705,6 +2801,28 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         }
                     }
                     ins.ty.clone()
+                }
+                Op::ResumeGenerator { receiver, item } => {
+                    let info = temps.info(*receiver)?;
+                    if info.permission != Some(LoanPermission::Inout) {
+                        return Err("generator receiver permission");
+                    }
+                    let root = info.exclusive_root.ok_or("generator receiver root")?;
+                    let loan = info.loan;
+                    let remaining = temps
+                        .exclusive(root)
+                        .checked_sub(1)
+                        .ok_or("exclusive loan count")?;
+                    temps.exclusive.insert(root, remaining);
+                    let ty = temps.read(*receiver, true)?;
+                    if let Some(loan) = loan {
+                        temps.pending_end.push(loan);
+                    }
+                    if !matches!(ty, Ty::Generator { item: actual, .. } if actual.as_ref() == item)
+                    {
+                        return Err("generator receiver type");
+                    }
+                    Some(Ty::option(Box::new(item.clone())))
                 }
                 Op::CallClosure {
                     site,
@@ -2948,6 +3066,17 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     return Err("branch condition type");
                 }
             }
+            Terminator::Yield { value, .. } => {
+                let item = function
+                    .generator_item
+                    .as_ref()
+                    .ok_or("yield outside generator")?;
+                let info = temps.info(*value)?;
+                if info.is_borrowed || info.exclusive_root.is_some() || &info.ty != item {
+                    return Err("yield item type or ownership");
+                }
+                temps.read(*value, true)?;
+            }
             Terminator::Jump { .. } => {}
             Terminator::Return { value: None, .. } => return Err("missing return value"),
         }
@@ -3145,6 +3274,7 @@ fn verify_match_proofs(
                 edges
             }
             Terminator::Jump { target, .. } => vec![(target.0, Vec::new())],
+            Terminator::Yield { resume, .. } => vec![(resume.0, Vec::new())],
             Terminator::Return { .. } | Terminator::Unreachable { .. } => Vec::new(),
         };
         for (target, added) in edges {

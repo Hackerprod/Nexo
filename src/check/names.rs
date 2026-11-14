@@ -262,7 +262,14 @@ pub fn register(file: &str, source: &str, ast: &Ast) -> Result<Registered, Vec<B
             Signature {
                 name_span: function.name_span.clone(),
                 params,
-                result: function.result.clone().unwrap_or(Type::Unit),
+                result: if function.is_generator {
+                    Type::Generator {
+                        site: function.name_span.start,
+                        item: Box::new(function.result.clone().unwrap_or(Type::Unit)),
+                    }
+                } else {
+                    function.result.clone().unwrap_or(Type::Unit)
+                },
                 intrinsic: false,
             },
         );
@@ -313,9 +320,10 @@ pub(crate) fn intrinsic(name: &str) -> Option<Signature> {
         "Fail" | "MockUnknown" => (vec![], Unit),
         "Ok" | "Err" | "Some" => (vec![("v", Unit)], Unit),
         "None" => (vec![], Unit),
+        "Iterator.Next" => (vec![("g", Unit)], Type::Option(Box::new(Unit))),
         _ => return None,
     };
-    let params = params
+    let mut params: Vec<ParameterSig> = params
         .into_iter()
         .map(|(name, ty)| ParameterSig {
             name: name.into(),
@@ -333,6 +341,9 @@ pub(crate) fn intrinsic(name: &str) -> Option<Signature> {
             ty,
         })
         .collect();
+    if name == "Iterator.Next" {
+        params[0].mode = Mode::Inout;
+    }
     Some(Signature {
         name_span: Span {
             file: "<prelude>".into(),
@@ -612,6 +623,27 @@ impl Resolver {
             } => {
                 self.expr(condition, false)?;
                 self.block(body, true)
+            }
+            Statement::For {
+                name,
+                name_span,
+                iterable,
+                body,
+                ..
+            } => {
+                self.expr(iterable, false)?;
+                self.scopes.push(HashMap::new());
+                self.scopes.last_mut().expect("for scope").insert(
+                    name.clone(),
+                    Local {
+                        name_span: name_span.clone(),
+                        mode: Mode::Read,
+                        mutable: false,
+                    },
+                );
+                let result = self.block(body, true);
+                self.scopes.pop();
+                result
             }
             Statement::Match(selection) => self.selection(selection),
         }
@@ -945,6 +977,7 @@ impl Resolver {
                 let related = (!sig.intrinsic)
                     .then(|| (RelatedRole::Declaration, sig.params[slot].name_span.clone()));
                 let span = match &a.value {
+                    _ if sig.intrinsic && formal == Mode::Inout => a.value.span().clone(),
                     Expr::Unary { value, .. } if actual != Mode::Read => value.span().clone(),
                     _ => a.value.span().clone(),
                 };
