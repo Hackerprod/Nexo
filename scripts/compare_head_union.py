@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Compare CLI bytes with HEAD, including unguarded, nonnested matches."""
+"""Compare HEAD on programs without closures, accounting for the ADR receiver stage."""
 
 import io
 import itertools
@@ -91,7 +91,7 @@ def all_sources() -> list[tuple[str, str, Path | None]]:
     for index, (first, second, context) in enumerate(itertools.islice(combinations, 300)):
         source = f"fn Main(){{var r={first};r={second};{context}}}"
         rows.append((f"f0007-reassignment:{index:03}", source, None))
-    previous = [row for row in rows if not re.search(r"\b(?:Option|Some|None|match)\b", row[1])]
+    previous = [row for row in rows if not re.search(r"\b(?:Option|Some|None|match)\b|\bfn\s*\[", row[1])]
     match_sources = [
         (f"match:{name}", source, None)
         for name, source in test_sources()
@@ -102,7 +102,12 @@ def all_sources() -> list[tuple[str, str, Path | None]]:
         and len(re.findall(r"\bmatch\b", source)) == 1
         and not re.search(r"\bif\b", source)
     ]
-    return previous + match_sources
+    receiver_sources = [
+        ("receiver:grouped-edit", "fn F(){}fn Main(){edit (F());}", None),
+        ("receiver:grouped-move", "fn a(x:view I64){}fn Main(){move (a(1));}", None),
+        ("receiver:initializer-edit", "fn F(){}fn Main(){let x=edit(F());}", None),
+    ]
+    return previous + match_sources + receiver_sources
 
 
 def invoke(binary: Path, args: list[str]) -> tuple[int, bytes, bytes]:
@@ -127,6 +132,7 @@ def compare() -> None:
         sources.mkdir()
         rows = all_sources()
         differences = []
+        receiver_stage_migrations = 0
         commands = 0
         for index, (name, source, env) in enumerate(rows):
             if index and index % 100 == 0:
@@ -136,7 +142,7 @@ def compare() -> None:
             for mode in ("debug", "release"):
                 for command in ("check", "run"):
                     args = [command, str(path), "--format", "json"]
-                    if name.startswith("match:"):
+                    if name.startswith(("match:", "receiver:")):
                         args.extend(["--profile", "f0-0003-b-v1"])
                     if command == "run" and env:
                         args.extend(["--mock-env", str(env)])
@@ -144,10 +150,25 @@ def compare() -> None:
                     after = invoke(current[mode], args)
                     commands += 1
                     if before != after:
+                        if name.startswith("receiver:") and before[0] == after[0] == 1:
+                            old = json.loads(before[1])
+                            new = json.loads(after[1])
+                            old_diagnostics = old.get("diagnostics", [])
+                            new_diagnostics = new.get("diagnostics", [])
+                            if len(old_diagnostics) == len(new_diagnostics) == 1:
+                                old_diagnostic = old_diagnostics[0]
+                                new_diagnostic = new_diagnostics[0]
+                                if (old_diagnostic.get("stage"), old_diagnostic.get("operation")) == ("parse", "syntax.parse") and (new_diagnostic.get("stage"), new_diagnostic.get("operation")) == ("names", "names.resolve"):
+                                    old_diagnostic["stage"] = "names"
+                                    old_diagnostic["operation"] = "names.resolve"
+                                    if old == new and before[2] == after[2]:
+                                        receiver_stage_migrations += 1
+                                        continue
                         differences.append((name, mode, command, before[0], after[0],
                                             before[1][:300].decode("utf-8", "replace"),
                                             after[1][:300].decode("utf-8", "replace")))
     print(json.dumps({"sources": len(rows), "commands": commands, "differences": len(differences),
+                      "receiver_stage_migrations": receiver_stage_migrations,
                       "first": differences[:10]}, ensure_ascii=False))
     if differences:
         raise SystemExit(1)

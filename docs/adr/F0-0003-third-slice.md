@@ -1349,6 +1349,23 @@ de la ausencia derivada de resume; context relaciona el nombre declarado G.
 Estas decisiones solo sustituyen las cláusulas indicadas para el perfil de
 este corte. No editan documentos de autoridad ni cambian la base 0.2.
 
+**Puerta J14 de emisión (decisión del coordinador, 2026-11-13).** Tras completar
+el análisis J06–J09 de una fuente con closure, la CLI pública emite
+`NX-E0006/implementation_limit` en `lower/ir.lower`, con
+`pending_scope=J14` y primario en el primer nodo nuevo por orden fuente
+(§§2.2 y 8.1); sale con código 1, `observations=[]` y no ejecuta. La puerta
+reside en un único punto de `lower`. No oculta errores de análisis: por
+ejemplo, `fn Main(){let x=1;let f=fn []()->I64{return x;};}` emite solo
+`NX-E1101` de C01, mientras que
+`fn Main(){let x=1;let f=fn [copy x]()->I64{return x;};}` supera el análisis
+y alcanza `NX-E0006/J14` en el `fn` de la closure. La API pública de biblioteca
+para el arnés interno pasa por lower, verificador e intérprete omitiendo
+únicamente esta puerta; permite comprobar que el segundo programa ejecuta
+con resultado unitario, diagnósticos y observaciones vacíos. J14 retirará la
+puerta al implementar la contabilidad completa. La discrepancia pública
+heredada de Option/match/guardas J02–J05 queda registrada en `Pending.md`
+como NB-J14-01 y no se amplía aquí.
+
 | Fuente y texto exacto que se enmienda | Nueva redacción para este perfil | Filas afectadas |
 |---|---|---|
 | D15 §3.6: «`pending_scope` es `F0-0003` para `closure/generator/option/match`, `later_adr` para los restantes de alcance; `implementation_limit` usa exclusivamente `I08`, `I09`, `I10a`, `I10b` o `I11a` según §7.1.» | Sustituir por tabla cerrada §2 para f0-0003-b-v1; retirar los rechazos globales incorporados. Se amplían las etapas de implementation_limit de forma expresa, no se encubre un InvalidIr. | §2/J02–J14; L01/L02 |

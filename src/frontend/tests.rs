@@ -286,6 +286,7 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
     use super::parse::{Else, Expr, Statement};
     fn expression(value: &Expr, source: &str) {
         match value {
+            Expr::Closure(closure) => assert_simple_terminators(&closure.body, source),
             Expr::Array(items, _) => items.iter().for_each(|item| expression(item, source)),
             Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => expression(inner, source),
             Expr::Binary { left, right, .. } => {
@@ -4943,4 +4944,36 @@ fn published_syntax_rows_have_exact_tokens_spans_and_prefixes() {
         );
         assert!(error.validate("b.n", &source).is_ok());
     }
+}
+#[test]
+fn explicit_closure_capture_requires_written_mode() {
+    use super::parse::{self, CaptureMode, Expr, Statement};
+    use crate::diagnostic::{Operation, Stage};
+
+    let valid = "fn Main(){let base=3;let f=fn [copy base](x:view I64)->I64{return base+x;};}";
+    let ast = parse::parse_new_profile("capture.n", valid).unwrap();
+    let Statement::Let {
+        value: Expr::Closure(closure),
+        ..
+    } = &ast.functions[0].body.statements[1]
+    else {
+        panic!("closure literal missing from AST");
+    };
+    assert_eq!(closure.fn_span.start, 27);
+    assert_eq!(
+        closure.captures.as_ref().unwrap()[0].mode,
+        CaptureMode::Copy
+    );
+    assert_eq!(closure.captures.as_ref().unwrap()[0].name, "base");
+    assert_eq!(closure.params.len(), 1);
+    assert!(closure.result.is_some());
+
+    let invalid = "fn Main(){let base=3;let f=fn [base](x:view I64)->I64{return base+x;};}";
+    let error = parse::parse_new_profile("capture.n", invalid).unwrap_err();
+    assert_eq!(error.code, "NX-E0002");
+    assert_eq!(error.stage, Stage::Parse);
+    assert_eq!(error.operation, Operation::SyntaxParse);
+    assert_eq!(error.primary_span.as_ref().unwrap().start, 31);
+    assert_eq!(error.expected_tokens, ["copy", "edit", "move", "view"]);
+    error.validate("capture.n", invalid).unwrap();
 }

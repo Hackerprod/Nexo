@@ -74,6 +74,35 @@ fn erase_expr_spans(expr: &mut Expr) {
         span.end = 0;
     };
     match expr {
+        Expr::Closure(closure) => {
+            blank(&mut closure.fn_span);
+            blank(&mut closure.span);
+            for capture in closure.captures.iter_mut().flatten() {
+                blank(&mut capture.span);
+                blank(&mut capture.name_span);
+            }
+            for param in &mut closure.params {
+                blank(&mut param.span);
+            }
+            if let Some(clause) = &mut closure.with_clause {
+                match clause {
+                    super::parse::WithClause::Simple(restrictions) => {
+                        for restriction in restrictions {
+                            blank(&mut restriction.span);
+                        }
+                    }
+                    super::parse::WithClause::Operations(operations) => {
+                        for operation in operations {
+                            blank(&mut operation.span);
+                            for restriction in &mut operation.restrictions {
+                                blank(&mut restriction.span);
+                            }
+                        }
+                    }
+                }
+            }
+            erase_block_spans(&mut closure.body);
+        }
         Expr::Name(_, span) | Expr::Integer(_, span) | Expr::Bool(_, span) | Expr::Unit(span) => {
             blank(span)
         }

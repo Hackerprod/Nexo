@@ -867,6 +867,14 @@ impl Diagnostic {
                 "implementation_limit" if self.profile_id.starts_with("f0-0003-") => {
                     (self.stage.as_str(), self.operation.as_str())
                 }
+                "closure"
+                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Types =>
+                {
+                    ("types", "types.check")
+                }
+                "receiver_mode" if self.profile_id.starts_with("f0-0003-") => {
+                    ("names", "names.resolve")
+                }
                 "implementation_limit" => ("types", "types.check"),
                 "inferred_non_unit_result" | "resource_array" | "option" | "unsupported_type" => {
                     ("types", "types.check")
@@ -916,6 +924,8 @@ impl Diagnostic {
                         "value.build_array",
                         "value.copy",
                         "value.drop",
+                        "closure.create",
+                        "closure.call",
                     ]
                     .contains(&self.operation.as_str())
                 {
@@ -1418,6 +1428,10 @@ impl Diagnostic {
         if self.code == "NX-E0006" {
             let expected = if self.feature_id.as_deref() == Some("implementation_limit") {
                 None
+            } else if self.profile_id.starts_with("f0-0003-")
+                && self.feature_id.as_deref() == Some("closure")
+            {
+                Some("later_adr")
             } else if matches!(
                 self.feature_id.as_deref(),
                 Some("closure" | "generator" | "option" | "match")
@@ -1659,6 +1673,16 @@ fn valid_diagnostic_type(value: &str, expected: bool) -> bool {
             if rest.starts_with(name) {
                 *index += name.len();
                 return !compound;
+            }
+        }
+        for name in [b"Closure@".as_slice(), b"Generator@"] {
+            if rest.starts_with(name) {
+                *index += name.len();
+                let first = *index;
+                while bytes.get(*index).is_some_and(u8::is_ascii_digit) {
+                    *index += 1;
+                }
+                return *index > first && (*index == first + 1 || bytes[first] != b'0');
             }
         }
         if rest.starts_with(b"Array<") {
@@ -2607,6 +2631,9 @@ fn coordinates_by_code(code: &str, subcause: Option<&str>) -> Option<(&'static s
         "NX-E0201" => ("ownership", "value.copy"),
         "NX-E0202" => ("ownership", "ownership.use"),
         "NX-E1105" => ("ownership", "ownership.access"),
+        "NX-E1101" | "NX-E1102" => ("names", "names.resolve"),
+        "NX-E1104" | "NX-E1107" => ("ownership", "ownership.check"),
+        "NX-E1111" => ("types", "types.check"),
         "NX-E1302" if subcause == Some("missing_branch_value") => ("ownership", "flow.branch"),
         "NX-E1302" => ("parse", "syntax.parse"),
         "NX-E1317" => ("ownership", "flow.return"),
@@ -2998,9 +3025,9 @@ static CATALOG: &[CatalogEntry] = &[
             },
             CatalogSubcause {
                 name: "missing_body_operation",
-                availability: "outside_profile",
-                stage: "",
-                operation: "",
+                availability: "in_profile",
+                stage: "parse",
+                operation: "syntax.parse",
             },
             CatalogSubcause {
                 name: "operation_list_required",
@@ -3035,25 +3062,25 @@ static CATALOG: &[CatalogEntry] = &[
         code: "NX-E1101",
         description: "Binding libre ausente de lista exhaustiva de capturas.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "names",
+        operation: "names.resolve",
     },
     CatalogEntry {
         code: "NX-E1102",
         description: "Binding capturado más de una vez en la misma lista.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "names",
+        operation: "names.resolve",
     },
     CatalogEntry {
         code: "NX-E1104",
         description: "Escape de préstamo retenido por una closure.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "ownership",
+        operation: "ownership.check",
     },
     CatalogEntry {
         code: "NX-E1105",
@@ -3086,9 +3113,9 @@ static CATALOG: &[CatalogEntry] = &[
         code: "NX-E1107",
         description: "Modo explícito de receptor insuficiente para la invocación.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "ownership",
+        operation: "ownership.check",
     },
     CatalogEntry {
         code: "NX-E1108",
@@ -3118,9 +3145,9 @@ static CATALOG: &[CatalogEntry] = &[
         code: "NX-E1111",
         description: "Inferencia local de firma de closure sin solución única.",
         subcauses: &[],
-        availability: "outside_profile",
-        stage: "",
-        operation: "",
+        availability: "in_profile",
+        stage: "types",
+        operation: "types.check",
     },
     CatalogEntry {
         code: "NX-E1112",

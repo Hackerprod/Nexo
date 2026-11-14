@@ -35,6 +35,11 @@ pub enum Ty {
     },
     MockResource,
     MockBlockingResource,
+    Closure {
+        site: u64,
+        copyable: bool,
+        owns_resource: bool,
+    },
 }
 impl Ty {
     pub fn result(ok: Box<Ty>, err: Box<Ty>) -> Self {
@@ -85,6 +90,7 @@ impl Ty {
                         .is_some_and(|ty| ty.has_resource_destructor())
             }
             Self::Array(inner) => inner.has_resource_destructor(),
+            Self::Closure { owns_resource, .. } => *owns_resource,
             Self::Never | Self::I64 | Self::Bool | Self::Unit => false,
         }
     }
@@ -92,6 +98,7 @@ impl Ty {
     pub fn copyable(&self) -> bool {
         match self {
             Self::MockResource | Self::MockBlockingResource => false,
+            Self::Closure { copyable, .. } => *copyable,
             Self::Array(inner) => inner.copyable(),
             Self::Union { first, second, .. } => {
                 first.copyable() && second.as_ref().is_none_or(|ty| ty.copyable())
@@ -164,6 +171,13 @@ pub enum LoanPermission {
     Read,
     Inout,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureKind {
+    View,
+    Copy,
+    Edit,
+    Move,
+}
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Parameter {
     pub local: LocalId,
@@ -194,6 +208,11 @@ pub enum Op {
     BuildVariant {
         tag: VariantTag,
         payload: Option<TempId>,
+    },
+    BuildClosure {
+        site: u64,
+        fields: Vec<(CaptureKind, TempId)>,
+        signature: Vec<Ty>,
     },
     TestVariant {
         local: LocalId,
@@ -273,6 +292,14 @@ pub enum Op {
     CallDirect {
         function: FunctionId,
         /// Written order. Each entry carries its declared parameter slot.
+        args: Vec<(usize, TempId)>,
+        signature: Vec<(String, ParameterMode, Ty)>,
+    },
+    CallClosure {
+        site: u64,
+        receiver: TempId,
+        mode: ParameterMode,
+        capture_count: usize,
         args: Vec<(usize, TempId)>,
         signature: Vec<(String, ParameterMode, Ty)>,
     },
@@ -515,6 +542,16 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                 Item::Type(Ty::Unit) => bytes.push(3),
                 Item::Type(Ty::MockResource) => bytes.push(5),
                 Item::Type(Ty::MockBlockingResource) => bytes.push(6),
+                Item::Type(Ty::Closure {
+                    site,
+                    copyable,
+                    owns_resource,
+                }) => {
+                    bytes.push(10);
+                    bytes.extend_from_slice(&site.to_le_bytes());
+                    bytes.push(u8::from(*copyable));
+                    bytes.push(u8::from(*owns_resource));
+                }
                 Item::Type(Ty::Array(child)) => {
                     bytes.push(4);
                     pending.push(Item::End);
@@ -635,6 +672,25 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     number(&mut bytes, items.len());
                     for id in items {
                         number(&mut bytes, id.0);
+                    }
+                }
+                Op::BuildClosure {
+                    site,
+                    fields,
+                    signature,
+                } => {
+                    bytes.push(34);
+                    bytes.extend_from_slice(&site.to_le_bytes());
+                    number(&mut bytes, fields.len());
+                    for ((kind, temp), field_ty) in fields.iter().zip(signature) {
+                        bytes.push(match kind {
+                            CaptureKind::View => 1,
+                            CaptureKind::Copy => 2,
+                            CaptureKind::Edit => 3,
+                            CaptureKind::Move => 4,
+                        });
+                        number(&mut bytes, temp.0);
+                        ty(&mut bytes, field_ty);
                     }
                 }
                 Op::BuildVariant { tag, payload } => {
@@ -845,6 +901,39 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         ty(&mut bytes, ty_value);
                     }
                     number(&mut bytes, args.len());
+                    for (slot, id) in args {
+                        number(&mut bytes, *slot);
+                        number(&mut bytes, id.0);
+                    }
+                }
+                Op::CallClosure {
+                    site,
+                    receiver,
+                    mode,
+                    capture_count,
+                    args,
+                    signature,
+                } => {
+                    bytes.push(35);
+                    bytes.extend_from_slice(&site.to_le_bytes());
+                    number(&mut bytes, receiver.0);
+                    bytes.push(match mode {
+                        ParameterMode::Read => 1,
+                        ParameterMode::Consume => 2,
+                        ParameterMode::Inout => 3,
+                    });
+                    number(&mut bytes, *capture_count);
+                    number(&mut bytes, signature.len());
+                    for (name, mode, field_ty) in signature {
+                        number(&mut bytes, name.len());
+                        bytes.extend_from_slice(name.as_bytes());
+                        bytes.push(match mode {
+                            ParameterMode::Read => 1,
+                            ParameterMode::Consume => 2,
+                            ParameterMode::Inout => 3,
+                        });
+                        ty(&mut bytes, field_ty);
+                    }
                     for (slot, id) in args {
                         number(&mut bytes, *slot);
                         number(&mut bytes, id.0);

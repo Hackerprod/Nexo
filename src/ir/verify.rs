@@ -61,6 +61,47 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
         }
         verify_function(function)?;
     }
+    let mut closures = std::collections::HashMap::new();
+    for function in &program.functions.entries {
+        for ins in std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|block| &block.instructions)
+        {
+            if let Op::BuildClosure {
+                site,
+                fields,
+                signature,
+            } = &ins.op
+            {
+                let target = program
+                    .functions
+                    .function(&format!("$closure:{site}"))
+                    .ok_or("unknown closure body")?;
+                if fields.len() != signature.len()
+                    || signature.len() > target.parameters.len()
+                    || closures.insert(*site, signature.len()).is_some()
+                {
+                    return Err("closure construction signature");
+                }
+                for (index, (kind, ty)) in fields
+                    .iter()
+                    .map(|(kind, _)| kind)
+                    .zip(signature)
+                    .enumerate()
+                {
+                    let parameter = &target.parameters[index];
+                    if *ty != target.locals[parameter.local.0].ty
+                        || (matches!(kind, super::model::CaptureKind::View)
+                            && parameter.mode != ParameterMode::Read)
+                        || (matches!(kind, super::model::CaptureKind::Edit)
+                            && parameter.mode != ParameterMode::Inout)
+                    {
+                        return Err("closure construction signature");
+                    }
+                }
+            }
+        }
+    }
     for function in &program.functions.entries {
         for ins in std::iter::once(&function.block)
             .chain(&function.blocks)
@@ -90,6 +131,53 @@ pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
                         || *name != target.locals[param.local.0].name
                     {
                         return Err("callee signature");
+                    }
+                }
+            }
+            if let Op::CallClosure {
+                site,
+                mode,
+                capture_count,
+                signature,
+                ..
+            } = &ins.op
+            {
+                let target = program
+                    .functions
+                    .function(&format!("$closure:{site}"))
+                    .ok_or("unknown closure body")?;
+                if closures.get(site) != Some(capture_count)
+                    || signature.len() != target.parameters.len()
+                    || ins.ty.as_ref() != Some(&target.result)
+                {
+                    return Err("closure callee signature");
+                }
+                let required = target.parameters.iter().take(*capture_count).fold(
+                    ParameterMode::Read,
+                    |current, parameter| match (current, parameter.mode) {
+                        (ParameterMode::Consume, _) | (_, ParameterMode::Consume) => {
+                            ParameterMode::Consume
+                        }
+                        (ParameterMode::Inout, _) | (_, ParameterMode::Inout) => {
+                            ParameterMode::Inout
+                        }
+                        _ => ParameterMode::Read,
+                    },
+                );
+                if matches!(
+                    (required, mode),
+                    (
+                        ParameterMode::Consume,
+                        ParameterMode::Read | ParameterMode::Inout
+                    ) | (ParameterMode::Inout, ParameterMode::Read)
+                ) {
+                    return Err("closure receiver capability");
+                }
+                for ((name, formal_mode, ty), parameter) in signature.iter().zip(&target.parameters)
+                {
+                    let local = &target.locals[parameter.local.0];
+                    if *name != local.name || *formal_mode != parameter.mode || *ty != local.ty {
+                        return Err("closure callee signature");
                     }
                 }
             }
@@ -384,6 +472,44 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                         != **element
                     {
                         return Err("array element type");
+                    }
+                }
+                ins.ty.clone()
+            }
+            Op::BuildClosure {
+                site,
+                fields,
+                signature,
+            } => {
+                if !matches!(&ins.ty, Some(Ty::Closure { site: actual, .. }) if actual == site)
+                    || fields.len() != signature.len()
+                {
+                    return Err("closure construction signature");
+                }
+                for ((kind, id), field_ty) in fields.iter().zip(signature) {
+                    let retained = match kind {
+                        super::model::CaptureKind::View => Some(LoanPermission::Read),
+                        super::model::CaptureKind::Edit => Some(LoanPermission::Inout),
+                        _ => None,
+                    };
+                    if retained.is_some() != loan_id_by_temp.get(id.0).and_then(|id| *id).is_some()
+                        || retained.is_some_and(|permission| {
+                            loan_permission.get(id.0) != Some(&Some(permission))
+                        })
+                        || (retained.is_none() && borrowed.get(id.0) == Some(&true))
+                    {
+                        return Err("borrowed closure field");
+                    }
+                    if take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)?
+                        != *field_ty
+                    {
+                        return Err("closure field type");
+                    }
+                    if *kind == super::model::CaptureKind::Edit {
+                        let root = borrow_sources[id.0].ok_or("exclusive closure origin")?;
+                        active_exclusive[root.0] = active_exclusive[root.0]
+                            .checked_sub(1)
+                            .ok_or("exclusive loan count")?;
                     }
                 }
                 ins.ty.clone()
@@ -912,6 +1038,79 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 ins.ty.clone()
             }
+            Op::CallClosure {
+                site,
+                receiver,
+                mode,
+                capture_count,
+                args,
+                signature,
+            } => {
+                if *capture_count > signature.len() || args.len() != signature.len() - capture_count
+                {
+                    return Err("closure call arity");
+                }
+                let receiver_ty = take(
+                    *receiver,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?;
+                if !matches!(receiver_ty, Ty::Closure { site: actual, .. } if actual == *site) {
+                    return Err("closure call identity");
+                }
+                if *mode == ParameterMode::Consume && borrowed.get(receiver.0) == Some(&true) {
+                    return Err("consuming borrowed closure");
+                }
+                if *mode == ParameterMode::Inout
+                    && loan_permission.get(receiver.0) != Some(&Some(LoanPermission::Inout))
+                {
+                    return Err("closure receiver permission");
+                }
+                if *mode == ParameterMode::Read
+                    && loan_permission.get(receiver.0) == Some(&Some(LoanPermission::Inout))
+                {
+                    return Err("closure receiver permission");
+                }
+                if *mode == ParameterMode::Inout {
+                    let root =
+                        borrow_sources[receiver.0].ok_or("exclusive closure receiver root")?;
+                    active_exclusive[root.0] = active_exclusive[root.0]
+                        .checked_sub(1)
+                        .ok_or("exclusive loan count")?;
+                }
+                if let Some(Some(loan)) = loan_id_by_temp.get(receiver.0) {
+                    pending_end.push(loan.0);
+                }
+                let mut seen = vec![false; args.len()];
+                for (slot, id) in args {
+                    if *slot >= args.len() || seen[*slot] {
+                        return Err("closure call slot");
+                    }
+                    seen[*slot] = true;
+                    let (_, arg_mode, ty) = &signature[*capture_count + *slot];
+                    if *arg_mode == ParameterMode::Consume && borrowed.get(id.0) == Some(&true) {
+                        return Err("consuming borrowed argument");
+                    }
+                    if *arg_mode == ParameterMode::Inout {
+                        if loan_permission.get(id.0) != Some(&Some(LoanPermission::Inout)) {
+                            return Err("edit argument permission");
+                        }
+                        let root = borrow_sources[id.0].ok_or("exclusive loan root")?;
+                        active_exclusive[root.0] = active_exclusive[root.0]
+                            .checked_sub(1)
+                            .ok_or("exclusive loan count")?;
+                    }
+                    if take(*id, &temps, &mut live, &borrow_sources, &mut active_borrows)? != *ty {
+                        return Err("closure call argument type");
+                    }
+                    if let Some(Some(loan)) = loan_id_by_temp.get(id.0) {
+                        pending_end.push(loan.0);
+                    }
+                }
+                ins.ty.clone()
+            }
             Op::DropValue(id) => {
                 if loan_permission.get(id.0) == Some(&Some(LoanPermission::Inout)) {
                     let root = borrow_sources
@@ -1258,6 +1457,17 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
         | Op::CheckIndex { indexes, .. }
         | Op::CallIntrinsic { args: indexes, .. } => {
             for &id in indexes {
+                visit(id);
+            }
+        }
+        Op::BuildClosure { fields, .. } => {
+            for &(_, id) in fields {
+                visit(id);
+            }
+        }
+        Op::CallClosure { receiver, args, .. } => {
+            visit(*receiver);
+            for &(_, id) in args {
                 visit(id);
             }
         }
@@ -2056,6 +2266,46 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     ins.ty.clone()
                 }
+                Op::BuildClosure {
+                    site,
+                    fields,
+                    signature,
+                } => {
+                    if !matches!(&ins.ty, Some(Ty::Closure { site: actual, .. }) if actual == site)
+                        || fields.len() != signature.len()
+                    {
+                        return Err("closure construction signature");
+                    }
+                    for ((kind, id), field_ty) in fields.iter().zip(signature) {
+                        let retained = match kind {
+                            super::model::CaptureKind::View => Some(LoanPermission::Read),
+                            super::model::CaptureKind::Edit => Some(LoanPermission::Inout),
+                            _ => None,
+                        };
+                        let info = temps.info(*id)?;
+                        let exclusive_root = info.exclusive_root;
+                        if retained.is_some() != info.loan.is_some()
+                            || retained
+                                .is_some_and(|permission| info.permission != Some(permission))
+                            || (retained.is_none()
+                                && (info.is_borrowed || info.exclusive_root.is_some()))
+                        {
+                            return Err("borrowed closure field");
+                        }
+                        if temps.read(*id, true)? != *field_ty {
+                            return Err("closure field type");
+                        }
+                        if *kind == super::model::CaptureKind::Edit {
+                            let root = exclusive_root.ok_or("exclusive closure origin")?;
+                            let count = temps
+                                .exclusive
+                                .get_mut(&root)
+                                .ok_or("exclusive loan count")?;
+                            *count = count.checked_sub(1).ok_or("exclusive loan count")?;
+                        }
+                    }
+                    ins.ty.clone()
+                }
                 Op::BuildVariant { tag, payload } => {
                     let Some(union) = ins.ty.as_ref().and_then(Ty::union_descriptor) else {
                         return Err("result type");
@@ -2449,6 +2699,77 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         }
                         if temps.read(*id, true)? != *ty {
                             return Err("call argument type");
+                        }
+                        if let Some(loan) = loan {
+                            temps.pending_end.push(loan);
+                        }
+                    }
+                    ins.ty.clone()
+                }
+                Op::CallClosure {
+                    site,
+                    receiver,
+                    mode,
+                    capture_count,
+                    args,
+                    signature,
+                } => {
+                    if *capture_count > signature.len()
+                        || args.len() != signature.len() - capture_count
+                    {
+                        return Err("closure call arity");
+                    }
+                    let receiver_info = temps.info(*receiver)?;
+                    if *mode == ParameterMode::Consume && receiver_info.is_borrowed {
+                        return Err("consuming borrowed closure");
+                    }
+                    if *mode == ParameterMode::Inout
+                        && receiver_info.permission != Some(LoanPermission::Inout)
+                    {
+                        return Err("closure receiver permission");
+                    }
+                    if *mode == ParameterMode::Read
+                        && receiver_info.permission == Some(LoanPermission::Inout)
+                    {
+                        return Err("closure receiver permission");
+                    }
+                    let receiver_root = receiver_info.exclusive_root;
+                    let receiver_loan = receiver_info.loan;
+                    if let Some(root) = receiver_root {
+                        let count = temps
+                            .exclusive
+                            .get_mut(&root)
+                            .ok_or("exclusive loan count")?;
+                        *count = count.checked_sub(1).ok_or("exclusive loan count")?;
+                    }
+                    if !matches!(temps.read(*receiver, true)?, Ty::Closure { site: actual, .. } if actual == *site)
+                    {
+                        return Err("closure call identity");
+                    }
+                    if let Some(loan) = receiver_loan {
+                        temps.pending_end.push(loan);
+                    }
+                    let mut seen = HashSet::new();
+                    for (slot, id) in args {
+                        if *slot >= args.len() || !seen.insert(*slot) {
+                            return Err("closure call slot");
+                        }
+                        let (_, arg_mode, ty) = &signature[*capture_count + *slot];
+                        let info = temps.info(*id)?;
+                        if *arg_mode == ParameterMode::Consume && info.is_borrowed {
+                            return Err("consuming borrowed argument");
+                        }
+                        let exclusive_root = info.exclusive_root;
+                        let loan = info.loan;
+                        if let Some(root) = exclusive_root {
+                            let count = temps
+                                .exclusive
+                                .get_mut(&root)
+                                .ok_or("exclusive loan count")?;
+                            *count = count.checked_sub(1).ok_or("exclusive loan count")?;
+                        }
+                        if temps.read(*id, true)? != *ty {
+                            return Err("closure call argument type");
                         }
                         if let Some(loan) = loan {
                             temps.pending_end.push(loan);

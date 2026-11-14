@@ -157,6 +157,37 @@ pub struct Parameter {
     pub ty: Type,
     pub span: Span,
 }
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ClosureParameter {
+    pub mode: Mode,
+    pub name: String,
+    pub ty: Option<Type>,
+    pub span: Span,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CaptureMode {
+    View,
+    Copy,
+    Edit,
+    Move,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Capture {
+    pub mode: CaptureMode,
+    pub name: String,
+    pub span: Span,
+    pub name_span: Span,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Closure {
+    pub fn_span: Span,
+    pub captures: Option<Vec<Capture>>,
+    pub params: Vec<ClosureParameter>,
+    pub result: Option<Type>,
+    pub with_clause: Option<WithClause>,
+    pub body: Block,
+    pub span: Span,
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Mode {
     Read,
@@ -173,6 +204,13 @@ pub enum Type {
     Array(Box<Type>),
     Result(Box<Type>, Box<Type>),
     Option(Box<Type>),
+    /// Anonymous nominal identity of a checked closure literal. Source type
+    /// grammar never constructs this variant directly.
+    Closure {
+        site: u64,
+        copyable: bool,
+        owns_resource: bool,
+    },
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum WithClause {
@@ -307,6 +345,7 @@ pub enum Statement {
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Expr {
+    Closure(Box<Closure>),
     Name(String, Span),
     Integer(String, Span),
     Bool(bool, Span),
@@ -357,6 +396,7 @@ pub struct Argument {
 impl Expr {
     pub fn span(&self) -> &Span {
         match self {
+            Self::Closure(closure) => &closure.span,
             Self::Name(_, s)
             | Self::Integer(_, s)
             | Self::Bool(_, s)
@@ -884,12 +924,13 @@ fn unadmitted_edit_in_statement(statement: &Statement) -> Option<Span> {
 
 fn unadmitted_edit_in_expr(expr: &Expr, immediate_argument: bool) -> Option<Span> {
     match expr {
+        Expr::Closure(closure) => unadmitted_edit_in_block(&closure.body),
         Expr::Unary {
             mode: Mode::Inout,
             value,
             span,
         } => {
-            if !immediate_argument {
+            if !immediate_argument && !matches!(&**value, Expr::Call { .. }) {
                 Some(span.clone())
             } else {
                 unadmitted_edit_in_expr(value, false)
@@ -1194,7 +1235,7 @@ impl Parser<'_> {
             return Err(self.feature("provenance_clauses", self.peek().span.clone()));
         }
         let with_clause = if self.eat("with") {
-            Some(self.with_clause(&name)?)
+            Some(self.with_clause(&name, false)?)
         } else {
             None
         };
@@ -1249,7 +1290,116 @@ impl Parser<'_> {
             span: self.span(start, end),
         })
     }
-    fn with_clause(&mut self, function_name: &Token) -> Result<WithClause, Box<Diagnostic>> {
+    fn closure(&mut self) -> Result<Expr, Box<Diagnostic>> {
+        let fn_token = self.take();
+        let start = fn_token.span.start as usize;
+        let captures = if self.eat("[") {
+            let mut captures = Vec::new();
+            while !self.at_text("]") && !self.eof() {
+                let mode_token = self.take();
+                let mode = match mode_token.text.as_str() {
+                    "view" => CaptureMode::View,
+                    "copy" => CaptureMode::Copy,
+                    "edit" => CaptureMode::Edit,
+                    "move" => CaptureMode::Move,
+                    _ => {
+                        return Err(self.syntax(
+                            &mode_token,
+                            "grammar.Capture",
+                            &["copy", "edit", "move", "view"],
+                            start,
+                        ));
+                    }
+                };
+                let name = self.expect_name("grammar.Capture", &["Name"], start)?;
+                captures.push(Capture {
+                    mode,
+                    name: name.text,
+                    span: self.span(mode_token.span.start as usize, name.span.end as usize),
+                    name_span: name.span,
+                });
+                if !self.eat(",") {
+                    break;
+                }
+            }
+            self.expect("]", "grammar.CaptureList", &[",", "]"], start)?;
+            Some(captures)
+        } else {
+            None
+        };
+        self.expect("(", "grammar.ClosureExpr", &["("], start)?;
+        let mut params = Vec::new();
+        while !self.at_text(")") && !self.eof() {
+            let name = self.expect_name("grammar.ClosureParam", &["Name"], start)?;
+            self.expect(":", "grammar.ClosureParam", &[":"], start)?;
+            let mode_token = self.take();
+            let mode = match mode_token.text.as_str() {
+                "view" => Mode::Read,
+                "edit" => Mode::Inout,
+                "move" => Mode::Consume,
+                _ => {
+                    return Err(self.syntax(
+                        &mode_token,
+                        "grammar.ParamMode",
+                        PARAM_MODE_FIRST,
+                        start,
+                    ));
+                }
+            };
+            let ty = if !matches!(self.peek().text.as_str(), "," | ")") {
+                Some(self.ty()?)
+            } else {
+                None
+            };
+            let span = self.span(name.span.start as usize, self.prev_end());
+            params.push(ClosureParameter {
+                mode,
+                name: name.text,
+                ty,
+                span,
+            });
+            if !self.eat(",") {
+                break;
+            }
+        }
+        self.expect(")", "grammar.ClosureExpr", &[")", ","], start)?;
+        let result = if self.eat("->") {
+            Some(self.ty()?)
+        } else {
+            None
+        };
+        if self.at_text("from") {
+            return Err(self.feature("provenance_clauses", self.peek().span.clone()));
+        }
+        let with_clause = if self.eat("with") {
+            Some(self.with_clause(&fn_token, true)?)
+        } else {
+            None
+        };
+        if !self.at_text("{") {
+            let token = self.peek().clone();
+            return Err(self.syntax(&token, "grammar.ClosureBody", &["{"], start));
+        }
+        self.local_scopes
+            .push(params.iter().map(|p| p.name.clone()).collect());
+        let body = self.block()?;
+        self.local_scopes.pop();
+        let span = self.span(start, body.span.end as usize);
+        Ok(Expr::Closure(Box::new(Closure {
+            fn_span: fn_token.span,
+            captures,
+            params,
+            result,
+            with_clause,
+            body,
+            span,
+        })))
+    }
+    fn with_clause(
+        &mut self,
+        function_name: &Token,
+        closure: bool,
+    ) -> Result<WithClause, Box<Diagnostic>> {
         if !self.at_text("{") && !self.starts_restriction() {
             return Err(self.err("grammar.WithClause", WITH_FIRST, self.prev_start(), None));
         }
@@ -1291,7 +1441,7 @@ impl Parser<'_> {
                     return Err(d);
                 }
                 first_operation.insert(name.text.clone(), name.span.clone());
-                if name.text != "call" && invalid.is_none() {
+                if !closure && name.text != "call" && invalid.is_none() {
                     invalid = Some(name.span.clone());
                 }
                 self.expect(
@@ -2178,10 +2328,32 @@ impl Parser<'_> {
             // AccessExpr owns its Postfix; TryExpr applies '?' to the completed
             // access, including the mode prefix (§3).
             let val = self.expr(4)?;
-            if has_call_root(&val) {
+            let receiver_call = self.new_profile && matches!(val, Expr::Call { .. });
+            if has_call_root(&val) && !receiver_call {
                 return Err(self.feature("receiver_mode", self.span(op, op + 4)));
             }
-            if let Some(bad) = place_root_failure(&val) {
+            if let Expr::Call { target, .. } = &val
+                && receiver_call
+                && let Some(bad) = place_root_failure(target)
+            {
+                let tok = self
+                    .tokens
+                    .iter()
+                    .find(|t| t.span.start == bad)
+                    .cloned()
+                    .unwrap_or_else(|| self.peek().clone());
+                return Err(self.syntax(
+                    &tok,
+                    if m == Mode::Consume {
+                        "consume_place"
+                    } else {
+                        "inout_place"
+                    },
+                    &["Place"],
+                    op,
+                ));
+            }
+            if let Some(bad) = (!receiver_call).then(|| place_root_failure(&val)).flatten() {
                 let tok = self
                     .tokens
                     .iter()
@@ -2223,7 +2395,11 @@ impl Parser<'_> {
             return Ok(Expr::Match(Box::new(self.match_form(true)?)));
         }
         if t.text == "fn" {
-            return Err(self.feature("closure", t.span));
+            return if self.new_profile {
+                self.closure()
+            } else {
+                Err(self.feature("closure", t.span))
+            };
         }
         if let Some(id) = deferred_feature(&t.text) {
             return Err(self.feature(id, t.span));
@@ -2666,6 +2842,8 @@ impl Parser<'_> {
         );
         d.unexpected_token = Some(self.diag_token(t));
         d.expected_tokens = expected.iter().map(|x| x.to_string()).collect();
+        d.expected_tokens.sort();
+        d.expected_tokens.dedup();
         d.expected_tokens_kind = Some(ExpectedTokensKind::AdmissibleSet);
         d.parser_context = Some(ctx.into());
         d.recognized_prefix = Some(self.span(prefix_start, t.span.start as usize));
@@ -2731,6 +2909,10 @@ impl Parser<'_> {
             return d;
         }
         d.feature_id = Some(id.into());
+        if id == "receiver_mode" && self.new_profile {
+            d.stage = Stage::Names;
+            d.operation = Operation::NamesResolve;
+        }
         if matches!(id, "unsupported_type" | "option") {
             d.operation = Operation::TypesCheck;
         }
@@ -3022,6 +3204,7 @@ fn is_resource_constructor(expr: &Expr) -> bool {
 
 fn expression_height(expr: &Expr) -> usize {
     match expr {
+        Expr::Closure(..) => 1,
         Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => 1,
         Expr::Group(inner, _) => expression_height(inner),
         Expr::Array(elements, _) => 1 + elements.iter().map(expression_height).max().unwrap_or(0),

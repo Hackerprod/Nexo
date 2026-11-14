@@ -96,6 +96,167 @@ fn copies_array(ty: &Ty) -> bool {
     }
 }
 
+fn closure_operation_effect(
+    ty: &Ty,
+    inferred: &crate::check::types::InferredTypes,
+    operation: &str,
+    depth: usize,
+) -> u8 {
+    if depth >= 128 {
+        return 0;
+    }
+    match ty {
+        Ty::Closure { site, .. } => inferred.closures.get(site).map_or(0, |info| {
+            info.captures.iter().fold(0, |bits, capture| {
+                if matches!(
+                    capture.mode,
+                    crate::frontend::parse::CaptureMode::View
+                        | crate::frontend::parse::CaptureMode::Edit
+                ) {
+                    return bits;
+                }
+                let Ok(field) = super::lower::lower_type(&capture.ty) else {
+                    return bits;
+                };
+                bits | match operation {
+                    "copy" => {
+                        (u8::from(copies_array(&field)) * ALLOC)
+                            | closure_operation_effect(&field, inferred, "copy", depth + 1)
+                    }
+                    "drop" => {
+                        resource_effect(&field)
+                            | closure_operation_effect(&field, inferred, "drop", depth + 1)
+                    }
+                    "leftover" if capture.usage != crate::frontend::parse::Mode::Consume => {
+                        resource_effect(&field)
+                            | closure_operation_effect(&field, inferred, "drop", depth + 1)
+                    }
+                    _ => 0,
+                }
+            })
+        }),
+        Ty::Union { first, second, .. } => {
+            closure_operation_effect(first, inferred, operation, depth + 1)
+                | second.as_ref().map_or(0, |ty| {
+                    closure_operation_effect(ty, inferred, operation, depth + 1)
+                })
+        }
+        _ => 0,
+    }
+}
+
+fn closure_local_witnesses(
+    f: &Function,
+    inferred: &crate::check::types::InferredTypes,
+) -> Vec<Witness> {
+    let temp_types: HashMap<_, _> = std::iter::once(&f.block)
+        .chain(&f.blocks)
+        .flat_map(|block| &block.instructions)
+        .filter_map(|ins| ins.output.zip(ins.ty.as_ref()))
+        .collect();
+    let mut out = Vec::new();
+    for block in std::iter::once(&f.block).chain(&f.blocks) {
+        for ins in &block.instructions {
+            let (bits, operation, entity) = match &ins.op {
+                Op::CopyValue(local) => (
+                    closure_operation_effect(&f.locals[local.0].ty, inferred, "copy", 0),
+                    CauseOperation::ValueCopy,
+                    Some(local_entity(f, *local)),
+                ),
+                Op::DropBinding(local) | Op::DropLocal(local) => (
+                    closure_operation_effect(&f.locals[local.0].ty, inferred, "drop", 0),
+                    CauseOperation::ValueDrop,
+                    Some(local_entity(f, *local)),
+                ),
+                Op::DropValue(temp) => (
+                    temp_types
+                        .get(temp)
+                        .map_or(0, |ty| closure_operation_effect(ty, inferred, "drop", 0)),
+                    CauseOperation::ValueDrop,
+                    None,
+                ),
+                Op::CallIntrinsic {
+                    intrinsic: super::model::Intrinsic::DropData,
+                    args,
+                } => (
+                    args.first()
+                        .and_then(|temp| temp_types.get(temp))
+                        .map_or(0, |ty| closure_operation_effect(ty, inferred, "drop", 0)),
+                    CauseOperation::ValueDrop,
+                    None,
+                ),
+                Op::CallClosure {
+                    site,
+                    mode: super::model::ParameterMode::Consume,
+                    ..
+                } => (
+                    closure_operation_effect(
+                        &Ty::Closure {
+                            site: *site,
+                            copyable: false,
+                            owns_resource: false,
+                        },
+                        inferred,
+                        "leftover",
+                        0,
+                    ),
+                    CauseOperation::ClosureCall,
+                    None,
+                ),
+                _ => (0, CauseOperation::IntrinsicCall, None),
+            };
+            if bits == 0 {
+                continue;
+            }
+            out.push(Witness {
+                summary: EffectSummary {
+                    known: bits,
+                    unknown: 0,
+                },
+                primary: ins.span.clone(),
+                operation,
+                chain: vec![Cause {
+                    kind: if operation == CauseOperation::ValueCopy {
+                        CauseKind::Copy
+                    } else {
+                        CauseKind::Drop
+                    },
+                    operation,
+                    span: Some(ins.span.clone()),
+                    entity,
+                    evidence: Evidence::Verified,
+                }],
+                related: Vec::new(),
+            });
+        }
+    }
+    for exit in &f.exit_info {
+        for local in &exit.live_locals {
+            let bits = closure_operation_effect(&f.locals[local.0].ty, inferred, "drop", 0);
+            if bits == 0 {
+                continue;
+            }
+            out.push(Witness {
+                summary: EffectSummary {
+                    known: bits,
+                    unknown: 0,
+                },
+                primary: exit.span.clone(),
+                operation: CauseOperation::ValueDrop,
+                chain: vec![Cause {
+                    kind: CauseKind::Drop,
+                    operation: CauseOperation::ValueDrop,
+                    span: Some(exit.span.clone()),
+                    entity: Some(local_entity(f, *local)),
+                    evidence: Evidence::Verified,
+                }],
+                related: Vec::new(),
+            });
+        }
+    }
+    out
+}
+
 fn local_entity(f: &Function, local: super::model::LocalId) -> Entity {
     let local = &f.locals[local.0];
     let kind = if local.parameter_mode.is_some() {
@@ -778,7 +939,11 @@ fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
                     }
                 }
             }
-            Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+            Expr::Name(..)
+            | Expr::Integer(..)
+            | Expr::Bool(..)
+            | Expr::Unit(..)
+            | Expr::Closure(..) => {}
         }
     }
     fn selection_spans(selection: &crate::frontend::parse::Match, out: &mut Vec<Span>) {
@@ -856,6 +1021,13 @@ fn call_components_by_rank(program: &Program, rank: &[usize]) -> Vec<Vec<usize>>
                 {
                     edges[index].push(target);
                 }
+                if let Op::CallClosure { site, .. } = &instruction.op
+                    && let Some(target) = indices
+                        .get(&super::model::FunctionId(format!("$closure:{site}")))
+                        .copied()
+                {
+                    edges[index].push(target);
+                }
             }
         }
         edges[index].sort_by_key(|target| rank[*target]);
@@ -925,6 +1097,7 @@ fn call_components_by_rank(program: &Program, rank: &[usize]) -> Vec<Vec<usize>>
 pub(super) fn analyze(
     program: &mut Program,
     ast: &Ast,
+    inferred: &crate::check::types::InferredTypes,
     effect_limit: u64,
     profile_id: &str,
 ) -> Result<(), Vec<crate::diagnostic::Diagnostic>> {
@@ -941,7 +1114,9 @@ pub(super) fn analyze(
         .collect();
     let mut local = Vec::new();
     for f in program.functions.functions() {
-        local.push(function_intrinsic_effect(f));
+        let mut witnesses = function_intrinsic_effect(f);
+        witnesses.extend(closure_local_witnesses(f, inferred));
+        local.push(witnesses);
     }
     let functions = program.functions.functions();
     let indices: HashMap<_, _> = functions
@@ -1000,6 +1175,27 @@ pub(super) fn analyze(
                                 },
                             );
                         }
+                        if let Op::CallClosure { site, .. } = &instruction.op
+                            && let Some(target) = indices
+                                .get(&super::model::FunctionId(format!("$closure:{site}")))
+                                .copied()
+                        {
+                            charge_effect(
+                                &mut effect_steps,
+                                &instruction.span,
+                                effect_limit,
+                                profile_id,
+                            )
+                            .map_err(|error| vec![*error])?;
+                            summary = add(
+                                summary,
+                                if members.contains(&target) {
+                                    old[target]
+                                } else {
+                                    summaries[target]
+                                },
+                            );
+                        }
                     }
                 }
                 next[*index] = summary;
@@ -1016,6 +1212,169 @@ pub(super) fn analyze(
     }
 
     let mut errors = Vec::new();
+    for closure in super::lower::collect_closures(ast) {
+        let Some(info) = inferred.closures.get(&closure.fn_span.start) else {
+            continue;
+        };
+        let call_summary = indices
+            .get(&super::model::FunctionId(format!("$closure:{}", info.site)))
+            .map_or(EffectSummary::default(), |index| summaries[*index]);
+        let operations: Vec<(&str, &crate::frontend::parse::Restriction)> =
+            match &closure.with_clause {
+                Some(WithClause::Simple(items)) => items
+                    .iter()
+                    .map(|restriction| ("call", restriction))
+                    .collect(),
+                Some(WithClause::Operations(ops)) => ops
+                    .iter()
+                    .flat_map(|op| {
+                        op.restrictions
+                            .iter()
+                            .map(move |restriction| (op.name.as_str(), restriction))
+                    })
+                    .collect(),
+                None => Vec::new(),
+            };
+        for (operation_name, restriction) in operations {
+            let Some(effect_name) = restriction.name.strip_prefix("no_") else {
+                continue;
+            };
+            let Some(&(bit, _, code)) = EFFECTS.iter().find(|(_, name, _)| *name == effect_name)
+            else {
+                continue;
+            };
+            let mut summary = if operation_name == "call" {
+                call_summary
+            } else {
+                EffectSummary::default()
+            };
+            let mut source_witness = None;
+            for capture in &info.captures {
+                let Ok(ty) = super::lower::lower_type(&capture.ty) else {
+                    continue;
+                };
+                let contributes = match operation_name {
+                    "create" if capture.mode == crate::frontend::parse::CaptureMode::Copy => {
+                        (u8::from(copies_array(&ty)) * ALLOC)
+                            | closure_operation_effect(&ty, inferred, "copy", 0)
+                    }
+                    "copy" if capture.mode != crate::frontend::parse::CaptureMode::View => {
+                        (u8::from(copies_array(&ty)) * ALLOC)
+                            | closure_operation_effect(&ty, inferred, "copy", 0)
+                    }
+                    "drop"
+                        if matches!(
+                            capture.mode,
+                            crate::frontend::parse::CaptureMode::Copy
+                                | crate::frontend::parse::CaptureMode::Move
+                        ) =>
+                    {
+                        resource_effect(&ty) | closure_operation_effect(&ty, inferred, "drop", 0)
+                    }
+                    _ => 0,
+                };
+                summary.known |= contributes;
+                if contributes & bit != 0 && source_witness.is_none() {
+                    source_witness = Some((capture, ty));
+                }
+            }
+            if (summary.known | summary.unknown) & bit == 0 {
+                continue;
+            }
+            let mut error = crate::check::names::diagnostic(
+                code,
+                None,
+                Stage::Effects,
+                match operation_name {
+                    "create" => Operation::ClosureCreate,
+                    "copy" => Operation::ValueCopy,
+                    "drop" => Operation::ValueDrop,
+                    _ => Operation::ClosureCall,
+                },
+                closure.fn_span.clone(),
+            );
+            error.related_spans.push(RelatedSpan {
+                role: RelatedRole::Contract,
+                span: restriction.span.clone(),
+            });
+            error.data.insert(
+                "effect_model".into(),
+                DataValue::String("f0-0003-sim-v1".into()),
+            );
+            error.data.insert(
+                "effect_evidence".into(),
+                DataValue::String(
+                    if summary.known & bit != 0 {
+                        "known_effect"
+                    } else {
+                        "unknown_effect"
+                    }
+                    .into(),
+                ),
+            );
+            error.data.insert(
+                "required_effect".into(),
+                DataValue::String(effect_name.into()),
+            );
+            error.data.insert(
+                "contract_origin".into(),
+                DataValue::Object(
+                    [
+                        (
+                            "file".into(),
+                            DataValue::String(restriction.span.file.clone()),
+                        ),
+                        ("start".into(), DataValue::UInt(restriction.span.start)),
+                        ("end".into(), DataValue::UInt(restriction.span.end)),
+                    ]
+                    .into(),
+                ),
+            );
+            if let Some((capture, ty)) = source_witness {
+                let entity = Entity {
+                    kind: EntityKind::Binding,
+                    id: format!("binding:{}", capture.source.start),
+                };
+                let drop = operation_name == "drop";
+                error.cause_chain.push(Cause {
+                    kind: if drop {
+                        CauseKind::Drop
+                    } else {
+                        CauseKind::Copy
+                    },
+                    operation: if drop {
+                        CauseOperation::ValueDrop
+                    } else {
+                        CauseOperation::ValueCopy
+                    },
+                    span: Some(capture.capture_span.clone()),
+                    entity: Some(entity),
+                    evidence: Evidence::Verified,
+                });
+                if drop {
+                    for resource in resource_types(&ty, None) {
+                        error.cause_chain.push(Cause {
+                            kind: CauseKind::Drop,
+                            operation: CauseOperation::ResourceDrop,
+                            span: None,
+                            entity: Some(Entity {
+                                kind: EntityKind::Type,
+                                id: resource.into(),
+                            }),
+                            evidence: Evidence::Verified,
+                        });
+                    }
+                }
+            } else if operation_name == "call"
+                && let Some(&target) =
+                    indices.get(&super::model::FunctionId(format!("$closure:{}", info.site)))
+                && let Some(witness) = find_witness(program, ast, &local, target, bit)
+            {
+                error.cause_chain = witness.chain;
+            }
+            errors.push(*error);
+        }
+    }
     let mut reported_guard_sites = HashSet::new();
     for (index, f) in program.functions.functions().iter().enumerate() {
         let Some(source_function) = source_functions.get(f.name.as_str()).copied() else {
@@ -1207,6 +1566,7 @@ pub(super) fn analyze(
                 CauseOperation::ValueCopy => Operation::ValueCopy,
                 CauseOperation::ValueDrop | CauseOperation::ResourceDrop => Operation::ValueDrop,
                 CauseOperation::FunctionCall => Operation::FunctionCall,
+                CauseOperation::ClosureCall => Operation::ClosureCall,
                 _ => Operation::IntrinsicCall,
             });
             d.related_spans.sort_by(|a, b| {
@@ -1269,6 +1629,18 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
                         || callee_summary.unknown & !summary.unknown != 0
                     {
                         return Err("effect summary call inclusion");
+                    }
+                }
+                if let Op::CallClosure { site, .. } = &ins.op {
+                    let target = super::model::FunctionId(format!("$closure:{site}"));
+                    let callee = functions_by_id
+                        .get(&target)
+                        .ok_or("unknown closure callee")?;
+                    let callee_summary = callee.effects.ok_or("effect summary missing")?;
+                    if callee_summary.known & !summary.known != 0
+                        || callee_summary.unknown & !summary.unknown != 0
+                    {
+                        return Err("effect summary closure inclusion");
                     }
                 }
             }
@@ -1384,7 +1756,11 @@ pub(super) fn populate_exit_info(
         .filter(|l| {
             matches!(
                 l.ty,
-                Ty::Array(_) | Ty::MockResource | Ty::MockBlockingResource | Ty::Union { .. }
+                Ty::Array(_)
+                    | Ty::MockResource
+                    | Ty::MockBlockingResource
+                    | Ty::Union { .. }
+                    | Ty::Closure { .. }
             )
         })
         .map(|l| l.id.0)
@@ -3343,30 +3719,33 @@ fn find_witness(
     for (caller, function) in functions.iter().enumerate() {
         for block in std::iter::once(&function.block).chain(&function.blocks) {
             for instruction in &block.instructions {
-                let Op::CallDirect {
-                    function: target, ..
-                } = &instruction.op
-                else {
-                    continue;
+                let (target_name, cause_operation, declaration) = match &instruction.op {
+                    Op::CallDirect {
+                        function: target, ..
+                    } => (
+                        target.0.clone(),
+                        CauseOperation::FunctionCall,
+                        declarations.get(target.0.as_str()).copied().unwrap_or(0),
+                    ),
+                    Op::CallClosure { site, .. } => (
+                        format!("$closure:{site}"),
+                        CauseOperation::ClosureCall,
+                        *site,
+                    ),
+                    _ => continue,
                 };
-                let Some(&target_index) = indices.get(target.0.as_str()) else {
+                let Some(&target_index) = indices.get(target_name.as_str()) else {
                     continue;
                 };
                 callers[caller].push((
                     target_index,
                     Cause {
                         kind: CauseKind::Call,
-                        operation: CauseOperation::FunctionCall,
+                        operation: cause_operation,
                         span: Some(call_head(&instruction.span, &function.source_text)),
                         entity: Some(Entity {
                             kind: EntityKind::Function,
-                            id: format!(
-                                "function:{}",
-                                declarations
-                                    .get(functions[target_index].name.as_str())
-                                    .copied()
-                                    .unwrap_or(0)
-                            ),
+                            id: format!("function:{declaration}"),
                         }),
                         evidence: Evidence::Verified,
                     },
@@ -3448,7 +3827,7 @@ fn find_witness(
         let call_count = path.edges;
         if call_count > 0 {
             witness.primary = call_causes[0].span.clone().unwrap_or(witness.primary);
-            witness.operation = CauseOperation::FunctionCall;
+            witness.operation = call_causes[0].operation;
             witness
                 .chain
                 .splice(0..0, call_causes.into_iter().take(call_count));

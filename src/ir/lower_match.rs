@@ -171,7 +171,8 @@ fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
             parse::Expr::Name(..)
             | parse::Expr::Integer(..)
             | parse::Expr::Bool(..)
-            | parse::Expr::Unit(..) => {}
+            | parse::Expr::Unit(..)
+            | parse::Expr::Closure(..) => {}
         }
     }
     let mut found = Vec::new();

@@ -47,6 +47,10 @@ def diagnostic_reason(payload: object) -> str:
                 detail += "/" + str(subcause)
             elif feature:
                 detail += "/" + str(feature)
+            if feature == "implementation_limit":
+                scope = first.get("data", {}).get("pending_scope")
+                if scope:
+                    detail += "; pending_scope=" + str(scope)
             return detail
     outcome = payload.get("outcome")
     if isinstance(outcome, dict) and outcome.get("kind") == "driver_error":
@@ -112,6 +116,8 @@ def rows(binary: Path) -> list[dict[str, str]]:
         capability = match[1].rstrip(".") if len(match) > 1 else "capacidad no indicada"
         profile = "f0-0003-b-v1" if "F0-0003" in metadata else None
         executes, reason = run_one(binary, source, profile)
+        if source.stem.startswith("14_") and reason == "NX-E0006/implementation_limit; pending_scope=J14":
+            reason += "; arnés: ejecuta"
         result.append({"id": source.stem[:2], "archivo": source.name,
                        "procedencia": origin, "capacidad": capability,
                        "estado": "EJECUTA" if executes else "NO EJECUTA",

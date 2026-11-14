@@ -9,7 +9,9 @@ use crate::diagnostic::{
 };
 use crate::frontend::{
     lex::{self, Kind, Token},
-    parse::{Argument, Ast, Block, Else, Expr, Function, Mode, Statement, Type},
+    parse::{
+        Argument, Ast, Block, CaptureMode, Closure, Else, Expr, Function, Mode, Statement, Type,
+    },
 };
 
 #[derive(Clone, Debug)]
@@ -54,7 +56,7 @@ pub struct CallBinding {
 pub struct Resolved {
     pub signatures: HashMap<String, Signature>,
     pub uses: HashMap<u64, ResolvedUse>,
-    pub calls: HashMap<u64, CallBinding>,
+    pub calls: HashMap<(u64, u64), CallBinding>,
 }
 
 #[allow(clippy::vec_box)] // Semantic diagnostics use the shared boxed representation.
@@ -381,9 +383,128 @@ struct Resolver {
     phase: Stage,
     errors: Vec<Box<Diagnostic>>,
     allow_option: bool,
+    /// Scope index and whether the current closure has an exhaustive capture list.
+    closure_boundaries: Vec<(usize, bool)>,
 }
 
 impl Resolver {
+    fn local_for_closure_use(
+        &mut self,
+        name: &str,
+        span: &Span,
+    ) -> Result<Option<Local>, Box<Diagnostic>> {
+        let Some((mut found_at, local)) = self
+            .scopes
+            .iter()
+            .enumerate()
+            .rev()
+            .find_map(|(index, scope)| scope.get(name).cloned().map(|local| (index, local)))
+        else {
+            return Ok(None);
+        };
+        // An inner closure may first expose a free name of its parent. Walk
+        // the intervening capture boundaries from outside to inside so an
+        // explicit parent list cannot be bypassed by nesting.
+        for &(boundary, exhaustive) in &self.closure_boundaries {
+            if found_at >= boundary {
+                continue;
+            }
+            if exhaustive {
+                let mut error = diagnostic(
+                    "NX-E1101",
+                    None,
+                    Stage::Names,
+                    Operation::NamesResolve,
+                    span.clone(),
+                );
+                related(
+                    &mut error,
+                    RelatedRole::Declaration,
+                    local.name_span.clone(),
+                );
+                return Err(error);
+            }
+            self.scopes[boundary].insert(name.to_owned(), local.clone());
+            found_at = boundary;
+        }
+        Ok(Some(local))
+    }
+
+    fn closure(&mut self, closure: &Closure) -> Result<(), Box<Diagnostic>> {
+        let mut captured = HashMap::new();
+        if let Some(list) = &closure.captures {
+            let mut first = HashMap::<&str, Span>::new();
+            for capture in list {
+                if let Some(previous) = first.insert(&capture.name, capture.name_span.clone()) {
+                    let mut error = diagnostic(
+                        "NX-E1102",
+                        None,
+                        Stage::Names,
+                        Operation::NamesResolve,
+                        capture.name_span.clone(),
+                    );
+                    related(&mut error, RelatedRole::PreviousDeclaration, previous);
+                    self.errors.push(error);
+                    continue;
+                }
+                let Some(source) = self.local_for_closure_use(&capture.name, &capture.name_span)?
+                else {
+                    self.errors
+                        .push(unknown(capture.name_span.clone(), "value"));
+                    continue;
+                };
+                self.resolved
+                    .uses
+                    .insert(capture.name_span.start, ResolvedUse::Local(source.clone()));
+                captured.insert(
+                    capture.name.clone(),
+                    Local {
+                        name_span: source.name_span,
+                        mode: match capture.mode {
+                            CaptureMode::View | CaptureMode::Copy => Mode::Read,
+                            CaptureMode::Edit => Mode::Inout,
+                            CaptureMode::Move => Mode::Consume,
+                        },
+                        mutable: source.mutable,
+                    },
+                );
+            }
+        }
+        for parameter in &closure.params {
+            let name_span = token_span(
+                &self.tokens,
+                parameter.span.start,
+                parameter.span.end,
+                &parameter.name,
+            )
+            .unwrap_or_else(|| parameter.span.clone());
+            if let Some(previous) = captured.get(&parameter.name) {
+                self.errors.push(duplicate(
+                    name_span,
+                    previous.name_span.clone(),
+                    "parameter",
+                ));
+                continue;
+            }
+            captured.insert(
+                parameter.name.clone(),
+                Local {
+                    name_span,
+                    mode: parameter.mode,
+                    mutable: parameter.mode == Mode::Inout,
+                },
+            );
+        }
+        let boundary = self.scopes.len();
+        self.scopes.push(captured);
+        self.closure_boundaries
+            .push((boundary, closure.captures.is_some()));
+        let result = self.block(&closure.body, false);
+        self.closure_boundaries.pop();
+        self.scopes.pop();
+        result
+    }
+
     fn lookup(&self, name: &str) -> Option<ResolvedUse> {
         for scope in self.scopes.iter().rev() {
             if let Some(local) = scope.get(name) {
@@ -512,14 +633,18 @@ impl Resolver {
 
     fn expr_inner(&mut self, e: &Expr, call_target: bool) -> Result<(), Box<Diagnostic>> {
         match e {
+            Expr::Closure(closure) => self.closure(closure),
             Expr::Name(name, span) => {
                 if self.phase == Stage::Arguments {
                     return Ok(());
                 }
                 let kind = if call_target { "call_target" } else { "value" };
-                let found = self
-                    .lookup(name)
-                    .ok_or_else(|| unknown(span.clone(), kind))?;
+                let found = if let Some(local) = self.local_for_closure_use(name, span)? {
+                    ResolvedUse::Local(local)
+                } else {
+                    self.lookup(name)
+                        .ok_or_else(|| unknown(span.clone(), kind))?
+                };
                 if !call_target
                     && name != "None"
                     && matches!(found, ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
@@ -544,7 +669,43 @@ impl Resolver {
             Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => Ok(()),
             Expr::Array(xs, _) => xs.iter().try_for_each(|x| self.expr(x, false)),
             Expr::Group(x, _) => self.expr(x, call_target),
-            Expr::Unary { value, .. } => self.expr(value, false),
+            Expr::Unary { mode, value, span } => {
+                self.expr(value, false)?;
+                if self.phase == Stage::Names
+                    && *mode != Mode::Read
+                    && let Expr::Call { target, .. } = &**value
+                {
+                    let mut named = target.as_ref();
+                    while let Expr::Group(inner, _) = named {
+                        named = inner;
+                    }
+                    if let Expr::Name(_, name_span) = named
+                        && matches!(
+                            self.resolved.uses.get(&name_span.start),
+                            Some(ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
+                        )
+                    {
+                        let mut error = diagnostic(
+                            "NX-E0006",
+                            None,
+                            Stage::Names,
+                            Operation::NamesResolve,
+                            Span {
+                                file: span.file.clone(),
+                                start: span.start,
+                                end: span.start + 4,
+                            },
+                        );
+                        error.feature_id = Some("receiver_mode".into());
+                        error.data.insert(
+                            "pending_scope".into(),
+                            DataValue::String("later_adr".into()),
+                        );
+                        return Err(error);
+                    }
+                }
+                Ok(())
+            }
             Expr::Binary { left, right, .. } => {
                 self.expr(left, false)?;
                 self.expr(right, false)
@@ -591,18 +752,13 @@ impl Resolver {
                 }
                 .cloned();
                 let Some(target_use) = target_use else {
-                    return Err(argument_error(
-                        "non_callable_target",
-                        target.span().clone(),
-                        None,
-                    ));
+                    return args.iter().try_for_each(|a| self.expr(&a.value, false));
                 };
-                if let ResolvedUse::Local(local) = &target_use {
-                    return Err(argument_error(
-                        "non_callable_target",
-                        target.span().clone(),
-                        Some((RelatedRole::Declaration, local.name_span.clone())),
-                    ));
+                if matches!(target_use, ResolvedUse::Local(_)) {
+                    // A local's callable kind is known only after its initializer
+                    // has been resolved by the shared type graph. Keep argument
+                    // association pending until that type is determined.
+                    return args.iter().try_for_each(|a| self.expr(&a.value, false));
                 }
                 if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "None") {
                     return Err(argument_error(
@@ -612,7 +768,7 @@ impl Resolver {
                     ));
                 }
                 let sig = signature(&self.resolved, &target_use).expect("registered target");
-                let slots = self.bind(&sig, target.span(), args)?;
+                let slots = Self::bind(&sig, target.span(), args)?;
                 if matches!(&target_use,ResolvedUse::Intrinsic(name) if name == "Drop")
                     && let Some(arg) = args.first()
                     && projected_named_place(&arg.value)
@@ -633,7 +789,7 @@ impl Resolver {
                     return Err(d);
                 }
                 self.resolved.calls.insert(
-                    span.start,
+                    (span.start, span.end),
                     CallBinding {
                         target: target_use,
                         slots,
@@ -726,7 +882,6 @@ impl Resolver {
     }
 
     fn bind(
-        &self,
         sig: &Signature,
         target: &Span,
         args: &[Argument],
@@ -808,6 +963,23 @@ impl Resolver {
     }
 }
 
+pub(crate) fn bind_arguments(
+    params: Vec<ParameterSig>,
+    target: &Span,
+    args: &[Argument],
+) -> Result<Vec<usize>, Box<Diagnostic>> {
+    Resolver::bind(
+        &Signature {
+            name_span: target.clone(),
+            params,
+            result: Type::Unit,
+            intrinsic: false,
+        },
+        target,
+        args,
+    )
+}
+
 pub fn resolve(file: &str, source: &str, ast: &Ast) -> Result<Resolved, Vec<Box<Diagnostic>>> {
     resolve_with_option(file, source, ast, false)
 }
@@ -829,6 +1001,7 @@ pub(crate) fn resolve_with_option(
         phase: Stage::Names,
         errors: registration_errors,
         allow_option,
+        closure_boundaries: Vec::new(),
     };
     let mut seen_functions = HashSet::new();
     for function in &ast.functions {
@@ -1001,6 +1174,7 @@ mod tests {
             phase: Stage::Names,
             errors: Vec::new(),
             allow_option: false,
+            closure_boundaries: Vec::new(),
         };
         resolver.function(&ast.functions[0]).unwrap();
         assert_eq!(resolver.scopes.len(), 1);

@@ -1,4 +1,6 @@
-use std::sync::Arc;
+use std::cell::RefCell;
+use std::collections::HashMap;
+use std::rc::Rc;
 
 use super::mock_env::{MockEnvironment, Reply};
 use super::observation::Log;
@@ -6,7 +8,7 @@ use crate::diagnostic::{
     self, DataValue, Diagnostic, Namespace, Operation, RelatedRole, RelatedSpan, Severity, Stage,
 };
 use crate::ir::model::{
-    Binary, Function, Intrinsic, MatchLiteral, Op, ParameterMode, Program, TempId, Ty,
+    Binary, Function, Intrinsic, LocalId, MatchLiteral, Op, ParameterMode, Program, TempId, Ty,
 };
 use crate::ir::work::{WorkEvent, WorkPlanner};
 use crate::union::{UnionKind, VariantTag};
@@ -96,7 +98,7 @@ enum Value {
     Int(i64),
     Bool(bool),
     Unit,
-    Array(Arc<Vec<Value>>, u64),
+    Array(Rc<Vec<Value>>, u64),
     Union {
         kind: UnionKind,
         tag: VariantTag,
@@ -107,7 +109,23 @@ enum Value {
         label: i64,
         blocking: bool,
     },
+    Closure {
+        site: u64,
+        fields: Vec<Value>,
+    },
+    Loan(LoanValue),
 }
+#[derive(Clone, Debug)]
+struct LoanValue {
+    root: LocalId,
+    slot: Rc<RefCell<Option<Value>>>,
+}
+impl PartialEq for LoanValue {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.slot, &other.slot) && self.root == other.root
+    }
+}
+impl Eq for LoanValue {}
 impl Value {
     fn at_variant_path(&self, path: &[VariantTag]) -> Option<&Self> {
         let mut value = self;
@@ -147,26 +165,33 @@ impl Value {
         Some(value)
     }
     fn owns_resource(&self) -> bool {
-        let mut node = self;
-        while let Self::Union {
-            payload: Some(payload),
-            ..
-        } = node
-        {
-            node = payload;
+        let mut pending = vec![self];
+        while let Some(node) = pending.pop() {
+            match node {
+                Self::Resource { .. } => return true,
+                Self::Closure { fields, .. } => pending.extend(fields),
+                Self::Union {
+                    payload: Some(value),
+                    ..
+                } => pending.push(value),
+                _ => {}
+            }
         }
-        matches!(node, Self::Resource { .. })
+        false
     }
     fn deep_copy(&self) -> Self {
         match self {
-            Self::Array(items, cells) => Self::Array(
-                Arc::new(items.iter().map(Self::deep_copy).collect()),
-                *cells,
-            ),
+            Self::Array(items, cells) => {
+                Self::Array(Rc::new(items.iter().map(Self::deep_copy).collect()), *cells)
+            }
             Self::Union { kind, tag, payload } => Self::Union {
                 kind: *kind,
                 tag: *tag,
                 payload: payload.as_ref().map(|value| Box::new(value.deep_copy())),
+            },
+            Self::Closure { site, fields } => Self::Closure {
+                site: *site,
+                fields: fields.iter().map(Self::deep_copy).collect(),
             },
             _ => self.clone(),
         }
@@ -188,6 +213,8 @@ impl Value {
                 )
             }
             Self::Resource { .. } => "<resource>".into(),
+            Self::Closure { .. } => "<closure>".into(),
+            Self::Loan(_) => "<loan>".into(),
         }
     }
     fn has_ty(&self, ty: &Ty) -> bool {
@@ -212,6 +239,7 @@ impl Value {
                 Ty::MockResource,
             )
             | (Self::Resource { blocking: true, .. }, Ty::MockBlockingResource) => true,
+            (Self::Closure { site: actual, .. }, Ty::Closure { site, .. }) => actual == site,
             _ => false,
         }
     }
@@ -219,6 +247,8 @@ impl Value {
         match self {
             Self::Array(_, n) => *n,
             Self::Union { payload, .. } => 1 + payload.as_ref().map_or(0, |value| value.cells()),
+            Self::Closure { fields, .. } => 1 + fields.iter().map(Self::cells).sum::<u64>(),
+            Self::Loan(_) => 1,
             _ => 1,
         }
     }
@@ -232,7 +262,7 @@ impl Value {
         let Self::Array(xs, _) = self else {
             return None;
         };
-        Arc::get_mut(xs)?.get_mut(usize::try_from(index).ok()?)
+        Rc::get_mut(xs)?.get_mut(usize::try_from(index).ok()?)
     }
 }
 fn equal_pairs(left: &Value, right: &Value) -> u64 {
@@ -356,7 +386,7 @@ impl MockReplyValue {
                     })
                     .collect();
                 let cells = 1 + (values.len() as u64) * 2;
-                (true, Value::Array(Arc::new(values), cells))
+                (true, Value::Array(Rc::new(values), cells))
             }
             Self::Read(Err(n)) | Self::Scalar(Err(n)) => (false, Value::Int(n)),
             Self::Scalar(Ok(n)) => (true, Value::Int(n)),
@@ -722,17 +752,20 @@ impl Machine {
             self.disposals += 1;
         }
         self.cells = self.cells.saturating_sub(value.cells());
-        let mut active = value;
-        while let Value::Union {
-            payload: Some(payload),
-            ..
-        } = active
-        {
-            active = *payload;
-        }
-        if let Value::Resource { id, label, .. } = active {
-            self.log
-                .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
+        let mut pending = vec![value];
+        while let Some(active) = pending.pop() {
+            match active {
+                Value::Union {
+                    payload: Some(value),
+                    ..
+                } => pending.push(*value),
+                Value::Closure { fields, .. } => pending.extend(fields),
+                Value::Resource { id, label, .. } => {
+                    self.log
+                        .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
+                }
+                _ => {}
+            }
         }
         Ok(())
     }
@@ -941,6 +974,9 @@ impl Machine {
         }
         self.frames += 1;
         let mut locals: Vec<Option<Value>> = vec![None; function.locals.len()];
+        let mut loan_slots: Vec<Option<Rc<RefCell<Option<Value>>>>> =
+            vec![None; function.locals.len()];
+        let mut loan_origins: HashMap<TempId, LocalId> = HashMap::new();
         let mut borrowed_locals = vec![false; function.locals.len()];
         let mut edit_aliases: Vec<Option<EditAlias>> = vec![None; function.locals.len()];
         if args.len() != function.parameters.len() {
@@ -1031,6 +1067,7 @@ impl Machine {
                     if !valid {
                         break;
                     }
+                    let whole = path.is_empty();
                     let loan_value = match permission {
                         crate::ir::model::LoanPermission::Read if path.is_empty() => {
                             TempValue::Borrow(*root)
@@ -1047,6 +1084,9 @@ impl Machine {
                         ins.output.ok_or("loan output identity")?,
                         loan_value,
                     )?;
+                    if whole {
+                        loan_origins.insert(ins.output.ok_or("loan output identity")?, *root);
+                    }
                     continue;
                 }
                 if let Op::BorrowIndex {
@@ -1312,7 +1352,46 @@ impl Machine {
                             self.cells = self.cells.saturating_sub(total - 1);
                             break;
                         }
-                        Some(Value::Array(Arc::new(xs), total))
+                        Some(Value::Array(Rc::new(xs), total))
+                    }
+                    Op::BuildClosure { site, fields, .. } => {
+                        let mut captured = Vec::with_capacity(fields.len());
+                        for &(kind, temp) in fields {
+                            let value = Self::take(&mut temps, temp)?;
+                            if matches!(
+                                kind,
+                                crate::ir::model::CaptureKind::View
+                                    | crate::ir::model::CaptureKind::Edit
+                            ) {
+                                let root =
+                                    loan_origins.remove(&temp).ok_or("retained loan origin")?;
+                                let slot = if let Some(slot) = &loan_slots[root.0] {
+                                    Rc::clone(slot)
+                                } else {
+                                    let initial = locals[root.0]
+                                        .as_ref()
+                                        .ok_or("retained loan root")?
+                                        .deep_copy();
+                                    let slot = Rc::new(RefCell::new(Some(initial)));
+                                    loan_slots[root.0] = Some(Rc::clone(&slot));
+                                    slot
+                                };
+                                let _ = value;
+                                captured.push(Value::Loan(LoanValue { root, slot }));
+                            } else {
+                                captured.push(value.into_owned()?);
+                            }
+                        }
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                            for value in captured.into_iter().rev() {
+                                self.dispose(value)?;
+                            }
+                            break;
+                        }
+                        Some(Value::Closure {
+                            site: *site,
+                            fields: captured,
+                        })
                     }
                     Op::BuildVariant { tag, payload } => {
                         if !self.charge_work(1, &ins.span)
@@ -1927,6 +2006,232 @@ impl Machine {
                         }
                         result.value
                     }
+                    Op::CallClosure {
+                        site,
+                        receiver,
+                        mode,
+                        capture_count,
+                        args,
+                        signature,
+                    } => {
+                        enum EditTarget {
+                            Origin(LoanValue),
+                            Field(LocalId, usize),
+                            Consumed,
+                        }
+                        let program = program.ok_or("call table unavailable")?;
+                        let target = program
+                            .functions
+                            .function(&format!("$closure:{site}"))
+                            .ok_or("unknown closure body")?;
+                        if target.parameters.len() != signature.len()
+                            || *capture_count > signature.len()
+                        {
+                            return Err("closure frame signature");
+                        }
+                        let receiver_temp = Self::take(&mut temps, *receiver)?;
+                        let mut retained = Vec::new();
+                        let (captured, receiver_root) = match mode {
+                            ParameterMode::Read => {
+                                let value = receiver_temp.as_value(&locals)?.clone();
+                                if let TempValue::Own(owner) = receiver_temp {
+                                    retained.push(owner);
+                                }
+                                (value, None)
+                            }
+                            ParameterMode::Inout => {
+                                let TempValue::Exclusive(root, path) = receiver_temp else {
+                                    return Err("closure edit receiver loan");
+                                };
+                                if !path.is_empty() {
+                                    return Err("closure edit receiver path");
+                                }
+                                (
+                                    locals[root.0]
+                                        .as_ref()
+                                        .ok_or("closure edit receiver")?
+                                        .clone(),
+                                    Some(root),
+                                )
+                            }
+                            ParameterMode::Consume => (receiver_temp.into_owned()?, None),
+                        };
+                        let Value::Closure {
+                            site: actual,
+                            fields,
+                        } = captured
+                        else {
+                            return Err("closure receiver value");
+                        };
+                        if actual != *site || fields.len() != *capture_count {
+                            return Err("closure receiver identity");
+                        }
+                        if *mode == ParameterMode::Consume {
+                            self.cells = self.cells.saturating_sub(1);
+                        }
+                        let mut passed: Vec<Option<(Value, bool)>> = vec![None; signature.len()];
+                        let mut edit_targets: Vec<Option<EditTarget>> =
+                            (0..*capture_count).map(|_| None).collect();
+                        for (index, field) in fields.into_iter().enumerate() {
+                            match signature[index].1 {
+                                ParameterMode::Read => {
+                                    let borrowed = match &field {
+                                        Value::Loan(loan) => loan
+                                            .slot
+                                            .borrow()
+                                            .as_ref()
+                                            .ok_or("expired closure loan")?
+                                            .deep_copy(),
+                                        owned => owned.deep_copy(),
+                                    };
+                                    if *mode == ParameterMode::Consume {
+                                        retained.push(field);
+                                    }
+                                    passed[index] = Some((borrowed, true));
+                                }
+                                ParameterMode::Inout => {
+                                    if *mode == ParameterMode::Read {
+                                        return Err("closure capture receiver mode");
+                                    }
+                                    let value = if let Value::Loan(loan) = &field {
+                                        let value = locals[loan.root.0]
+                                            .take()
+                                            .ok_or("closure edit origin")?;
+                                        edit_targets[index] =
+                                            Some(EditTarget::Origin(loan.clone()));
+                                        if *mode == ParameterMode::Consume {
+                                            retained.push(field);
+                                        }
+                                        value
+                                    } else if let Some(root) = receiver_root {
+                                        let Value::Closure { fields, .. } =
+                                            locals[root.0].as_mut().ok_or("closure edit owner")?
+                                        else {
+                                            return Err("closure edit owner type");
+                                        };
+                                        edit_targets[index] = Some(EditTarget::Field(root, index));
+                                        std::mem::replace(&mut fields[index], Value::Unit)
+                                    } else {
+                                        edit_targets[index] = Some(EditTarget::Consumed);
+                                        field
+                                    };
+                                    passed[index] = Some((value, true));
+                                }
+                                ParameterMode::Consume => {
+                                    if *mode != ParameterMode::Consume {
+                                        return Err("closure capture receiver mode");
+                                    }
+                                    if matches!(field, Value::Loan(_)) {
+                                        return Err("consuming borrowed capture");
+                                    }
+                                    passed[index] = Some((field, false));
+                                }
+                            }
+                        }
+                        let mut arg_targets = vec![None; signature.len()];
+                        for (slot, id) in args {
+                            let slot = capture_count + slot;
+                            let temp = Self::take(&mut temps, *id)?;
+                            let item = match signature[slot].1 {
+                                ParameterMode::Read => {
+                                    let borrowed = temp.as_value(&locals)?.clone();
+                                    if let TempValue::Own(owner) = temp {
+                                        retained.push(owner);
+                                    }
+                                    (borrowed, true)
+                                }
+                                ParameterMode::Consume => (temp.into_owned()?, false),
+                                ParameterMode::Inout => {
+                                    let TempValue::Exclusive(root, path) = temp else {
+                                        return Err("closure edit argument loan");
+                                    };
+                                    let value = if path.is_empty() {
+                                        locals
+                                            .get_mut(root.0)
+                                            .ok_or("closure edit argument root")?
+                                            .take()
+                                            .ok_or("closure edit argument unavailable")?
+                                    } else {
+                                        let root_value = locals
+                                            .get_mut(root.0)
+                                            .ok_or("closure edit argument root")?
+                                            .as_mut()
+                                            .ok_or("closure edit argument unavailable")?;
+                                        let selected = get_mut_path(root_value, &path)
+                                            .ok_or("closure edit argument path")?;
+                                        let value = std::mem::replace(selected, Value::Unit);
+                                        adjust_size(root_value, &path, value.cells(), 1);
+                                        value
+                                    };
+                                    arg_targets[slot] = Some((root, path));
+                                    (value, true)
+                                }
+                            };
+                            passed[slot] = Some(item);
+                        }
+                        let prepared = passed
+                            .into_iter()
+                            .map(|item| item.ok_or("missing closure call slot"))
+                            .collect::<Result<Vec<_>, _>>()?;
+                        let mut result =
+                            self.run_frame(target, Some(program), prepared, &ins.span)?;
+                        for (index, target) in edit_targets.into_iter().enumerate() {
+                            if let Some(target) = target {
+                                let value =
+                                    result.inout[index].take().ok_or("closure edit return")?;
+                                match target {
+                                    EditTarget::Origin(loan) => {
+                                        *loan.slot.borrow_mut() = Some(value.deep_copy());
+                                        if locals[loan.root.0].replace(value).is_some() {
+                                            return Err("closure edit occupied origin");
+                                        }
+                                    }
+                                    EditTarget::Field(root, field) => {
+                                        let Value::Closure { fields, .. } =
+                                            locals[root.0].as_mut().ok_or("closure edit owner")?
+                                        else {
+                                            return Err("closure edit owner type");
+                                        };
+                                        if fields[field] != Value::Unit {
+                                            return Err("closure edit occupied field");
+                                        }
+                                        fields[field] = value;
+                                    }
+                                    EditTarget::Consumed => self.dispose(value)?,
+                                }
+                            }
+                        }
+                        for (slot, target) in
+                            arg_targets.into_iter().enumerate().skip(*capture_count)
+                        {
+                            if let Some((root, path)) = target {
+                                let value = result.inout[slot]
+                                    .take()
+                                    .ok_or("closure edit argument return")?;
+                                if path.is_empty() {
+                                    if locals[root.0].replace(value).is_some() {
+                                        return Err("closure edit occupied argument");
+                                    }
+                                } else {
+                                    let root_value = locals[root.0]
+                                        .as_mut()
+                                        .ok_or("closure edit argument root")?;
+                                    let node = get_mut_path(root_value, &path)
+                                        .ok_or("closure edit argument path")?;
+                                    let previous = std::mem::replace(node, value);
+                                    if previous != Value::Unit {
+                                        return Err("closure edit argument placeholder");
+                                    }
+                                    let size = node.cells();
+                                    adjust_size(root_value, &path, 1, size);
+                                }
+                            }
+                        }
+                        for value in retained.into_iter().rev() {
+                            self.dispose(value)?;
+                        }
+                        result.value
+                    }
                     Op::DropValue(id) => {
                         let v = Self::take(&mut temps, *id)?;
                         if let TempValue::Own(value) = v {
@@ -1962,6 +2267,11 @@ impl Machine {
                         return Err("output mismatch");
                     }
                     Self::install_temp(&mut temps, id, TempValue::Own(v))?;
+                }
+                for (index, slot) in loan_slots.iter().enumerate() {
+                    if let Some(slot) = slot {
+                        *slot.borrow_mut() = locals[index].as_ref().map(Value::deep_copy);
+                    }
                 }
             }
             if self.fault.is_some() {
@@ -2077,7 +2387,7 @@ fn adjust_size(root: &mut Value, path: &[i64], old: u64, new: u64) {
         let Ok(index) = usize::try_from(index) else {
             return;
         };
-        let Some(next) = Arc::get_mut(xs).and_then(|items| items.get_mut(index)) else {
+        let Some(next) = Rc::get_mut(xs).and_then(|items| items.get_mut(index)) else {
             return;
         };
         node = next;
@@ -2407,7 +2717,7 @@ mod tests {
     }
     #[test]
     fn ordinary_array_read_shares_storage_but_owner_copy_is_deep() {
-        let original = Value::Array(Arc::new(vec![Value::Int(1)]), 2);
+        let original = Value::Array(Rc::new(vec![Value::Int(1)]), 2);
         let borrowed = original.clone();
         let owned = original.deep_copy();
         let (Value::Array(a, _), Value::Array(b, _), Value::Array(c, _)) =
@@ -2415,8 +2725,8 @@ mod tests {
         else {
             panic!("arrays")
         };
-        assert!(Arc::ptr_eq(a, b));
-        assert!(!Arc::ptr_eq(a, c));
+        assert!(Rc::ptr_eq(a, b));
+        assert!(!Rc::ptr_eq(a, c));
         assert_eq!(original, owned);
     }
     #[test]

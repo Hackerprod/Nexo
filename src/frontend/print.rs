@@ -173,6 +173,7 @@ fn ty(value: &Type, out: &mut Writer, bound: usize) -> usize {
             let end = ty(some, out, end);
             after(out, ">", Role::TypeClose, end)
         }
+        Type::Closure { .. } => after(out, "Closure", Role::Word, bound),
     }
 }
 fn block(value: &Block, out: &mut Writer, structural: bool) {
@@ -341,6 +342,77 @@ fn stmt_if_expr(value: &Expr, out: &mut Writer) {
 }
 fn expr(value: &Expr, out: &mut Writer, parent: u8) {
     match value {
+        Expr::Closure(closure) => {
+            let start = closure.fn_span.start as usize;
+            at(out, "fn", Role::Function, start, start + 2);
+            let mut end = closure.fn_span.end as usize;
+            if let Some(captures) = &closure.captures {
+                end = after(out, "[", Role::AttachedOpen, end);
+                for (index, capture) in captures.iter().enumerate() {
+                    if index > 0 {
+                        end = after(out, ",", Role::Comma, end);
+                    }
+                    let mode = match capture.mode {
+                        CaptureMode::View => "view",
+                        CaptureMode::Copy => "copy",
+                        CaptureMode::Edit => "edit",
+                        CaptureMode::Move => "move",
+                    };
+                    end = after(out, mode, Role::Word, end);
+                    end = after(out, &capture.name, Role::Word, end);
+                }
+                end = after(out, "]", Role::Close, end);
+            }
+            end = after(out, "(", Role::AttachedOpen, end);
+            for (index, param) in closure.params.iter().enumerate() {
+                if index > 0 {
+                    end = after(out, ",", Role::Comma, end);
+                }
+                end = after(out, &param.name, Role::Word, end);
+                end = after(out, ":", Role::Colon, end);
+                end = after(out, mode(param.mode), Role::Word, end);
+                if let Some(param_type) = &param.ty {
+                    end = ty(param_type, out, end);
+                }
+            }
+            end = after(out, ")", Role::Close, end);
+            if let Some(result) = &closure.result {
+                end = after(out, "->", Role::Arrow, end);
+                end = ty(result, out, end);
+            }
+            if let Some(clause) = &closure.with_clause {
+                end = after(out, "with", Role::Word, end);
+                match clause {
+                    WithClause::Simple(items) => {
+                        for (index, restriction) in items.iter().enumerate() {
+                            if index > 0 {
+                                end = after(out, ",", Role::Comma, end);
+                            }
+                            end = after(out, &restriction.name, Role::Word, end);
+                        }
+                    }
+                    WithClause::Operations(operations) => {
+                        end = after(out, "{", Role::ContractOpen, end);
+                        for (index, operation) in operations.iter().enumerate() {
+                            if index > 0 {
+                                end = after(out, ",", Role::Comma, end);
+                            }
+                            end = after(out, &operation.name, Role::Word, end);
+                            end = after(out, "(", Role::AttachedOpen, end);
+                            for (index, restriction) in operation.restrictions.iter().enumerate() {
+                                if index > 0 {
+                                    end = after(out, ",", Role::Comma, end);
+                                }
+                                end = after(out, &restriction.name, Role::Word, end);
+                            }
+                            end = after(out, ")", Role::Close, end);
+                        }
+                        after(out, "}", Role::ContractClose, end);
+                    }
+                }
+            }
+            block(&closure.body, out, false);
+        }
         Expr::Name(name, span) => word_at(out, name, span.start as usize, span.end as usize),
         Expr::Integer(name, span) => out.token_from_span(
             name,

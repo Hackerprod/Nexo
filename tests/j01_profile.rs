@@ -84,7 +84,7 @@ fn j01_effect_diagnostic_names_the_new_model_without_changing_a2() {
 #[test]
 fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
     for (source, scope, stage, feature) in [
-        ("fn Main(){let f=fn [](){};}", "J06", "types", "closure"),
+        ("fn Main(){let f=fn [](){};}", "J14", "lower", "closure"),
         ("gen fn G(){}fn Main(){}", "J10", "types", "generator"),
         (
             "fn Main(){for x in [1] {}}",
@@ -114,6 +114,72 @@ fn j01_pending_capabilities_are_scoped_without_changing_a2_rejection() {
             old_output.contains(&format!("\"feature_id\":\"{feature}\"")),
             "{old_output}"
         );
+    }
+}
+
+#[test]
+fn objective_14_reaches_the_public_j14_emission_gate() {
+    let path = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/corpus/objetivo/14_closure_capture.n"
+    );
+    let source = fs::read_to_string(path).unwrap();
+    let execution = nexo::ir::run_for_internal_harness(path, &source, Default::default()).unwrap();
+    assert_eq!(execution.outcome, nexo::interp::Outcome::Unit);
+    assert!(execution.diagnostics.is_empty());
+    assert!(execution.observations.observations().is_empty());
+    for command in ["check", "run"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_nexo"))
+            .args([
+                command,
+                path,
+                "--profile",
+                "f0-0003-b-v1",
+                "--format",
+                "json",
+            ])
+            .output()
+            .unwrap();
+        assert_eq!(output.status.code(), Some(1));
+        let text = String::from_utf8(output.stdout).unwrap();
+        assert!(text.contains("\"code\":\"NX-E0006\""), "{text}");
+        assert!(
+            text.contains("\"feature_id\":\"implementation_limit\""),
+            "{text}"
+        );
+        assert!(text.contains("\"pending_scope\":\"J14\""), "{text}");
+        assert!(text.contains("\"stage\":\"lower\""), "{text}");
+        assert!(text.contains("\"operation\":\"ir.lower\""), "{text}");
+        assert!(text.contains("\"start\":106,\"end\":108"), "{text}");
+        assert!(text.contains("\"observations\":[]"), "{text}");
+    }
+}
+
+#[test]
+fn closure_analysis_rejections_remain_public_before_j14() {
+    for (source, code) in [
+        (
+            "fn Main(){let x=1;let f=fn []()->I64{return x;};}",
+            "NX-E1101",
+        ),
+        (
+            "fn Main(){var x=1;let f=fn [view x](){};x=2;Drop(f);}",
+            "NX-E1105",
+        ),
+        (
+            "fn Main(){var x=1;var f=fn [edit x](){x=2;};f();}",
+            "NX-E1107",
+        ),
+        (
+            "fn Main(){let a=[1];let f=fn [copy a]() with {create(no_alloc),call(unrestricted)}{};}",
+            "NX-E0412",
+        ),
+    ] {
+        let (status, output) = check(source, "f0-0003-b-v1");
+        assert_eq!(status, 1, "{output}");
+        assert_eq!(output.matches("\"code\":").count(), 1, "{output}");
+        assert!(output.contains(&format!("\"code\":\"{code}\"")), "{output}");
+        assert!(!output.contains("\"pending_scope\":\"J14\""), "{output}");
     }
 }
 

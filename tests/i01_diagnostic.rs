@@ -507,16 +507,16 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
             (Some("duplicate_operation"), "in_profile"),
             (Some("invalid_operation"), "in_profile"),
             (Some("duplicate_restriction"), "in_profile"),
-            (Some("missing_body_operation"), "outside_profile"),
+            (Some("missing_body_operation"), "in_profile"),
             (Some("operation_list_required"), "outside_profile"),
             (Some("missing_with_clause"), "outside_profile"),
             (Some("empty_operation_list"), "in_profile"),
             (Some("unrestricted_mixed"), "in_profile"),
         ],
     ),
-    ("NX-E1101", &[(None, "outside_profile")]),
-    ("NX-E1102", &[(None, "outside_profile")]),
-    ("NX-E1104", &[(None, "outside_profile")]),
+    ("NX-E1101", &[(None, "in_profile")]),
+    ("NX-E1102", &[(None, "in_profile")]),
+    ("NX-E1104", &[(None, "in_profile")]),
     (
         "NX-E1105",
         &[
@@ -525,11 +525,11 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
             (Some("overlapping_mutable_borrows"), "in_profile"),
         ],
     ),
-    ("NX-E1107", &[(None, "outside_profile")]),
+    ("NX-E1107", &[(None, "in_profile")]),
     ("NX-E1108", &[(None, "outside_profile")]),
     ("NX-E1109", &[(None, "outside_profile")]),
     ("NX-E1110", &[(None, "outside_profile")]),
-    ("NX-E1111", &[(None, "outside_profile")]),
+    ("NX-E1111", &[(None, "in_profile")]),
     ("NX-E1112", &[(None, "outside_profile")]),
     ("NX-E1113", &[(None, "outside_profile")]),
     ("NX-E1114", &[(None, "outside_profile")]),
@@ -734,16 +734,16 @@ fn availability_matches_independent_full_registry_expectations() {
                 (Some("duplicate_operation"), "in_profile"),
                 (Some("invalid_operation"), "in_profile"),
                 (Some("duplicate_restriction"), "in_profile"),
-                (Some("missing_body_operation"), "outside_profile"),
+                (Some("missing_body_operation"), "in_profile"),
                 (Some("operation_list_required"), "outside_profile"),
                 (Some("missing_with_clause"), "outside_profile"),
                 (Some("empty_operation_list"), "in_profile"),
                 (Some("unrestricted_mixed"), "in_profile"),
             ],
         ),
-        ("NX-E1101", &[(None, "outside_profile")]),
-        ("NX-E1102", &[(None, "outside_profile")]),
-        ("NX-E1104", &[(None, "outside_profile")]),
+        ("NX-E1101", &[(None, "in_profile")]),
+        ("NX-E1102", &[(None, "in_profile")]),
+        ("NX-E1104", &[(None, "in_profile")]),
         (
             "NX-E1105",
             &[
@@ -752,11 +752,11 @@ fn availability_matches_independent_full_registry_expectations() {
                 (Some("overlapping_mutable_borrows"), "in_profile"),
             ],
         ),
-        ("NX-E1107", &[(None, "outside_profile")]),
+        ("NX-E1107", &[(None, "in_profile")]),
         ("NX-E1108", &[(None, "outside_profile")]),
         ("NX-E1109", &[(None, "outside_profile")]),
         ("NX-E1110", &[(None, "outside_profile")]),
-        ("NX-E1111", &[(None, "outside_profile")]),
+        ("NX-E1111", &[(None, "in_profile")]),
         ("NX-E1112", &[(None, "outside_profile")]),
         ("NX-E1113", &[(None, "outside_profile")]),
         ("NX-E1114", &[(None, "outside_profile")]),
@@ -949,6 +949,9 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         "NX-E0414" => (Stage::Effects, Operation::IntrinsicCall),
         "NX-E0415" => (Stage::Effects, Operation::IntrinsicCall),
         "NX-E1105" => (Stage::Ownership, Operation::OwnershipAccess),
+        "NX-E1101" | "NX-E1102" => (Stage::Names, Operation::NamesResolve),
+        "NX-E1104" | "NX-E1107" => (Stage::Ownership, Operation::OwnershipCheck),
+        "NX-E1111" => (Stage::Types, Operation::TypesCheck),
         "NX-E1317" => (Stage::Ownership, Operation::Return),
         _ => panic!("unexpected in-profile fixture {code}/{subcause:?}"),
     };
@@ -1050,6 +1053,10 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
             data.insert("active_permission".into(), V::String(permission.into()));
             data.insert("requested_access".into(), V::String(access.into()));
         }
+        "NX-E1107" => {
+            data.insert("required_mode".into(), V::String("inout".into()));
+            data.insert("requested_mode".into(), V::String("read".into()));
+        }
         _ => {}
     }
     let span = Span {
@@ -1065,7 +1072,11 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
     let mut d = Diagnostic {
         schema_version: diagnostic::SCHEMA_VERSION,
         diagnostic_namespace: Namespace::NexoProposedV1,
-        profile_id: if code == "NX-E1305" {
+        profile_id: if matches!(
+            code,
+            "NX-E1305" | "NX-E1101" | "NX-E1102" | "NX-E1104" | "NX-E1107" | "NX-E1111"
+        ) || (code == "NX-E0417" && subcause == Some("missing_body_operation"))
+        {
             "f0-0003-b-v1".into()
         } else {
             diagnostic::PROFILE_ID.into()
@@ -1301,7 +1312,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
         }
     }
     assert_eq!(type_fixtures, 59);
-    assert_eq!(accepted, 143, "valid ADR constructed diagnostics");
+    assert_eq!(accepted, 149, "valid ADR constructed diagnostics");
     for code in ["NX-E0005", "NX-E0006", "R0101"] {
         let mut d = if code == "R0101" {
             let mut d = diagnostic_for_catalog("NX-E0006", None);
@@ -1836,11 +1847,6 @@ fn published_fixture_gaps_stay_empty_and_unavailable() {
         (
             "NX-E0417",
             Some("operation_list_required"),
-            "outside_profile",
-        ),
-        (
-            "NX-E0417",
-            Some("missing_body_operation"),
             "outside_profile",
         ),
     ] {

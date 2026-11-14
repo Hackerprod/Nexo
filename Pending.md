@@ -391,7 +391,7 @@ El corte entrega el perfil `f0-0003-b-v1` con sus ocho reducidos, el catálogo y
 |---|---|---|---|
 | NB-J01-01 | Con el perfil nuevo, un programa con un `Some(1)` anterior a un error sintáctico posterior da la barrera de capacidad pendiente J02 en lugar del error de sintaxis que la base daba; F0-0003 §2.2 dice que los errores sintácticos preceden al alcance. Con `Option<I64>` ya ocurría igual en la base. | `fn Main(){let x=Some(1);let y:Result=Ok(1);}` con `--profile f0-0003-b-v1`: NX-E0006/J02; la base da NX-E0002 parse en `[36,37)`. | J02 |
 | NB-J01-02 | Queda código específico de `Result` junto al descriptor de unión: `Ty::Result` (`src/ir/model.rs`), `InferTy::Result`, la rama `(Type::Result, Type::Result)` de la unificación y las restricciones `ResultConstructor` y `DomainResult` de `src/check/types.rs`. Deuda estructural que J02 debe absorber al añadir `Option` por el mismo descriptor. | Sin programa: comportamiento idéntico a la base. | J02 |
-| NB-J01-03 | `tests/j01_profile.rs` comprueba solo subcadenas; las barreras J04 y J05 ya se retiraron con pruebas dirigidas. Persisten las barreras J07, J08, J09, J12 y J14. | Sin programa. | J07 a J14, cada uno al retirar su barrera |
+| NB-J01-03 | `tests/j01_profile.rs` comprueba solo subcadenas; las capacidades J04–J09 ya tienen pruebas dirigidas. Persisten las barreras J10–J14 y la puerta de emisión J14 para closures. | Sin programa. | J10 a J14, cada uno al retirar su barrera |
 | NB-J01-04 | Las descripciones de `explain` de NX-E1325 y NX-E1326 son una sola frase para dos subcausas. | `explain NX-E1325` y `explain NX-E1326`. | J02 |
 | NB-J01-05 | `scripts/compare_head_union.py` depende de rutas bajo el directorio de trabajo temporal. | Ejecutar el script desde un clon sin ese directorio. | Endurecimiento de scripts |
 | NB-J01-06 | El mutante `result_child_order` (orden de los hijos de `Result`) sobrevive sin programa que lo exhiba. | Sin programa. | Endurecimiento posterior |
@@ -415,7 +415,21 @@ NB-J01-01, NB-J01-02, NB-J01-04 y NB-J01-05 quedaron corregidos: la sintaxis inv
 
 ## F0-0003 — guardas de `match` (2026-11-13)
 
-La barrera J05 quedó retirada del perfil B con Q01–Q04/Q06/Q07, cobertura y limpieza de recursos verificadas localmente. La pasada única de seis mutaciones de núcleo detectó las seis y restauró los archivos por SHA-256; no hubo supervivientes que registrar. Permanecen las capacidades J06–J14 y la revisión independiente del corte; la aprobación de fase corresponde al propietario.
+| Id | Observación | Reproducción | Corte responsable |
+|---|---|---|---|
+| NB-J14-01 | La CLI pública ya acepta y ejecuta Option, `match` y guardas de J02–J05 antes de J14; F0-0003 §8.1 exige NX-E0006/implementation_limit, `pending_scope=J14`, en lower/ir.lower para sus positivos. La discrepancia heredada permanece visible; no se debe extender a closures de J06–J09. | `nexo run corpus/objetivo/13_option_none.n --profile f0-0003-b-v1` devuelve unit, `diagnostics=[]` y `observations=[]` con exit 0; §8.1 exige la barrera J14. | J14: retirada ordenada de barreras junto con la contabilidad completa y la serie T de §7. |
+| NB-J06-14-02 (resuelto) | La fuente objetivo 14 tenía `[base]`, contrario a D15 §3.4. El coordinador la corrigió a `[copy base]`; ya supera esa regla de sintaxis. | `nexo check corpus/objetivo/14_closure_capture.n --profile f0-0003-b-v1 --format json`: el literal está en `fn` `[106,108)` y conserva el resultado esperado de F0-0003 §4. | Corregido en la fuente objetivo antes de J06–J09. |
+
+La barrera J05 quedó retirada del perfil B con Q01–Q04/Q06/Q07, cobertura y limpieza de recursos verificadas localmente. La pasada única de seis mutaciones de núcleo detectó las seis y restauró los archivos por SHA-256; no hubo supervivientes que registrar. J06–J09 tienen análisis y ejecución por arnés; sus positivos conservan la puerta pública J14. Permanecen J10–J14, la revisión independiente del corte y la aprobación de fase por el propietario.
+
+La propiedad de las capturas, la inferencia de retorno, los arrays con closure, la comparación e impresión de invocables y la serialización de diagnósticos tienen regresiones dirigidas en `tests/j06_j09_validation.rs`. Las reproducciones anteriores ya no producen `InvalidIr`, `internal_error` ni `diagnostics:[null]`. El diferencial frente a HEAD conserva una migración documental explícita para `receiver_mode`: parse/syntax.parse en HEAD pasa a names/names.resolve conforme a F0-0003 §4.2; código, subcausa, span y demás campos permanecen iguales en las tres fuentes dirigidas. NB-J14-01 y las puertas J10–J14 continúan pendientes; no se declara aprobada ninguna fase.
+
+| Id | Observación | Reproducción y alcance |
+|---|---|---|
+| NB-J06J09-01 | Un receptor `move` de llamada a función no declarada conserva `receiver_mode`; la regla de F0-0003 §8 solo fija el receptor ya resuelto como función ordinaria. | `fn Main(){move (a(1));}` con `a` sin declarar. |
+| NB-J06J09-02 | El diferencial con HEAD también cambia el código de dos receptores, además de los cambios de etapa de `receiver_mode` ya enumerados. | `edit F()` con `F` sin declarar da NX-E0101; `edit r(1)` sobre `var r` da NX-E0111/call.bind. Registrar ambos al presentar el diferencial. |
+| NB-J06J09-03 | Las uniones y arrays que contienen closures se deciden en types; la barrera pública de emisión J14 permanece en lower. | `Some(fn [](){})` es valor analizable; `[Some(fn [](){})]` recibe NX-E0006 por el elemento de array. |
+| NB-J06J09-04 | La captura `edit` conserva su préstamo hasta la destrucción del cierre, según J07. | `var f=fn [edit x](){x=2;};edit f();Print(x);` da NX-E1105 mientras `f` vive. |
 
 ## F0-0003 — selección anidada y diagnósticos de guardas (2026-11-13)
 

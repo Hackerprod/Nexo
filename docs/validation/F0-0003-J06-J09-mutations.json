@@ -1,0 +1,50 @@
+{
+  "mode": "quick-release",
+  "mutations": [
+    {
+      "id": "explicit_capture_boundary",
+      "file": "src/check/names.rs",
+      "original_sha256": "8cca10b50cf3fe3bb33abf44cf8fa67e97ad0f9ee22e6dd7afc59275bdd7b5ea",
+      "mutated_sha256": "ec260930fb0af53ac066778d2bda5ca654b398bc232d21d2b765b42b0be79aec",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j06_names exhaustive_capture_list_rejects_one_free_binding"
+    },
+    {
+      "id": "retained_loan_acquisition",
+      "file": "src/ir/lower.rs",
+      "original_sha256": "4a9817af5b7167ac83aa05d19860306b4698374a1dd1e3cc37610f80d91c51b9",
+      "mutated_sha256": "efbc0214b1820efc19a56dc7c102af89c59afb2afb97c2a629febf22ad292166",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j07_retention retained_view_blocks_write_until_carrier_drops"
+    },
+    {
+      "id": "receiver_mode_order",
+      "file": "src/ir/lower.rs",
+      "original_sha256": "4a9817af5b7167ac83aa05d19860306b4698374a1dd1e3cc37610f80d91c51b9",
+      "mutated_sha256": "a898f1581e50e0f9216e511dd2ee97fa408a30cb0b75121b79e342c7576f211e",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j08_receiver read_mode_cannot_call_mutating_or_consuming_closure"
+    },
+    {
+      "id": "owned_capture_drop_effect",
+      "file": "src/ir/effects.rs",
+      "original_sha256": "4afa45e15c88851faebf4c47b94ec349eb042f91ddd6ffee3cf6157d85638aec",
+      "mutated_sha256": "71c0b9a9290b2f4ff24986fa5902b40fa9016ff393ecb3410fa551495180867f",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j09_effects written_closure_operation_bounds_use_capture_witnesses"
+    },
+    {
+      "id": "nominal_type_diagnostic",
+      "file": "src/check/types.rs",
+      "original_sha256": "d902f2256136607de841d85bfc40d758803ed9aa7ec3d62dd6c276f274cd97fa",
+      "mutated_sha256": "04ee6346a548cf4343479fea459be99615905781b87aace3140076d4090cfcf0",
+      "restored": true,
+      "status": "killed",
+      "test": "--test j09_closure_fuzz distinct_closure_sites_use_canonical_types_in_diagnostic"
+    }
+  ]
+}

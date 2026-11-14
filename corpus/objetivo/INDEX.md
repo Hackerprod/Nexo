@@ -2,6 +2,8 @@
 
 Corpus progresivo de programas objetivo; tres ejemplos del roadmap conservan grafías de sintaxis A, documentadas en las traducciones pendientes.
 
+El objetivo 14 ejecuta como unidad, sin diagnósticos ni observaciones, por el arnés de biblioteca. La CLI pública mantiene la puerta de emisión J14 y la cifra pública de programas que ejecutan sigue en 12/29.
+
 <!-- tabla-programas -->
 | ID | Archivo | Procedencia | Capacidad | Estado hoy | Motivo |
 |---|---|---|---|---|---|
@@ -15,11 +17,11 @@ Corpus progresivo de programas objetivo; tres ejemplos del roadmap conservan gra
 | 08 | 08_array_update.n | F0-0002 sec. 11.4; arrays | copia y escritura indexada | EJECUTA | — |
 | 09 | 09_mock_request.n | F0-0002 sec. 11.6; MockRequest | petición simulada y Result | EJECUTA | — |
 | 10 | 10_mock_write.n | F0-0002 sec. 11.6; MockWriteI64 | escritura simulada | EJECUTA | — |
-| 11 | 11_ex04_generador.n | EX04 reducido; F0-0003 sec. 11 | generador, Result, recursos y escritura simulada | NO EJECUTA | NX-E0006/implementation_limit |
+| 11 | 11_ex04_generador.n | EX04 reducido; F0-0003 sec. 11 | generador, Result, recursos y escritura simulada | NO EJECUTA | NX-E0006/implementation_limit; pending_scope=J10 |
 | 12 | 12_option_match.n | F0-0003 sec. 3 y 6; Option | Option y selección exhaustiva | EJECUTA | — |
 | 13 | 13_option_none.n | F0-0003 sec. 3; Option | None y match | EJECUTA | — |
-| 14 | 14_closure_capture.n | F0-0003 sec. 4; closure síncrona | captura y llamada de closure | NO EJECUTA | NX-E0006/implementation_limit |
-| 15 | 15_generator_sum.n | F0-0003 sec. 5 y 9; generador | yield, Next y recorrido | NO EJECUTA | NX-E0006/implementation_limit |
+| 14 | 14_closure_capture.n | F0-0003 sec. 4; closure síncrona | captura y llamada de closure | NO EJECUTA | NX-E0006/implementation_limit; pending_scope=J14; arnés: ejecuta |
+| 15 | 15_generator_sum.n | F0-0003 sec. 5 y 9; generador | yield, Next y recorrido | NO EJECUTA | NX-E0006/implementation_limit; pending_scope=J10 |
 | 16 | 16_primos.n | F0-0005 sec. 11 (F5-P01) | operadores, while y funciones | NO EJECUTA | NX-E0006/comptime |
 | 17 | 17_criba.n | F0-0005 sec. 11 (F5-P02) | arrays y control de flujo | NO EJECUTA | NX-E0006/comptime |
 | 18 | 18_collatz.n | F0-0005 sec. 11 (F5-P03) | operadores y bucles | NO EJECUTA | NX-E0006/comptime |

@@ -6,7 +6,10 @@ use super::names::{self, Resolved, ResolvedUse};
 use crate::diagnostic::{DataValue, Diagnostic, Operation, RelatedRole, RelatedSpan, Span, Stage};
 use crate::frontend::{
     lex::{self, Kind, Token},
-    parse::{self, Ast, Block, Else, Expr, Function, Mode, Pattern, Statement, Type as SyntaxType},
+    parse::{
+        self, Ast, Block, CaptureMode, Else, Expr, Function, Mode, Pattern, Statement,
+        Type as SyntaxType,
+    },
 };
 use crate::union::{UnionDescriptor, UnionKind};
 
@@ -19,6 +22,11 @@ pub(super) enum InferTy {
     MockBlockingResource,
     Array(Arc<InferTy>),
     Union(UnionKind, Arc<InferTy>, Option<Arc<InferTy>>),
+    Closure {
+        site: u64,
+        copyable: bool,
+        owns_resource: bool,
+    },
     Deferred(u64),
     Never,
     Tainted,
@@ -65,6 +73,15 @@ impl From<&SyntaxType> for InferTy {
                 Arc::new(Self::from(err.as_ref())),
             ),
             SyntaxType::Option(some) => Self::option(Arc::new(Self::from(some.as_ref()))),
+            SyntaxType::Closure {
+                site,
+                copyable,
+                owns_resource,
+            } => Self::Closure {
+                site: *site,
+                copyable: *copyable,
+                owns_resource: *owns_resource,
+            },
         }
     }
 }
@@ -84,6 +101,15 @@ fn syntax_type(value: &InferTy) -> Option<SyntaxType> {
         InferTy::Union(UnionKind::Option, some, None) => {
             Some(SyntaxType::Option(Box::new(syntax_type(some)?)))
         }
+        InferTy::Closure {
+            site,
+            copyable,
+            owns_resource,
+        } => Some(SyntaxType::Closure {
+            site: *site,
+            copyable: *copyable,
+            owns_resource: *owns_resource,
+        }),
         InferTy::Union(..) => None,
         InferTy::Deferred(_) | InferTy::Never | InferTy::Tainted => None,
     }
@@ -130,6 +156,10 @@ fn pretty(ty: &Type) -> Option<String> {
                 work.push(Part::Type(some));
                 work.push(Part::Text("Option<"));
             }
+            Part::Type(SyntaxType::Closure { site, .. }) => {
+                output.push_str("Closure@");
+                output.push_str(&site.to_string());
+            }
         }
     }
     Some(output)
@@ -157,17 +187,40 @@ fn copyable(ty: &Type) -> bool {
                 }
                 work.push(first);
             }
-            Type::MockResource | Type::MockBlockingResource => return false,
+            Type::Closure {
+                copyable: false, ..
+            }
+            | Type::MockResource
+            | Type::MockBlockingResource => return false,
+            Type::Closure { copyable: true, .. } => {}
             Type::Deferred(_) | Type::Never | Type::Tainted => return false,
         }
     }
     true
 }
 
+fn comparable_data(ty: &Type) -> bool {
+    let mut work = vec![ty];
+    while let Some(node) = work.pop() {
+        match node {
+            Type::Closure { .. } => return false,
+            Type::Array(inner) => work.push(inner),
+            Type::Union(_, first, second) => {
+                work.push(first);
+                if let Some(second) = second {
+                    work.push(second);
+                }
+            }
+            _ => {}
+        }
+    }
+    copyable(ty)
+}
+
 fn domain_accepts(domain: &str, ty: &Type) -> bool {
     match domain {
         "domain:array" => matches!(ty, Type::Array(_)),
-        "domain:copyable_data" => copyable(ty),
+        "domain:copyable_data" => comparable_data(ty),
         "domain:mock_resource" => {
             matches!(ty, Type::MockResource | Type::MockBlockingResource)
         }
@@ -201,6 +254,14 @@ fn contains_resource(ty: &Type) -> bool {
     while let Some(node) = work.pop() {
         match node {
             Type::MockResource | Type::MockBlockingResource => return true,
+            Type::Closure {
+                owns_resource: true,
+                ..
+            } => return true,
+            Type::Closure {
+                owns_resource: false,
+                ..
+            } => {}
             Type::Array(inner) => work.push(inner),
             Type::Union(_, first, second) => {
                 if let Some(second) = second {
@@ -236,9 +297,28 @@ fn has_resource_array(ty: &Type) -> bool {
             | Type::Unit
             | Type::MockResource
             | Type::MockBlockingResource
+            | Type::Closure { .. }
             | Type::Deferred(_)
             | Type::Never
             | Type::Tainted => {}
+        }
+    }
+    false
+}
+
+fn has_closure_array(ty: &Type) -> bool {
+    let mut work = vec![(ty, false)];
+    while let Some((node, within_array)) = work.pop() {
+        match node {
+            Type::Array(inner) => work.push((inner, true)),
+            Type::Union(_, first, second) => {
+                work.push((first, within_array));
+                if let Some(second) = second {
+                    work.push((second, within_array));
+                }
+            }
+            Type::Closure { .. } if within_array => return true,
+            _ => {}
         }
     }
     false
@@ -482,6 +562,252 @@ enum PendingConstraint {
 pub(crate) struct InferredTypes {
     pub bindings: HashMap<u64, ResolvedType>,
     pub expressions: HashMap<(u64, u64), ResolvedType>,
+    pub closures: HashMap<u64, ClosureInfo>,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ClosureCaptureInfo {
+    pub name: String,
+    pub mode: CaptureMode,
+    pub usage: Mode,
+    pub source: Span,
+    pub capture_span: Span,
+    pub ty: SyntaxType,
+    pub mutable: bool,
+}
+
+#[derive(Clone, Debug)]
+pub(crate) struct ClosureInfo {
+    pub site: u64,
+    pub required_mode: Mode,
+    pub captures: Vec<ClosureCaptureInfo>,
+    pub params: Vec<(String, Mode, SyntaxType)>,
+    pub result: SyntaxType,
+}
+
+#[derive(Clone)]
+struct ClosureDraft {
+    captures: Vec<(String, CaptureMode, Mode, Span, Span, Type, bool)>,
+    params: Vec<(String, Mode, Span, Type)>,
+    result: Type,
+}
+
+fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> Mode {
+    fn rank(mode: Mode) -> u8 {
+        match mode {
+            Mode::Read => 0,
+            Mode::Inout => 1,
+            Mode::Consume => 2,
+        }
+    }
+    fn raise(found: &mut Mode, requested: Mode) {
+        if rank(requested) > rank(*found) {
+            *found = requested;
+        }
+    }
+    fn expr(value: &Expr, requested: Mode, source: u64, resolved: &Resolved, found: &mut Mode) {
+        match value {
+            Expr::Name(_, span) => {
+                if matches!(resolved.uses.get(&span.start), Some(ResolvedUse::Local(local)) if local.name_span.start == source)
+                {
+                    raise(found, requested);
+                }
+            }
+            Expr::Closure(inner) => {
+                if let Some(captures) = &inner.captures {
+                    for capture in captures {
+                        expr(
+                            &Expr::Name(capture.name.clone(), capture.name_span.clone()),
+                            match capture.mode {
+                                CaptureMode::View | CaptureMode::Copy => Mode::Read,
+                                CaptureMode::Edit => Mode::Inout,
+                                CaptureMode::Move => Mode::Consume,
+                            },
+                            source,
+                            resolved,
+                            found,
+                        );
+                    }
+                } else {
+                    block(&inner.body, source, resolved, found);
+                }
+            }
+            Expr::Unary { mode, value, .. } => {
+                let mode = if rank(*mode) > rank(requested) {
+                    *mode
+                } else {
+                    requested
+                };
+                expr(value, mode, source, resolved, found);
+            }
+            Expr::Group(inner, _) => expr(inner, requested, source, resolved, found),
+            Expr::Array(items, _) => {
+                for item in items {
+                    expr(item, Mode::Read, source, resolved, found);
+                }
+            }
+            Expr::Binary { left, right, .. }
+            | Expr::Index {
+                target: left,
+                index: right,
+                ..
+            } => {
+                expr(left, requested, source, resolved, found);
+                expr(right, Mode::Read, source, resolved, found);
+            }
+            Expr::Call { target, args, span } => {
+                expr(target, requested, source, resolved, found);
+                let signature = resolved
+                    .calls
+                    .get(&(span.start, span.end))
+                    .and_then(|binding| {
+                        names::signature(resolved, &binding.target)
+                            .map(|signature| (binding, signature))
+                    });
+                for (index, arg) in args.iter().enumerate() {
+                    let mode = if index == 0
+                        && matches!(&**target, Expr::Name(name, _) if name == "Drop")
+                    {
+                        Mode::Consume
+                    } else {
+                        signature
+                            .as_ref()
+                            .and_then(|(binding, signature)| {
+                                binding
+                                    .slots
+                                    .get(index)
+                                    .and_then(|slot| signature.params.get(*slot))
+                            })
+                            .map_or(Mode::Read, |p| p.mode)
+                    };
+                    expr(&arg.value, mode, source, resolved, found);
+                }
+            }
+            Expr::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                expr(condition, Mode::Read, source, resolved, found);
+                block(then_block, source, resolved, found);
+                match otherwise.as_deref() {
+                    Some(Else::Block(other)) => block(other, source, resolved, found),
+                    Some(Else::If(other)) => expr(other, Mode::Read, source, resolved, found),
+                    None => {}
+                }
+            }
+            Expr::Match(selection) => {
+                expr(
+                    &selection.scrutinee,
+                    selection.mode.unwrap_or(Mode::Read),
+                    source,
+                    resolved,
+                    found,
+                );
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        expr(guard, Mode::Read, source, resolved, found);
+                    }
+                    block(&arm.body, source, resolved, found);
+                }
+            }
+            Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+        }
+    }
+    fn block(body_block: &Block, source: u64, resolved: &Resolved, found: &mut Mode) {
+        for statement in &body_block.statements {
+            match statement {
+                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                    expr(value, Mode::Read, source, resolved, found)
+                }
+                Statement::Assign { place, value, .. } => {
+                    expr(place, Mode::Inout, source, resolved, found);
+                    expr(value, Mode::Read, source, resolved, found);
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        expr(value, Mode::Read, source, resolved, found);
+                    }
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    expr(condition, Mode::Read, source, resolved, found);
+                    block(then_block, source, resolved, found);
+                    if let Some(otherwise) = otherwise {
+                        block_statement(otherwise, source, resolved, found);
+                    }
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    expr(condition, Mode::Read, source, resolved, found);
+                    block(body, source, resolved, found);
+                }
+                Statement::Match(selection) => {
+                    expr(
+                        &selection.scrutinee,
+                        selection.mode.unwrap_or(Mode::Read),
+                        source,
+                        resolved,
+                        found,
+                    );
+                    for arm in &selection.arms {
+                        if let Some(guard) = &arm.guard {
+                            expr(guard, Mode::Read, source, resolved, found);
+                        }
+                        block(&arm.body, source, resolved, found);
+                    }
+                }
+                Statement::Block(inner) => block(inner, source, resolved, found),
+            }
+        }
+    }
+    fn block_statement(statement: &Statement, source: u64, resolved: &Resolved, found: &mut Mode) {
+        block(
+            &Block {
+                statements: vec![statement.clone()],
+                span: parse::statement_span(statement).clone(),
+                close_span: parse::statement_span(statement).clone(),
+            },
+            source,
+            resolved,
+            found,
+        );
+    }
+    let mut found = Mode::Read;
+    block(&closure.body, source, resolved, &mut found);
+    found
+}
+
+fn closure_has_value_return(block: &Block) -> bool {
+    fn statement(stmt: &Statement) -> bool {
+        match stmt {
+            Statement::Return { value: Some(_), .. } => true,
+            Statement::If {
+                then_block,
+                otherwise,
+                ..
+            } => {
+                closure_has_value_return(then_block) || otherwise.as_deref().is_some_and(statement)
+            }
+            Statement::While { body, .. } | Statement::Block(body) => {
+                closure_has_value_return(body)
+            }
+            Statement::Match(selection) => selection
+                .arms
+                .iter()
+                .any(|arm| closure_has_value_return(&arm.body)),
+            _ => false,
+        }
+    }
+    block.statements.iter().any(statement)
 }
 
 #[allow(clippy::vec_box)] // Shared semantic diagnostics retain the boxed representation.
@@ -547,7 +873,11 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
                     block(&arm.body, types);
                 }
             }
-            Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+            Expr::Name(..)
+            | Expr::Integer(..)
+            | Expr::Bool(..)
+            | Expr::Unit(..)
+            | Expr::Closure(..) => {}
         }
     }
     fn statement(stmt: &Statement, types: &mut InferredTypes) {
@@ -725,6 +1055,7 @@ struct Checker<'a> {
     array_unify_cache: HashMap<(usize, usize), (Type, Type, Type, u64)>,
     expr_vars: HashMap<(u64, u64), u64>,
     expression_types: HashMap<(u64, u64), Type>,
+    closures: HashMap<u64, ClosureDraft>,
     conditional_result_types: HashMap<(u64, u64), Type>,
     conditional_result_vars: Vec<(u64, Span, Type)>,
     next_variable: u64,
@@ -792,6 +1123,165 @@ struct Checker<'a> {
 }
 
 impl Checker<'_> {
+    fn closure_capture_sites(
+        &self,
+        closure: &parse::Closure,
+    ) -> Vec<(String, CaptureMode, Span, Span, bool)> {
+        if let Some(explicit) = &closure.captures {
+            return explicit
+                .iter()
+                .filter_map(|capture| {
+                    let ResolvedUse::Local(local) =
+                        self.resolved.uses.get(&capture.name_span.start)?
+                    else {
+                        return None;
+                    };
+                    Some((
+                        capture.name.clone(),
+                        capture.mode,
+                        local.name_span.clone(),
+                        capture.span.clone(),
+                        local.mutable,
+                    ))
+                })
+                .collect();
+        }
+        let mut uses: Vec<_> = self
+            .resolved
+            .uses
+            .iter()
+            .filter_map(|(&at, resolved)| {
+                let ResolvedUse::Local(local) = resolved else {
+                    return None;
+                };
+                (at >= closure.body.span.start
+                    && at < closure.body.span.end
+                    && local.name_span.start < closure.fn_span.start)
+                    .then_some((at, local.name_span.clone(), local.mutable))
+            })
+            .collect();
+        uses.sort_by_key(|(at, _, _)| *at);
+        let mut seen = HashSet::new();
+        uses.into_iter()
+            .filter_map(|(at, source, mutable)| {
+                if !seen.insert(source.start) {
+                    return None;
+                }
+                let token = self.tokens.iter().find(|token| token.span.start == at)?;
+                Some((
+                    token.text.clone(),
+                    CaptureMode::View,
+                    source,
+                    token.span.clone(),
+                    mutable,
+                ))
+            })
+            .collect()
+    }
+
+    fn closure_expr(&mut self, closure: &parse::Closure) -> Result<Type, Box<Diagnostic>> {
+        let sites = self.closure_capture_sites(closure);
+        let mut captures = Vec::new();
+        for (name, mode, source, capture_span, mutable) in sites {
+            if let Some(known) = self.locals.get(&source.start).cloned() {
+                let ty = self
+                    .resolved_syntax_type(&known.ty)
+                    .map(|ty| Type::from(&ty))
+                    .unwrap_or(known.ty);
+                captures.push((
+                    name,
+                    mode,
+                    capture_usage(closure, source.start, self.resolved),
+                    source,
+                    capture_span,
+                    ty,
+                    mutable,
+                ));
+            }
+        }
+        for (name, mode, _, source, capture_span, ty, _) in &captures {
+            if *mode == CaptureMode::Copy && !copyable(ty) {
+                let primary =
+                    names::token_span(&self.tokens, capture_span.start, capture_span.end, name)
+                        .unwrap_or_else(|| capture_span.clone());
+                let mut error = names::diagnostic(
+                    "NX-E0201",
+                    None,
+                    Stage::Ownership,
+                    Operation::ValueCopy,
+                    primary,
+                );
+                error.related_spans.push(RelatedSpan {
+                    role: RelatedRole::Declaration,
+                    span: source.clone(),
+                });
+                self.record_error(error);
+            }
+        }
+        let copyable = captures.iter().all(|(_, mode, _, _, _, ty, _)| match mode {
+            CaptureMode::View => true,
+            CaptureMode::Edit => false,
+            CaptureMode::Copy | CaptureMode::Move => copyable(ty),
+        });
+        let owns_resource = captures.iter().any(|(_, mode, _, _, _, ty, _)| {
+            matches!(mode, CaptureMode::Move | CaptureMode::Copy) && contains_resource(ty)
+        });
+        let mut params = Vec::with_capacity(closure.params.len());
+        for param in &closure.params {
+            let name_span =
+                names::token_span(&self.tokens, param.span.start, param.span.end, &param.name)
+                    .unwrap_or_else(|| param.span.clone());
+            let ty = if let Some(written) = &param.ty {
+                Type::from(written)
+            } else {
+                Type::Deferred(self.new_variable(&name_span)?)
+            };
+            self.locals.insert(
+                name_span.start,
+                Known {
+                    ty: ty.clone(),
+                    origin: name_span.clone(),
+                    variable: None,
+                },
+            );
+            params.push((param.name.clone(), param.mode, name_span, ty));
+        }
+        let previous_result = self.result.clone();
+        let previous_result_span = self.result_span.clone();
+        let result = if let Some(written) = &closure.result {
+            Type::from(written)
+        } else if !closure_has_value_return(&closure.body) {
+            Type::Unit
+        } else {
+            Type::Deferred(self.new_variable(&closure.fn_span)?)
+        };
+        self.result = result.clone();
+        self.result_span = closure.result.as_ref().and_then(|_| {
+            self.type_annotation_span(closure.fn_span.end, closure.body.span.start, "->")
+        });
+        let checked = self.block(&closure.body);
+        self.result = previous_result;
+        self.result_span = previous_result_span;
+        checked?;
+        let result = self
+            .resolved_syntax_type(&result)
+            .map(|ty| Type::from(&ty))
+            .unwrap_or(result);
+        self.closures.insert(
+            closure.fn_span.start,
+            ClosureDraft {
+                captures,
+                params,
+                result,
+            },
+        );
+        Ok(Type::Closure {
+            site: closure.fn_span.start,
+            copyable,
+            owns_resource,
+        })
+    }
+
     fn intrinsic_assignment_type(&self, expression: &Expr) -> Option<Type> {
         // Only syntax with a determined, context-free constructor type is
         // evidence about this assignment. Cross-operand and branch joins
@@ -1279,12 +1769,12 @@ impl Checker<'_> {
                 }
                 _ => false,
             },
-            Expr::Call { span, .. } => {
-                let binding = &self.resolved.calls[&span.start];
-                names::signature(self.resolved, &binding.target).is_some_and(|signature| {
-                    matches!(Type::from(&signature.result), Type::Array(_))
-                })
-            }
+            Expr::Call { span, .. } => self
+                .resolved
+                .calls
+                .get(&(span.start, span.end))
+                .and_then(|binding| names::signature(self.resolved, &binding.target))
+                .is_some_and(|signature| matches!(Type::from(&signature.result), Type::Array(_))),
             _ => false,
         }
     }
@@ -1937,11 +2427,20 @@ impl Checker<'_> {
         Ok(children)
     }
 
-    fn require_copyable(&mut self, id: u64, origin: &Span) -> Result<(), Box<Diagnostic>> {
+    fn require_copyable(
+        &mut self,
+        id: u64,
+        origin: &Span,
+        data_only: bool,
+    ) -> Result<(), Box<Diagnostic>> {
         self.charge_solver(origin)?;
         let root = self.root(id);
         if let Some((ty, _)) = self.concrete(root)
-            && !copyable(&ty)
+            && !(if data_only {
+                comparable_data(&ty)
+            } else {
+                copyable(&ty)
+            })
         {
             return Err(mismatch(
                 origin.clone(),
@@ -1972,7 +2471,7 @@ impl Checker<'_> {
         // the copyable domain. Requiring it again preserves that invariant
         // for manually built solver states, with no new source-level result.
         if let Some(child) = self.type_nodes[&root].array_child {
-            self.require_copyable(child, origin)?;
+            self.require_copyable(child, origin, data_only)?;
         }
         Ok(())
     }
@@ -3246,6 +3745,7 @@ impl Checker<'_> {
     }
 
     fn check_inferred_depth(&mut self) -> Result<(), Box<Diagnostic>> {
+        let mut constructed = Vec::new();
         for id in 0..self.next_variable {
             if self.type_nodes[&id].parent != id {
                 continue;
@@ -3253,7 +3753,14 @@ impl Checker<'_> {
             let origin = self.type_nodes[&id].array_origin.clone();
             if let Some(origin) = origin {
                 self.check_one_inferred_depth(id, &origin)?;
+                if let Some((ty, _)) = self.concrete(id) {
+                    constructed.push((origin, ty));
+                }
             }
+        }
+        constructed.sort_by_key(|(origin, _)| (origin.start, origin.end));
+        for (origin, ty) in constructed {
+            self.check_depth(&ty, &origin)?;
         }
         Ok(())
     }
@@ -3372,7 +3879,7 @@ impl Checker<'_> {
                             Else::If(expression) => self.expression_reads_binding(expression, site),
                         })
             }
-            Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => false,
+            Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) | Expr::Closure(..) => false,
             Expr::Match(selection) => {
                 self.expression_reads_binding(&selection.scrutinee, site)
                     || selection.arms.iter().any(|arm| {
@@ -3523,7 +4030,8 @@ impl Checker<'_> {
             | Expr::Index { .. }
             | Expr::Call { .. }
             | Expr::Unary { .. }
-            | Expr::Match(..) => false,
+            | Expr::Match(..)
+            | Expr::Closure(..) => false,
         }
     }
 
@@ -3538,6 +4046,21 @@ impl Checker<'_> {
     fn check_depth(&self, ty: &Type, origin: &Span) -> Result<(), Box<Diagnostic>> {
         if has_resource_array(ty) {
             return Err(resource_array(origin.clone()));
+        }
+        if has_closure_array(ty) {
+            let mut error = names::diagnostic(
+                "NX-E0006",
+                None,
+                Stage::Types,
+                Operation::TypesCheck,
+                origin.clone(),
+            );
+            error.feature_id = Some("closure".into());
+            error.data.insert(
+                "pending_scope".into(),
+                DataValue::String("later_adr".into()),
+            );
+            return Err(error);
         }
         let mut arrays = 0;
         let mut values = 0;
@@ -3558,6 +4081,7 @@ impl Checker<'_> {
                 | Type::Unit
                 | Type::MockResource
                 | Type::MockBlockingResource
+                | Type::Closure { .. }
                 | Type::Deferred(_)
                 | Type::Never
                 | Type::Tainted => {}
@@ -3647,6 +4171,7 @@ impl Checker<'_> {
         self.array_unify_cache.clear();
         self.expr_vars.clear();
         self.expression_types.clear();
+        self.closures.clear();
         self.conditional_result_types.clear();
         self.conditional_result_vars.clear();
         self.next_variable = 0;
@@ -3853,7 +4378,7 @@ impl Checker<'_> {
                     && (if domain.domain == "I64" {
                         left != Type::I64
                     } else {
-                        !domain_accepts(domain.domain, &left)
+                        !comparable_data(&left)
                     })
                 {
                     self.record_error(mismatch(
@@ -4037,7 +4562,7 @@ impl Checker<'_> {
                 let valid = if pending.domain == "I64" {
                     ty == Type::I64
                 } else {
-                    domain_accepts(pending.domain, &ty)
+                    comparable_data(&ty)
                 };
                 if !valid {
                     failed_results.insert(span_key(&pending.result));
@@ -4547,7 +5072,25 @@ impl Checker<'_> {
                 if let Some(value) = value {
                     let expected = self.result.clone();
                     let origin = self.result_span.clone();
-                    self.expr(value, Some(&expected), origin.as_ref())?;
+                    let actual = self.expr(value, Some(&expected), origin.as_ref())?;
+                    if matches!(expected, Type::Deferred(_)) && !self.tainted {
+                        let site = Self::primary_span(value);
+                        self.unify(expected, actual, site.clone(), site.clone(), site, false)?;
+                    }
+                } else if matches!(self.result, Type::Deferred(_)) {
+                    let site = Span {
+                        file: self.file.into(),
+                        start: span.start,
+                        end: span.start + 6,
+                    };
+                    self.unify(
+                        self.result.clone(),
+                        Type::Unit,
+                        site.clone(),
+                        site.clone(),
+                        site,
+                        false,
+                    )?;
                 } else if self.result != Type::Unit {
                     let primary = self
                         .tokens
@@ -4852,6 +5395,7 @@ impl Checker<'_> {
             ..
         } = context;
         match e {
+            Expr::Closure(closure) => self.closure_expr(closure),
             Expr::Integer(text, span) => {
                 if text.parse::<i64>().is_err() {
                     return Err(names::diagnostic(
@@ -5071,7 +5615,7 @@ impl Checker<'_> {
                     self.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
                     self.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
                     self.type_nodes.get_mut(&array).unwrap().array_constructed = true;
-                    self.require_copyable(child, span)?;
+                    self.require_copyable(child, span, false)?;
                     self.expr_vars.insert(span_key(e.span()), array);
                     self.deferred_exprs.insert(span_key(e.span()));
                     self.pending.push(PendingConstraint::Constructor {
@@ -5191,7 +5735,7 @@ impl Checker<'_> {
                     }
                     if self.deferred_exprs.contains(&span_key(item.span())) {
                         if let Some(id) = self.expression_variable(item) {
-                            self.require_copyable(id, &Self::primary_span(item))?;
+                            self.require_copyable(id, &Self::primary_span(item), false)?;
                             if let Some(expected_item) = item_type.as_ref() {
                                 // item_type is assigned only from a
                                 // non-deferred result (or a concrete source
@@ -5338,6 +5882,11 @@ impl Checker<'_> {
                     if contains_resource(&item) {
                         return Err(resource_array(span.clone()));
                     }
+                    let resolved_item = self
+                        .resolved_syntax_type(&item)
+                        .map(|ty| Type::from(&ty))
+                        .unwrap_or_else(|| item.clone());
+                    self.check_depth(&Type::Array(Arc::new(resolved_item)), span)?;
                     if diverges {
                         self.divergent_exprs.insert(span_key(e.span()));
                     }
@@ -5370,7 +5919,7 @@ impl Checker<'_> {
                         self.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
                         self.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
                         self.type_nodes.get_mut(&array).unwrap().array_constructed = true;
-                        self.require_copyable(child, span)?;
+                        self.require_copyable(child, span, false)?;
                         self.expr_vars.insert(span_key(e.span()), array);
                         self.pending.push(PendingConstraint::Constructor {
                             child,
@@ -5666,7 +6215,7 @@ impl Checker<'_> {
                             let valid = if op == "<" {
                                 ty == Type::I64
                             } else {
-                                copyable(&ty)
+                                comparable_data(&ty)
                             };
                             if !valid {
                                 return Err(mismatch(operator, found_site, None, domain, &ty));
@@ -6023,8 +6572,85 @@ impl Checker<'_> {
                 }
                 Ok(item.as_ref().clone())
             }
-            Expr::Call { args, span, .. } => {
-                let binding = &self.resolved.calls[&span.start];
+            Expr::Call { target, args, span } => {
+                let Some(binding) = self.resolved.calls.get(&(span.start, span.end)) else {
+                    let target_ty = self.expr(target, None, None)?;
+                    if let Type::Closure { site, .. } = target_ty {
+                        let draft = self.closures.get(&site).cloned().ok_or_else(|| {
+                            names::diagnostic(
+                                "NX-E1111",
+                                None,
+                                Stage::Types,
+                                Operation::TypesCheck,
+                                target.span().clone(),
+                            )
+                        })?;
+                        let params = draft
+                            .params
+                            .iter()
+                            .map(|(name, mode, name_span, _)| names::ParameterSig {
+                                name: name.clone(),
+                                name_span: name_span.clone(),
+                                type_span: name_span.clone(),
+                                mode: *mode,
+                                ty: SyntaxType::Unit,
+                            })
+                            .collect();
+                        let slots = names::bind_arguments(params, target.span(), args)?;
+                        for (arg, slot) in args.iter().zip(slots) {
+                            let formal = &draft.params[slot];
+                            let previous_taint = self.tainted;
+                            self.tainted = false;
+                            let outcome = self
+                                .expr(&arg.value, Some(&formal.3), Some(&formal.2))
+                                .and_then(|got| {
+                                    self.unify(
+                                        formal.3.clone(),
+                                        got,
+                                        formal.2.clone(),
+                                        Self::primary_span(&arg.value),
+                                        Self::primary_span(&arg.value),
+                                        false,
+                                    )
+                                });
+                            let tainted = self.tainted;
+                            self.tainted = previous_taint || tainted;
+                            if let Err(error) = outcome {
+                                if error.operation == Operation::AnalysisLimit {
+                                    return Err(error);
+                                }
+                                self.record_error(error);
+                                self.tainted = true;
+                            }
+                        }
+                        return Ok(draft.result);
+                    }
+                    if target_ty == Type::Tainted {
+                        self.tainted = true;
+                        return Ok(Type::Tainted);
+                    }
+                    let mut unwrapped = target.as_ref();
+                    while let Expr::Group(inner, _) = unwrapped {
+                        unwrapped = inner;
+                    }
+                    let mut error = names::diagnostic(
+                        "NX-E0111",
+                        Some("non_callable_target"),
+                        Stage::Arguments,
+                        Operation::CallBind,
+                        target.span().clone(),
+                    );
+                    if let Expr::Name(_, name_span) = unwrapped
+                        && let Some(ResolvedUse::Local(local)) =
+                            self.resolved.uses.get(&name_span.start)
+                    {
+                        error.related_spans.push(RelatedSpan {
+                            role: RelatedRole::Declaration,
+                            span: local.name_span.clone(),
+                        });
+                    }
+                    return Err(error);
+                };
                 let signature =
                     names::signature(self.resolved, &binding.target).expect("callable binding");
                 if let ResolvedUse::Intrinsic(name) = &binding.target {
@@ -6881,7 +7507,7 @@ impl Checker<'_> {
             let invalid = if op == "<" {
                 complete != Type::I64
             } else {
-                !copyable(&complete)
+                !comparable_data(&complete)
             };
             return Ok(invalid.then(|| {
                 mismatch(
@@ -7147,6 +7773,15 @@ impl Checker<'_> {
                 let got = self.expr(ordered(0), None, None)?;
                 let before = self.pending_domain_count();
                 self.check_intrinsic_domain(ordered(0), &got, "domain:copyable_data")?;
+                if internal_state(&got).is_none() && !comparable_data(&got) {
+                    return Err(mismatch(
+                        Self::primary_span(ordered(0)),
+                        Self::primary_span(ordered(0)),
+                        None,
+                        "domain:copyable_data",
+                        &got,
+                    ));
+                }
                 self.remember_pending_domain_result(
                     before,
                     call_span,
@@ -7298,7 +7933,8 @@ impl Checker<'_> {
                     }
                     let operand = ordered(index);
                     if let Some(id) = self.expression_variable(operand) {
-                        if let Err(error) = self.require_copyable(id, &Self::primary_span(operand))
+                        if let Err(error) =
+                            self.require_copyable(id, &Self::primary_span(operand), true)
                         {
                             if error.operation == Operation::AnalysisLimit {
                                 return Err(error);
@@ -7306,7 +7942,7 @@ impl Checker<'_> {
                             self.record_error(error);
                             invalid = true;
                         }
-                    } else if internal_state(&value).is_none() && !copyable(&value) {
+                    } else if internal_state(&value).is_none() && !comparable_data(&value) {
                         self.record_error(mismatch(
                             Self::primary_span(operand),
                             Self::primary_span(operand),
@@ -7423,6 +8059,7 @@ pub(crate) fn check_with_partial_limit(
         array_unify_cache: HashMap::new(),
         expr_vars: HashMap::new(),
         expression_types: HashMap::new(),
+        closures: HashMap::new(),
         conditional_result_types: HashMap::new(),
         conditional_result_vars: Vec::new(),
         next_variable: 0,
@@ -7490,6 +8127,66 @@ pub(crate) fn check_with_partial_limit(
         checker.quota_error = None;
         if let Err(error) = checker.function(function) {
             checker.record_error(error);
+        }
+        for (&site, draft) in checker.closures.clone().iter() {
+            let mut captures = Vec::with_capacity(draft.captures.len());
+            for (name, mode, usage, source, capture_span, ty, mutable) in &draft.captures {
+                if let Some(ty) = checker.resolved_syntax_type(ty) {
+                    captures.push(ClosureCaptureInfo {
+                        name: name.clone(),
+                        mode: *mode,
+                        usage: *usage,
+                        source: source.clone(),
+                        capture_span: capture_span.clone(),
+                        ty,
+                        mutable: *mutable,
+                    });
+                }
+            }
+            let mut params = Vec::with_capacity(draft.params.len());
+            for (name, mode, name_span, ty) in &draft.params {
+                if let Some(ty) = checker.resolved_syntax_type(ty) {
+                    params.push((name.clone(), *mode, ty));
+                } else {
+                    let mut error = names::diagnostic(
+                        "NX-E1111",
+                        None,
+                        Stage::Types,
+                        Operation::TypesCheck,
+                        name_span.clone(),
+                    );
+                    error.related_spans.push(RelatedSpan {
+                        role: RelatedRole::Declaration,
+                        span: name_span.clone(),
+                    });
+                    checker.record_error(error);
+                }
+            }
+            let result = checker
+                .resolved_syntax_type(&draft.result)
+                .unwrap_or(SyntaxType::Unit);
+            inferred.closures.insert(
+                site,
+                ClosureInfo {
+                    site,
+                    required_mode: captures.iter().fold(Mode::Read, |current, capture| {
+                        let needed =
+                            if capture.mode == CaptureMode::Edit && capture.usage == Mode::Read {
+                                Mode::Inout
+                            } else {
+                                capture.usage
+                            };
+                        match (current, needed) {
+                            (Mode::Consume, _) | (_, Mode::Consume) => Mode::Consume,
+                            (Mode::Inout, _) | (_, Mode::Inout) => Mode::Inout,
+                            _ => Mode::Read,
+                        }
+                    }),
+                    captures,
+                    params,
+                    result,
+                },
+            );
         }
         for (&at, known) in checker.locals.clone().iter() {
             if let Some(id) = known.variable {
@@ -7887,7 +8584,7 @@ mod quota_tests {
         let mut checker = empty_checker(&resolved);
         let left = checker.new_variable(&site(1)).unwrap();
         let right = checker.new_variable(&site(2)).unwrap();
-        checker.require_copyable(left, &site(3)).unwrap();
+        checker.require_copyable(left, &site(3), false).unwrap();
         checker
             .bind(right, Type::MockResource, site(4), site(5), false)
             .unwrap();
@@ -8457,6 +9154,7 @@ mod quota_tests {
             result: Type::Unit,
             result_span: None,
             errors: Vec::new(),
+            closures: HashMap::new(),
         }
     }
 

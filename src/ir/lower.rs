@@ -2,9 +2,9 @@ use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 
 use super::model::{
-    self, Access, BasicBlock, Binary, BlockId, Function, FunctionId, FunctionTable, IndexSite,
-    Instruction, Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId, Parameter,
-    ParameterMode, Program, ScopeId, TempId, Terminator, Ty, WorkCharge,
+    self, Access, BasicBlock, Binary, BlockId, CaptureKind, Function, FunctionId, FunctionTable,
+    IndexSite, Instruction, Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId,
+    Parameter, ParameterMode, Program, ScopeId, TempId, Terminator, Ty, WorkCharge,
 };
 #[path = "lower_match.rs"]
 mod lower_match;
@@ -245,7 +245,9 @@ pub(crate) fn compile_scalar_with_flow_limit(
         flow_function: limit,
         ..AnalysisLimits::NORMAL
     };
-    compile_scalar_with_analysis_limits(file, source, false, limits)
+    // This test hook intentionally uses a quota that has no published profile.
+    // Production entries always pass through diagnostic schema validation.
+    compile_scalar_with_analysis_limits_unchecked(file, source, false, limits, false)
 }
 
 pub fn compile_scalar_with_profile(
@@ -255,7 +257,7 @@ pub fn compile_scalar_with_profile(
     run_entry: bool,
 ) -> Result<Program, CompileError> {
     let limits = analysis_limits(profile);
-    let mut result = compile_scalar_with_analysis_limits(file, source, run_entry, limits);
+    let mut result = compile_scalar_with_analysis_limits(file, source, run_entry, limits, false);
     if let Err(CompileError::Rejected(errors)) = &mut result {
         for error in errors {
             error.profile_id = limits.profile_id.into();
@@ -277,6 +279,7 @@ pub(crate) fn compile_scalar_with_sparse_ownership(
             force_sparse_ownership: true,
             ..AnalysisLimits::NORMAL
         },
+        false,
     )
 }
 
@@ -285,7 +288,44 @@ fn compile_scalar_with_entry(
     source: &str,
     run_entry: bool,
 ) -> Result<Program, CompileError> {
-    compile_scalar_with_analysis_limits(file, source, run_entry, AnalysisLimits::NORMAL)
+    compile_scalar_with_analysis_limits(file, source, run_entry, AnalysisLimits::NORMAL, false)
+}
+
+/// Library entry for the J02–J13 execution harness. It bypasses only the
+/// public emission gate; analysis, lowering, verification and execution use
+/// the same paths as the CLI.
+pub fn compile_for_internal_harness(
+    file: &str,
+    source: &str,
+    run_entry: bool,
+) -> Result<Program, CompileError> {
+    let mut result = compile_scalar_with_analysis_limits(
+        file,
+        source,
+        run_entry,
+        AnalysisLimits {
+            profile_id: "f0-0003-b-v1",
+            ..AnalysisLimits::NORMAL
+        },
+        true,
+    );
+    if let Err(CompileError::Rejected(errors)) = &mut result {
+        for error in errors {
+            error.profile_id = "f0-0003-b-v1".into();
+        }
+    }
+    result
+}
+
+/// Compile, verify and execute through the internal J02–J13 harness entry.
+/// The public emission gate is the only step bypassed.
+pub fn run_for_internal_harness(
+    file: &str,
+    source: &str,
+    environment: crate::interp::MockEnvironment,
+) -> Result<crate::interp::Execution, CompileError> {
+    let program = compile_for_internal_harness(file, source, true)?;
+    Ok(crate::interp::run_scalar(&program, environment))
 }
 
 fn compile_scalar_with_analysis_limits(
@@ -293,6 +333,33 @@ fn compile_scalar_with_analysis_limits(
     source: &str,
     run_entry: bool,
     limits: AnalysisLimits,
+    bypass_emission_gate: bool,
+) -> Result<Program, CompileError> {
+    let mut result = compile_scalar_with_analysis_limits_unchecked(
+        file,
+        source,
+        run_entry,
+        limits,
+        bypass_emission_gate,
+    );
+    if let Err(CompileError::Rejected(errors)) = &mut result {
+        for error in errors {
+            error.profile_id = limits.profile_id.into();
+            if let Err(reason) = error.validate(file, source) {
+                eprintln!("invalid compiler diagnostic: {reason}");
+                return Err(CompileError::InvalidIr("invalid compiler diagnostic"));
+            }
+        }
+    }
+    result
+}
+
+fn compile_scalar_with_analysis_limits_unchecked(
+    file: &str,
+    source: &str,
+    run_entry: bool,
+    limits: AnalysisLimits,
+    bypass_emission_gate: bool,
 ) -> Result<Program, CompileError> {
     let ast = if limits.profile_id.starts_with("f0-0003-") {
         parse::parse_new_profile(file, source)
@@ -313,6 +380,9 @@ fn compile_scalar_with_analysis_limits(
         return Err(CompileError::InvalidIr("internal_error"));
     }
     let inferred = &checked.inferred;
+    if !inferred.closures.is_empty() && !checked.errors.is_empty() {
+        return Err(CompileError::Rejected(checked.errors));
+    }
     #[cfg(test)]
     let measure_cfg = super::cfg_measure_active();
     let lowered = std::thread::scope(|scope| {
@@ -372,6 +442,27 @@ fn compile_scalar_with_analysis_limits(
         crate::check::names::entry(file, source, resolved, &ast)
             .map_err(|error| CompileError::Rejected(vec![error]))?;
     }
+    // J14 owns public emission of the new IR. Analysis and verification run
+    // first so their source diagnostics remain visible through the CLI.
+    if !bypass_emission_gate && let Some(site) = inferred.closures.keys().min().copied() {
+        let mut error = crate::check::names::diagnostic(
+            "NX-E0006",
+            None,
+            diagnostic::Stage::Lower,
+            diagnostic::Operation::IrLower,
+            Span {
+                file: file.into(),
+                start: site,
+                end: site + 2,
+            },
+        );
+        error.feature_id = Some("implementation_limit".into());
+        error.data.insert(
+            "pending_scope".into(),
+            diagnostic::DataValue::String("J14".into()),
+        );
+        return Err(CompileError::Rejected(vec![error]));
+    }
     Ok(program)
 }
 
@@ -392,6 +483,7 @@ pub(super) fn compile_scalar_with_unbounded_ir_for_scale(
             ir_items: u64::MAX,
             ..AnalysisLimits::NORMAL
         },
+        false,
     )
 }
 
@@ -417,6 +509,113 @@ fn compile_ast_with_inference(
     compile_ast_with_flow_limit(ast, source_text, inferred, AnalysisLimits::NORMAL)
 }
 
+pub(super) fn collect_closures(ast: &Ast) -> Vec<&parse::Closure> {
+    fn expression<'a>(expr: &'a Expr, out: &mut Vec<&'a parse::Closure>) {
+        match expr {
+            Expr::Closure(closure) => {
+                out.push(closure);
+                block(&closure.body, out);
+            }
+            Expr::Array(items, _) => items.iter().for_each(|item| expression(item, out)),
+            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => expression(inner, out),
+            Expr::Binary { left, right, .. }
+            | Expr::Index {
+                target: left,
+                index: right,
+                ..
+            } => {
+                expression(left, out);
+                expression(right, out);
+            }
+            Expr::Call { target, args, .. } => {
+                expression(target, out);
+                for arg in args {
+                    expression(&arg.value, out);
+                }
+            }
+            Expr::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                expression(condition, out);
+                block(then_block, out);
+                match otherwise.as_deref() {
+                    Some(parse::Else::Block(b)) => block(b, out),
+                    Some(parse::Else::If(e)) => expression(e, out),
+                    None => {}
+                }
+            }
+            Expr::Match(selection) => {
+                expression(&selection.scrutinee, out);
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        expression(guard, out);
+                    }
+                    block(&arm.body, out);
+                }
+            }
+            Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+        }
+    }
+    fn statement<'a>(stmt: &'a Statement, out: &mut Vec<&'a parse::Closure>) {
+        match stmt {
+            Statement::Let { value, .. } | Statement::Expr { value, .. } => expression(value, out),
+            Statement::Assign { place, value, .. } => {
+                expression(place, out);
+                expression(value, out);
+            }
+            Statement::Return { value, .. }
+            | Statement::GuardControl { value, .. }
+            | Statement::Value { value, .. } => {
+                if let Some(value) = value {
+                    expression(value, out);
+                }
+            }
+            Statement::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                expression(condition, out);
+                block(then_block, out);
+                if let Some(otherwise) = otherwise {
+                    statement(otherwise, out);
+                }
+            }
+            Statement::While {
+                condition, body, ..
+            } => {
+                expression(condition, out);
+                block(body, out);
+            }
+            Statement::Match(selection) => {
+                expression(&selection.scrutinee, out);
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        expression(guard, out);
+                    }
+                    block(&arm.body, out);
+                }
+            }
+            Statement::Block(b) => block(b, out),
+        }
+    }
+    fn block<'a>(b: &'a parse::Block, out: &mut Vec<&'a parse::Closure>) {
+        for stmt in &b.statements {
+            statement(stmt, out);
+        }
+    }
+    let mut out = Vec::new();
+    for function in &ast.functions {
+        block(&function.body, &mut out);
+    }
+    out.sort_by_key(|closure| closure.fn_span.start);
+    out
+}
+
 fn compile_ast_with_flow_limit(
     ast: &Ast,
     source_text: &str,
@@ -429,8 +628,45 @@ fn compile_ast_with_flow_limit(
     let tokens = Arc::new(
         lex::lex(&ast.span.file, &source_text).map_err(|d| CompileError::Rejected(vec![d]))?,
     );
+    let mut all_functions = ast.functions.clone();
+    for closure in collect_closures(ast) {
+        let info = inferred
+            .closures
+            .get(&closure.fn_span.start)
+            .ok_or(CompileError::InvalidIr("closure signature missing"))?;
+        let mut params = Vec::with_capacity(info.captures.len() + info.params.len());
+        for capture in &info.captures {
+            params.push(parse::Parameter {
+                mode: match capture.mode {
+                    parse::CaptureMode::View => Mode::Read,
+                    parse::CaptureMode::Edit => Mode::Inout,
+                    parse::CaptureMode::Copy | parse::CaptureMode::Move => capture.usage,
+                },
+                name: capture.name.clone(),
+                ty: capture.ty.clone(),
+                span: capture.capture_span.clone(),
+            });
+        }
+        for (index, param) in closure.params.iter().enumerate() {
+            params.push(parse::Parameter {
+                mode: param.mode,
+                name: param.name.clone(),
+                ty: info.params[index].2.clone(),
+                span: param.span.clone(),
+            });
+        }
+        all_functions.push(parse::Function {
+            name: format!("$closure:{}", info.site),
+            name_span: closure.fn_span.clone(),
+            params,
+            result: Some(info.result.clone()),
+            with_clause: None,
+            body: closure.body.clone(),
+            span: closure.span.clone(),
+        });
+    }
     let mut user_functions = HashMap::new();
-    for f in &ast.functions {
+    for f in &all_functions {
         let params = f
             .params
             .iter()
@@ -451,7 +687,7 @@ fn compile_ast_with_flow_limit(
             .unwrap_or(Ty::Unit);
         user_functions.insert(f.name.clone(), (params, result));
     }
-    let functions: Vec<_> = ast.functions.iter().collect();
+    let functions: Vec<_> = all_functions.iter().collect();
     let mut entries = Vec::with_capacity(functions.len());
     let mut diagnostics = Vec::new();
     let mut ir_items = 0_u64;
@@ -494,18 +730,33 @@ fn compile_ast_with_flow_limit(
                     .any(|t| t.text == "while")
             },
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
         let mut parameters = Vec::new();
-        for (p, (_, mode, ty)) in source.params.iter().zip(&user_functions[&source.name].0) {
+        for (index, (p, (_, mode, ty))) in source
+            .params
+            .iter()
+            .zip(&user_functions[&source.name].0)
+            .enumerate()
+        {
             let id = LocalId(lower.locals.len());
             lower.locals.push(Local {
                 id,
                 name: p.name.clone(),
                 name_span: p.span.clone(),
                 ty: ty.clone(),
-                mutable: *mode == ParameterMode::Inout,
+                mutable: inferred
+                    .closures
+                    .get(&source.name_span.start)
+                    .and_then(|closure| closure.captures.get(index))
+                    .map_or(*mode == ParameterMode::Inout, |capture| {
+                        *mode == ParameterMode::Inout
+                            && (capture.mode == parse::CaptureMode::Edit || capture.mutable)
+                    }),
                 scope: ScopeId(0),
                 parameter_mode: Some(*mode),
             });
@@ -789,9 +1040,13 @@ fn compile_ast_with_flow_limit(
         profile: PROFILE_ID,
     };
     let mut program = program;
-    if let Err(errors) =
-        super::effects::analyze(&mut program, ast, limits.effects, limits.profile_id)
-    {
+    if let Err(errors) = super::effects::analyze(
+        &mut program,
+        ast,
+        inferred,
+        limits.effects,
+        limits.profile_id,
+    ) {
         return Err(CompileError::Rejected(
             errors.into_iter().map(Box::new).collect(),
         ));
@@ -842,6 +1097,7 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::EndLoan(_) => 1,
         Op::BeginLoan { indexes, .. } => 1 + indexes.len() as u64,
         Op::BuildArray(values) | Op::CallIntrinsic { args: values, .. } => values.len() as u64,
+        Op::BuildClosure { fields, .. } => 1 + fields.len() as u64,
         Op::BuildVariant { .. }
         | Op::BranchVariant { .. }
         | Op::TestVariant { .. }
@@ -855,6 +1111,7 @@ fn ir_operand_count(op: &Op) -> u64 {
         Op::IndexValue { .. } | Op::Binary { .. } | Op::WritePlace { .. } => 2,
         Op::WriteIndex { indexes, .. } => 2 + indexes.len() as u64,
         Op::CallDirect { args, .. } => 1 + args.len() as u64,
+        Op::CallClosure { args, .. } => 2 + args.len() as u64,
     }
 }
 
@@ -939,11 +1196,96 @@ struct Lower<'a> {
     tokens: Arc<Vec<lex::Token>>,
     defer_ownership: bool,
     active_loans: HashMap<LocalId, Vec<ActiveLoan>>,
+    retained_locals: HashMap<LocalId, Vec<RetainedLoan>>,
+    retained_temps: HashMap<TempId, Vec<RetainedLoan>>,
+    requested_receiver: Option<(ParameterMode, Span)>,
     live_temps: HashSet<TempId>,
     temp_undo: Vec<(TempId, bool)>,
 }
 
 impl Lower<'_> {
+    fn release_retained(&mut self, loans: Vec<RetainedLoan>) {
+        for retained in loans.into_iter().rev() {
+            if let Some(active) = self.active_loans.get_mut(&retained.root)
+                && let Some(index) = active
+                    .iter()
+                    .rposition(|loan| loan.loan == retained.active.loan)
+            {
+                active.remove(index);
+            }
+        }
+    }
+
+    fn output_retained(&mut self, op: &Op) -> Vec<RetainedLoan> {
+        match op {
+            Op::CopyValue(local) => {
+                let copied = self.retained_locals.get(local).cloned().unwrap_or_default();
+                for loan in &copied {
+                    self.active_loans
+                        .entry(loan.root)
+                        .or_default()
+                        .push(loan.active.clone());
+                }
+                copied
+            }
+            Op::TransferValue(local) => self.retained_locals.remove(local).unwrap_or_default(),
+            Op::BuildVariant {
+                payload: Some(temp),
+                ..
+            } => self.retained_temps.remove(temp).unwrap_or_default(),
+            Op::BuildClosure { fields, .. } => fields
+                .iter()
+                .flat_map(|(_, temp)| self.retained_temps.remove(temp).unwrap_or_default())
+                .collect(),
+            Op::CallIntrinsic {
+                intrinsic: Intrinsic::DropData,
+                args,
+            } => {
+                for temp in args {
+                    if let Some(loans) = self.retained_temps.remove(temp) {
+                        self.release_retained(loans);
+                    }
+                }
+                Vec::new()
+            }
+            Op::CallClosure {
+                receiver,
+                mode: ParameterMode::Consume,
+                ..
+            } => {
+                if let Some(loans) = self.retained_temps.remove(receiver) {
+                    self.release_retained(loans);
+                }
+                Vec::new()
+            }
+            _ => Vec::new(),
+        }
+    }
+
+    fn statement_retained(&mut self, op: &Op) {
+        match op {
+            Op::WritePlace { local, value } => {
+                if let Some(old) = self.retained_locals.remove(local) {
+                    self.release_retained(old);
+                }
+                if let Some(loans) = self.retained_temps.remove(value) {
+                    self.retained_locals.insert(*local, loans);
+                }
+            }
+            Op::DropLocal(local) | Op::DropBinding(local) => {
+                if let Some(loans) = self.retained_locals.remove(local) {
+                    self.release_retained(loans);
+                }
+            }
+            Op::DropValue(temp) => {
+                if let Some(loans) = self.retained_temps.remove(temp) {
+                    self.release_retained(loans);
+                }
+            }
+            _ => {}
+        }
+    }
+
     fn resolved_type(&self, resolved: &ResolvedType) -> Result<Ty, CompileError> {
         match resolved {
             ResolvedType::Concrete(ty) => lower_type(ty),
@@ -1006,6 +1348,12 @@ struct ActiveLoan {
     span: Span,
     loan: LoanId,
     parent: Option<LocalId>,
+}
+#[derive(Clone)]
+struct RetainedLoan {
+    root: LocalId,
+    active: ActiveLoan,
+    source: Span,
 }
 #[derive(Clone, PartialEq, Eq)]
 struct Availability {
@@ -1126,6 +1474,17 @@ impl Lower<'_> {
             | Op::BorrowIndex { indexes, .. }
             | Op::CallIntrinsic { args: indexes, .. } => {
                 for &id in indexes {
+                    self.temp_live(id, false);
+                }
+            }
+            Op::BuildClosure { fields, .. } => {
+                for &(_, id) in fields {
+                    self.temp_live(id, false);
+                }
+            }
+            Op::CallClosure { receiver, args, .. } => {
+                self.temp_live(*receiver, false);
+                for &(_, id) in args {
                     self.temp_live(id, false);
                 }
             }
@@ -1924,7 +2283,8 @@ impl Lower<'_> {
         let Some(active) = self.active_loans.get(&id).and_then(|v| v.first()) else {
             return Ok(());
         };
-        if active.permission == LoanPermission::Read && requested == "read" {
+        if active.permission == LoanPermission::Read && matches!(requested, "read" | "borrow_read")
+        {
             return Ok(());
         }
         let subcause = if active.permission == LoanPermission::Inout && requested == "borrow_inout"
@@ -1983,7 +2343,14 @@ impl Lower<'_> {
         );
         d.data.insert(
             "requested_access".into(),
-            diagnostic::DataValue::String(requested.into()),
+            diagnostic::DataValue::String(
+                if requested == "borrow_read" {
+                    "read"
+                } else {
+                    requested
+                }
+                .into(),
+            ),
         );
         d.cause_chain.push(diagnostic::Cause {
             kind: diagnostic::CauseKind::Borrow,
@@ -2269,6 +2636,7 @@ impl Lower<'_> {
         if self.emission == EmissionMode::Analyze {
             return None;
         }
+        let retained = self.output_retained(&op);
         self.consume_op_temps(&op);
         count_loan_work();
         super::count_cfg_work(1);
@@ -2296,12 +2664,16 @@ impl Lower<'_> {
             charges,
         });
         self.temp_live(id, true);
+        if !retained.is_empty() {
+            self.retained_temps.insert(id, retained);
+        }
         Some(id)
     }
     fn statement_op(&mut self, op: Op, span: Span, access: Access, effect_io: bool) {
         if self.emission == EmissionMode::Analyze {
             return;
         }
+        self.statement_retained(&op);
         self.consume_op_temps(&op);
         count_loan_work();
         super::count_cfg_work(1);
@@ -2812,6 +3184,58 @@ impl Lower<'_> {
                 return Err(error);
             }
         };
+        if let Some(Flow::Value {
+            temp: Some(temp), ..
+        }) = &final_value
+            && let Some(escaping) = self.retained_temps.get(temp)
+            && let Some(loan) = escaping
+                .iter()
+                .find(|loan| self.locals[loan.root.0].scope == self.scope)
+        {
+            let primary = match block.statements.last() {
+                Some(Statement::Value {
+                    value: Some(value), ..
+                }) => value.span().clone(),
+                _ => block.span.clone(),
+            };
+            let mut error = crate::check::names::diagnostic(
+                "NX-E1104",
+                None,
+                diagnostic::Stage::Ownership,
+                diagnostic::Operation::OwnershipCheck,
+                primary,
+            );
+            error.related_spans.extend([
+                diagnostic::RelatedSpan {
+                    role: diagnostic::RelatedRole::Declaration,
+                    span: loan.source.clone(),
+                },
+                diagnostic::RelatedSpan {
+                    role: diagnostic::RelatedRole::Origin,
+                    span: loan.active.span.clone(),
+                },
+                diagnostic::RelatedSpan {
+                    role: diagnostic::RelatedRole::Exit,
+                    span: block.close_span.clone(),
+                },
+            ]);
+            error.cause_chain.push(diagnostic::Cause {
+                kind: diagnostic::CauseKind::Borrow,
+                operation: if loan.active.permission == LoanPermission::Read {
+                    diagnostic::CauseOperation::BorrowRead
+                } else {
+                    diagnostic::CauseOperation::BorrowInout
+                },
+                span: Some(loan.active.span.clone()),
+                entity: Some(diagnostic::Entity {
+                    kind: diagnostic::EntityKind::Loan,
+                    id: format!("loan:{}:0", loan.active.loan.0),
+                }),
+                evidence: diagnostic::Evidence::Verified,
+            });
+            self.leave_scope(saved)?;
+            return Err(CompileError::Rejected(vec![error]));
+        }
         let dropping = self
             .scopes
             .last()
@@ -3364,6 +3788,7 @@ impl Lower<'_> {
                 }
                 Expr::Group(..) => {}
                 Expr::Match(selection) => own.push(selection.span.clone()),
+                Expr::Closure(closure) => own.push(closure.fn_span.clone()),
             }
             self.pending_charges.extend(
                 own.into_iter()
@@ -3377,6 +3802,155 @@ impl Lower<'_> {
         let inferred = self.resolved_expr(e)?;
         let expected = Some(&inferred);
         match e {
+            Expr::Closure(closure) => {
+                let info = self
+                    .inferred_bindings
+                    .closures
+                    .get(&closure.fn_span.start)
+                    .ok_or(CompileError::InvalidIr("closure signature missing"))?
+                    .clone();
+                let mut fields = Vec::with_capacity(info.captures.len());
+                let mut signature = Vec::with_capacity(info.captures.len());
+                for capture in &info.captures {
+                    let id = self.get(&capture.name)?;
+                    self.check_available(id, capture.capture_span.clone())?;
+                    let ty = lower_type(&capture.ty)?;
+                    let capture_name = self
+                        .tokens
+                        .iter()
+                        .find(|token| {
+                            token.span.start >= capture.capture_span.start
+                                && token.span.end <= capture.capture_span.end
+                                && token.text == capture.name
+                        })
+                        .map(|token| token.span.clone())
+                        .unwrap_or_else(|| capture.capture_span.clone());
+                    let op = match capture.mode {
+                        parse::CaptureMode::Copy => Op::CopyValue(id),
+                        parse::CaptureMode::Move => {
+                            if self.locals[id.0]
+                                .parameter_mode
+                                .is_some_and(|mode| mode != ParameterMode::Consume)
+                            {
+                                return Err(self.permission_error(
+                                    id,
+                                    capture_name.clone(),
+                                    "consume",
+                                ));
+                            }
+                            self.conflict(id, capture.capture_span.clone(), "consume")?;
+                            self.mark_consumed(id, Some((capture.capture_span.clone(), true)));
+                            Op::TransferValue(id)
+                        }
+                        parse::CaptureMode::View | parse::CaptureMode::Edit => {
+                            if capture.mode == parse::CaptureMode::Edit {
+                                if self.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
+                                    return Err(self.permission_error(
+                                        id,
+                                        capture_name.clone(),
+                                        "borrow_inout",
+                                    ));
+                                }
+                                if !self.locals[id.0].mutable {
+                                    return Err(self.immutable_write(
+                                        &Expr::Name(capture.name.clone(), capture_name.clone()),
+                                        id,
+                                    ));
+                                }
+                            }
+                            let permission = if capture.mode == parse::CaptureMode::View {
+                                LoanPermission::Read
+                            } else {
+                                LoanPermission::Inout
+                            };
+                            self.conflict(
+                                id,
+                                capture.capture_span.clone(),
+                                if permission == LoanPermission::Read {
+                                    "borrow_read"
+                                } else {
+                                    "borrow_inout"
+                                },
+                            )?;
+                            Op::BeginLoan {
+                                root: id,
+                                indexes: Vec::new(),
+                                site: IndexSite {
+                                    context: capture.capture_span.clone(),
+                                    selectors: Vec::new(),
+                                },
+                                loan: LoanId(capture.capture_span.start as usize),
+                                origin_span: capture.capture_span.clone(),
+                                permission,
+                                parent: (self.locals[id.0].parameter_mode
+                                    == Some(ParameterMode::Inout))
+                                .then_some(id),
+                            }
+                        }
+                    };
+                    let flow = self.emitted(
+                        op.clone(),
+                        ty.clone(),
+                        capture.capture_span.clone(),
+                        if matches!(op, Op::CopyValue(_) | Op::BeginLoan { .. }) {
+                            Access::Read
+                        } else {
+                            Access::Own
+                        },
+                        false,
+                    );
+                    let Some(temp) = flow.temp() else {
+                        return Ok(Flow::Diverged { ty: Some(inferred) });
+                    };
+                    if let Op::BeginLoan {
+                        loan,
+                        permission,
+                        parent,
+                        ..
+                    } = op
+                    {
+                        let active = ActiveLoan {
+                            permission,
+                            span: capture.capture_span.clone(),
+                            loan,
+                            parent,
+                        };
+                        self.active_loans
+                            .entry(id)
+                            .or_default()
+                            .push(active.clone());
+                        self.retained_temps.insert(
+                            temp,
+                            vec![RetainedLoan {
+                                root: id,
+                                active,
+                                source: capture.source.clone(),
+                            }],
+                        );
+                    }
+                    fields.push((
+                        match capture.mode {
+                            parse::CaptureMode::Copy => CaptureKind::Copy,
+                            parse::CaptureMode::Move => CaptureKind::Move,
+                            parse::CaptureMode::View => CaptureKind::View,
+                            parse::CaptureMode::Edit => CaptureKind::Edit,
+                        },
+                        temp,
+                    ));
+                    signature.push(ty);
+                }
+                Ok(self.emitted(
+                    Op::BuildClosure {
+                        site: info.site,
+                        fields,
+                        signature,
+                    },
+                    inferred,
+                    closure.span.clone(),
+                    Access::Own,
+                    false,
+                ))
+            }
             Expr::Integer(n, s) => {
                 let n = n
                     .parse::<i64>()
@@ -3501,6 +4075,224 @@ impl Lower<'_> {
                 ))
             }
             Expr::Call { target, args, span } => {
+                let (receiver_mode, receiver_span) = self
+                    .requested_receiver
+                    .take()
+                    .unwrap_or((ParameterMode::Read, target.span().clone()));
+                let target_ty = if let Some(name) = place_name(target) {
+                    if self.visible.get(name).and_then(|ids| ids.last()).is_some() {
+                        Some(self.resolved_expr(target)?)
+                    } else {
+                        None
+                    }
+                } else {
+                    Some(self.resolved_expr(target)?)
+                };
+                if let Some(Ty::Closure { site, .. }) = target_ty {
+                    let required = self
+                        .inferred_bindings
+                        .closures
+                        .get(&site)
+                        .ok_or(CompileError::InvalidIr("closure call signature"))?
+                        .required_mode;
+                    let required = match required {
+                        Mode::Read => ParameterMode::Read,
+                        Mode::Inout => ParameterMode::Inout,
+                        Mode::Consume => ParameterMode::Consume,
+                    };
+                    let mode_rank = |mode: ParameterMode| match mode {
+                        ParameterMode::Read => 0,
+                        ParameterMode::Inout => 1,
+                        ParameterMode::Consume => 2,
+                    };
+                    let mode_name = |mode: ParameterMode| match mode {
+                        ParameterMode::Read => "read",
+                        ParameterMode::Inout => "inout",
+                        ParameterMode::Consume => "consume",
+                    };
+                    if mode_rank(receiver_mode) < mode_rank(required) {
+                        let mut error = crate::check::names::diagnostic(
+                            "NX-E1107",
+                            None,
+                            diagnostic::Stage::Ownership,
+                            diagnostic::Operation::OwnershipCheck,
+                            target.span().clone(),
+                        );
+                        if let Some(name) = place_name(target)
+                            && let Ok(local) = self.get(name)
+                        {
+                            error.related_spans.push(diagnostic::RelatedSpan {
+                                role: diagnostic::RelatedRole::Declaration,
+                                span: self.name_spans[local.0].clone(),
+                            });
+                        }
+                        error.data.insert(
+                            "required_mode".into(),
+                            diagnostic::DataValue::String(mode_name(required).into()),
+                        );
+                        error.data.insert(
+                            "requested_mode".into(),
+                            diagnostic::DataValue::String(mode_name(receiver_mode).into()),
+                        );
+                        return Err(CompileError::Rejected(vec![error]));
+                    }
+                    let mut receiver_loan = None;
+                    let receiver = if let Some(name) = place_name(target) {
+                        let local = self.get(name)?;
+                        self.check_available(local, target.span().clone())?;
+                        if receiver_mode == ParameterMode::Consume
+                            && self.locals[local.0]
+                                .parameter_mode
+                                .is_some_and(|mode| mode != ParameterMode::Consume)
+                        {
+                            return Err(self.permission_error(
+                                local,
+                                target.span().clone(),
+                                "consume",
+                            ));
+                        }
+                        if receiver_mode == ParameterMode::Inout
+                            && self.locals[local.0].parameter_mode == Some(ParameterMode::Read)
+                        {
+                            return Err(self.permission_error(
+                                local,
+                                target.span().clone(),
+                                "borrow_inout",
+                            ));
+                        }
+                        if receiver_mode == ParameterMode::Inout && !self.locals[local.0].mutable {
+                            return Err(self.immutable_write(target, local));
+                        }
+                        if receiver_mode == ParameterMode::Consume {
+                            self.conflict(local, target.span().clone(), "consume")?;
+                            self.mark_consumed(local, Some((receiver_span.clone(), false)));
+                            self.emitted(
+                                Op::TransferValue(local),
+                                self.locals[local.0].ty.clone(),
+                                receiver_span.clone(),
+                                Access::Own,
+                                false,
+                            )
+                        } else {
+                            let permission = if receiver_mode == ParameterMode::Inout {
+                                LoanPermission::Inout
+                            } else {
+                                LoanPermission::Read
+                            };
+                            self.conflict(
+                                local,
+                                target.span().clone(),
+                                if permission == LoanPermission::Inout {
+                                    "borrow_inout"
+                                } else {
+                                    "read"
+                                },
+                            )?;
+                            let loan = LoanId(target.span().start as usize);
+                            let active = ActiveLoan {
+                                permission,
+                                span: target.span().clone(),
+                                loan,
+                                parent: (self.locals[local.0].parameter_mode
+                                    == Some(ParameterMode::Inout))
+                                .then_some(local),
+                            };
+                            let flow = self.emitted(
+                                Op::BeginLoan {
+                                    root: local,
+                                    indexes: Vec::new(),
+                                    site: IndexSite {
+                                        context: target.span().clone(),
+                                        selectors: Vec::new(),
+                                    },
+                                    loan,
+                                    origin_span: target.span().clone(),
+                                    permission,
+                                    parent: (self.locals[local.0].parameter_mode
+                                        == Some(ParameterMode::Inout))
+                                    .then_some(local),
+                                },
+                                self.locals[local.0].ty.clone(),
+                                target.span().clone(),
+                                Access::Read,
+                                false,
+                            );
+                            self.active_loans.entry(local).or_default().push(active);
+                            receiver_loan = Some((local, loan, target.span().clone()));
+                            flow
+                        }
+                    } else {
+                        if receiver_mode != ParameterMode::Read {
+                            return Err(CompileError::InvalidIr("non-place closure receiver"));
+                        }
+                        self.expr(target, depth + 1, None)?
+                    };
+                    if receiver.diverged() {
+                        return Ok(Flow::Diverged { ty: Some(inferred) });
+                    }
+                    let info = self
+                        .inferred_bindings
+                        .closures
+                        .get(&site)
+                        .ok_or(CompileError::InvalidIr("closure call signature"))?;
+                    let parameters = info
+                        .params
+                        .iter()
+                        .map(|(name, mode, ty)| {
+                            Ok((
+                                name.clone(),
+                                match mode {
+                                    Mode::Read => ParameterMode::Read,
+                                    Mode::Inout => ParameterMode::Inout,
+                                    Mode::Consume => ParameterMode::Consume,
+                                },
+                                lower_type(ty)?,
+                            ))
+                        })
+                        .collect::<Result<Vec<_>, CompileError>>()?;
+                    let capture_count = info.captures.len();
+                    let signature = self
+                        .user_functions
+                        .get(&format!("$closure:{site}"))
+                        .ok_or(CompileError::InvalidIr("closure body signature"))?
+                        .0
+                        .clone();
+                    let (prepared, acquired, diverged) =
+                        self.prepare_call_arguments(args, &parameters, depth, true, true)?;
+                    self.release_call_loans(&acquired);
+                    if diverged {
+                        return Ok(Flow::Diverged { ty: Some(inferred) });
+                    }
+                    if self.emission == EmissionMode::Analyze {
+                        return Ok(Flow::Value {
+                            temp: None,
+                            ty: inferred,
+                        });
+                    }
+                    let receiver = receiver
+                        .temp()
+                        .ok_or(CompileError::InvalidIr("closure receiver flow"))?;
+                    let result_flow = self.emitted(
+                        Op::CallClosure {
+                            site,
+                            receiver,
+                            mode: receiver_mode,
+                            capture_count,
+                            args: prepared,
+                            signature,
+                        },
+                        inferred,
+                        span.clone(),
+                        Access::Own,
+                        false,
+                    );
+                    self.end_call_loans(acquired);
+                    if let Some((root, loan, origin)) = receiver_loan {
+                        self.release_call_loans(&[(root, loan, origin.clone())]);
+                        self.end_call_loans(vec![(root, loan, origin)]);
+                    }
+                    return Ok(result_flow);
+                }
                 let name = place_name(target).ok_or(CompileError::InvalidIr("call target"))?;
                 if self.visible.get(name).and_then(|v| v.last()).is_some() {
                     self.get(name)?;
@@ -3929,6 +4721,25 @@ impl Lower<'_> {
                 ))
             }
             Expr::Unary {
+                mode: Mode::Inout | Mode::Consume,
+                value,
+                span,
+            } if matches!(&**value, Expr::Call { .. }) => {
+                let mode = if matches!(
+                    e,
+                    Expr::Unary {
+                        mode: Mode::Inout,
+                        ..
+                    }
+                ) {
+                    ParameterMode::Inout
+                } else {
+                    ParameterMode::Consume
+                };
+                self.requested_receiver = Some((mode, span.clone()));
+                self.expr(value, depth + 1, expected)
+            }
+            Expr::Unary {
                 mode: Mode::Consume,
                 value,
                 span,
@@ -4063,7 +4874,7 @@ fn index_site(expr: &Expr, context: Span) -> IndexSite {
         selectors: index_selectors(expr),
     }
 }
-fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
+pub(super) fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
     Ok(match ty {
         Type::I64 => Ty::I64,
         Type::Bool => Ty::Bool,
@@ -4073,6 +4884,15 @@ fn lower_type(ty: &Type) -> Result<Ty, CompileError> {
         Type::Array(child) => Ty::Array(Box::new(lower_type(child)?)),
         Type::Result(ok, err) => Ty::result(Box::new(lower_type(ok)?), Box::new(lower_type(err)?)),
         Type::Option(some) => Ty::option(Box::new(lower_type(some)?)),
+        Type::Closure {
+            site,
+            copyable,
+            owns_resource,
+        } => Ty::Closure {
+            site: *site,
+            copyable: *copyable,
+            owns_resource: *owns_resource,
+        },
     })
 }
 fn statement_span(stmt: &Statement) -> Span {
@@ -4275,6 +5095,9 @@ mod tests {
             tokens: Arc::new(lex::lex("flow_contract.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         }
@@ -4454,6 +5277,9 @@ mod tests {
             tokens: Arc::new(lex::lex("bottom_flow.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -4518,6 +5344,9 @@ mod tests {
             tokens: Arc::new(lex::lex("orphan_call.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -4587,6 +5416,9 @@ mod tests {
             tokens: Arc::new(lex::lex("scope_error.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -4630,6 +5462,9 @@ mod tests {
             tokens: Arc::new(lex::lex("while_error_checkpoint.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -4738,6 +5573,9 @@ mod tests {
             tokens: Arc::new(lex::lex("branch_scope.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -4780,6 +5618,9 @@ mod tests {
             tokens: Arc::new(lex::lex("loan_write.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -4847,6 +5688,9 @@ mod tests {
             tokens: Arc::new(lex::lex("dead_state.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -4921,6 +5765,9 @@ mod tests {
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
@@ -5008,6 +5855,9 @@ mod tests {
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
             active_loans: HashMap::new(),
+            retained_locals: HashMap::new(),
+            retained_temps: HashMap::new(),
+            requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
         };
