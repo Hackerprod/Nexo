@@ -159,6 +159,16 @@ fn nested_generator_slots_stop_at_128() {
     rejected_both(&invalid, "value_type_depth", 129, (start, start + 4));
 }
 
+#[test]
+fn nested_generator_depth_reports_only_the_first_excess() {
+    for count in [130, 200] {
+        let source = nested_generators(count);
+        let start = source.find("G2()").unwrap() as u64;
+        // G1 is the first source node whose resolved state exceeds the bound.
+        rejected_both(&source, "value_type_depth", 129, (start, start + 4));
+    }
+}
+
 fn hidden_for_state(levels: usize) -> String {
     let parameter = options(levels);
     let bindings = option_bindings(levels);
@@ -370,4 +380,34 @@ fn viewed_closure_capture_does_not_extend_owned_depth() {
     }
     let (status, report) = j_check(&format!("{source}}}"));
     assert_eq!(status, 0, "{report}");
+}
+
+#[test]
+fn option_depth_reports_once_at_the_first_exceeding_constructor() {
+    for count in [128] {
+        let source = format!("fn Main(){{{}}}", option_bindings(count));
+        let (status, report) = j_check(&source);
+        assert_eq!(status, 0, "{count}: {report}");
+    }
+    for count in [129, 130, 300] {
+        let source = format!("fn Main(){{{}}}", option_bindings(count));
+        let start = source.find("Some(a128)").unwrap() as u64;
+        rejected_both(&source, "value_type_depth", 129, (start, start + 10));
+    }
+}
+
+#[test]
+fn deeply_nested_owned_resource_reports_one_depth_error() {
+    let source = option_chain(1563, "MockOpen(1)");
+    let start = source.find("Some(move a128)").unwrap() as u64;
+    rejected_both(&source, "value_type_depth", 129, (start, start + 15));
+}
+
+#[test]
+fn closure_body_locals_do_not_extend_generator_state() {
+    let source = format!(
+        "gen fn G()->I64{{let f=fn []()->I64{{{}return 1;}};yield 1;}}fn Main(){{let g=Some(G());}}",
+        option_bindings(128)
+    );
+    accepted_both(&source);
 }

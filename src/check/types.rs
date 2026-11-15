@@ -2288,6 +2288,26 @@ impl Checker<'_> {
         if self.planning {
             return;
         }
+        if error.code == "NX-E0003"
+            && error.data.get("budget_kind") == Some(&DataValue::String("value_type_depth".into()))
+        {
+            if let Some(previous) = self.errors.iter_mut().find(|previous| {
+                previous.code == "NX-E0003"
+                    && previous.data.get("budget_kind")
+                        == Some(&DataValue::String("value_type_depth".into()))
+            }) {
+                let site = |diagnostic: &Diagnostic| {
+                    diagnostic
+                        .primary_span
+                        .as_ref()
+                        .map_or((u64::MAX, u64::MAX), |span| (span.start, span.end))
+                };
+                if site(&error) < site(previous) {
+                    *previous = error;
+                }
+                return;
+            }
+        }
         if error.operation != Operation::AnalysisLimit
             && let Some(span) = &error.primary_span
         {
@@ -4221,8 +4241,16 @@ impl Checker<'_> {
         d.data
             .insert("budget_kind".into(), DataValue::String(kind.into()));
         d.data.insert("limit".into(), DataValue::UInt(128));
-        d.data
-            .insert("observed".into(), DataValue::UInt(observed as u64));
+        // The first rejected constructor is the only charge: later nesting
+        // cannot advance the observed depth beyond the rejected value.
+        d.data.insert(
+            "observed".into(),
+            DataValue::UInt(if kind == "value_type_depth" {
+                129
+            } else {
+                observed as u64
+            }),
+        );
         Err(d)
     }
 

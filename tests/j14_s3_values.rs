@@ -303,6 +303,30 @@ fn dropping_nested_values_releases_cells_for_the_next_value() {
 }
 
 #[test]
+fn owned_closure_fields_count_as_cells_and_release_on_drop() {
+    let mut source = String::from("fn Main(){let a0=1;");
+    for index in 1..40 {
+        source.push_str(&format!("let a{index}=Some(move a{});", index - 1));
+    }
+    source.push_str("let f=fn [move a39](){};Drop(f);let b0=1;");
+    for index in 1..40 {
+        source.push_str(&format!("let b{index}=Some(move b{});", index - 1));
+    }
+    source.push_str("Drop(b39);}");
+    let (status, report) = run_profile(&source, "f0-0003-b-test-cells-64-v1");
+    assert_eq!(status, 0, "{report}");
+    assert!(
+        report.contains("\"outcome\":{\"kind\":\"unit\"}"),
+        "{report}"
+    );
+    assert!(report.contains("\"diagnostics\":[]"), "{report}");
+    assert!(
+        report.contains("\"reserved_observation_bytes\":0"),
+        "{report}"
+    );
+}
+
+#[test]
 fn closure_call_continuation_returns_to_assertion() {
     assert_unit(
         "fn Main(){let f=fn []()->I64{return 1;};AssertEq(f(),1);}",
