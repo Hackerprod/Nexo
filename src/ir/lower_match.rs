@@ -204,6 +204,50 @@ impl Lower<'_> {
         expected: Option<&Ty>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<Flow, CompileError> {
+        if self.emission == EmissionMode::Live {
+            return self.match_selection_inner(selection, expression, depth, expected, diagnostics);
+        }
+        let locals = self.locals.len();
+        let next_scope = self.next_scope;
+        let visible = self.visible.clone();
+        let scopes = self.scopes.clone();
+        let scope = self.scope;
+        let active_loans = self.active_loans.clone();
+        let match_boundaries = self.match_boundaries.clone();
+        let consumed_at = self.consumed_at.clone();
+        let maybe_consumed_at = self.maybe_consumed_at.clone();
+        let consumed_undo = self.consumed_undo.len();
+        let poisoned = self.poisoned.clone();
+        let retained_locals = self.retained_locals.clone();
+        let retained_temps = self.retained_temps.clone();
+        let result =
+            self.match_selection_inner(selection, expression, depth, expected, diagnostics);
+        self.locals.truncate(locals);
+        self.name_spans.truncate(locals);
+        self.next_scope = next_scope;
+        self.scope_parents.truncate(next_scope);
+        self.visible = visible;
+        self.scopes = scopes;
+        self.scope = scope;
+        self.active_loans = active_loans;
+        self.match_boundaries = match_boundaries;
+        self.consumed_at = consumed_at;
+        self.maybe_consumed_at = maybe_consumed_at;
+        self.consumed_undo.truncate(consumed_undo);
+        self.poisoned = poisoned;
+        self.retained_locals = retained_locals;
+        self.retained_temps = retained_temps;
+        result
+    }
+
+    fn match_selection_inner(
+        &mut self,
+        selection: &parse::Match,
+        expression: bool,
+        depth: usize,
+        expected: Option<&Ty>,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Result<Flow, CompileError> {
         let outer_temps = self.live_temps.clone();
         if self.emission == EmissionMode::Live {
             self.pending_charges.push(WorkCharge {
@@ -324,7 +368,11 @@ impl Lower<'_> {
                         ty: expected.cloned(),
                     });
                 }
-                indexes.push(flow.temp().ok_or(CompileError::InvalidIr("match index"))?);
+                if let Some(temp) = flow.temp() {
+                    indexes.push(temp);
+                } else if self.emission == EmissionMode::Live {
+                    return Err(CompileError::InvalidIr("match index"));
+                }
             }
             let held = self.emit(
                 Op::BeginLoan {
