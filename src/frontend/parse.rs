@@ -2976,6 +2976,17 @@ impl Parser<'_> {
     }
 
     fn pattern(&mut self) -> Result<Pattern, Box<Diagnostic>> {
+        self.depth += 1;
+        if self.depth > 128 {
+            self.depth -= 1;
+            return Err(self.nesting_error("syntax_nesting"));
+        }
+        let result = self.pattern_inner();
+        self.depth -= 1;
+        result
+    }
+
+    fn pattern_inner(&mut self) -> Result<Pattern, Box<Diagnostic>> {
         let token = self.take();
         let start = token.span.start as usize;
         if token.text == "(" {

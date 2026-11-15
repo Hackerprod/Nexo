@@ -217,6 +217,36 @@ fn retired_introducers_have_syntax_coordinates_in_each_parser_state() {
 }
 
 #[test]
+fn grouped_patterns_charge_shared_syntax_nesting() {
+    fn grouped_source(groups: usize) -> String {
+        format!(
+            "fn Main(){{match 1{{{}1{}=>{{}},_=>{{}}}}}}",
+            "(".repeat(groups),
+            ")".repeat(groups)
+        )
+    }
+    // Main's Block is one level; each group and the final pattern add one.
+    checked(&grouped_source(125)); // 127 total
+    checked(&grouped_source(126)); // 128 total
+    for groups in [127, 128, 200, 2_000] {
+        let source = grouped_source(groups);
+        let report = rejected(&source, "NX-E0003");
+        let opening = "fn Main(){match 1{".len() + 127;
+        assert!(
+            report.contains("\"budget_kind\":\"syntax_nesting\"")
+                && report.contains("\"limit\":128")
+                && report.contains("\"observed\":129")
+                && report.contains(&format!("\"start\":{opening}")),
+            "{groups}: {report}"
+        );
+    }
+    checked("fn Main(){let o:Option<I64>=Some(1);match o{((Some(x)))=>{},None=>{}}}");
+    let tuple = rejected("fn Main(){match 1{(a,b)=>{},_=>{}}}", "NX-E0006");
+    assert!(tuple.contains("\"feature_id\":\"tuple\""), "{tuple}");
+    rejected("fn Main(){match 1{()=>{},_=>{}}}", "NX-E0002");
+}
+
+#[test]
 fn match_expression_unifies_deferred_option_arms() {
     checked("fn Main(){let x=match true{true=>{value:Some(1);},false=>{value:None;}};}");
     rejected(
