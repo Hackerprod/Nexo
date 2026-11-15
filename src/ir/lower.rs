@@ -2420,12 +2420,17 @@ impl Lower<'_> {
         let body_return = self.terminated.take();
         let normal_backedge = body_return.is_none();
         if body_return != Some(Termination::Diverged) {
-            if !self.consumed_at.contains_key(&binding) {
-                self.statement_op(
-                    Op::DropLocal(binding),
-                    body.close_span.clone(),
-                    Access::Own,
-                    false,
+            let local = (binding, body.close_span.clone());
+            if matches!(body_return, Some(Termination::Return(_))) {
+                self.deferred_return_locals.push(local);
+            } else {
+                self.plan_exit(
+                    ExitPlan {
+                        surviving: loop_context.surviving_temps.clone(),
+                        locals: vec![local],
+                        reserved: None,
+                    },
+                    &body.close_span,
                 );
             }
             self.finish_block(match body_return {
@@ -2446,11 +2451,16 @@ impl Lower<'_> {
         self.dead_depth -= 1;
         if normal_backedge || !loop_context.continues.is_empty() {
             let advance = BlockId(self.blocks.len());
-            self.statement_op(
-                Op::DropLocal(option),
-                body.close_span.clone(),
-                Access::Own,
-                false,
+            if !normal_backedge {
+                self.enter_edge(loop_context.continues[0], 0)?;
+            }
+            self.plan_exit(
+                ExitPlan {
+                    surviving: self.live_temps.clone(),
+                    locals: vec![(option, body.close_span.clone())],
+                    reserved: None,
+                },
+                &body.close_span,
             );
             self.finish_block(Terminator::Jump {
                 target: header,
@@ -2464,6 +2474,7 @@ impl Lower<'_> {
             }
         }
         let exit = BlockId(self.blocks.len());
+        self.enter_edge(branch, 1)?;
         if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
             *no = exit;
         }
@@ -2472,17 +2483,16 @@ impl Lower<'_> {
                 *target = exit;
             }
         }
-        self.statement_op(
-            Op::DropLocal(option),
-            body.close_span.clone(),
-            Access::Own,
-            false,
-        );
-        self.statement_op(
-            Op::DropLocal(iterator),
-            body.close_span.clone(),
-            Access::Own,
-            false,
+        self.plan_exit(
+            ExitPlan {
+                surviving: self.live_temps.clone(),
+                locals: vec![
+                    (option, body.close_span.clone()),
+                    (iterator, body.close_span.clone()),
+                ],
+                reserved: None,
+            },
+            &body.close_span,
         );
         Ok(())
     }
