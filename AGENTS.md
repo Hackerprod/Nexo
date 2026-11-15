@@ -38,16 +38,30 @@ trabajó en él.
    - 2.2. **B** (conserva contexto) valida el plan corregido. Se repite 2.1–2.2 hasta que B dé PASS.
 3. **Subagente C (CL)** implementa el plan **desde el `.md`** validado, sin apartarse de él; si descubre
    que no basta, no improvisa: lo registra y vuelve al paso 1 (el plan se revisa por A y B).
+   - Un **commit por solución del plan** en la rama remota (`i07c-robustez`, nunca `main`), con el
+     identificador de la solución en el mensaje, para poder revertir solo la solución que falle.
+   - **Puerta mecánica antes de entregar a D:** `sh scripts/validate.sh` en clon limpio (fmt, clippy
+     `-D warnings`, tests debug y release, RD), el diferencial contra la versión anterior sobre los
+     programas que el plan declara sin cambio y el medidor de objetivos. Si la puerta falla, C corrige
+     (conservando el plan) antes de que D intervenga; D no valida un árbol que no pasa la puerta.
 4. **Subagente D (CL)** valida la implementación contra el plan y el ADR (código, diferencial, fuzz,
-   oráculos del corte) y da **PASS o FAIL con motivos**.
+   oráculos del corte) y da **PASS o FAIL con motivos**. D comprueba además la **fidelidad al plan**
+   (revisión de diff): que los archivos cambiados están en el plan, que no hay cambios fuera de él, y que
+   no hay parches por patrón de fuente, casos especiales, constantes hechas para pasar una prueba, rutas
+   duplicadas ni código muerto; cada hallazgo es FAIL con motivo.
    - 4.1. Si FAIL, **C** (conserva contexto) escribe las correcciones **en otro `.md`**
      (`docs/correcciones/<corte>-rN.md`): causa raíz comprobada, familia, mecanismo único, efectos
      laterales y pruebas, sin tocar código.
    - 4.2. **D** (conserva contexto) valida esa propuesta de corrección hasta que dé PASS.
    - 4.3. **C** (conserva contexto) corrige el código según la propuesta validada y D repite la
      validación (paso 4) hasta que dé PASS.
-5. Con PASS de D, el coordinador integra (commit y push). Ningún subagente modifica código antes de que
-   el plan o la propuesta correspondiente tenga PASS.
+5. **Confirmación final (D' CL).** Con PASS de D, una pasada corta de un subagente D' con contexto
+   limpio (distinto de D) revisa el diff final y reproduce los repros del plan, para evitar el sesgo de
+   confirmación de quien ya conoce las rondas anteriores. Solo con PASS de D' integra el coordinador
+   (commit y push a `main`). Ningún subagente modifica código antes de que el plan o la propuesta
+   correspondiente tenga PASS.
+6. **Cortes grandes.** Un plan con muchas soluciones se divide en bloques coherentes (por dependencias
+   y por familia); cada bloque recorre el flujo completo, para que B y D validen por partes.
 
 Qué cuenta como FAIL lo fija «Rigor proporcional y presupuesto de validación» (solo defectos
 reproducibles; núcleo vs andamiaje). Los ciclos 2, 4.1–4.3 se repiten hasta PASS; si no convergen, el
