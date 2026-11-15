@@ -9,9 +9,9 @@ fn indexed_write_preserves_expected_and_found_orientation() {
     let source = "fn Main(){let c=true;let ar=[1];var t1=(if c then {return;} else {return;});t1[1]=ar==t1;}";
     let errors = check_proposed("indexed_write_orientation.n", source, false).unwrap_err();
     assert_eq!(errors.len(), 1, "{errors:?}");
-    let error = &errors[0];
+    let mut error = errors.into_iter().next().unwrap();
     error
-        .validate("indexed_write_orientation.n", source)
+        .publish("indexed_write_orientation.n", source)
         .unwrap();
     assert_eq!(error.code, "NX-E0102");
     assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
