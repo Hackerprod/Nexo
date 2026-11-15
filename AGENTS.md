@@ -22,37 +22,38 @@ No se crea una rev 0.3.
 3. Si Sonnet no da **PASS**, se especifica por qué y se itera de nuevo con Astra.
    Se repite hasta PASS.
 
-## Flujo B — Cuando ya no hay nada por diseñar, solo construir
+## Flujo B — Cuando ya no hay nada por diseñar, solo construir (decisión del propietario, 2026-11-14)
 
-1. Codex (GPT 6 Sol o Luna) implementa.
-2. Subagente Sonnet 5.5 valida robustez y detecta desvíos (respecto del ADR, el roadmap y
-   la idea central).
-3. Si da **PASS**, se comienza la siguiente fase. Si no, se aplica el **Flujo de corrección**
-   (abajo), dentro del presupuesto de «Rigor proporcional y presupuesto de validación».
+Cada corte y cada corrección de bloqueantes siguen el mismo flujo, con cuatro roles de subagente (A, B, C,
+D), distintos entre sí. **CL = contexto limpio**: el subagente arranca sin memoria previa y solo recibe el
+documento `.md` y los criterios. Un paso sin las siglas CL **conserva el contexto** del subagente que ya
+trabajó en él.
 
-### Flujo de corrección de bloqueantes (decisión del propietario, 2026-11-14)
+1. **Subagente A (CL)** crea el plan en un `.md` (`docs/correcciones/<corte>-plan.md` o, para un corte
+   nuevo, el plan del corte): alcance, requisitos del ADR, causa raíz y familia cuando es corrección,
+   mecanismo único, efectos laterales, alternativas, pruebas, orden y dependencias.
+2. **Subagente B (CL)** valida el plan contra el ADR y el código y da **PASS o FAIL con motivos**
+   (lista numerada, accionable).
+   - 2.1. Si FAIL, **A** (conserva contexto) propone la corrección del plan en el mismo `.md`.
+   - 2.2. **B** (conserva contexto) valida el plan corregido. Se repite 2.1–2.2 hasta que B dé PASS.
+3. **Subagente C (CL)** implementa el plan **desde el `.md`** validado, sin apartarse de él; si descubre
+   que no basta, no improvisa: lo registra y vuelve al paso 1 (el plan se revisa por A y B).
+4. **Subagente D (CL)** valida la implementación contra el plan y el ADR (código, diferencial, fuzz,
+   oráculos del corte) y da **PASS o FAIL con motivos**.
+   - 4.1. Si FAIL, **C** (conserva contexto) escribe las correcciones **en otro `.md`**
+     (`docs/correcciones/<corte>-rN.md`): causa raíz comprobada, familia, mecanismo único, efectos
+     laterales y pruebas, sin tocar código.
+   - 4.2. **D** (conserva contexto) valida esa propuesta de corrección hasta que dé PASS.
+   - 4.3. **C** (conserva contexto) corrige el código según la propuesta validada y D repite la
+     validación (paso 4) hasta que dé PASS.
+5. Con PASS de D, el coordinador integra (commit y push). Ningún subagente modifica código antes de que
+   el plan o la propuesta correspondiente tenga PASS.
 
-Un arreglo aplicado sin análisis previo puede parchear un síntoma o romper otra cosa. Por eso, cuando
-una validación encuentra bloqueantes, **nadie toca código antes de que una propuesta esté validada**:
-
-1. **Propuesta (sin código).** El implementador escribe un `.md` en `docs/correcciones/<corte>-rN.md` con,
-   por cada defecto o familia: repro literal; causa raíz comprobada leyendo el código (archivo y función);
-   familia afectada (variantes hermanas que fallan por la misma causa); solución propuesta como
-   mecanismo único (qué cambia y dónde); por qué no es un parche ni un caso especial; efectos laterales
-   (qué otros comportamientos, diagnósticos o cifras toca y cómo se comprobará que no cambian);
-   alternativas descartadas; pruebas a añadir (regresión, familia y no regresión); orden y dependencias
-   entre defectos. Si dos defectos comparten causa, una sola solución.
-2. **Validación de la propuesta.** Un subagente distinto del implementador la revisa contra el ADR y el
-   código: ¿la causa es la real?, ¿la solución cubre la familia?, ¿es mecanismo único?, ¿qué rompe?, ¿las
-   pruebas bastan? Veredicto PASS / CAMBIOS con lista numerada. Máximo dos iteraciones de propuesta; si no
-   converge, se reduce el alcance o se reabre el diseño (Flujo A) y se registra.
-3. **Implementación.** El implementador aplica exactamente la propuesta validada; si descubre que no
-   basta, para y revisa la propuesta (no improvisa).
-4. **Validación del código.** Verificación dirigida de los defectos y su familia, más el diferencial,
-   el fuzz y los oráculos del corte; un cambio de comportamiento no previsto en la propuesta es defecto.
-5. **Revisión de diff al cierre.** Un modelo distinto del implementador revisa el diff completo del
-   corte buscando parches, casos especiales, rutas duplicadas, constantes hechas para pasar una prueba
-   y código muerto.
+Qué cuenta como FAIL lo fija «Rigor proporcional y presupuesto de validación» (solo defectos
+reproducibles; núcleo vs andamiaje). Los ciclos 2, 4.1–4.3 se repiten hasta PASS; si no convergen, el
+coordinador lo registra y reduce el alcance o reabre el diseño (Flujo A) en vez de iterar sin fin.
+Implementador (C) y validadores (B, D) son siempre distintos; A y C también, para que C parta de un
+contexto limpio.
 
 ## Reglas comunes
 
