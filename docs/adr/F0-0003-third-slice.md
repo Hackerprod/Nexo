@@ -1615,6 +1615,22 @@ aceptan sin diagnósticos. Ejemplo inválido: añadir antes de `}`
 `stage=types`, `operation=analysis.limit`, `budget_kind=value_type_depth`,
 `limit=128`, `observed=129`, con primario sobre ese `Some(move a127)`.
 
+Para medir los campos propietarios de un Generator se recorre el tipo de cada
+slot propietario de su layout fijo (§5.1 y la fila J10 de §12.2): parámetros,
+locales, el iterador oculto de `for` y entornos de closures locales con sus
+capturas propietarias. Un slot declarado cuenta aunque su valor se destruya
+antes de yield; no se añaden los temporales dinámicos de lowering, préstamos
+ni metadatos. Los campos son caminos alternativos bajo el único nivel
+Generator. Ejemplo válido: `gen fn G(x:move ` + 127 veces `Option<` + `I64`
++ 127 veces `>` + `)->I64{yield 1;Drop(x);}fn Main(){let a0=1;` + para cada
+`i=1..127`, `let aI=Some(aPREV);` (I/PREV son `i`/`i-1` en decimal) +
+`let g=G(move a127);}`; profundidad 128 y `diagnostics=[]`. Ejemplo inválido:
+sustituir solo la última construcción por `let g=Some(G(move a127));`;
+profundidad 129, un NX-E0003/types/analysis.limit,
+`budget_kind=value_type_depth`, `limit=128`, `observed=129` y primario sobre
+el `Some(G(move a127))` completo. Un local del mismo tipo cuenta también si
+se destruye antes del primer yield.
+
 ## 11. EX04 reducido ejecutable
 
 La reducción conserva generación perezosa, for, entrega por valor y consumo

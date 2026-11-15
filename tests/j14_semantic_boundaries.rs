@@ -737,13 +737,14 @@ fn small_runtime_stack_handles_nested_values_closures_and_generators() {
     checked(&format!("{closures}AssertEq(f241(),1);}}"));
 
     let mut generators = String::new();
-    for index in 1..=225 {
+    for index in 1..=126 {
         generators.push_str(&format!(
             "gen fn G{index}()->I64{{var g=G{}();let a=Iterator.Next(edit g);yield 1;}}",
             index + 1
         ));
     }
-    generators
-        .push_str("gen fn G226()->I64{yield 1;}fn Main(){var g=G1();let a=Iterator.Next(edit g);}");
+    generators.push_str(
+        "gen fn G127()->I64{yield 1;}fn Main(){var g=G1();let a=Iterator.Next(edit g);AssertEq(a,Some(1));}",
+    );
     checked(&generators);
 }

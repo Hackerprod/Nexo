@@ -9,12 +9,16 @@ use std::{
 static SOURCE_ID: AtomicUsize = AtomicUsize::new(0);
 
 fn j_check(source: &str) -> (i32, String) {
+    j_command("check", source)
+}
+
+fn j_command(command: &str, source: &str) -> (i32, String) {
     let id = SOURCE_ID.fetch_add(1, Ordering::Relaxed);
     let path = std::env::temp_dir().join(format!("j14-s4-depth-{}-{id}.n", std::process::id()));
     fs::write(&path, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_nexo"))
         .args([
-            "check",
+            command,
             path.to_str().unwrap(),
             "--profile",
             "f0-0003-b-v1",
@@ -28,6 +32,191 @@ fn j_check(source: &str) -> (i32, String) {
         output.status.code().unwrap(),
         String::from_utf8(output.stdout).unwrap(),
     )
+}
+
+fn accepted_both(source: &str) {
+    for command in ["check", "run"] {
+        let (status, report) = j_command(command, source);
+        assert_eq!(status, 0, "{command}: {report}");
+        assert!(report.contains("\"diagnostics\":[]"), "{report}");
+    }
+}
+
+fn rejected_both(source: &str, kind: &str, observed: u64, span: (u64, u64)) {
+    for command in ["check", "run"] {
+        let (status, report) = j_command(command, source);
+        assert_eq!(status, 1, "{command}: {report}");
+        for expected in [
+            "\"code\":\"NX-E0003\"".to_owned(),
+            "\"subcause\":null".to_owned(),
+            "\"stage\":\"types\"".to_owned(),
+            "\"operation\":\"analysis.limit\"".to_owned(),
+            "\"budget_scope\":\"compilation\"".to_owned(),
+            "\"incomplete_analysis\":\"types\"".to_owned(),
+            "\"related_spans\":[]".to_owned(),
+            "\"cause_chain\":[]".to_owned(),
+            "\"feature_id\":null".to_owned(),
+            format!("\"budget_kind\":\"{kind}\""),
+            "\"limit\":128".to_owned(),
+            format!("\"observed\":{observed}"),
+            format!("\"start\":{}", span.0),
+            format!("\"end\":{}", span.1),
+        ] {
+            assert!(report.contains(&expected), "{expected}: {report}");
+        }
+        assert_eq!(
+            report.matches("\"code\":\"NX-E0003\"").count(),
+            1,
+            "{report}"
+        );
+        assert_eq!(report.matches("\"code\":").count(), 1, "{report}");
+    }
+}
+
+fn options(levels: usize) -> String {
+    format!("{}I64{}", "Option<".repeat(levels), ">".repeat(levels))
+}
+
+fn option_bindings(levels: usize) -> String {
+    let mut source = String::from("let a0=1;");
+    for index in 1..=levels {
+        source.push_str(&format!("let a{index}=Some(a{});", index - 1));
+    }
+    source
+}
+
+fn parameter_state(levels: usize, outer: bool, late: bool) -> String {
+    let generator = format!(
+        "gen fn G(x:move {})->I64{{yield 1;Drop(x);}}",
+        options(levels)
+    );
+    let call = if outer {
+        format!("Some(G(move a{levels}))")
+    } else {
+        format!("G(move a{levels})")
+    };
+    let main = format!("fn Main(){{{}let g={call};}}", option_bindings(levels));
+    if late {
+        format!("{main}{generator}")
+    } else {
+        format!("{generator}{main}")
+    }
+}
+
+#[test]
+fn generator_parameter_slot_and_late_declaration_charge_original_constructor() {
+    for late in [false, true] {
+        accepted_both(&parameter_state(127, false, late));
+        let positive = parameter_state(126, true, late);
+        // The positive changes the field by exactly one Option level.
+        accepted_both(&positive);
+        let invalid = parameter_state(127, true, late);
+        let start = invalid.find("Some(G(move a127))").unwrap() as u64;
+        rejected_both(&invalid, "value_type_depth", 129, (start, start + 18));
+    }
+}
+
+fn local_state(before_yield: bool, outer: bool) -> String {
+    let body = option_bindings(127);
+    let tail = if before_yield {
+        "Drop(a127);yield 1;"
+    } else {
+        "yield 1;Drop(a127);"
+    };
+    let call = if outer { "Some(G())" } else { "G()" };
+    format!("gen fn G()->I64{{{body}{tail}}}fn Main(){{let g={call};}}")
+}
+
+#[test]
+fn generator_local_slot_counts_after_drop_before_yield() {
+    for before_yield in [false, true] {
+        accepted_both(&local_state(before_yield, false));
+        let invalid = local_state(before_yield, true);
+        let start = invalid.find("Some(G())").unwrap() as u64;
+        rejected_both(&invalid, "value_type_depth", 129, (start, start + 9));
+    }
+}
+
+fn nested_generators(count: usize) -> String {
+    let mut source = String::new();
+    for index in 1..count {
+        source.push_str(&format!(
+            "gen fn G{index}()->I64{{var g=G{}();let a=Iterator.Next(edit g);yield 1;}}",
+            index + 1
+        ));
+    }
+    source.push_str(&format!("gen fn G{count}()->I64{{yield 1;}}fn Main(){{var g=G1();let a=Iterator.Next(edit g);AssertEq(a,Some(1));}}"));
+    source
+}
+
+#[test]
+fn nested_generator_slots_stop_at_128() {
+    for count in [127, 128] {
+        accepted_both(&nested_generators(count));
+    }
+    let invalid = nested_generators(129);
+    let start = invalid.rfind("G1()").unwrap() as u64;
+    rejected_both(&invalid, "value_type_depth", 129, (start, start + 4));
+}
+
+fn hidden_for_state(levels: usize) -> String {
+    let parameter = options(levels);
+    let bindings = option_bindings(levels);
+    format!(
+        "gen fn H(x:move {parameter})->I64{{yield 1;Drop(x);}}gen fn G()->I64{{{bindings}for y in H(move a{levels}){{Drop(y);}}yield 1;}}fn Main(){{let g=G();}}"
+    )
+}
+
+#[test]
+fn generator_hidden_for_iterator_is_an_owned_slot() {
+    accepted_both(&hidden_for_state(126));
+    let invalid = hidden_for_state(127);
+    let start = invalid.rfind("G()").unwrap() as u64;
+    rejected_both(&invalid, "value_type_depth", 129, (start, start + 3));
+}
+
+fn local_closure_state(mode: &str, levels: usize) -> String {
+    let bindings = option_bindings(levels);
+    format!(
+        "gen fn G()->I64{{{bindings}let f=fn [{mode} a{levels}](){{}};yield 1;}}fn Main(){{let g=G();}}"
+    )
+}
+
+#[test]
+fn generator_local_closure_counts_only_owned_captures() {
+    accepted_both(&local_closure_state("view", 127));
+    accepted_both(&local_closure_state("copy", 126));
+    for mode in ["copy", "move"] {
+        let invalid = local_closure_state(mode, 127);
+        let start = invalid.rfind("G()").unwrap() as u64;
+        rejected_both(&invalid, "value_type_depth", 129, (start, start + 3));
+    }
+}
+
+fn array_local_state(levels: usize) -> String {
+    let mut source = String::from("gen fn G()->I64{let a0=[1];");
+    for index in 1..levels {
+        source.push_str(&format!("let a{index}=[a{}];", index - 1));
+    }
+    source.push_str("yield 1;}fn Main(){let g=G();}");
+    source
+}
+
+#[test]
+fn generator_array_field_preserves_array_priority_and_value_limit() {
+    accepted_both(&array_local_state(127));
+    let invalid = array_local_state(128);
+    let start = invalid.rfind("G()").unwrap() as u64;
+    rejected_both(&invalid, "value_type_depth", 129, (start, start + 3));
+    let array_over = format!("fn Main(){{{} }}", {
+        let mut source = String::from("let a0=[1];");
+        for index in 1..=128 {
+            source.push_str(&format!("let a{index}=[a{}];", index - 1));
+        }
+        source
+    });
+    let start = array_over.rfind("[a127]").unwrap() as u64;
+    rejected_both(&array_over, "array_type_depth", 129, (start, start + 6));
 }
 
 fn j_depth_error(source: &str, kind: &str, span: (usize, usize)) {
@@ -78,7 +267,7 @@ fn depth_error(source: &str, kind: &str, observed: u64, span: (u64, u64)) {
     let errors = check_proposed("depth.n", source, false).unwrap_err();
     assert_eq!(errors.len(), 1, "{errors:?}");
     let error = &errors[0];
-    assert_eq!(error.code, "NX-E0003");
+    assert_eq!(error.code, "NX-E0003", "{errors:?}");
     assert_eq!(error.stage, Stage::Types);
     assert_eq!(error.operation, Operation::AnalysisLimit);
     assert_eq!(

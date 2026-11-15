@@ -1081,6 +1081,14 @@ struct Checker<'a> {
     expr_vars: HashMap<(u64, u64), u64>,
     expression_types: HashMap<(u64, u64), Type>,
     closures: HashMap<u64, ClosureDraft>,
+    saved_closures: HashMap<u64, ClosureDraft>,
+    generator_slots: HashMap<u64, Vec<Type>>,
+    hidden_for: Vec<Type>,
+    closure_local_sites: HashSet<u64>,
+    pending_depth: std::cell::RefCell<Vec<(Type, Span)>>,
+    defer_depth: bool,
+    nominal_depth_memo: std::cell::RefCell<HashMap<(u8, u64), (usize, usize)>>,
+    depth_memo_ready: bool,
     conditional_result_types: HashMap<(u64, u64), Type>,
     conditional_result_vars: Vec<(u64, Span, Type)>,
     next_variable: u64,
@@ -1207,6 +1215,7 @@ impl Checker<'_> {
     }
 
     fn closure_expr(&mut self, closure: &parse::Closure) -> Result<Type, Box<Diagnostic>> {
+        let prior_sites: HashSet<u64> = self.locals.keys().copied().collect();
         let sites = self.closure_capture_sites(closure);
         let mut captures = Vec::new();
         for (name, mode, source, capture_span, mutable) in sites {
@@ -1294,6 +1303,12 @@ impl Checker<'_> {
         self.generator_item = previous_generator_item;
         self.loop_depth = previous_loop_depth;
         checked?;
+        self.closure_local_sites.extend(
+            self.locals
+                .keys()
+                .copied()
+                .filter(|site| !prior_sites.contains(site)),
+        );
         let result = self
             .resolved_syntax_type(&result)
             .map(|ty| Type::from(&ty))
@@ -4126,6 +4141,50 @@ impl Checker<'_> {
     }
 
     fn check_depth(&self, ty: &Type, origin: &Span) -> Result<(), Box<Diagnostic>> {
+        if self.defer_depth && !self.planning && self.depth_may_contain_generator(ty) {
+            // A known array path has priority even when a deferred edge may
+            // later reveal a Generator state. Its own first excess is final.
+            if matches!(ty, Type::Deferred(_)) && self.compound_depth(ty).0 > 128 {
+                return self.check_depth_now(ty, origin);
+            }
+            self.pending_depth
+                .borrow_mut()
+                .push((ty.clone(), origin.clone()));
+            return Ok(());
+        }
+        self.check_depth_now(ty, origin)
+    }
+
+    fn depth_may_contain_generator(&self, ty: &Type) -> bool {
+        let mut pending = vec![ty];
+        let mut seen_closures = HashSet::new();
+        while let Some(next) = pending.pop() {
+            match next {
+                Type::Generator { .. } | Type::Deferred(_) => return true,
+                Type::Array(child) => pending.push(child),
+                Type::Union(_, first, second) => {
+                    pending.push(first);
+                    if let Some(second) = second {
+                        pending.push(second);
+                    }
+                }
+                Type::Closure { site, .. } => {
+                    if seen_closures.insert(*site)
+                        && let Some(draft) = self.closures.get(site)
+                    {
+                        pending.extend(draft.captures.iter().filter_map(|capture| {
+                            matches!(capture.1, CaptureMode::Copy | CaptureMode::Move)
+                                .then_some(&capture.5)
+                        }));
+                    }
+                }
+                _ => {}
+            }
+        }
+        false
+    }
+
+    fn check_depth_now(&self, ty: &Type, origin: &Span) -> Result<(), Box<Diagnostic>> {
         if has_resource_array(ty) {
             return Err(resource_array(origin.clone()));
         }
@@ -4172,19 +4231,60 @@ impl Checker<'_> {
             Ty(&'a Type),
             Var(u64),
             Leave(u64),
+            LeaveNominal((u8, u64)),
+        }
+        struct NominalFrame {
+            key: (u8, u64),
+            prefix_arrays: usize,
+            prefix_values: usize,
+            max_arrays: usize,
+            max_values: usize,
+            cacheable: bool,
+        }
+        impl NominalFrame {
+            fn new(key: (u8, u64), arrays: usize, values: usize) -> Self {
+                Self {
+                    key,
+                    prefix_arrays: arrays,
+                    prefix_values: values,
+                    max_arrays: 0,
+                    max_values: 1,
+                    cacheable: true,
+                }
+            }
+            fn observe(&mut self, arrays: usize, values: usize) {
+                self.max_arrays = self.max_arrays.max(arrays - self.prefix_arrays);
+                self.max_values = self.max_values.max(values - self.prefix_values);
+            }
         }
         let mut work = vec![(Part::Ty(ty), 0_usize, 0_usize)];
         let mut active = HashSet::new();
+        let mut active_nominal = HashSet::new();
+        let mut nominal_path: Vec<NominalFrame> = Vec::new();
         let (mut arrays, mut values) = (0, 0);
         while let Some((part, array_depth, value_depth)) = work.pop() {
             if let Part::Leave(root) = part {
                 active.remove(&root);
                 continue;
             }
+            if let Part::LeaveNominal(key) = part {
+                active_nominal.remove(&key);
+                let frame = nominal_path.pop().unwrap();
+                debug_assert_eq!(frame.key, key);
+                if self.depth_memo_ready && frame.cacheable {
+                    self.nominal_depth_memo
+                        .borrow_mut()
+                        .insert(key, (frame.max_arrays, frame.max_values));
+                }
+                continue;
+            }
             arrays = arrays.max(array_depth);
             values = values.max(value_depth);
+            for frame in &mut nominal_path {
+                frame.observe(array_depth, value_depth);
+            }
             match part {
-                Part::Leave(_) => unreachable!(),
+                Part::Leave(_) | Part::LeaveNominal(_) => unreachable!(),
                 Part::Ty(Type::Array(child)) => {
                     work.push((Part::Ty(child), array_depth + 1, value_depth + 1));
                 }
@@ -4194,15 +4294,69 @@ impl Checker<'_> {
                         work.push((Part::Ty(second), array_depth, value_depth + 1));
                     }
                 }
-                Part::Ty(Type::Generator { item, .. }) => {
-                    work.push((Part::Ty(item), array_depth, value_depth + 1));
+                Part::Ty(Type::Generator { site, item }) => {
+                    values = values.max(value_depth + 1);
+                    let key = (0, *site);
+                    if active_nominal.contains(&key) {
+                        for frame in &mut nominal_path {
+                            frame.cacheable = false;
+                        }
+                    } else if let Some((cached_arrays, cached_values)) = self
+                        .depth_memo_ready
+                        .then(|| self.nominal_depth_memo.borrow().get(&key).copied())
+                        .flatten()
+                    {
+                        let total_arrays = array_depth + cached_arrays;
+                        let total_values = value_depth + cached_values;
+                        arrays = arrays.max(total_arrays);
+                        values = values.max(total_values);
+                        for frame in &mut nominal_path {
+                            frame.observe(total_arrays, total_values);
+                        }
+                    } else {
+                        active_nominal.insert(key);
+                        nominal_path.push(NominalFrame::new(key, array_depth, value_depth));
+                        work.push((Part::LeaveNominal(key), array_depth, value_depth));
+                        work.push((Part::Ty(item), array_depth, value_depth + 1));
+                        if let Some(slots) = self.generator_slots.get(site) {
+                            for slot in slots {
+                                work.push((Part::Ty(slot), array_depth, value_depth + 1));
+                            }
+                        }
+                    }
                 }
                 Part::Ty(Type::Closure { site, .. }) => {
                     values = values.max(value_depth + 1);
-                    if let Some(draft) = self.closures.get(site) {
-                        for (_, mode, _, _, _, captured, _) in &draft.captures {
-                            if matches!(mode, CaptureMode::Copy | CaptureMode::Move) {
-                                work.push((Part::Ty(captured), array_depth, value_depth + 1));
+                    let key = (1, *site);
+                    if active_nominal.contains(&key) {
+                        for frame in &mut nominal_path {
+                            frame.cacheable = false;
+                        }
+                    } else if let Some((cached_arrays, cached_values)) = self
+                        .depth_memo_ready
+                        .then(|| self.nominal_depth_memo.borrow().get(&key).copied())
+                        .flatten()
+                    {
+                        let total_arrays = array_depth + cached_arrays;
+                        let total_values = value_depth + cached_values;
+                        arrays = arrays.max(total_arrays);
+                        values = values.max(total_values);
+                        for frame in &mut nominal_path {
+                            frame.observe(total_arrays, total_values);
+                        }
+                    } else {
+                        active_nominal.insert(key);
+                        nominal_path.push(NominalFrame::new(key, array_depth, value_depth));
+                        work.push((Part::LeaveNominal(key), array_depth, value_depth));
+                        if let Some(draft) = self
+                            .saved_closures
+                            .get(site)
+                            .or_else(|| self.closures.get(site))
+                        {
+                            for (_, mode, _, _, _, captured, _) in &draft.captures {
+                                if matches!(mode, CaptureMode::Copy | CaptureMode::Move) {
+                                    work.push((Part::Ty(captured), array_depth, value_depth + 1));
+                                }
                             }
                         }
                     }
@@ -4351,6 +4505,8 @@ impl Checker<'_> {
         self.expr_vars.clear();
         self.expression_types.clear();
         self.closures.clear();
+        self.hidden_for.clear();
+        self.closure_local_sites.clear();
         self.conditional_result_types.clear();
         self.conditional_result_vars.clear();
         self.next_variable = 0;
@@ -5439,6 +5595,9 @@ impl Checker<'_> {
                     .resolved_syntax_type(&got)
                     .map(|ty| Type::from(&ty))
                     .unwrap_or(got);
+                if self.generator_item.is_some() && matches!(got, Type::Generator { .. }) {
+                    self.hidden_for.push(got.clone());
+                }
                 let item = match got {
                     Type::Generator { item, .. } => (*item).clone(),
                     Type::Array(_) => {
@@ -8603,6 +8762,14 @@ pub(crate) fn check_with_partial_limit(
         expr_vars: HashMap::new(),
         expression_types: HashMap::new(),
         closures: HashMap::new(),
+        saved_closures: HashMap::new(),
+        generator_slots: HashMap::new(),
+        hidden_for: Vec::new(),
+        closure_local_sites: HashSet::new(),
+        pending_depth: std::cell::RefCell::new(Vec::new()),
+        defer_depth: true,
+        nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
+        depth_memo_ready: false,
         conditional_result_types: HashMap::new(),
         conditional_result_vars: Vec::new(),
         next_variable: 0,
@@ -8654,6 +8821,7 @@ pub(crate) fn check_with_partial_limit(
         errors: Vec::new(),
     };
     let mut inferred = InferredTypes::default();
+    let mut late_depth: HashMap<(u64, u64), (Type, Span)> = HashMap::new();
     for function in &ast.functions {
         if checker.analysis_exhausted {
             break;
@@ -8672,6 +8840,54 @@ pub(crate) fn check_with_partial_limit(
         checker.quota_error = None;
         if let Err(error) = checker.function(function) {
             checker.record_error(error);
+        }
+        for (ty, origin) in checker.pending_depth.take() {
+            if let Some(resolved) = checker.resolved_syntax_type(&ty) {
+                let concrete = Type::from(&resolved);
+                if checker.depth_may_contain_generator(&concrete) {
+                    late_depth
+                        .entry(span_key(&origin))
+                        .or_insert((concrete, origin));
+                } else if let Err(error) = checker.check_depth_now(&concrete, &origin)
+                    && !checker.errors.iter().any(|existing| {
+                        existing.code == error.code
+                            && existing.primary_span == error.primary_span
+                            && existing.data == error.data
+                    })
+                {
+                    checker.record_error(error);
+                }
+            }
+        }
+        for (&site, draft) in checker.closures.clone().iter() {
+            let mut saved = draft.clone();
+            for capture in &mut saved.captures {
+                if let Some(ty) = checker.resolved_syntax_type(&capture.5) {
+                    capture.5 = Type::from(&ty);
+                }
+            }
+            checker.saved_closures.insert(site, saved);
+        }
+        if function.is_generator {
+            let mut slots = Vec::new();
+            let mut bindings: Vec<_> = checker.locals.clone().into_iter().collect();
+            bindings.sort_by_key(|(site, _)| *site);
+            for (site, known) in bindings {
+                if checker.closure_local_sites.contains(&site) {
+                    continue;
+                }
+                if let Some(ty) = checker.resolved_syntax_type(&known.ty) {
+                    slots.push(Type::from(&ty));
+                }
+            }
+            for hidden in checker.hidden_for.clone() {
+                if let Some(ty) = checker.resolved_syntax_type(&hidden) {
+                    slots.push(Type::from(&ty));
+                }
+            }
+            checker
+                .generator_slots
+                .insert(function.name_span.start, slots);
         }
         for (&site, draft) in checker.closures.clone().iter() {
             let mut captures = Vec::with_capacity(draft.captures.len());
@@ -8812,6 +9028,20 @@ pub(crate) fn check_with_partial_limit(
             .errors
             .retain(|error| error.operation != Operation::AnalysisLimit);
         checker.record_error(quota);
+    }
+    checker.depth_memo_ready = true;
+    let mut late_depth: Vec<_> = late_depth.into_values().collect();
+    late_depth.sort_by_key(|(_, origin)| (origin.start, origin.end));
+    for (ty, origin) in late_depth {
+        if let Err(error) = checker.check_depth_now(&ty, &origin)
+            && !checker.errors.iter().any(|existing| {
+                existing.code == error.code
+                    && existing.primary_span == error.primary_span
+                    && existing.data == error.data
+            })
+        {
+            checker.record_error(error);
+        }
     }
     names::sort_diagnostics(&mut checker.errors);
     if !checker.errors.is_empty() {
@@ -9702,7 +9932,31 @@ mod quota_tests {
             loop_depth: 0,
             errors: Vec::new(),
             closures: HashMap::new(),
+            saved_closures: HashMap::new(),
+            generator_slots: HashMap::new(),
+            hidden_for: Vec::new(),
+            closure_local_sites: HashSet::new(),
+            pending_depth: std::cell::RefCell::new(Vec::new()),
+            defer_depth: false,
+            nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
+            depth_memo_ready: false,
         }
+    }
+
+    #[test]
+    fn malformed_generator_state_cycle_is_bounded() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let recursive = Type::Generator {
+            site: 1,
+            item: Arc::new(Type::I64),
+        };
+        checker.generator_slots.insert(1, vec![recursive.clone()]);
+        assert_eq!(checker.compound_depth(&recursive), (0, 2));
     }
 
     #[test]
