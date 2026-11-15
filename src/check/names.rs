@@ -111,17 +111,6 @@ fn related(d: &mut Diagnostic, role: RelatedRole, span: Span) {
     d.related_spans.push(RelatedSpan { role, span });
 }
 
-pub(crate) fn sort_related(d: &mut Diagnostic) {
-    d.related_spans.sort_by(|a, b| {
-        (&a.span.file, a.span.start, a.span.end, a.role).cmp(&(
-            &b.span.file,
-            b.span.start,
-            b.span.end,
-            b.role,
-        ))
-    });
-}
-
 fn duplicate(span: Span, first: Span, kind: &str) -> Box<Diagnostic> {
     let mut d = diagnostic(
         "NX-E0104",

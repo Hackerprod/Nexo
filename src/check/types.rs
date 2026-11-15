@@ -389,7 +389,6 @@ fn mismatch(
         role: RelatedRole::FoundType,
         span: found_span,
     });
-    names::sort_related(&mut d);
     d
 }
 
@@ -1016,7 +1015,6 @@ fn branch_mismatch(
         role: RelatedRole::FoundType,
         span: found_span,
     });
-    names::sort_related(&mut d);
     d
 }
 
@@ -5348,7 +5346,6 @@ impl Checker<'_> {
                             role: RelatedRole::Delimiter,
                             span: newline.span.clone(),
                         });
-                        names::sort_related(&mut d);
                     }
                     return Err(d);
                 }
@@ -7213,7 +7210,6 @@ impl Checker<'_> {
                         span: pattern.span().clone(),
                     });
                 }
-                names::sort_related(&mut diagnostic);
                 return Err(diagnostic);
             }
             if arm.guard.is_none() {

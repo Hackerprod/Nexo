@@ -57,10 +57,7 @@ fn main() -> ExitCode {
     let compiled = nexo::ir::compile_scalar_with_profile(file, &source, profile, command == "run");
     let program = match compiled {
         Ok(program) => program,
-        Err(nexo::ir::CompileError::Rejected(mut errors)) => {
-            for error in &mut errors {
-                error.profile_id = profile_id.clone();
-            }
+        Err(nexo::ir::CompileError::Rejected(errors)) => {
             if format == "json" {
                 return diagnostic_result(
                     file,
@@ -144,7 +141,21 @@ fn main() -> ExitCode {
     };
     // run_scalar verifies the program immediately before execution.
     let runtime_profile = nexo::interp::ReducedExecutionProfile::from_id(&profile_id).unwrap();
-    let execution = nexo::interp::run_with_limits(&program, mock_env, runtime_profile);
+    let mut execution = nexo::interp::run_with_limits(&program, mock_env, runtime_profile);
+    for error in &mut execution.diagnostics {
+        if error
+            .publish_view(
+                file,
+                SourceView {
+                    bytes_len,
+                    text: Some(&source),
+                },
+            )
+            .is_err()
+        {
+            return driver_error(Some(&profile_id), "internal_error", format == "json");
+        }
+    }
     if format == "json" {
         let outcome = match execution.outcome {
             nexo::interp::Outcome::Unit => r#"{"kind":"unit"}"#.to_owned(),
@@ -155,7 +166,7 @@ fn main() -> ExitCode {
                 r#"{"kind":"driver_error","reason":"internal_error"}"#.to_owned()
             }
         };
-        let diagnostics_json: Vec<String> = execution
+        let diagnostics_json: Result<Vec<String>, _> = execution
             .diagnostics
             .iter()
             .map(|d| {
@@ -166,9 +177,11 @@ fn main() -> ExitCode {
                         text: Some(&source),
                     },
                 )
-                .unwrap_or_else(|_| "null".to_owned())
             })
             .collect();
+        let Ok(diagnostics_json) = diagnostics_json else {
+            return driver_error(Some(&profile_id), "internal_error", true);
+        };
         println!(
             "{}",
             execution_json(
@@ -351,13 +364,13 @@ fn diagnostic_result_view(
     errors: &[Box<Diagnostic>],
     status: u8,
 ) -> ExitCode {
-    let rendered: Vec<String> = errors
+    let rendered: Result<Vec<String>, _> = errors
         .iter()
-        .map(|d| {
-            d.to_json_view(file, source)
-                .unwrap_or_else(|_| "null".into())
-        })
+        .map(|d| d.to_json_view(file, source))
         .collect();
+    let Ok(rendered) = rendered else {
+        return driver_error(Some(profile), "internal_error", true);
+    };
     let outcome = format!(r#"{{"kind":"{kind}"}}"#);
     println!(
         "{}",
@@ -557,6 +570,9 @@ fn input_failure(
     };
     let mut diagnostic = diagnostic;
     diagnostic.profile_id = profile.to_owned();
+    if diagnostic.publish_view(file, view).is_err() {
+        return driver_error(Some(profile), "internal_error", format == "json");
+    }
     if format == "json" {
         return diagnostic_result_view(
             file,

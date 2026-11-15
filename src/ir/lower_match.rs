@@ -1027,7 +1027,6 @@ impl Lower<'_> {
             role: diagnostic::RelatedRole::Origin,
             span: selection.scrutinee.span().clone(),
         });
-        crate::check::names::sort_related(diagnostic);
         diagnostic.cause_chain.push(diagnostic::Cause {
             kind: diagnostic::CauseKind::Borrow,
             operation: if selection.mode == Some(Mode::Inout) {

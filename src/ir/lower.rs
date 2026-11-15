@@ -257,13 +257,7 @@ pub fn compile_scalar_with_profile(
     run_entry: bool,
 ) -> Result<Program, CompileError> {
     let limits = analysis_limits(profile);
-    let mut result = compile_scalar_with_analysis_limits(file, source, run_entry, limits);
-    if let Err(CompileError::Rejected(errors)) = &mut result {
-        for error in errors {
-            error.profile_id = limits.profile_id.into();
-        }
-    }
-    result
+    compile_scalar_with_analysis_limits(file, source, run_entry, limits)
 }
 
 #[cfg(test)]
@@ -300,8 +294,7 @@ fn compile_scalar_with_analysis_limits(
     if let Err(CompileError::Rejected(errors)) = &mut result {
         for error in errors {
             error.profile_id = limits.profile_id.into();
-            crate::check::names::sort_related(error);
-            if let Err(reason) = error.validate(file, source) {
+            if let Err(reason) = error.publish(file, source) {
                 eprintln!("invalid compiler diagnostic: {reason}");
                 return Err(CompileError::InvalidIr("invalid compiler diagnostic"));
             }
@@ -1447,9 +1440,6 @@ fn add_backedge_to_diagnostic(
             role: diagnostic::RelatedRole::Backedge,
             span: closing.clone(),
         });
-        crate::check::names::sort_related(d);
-        d.related_spans
-            .dedup_by(|a, b| a.role == b.role && a.span == b.span);
         if let Some(entity) = d.cause_chain.last().and_then(|c| c.entity.clone()) {
             d.cause_chain.insert(
                 0,

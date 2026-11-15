@@ -355,9 +355,6 @@ fn diagnostic(
             });
         }
     }
-    crate::check::names::sort_related(&mut d);
-    d.related_spans
-        .dedup_by(|a, b| a.role == b.role && a.span == b.span);
     let witness = fact
         .sites
         .values()

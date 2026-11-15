@@ -242,6 +242,29 @@ impl std::fmt::Display for SchemaError {
 impl std::error::Error for SchemaError {}
 
 impl Diagnostic {
+    /// Establish the canonical representation before a diagnostic is published.
+    pub fn finalize(&mut self) {
+        self.related_spans
+            .sort_by(|a, b| related_key(a).cmp(&related_key(b)));
+        self.related_spans
+            .dedup_by(|a, b| related_key(a) == related_key(b));
+    }
+
+    pub fn publish(&mut self, file: &str, source: &str) -> Result<(), SchemaError> {
+        self.publish_view(
+            file,
+            SourceView {
+                bytes_len: source.len(),
+                text: Some(source),
+            },
+        )
+    }
+
+    pub fn publish_view(&mut self, file: &str, source: SourceView<'_>) -> Result<(), SchemaError> {
+        self.finalize();
+        self.validate_view(file, source)
+    }
+
     /// Checks schema invariants and all spans against the original source bytes.
     pub fn validate(&self, file: &str, source: &str) -> Result<(), SchemaError> {
         self.validate_view(
@@ -3812,6 +3835,40 @@ mod tests {
                 DataValue::String("later_adr".into()),
             )]),
         }
+    }
+    #[test]
+    fn publication_canonicalizes_related_spans_and_serializers_reject_unpublished_order() {
+        let source = "fn Main(){let x=0.5;}";
+        let mut diagnostic = sample();
+        let origin = RelatedSpan {
+            role: RelatedRole::Origin,
+            span: Span {
+                file: "decimal.n".into(),
+                start: 10,
+                end: 16,
+            },
+        };
+        let declaration = RelatedSpan {
+            role: RelatedRole::Declaration,
+            span: Span {
+                file: "decimal.n".into(),
+                start: 3,
+                end: 7,
+            },
+        };
+        diagnostic.related_spans = vec![origin.clone(), declaration.clone(), origin.clone()];
+        let view = SourceView {
+            bytes_len: source.len(),
+            text: Some(source),
+        };
+        assert!(diagnostic.to_json("decimal.n", source).is_err());
+        assert!(diagnostic.to_json_view("decimal.n", view).is_err());
+        assert!(diagnostic.render_text("decimal.n", source).is_err());
+        diagnostic.publish("decimal.n", source).unwrap();
+        assert_eq!(diagnostic.related_spans, vec![declaration, origin]);
+        assert!(diagnostic.to_json("decimal.n", source).is_ok());
+        assert!(diagnostic.to_json_view("decimal.n", view).is_ok());
+        assert!(diagnostic.render_text("decimal.n", source).is_ok());
     }
     #[test]
     fn nx_json_matches_published_fixture_and_has_all_keys() {
