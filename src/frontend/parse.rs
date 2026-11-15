@@ -1110,26 +1110,31 @@ struct Parser<'a> {
     callable_count: usize,
 }
 impl Parser<'_> {
+    fn charge_callable(&mut self, anchor: Span) -> Result<(), Box<Diagnostic>> {
+        if self.callable_count == 1_024 {
+            return Err(self.budget_error(
+                "function_count",
+                1_024,
+                1_025,
+                anchor,
+                Stage::Parse,
+            ));
+        }
+        self.callable_count += 1;
+        Ok(())
+    }
     fn program(mut self) -> ParseResult {
         let start = 0;
         let mut fs = Vec::new();
         while !self.eof() {
             if self.word("fn") || (self.new_profile && self.word("gen")) {
-                if self.callable_count == 1_024
-                    && let Some(name) = self
+                if let Some(name) = self
                         .tokens
                         .get(self.at + if self.word("gen") { 2 } else { 1 })
                     && name.kind == Kind::Name
                 {
-                    return Err(self.budget_error(
-                        "function_count",
-                        1_024,
-                        1_025,
-                        name.span.clone(),
-                        Stage::Parse,
-                    ));
+                    self.charge_callable(name.span.clone())?;
                 }
-                self.callable_count += 1;
                 let generator_span = if self.word("gen") {
                     Some(self.take().span)
                 } else {
@@ -1328,16 +1333,7 @@ impl Parser<'_> {
     fn closure(&mut self) -> Result<Expr, Box<Diagnostic>> {
         let fn_token = self.take();
         let start = fn_token.span.start as usize;
-        if self.callable_count == 1_024 {
-            return Err(self.budget_error(
-                "function_count",
-                1_024,
-                1_025,
-                fn_token.span.clone(),
-                Stage::Parse,
-            ));
-        }
-        self.callable_count += 1;
+        self.charge_callable(fn_token.span.clone())?;
         let captures = if self.eat("[") {
             let mut captures = Vec::new();
             while !self.at_text("]") && !self.eof() {

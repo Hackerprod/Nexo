@@ -126,11 +126,34 @@ fn closure_literals_count_as_invocables_at_their_fn_token() {
     }
     checked(&format!("{source}}}"));
     let report = rejected(&format!("{source}let f1023=fn [](){{}};}}"), "NX-E0003");
+    let literal_start = source.len() + "let f1023=".len();
     assert!(
         report.contains("\"budget_kind\":\"function_count\"")
-            && report.contains("\"observed\":1025"),
+            && report.contains("\"limit\":1024")
+            && report.contains("\"observed\":1025")
+            && report.contains(&format!("\"start\":{literal_start}"))
+            && report.contains(&format!("\"end\":{}", literal_start + 2)),
         "{report}"
     );
+}
+
+#[test]
+fn declarations_and_nested_literals_share_source_order_quota() {
+    let mut source = String::from("gen fn G()->I64{yield 1;}");
+    for index in 0..1021 {
+        source.push_str(&format!("fn F{index}(){{}}"));
+    }
+    source.push_str("fn Main(){let outer=fn [](){let inner=fn [](){};};}");
+    let inner = source.rfind("fn [](){}").unwrap();
+    let report = rejected(&source, "NX-E0003");
+    assert!(
+        report.contains("\"budget_kind\":\"function_count\"")
+            && report.contains("\"observed\":1025")
+            && report.contains(&format!("\"start\":{inner}"))
+            && report.contains(&format!("\"end\":{}", inner + 2)),
+        "{report}"
+    );
+    checked("fn Main(){var i=0;while i<2{let f=fn [](){};i=i+1;}}");
 }
 
 #[test]
