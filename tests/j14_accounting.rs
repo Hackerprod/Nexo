@@ -155,6 +155,30 @@ fn published_frame_depths_count_main_closure_advance_and_calls() {
 }
 
 #[test]
+fn recursive_calls_reach_the_normal_frame_limit_on_256_kib_worker() {
+    let source = "fn F(){F();}fn Main(){F();}";
+    let (check_exit, checked) = cli(source, "f0-0003-b-v1", "check");
+    assert_eq!(check_exit, 0, "{checked}");
+    assert!(checked.contains("\"diagnostics\":[]"), "{checked}");
+    let (run_exit, report) = cli(source, "f0-0003-b-v1", "run");
+    assert_eq!(run_exit, 1, "{report}");
+    assert!(report.contains("\"code\":\"R0002\""), "{report}");
+    assert!(
+        report.contains("\"runtime_budget_kind\":\"call_frames\""),
+        "{report}"
+    );
+    assert!(
+        report.contains("\"limit\":256,\"observed\":257"),
+        "{report}"
+    );
+    assert!(report.contains("\"observations\":[]"), "{report}");
+    assert!(
+        report.contains("\"reserved_observation_bytes\":0"),
+        "{report}"
+    );
+}
+
+#[test]
 fn cold_generator_headers_enforce_the_cells_64_boundary() {
     for (count, exit) in [(63, 0), (64, 0), (65, 1)] {
         let mut source = String::from("gen fn G()->I64{}fn Main(){");

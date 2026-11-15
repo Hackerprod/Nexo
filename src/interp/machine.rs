@@ -142,6 +142,39 @@ impl PartialEq for LoanValue {
     }
 }
 impl Eq for LoanValue {}
+fn drop_shadow(value: Value) {
+    let mut pending = vec![value];
+    while let Some(value) = pending.pop() {
+        match value {
+            Value::Union {
+                payload: Some(value),
+                ..
+            } => pending.push(*value),
+            Value::Array(values, _) => {
+                if let Ok(values) = Rc::try_unwrap(values) {
+                    pending.extend(values);
+                }
+            }
+            Value::Closure { fields, .. } => pending.extend(fields),
+            Value::Generator(generator) => {
+                pending.extend(generator.slots.into_iter().flatten());
+                pending.extend(generator.temps.into_iter().flatten().filter_map(
+                    |temp| match temp {
+                        TempValue::Own(value) | TempValue::ReadScalar(value) => Some(value),
+                        _ => None,
+                    },
+                ));
+            }
+            Value::Loan(loan) if Rc::strong_count(&loan.slot) == 1 => {
+                let shadow = loan.slot.borrow_mut().take();
+                if let Some(shadow) = shadow {
+                    pending.push(shadow);
+                }
+            }
+            _ => {}
+        }
+    }
+}
 impl Value {
     fn at_variant_path(&self, path: &[VariantTag]) -> Option<&Self> {
         let mut value = self;
@@ -248,59 +281,78 @@ impl Value {
         }
     }
     fn has_ty(&self, ty: &Ty) -> bool {
-        match (self, ty) {
-            (Self::Int(_), Ty::I64) | (Self::Bool(_), Ty::Bool) | (Self::Unit, Ty::Unit) => true,
-            (Self::Array(xs, _), Ty::Array(element)) => xs.iter().all(|x| x.has_ty(element)),
-            (Self::Union { kind, tag, payload }, ty) if ty.union_descriptor().is_some() => {
-                let descriptor = ty.union_descriptor().unwrap();
-                *kind == descriptor.kind
-                    && descriptor.variant(*tag).is_some_and(|variant| {
-                        match (&variant.payload, payload) {
-                            (Some(expected), Some(value)) => value.has_ty(expected),
-                            (None, None) => true,
-                            _ => false,
-                        }
-                    })
+        let mut pending = vec![(self, ty)];
+        while let Some((value, ty)) = pending.pop() {
+            match (value, ty) {
+                (Self::Int(_), Ty::I64) | (Self::Bool(_), Ty::Bool) | (Self::Unit, Ty::Unit) => {}
+                (Self::Array(xs, _), Ty::Array(element)) => {
+                    pending.extend(xs.iter().map(|value| (value, element.as_ref())));
+                }
+                (Self::Union { kind, tag, payload }, ty) => {
+                    let Some(descriptor) = ty.union_descriptor() else {
+                        return false;
+                    };
+                    if *kind != descriptor.kind {
+                        return false;
+                    }
+                    let Some(variant) = descriptor.variant(*tag) else {
+                        return false;
+                    };
+                    match (&variant.payload, payload) {
+                        (Some(expected), Some(value)) => pending.push((value, expected)),
+                        (None, None) => {}
+                        _ => return false,
+                    }
+                }
+                (
+                    Self::Resource {
+                        blocking: false, ..
+                    },
+                    Ty::MockResource,
+                )
+                | (Self::Resource { blocking: true, .. }, Ty::MockBlockingResource) => {}
+                (Self::Closure { site: actual, .. }, Ty::Closure { site, .. })
+                    if actual == site => {}
+                (Self::Generator(generator), Ty::Generator { site, .. })
+                    if generator.site == *site => {}
+                _ => return false,
             }
-            (
-                Self::Resource {
-                    blocking: false, ..
-                },
-                Ty::MockResource,
-            )
-            | (Self::Resource { blocking: true, .. }, Ty::MockBlockingResource) => true,
-            (Self::Closure { site: actual, .. }, Ty::Closure { site, .. }) => actual == site,
-            (Self::Generator(generator), Ty::Generator { site, .. }) => generator.site == *site,
-            _ => false,
         }
+        true
     }
     fn cells(&self) -> u64 {
-        match self {
-            Self::Array(_, n) => *n,
-            Self::Union { payload, .. } => 1 + payload.as_ref().map_or(0, |value| value.cells()),
-            Self::Closure { fields, .. } => 1 + fields.iter().map(Self::cells).sum::<u64>(),
-            Self::Generator(generator) => {
-                1 + generator
-                    .slots
-                    .iter()
-                    .zip(&generator.borrowed)
-                    .filter_map(
-                        |(value, borrowed)| {
-                            if *borrowed { None } else { value.as_ref() }
-                        },
-                    )
-                    .map(Value::cells)
-                    .sum::<u64>()
-                    + generator
-                        .temps
-                        .iter()
-                        .flatten()
-                        .map(TempValue::owned_cells)
-                        .sum::<u64>()
+        let mut total = 0;
+        let mut pending = vec![self];
+        while let Some(value) = pending.pop() {
+            match value {
+                Self::Array(_, cells) => total += cells,
+                Self::Union { payload, .. } => {
+                    total += 1;
+                    if let Some(value) = payload {
+                        pending.push(value);
+                    }
+                }
+                Self::Closure { fields, .. } => {
+                    total += 1;
+                    pending.extend(fields);
+                }
+                Self::Generator(generator) => {
+                    total += 1;
+                    pending.extend(generator.slots.iter().zip(&generator.borrowed).filter_map(
+                        |(value, borrowed)| (!borrowed).then_some(value.as_ref()).flatten(),
+                    ));
+                    pending.extend(generator.temps.iter().flatten().filter_map(|temp| {
+                        if let TempValue::Own(value) = temp {
+                            Some(value)
+                        } else {
+                            None
+                        }
+                    }));
+                }
+                _ => total += 1,
             }
-            Self::Loan(_) => 1,
-            _ => 1,
         }
+        total
     }
     fn element(&self, index: i64) -> Option<&Value> {
         let Self::Array(xs, _) = self else {
@@ -426,6 +478,74 @@ struct FrameReturn {
     value: Option<Value>,
     inout: Vec<Option<Value>>,
     suspension: Option<Suspension>,
+}
+
+enum EditTarget {
+    Origin(LoanValue),
+    Field(LocalId, usize),
+    Consumed,
+}
+
+enum Continuation {
+    Direct {
+        targets: Vec<Option<(LocalId, Vec<i64>)>>,
+        retained: Vec<Value>,
+    },
+    Closure {
+        edits: Vec<Option<EditTarget>>,
+        arguments: Vec<Option<(LocalId, Vec<i64>)>>,
+        retained: Vec<Value>,
+        capture_count: usize,
+    },
+    Generator {
+        root: LocalId,
+        site: u64,
+        locals: usize,
+    },
+}
+
+struct FrameInput<'a> {
+    function: &'a Function,
+    program: Option<&'a Program>,
+    args: Vec<(Value, bool)>,
+    span: diagnostic::Span,
+    resume: Option<ResumeState>,
+}
+
+struct FrameState<'a> {
+    function: &'a Function,
+    program: Option<&'a Program>,
+    block: usize,
+    pc: usize,
+    locals: Vec<Option<Value>>,
+    temps: Vec<Option<TempValue>>,
+    borrowed_locals: Vec<bool>,
+    edit_aliases: Vec<Option<EditAlias>>,
+    loan_slots: Vec<Option<Rc<RefCell<Option<Value>>>>>,
+    loan_origins: HashMap<TempId, LocalId>,
+    continuation: Option<Continuation>,
+    completed_call: Option<FrameReturn>,
+}
+
+enum FrameStart<'a> {
+    Active(Box<FrameState<'a>>),
+    Finished(FrameReturn),
+}
+
+enum FrameStep<'a> {
+    Push(FrameInput<'a>),
+    Finished(FrameReturn),
+}
+
+struct CallPlan<'a> {
+    input: FrameInput<'a>,
+    continuation: Continuation,
+}
+
+enum CallAction<'a> {
+    Push(Box<CallPlan<'a>>),
+    Value(Option<Value>),
+    Fault,
 }
 
 enum MockReplyValue {
@@ -565,9 +685,20 @@ fn run_with_execution_limits(
     mock_env: MockEnvironment,
     limits: ExecutionLimits,
 ) -> Execution {
+    let verified = std::thread::scope(|scope| {
+        std::thread::Builder::new()
+            .stack_size(crate::frontend_stack_size("LOWERING"))
+            .spawn_scoped(scope, || crate::ir::verify::verify_program(program))
+            .map_err(|_| "verifier worker unavailable")
+            .and_then(|worker| worker.join().map_err(|_| "verifier worker panicked"))
+            .and_then(|result| result)
+    });
+    if let Err(reason) = verified {
+        return internal_execution(reason);
+    }
     std::thread::scope(|scope| {
         match std::thread::Builder::new()
-            .stack_size(16 * 1024 * 1024)
+            .stack_size(256 * 1024)
             .spawn_scoped(scope, || run_verified(program, mock_env, limits))
         {
             Ok(worker) => worker
@@ -604,15 +735,14 @@ fn run_verified(
         #[cfg(test)]
         disposals: 0,
     };
-    // Every internal Result below is guarded by this verifier: identities,
+    // Every internal Result below is guarded by the verifier above: identities,
     // modes, index paths and types, call slots, temporary ownership, jumps,
     // output types and return shape are checked before interpretation.
     // Verified source executions are covered by generated_scalar_programs_
     // match_independent_decimal_model, generated_calls_resources_and_early_
     // returns_match_independent_reference, generated_array_copies_and_writes_
     // match_independent_matrix_model, and the directed prefix/Unicode tests.
-    let result = crate::ir::verify::verify_program(program)
-        .and_then(|()| program.functions.function("Main").ok_or("missing main"));
+    let result = program.functions.function("Main").ok_or("missing main");
     let Ok(function) = result else {
         return Execution {
             outcome: Outcome::InternalError(result.err().unwrap_or("invalid program")),
@@ -826,6 +956,11 @@ impl Machine {
                     payload: Some(value),
                     ..
                 } => pending.push(*value),
+                Value::Array(values, _) => {
+                    if let Ok(values) = Rc::try_unwrap(values) {
+                        pending.extend(values);
+                    }
+                }
                 Value::Closure { fields, .. } => pending.extend(fields),
                 Value::Generator(generator) => {
                     pending.extend(
@@ -845,6 +980,12 @@ impl Machine {
                 Value::Resource { id, label, .. } => {
                     self.log
                         .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
+                }
+                Value::Loan(loan) if Rc::strong_count(&loan.slot) == 1 => {
+                    let shadow = loan.slot.borrow_mut().take();
+                    if let Some(shadow) = shadow {
+                        drop_shadow(shadow);
+                    }
                 }
                 _ => {}
             }
@@ -1010,24 +1151,60 @@ impl Machine {
         }
         Ok(())
     }
-    fn run_frame(
+    fn run_frame<'a>(
         &mut self,
-        function: &Function,
-        program: Option<&Program>,
+        function: &'a Function,
+        program: Option<&'a Program>,
         args: Vec<(Value, bool)>,
         call_span: &diagnostic::Span,
     ) -> Result<FrameReturn, &'static str> {
-        self.run_frame_impl(function, program, args, call_span, None)
+        let mut stack: Vec<Box<FrameState<'a>>> = Vec::new();
+        let mut next = Some(FrameInput {
+            function,
+            program,
+            args,
+            span: call_span.clone(),
+            resume: None,
+        });
+        loop {
+            let step = if let Some(input) = next.take() {
+                match self.start_frame(input)? {
+                    FrameStart::Active(frame) => {
+                        stack.push(frame);
+                        continue;
+                    }
+                    FrameStart::Finished(result) => FrameStep::Finished(result),
+                }
+            } else {
+                self.step_frame(stack.last_mut().ok_or("missing interpreter frame")?)?
+            };
+            match step {
+                FrameStep::Push(input) => next = Some(input),
+                FrameStep::Finished(result) => {
+                    if stack
+                        .last()
+                        .is_some_and(|frame| frame.continuation.is_none())
+                    {
+                        stack.pop();
+                    }
+                    if let Some(parent) = stack.last_mut() {
+                        parent.completed_call = Some(result);
+                    } else {
+                        return Ok(result);
+                    }
+                }
+            }
+        }
     }
 
     #[inline(never)]
-    fn call_closure(
+    fn prepare_closure<'a>(
         &mut self,
         ins: &crate::ir::model::Instruction,
-        program: Option<&Program>,
+        program: Option<&'a Program>,
         locals: &mut [Option<Value>],
         temps: &mut [Option<TempValue>],
-    ) -> Result<Option<Value>, &'static str> {
+    ) -> Result<CallPlan<'a>, &'static str> {
         let Op::CallClosure {
             site,
             receiver,
@@ -1039,11 +1216,6 @@ impl Machine {
         else {
             return Err("closure instruction");
         };
-        enum EditTarget {
-            Origin(LoanValue),
-            Field(LocalId, usize),
-            Consumed,
-        }
         let program = program.ok_or("call table unavailable")?;
         let target = program
             .functions
@@ -1192,8 +1364,33 @@ impl Machine {
             .into_iter()
             .map(|item| item.ok_or("missing closure call slot"))
             .collect::<Result<Vec<_>, _>>()?;
-        let mut result = self.run_frame(target, Some(program), prepared, &ins.span)?;
-        for (index, target) in edit_targets.into_iter().enumerate() {
+        Ok(CallPlan {
+            input: FrameInput {
+                function: target,
+                program: Some(program),
+                args: prepared,
+                span: ins.span.clone(),
+                resume: None,
+            },
+            continuation: Continuation::Closure {
+                edits: edit_targets,
+                arguments: arg_targets,
+                retained,
+                capture_count: *capture_count,
+            },
+        })
+    }
+
+    fn finish_closure(
+        &mut self,
+        mut result: FrameReturn,
+        edits: Vec<Option<EditTarget>>,
+        arguments: Vec<Option<(LocalId, Vec<i64>)>>,
+        retained: Vec<Value>,
+        capture_count: usize,
+        locals: &mut [Option<Value>],
+    ) -> Result<Option<Value>, &'static str> {
+        for (index, target) in edits.into_iter().enumerate() {
             if let Some(target) = target {
                 let value = result.inout[index].take().ok_or("closure edit return")?;
                 match target {
@@ -1218,7 +1415,7 @@ impl Machine {
                 }
             }
         }
-        for (slot, target) in arg_targets.into_iter().enumerate().skip(*capture_count) {
+        for (slot, target) in arguments.into_iter().enumerate().skip(capture_count) {
             if let Some((root, path)) = target {
                 let value = result.inout[slot]
                     .take()
@@ -1249,13 +1446,13 @@ impl Machine {
     }
 
     #[inline(never)]
-    fn call_direct(
+    fn prepare_direct<'a>(
         &mut self,
         ins: &crate::ir::model::Instruction,
-        program: Option<&Program>,
+        program: Option<&'a Program>,
         locals: &mut [Option<Value>],
         temps: &mut [Option<TempValue>],
-    ) -> Result<Option<Option<Value>>, &'static str> {
+    ) -> Result<CallAction<'a>, &'static str> {
         let Op::CallDirect {
             function: callee,
             args,
@@ -1317,9 +1514,27 @@ impl Machine {
             .map(|v| v.ok_or("missing call slot"))
             .collect::<Result<Vec<_>, _>>()?;
         if self.fault.is_some() {
-            return Ok(None);
+            return Ok(CallAction::Fault);
         }
-        let result = self.run_frame(target, Some(program), prepared, &ins.span)?;
+        Ok(CallAction::Push(Box::new(CallPlan {
+            input: FrameInput {
+                function: target,
+                program: Some(program),
+                args: prepared,
+                span: ins.span.clone(),
+                resume: None,
+            },
+            continuation: Continuation::Direct { targets, retained },
+        })))
+    }
+
+    fn finish_direct(
+        &mut self,
+        result: FrameReturn,
+        mut targets: Vec<Option<(LocalId, Vec<i64>)>>,
+        retained: Vec<Value>,
+        locals: &mut [Option<Value>],
+    ) -> Result<Option<Option<Value>>, &'static str> {
         for (slot, returned) in result.inout.into_iter().enumerate() {
             if let Some(value) = returned {
                 let (root, path) = targets[slot].take().ok_or("edit return target")?;
@@ -1543,18 +1758,18 @@ impl Machine {
     }
 
     #[inline(never)]
-    fn resume_generator(
+    fn prepare_resume_generator<'a>(
         &mut self,
         ins: &crate::ir::model::Instruction,
-        program: Option<&Program>,
+        program: Option<&'a Program>,
         locals: &mut [Option<Value>],
         temps: &mut [Option<TempValue>],
-    ) -> Result<Option<Value>, &'static str> {
+    ) -> Result<CallAction<'a>, &'static str> {
         let Op::ResumeGenerator { receiver, .. } = &ins.op else {
             return Err("generator resume instruction");
         };
         if !self.charge_work(1, &ins.span) {
-            return Ok(None);
+            return Ok(CallAction::Fault);
         }
         let program = program.ok_or("call table unavailable")?;
         let receiver = Self::take(temps, *receiver)?;
@@ -1569,7 +1784,7 @@ impl Machine {
             Some(Value::Generator(generator)) if generator.state == GeneratorState::Completed
         );
         if completed && !self.charge_work(1, &ins.span) {
-            return Ok(None);
+            return Ok(CallAction::Fault);
         }
         if !completed && self.frames >= self.limits.frames {
             self.fault(
@@ -1584,12 +1799,12 @@ impl Machine {
                     ("observed", DataValue::UInt(self.limits.frames + 1)),
                 ],
             );
-            return Ok(None);
+            return Ok(CallAction::Fault);
         }
         // Keep the output tag live while the body completes and
         // disposes its slots; completion may not free room first.
         if !self.cell(&ins.span) {
-            return Ok(None);
+            return Ok(CallAction::Fault);
         }
         let state_value = locals
             .get_mut(root.0)
@@ -1607,7 +1822,7 @@ impl Machine {
             edits,
             state,
         } = *generator;
-        let output = if state == GeneratorState::Completed {
+        if state == GeneratorState::Completed {
             locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
                 site,
                 slots,
@@ -1616,7 +1831,15 @@ impl Machine {
                 edits,
                 state,
             })));
-            None
+            if !self.charge_work(1, &ins.span) {
+                self.cells = self.cells.saturating_sub(1);
+                return Ok(CallAction::Fault);
+            }
+            Ok(CallAction::Value(Some(Value::Union {
+                kind: UnionKind::Option,
+                tag: VariantTag(0),
+                payload: None,
+            })))
         } else {
             let target = program
                 .functions
@@ -1631,13 +1854,33 @@ impl Machine {
                     return Err("completed generator resumed");
                 }
             };
-            let result = self.run_frame_impl(
-                target,
-                Some(program),
-                Vec::new(),
-                &ins.span,
-                Some((slots, saved_temps, borrowed, edits, block)),
-            )?;
+            Ok(CallAction::Push(Box::new(CallPlan {
+                input: FrameInput {
+                    function: target,
+                    program: Some(program),
+                    args: Vec::new(),
+                    span: ins.span.clone(),
+                    resume: Some((slots, saved_temps, borrowed, edits, block)),
+                },
+                continuation: Continuation::Generator {
+                    root,
+                    site,
+                    locals: target.locals.len(),
+                },
+            })))
+        }
+    }
+
+    fn finish_resume_generator(
+        &mut self,
+        ins: &crate::ir::model::Instruction,
+        root: LocalId,
+        site: u64,
+        target_locals: usize,
+        result: FrameReturn,
+        locals: &mut [Option<Value>],
+    ) -> Result<Option<Value>, &'static str> {
+        let output = {
             if let Some((item, slots, temps, borrowed, edits, next)) = result.suspension {
                 locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
                     site,
@@ -1654,10 +1897,10 @@ impl Machine {
                 }
                 locals[root.0] = Some(Value::Generator(Box::new(GeneratorValue {
                     site,
-                    slots: vec![None; target.locals.len()],
+                    slots: vec![None; target_locals],
                     temps: Vec::new(),
-                    borrowed: vec![false; target.locals.len()],
-                    edits: vec![None; target.locals.len()],
+                    borrowed: vec![false; target_locals],
+                    edits: vec![None; target_locals],
                     state: GeneratorState::Completed,
                 })));
                 None
@@ -2035,14 +2278,15 @@ impl Machine {
         }))
     }
 
-    fn run_frame_impl(
-        &mut self,
-        function: &Function,
-        program: Option<&Program>,
-        args: Vec<(Value, bool)>,
-        call_span: &diagnostic::Span,
-        resume: Option<ResumeState>,
-    ) -> Result<FrameReturn, &'static str> {
+    fn start_frame<'a>(&mut self, input: FrameInput<'a>) -> Result<FrameStart<'a>, &'static str> {
+        let FrameInput {
+            function,
+            program,
+            args,
+            span,
+            resume,
+        } = input;
+        let call_span = &span;
         if !self.charge_work(WorkPlanner::units(WorkEvent::Entry), call_span) {
             if let Some((slots, temps, borrowed, _, _)) = resume {
                 for temp in temps.into_iter().rev().flatten() {
@@ -2067,11 +2311,11 @@ impl Machine {
                     self.dispose(v)?;
                 }
             }
-            return Ok(FrameReturn {
+            return Ok(FrameStart::Finished(FrameReturn {
                 value: None,
                 inout,
                 suspension: None,
-            });
+            }));
         }
         if self.frames >= self.limits.frames {
             self.fault(
@@ -2112,11 +2356,11 @@ impl Machine {
                     self.dispose(v)?;
                 }
             }
-            return Ok(FrameReturn {
+            return Ok(FrameStart::Finished(FrameReturn {
                 value: None,
                 inout,
                 suspension: None,
-            });
+            }));
         }
         self.frames += 1;
         let resuming = resume.is_some();
@@ -2125,14 +2369,13 @@ impl Machine {
             || vec![None; function.locals.len()],
             |(slots, _, _, _, _)| slots.clone(),
         );
-        let mut loan_slots: Vec<Option<Rc<RefCell<Option<Value>>>>> =
-            vec![None; function.locals.len()];
-        let mut loan_origins: HashMap<TempId, LocalId> = HashMap::new();
+        let loan_slots: Vec<Option<Rc<RefCell<Option<Value>>>>> = vec![None; function.locals.len()];
+        let loan_origins: HashMap<TempId, LocalId> = HashMap::new();
         let mut borrowed_locals = resume.as_ref().map_or_else(
             || vec![false; function.locals.len()],
             |(_, _, borrowed, _, _)| borrowed.clone(),
         );
-        let mut edit_aliases: Vec<Option<EditAlias>> = resume.as_ref().map_or_else(
+        let edit_aliases: Vec<Option<EditAlias>> = resume.as_ref().map_or_else(
             || vec![None; function.locals.len()],
             |(_, _, _, edits, _)| edits.clone(),
         );
@@ -2146,16 +2389,111 @@ impl Machine {
             borrowed_locals[p.local.0] = borrowed;
             locals[p.local.0] = Some(v);
         }
-        let mut temps: Vec<Option<TempValue>> =
+        let temps: Vec<Option<TempValue>> =
             resume.map_or_else(Vec::new, |(_, temps, _, _, _)| temps);
-        let mut current = match resume_block {
-            0 => &function.block,
-            block => function.blocks.get(block - 1).ok_or("resume block")?,
+        Ok(FrameStart::Active(Box::new(FrameState {
+            function,
+            program,
+            block: resume_block,
+            pc: 0,
+            locals,
+            temps,
+            borrowed_locals,
+            edit_aliases,
+            loan_slots,
+            loan_origins,
+            continuation: None,
+            completed_call: None,
+        })))
+    }
+
+    fn step_frame<'a>(
+        &mut self,
+        frame: &mut FrameState<'a>,
+    ) -> Result<FrameStep<'a>, &'static str> {
+        let function = frame.function;
+        let program = frame.program;
+        let mut block = frame.block;
+        let mut pc = frame.pc;
+        let mut locals = std::mem::take(&mut frame.locals);
+        let mut temps = std::mem::take(&mut frame.temps);
+        let mut borrowed_locals = std::mem::take(&mut frame.borrowed_locals);
+        let mut edit_aliases = std::mem::take(&mut frame.edit_aliases);
+        let mut loan_slots = std::mem::take(&mut frame.loan_slots);
+        let mut loan_origins = std::mem::take(&mut frame.loan_origins);
+        let mut completed = frame.continuation.take().zip(frame.completed_call.take());
+        let mut current = if block == 0 {
+            &function.block
+        } else {
+            function.blocks.get(block - 1).ok_or("resume block")?
         };
+        macro_rules! push_call {
+            ($plan:expr) => {{
+                let plan = $plan;
+                frame.block = block;
+                frame.pc = pc;
+                frame.locals = locals;
+                frame.temps = temps;
+                frame.borrowed_locals = borrowed_locals;
+                frame.edit_aliases = edit_aliases;
+                frame.loan_slots = loan_slots;
+                frame.loan_origins = loan_origins;
+                frame.continuation = Some(plan.continuation);
+                return Ok(FrameStep::Push(plan.input));
+            }};
+        }
         let mut returned = None;
         let mut suspension = None;
         'cfg: loop {
-            for ins in &current.instructions {
+            if let Some((continuation, result)) = completed.take() {
+                let ins = current
+                    .instructions
+                    .get(pc - 1)
+                    .ok_or("pending call instruction")?;
+                let value = match continuation {
+                    Continuation::Direct { targets, retained } => self
+                        .finish_direct(result, targets, retained, &mut locals)?
+                        .unwrap_or(None),
+                    Continuation::Closure {
+                        edits,
+                        arguments,
+                        retained,
+                        capture_count,
+                    } => self.finish_closure(
+                        result,
+                        edits,
+                        arguments,
+                        retained,
+                        capture_count,
+                        &mut locals,
+                    )?,
+                    Continuation::Generator {
+                        root,
+                        site,
+                        locals: count,
+                    } => {
+                        self.finish_resume_generator(ins, root, site, count, result, &mut locals)?
+                    }
+                };
+                if self.fault.is_some() {
+                    break 'cfg;
+                }
+                if let Some(v) = value {
+                    let id = ins.output.ok_or("missing output")?;
+                    if !v.has_ty(ins.ty.as_ref().ok_or("output type")?) {
+                        return Err("output mismatch");
+                    }
+                    Self::install_temp(&mut temps, id, TempValue::Own(v))?;
+                }
+                for (index, slot) in loan_slots.iter().enumerate() {
+                    if let Some(slot) = slot {
+                        *slot.borrow_mut() = locals[index].as_ref().map(Value::deep_copy);
+                    }
+                }
+            }
+            while pc < current.instructions.len() {
+                let ins = &current.instructions[pc];
+                pc += 1;
                 if function.generator_item.is_some()
                     && matches!(ins.op, Op::ConstUnit)
                     && ins.charges.last().is_some_and(|charge| {
@@ -2721,12 +3059,11 @@ impl Machine {
                         Some(value)
                     }
                     Op::CallDirect { .. } => {
-                        let Some(value) =
-                            self.call_direct(ins, program, &mut locals, &mut temps)?
-                        else {
-                            break;
-                        };
-                        value
+                        match self.prepare_direct(ins, program, &mut locals, &mut temps)? {
+                            CallAction::Push(plan) => push_call!(*plan),
+                            CallAction::Fault => break,
+                            CallAction::Value(value) => value,
+                        }
                     }
                     Op::BuildGenerator { .. } => {
                         let Some(value) =
@@ -2736,16 +3073,18 @@ impl Machine {
                         };
                         Some(value)
                     }
-                    Op::ResumeGenerator { .. } => {
-                        let Some(value) =
-                            self.resume_generator(ins, program, &mut locals, &mut temps)?
-                        else {
-                            break;
-                        };
-                        Some(value)
-                    }
+                    Op::ResumeGenerator { .. } => match self.prepare_resume_generator(
+                        ins,
+                        program,
+                        &mut locals,
+                        &mut temps,
+                    )? {
+                        CallAction::Push(plan) => push_call!(*plan),
+                        CallAction::Fault => break,
+                        CallAction::Value(value) => value,
+                    },
                     Op::CallClosure { .. } => {
-                        self.call_closure(ins, program, &mut locals, &mut temps)?
+                        push_call!(self.prepare_closure(ins, program, &mut locals, &mut temps)?)
                     }
                     Op::DropValue(id) => {
                         let v = Self::take(&mut temps, *id)?;
@@ -2821,6 +3160,8 @@ impl Machine {
                     return Err("return terminator");
                 }
                 crate::ir::model::Terminator::Jump { target, .. } => {
+                    block = target.0;
+                    pc = 0;
                     current = if target.0 == 0 {
                         &function.block
                     } else {
@@ -2836,6 +3177,8 @@ impl Machine {
                     };
                     self.cells = self.cells.saturating_sub(value.owned_cells());
                     let target = if test { yes } else { no };
+                    block = target.0;
+                    pc = 0;
                     current = if target.0 == 0 {
                         &function.block
                     } else {
@@ -2872,14 +3215,20 @@ impl Machine {
                     self.dispose(old)?;
                 }
             }
+            for slot in loan_slots.iter().flatten() {
+                let shadow = slot.borrow_mut().take();
+                if let Some(shadow) = shadow {
+                    drop_shadow(shadow);
+                }
+            }
         }
         self.frames -= 1;
-        Ok(FrameReturn {
+        Ok(FrameStep::Finished(FrameReturn {
             value: returned,
             inout,
             suspension: suspension
                 .map(|(item, block)| (item, locals, temps, borrowed_locals, edit_aliases, block)),
-        })
+        }))
     }
 }
 fn get_path<'a>(mut node: &'a Value, path: &[i64]) -> Option<&'a Value> {

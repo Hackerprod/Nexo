@@ -22,7 +22,7 @@ fn print_spawn(
     }
     std::thread::scope(|scope| {
         let handle = std::thread::Builder::new()
-            .stack_size(16 * 1024 * 1024)
+            .stack_size(crate::frontend_stack_size("FORMATTER"))
             .spawn_scoped(scope, || print_inner(ast, cst))
             .map_err(|_| PrintWorkerUnavailable)?;
         match handle.join() {

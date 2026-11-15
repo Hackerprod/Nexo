@@ -488,6 +488,7 @@ pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
         new_profile: false,
         pending_match: None,
         guard_context: 0,
+        callable_count: 0,
     };
     parser.budget_error(
         "syntax_nesting",
@@ -535,6 +536,7 @@ fn parse_with_split_tokens_counted(
             new_profile,
             pending_match: None,
             guard_context: 0,
+            callable_count: 0,
         };
         return Err(parser.budget_error(
             "source_bytes",
@@ -559,7 +561,7 @@ fn parse_with_split_tokens_counted(
             PARSE_WORKER_SPAWNS.with(|count| count.set(count.get() + 1));
             let (sender, jobs) = mpsc::channel::<ParseJob>();
             std::thread::Builder::new()
-                .stack_size(16 * 1024 * 1024)
+                .stack_size(crate::frontend_stack_size("PARSER"))
                 .spawn(move || {
                     for job in jobs {
                         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -619,6 +621,7 @@ fn parse_inner(
         new_profile,
         pending_match: None,
         guard_context: 0,
+        callable_count: 0,
     }
     .program()
 }
@@ -1104,6 +1107,7 @@ struct Parser<'a> {
     new_profile: bool,
     pending_match: Option<(&'static str, Span)>,
     guard_context: usize,
+    callable_count: usize,
 }
 impl Parser<'_> {
     fn program(mut self) -> ParseResult {
@@ -1111,8 +1115,10 @@ impl Parser<'_> {
         let mut fs = Vec::new();
         while !self.eof() {
             if self.word("fn") || (self.new_profile && self.word("gen")) {
-                if fs.len() == 1_024
-                    && let Some(name) = self.tokens.get(self.at + 1)
+                if self.callable_count == 1_024
+                    && let Some(name) = self
+                        .tokens
+                        .get(self.at + if self.word("gen") { 2 } else { 1 })
                     && name.kind == Kind::Name
                 {
                     return Err(self.budget_error(
@@ -1123,6 +1129,7 @@ impl Parser<'_> {
                         Stage::Parse,
                     ));
                 }
+                self.callable_count += 1;
                 let generator_span = if self.word("gen") {
                     Some(self.take().span)
                 } else {
@@ -1131,7 +1138,7 @@ impl Parser<'_> {
                 fs.push(self.function(generator_span)?)
             } else {
                 if let Some(id) = deferred_feature(&self.peek().text) {
-                    return Err(self.feature(id, self.peek().span.clone()));
+                    return Err(self.feature_or_syntax(id, "module_item", &["EOF", "fn"]));
                 }
                 return Err(self.err("module_item", &["EOF", "fn"], 0, None));
             }
@@ -1321,6 +1328,16 @@ impl Parser<'_> {
     fn closure(&mut self) -> Result<Expr, Box<Diagnostic>> {
         let fn_token = self.take();
         let start = fn_token.span.start as usize;
+        if self.callable_count == 1_024 {
+            return Err(self.budget_error(
+                "function_count",
+                1_024,
+                1_025,
+                fn_token.span.clone(),
+                Stage::Parse,
+            ));
+        }
+        self.callable_count += 1;
         let captures = if self.eat("[") {
             let mut captures = Vec::new();
             while !self.at_text("]") && !self.eof() {
@@ -1348,6 +1365,14 @@ impl Parser<'_> {
                 });
                 if !self.eat(",") {
                     break;
+                }
+                if self.at_text("]") {
+                    return Err(self.err(
+                        "grammar.Capture",
+                        &["copy", "edit", "move", "view"],
+                        start,
+                        None,
+                    ));
                 }
             }
             self.expect("]", "grammar.CaptureList", &[",", "]"], start)?;
@@ -1388,6 +1413,9 @@ impl Parser<'_> {
             });
             if !self.eat(",") {
                 break;
+            }
+            if self.at_text(")") {
+                return Err(self.err("grammar.ClosureParam", &["Name"], start, None));
             }
         }
         self.expect(")", "grammar.ClosureExpr", &[")", ","], start)?;
@@ -1787,12 +1815,14 @@ impl Parser<'_> {
             && matches!(self.peek().text.as_str(), "break" | "continue" | "yield")
         {
             let token = self.take();
-            let value =
-                if token.text == "yield" && self.starts_expr() && !self.line_break_before_next() {
-                    Some(self.expr(0)?)
-                } else {
-                    None
-                };
+            if token.text == "yield" && (!self.starts_expr() || self.line_break_before_next()) {
+                return Err(self.err("grammar.YieldStmt", EXPR_START, st, None));
+            }
+            let value = if token.text == "yield" {
+                Some(self.expr(0)?)
+            } else {
+                None
+            };
             let end = self.terminator(
                 st,
                 value
@@ -1811,7 +1841,7 @@ impl Parser<'_> {
         if let Some(id) = deferred_feature(&self.peek().text)
             && !(self.new_profile && id == "for_iteration")
         {
-            return Err(self.feature(id, self.peek().span.clone()));
+            return Err(self.feature_or_syntax(id, "block_item", BLOCK_NEXT));
         }
         if self.word("let") || self.word("var") {
             let mutable = self.eat("var");
@@ -2484,7 +2514,7 @@ impl Parser<'_> {
             };
         }
         if let Some(id) = deferred_feature(&t.text) {
-            return Err(self.feature(id, t.span));
+            return Err(self.feature_or_syntax(id, "grammar.Primary", EXPR_START));
         }
         if t.kind == Kind::Integer {
             self.take();
@@ -2750,6 +2780,14 @@ impl Parser<'_> {
     fn pattern(&mut self) -> Result<Pattern, Box<Diagnostic>> {
         let token = self.take();
         let start = token.span.start as usize;
+        if token.text == "(" {
+            let inner = self.pattern()?;
+            if self.eat(",") {
+                return Err(self.feature("tuple", self.tokens[self.at - 1].span.clone()));
+            }
+            self.expect(")", "grammar.Pattern", &["(", ")"], start)?;
+            return Ok(inner);
+        }
         if token.text == "_" {
             return Ok(Pattern::Wildcard(token.span));
         }
@@ -2793,6 +2831,14 @@ impl Parser<'_> {
                 args.push(self.pattern()?);
                 if !self.eat(",") {
                     break;
+                }
+                if self.at_text(")") {
+                    return Err(self.err(
+                        "grammar.Pattern",
+                        &["Name", "_", "IntLiteral", "true", "false", "("],
+                        start,
+                        None,
+                    ));
                 }
             }
             self.expect(")", "grammar.Pattern", &[")", ","], start)?;
@@ -2954,23 +3000,16 @@ impl Parser<'_> {
         false
     }
 
+    fn feature_or_syntax(&self, id: &str, context: &str, expected: &[&str]) -> Box<Diagnostic> {
+        if self.new_profile
+            && matches!(id, "for_iteration" | "loop_control" | "generator" | "match")
+        {
+            return self.err(context, expected, self.peek().span.start as usize, None);
+        }
+        self.feature(id, self.peek().span.clone())
+    }
+
     fn feature(&self, id: &str, s: Span) -> Box<Diagnostic> {
-        let pending = self
-            .new_profile
-            .then(|| match (id, self.slice(&s)) {
-                ("option", _) => ("J02", Stage::Types, Operation::TypesCheck),
-                ("match", _) => ("J03", Stage::Types, Operation::TypesCheck),
-                ("match_mode", _) => ("J04", Stage::Types, Operation::TypesCheck),
-                ("match_guard", _) => ("J05", Stage::Types, Operation::TypesCheck),
-                ("closure", _) => ("J06", Stage::Types, Operation::TypesCheck),
-                ("generator", "yield" | "Next") => ("J11", Stage::Types, Operation::TypesCheck),
-                ("generator", _) => ("J10", Stage::Types, Operation::TypesCheck),
-                ("for_iteration" | "loop_control", _) => {
-                    ("J13", Stage::Parse, Operation::SyntaxParse)
-                }
-                _ => ("", Stage::Parse, Operation::SyntaxParse),
-            })
-            .filter(|(scope, _, _)| !scope.is_empty());
         let mut d = self.base(
             "NX-E0006",
             if matches!(id, "unsupported_type" | "option") {
@@ -2981,15 +3020,6 @@ impl Parser<'_> {
             s.clone(),
             "Recognized construct is outside the profile.",
         );
-        if let Some((scope, stage, operation)) = pending {
-            d.stage = stage;
-            d.operation = operation;
-            d.message = format!("Capacidad pendiente de implementaci\u{f3}n en {scope}.");
-            d.feature_id = Some("implementation_limit".into());
-            d.data
-                .insert("pending_scope".into(), DataValue::String(scope.into()));
-            return d;
-        }
         d.feature_id = Some(id.into());
         if id == "receiver_mode" && self.new_profile {
             d.stage = Stage::Names;
@@ -3436,6 +3466,7 @@ mod b_tests {
             new_profile: false,
             pending_match: None,
             guard_context: 0,
+            callable_count: 0,
         };
         parser.expect_type_close().unwrap();
         assert_eq!(
@@ -3553,6 +3584,7 @@ mod b_tests {
                 new_profile: false,
                 pending_match: None,
                 guard_context: 0,
+                callable_count: 0,
             };
             let result = parser.statement(false, 0);
             assert_eq!(result.is_err(), expect_error, "{source}");

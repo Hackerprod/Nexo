@@ -300,6 +300,7 @@ fn compile_scalar_with_analysis_limits(
     if let Err(CompileError::Rejected(errors)) = &mut result {
         for error in errors {
             error.profile_id = limits.profile_id.into();
+            crate::check::names::sort_related(error);
             if let Err(reason) = error.validate(file, source) {
                 eprintln!("invalid compiler diagnostic: {reason}");
                 return Err(CompileError::InvalidIr("invalid compiler diagnostic"));
@@ -341,7 +342,7 @@ fn compile_scalar_with_analysis_limits_unchecked(
     let measure_cfg = super::cfg_measure_active();
     let lowered = std::thread::scope(|scope| {
         std::thread::Builder::new()
-            .stack_size(16 * 1024 * 1024)
+            .stack_size(crate::frontend_stack_size("LOWERING"))
             .spawn_scoped(scope, || {
                 #[cfg(test)]
                 if measure_cfg {
@@ -4261,6 +4262,23 @@ impl Lower<'_> {
         self.expr_mode(e, depth, expected, false)
     }
     fn expr_mode(
+        &mut self,
+        e: &Expr,
+        depth: usize,
+        expected: Option<&Ty>,
+        borrow: bool,
+    ) -> Result<Flow, CompileError> {
+        // Parentheses have no lowering operation of their own. Peel the whole
+        // chain here so accepted syntax depth does not repeat this large frame.
+        let mut inner = e;
+        let mut inner_depth = depth;
+        while let Expr::Group(next, _) = inner {
+            inner = next;
+            inner_depth += 1;
+        }
+        self.expr_mode_non_group(inner, inner_depth, expected, borrow)
+    }
+    fn expr_mode_non_group(
         &mut self,
         e: &Expr,
         depth: usize,

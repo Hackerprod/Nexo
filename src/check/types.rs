@@ -4099,6 +4099,7 @@ impl Checker<'_> {
             );
             return Err(error);
         }
+        let inferred_values = self.inferred_value_depth(ty);
         let mut arrays = 0;
         let mut values = 0;
         let mut work = vec![(ty, 0usize, 0usize)];
@@ -4127,8 +4128,8 @@ impl Checker<'_> {
         }
         let (kind, observed) = if arrays > 128 {
             ("array_type_depth", arrays)
-        } else if values > 128 {
-            ("value_type_depth", values)
+        } else if values.max(inferred_values) > 128 {
+            ("value_type_depth", values.max(inferred_values))
         } else {
             return Ok(());
         };
@@ -4145,6 +4146,67 @@ impl Checker<'_> {
         d.data
             .insert("observed".into(), DataValue::UInt(observed as u64));
         Err(d)
+    }
+
+    fn inferred_value_depth(&self, ty: &Type) -> usize {
+        enum Part<'a> {
+            Ty(&'a Type),
+            Var(u64),
+        }
+        let mut work = vec![(Part::Ty(ty), 0_usize)];
+        let mut deepest = 0;
+        while let Some((part, depth)) = work.pop() {
+            deepest = deepest.max(depth);
+            if depth > 128 {
+                return depth;
+            }
+            match part {
+                Part::Ty(Type::Array(child)) => work.push((Part::Ty(child), depth + 1)),
+                Part::Ty(Type::Union(_, first, second)) => {
+                    work.push((Part::Ty(first), depth + 1));
+                    if let Some(second) = second {
+                        work.push((Part::Ty(second), depth + 1));
+                    }
+                }
+                Part::Ty(Type::Generator { item, .. }) => work.push((Part::Ty(item), depth + 1)),
+                Part::Ty(Type::Closure { site, .. }) => {
+                    deepest = deepest.max(depth + 1);
+                    if let Some(draft) = self.closures.get(site) {
+                        for (_, mode, _, _, _, captured, _) in &draft.captures {
+                            if matches!(mode, CaptureMode::Copy | CaptureMode::Move) {
+                                work.push((Part::Ty(captured), depth + 1));
+                            }
+                        }
+                    }
+                }
+                Part::Ty(Type::Deferred(id)) => work.push((Part::Var(*id), depth)),
+                Part::Var(id) => {
+                    let mut root = id;
+                    while let Some(node) = self.type_nodes.get(&root) {
+                        if node.parent == root {
+                            break;
+                        }
+                        root = node.parent;
+                    }
+                    let Some(node) = self.type_nodes.get(&root) else {
+                        continue;
+                    };
+                    if let Some((concrete, _)) = &node.concrete {
+                        work.push((Part::Ty(concrete), depth));
+                    } else if let Some(child) = node.array_child {
+                        work.push((Part::Var(child), depth + 1));
+                    } else if let Some(children) = node.variant_children {
+                        for variant in children.variants {
+                            if let Some(child) = variant.payload {
+                                work.push((Part::Var(child), depth + 1));
+                            }
+                        }
+                    }
+                }
+                _ => {}
+            }
+        }
+        deepest
     }
 
     fn type_annotation_span(&self, start: u64, end: u64, marker: &str) -> Option<Span> {
@@ -7043,6 +7105,34 @@ impl Checker<'_> {
             .map(|ty| Type::from(&ty))
             .unwrap_or(inferred);
         let selected_origin = Self::primary_span(&selection.scrutinee);
+        if internal_state(&selected).is_some() {
+            for (union, span) in self.pending_variant_constructors() {
+                if selection.scrutinee.span().start <= span.start
+                    && span.end <= selection.scrutinee.span().end
+                {
+                    let mut paths = Vec::new();
+                    self.unresolved_union_paths(union, "$".into(), 0, &mut paths);
+                    if !paths.is_empty() {
+                        let scrutinee_span = selection.scrutinee.span();
+                        self.pending.retain(|entry| !matches!(entry,
+                            PendingConstraint::VariantConstructor { span, .. }
+                            if scrutinee_span.start <= span.start && span.end <= scrutinee_span.end
+                        ));
+                        let mut diagnostic = names::diagnostic(
+                            "NX-E0113",
+                            None,
+                            Stage::Types,
+                            Operation::TypesInfer,
+                            span,
+                        );
+                        diagnostic
+                            .data
+                            .insert("unresolved_components".into(), DataValue::Array(paths));
+                        return Err(diagnostic);
+                    }
+                }
+            }
+        }
         let mut previous: Vec<&Pattern> = Vec::new();
         let mut joined: Option<(Type, Span)> = None;
         for arm in &selection.arms {
@@ -7083,11 +7173,16 @@ impl Checker<'_> {
                     joined.as_ref().map(|(ty, span)| (ty, span)),
                     false,
                 )?;
+                let value = value.or_else(|| {
+                    branch_value_expr(&arm.body)
+                        .and_then(|expr| self.expression_variable(expr))
+                        .map(Type::Deferred)
+                });
                 if !failed && let Some(value) = value {
                     let origin =
                         branch_value_span(&arm.body).unwrap_or_else(|| arm.body.span.clone());
                     if let Some((first, first_origin)) = &joined {
-                        self.unify(
+                        let unified = self.unify(
                             first.clone(),
                             value.clone(),
                             first_origin.clone(),
@@ -7095,6 +7190,7 @@ impl Checker<'_> {
                             origin,
                             expected.is_none(),
                         )?;
+                        joined = Some((unified, first_origin.clone()));
                     } else {
                         joined = Some((value, origin));
                     }
@@ -7117,7 +7213,14 @@ impl Checker<'_> {
             return Err(diagnostic);
         }
         Ok(if expression {
-            joined.map_or_else(|| expected.cloned().unwrap_or(Type::Never), |(ty, _)| ty)
+            joined.map_or_else(
+                || expected.cloned().unwrap_or(Type::Never),
+                |(ty, _)| {
+                    self.resolved_syntax_type(&ty)
+                        .map(|resolved| Type::from(&resolved))
+                        .unwrap_or(ty)
+                },
+            )
         } else {
             Type::Unit
         })
@@ -10119,11 +10222,30 @@ mod quota_tests {
         // F0-0002 §4.1.2.2/RD127 and §11.1: the generated source exercises
         // the normative solver limit; its debug AST needs a wider test stack.
         std::thread::Builder::new()
-            .stack_size(16 * 1024 * 1024)
+            .stack_size(crate::frontend_stack_size("SOLVER_TEST"))
             .spawn(default_solver_limit_on_wide_stack)
             .unwrap()
             .join()
             .unwrap();
+    }
+
+    #[test]
+    fn measured_solver_test_stack_minimum_still_accepts_last_granted_step() {
+        let minimum = if cfg!(debug_assertions) { 4096 } else { 512 };
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "check::types::quota_tests::default_solver_limit_accepts_its_last_granted_step",
+            ])
+            .env("NEXO_PROBE_SOLVER_TEST_KIB", minimum.to_string())
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{minimum} KiB: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 
     fn default_solver_limit_on_wide_stack() {

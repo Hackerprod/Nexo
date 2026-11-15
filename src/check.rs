@@ -203,7 +203,7 @@ fn check_ast_with_worker_failure(
             Err(std::io::Error::other("injected checker worker failure"))
         } else {
             std::thread::Builder::new()
-                .stack_size(16 * 1024 * 1024)
+                .stack_size(crate::frontend_stack_size("CHECKER"))
                 .spawn_scoped(scope, move || {
                     #[cfg(test)]
                     let _allocation_capture = crate::test_alloc::capture_for(file);

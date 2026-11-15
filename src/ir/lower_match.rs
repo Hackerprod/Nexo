@@ -594,6 +594,7 @@ impl Lower<'_> {
         }
         self.dead_depth -= 1;
         if branch_mode == EmissionMode::Live {
+            let fallback_temps = self.temp_undo.len();
             let fallback = BlockId(self.blocks.len());
             for branch in previous_branches {
                 if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
@@ -626,6 +627,7 @@ impl Lower<'_> {
                 span: selection.span.clone(),
                 charges: Vec::new(),
             });
+            self.restore_temps(fallback_temps);
         }
         let join = BlockId(self.blocks.len());
         for end in ends {

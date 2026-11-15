@@ -1564,6 +1564,54 @@ gen públicas, préstamos externos con procedencia, tipos de callback escritos,
 retains/from, actores, regiones y publicación son límites explícitos, no
 supuestos satisfechos por el modelo local.
 
+### 10.3. Mínimo de pila del front-end en Windows (decisión del coordinador, 2026-11-14)
+
+Se aplica la cláusula de §13.2 que permite registrar el mínimo exigido por la
+plataforma y repetir la batería integrada en una plataforma que admita 256 KiB.
+La medición aisló cada fase en un proceso y probó potencias de dos desde
+256 KiB, en debug y release. Incluyó 126 bloques, 126 paréntesis, arrays,
+binarios e `if` anidados, 128 accesos de índice independientes, mezcla de
+bloques y paréntesis, 2.000 instrucciones, 500 capturas y 200 estados suspendidos.
+Los mínimos no cambian `syntax_nesting=128` ni la semántica del programa.
+
+| Fase | Mínimo debug | Mínimo release | Worker debug/release |
+|---|---:|---:|---:|
+| Parser | 8.192 KiB | 1.024 KiB | 16.384 / 2.048 KiB |
+| Checker (names, types, ownership, effects) | 8.192 KiB | 1.024 KiB | 16.384 / 2.048 KiB |
+| Lowering | 8.192 KiB | 1.024 KiB | 16.384 / 2.048 KiB |
+| Verificador de IR, aislado | 256 KiB | 256 KiB | Dentro de lowering; reverificación previa al worker de ejecución con la pila del front-end |
+| Formateador | 1.024 KiB | 256 KiB | 2.048 / 512 KiB |
+| Destrucción de AST/IR y valores, aislada | 256 KiB | 256 KiB | En el hilo llamador |
+| Hilo del arnés de cuota del solucionador | 4.096 KiB | 512 KiB | 8.192 / 1.024 KiB |
+
+Ejemplo válido: `fn Main(){` + 126 aperturas `{` + `let x=1;` + 126
+cierres `}` + `}`; `check` acepta y `run` devuelve unidad. La variante
+con 129 aperturas y cierres se rechaza antes del análisis semántico con
+`NX-E0003`, `stage=parse`, `operation=analysis.limit`,
+`budget_kind=syntax_nesting`, `limit=128`, `observed=129`, primario en la
+apertura 129 y salida 1. No se añade otro diagnóstico. J16 repetirá todas las familias
+con front-end íntegro a 256 KiB en una plataforma que lo permita.
+
+### 10.4. Claves de cuotas y profundidad nominal (decisión del coordinador, 2026-11-14)
+
+En §7.2, `budget_kind=call_frames` nombra la cuota, no una clave JSON nueva.
+El diagnóstico R0002 conserva la clave `runtime_budget_kind` de A2 §13.17.
+Ejemplo válido: la fuente frames-8 de §7.2 con profundidad 8 ejecuta con
+`diagnostics=[]`. La misma fuente con profundidad 9 emite un único R0002,
+`stage=runtime`, `operation=runtime.limit`, `runtime_budget_kind=call_frames`,
+`limit=8`, `observed=9`, primario [64,68), sin observaciones ni reserva final.
+
+`value_type_depth` cuenta los constructores del tipo compuesto: Array,
+Option, Result, closure y estado nominal Generator. Recorre los componentes
+del tipo y los campos propietarios de una closure; la cadena de llamadas a
+generadores distintos se rige por `call_frames`, sin expandir las firmas de
+otros generadores como si fueran un único tipo fuente recursivo. Ejemplo
+válido: `gen fn G()->I64{yield 1;}fn Main(){let g=G();let o=Some(move g);}`.
+La misma fuente con 129 envoltorios `Some(move ...)` consecutivos se rechaza
+con NX-E0003, `stage=types`, `operation=analysis.limit`,
+`budget_kind=value_type_depth`, `limit=128`, `observed=129`, en el primer
+envoltorio que rebasa la cota.
+
 ## 11. EX04 reducido ejecutable
 
 La reducción conserva generación perezosa, for, entrega por valor y consumo
