@@ -1,0 +1,73 @@
+{
+  "original_sha256": "16ff7f5bca36482793d335150718e3f4f8d8012da53fa702a77ea5d3db3d6f97",
+  "restored_sha256": "16ff7f5bca36482793d335150718e3f4f8d8012da53fa702a77ea5d3db3d6f97",
+  "mode": "fast, one pass, explicit interpreter stack only",
+  "mutants": [
+    {
+      "name": "resume_instruction_offset",
+      "replacement": [
+        "frame.pc = pc;",
+        "frame.pc = 0;"
+      ],
+      "mutant_sha256": "9bd93dfb12f91f04cc9889c4d7c426d4b47b091d77345ae869d4676fbc6f6550",
+      "exit_code": 101,
+      "detected": true,
+      "evidence": "ror\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n  left: 2\n right: 1\n\n---- published_new_operation_work_totals stdout ----\n\nthread 'published_new_operation_work_totals' (80152) panicked at tests\\j14_accounting.rs:96:9:\nassertion `left == right` failed: T03: {\"schema_version\":1,\"profile_id\":\"f0-0003-b-v1\",\"outcome\":{\"kind\":\"driver_error\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n  left: 2\n right: 0\n\n\nfailures:\n    next_output_tag_coexists_with_suspended_generator_headers\n    published_frame_depths_count_main_closure_advance_and_calls\n    published_new_operation_work_totals\n    recursive_calls_reach_the_normal_frame_limit_on_256_kib_worker\n\ntest result: FAILED. 5 passed; 4 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.18s\n\nerror: test failed, to rerun pass `--test j14_accounting`\n"
+    },
+    {
+      "name": "retain_parent_continuation",
+      "replacement": [
+        "frame.continuation = Some(plan.continuation);",
+        "frame.continuation = None;"
+      ],
+      "mutant_sha256": "8002f54c6c4698869a4117866d092222dc8bab1a70ad2a7f90f3dac31a2909d7",
+      "exit_code": 101,
+      "detected": true,
+      "evidence": "(157700) panicked at tests\\j14_accounting.rs:96:9:\nassertion `left == right` failed: T03: {\"schema_version\":1,\"profile_id\":\"f0-0003-b-v1\",\"outcome\":{\"kind\":\"driver_error\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n  left: 2\n right: 0\n\n\nfailures:\n    next_output_tag_coexists_with_suspended_generator_headers\n    published_frame_depths_count_main_closure_advance_and_calls\n    published_new_operation_work_totals\n\ntest result: FAILED. 6 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.11s\n\nwarning: field `continuation` is never read\n   --> src\\interp\\machine.rs:496:5\n    |\n494 | struct CallPlan<'a> {\n    |        -------- field in this struct\n495 |     input: FrameInput<'a>,\n496 |     continuation: Continuation,\n    |     ^^^^^^^^^^^^\n    |\n    = note: `#[warn(dead_code)]` (part of `#[warn(unused)]`) on by default\n\nerror: test failed, to rerun pass `--test j14_accounting`\n"
+    },
+    {
+      "name": "deliver_child_result",
+      "replacement": [
+        "parent.completed_call = Some(result);",
+        "parent.completed_call = None;"
+      ],
+      "mutant_sha256": "cb16e1cdb3cbbc5292abe9c0a8c6b75614c148046641b345eaec8f1d441cd23e",
+      "exit_code": 101,
+      "detected": true,
+      "evidence": "ofile_id\":\"f0-0003-b-test-frames-8-v1\",\"outcome\":{\"kind\":\"driver_error\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n  left: 2\n right: 0\n\n---- published_new_operation_work_totals stdout ----\n\nthread 'published_new_operation_work_totals' (41404) panicked at tests\\j14_accounting.rs:96:9:\nassertion `left == right` failed: T03: {\"schema_version\":1,\"profile_id\":\"f0-0003-b-v1\",\"outcome\":{\"kind\":\"driver_error\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n  left: 2\n right: 0\n\n\nfailures:\n    next_output_tag_coexists_with_suspended_generator_headers\n    published_frame_depths_count_main_closure_advance_and_calls\n    published_new_operation_work_totals\n\ntest result: FAILED. 6 passed; 3 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.32s\n\nerror: test failed, to rerun pass `--test j14_accounting`\n"
+    },
+    {
+      "name": "count_active_frames",
+      "replacement": [
+        "self.frames += 1;",
+        "self.frames += 2;"
+      ],
+      "mutant_sha256": "8d5a0e1a8a4974435d866813e3882f0bb480a2e108a2174cc8d95e04263ead66",
+      "exit_code": 101,
+      "detected": true,
+      "evidence": "ytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[{\"schema_version\":1,\"diagnostic_namespace\":\"F0-0002-sim\",\"profile_id\":\"f0-0003-b-test-frames-8-v1\",\"code\":\"R0002\",\"subcause\":null,\"rule\":\"R0002\",\"explanation_id\":null,\"severity\":\"error\",\"stage\":\"runtime\",\"message\":\"Fallo del simulador.\",\"operation\":\"runtime.limit\",\"primary_span\":{\"file\":\"D:\\\\nexo-work\\\\tmp\\\\nexo-j14-131100-run-166.n\",\"start\":8,\"end\":12},\"related_spans\":[],\"cause_chain\":[],\"feature_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{\"limit\":8,\"observed\":9,\"runtime_budget_kind\":\"call_frames\"}}]}\n\n  left: 1\n right: 0\nnote: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n\nfailures:\n    published_frame_depths_count_main_closure_advance_and_calls\n\ntest result: FAILED. 8 passed; 1 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.80s\n\nerror: test failed, to rerun pass `--test j14_accounting`\n"
+    },
+    {
+      "name": "release_active_frame",
+      "replacement": [
+        "self.frames -= 1;",
+        "self.frames -= 2;"
+      ],
+      "mutant_sha256": "3603064a1fde66d918cc53e0615dd2f9c2075289c5687377fe5f570e8314545a",
+      "exit_code": 101,
+      "detected": true,
+      "evidence": "normal_frame_limit_on_256_kib_worker' (51544) panicked at tests\\j14_accounting.rs:164:5:\nassertion `left == right` failed: {\"schema_version\":1,\"profile_id\":\"f0-0003-b-v1\",\"outcome\":{\"kind\":\"driver_error\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n  left: 2\n right: 1\n\n\nfailures:\n    cold_empty_slots_do_not_release_phantom_cells_on_drop\n    cold_generator_headers_enforce_the_cells_64_boundary\n    match_charges_only_pattern_nodes_reached_in_preorder\n    next_output_tag_coexists_with_suspended_generator_headers\n    published_frame_depths_count_main_closure_advance_and_calls\n    published_new_operation_work_totals\n    recursive_calls_reach_the_normal_frame_limit_on_256_kib_worker\n    retained_generator_resource_keeps_its_close_reservation\n\ntest result: FAILED. 1 passed; 8 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.25s\n\nerror: test failed, to rerun pass `--test j14_accounting`\n"
+    },
+    {
+      "name": "advance_instruction_cursor",
+      "replacement": [
+        "pc += 1;",
+        "pc += 2;"
+      ],
+      "mutant_sha256": "b2e32bfc21175e18c0573627688ddc43006b3df0edd8230d2708f613837904ad",
+      "exit_code": 101,
+      "detected": true,
+      "evidence": "- published_new_operation_work_totals stdout ----\n\nthread 'published_new_operation_work_totals' (136124) panicked at tests\\j14_accounting.rs:96:9:\nassertion `left == right` failed: minimum: {\"schema_version\":1,\"profile_id\":\"f0-0003-b-v1\",\"outcome\":{\"kind\":\"driver_error\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n  left: 2\n right: 0\n\n\nfailures:\n    cold_empty_slots_do_not_release_phantom_cells_on_drop\n    cold_generator_headers_enforce_the_cells_64_boundary\n    match_charges_only_pattern_nodes_reached_in_preorder\n    next_output_tag_coexists_with_suspended_generator_headers\n    published_frame_depths_count_main_closure_advance_and_calls\n    published_new_operation_work_totals\n    retained_generator_resource_keeps_its_close_reservation\n\ntest result: FAILED. 2 passed; 7 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.28s\n\nerror: test failed, to rerun pass `--test j14_accounting`\n"
+    }
+  ]
+}
