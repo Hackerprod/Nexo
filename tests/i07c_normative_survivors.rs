@@ -517,8 +517,8 @@ fn independent_causal_sites_survive_deferred_resolution() {
             })
             .collect();
         assert_eq!(&actual, expected, "{name}: {source}");
-        for error in &errors {
-            error.validate(&file, &source).unwrap();
+        for mut error in errors {
+            error.publish(&file, &source).unwrap();
         }
         assert!(
             matches!(check_scalar(&file, &source), Err(CompileError::Rejected(_))),
