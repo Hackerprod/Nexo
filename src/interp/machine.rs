@@ -93,7 +93,6 @@ impl ReducedExecutionProfile {
         })
     }
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
 enum Value {
     Int(i64),
     Bool(bool),
@@ -116,6 +115,125 @@ enum Value {
     Generator(Box<GeneratorValue>),
     Loan(LoanValue),
 }
+impl std::fmt::Debug for Value {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.text())
+    }
+}
+#[derive(Clone, Copy)]
+enum BorrowWalk {
+    Structure,
+    Cells,
+    Display,
+    PairWork,
+    OwnsResource,
+}
+impl Clone for Value {
+    fn clone(&self) -> Self {
+        self.copy_value(false)
+    }
+}
+
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        let mut pending = vec![(self, other)];
+        while let Some((left, right)) = pending.pop() {
+            match (left, right) {
+                (Self::Int(a), Self::Int(b)) if a == b => {}
+                (Self::Bool(a), Self::Bool(b)) if a == b => {}
+                (Self::Unit, Self::Unit) => {}
+                (
+                    Self::Resource {
+                        id: a,
+                        label: al,
+                        blocking: ab,
+                    },
+                    Self::Resource {
+                        id: b,
+                        label: bl,
+                        blocking: bb,
+                    },
+                ) if (a, al, ab) == (b, bl, bb) => {}
+                (Self::Loan(a), Self::Loan(b)) if a == b => {}
+                (Self::Array(a, ac), Self::Array(b, bc)) if ac == bc && a.len() == b.len() => {
+                    pending.extend(
+                        left.children(BorrowWalk::Structure)
+                            .into_iter()
+                            .zip(right.children(BorrowWalk::Structure)),
+                    );
+                }
+                (
+                    Self::Union {
+                        kind: ak,
+                        tag: at,
+                        payload: av,
+                    },
+                    Self::Union {
+                        kind: bk,
+                        tag: bt,
+                        payload: bv,
+                    },
+                ) if ak == bk && at == bt => {
+                    if av.is_some() != bv.is_some() {
+                        return false;
+                    }
+                    pending.extend(
+                        left.children(BorrowWalk::Structure)
+                            .into_iter()
+                            .zip(right.children(BorrowWalk::Structure)),
+                    );
+                }
+                (
+                    Self::Closure {
+                        site: a,
+                        fields: af,
+                    },
+                    Self::Closure {
+                        site: b,
+                        fields: bf,
+                    },
+                ) if a == b && af.len() == bf.len() => pending.extend(
+                    left.children(BorrowWalk::Structure)
+                        .into_iter()
+                        .zip(right.children(BorrowWalk::Structure)),
+                ),
+                (Self::Generator(a), Self::Generator(b))
+                    if a.site == b.site
+                        && a.state == b.state
+                        && a.borrowed == b.borrowed
+                        && a.edits == b.edits
+                        && a.slots.len() == b.slots.len()
+                        && a.temps.len() == b.temps.len() =>
+                {
+                    for (x, y) in a.slots.iter().zip(&b.slots) {
+                        match (x, y) {
+                            (Some(_), Some(_)) => {}
+                            (None, None) => {}
+                            _ => return false,
+                        }
+                    }
+                    for (x, y) in a.temps.iter().zip(&b.temps) {
+                        match (x, y) {
+                            (Some(TempValue::Own(_)), Some(TempValue::Own(_)))
+                            | (Some(TempValue::ReadScalar(_)), Some(TempValue::ReadScalar(_))) => {}
+                            (Some(x), Some(y)) if x == y => {}
+                            (None, None) => {}
+                            _ => return false,
+                        }
+                    }
+                    pending.extend(
+                        left.children(BorrowWalk::Structure)
+                            .into_iter()
+                            .zip(right.children(BorrowWalk::Structure)),
+                    );
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
+}
+impl Eq for Value {}
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct GeneratorValue {
     site: u64,
@@ -142,40 +260,124 @@ impl PartialEq for LoanValue {
     }
 }
 impl Eq for LoanValue {}
-fn drop_shadow(value: Value) {
-    let mut pending = vec![value];
-    while let Some(value) = pending.pop() {
-        match value {
-            Value::Union {
-                payload: Some(value),
-                ..
-            } => pending.push(*value),
-            Value::Array(values, _) => {
-                if let Ok(values) = Rc::try_unwrap(values) {
-                    pending.extend(values);
-                }
+// Moving children out before their container is dropped keeps Rust's implicit
+// destructor off source-value depth. The flag selects observable ownership:
+// borrowed slots and read scalars never close a resource.
+fn descend_owned(
+    value: Value,
+    close: bool,
+    pending: &mut Vec<(Value, bool)>,
+) -> Option<(u64, i64)> {
+    match value {
+        Value::Union {
+            payload: Some(value),
+            ..
+        } => pending.push((*value, close)),
+        Value::Array(values, _) => {
+            if let Ok(values) = Rc::try_unwrap(values) {
+                pending.extend(values.into_iter().map(|value| (value, close)));
             }
-            Value::Closure { fields, .. } => pending.extend(fields),
-            Value::Generator(generator) => {
-                pending.extend(generator.slots.into_iter().flatten());
-                pending.extend(generator.temps.into_iter().flatten().filter_map(
-                    |temp| match temp {
-                        TempValue::Own(value) | TempValue::ReadScalar(value) => Some(value),
-                        _ => None,
-                    },
-                ));
-            }
-            Value::Loan(loan) if Rc::strong_count(&loan.slot) == 1 => {
-                let shadow = loan.slot.borrow_mut().take();
-                if let Some(shadow) = shadow {
-                    pending.push(shadow);
-                }
-            }
-            _ => {}
         }
+        Value::Closure { fields, .. } => {
+            pending.extend(fields.into_iter().map(|value| (value, close)));
+        }
+        Value::Generator(generator) => {
+            pending.extend(
+                generator
+                    .slots
+                    .into_iter()
+                    .zip(generator.borrowed)
+                    .filter_map(|(value, borrowed)| value.map(|value| (value, close && !borrowed))),
+            );
+            pending.extend(
+                generator
+                    .temps
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|temp| match temp {
+                        TempValue::Own(value) => Some((value, close)),
+                        TempValue::ReadScalar(value) => Some((value, false)),
+                        _ => None,
+                    }),
+            );
+        }
+        Value::Loan(loan) if Rc::strong_count(&loan.slot) == 1 => {
+            let shadow = loan.slot.borrow_mut().take();
+            if let Some(shadow) = shadow {
+                pending.push((shadow, false));
+            }
+        }
+        Value::Resource { id, label, .. } if close => return Some((id, label)),
+        _ => {}
+    }
+    None
+}
+
+fn drop_shadow(value: Value) {
+    let mut pending = vec![(value, false)];
+    while let Some((value, close)) = pending.pop() {
+        debug_assert!(!close);
+        let _ = descend_owned(value, close, &mut pending);
     }
 }
 impl Value {
+    fn children(&self, policy: BorrowWalk) -> Vec<&Self> {
+        match self {
+            Self::Array(items, _)
+                if matches!(
+                    policy,
+                    BorrowWalk::Structure | BorrowWalk::Display | BorrowWalk::PairWork
+                ) =>
+            {
+                items.iter().collect()
+            }
+            Self::Union { payload, .. } => payload.iter().map(AsRef::as_ref).collect(),
+            Self::Closure { fields, .. }
+                if matches!(
+                    policy,
+                    BorrowWalk::Structure | BorrowWalk::Cells | BorrowWalk::OwnsResource
+                ) =>
+            {
+                fields.iter().collect()
+            }
+            Self::Generator(generator) if matches!(policy, BorrowWalk::Structure) => generator
+                .slots
+                .iter()
+                .flatten()
+                .chain(
+                    generator
+                        .temps
+                        .iter()
+                        .flatten()
+                        .filter_map(|temp| match temp {
+                            TempValue::Own(value) | TempValue::ReadScalar(value) => Some(value),
+                            _ => None,
+                        }),
+                )
+                .collect(),
+            Self::Generator(generator)
+                if matches!(policy, BorrowWalk::Cells | BorrowWalk::OwnsResource) =>
+            {
+                generator
+                    .slots
+                    .iter()
+                    .zip(&generator.borrowed)
+                    .filter_map(|(value, borrowed)| (!borrowed).then_some(value.as_ref()).flatten())
+                    .chain(
+                        generator
+                            .temps
+                            .iter()
+                            .flatten()
+                            .filter_map(|temp| match temp {
+                                TempValue::Own(value) => Some(value),
+                                _ => None,
+                            }),
+                    )
+                    .collect()
+            }
+            _ => Vec::new(),
+        }
+    }
     fn at_variant_path(&self, path: &[VariantTag]) -> Option<&Self> {
         let mut value = self;
         for tag in path {
@@ -216,69 +418,186 @@ impl Value {
     fn owns_resource(&self) -> bool {
         let mut pending = vec![self];
         while let Some(node) = pending.pop() {
-            match node {
-                Self::Resource { .. } => return true,
-                Self::Closure { fields, .. } => pending.extend(fields),
-                Self::Generator(generator) => {
-                    pending.extend(generator.slots.iter().zip(&generator.borrowed).filter_map(
-                        |(value, borrowed)| {
-                            if *borrowed { None } else { value.as_ref() }
-                        },
-                    ));
-                    pending.extend(generator.temps.iter().flatten().filter_map(
-                        |temp| match temp {
-                            TempValue::Own(value) => Some(value),
-                            _ => None,
-                        },
-                    ));
-                }
-                Self::Union {
-                    payload: Some(value),
-                    ..
-                } => pending.push(value),
-                _ => {}
+            if matches!(node, Self::Resource { .. }) {
+                return true;
             }
+            pending.extend(node.children(BorrowWalk::OwnsResource));
         }
         false
     }
-    fn deep_copy(&self) -> Self {
-        match self {
-            Self::Array(items, cells) => {
-                Self::Array(Rc::new(items.iter().map(Self::deep_copy).collect()), *cells)
-            }
-            Self::Union { kind, tag, payload } => Self::Union {
-                kind: *kind,
-                tag: *tag,
-                payload: payload.as_ref().map(|value| Box::new(value.deep_copy())),
-            },
-            Self::Closure { site, fields } => Self::Closure {
-                site: *site,
-                fields: fields.iter().map(Self::deep_copy).collect(),
-            },
-            _ => self.clone(),
+    fn copy_value(&self, deep_arrays: bool) -> Self {
+        enum Action<'a> {
+            Visit(&'a Value),
+            Array(usize, u64),
+            Union(UnionKind, VariantTag, bool),
+            Closure(u64, usize),
+            Generator(&'a GeneratorValue, usize),
         }
+        let mut actions = vec![Action::Visit(self)];
+        let mut built = Vec::new();
+        while let Some(action) = actions.pop() {
+            match action {
+                Action::Visit(Self::Int(value)) => built.push(Self::Int(*value)),
+                Action::Visit(Self::Bool(value)) => built.push(Self::Bool(*value)),
+                Action::Visit(Self::Unit) => built.push(Self::Unit),
+                Action::Visit(Self::Resource {
+                    id,
+                    label,
+                    blocking,
+                }) => built.push(Self::Resource {
+                    id: *id,
+                    label: *label,
+                    blocking: *blocking,
+                }),
+                Action::Visit(Self::Loan(loan)) => built.push(Self::Loan(loan.clone())),
+                Action::Visit(Self::Array(items, cells)) if !deep_arrays => {
+                    built.push(Self::Array(Rc::clone(items), *cells));
+                }
+                Action::Visit(value @ Self::Array(items, cells)) => {
+                    actions.push(Action::Array(items.len(), *cells));
+                    actions.extend(
+                        value
+                            .children(BorrowWalk::Structure)
+                            .into_iter()
+                            .rev()
+                            .map(Action::Visit),
+                    );
+                }
+                Action::Visit(value @ Self::Union { kind, tag, payload }) => {
+                    actions.push(Action::Union(*kind, *tag, payload.is_some()));
+                    actions.extend(
+                        value
+                            .children(BorrowWalk::Structure)
+                            .into_iter()
+                            .rev()
+                            .map(Action::Visit),
+                    );
+                }
+                Action::Visit(value @ Self::Closure { site, fields }) => {
+                    actions.push(Action::Closure(*site, fields.len()));
+                    actions.extend(
+                        value
+                            .children(BorrowWalk::Structure)
+                            .into_iter()
+                            .rev()
+                            .map(Action::Visit),
+                    );
+                }
+                Action::Visit(value @ Self::Generator(generator)) => {
+                    let children = value.children(BorrowWalk::Structure);
+                    let count = children.len();
+                    actions.push(Action::Generator(generator, count));
+                    actions.extend(children.into_iter().rev().map(Action::Visit));
+                }
+                Action::Array(len, cells) => {
+                    let items = built.split_off(built.len() - len);
+                    built.push(Self::Array(Rc::new(items), cells));
+                }
+                Action::Union(kind, tag, has_payload) => {
+                    let payload = has_payload.then(|| Box::new(built.pop().unwrap()));
+                    built.push(Self::Union { kind, tag, payload });
+                }
+                Action::Closure(site, len) => {
+                    let fields = built.split_off(built.len() - len);
+                    built.push(Self::Closure { site, fields });
+                }
+                Action::Generator(generator, count) => {
+                    let values = built.split_off(built.len() - count);
+                    let mut values = values.into_iter();
+                    let slots = generator
+                        .slots
+                        .iter()
+                        .map(|slot| slot.as_ref().map(|_| values.next().unwrap()))
+                        .collect();
+                    let temps = generator
+                        .temps
+                        .iter()
+                        .map(|temp| match temp {
+                            Some(TempValue::Own(_)) => Some(TempValue::Own(values.next().unwrap())),
+                            Some(TempValue::ReadScalar(_)) => {
+                                Some(TempValue::ReadScalar(values.next().unwrap()))
+                            }
+                            Some(TempValue::Borrow(id)) => Some(TempValue::Borrow(*id)),
+                            Some(TempValue::BorrowIndex(id, path)) => {
+                                Some(TempValue::BorrowIndex(*id, path.clone()))
+                            }
+                            Some(TempValue::Exclusive(id, path)) => {
+                                Some(TempValue::Exclusive(*id, path.clone()))
+                            }
+                            None => None,
+                        })
+                        .collect();
+                    built.push(Self::Generator(Box::new(GeneratorValue {
+                        site: generator.site,
+                        slots,
+                        temps,
+                        borrowed: generator.borrowed.clone(),
+                        edits: generator.edits.clone(),
+                        state: generator.state,
+                    })));
+                }
+            }
+        }
+        built.pop().unwrap()
     }
+
+    fn deep_copy(&self) -> Self {
+        self.copy_value(true)
+    }
+
     fn text(&self) -> String {
-        match self {
-            Self::Int(i) => i.to_string(),
-            Self::Bool(b) => b.to_string(),
-            Self::Unit => "()".into(),
-            Self::Array(xs, _) => format!(
-                "[{}]",
-                xs.iter().map(Self::text).collect::<Vec<_>>().join(", ")
-            ),
-            Self::Union { kind, tag, payload } => {
-                let name = kind.variant_name(*tag).unwrap_or("<invalid-variant>");
-                payload.as_ref().map_or_else(
-                    || name.to_owned(),
-                    |value| format!("{name}({})", value.text()),
-                )
-            }
-            Self::Resource { .. } => "<resource>".into(),
-            Self::Closure { .. } => "<closure>".into(),
-            Self::Generator(_) => "<generator>".into(),
-            Self::Loan(_) => "<loan>".into(),
+        enum Part<'a> {
+            Value(&'a Value),
+            Literal(&'static str),
+            Name(&'static str),
         }
+        let mut output = String::new();
+        let mut pending = vec![Part::Value(self)];
+        while let Some(part) = pending.pop() {
+            match part {
+                Part::Literal(text) | Part::Name(text) => output.push_str(text),
+                Part::Value(Self::Int(value)) => output.push_str(&value.to_string()),
+                Part::Value(Self::Bool(value)) => {
+                    output.push_str(if *value { "true" } else { "false" })
+                }
+                Part::Value(Self::Unit) => output.push_str("()"),
+                Part::Value(Self::Resource { .. }) => output.push_str("<resource>"),
+                Part::Value(Self::Closure { .. }) => output.push_str("<closure>"),
+                Part::Value(Self::Generator(_)) => output.push_str("<generator>"),
+                Part::Value(Self::Loan(_)) => output.push_str("<loan>"),
+                Part::Value(value @ Self::Array(..)) => {
+                    pending.push(Part::Literal("]"));
+                    for (index, item) in value
+                        .children(BorrowWalk::Display)
+                        .into_iter()
+                        .enumerate()
+                        .rev()
+                    {
+                        pending.push(Part::Value(item));
+                        if index != 0 {
+                            pending.push(Part::Literal(", "));
+                        }
+                    }
+                    pending.push(Part::Literal("["));
+                }
+                Part::Value(value @ Self::Union { kind, tag, payload }) => {
+                    let name = kind.variant_name(*tag).unwrap_or("<invalid-variant>");
+                    if payload.is_some() {
+                        pending.push(Part::Literal(")"));
+                        pending.push(Part::Value(
+                            value
+                                .children(BorrowWalk::Display)
+                                .into_iter()
+                                .next()
+                                .unwrap(),
+                        ));
+                        pending.push(Part::Literal("("));
+                    }
+                    pending.push(Part::Name(name));
+                }
+            }
+        }
+        output
     }
     fn has_ty(&self, ty: &Ty) -> bool {
         let mut pending = vec![(self, ty)];
@@ -324,33 +643,11 @@ impl Value {
         let mut total = 0;
         let mut pending = vec![self];
         while let Some(value) = pending.pop() {
-            match value {
-                Self::Array(_, cells) => total += cells,
-                Self::Union { payload, .. } => {
-                    total += 1;
-                    if let Some(value) = payload {
-                        pending.push(value);
-                    }
-                }
-                Self::Closure { fields, .. } => {
-                    total += 1;
-                    pending.extend(fields);
-                }
-                Self::Generator(generator) => {
-                    total += 1;
-                    pending.extend(generator.slots.iter().zip(&generator.borrowed).filter_map(
-                        |(value, borrowed)| (!borrowed).then_some(value.as_ref()).flatten(),
-                    ));
-                    pending.extend(generator.temps.iter().flatten().filter_map(|temp| {
-                        if let TempValue::Own(value) = temp {
-                            Some(value)
-                        } else {
-                            None
-                        }
-                    }));
-                }
-                _ => total += 1,
-            }
+            total += match value {
+                Self::Array(_, cells) => *cells,
+                _ => 1,
+            };
+            pending.extend(value.children(BorrowWalk::Cells));
         }
         total
     }
@@ -368,44 +665,49 @@ impl Value {
     }
 }
 fn equal_pairs(left: &Value, right: &Value) -> u64 {
-    match (left, right) {
-        (Value::Array(a, _), Value::Array(b, _)) => {
-            let mut work = 2u64;
-            if a.len() != b.len() {
-                return work;
-            }
-            for (x, y) in a.iter().zip(b.iter()) {
-                work = work.saturating_add(equal_pairs(x, y));
-                if x != y {
-                    break;
+    let mut pending = vec![(left, right)];
+    let mut work = 0u64;
+    while let Some((left, right)) = pending.pop() {
+        work = work.saturating_add(2);
+        match (left, right) {
+            (Value::Array(a, _), Value::Array(b, _)) if a.len() == b.len() => {
+                // The published work model stops at the first unequal item.
+                // Check that boundary iteratively before scheduling children.
+                let mut selected = Vec::new();
+                for (x, y) in left
+                    .children(BorrowWalk::PairWork)
+                    .into_iter()
+                    .zip(right.children(BorrowWalk::PairWork))
+                {
+                    selected.push((x, y));
+                    if x != y {
+                        break;
+                    }
                 }
+                pending.extend(selected.into_iter().rev());
             }
-            work
-        }
-        (
-            Value::Union {
-                kind: ak,
-                tag: a,
-                payload: x,
-            },
-            Value::Union {
-                kind: bk,
-                tag: b,
-                payload: y,
-            },
-        ) => {
-            if ak != bk || a != b {
-                2
-            } else {
-                2u64.saturating_add(
-                    x.as_ref()
-                        .zip(y.as_ref())
-                        .map_or(0, |(x, y)| equal_pairs(x, y)),
-                )
+            (
+                Value::Union {
+                    kind: ak,
+                    tag: at,
+                    payload: av,
+                },
+                Value::Union {
+                    kind: bk,
+                    tag: bt,
+                    payload: bv,
+                },
+            ) if ak == bk && at == bt && av.is_some() && bv.is_some() => {
+                pending.extend(
+                    left.children(BorrowWalk::PairWork)
+                        .into_iter()
+                        .zip(right.children(BorrowWalk::PairWork)),
+                );
             }
+            _ => {}
         }
-        _ => 2,
     }
+    work
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 enum TempValue {
@@ -949,45 +1251,11 @@ impl Machine {
             self.disposals += 1;
         }
         self.cells = self.cells.saturating_sub(value.cells());
-        let mut pending = vec![value];
-        while let Some(active) = pending.pop() {
-            match active {
-                Value::Union {
-                    payload: Some(value),
-                    ..
-                } => pending.push(*value),
-                Value::Array(values, _) => {
-                    if let Ok(values) = Rc::try_unwrap(values) {
-                        pending.extend(values);
-                    }
-                }
-                Value::Closure { fields, .. } => pending.extend(fields),
-                Value::Generator(generator) => {
-                    pending.extend(
-                        generator
-                            .slots
-                            .into_iter()
-                            .zip(generator.borrowed)
-                            .filter_map(|(value, borrowed)| (!borrowed).then_some(value).flatten()),
-                    );
-                    pending.extend(generator.temps.into_iter().flatten().filter_map(|temp| {
-                        match temp {
-                            TempValue::Own(value) => Some(value),
-                            _ => None,
-                        }
-                    }));
-                }
-                Value::Resource { id, label, .. } => {
-                    self.log
-                        .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
-                }
-                Value::Loan(loan) if Rc::strong_count(&loan.slot) == 1 => {
-                    let shadow = loan.slot.borrow_mut().take();
-                    if let Some(shadow) = shadow {
-                        drop_shadow(shadow);
-                    }
-                }
-                _ => {}
+        let mut pending = vec![(value, true)];
+        while let Some((active, close)) = pending.pop() {
+            if let Some((id, label)) = descend_owned(active, close, &mut pending) {
+                self.log
+                    .emit_reserved_event(format!("close:{id}:{label}"), "mock-resource:")?;
             }
         }
         Ok(())
