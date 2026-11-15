@@ -899,9 +899,6 @@ impl Diagnostic {
             let f = self.feature_id.as_deref().unwrap_or("");
             match f {
                 "function_value" => ("names", "names.resolve"),
-                "implementation_limit" if self.profile_id.starts_with("f0-0003-") => {
-                    (self.stage.as_str(), self.operation.as_str())
-                }
                 "closure"
                     if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Types =>
                 {
@@ -1350,28 +1347,7 @@ impl Diagnostic {
         enum_value("use_kind", &["value", "call_target"])?;
         enum_value(
             "pending_scope",
-            &[
-                "F0-0003",
-                "later_adr",
-                "I08",
-                "I09",
-                "I10a",
-                "I10b",
-                "I11a",
-                "J02",
-                "J03",
-                "J04",
-                "J05",
-                "J06",
-                "J07",
-                "J08",
-                "J09",
-                "J10",
-                "J11",
-                "J12",
-                "J13",
-                "J14",
-            ],
+            &["F0-0003", "later_adr", "I08", "I09", "I10a", "I10b", "I11a"],
         )?;
         enum_value("effect_evidence", &["known_effect", "unknown_effect"])?;
         enum_value("required_effect", &["alloc", "block", "suspend", "io"])?;
@@ -3984,16 +3960,46 @@ mod tests {
                 d.validate("decimal.n", "fn Main(){let x=0.5;}")
             );
         }
-        d.profile_id = "f0-0003-b-v1".into();
-        d.data
-            .insert("pending_scope".into(), DataValue::String("J02".into()));
-        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
-        d.profile_id = PROFILE_ID.into();
-        d.data.insert(
-            "pending_scope".into(),
-            DataValue::String("later_adr".into()),
-        );
-        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
+        for profile in [PROFILE_ID, "f0-0003-b-v1"] {
+            d.profile_id = profile.into();
+            if profile != PROFILE_ID {
+                for scope in ["I08", "I09", "I10a", "I10b", "I11a"] {
+                    d.data
+                        .insert("pending_scope".into(), DataValue::String(scope.into()));
+                    assert_eq!(
+                        d.validate("decimal.n", "fn Main(){let x=0.5;}")
+                            .unwrap_err()
+                            .0,
+                        "pending_scope does not match feature_id"
+                    );
+                }
+            }
+            for scope in [
+                "J02", "J03", "J04", "J05", "J06", "J07", "J08", "J09", "J10", "J11", "J12", "J13",
+                "J14",
+            ] {
+                d.data
+                    .insert("pending_scope".into(), DataValue::String(scope.into()));
+                let error = d
+                    .validate("decimal.n", "fn Main(){let x=0.5;}")
+                    .unwrap_err();
+                assert_eq!(
+                    error.0, "data.pending_scope is outside its closed vocabulary",
+                    "{profile}/{scope}"
+                );
+            }
+            d.data.insert(
+                "pending_scope".into(),
+                DataValue::String("later_adr".into()),
+            );
+            assert_eq!(
+                d.validate("decimal.n", "fn Main(){let x=0.5;}")
+                    .unwrap_err()
+                    .0,
+                "pending_scope does not match feature_id",
+                "{profile}"
+            );
+        }
         d.profile_id = "f0-0002-v1".into();
         d.data
             .insert("pending_scope".into(), DataValue::String("I08".into()));
