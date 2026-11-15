@@ -247,6 +247,60 @@ fn grouped_patterns_charge_shared_syntax_nesting() {
 }
 
 #[test]
+fn yield_requires_operand_and_continues_across_trivia() {
+    for separator in ["\n", "\r", "\r\n", " // comentario\r\n"] {
+        checked(&format!(
+            "gen fn G()->I64{{yield{separator}1;}}fn Main(){{let g=G();}}"
+        ));
+    }
+    for operand in [
+        "1",
+        "x",
+        "(x)",
+        "if true then{value:1;}else{value:2;}",
+        "match true{true=>{value:1;},false=>{value:2;}}",
+    ] {
+        checked(&format!(
+            "gen fn G()->I64{{let x=1;yield\n{operand};}}fn Main(){{}}"
+        ));
+    }
+    for source in [
+        "gen fn G(){yield;}fn Main(){}",
+        "gen fn G(){yield}fn Main(){}",
+        "gen fn G(){yield",
+    ] {
+        let report = rejected(source, "NX-E0002");
+        assert!(
+            report.contains("\"parser_context\":\"grammar.YieldStmt\"")
+                && report.contains("\"expected_tokens_kind\":\"admissible_set\"")
+                && report.contains("\"data\":{}"),
+            "{report}"
+        );
+    }
+}
+
+#[test]
+fn list_separators_require_next_element_except_match_arms() {
+    for source in [
+        "fn Main(){let f=fn [](x:view I64,){};}",
+        "fn Main(){let x=1;let f=fn [copy x,](){};}",
+        "fn Main(){let o:Option<I64>=Some(1);match o{Some(n,)=>{},None=>{}}}",
+        "fn Main(){let x=[1,];}",
+        "fn F(x:view I64,){}fn Main(){}",
+        "fn Main(){Print(1,);}",
+        "fn Main(){let x:Result<I64,>=Ok(1);}",
+    ] {
+        let report = rejected(source, "NX-E0002");
+        assert!(
+            report.contains("\"expected_tokens_kind\":\"admissible_set\"")
+                && report.contains("\"unexpected_token\":{"),
+            "{report}"
+        );
+    }
+    checked("fn Main(){let x=1;let f=fn [copy x](n:view I64){};match true{true=>{},false=>{},}}");
+}
+
+#[test]
 fn match_expression_unifies_deferred_option_arms() {
     checked("fn Main(){let x=match true{true=>{value:Some(1);},false=>{value:None;}};}");
     rejected(

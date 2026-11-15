@@ -1043,6 +1043,18 @@ enum GrammarState {
     Primary,
 }
 
+#[derive(Clone, Copy)]
+enum ListKind {
+    FunctionParameter,
+    Capture,
+    ClosureParameter,
+    Argument,
+    ArrayElement,
+    ConstructorPattern,
+    TypeArgument,
+    MatchArm,
+}
+
 // An `edit` argument is consumed by call binding. Descendants of that
 // argument, including index expressions, do not inherit that permission.
 fn unadmitted_edit_in_block(block: &Block) -> Option<Span> {
@@ -1257,6 +1269,73 @@ struct Parser<'a> {
     callable_count: usize,
 }
 impl Parser<'_> {
+    fn list_separator(&mut self, kind: ListKind, start: usize) -> Result<bool, Box<Diagnostic>> {
+        if !self.eat(",") {
+            return Ok(false);
+        }
+        let (close, context, element_first, trailing) = match kind {
+            ListKind::FunctionParameter => (")", "grammar.Parameter", PARAMETER_FIRST, false),
+            ListKind::Capture => (
+                "]",
+                "grammar.Capture",
+                &["copy", "edit", "move", "view"][..],
+                false,
+            ),
+            ListKind::ClosureParameter => (")", "grammar.ClosureParam", &["Name"][..], false),
+            ListKind::Argument => (
+                ")",
+                "grammar.Argument",
+                first(self.new_profile, FirstSet::Expr),
+                false,
+            ),
+            ListKind::ArrayElement => (
+                "]",
+                "array_element",
+                first(self.new_profile, FirstSet::Expr),
+                false,
+            ),
+            ListKind::ConstructorPattern => (
+                ")",
+                "grammar.Pattern",
+                &[
+                    "(",
+                    "IntLiteral",
+                    "Name",
+                    "_",
+                    "edit",
+                    "false",
+                    "move",
+                    "true",
+                ][..],
+                false,
+            ),
+            ListKind::TypeArgument => (
+                ">",
+                "grammar.Type",
+                first(self.new_profile, FirstSet::Type),
+                false,
+            ),
+            ListKind::MatchArm => (
+                "}",
+                "grammar.Arm",
+                &[
+                    "(",
+                    "IntLiteral",
+                    "Name",
+                    "_",
+                    "edit",
+                    "false",
+                    "move",
+                    "true",
+                ][..],
+                true,
+            ),
+        };
+        if self.eof() || (self.at_text(close) && !trailing) {
+            return Err(self.err(context, element_first, start, None));
+        }
+        Ok(true)
+    }
     fn charge_callable(&mut self, anchor: Span) -> Result<(), Box<Diagnostic>> {
         if self.callable_count == 1_024 {
             return Err(self.budget_error("function_count", 1_024, 1_025, anchor, Stage::Parse));
@@ -1363,26 +1442,10 @@ impl Parser<'_> {
                 ty,
                 span: self.span(ps, self.prev_end()),
             });
-            if !self.eat(",") {
+            if !self.list_separator(ListKind::FunctionParameter, self.peek().span.start as usize)? {
                 break;
             }
             after_comma = true;
-            if self.eof() {
-                return Err(self.err(
-                    "grammar.Parameter",
-                    PARAMETER_FIRST,
-                    self.peek().span.start as usize,
-                    None,
-                ));
-            }
-            if self.at_text(")") {
-                return Err(self.err(
-                    "grammar.Parameter",
-                    PARAMETER_FIRST,
-                    self.peek().span.start as usize,
-                    None,
-                ));
-            }
         }
         if self.eof() && !params.is_empty() {
             return Err(self.err(
@@ -1505,16 +1568,8 @@ impl Parser<'_> {
                     span: self.span(mode_token.span.start as usize, name.span.end as usize),
                     name_span: name.span,
                 });
-                if !self.eat(",") {
+                if !self.list_separator(ListKind::Capture, start)? {
                     break;
-                }
-                if self.at_text("]") {
-                    return Err(self.err(
-                        "grammar.Capture",
-                        &["copy", "edit", "move", "view"],
-                        start,
-                        None,
-                    ));
                 }
             }
             self.expect("]", "grammar.CaptureList", &[",", "]"], start)?;
@@ -1553,11 +1608,8 @@ impl Parser<'_> {
                 ty,
                 span,
             });
-            if !self.eat(",") {
+            if !self.list_separator(ListKind::ClosureParameter, start)? {
                 break;
-            }
-            if self.at_text(")") {
-                return Err(self.err("grammar.ClosureParam", &["Name"], start, None));
             }
         }
         self.expect(")", "grammar.ClosureExpr", &[")", ","], start)?;
@@ -1791,7 +1843,9 @@ impl Parser<'_> {
         } else if self.eat("Result") {
             self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
             let a = self.ty()?;
-            self.expect(",", "grammar.Type", &[","], self.prev_start())?;
+            if !self.list_separator(ListKind::TypeArgument, self.prev_start())? {
+                self.expect(",", "grammar.Type", &[","], self.prev_start())?;
+            }
             let b = self.ty()?;
             self.expect_type_close()?;
             Type::Result(Box::new(a), Box::new(b))
@@ -1967,7 +2021,7 @@ impl Parser<'_> {
             && matches!(self.peek().text.as_str(), "break" | "continue" | "yield")
         {
             let token = self.take();
-            if token.text == "yield" && (!self.starts_expr() || self.line_break_before_next()) {
+            if token.text == "yield" && !self.starts_expr() {
                 return Err(self.err(
                     "grammar.YieldStmt",
                     first(self.new_profile, FirstSet::Expr),
@@ -2355,26 +2409,10 @@ impl Parser<'_> {
                         value: v,
                         span: self.span(as_, self.prev_end()),
                     });
-                    if !self.eat(",") {
+                    if !self.list_separator(ListKind::Argument, self.peek().span.start as usize)? {
                         break;
                     }
                     after_comma = true;
-                    if self.eof() {
-                        return Err(self.err(
-                            "grammar.Argument",
-                            first(self.new_profile, FirstSet::Expr),
-                            self.peek().span.start as usize,
-                            None,
-                        ));
-                    }
-                    if self.at_text(")") {
-                        return Err(self.err(
-                            "grammar.Argument",
-                            first(self.new_profile, FirstSet::Expr),
-                            self.peek().span.start as usize,
-                            None,
-                        ));
-                    }
                 }
                 let end = self.peek().span.end as usize;
                 self.expect(
@@ -2740,26 +2778,10 @@ impl Parser<'_> {
                     ));
                 }
                 xs.push(self.expr(0)?);
-                if !self.eat(",") {
+                if !self.list_separator(ListKind::ArrayElement, st)? {
                     break;
                 }
                 after_comma = true;
-                if self.eof() {
-                    return Err(self.err(
-                        "array_element",
-                        first(self.new_profile, FirstSet::Expr),
-                        st,
-                        None,
-                    ));
-                }
-                if self.at_text("]") {
-                    return Err(self.err(
-                        "array_element",
-                        first(self.new_profile, FirstSet::Expr),
-                        st,
-                        None,
-                    ));
-                }
             }
             let end = self.peek().span.end as usize;
             self.expect(
@@ -2955,7 +2977,7 @@ impl Parser<'_> {
                 body,
                 span,
             });
-            if !self.eat(",") {
+            if !self.list_separator(ListKind::MatchArm, keyword.span.start as usize)? {
                 break;
             }
         }
@@ -3038,16 +3060,8 @@ impl Parser<'_> {
             let mut args = Vec::new();
             while !self.at_text(")") && !self.eof() {
                 args.push(self.pattern()?);
-                if !self.eat(",") {
+                if !self.list_separator(ListKind::ConstructorPattern, start)? {
                     break;
-                }
-                if self.at_text(")") {
-                    return Err(self.err(
-                        "grammar.Pattern",
-                        &["Name", "_", "IntLiteral", "true", "false", "("],
-                        start,
-                        None,
-                    ));
                 }
             }
             self.expect(")", "grammar.Pattern", &[")", ","], start)?;
