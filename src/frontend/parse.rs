@@ -1332,7 +1332,15 @@ impl Parser<'_> {
             ),
         };
         if self.eof() || (self.at_text(close) && !trailing) {
-            return Err(self.err(context, element_first, start, None));
+            let prefix_start = if matches!(
+                kind,
+                ListKind::FunctionParameter | ListKind::Argument | ListKind::TypeArgument
+            ) {
+                self.peek().span.start as usize
+            } else {
+                start
+            };
+            return Err(self.err(context, element_first, prefix_start, None));
         }
         Ok(true)
     }
