@@ -696,6 +696,10 @@ fn list_separators_require_next_element_except_match_arms() {
 #[test]
 fn match_expression_unifies_deferred_option_arms() {
     checked("fn Main(){let x=match true{true=>{value:Some(1);},false=>{value:None;}};}");
+    checked("fn Main(){let x=match true{true=>{value:None;},false=>{value:Some(1);}};}");
+    checked("fn Main(){let x=match 1{0=>{value:None;},1=>{value:Some(1);},_=>{value:None;}};}");
+    checked("fn Main(){let x:Option<I64>=match true{true=>{value:None;},false=>{value:Some(1);}};}");
+    checked("fn Main(){let x=match true{true=>{value:Ok(1);},false=>{value:Err(true);}};}");
     rejected(
         "fn Main(){let x=match true{true=>{value:Some(1);},false=>{value:Some(true);}};}",
         "NX-E1303",
