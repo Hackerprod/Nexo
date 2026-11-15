@@ -180,6 +180,43 @@ fn completed_features_use_syntax_errors_and_official_delimiters() {
 }
 
 #[test]
+fn retired_introducers_have_syntax_coordinates_in_each_parser_state() {
+    for source in [
+        "match",
+        "fn Main(){}for",
+        "continue Main(){}",
+        "fn Main(){let x=gen;}",
+        "fn Main(){let x=yield;}",
+        "fn Main(){var o:Option<I64>=break(1);}",
+        "fn Main(){let x=1;\r\nlet y=gen;}",
+    ] {
+        let report = rejected(source, "NX-E0002");
+        assert!(
+            report.contains("\"stage\":\"parse\"")
+                && report.contains("\"operation\":\"syntax.parse\"")
+                && report.contains("\"feature_id\":null")
+                && report.contains("\"expected_tokens_kind\":\"admissible_set\"")
+                && !report.contains("\"pending_scope\":\"J"),
+            "{source}: {report}"
+        );
+    }
+    for (source, feature) in [
+        (
+            "gen fn G()->I64{yield 1;}fn Main(){for edit x in G(){}}",
+            "for_iteration",
+        ),
+        ("fn Main(){let f=fn [](){};let a=[f];}", "closure"),
+    ] {
+        let report = rejected(source, "NX-E0006");
+        assert!(
+            report.contains(&format!("\"feature_id\":\"{feature}\""))
+                && report.contains("\"pending_scope\":\"later_adr\""),
+            "{report}"
+        );
+    }
+}
+
+#[test]
 fn match_expression_unifies_deferred_option_arms() {
     checked("fn Main(){let x=match true{true=>{value:Some(1);},false=>{value:None;}};}");
     rejected(

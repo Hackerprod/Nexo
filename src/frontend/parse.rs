@@ -134,6 +134,146 @@ const BRANCH_FIRST: &[&str] = &[
     "true",
     "{",
 ];
+const EXPR_START_NEW: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "true",
+];
+const TRY_START_NEW: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "move",
+    "true",
+];
+const BLOCK_NEXT_NEW: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "break",
+    "continue",
+    "edit",
+    "false",
+    "fn",
+    "for",
+    "if",
+    "let",
+    "match",
+    "move",
+    "return",
+    "true",
+    "var",
+    "while",
+    "yield",
+    "{",
+    "}",
+];
+const TYPE_START_NEW: &[&str] = &[
+    "(",
+    "Array",
+    "Bool",
+    "I64",
+    "MockBlockingResource",
+    "MockResource",
+    "Option",
+    "Result",
+];
+const POSTFIX_START_NEW: &[&str] = &["(", "-", "IntLiteral", "Name", "[", "false", "fn", "true"];
+const GROUP_FIRST_NEW: &[&str] = &[
+    "(",
+    ")",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "true",
+];
+const ARRAY_FIRST_NEW: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "]",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "true",
+];
+const BRANCH_FIRST_NEW: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "move",
+    "true",
+    "{",
+];
+
+#[derive(Clone, Copy)]
+enum FirstSet {
+    Expr,
+    Try,
+    Block,
+    Type,
+    Postfix,
+    Group,
+    Array,
+    Branch,
+    Module,
+}
+
+fn first(new_profile: bool, set: FirstSet) -> &'static [&'static str] {
+    match (new_profile, set) {
+        (true, FirstSet::Expr) => EXPR_START_NEW,
+        (true, FirstSet::Try) => TRY_START_NEW,
+        (true, FirstSet::Block) => BLOCK_NEXT_NEW,
+        (true, FirstSet::Type) => TYPE_START_NEW,
+        (true, FirstSet::Postfix) => POSTFIX_START_NEW,
+        (true, FirstSet::Group) => GROUP_FIRST_NEW,
+        (true, FirstSet::Array) => ARRAY_FIRST_NEW,
+        (true, FirstSet::Branch) => BRANCH_FIRST_NEW,
+        (true, FirstSet::Module) => &["EOF", "fn", "gen"],
+        (false, FirstSet::Expr) => EXPR_START,
+        (false, FirstSet::Try) => TRY_START,
+        (false, FirstSet::Block) => BLOCK_NEXT,
+        (false, FirstSet::Type) => TYPE_START,
+        (false, FirstSet::Postfix) => POSTFIX_START,
+        (false, FirstSet::Group) => GROUP_FIRST,
+        (false, FirstSet::Array) => ARRAY_FIRST,
+        (false, FirstSet::Branch) => BRANCH_FIRST,
+        (false, FirstSet::Module) => &["EOF", "fn"],
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ast {
@@ -896,6 +1036,13 @@ fn deferred_feature(word: &str) -> Option<&'static str> {
     }
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GrammarState {
+    ModuleItem,
+    BlockItem,
+    Primary,
+}
+
 // An `edit` argument is consumed by call binding. Descendants of that
 // argument, including index expressions, do not inherit that permission.
 fn unadmitted_edit_in_block(block: &Block) -> Option<Span> {
@@ -1112,13 +1259,7 @@ struct Parser<'a> {
 impl Parser<'_> {
     fn charge_callable(&mut self, anchor: Span) -> Result<(), Box<Diagnostic>> {
         if self.callable_count == 1_024 {
-            return Err(self.budget_error(
-                "function_count",
-                1_024,
-                1_025,
-                anchor,
-                Stage::Parse,
-            ));
+            return Err(self.budget_error("function_count", 1_024, 1_025, anchor, Stage::Parse));
         }
         self.callable_count += 1;
         Ok(())
@@ -1129,8 +1270,8 @@ impl Parser<'_> {
         while !self.eof() {
             if self.word("fn") || (self.new_profile && self.word("gen")) {
                 if let Some(name) = self
-                        .tokens
-                        .get(self.at + if self.word("gen") { 2 } else { 1 })
+                    .tokens
+                    .get(self.at + if self.word("gen") { 2 } else { 1 })
                     && name.kind == Kind::Name
                 {
                     self.charge_callable(name.span.clone())?;
@@ -1142,10 +1283,15 @@ impl Parser<'_> {
                 };
                 fs.push(self.function(generator_span)?)
             } else {
-                if let Some(id) = deferred_feature(&self.peek().text) {
-                    return Err(self.feature_or_syntax(id, "module_item", &["EOF", "fn"]));
+                if let Some(error) = self.deferred_in_state(GrammarState::ModuleItem) {
+                    return Err(error);
                 }
-                return Err(self.err("module_item", &["EOF", "fn"], 0, None));
+                return Err(self.err(
+                    "module_item",
+                    first(self.new_profile, FirstSet::Module),
+                    0,
+                    None,
+                ));
             }
         }
         if let Some((feature, span)) = self.pending_match.clone() {
@@ -1690,7 +1836,7 @@ impl Parser<'_> {
             }
             return Err(self.err(
                 "grammar.Type",
-                TYPE_START,
+                first(self.new_profile, FirstSet::Type),
                 self.peek().span.start as usize,
                 None,
             ));
@@ -1737,7 +1883,7 @@ impl Parser<'_> {
                     } else {
                         "grammar.Block"
                     },
-                    BLOCK_NEXT,
+                    first(self.new_profile, FirstSet::Block),
                     st,
                     None,
                 ));
@@ -1772,11 +1918,21 @@ impl Parser<'_> {
             ss.push(statement)
         }
         if self.eof() && ss.is_empty() {
-            return Err(self.err("block_item", BLOCK_NEXT, st, None));
+            return Err(self.err(
+                "block_item",
+                first(self.new_profile, FirstSet::Block),
+                st,
+                None,
+            ));
         }
         let close = self.peek().span.clone();
         let end = close.end as usize;
-        self.expect("}", "grammar.Block", BLOCK_NEXT, st)?;
+        self.expect(
+            "}",
+            "grammar.Block",
+            first(self.new_profile, FirstSet::Block),
+            st,
+        )?;
         self.depth -= 1;
         self.local_scopes.pop();
         Ok(Block {
@@ -1812,7 +1968,12 @@ impl Parser<'_> {
         {
             let token = self.take();
             if token.text == "yield" && (!self.starts_expr() || self.line_break_before_next()) {
-                return Err(self.err("grammar.YieldStmt", EXPR_START, st, None));
+                return Err(self.err(
+                    "grammar.YieldStmt",
+                    first(self.new_profile, FirstSet::Expr),
+                    st,
+                    None,
+                ));
             }
             let value = if token.text == "yield" {
                 Some(self.expr(0)?)
@@ -1834,10 +1995,8 @@ impl Parser<'_> {
                 span: self.span(st, end),
             });
         }
-        if let Some(id) = deferred_feature(&self.peek().text)
-            && !(self.new_profile && id == "for_iteration")
-        {
-            return Err(self.feature_or_syntax(id, "block_item", BLOCK_NEXT));
+        if let Some(error) = self.deferred_in_state(GrammarState::BlockItem) {
+            return Err(error);
         }
         if self.word("let") || self.word("var") {
             let mutable = self.eat("var");
@@ -1857,7 +2016,12 @@ impl Parser<'_> {
                 st,
             )?;
             if !self.starts_expr() {
-                return Err(self.err("binding_initializer", EXPR_START, st, None));
+                return Err(self.err(
+                    "binding_initializer",
+                    first(self.new_profile, FirstSet::Expr),
+                    st,
+                    None,
+                ));
             }
             let v = self.expr(0)?;
             self.reject_function_value(&v)?;
@@ -2128,7 +2292,7 @@ impl Parser<'_> {
         if min > 0 && !self.starts_try() {
             return Err(self.err(
                 "grammar.TryExpr",
-                TRY_START,
+                first(self.new_profile, FirstSet::Try),
                 self.peek().span.start as usize,
                 None,
             ));
@@ -2161,7 +2325,11 @@ impl Parser<'_> {
                             } else {
                                 "grammar.Arguments"
                             },
-                            if after_comma { EXPR_START } else { GROUP_FIRST },
+                            if after_comma {
+                                first(self.new_profile, FirstSet::Expr)
+                            } else {
+                                first(self.new_profile, FirstSet::Group)
+                            },
                             if after_comma {
                                 self.peek().span.start as usize
                             } else {
@@ -2194,7 +2362,7 @@ impl Parser<'_> {
                     if self.eof() {
                         return Err(self.err(
                             "grammar.Argument",
-                            EXPR_START,
+                            first(self.new_profile, FirstSet::Expr),
                             self.peek().span.start as usize,
                             None,
                         ));
@@ -2202,7 +2370,7 @@ impl Parser<'_> {
                     if self.at_text(")") {
                         return Err(self.err(
                             "grammar.Argument",
-                            EXPR_START,
+                            first(self.new_profile, FirstSet::Expr),
                             self.peek().span.start as usize,
                             None,
                         ));
@@ -2213,7 +2381,7 @@ impl Parser<'_> {
                     ")",
                     "grammar.Arguments",
                     if args.is_empty() {
-                        GROUP_FIRST
+                        first(self.new_profile, FirstSet::Group)
                     } else {
                         &[")", ","]
                     },
@@ -2377,7 +2545,7 @@ impl Parser<'_> {
             return Err(self.syntax(
                 &t,
                 "unsupported_unary_operator",
-                EXPR_START,
+                first(self.new_profile, FirstSet::Expr),
                 self.statement_start,
             ));
         }
@@ -2410,7 +2578,12 @@ impl Parser<'_> {
         if let Some(m) = mode {
             let op = self.prev_start();
             if !self.starts_postfix() {
-                return Err(self.err("grammar.Postfix", POSTFIX_START, op, None));
+                return Err(self.err(
+                    "grammar.Postfix",
+                    first(self.new_profile, FirstSet::Postfix),
+                    op,
+                    None,
+                ));
             }
             // A selected access mode cannot itself be a Place root. Reject a
             // second selected mode before recursive descent, including hostile
@@ -2509,8 +2682,8 @@ impl Parser<'_> {
                 Err(self.feature("closure", t.span))
             };
         }
-        if let Some(id) = deferred_feature(&t.text) {
-            return Err(self.feature_or_syntax(id, "grammar.Primary", EXPR_START));
+        if let Some(error) = self.deferred_in_state(GrammarState::Primary) {
+            return Err(error);
         }
         if t.kind == Kind::Integer {
             self.take();
@@ -2530,7 +2703,12 @@ impl Parser<'_> {
                 return Ok(Expr::Unit(self.span(st, self.prev_end())));
             }
             if !self.starts_expr() {
-                return Err(self.err("grammar.Primary", GROUP_FIRST, st, None));
+                return Err(self.err(
+                    "grammar.Primary",
+                    first(self.new_profile, FirstSet::Group),
+                    st,
+                    None,
+                ));
             }
             let x = self.expr(0)?;
             if self.eat(",") {
@@ -2552,7 +2730,11 @@ impl Parser<'_> {
                         } else {
                             "grammar.Primary"
                         },
-                        if after_comma { EXPR_START } else { ARRAY_FIRST },
+                        if after_comma {
+                            first(self.new_profile, FirstSet::Expr)
+                        } else {
+                            first(self.new_profile, FirstSet::Array)
+                        },
                         st,
                         None,
                     ));
@@ -2563,10 +2745,20 @@ impl Parser<'_> {
                 }
                 after_comma = true;
                 if self.eof() {
-                    return Err(self.err("array_element", EXPR_START, st, None));
+                    return Err(self.err(
+                        "array_element",
+                        first(self.new_profile, FirstSet::Expr),
+                        st,
+                        None,
+                    ));
                 }
                 if self.at_text("]") {
-                    return Err(self.err("array_element", EXPR_START, st, None));
+                    return Err(self.err(
+                        "array_element",
+                        first(self.new_profile, FirstSet::Expr),
+                        st,
+                        None,
+                    ));
                 }
             }
             let end = self.peek().span.end as usize;
@@ -2574,7 +2766,7 @@ impl Parser<'_> {
                 "]",
                 "grammar.Primary",
                 if xs.is_empty() {
-                    ARRAY_FIRST
+                    first(self.new_profile, FirstSet::Array)
                 } else {
                     &[",", "]"]
                 },
@@ -2591,7 +2783,12 @@ impl Parser<'_> {
             }
             return Ok(Expr::Array(xs, span));
         }
-        Err(self.err("grammar.Primary", EXPR_START, t.span.start as usize, None))
+        Err(self.err(
+            "grammar.Primary",
+            first(self.new_profile, FirstSet::Expr),
+            t.span.start as usize,
+            None,
+        ))
     }
     fn if_form(&mut self, value_target: bool) -> Result<Expr, Box<Diagnostic>> {
         if value_target {
@@ -2603,7 +2800,12 @@ impl Parser<'_> {
                 return Err(self.branch_error("missing_else", self.span(start, start + 2)));
             }
             if !self.at_text("{") && !self.starts_try() {
-                return Err(self.err("grammar.BranchOperand", BRANCH_FIRST, start, None));
+                return Err(self.err(
+                    "grammar.BranchOperand",
+                    first(self.new_profile, FirstSet::Branch),
+                    start,
+                    None,
+                ));
             }
             let otherwise = if self.at_text("{") {
                 Else::Block(self.block_with_target(true)?)
@@ -2868,7 +3070,7 @@ impl Parser<'_> {
         if !self.starts_try() {
             return Err(self.err(
                 "grammar.BranchOperand",
-                BRANCH_FIRST,
+                first(self.new_profile, FirstSet::Branch),
                 self.peek().span.start as usize,
                 None,
             ));
@@ -2996,13 +3198,27 @@ impl Parser<'_> {
         false
     }
 
-    fn feature_or_syntax(&self, id: &str, context: &str, expected: &[&str]) -> Box<Diagnostic> {
-        if self.new_profile
-            && matches!(id, "for_iteration" | "loop_control" | "generator" | "match")
-        {
-            return self.err(context, expected, self.peek().span.start as usize, None);
+    fn deferred_in_state(&self, state: GrammarState) -> Option<Box<Diagnostic>> {
+        let token = self.peek();
+        let (context, first) = match state {
+            GrammarState::ModuleItem => ("module_item", first(self.new_profile, FirstSet::Module)),
+            GrammarState::BlockItem => ("block_item", first(self.new_profile, FirstSet::Block)),
+            GrammarState::Primary => ("grammar.Primary", first(self.new_profile, FirstSet::Expr)),
+        };
+        // These terminals belong to active productions of the complete grammar.
+        // Reaching a different state means no production can consume them here.
+        if self.new_profile && state == GrammarState::BlockItem && token.text == "for" {
+            return None;
         }
-        self.feature(id, self.peek().span.clone())
+        if self.new_profile
+            && matches!(
+                token.text.as_str(),
+                "for" | "break" | "continue" | "yield" | "gen" | "match"
+            )
+        {
+            return Some(self.err(context, first, token.span.start as usize, None));
+        }
+        deferred_feature(&token.text).map(|feature| self.feature(feature, token.span.clone()))
     }
 
     fn feature(&self, id: &str, s: Span) -> Box<Diagnostic> {

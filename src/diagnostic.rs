@@ -1503,7 +1503,7 @@ impl Diagnostic {
             let valid = if self.profile_id.starts_with("f0-0003-")
                 && self.feature_id.as_deref() == Some("implementation_limit")
             {
-                matches!(scope, Some(DataValue::String(value)) if ["J02", "J03", "J04", "J05", "J06", "J07", "J08", "J09", "J10", "J11", "J12", "J13", "J14"].contains(&value.as_str()))
+                false
             } else if let Some(expected) = expected {
                 scope == Some(&DataValue::String(expected.into()))
             } else {
@@ -3984,6 +3984,11 @@ mod tests {
                 d.validate("decimal.n", "fn Main(){let x=0.5;}")
             );
         }
+        d.profile_id = "f0-0003-b-v1".into();
+        d.data
+            .insert("pending_scope".into(), DataValue::String("J02".into()));
+        assert!(d.validate("decimal.n", "fn Main(){let x=0.5;}").is_err());
+        d.profile_id = PROFILE_ID.into();
         d.data.insert(
             "pending_scope".into(),
             DataValue::String("later_adr".into()),
