@@ -680,9 +680,14 @@ fn compile_ast_with_flow_limit(
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let mut parameters = Vec::new();
         for (index, (p, (_, mode, ty))) in source
@@ -725,6 +730,7 @@ fn compile_ast_with_flow_limit(
             lower.locals[id.0].name_span = lower.name_spans.last().unwrap().clone();
             lower.visible.entry(p.name.clone()).or_default().push(id);
             lower.scopes[0].push(p.name.clone());
+            lower.local_live(id, true);
             parameters.push(Parameter {
                 local: id,
                 mode: *mode,
@@ -1115,8 +1121,33 @@ fn count_partial_ir_items(lower: &Lower<'_>) -> u64 {
 
 #[derive(Clone)]
 struct TempBlockState {
-    entry: HashSet<TempId>,
-    exit: HashSet<TempId>,
+    entry: EdgeState,
+    edges: Vec<EdgeState>,
+}
+
+#[derive(Clone, Default)]
+struct EdgeState {
+    reachable: bool,
+    temps: HashSet<TempId>,
+    locals: Option<usize>,
+    loan_details: HashMap<LocalId, Vec<ActiveLoan>>,
+    suspended: bool,
+    delivered: Option<TempId>,
+}
+
+struct LocalChange {
+    id: LocalId,
+    was_live: bool,
+    now_live: bool,
+    parent: Option<usize>,
+    depth: usize,
+}
+
+#[derive(Clone)]
+struct ExitPlan {
+    surviving: HashSet<TempId>,
+    locals: Vec<(LocalId, Span)>,
+    reserved: Option<TempId>,
 }
 
 struct Lower<'a> {
@@ -1150,9 +1181,14 @@ struct Lower<'a> {
     retained_temps: HashMap<TempId, Vec<RetainedLoan>>,
     requested_receiver: Option<(ParameterMode, Span)>,
     live_temps: HashSet<TempId>,
+    live_locals: HashSet<LocalId>,
+    local_head: Option<usize>,
+    local_history: Vec<LocalChange>,
+    temp_loans: HashMap<TempId, (LocalId, LoanId)>,
     temp_undo: Vec<(TempId, bool)>,
-    temp_block_entry: HashSet<TempId>,
+    temp_block_entry: EdgeState,
     temp_blocks: Vec<TempBlockState>,
+    deferred_return_locals: Vec<(LocalId, Span)>,
 }
 
 impl Lower<'_> {
@@ -1175,13 +1211,19 @@ impl Lower<'_> {
             .flat_map(|scope| scope.iter().rev())
             .filter_map(|name| self.visible.get(name).and_then(|ids| ids.last()).copied())
             .collect();
-        self.cleanup_match_boundaries(match_depth);
-        for id in dropping {
-            if !self.poisoned.contains(&id) && !self.consumed_at.contains_key(&id) {
-                self.statement_op(Op::DropLocal(id), cleanup_span.clone(), Access::Own, false);
-            }
-        }
-        self.drop_live_temps(span, None);
+        let mut locals: Vec<_> = dropping
+            .into_iter()
+            .map(|id| (id, cleanup_span.clone()))
+            .collect();
+        locals.extend(self.boundary_locals(match_depth));
+        self.plan_exit(
+            ExitPlan {
+                surviving: context.surviving_temps.clone(),
+                locals,
+                reserved: None,
+            },
+            span,
+        );
         let id = self.finish_block(Terminator::Jump {
             target: if token == "break" {
                 BlockId(usize::MAX)
@@ -1209,23 +1251,12 @@ impl Lower<'_> {
         Ok(())
     }
 
-    fn cleanup_match_boundaries(&mut self, keep: usize) {
-        let leaving: Vec<_> = self.match_boundaries[keep..]
+    fn boundary_locals(&self, keep: usize) -> Vec<(LocalId, Span)> {
+        self.match_boundaries[keep..]
             .iter()
             .rev()
-            .cloned()
-            .collect();
-        for boundary in leaving {
-            self.statement_op(
-                Op::DropLocal(boundary.root),
-                boundary.span.clone(),
-                Access::Own,
-                false,
-            );
-            if let Some(held) = boundary.held {
-                self.statement_op(Op::DropValue(held), boundary.span, Access::Own, false);
-            }
-        }
+            .map(|boundary| (boundary.root, boundary.span.clone()))
+            .collect()
     }
 
     fn release_retained(&mut self, loans: Vec<RetainedLoan>) {
@@ -1347,11 +1378,11 @@ struct LoopContext {
     breaks: Vec<BlockId>,
     continues: Vec<BlockId>,
     match_depth: usize,
+    surviving_temps: HashSet<TempId>,
 }
 #[derive(Clone)]
 struct MatchBoundary {
     root: LocalId,
-    held: Option<TempId>,
     span: Span,
 }
 #[derive(Clone)]
@@ -1474,6 +1505,100 @@ enum StatementElse<'a> {
     Else(&'a parse::Else),
 }
 impl Lower<'_> {
+    fn edge_state(&self) -> EdgeState {
+        EdgeState {
+            reachable: true,
+            temps: self.live_temps.clone(),
+            locals: self.local_head,
+            loan_details: self
+                .active_loans
+                .iter()
+                .filter(|(_, loans)| !loans.is_empty())
+                .map(|(root, loans)| (*root, loans.clone()))
+                .collect(),
+            suspended: false,
+            delivered: None,
+        }
+    }
+    fn local_live(&mut self, id: LocalId, live: bool) {
+        let was_live = self.live_locals.contains(&id);
+        if was_live == live {
+            return;
+        }
+        if live {
+            self.live_locals.insert(id);
+        } else {
+            self.live_locals.remove(&id);
+        }
+        let depth = self
+            .local_head
+            .map_or(1, |parent| self.local_history[parent].depth + 1);
+        self.local_history.push(LocalChange {
+            id,
+            was_live,
+            now_live: live,
+            depth,
+            parent: self.local_head,
+        });
+        self.local_head = Some(self.local_history.len() - 1);
+    }
+    fn switch_local_state(&mut self, target: Option<usize>) {
+        let mut from = self.local_head;
+        let mut to = target;
+        let mut replay = Vec::new();
+        let depth = |node: Option<usize>| node.map_or(0, |node| self.local_history[node].depth);
+        while depth(from) > depth(to) {
+            let node = from.expect("local state depth");
+            let node = &self.local_history[node];
+            if node.was_live {
+                self.live_locals.insert(node.id);
+            } else {
+                self.live_locals.remove(&node.id);
+            }
+            from = node.parent;
+        }
+        while depth(to) > depth(from) {
+            let node = to.expect("local state depth");
+            to = self.local_history[node].parent;
+            replay.push(node);
+        }
+        while from != to {
+            let old = from.expect("local state common ancestor");
+            let old = &self.local_history[old];
+            if old.was_live {
+                self.live_locals.insert(old.id);
+            } else {
+                self.live_locals.remove(&old.id);
+            }
+            from = old.parent;
+            let next = to.expect("local state common ancestor");
+            to = self.local_history[next].parent;
+            replay.push(next);
+        }
+        for node in replay
+            .into_iter()
+            .rev()
+            .map(|node| &self.local_history[node])
+        {
+            if node.now_live {
+                self.live_locals.insert(node.id);
+            } else {
+                self.live_locals.remove(&node.id);
+            }
+        }
+        self.local_head = target;
+    }
+    fn track_local_op(&mut self, op: &Op) {
+        match op {
+            Op::WritePlace { local, .. }
+            | Op::BindView { local, .. }
+            | Op::BindEdit { local, .. } => self.local_live(*local, true),
+            Op::DropLocal(id) | Op::DropBinding(id) | Op::TransferValue(id) => {
+                self.local_live(*id, false);
+            }
+            _ => {}
+        }
+    }
     fn emitted(&mut self, op: Op, ty: Ty, span: Span, access: Access, effect_io: bool) -> Flow {
         let temp = self.emit(op, ty.clone(), span, access, effect_io);
         Flow::Value { temp, ty }
@@ -1501,19 +1626,48 @@ impl Lower<'_> {
             }
         }
         if self.instructions.is_empty() {
-            self.temp_block_entry = self.live_temps.clone();
+            self.temp_block_entry = self.edge_state();
         }
     }
-    fn drop_live_temps(&mut self, span: &Span, except: Option<TempId>) {
-        let mut pending: Vec<_> = self
-            .live_temps
+    fn enter_edge(&mut self, block: BlockId, edge: usize) -> Result<(), CompileError> {
+        let state = self
+            .temp_blocks
+            .get(block.0)
+            .and_then(|block| block.edges.get(edge))
+            .ok_or(CompileError::InvalidIr("temporary edge source"))?
+            .clone();
+        let leaving: Vec<_> = self.live_temps.difference(&state.temps).copied().collect();
+        let entering: Vec<_> = state.temps.difference(&self.live_temps).copied().collect();
+        for id in leaving {
+            self.temp_live(id, false);
+        }
+        for id in entering {
+            self.temp_live(id, true);
+        }
+        self.switch_local_state(state.locals);
+        self.active_loans = state.loan_details.clone();
+        self.temp_block_entry = state;
+        Ok(())
+    }
+    fn plan_exit(&mut self, plan: ExitPlan, span: &Span) {
+        let state = self.edge_state();
+        let mut pending: Vec<_> = state
+            .temps
             .iter()
             .copied()
-            .filter(|id| Some(*id) != except)
+            .filter(|id| !plan.surviving.contains(id) && Some(*id) != plan.reserved)
             .collect();
         pending.sort_by_key(|id| std::cmp::Reverse(id.0));
         for id in pending {
             self.statement_op(Op::DropValue(id), span.clone(), Access::Own, false);
+        }
+        for (id, local_span) in plan.locals {
+            if self.live_locals.contains(&id)
+                && !self.poisoned.contains(&id)
+                && !self.consumed_at.contains_key(&id)
+            {
+                self.statement_op(Op::DropLocal(id), local_span, Access::Own, false);
+            }
         }
     }
     fn validate_temp_edges(&self) -> Result<(), CompileError> {
@@ -1527,13 +1681,21 @@ impl Lower<'_> {
                 Terminator::Yield { resume, .. } => vec![*resume],
                 Terminator::Return { .. } | Terminator::Unreachable { .. } => Vec::new(),
             };
-            for target in targets {
+            if targets.len() != state.edges.len() {
+                return Err(CompileError::InvalidIr("temporary edge count"));
+            }
+            for (target, edge) in targets.into_iter().zip(&state.edges) {
                 let successor = self
                     .temp_blocks
                     .get(target.0)
                     .ok_or(CompileError::InvalidIr("temporary edge target"))?;
-                if state.exit != successor.entry {
+                if !edge.reachable || edge.temps != successor.entry.temps {
                     return Err(CompileError::InvalidIr("temporary edge state"));
+                }
+                if edge.suspended != matches!(block.terminator, Terminator::Yield { .. })
+                    || (edge.suspended && edge.delivered.is_none())
+                {
+                    return Err(CompileError::InvalidIr("temporary suspension state"));
                 }
             }
         }
@@ -1744,6 +1906,9 @@ impl Lower<'_> {
         };
         let then_state = self.restore_availability(checkpoint);
         self.restore_temps(temp_checkpoint);
+        if let Some(branch) = branch {
+            self.enter_edge(branch, 1)?;
+        }
         self.dead_depth -= 1;
         let else_start = BlockId(self.blocks.len());
         if let Some(branch) = branch
@@ -1807,6 +1972,13 @@ impl Lower<'_> {
         };
         let else_state = self.restore_availability(checkpoint);
         self.restore_temps(temp_checkpoint);
+        if let Some(end) = [then_end, else_end]
+            .into_iter()
+            .flatten()
+            .find(|end| matches!(self.blocks[end.0].terminator, Terminator::Jump { .. }))
+        {
+            self.enter_edge(end, 0)?;
+        }
         self.dead_depth -= 1;
         let join = BlockId(self.blocks.len());
         if let Some(end) = then_end
@@ -1871,6 +2043,7 @@ impl Lower<'_> {
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<(), CompileError> {
         let entry_emission = self.emission;
+        let surviving_temps = self.live_temps.clone();
         let prior_locals = self.locals.len();
         let preheader = self.finish_block(Terminator::Jump {
             target: BlockId(self.blocks.len() + 1),
@@ -1975,6 +2148,7 @@ impl Lower<'_> {
             breaks: Vec::new(),
             continues: Vec::new(),
             match_depth: self.match_boundaries.len(),
+            surviving_temps,
         });
         let body_result = self.scoped_block(body, depth, diagnostics);
         let loop_context = self
@@ -2008,6 +2182,7 @@ impl Lower<'_> {
             }
         }
         let exit = BlockId(self.blocks.len());
+        self.enter_edge(branch, 1)?;
         if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
             *no = exit;
         }
@@ -2025,6 +2200,7 @@ impl Lower<'_> {
         depth: usize,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<(), CompileError> {
+        let surviving_temps = self.live_temps.clone();
         let Statement::For {
             name,
             name_span,
@@ -2230,6 +2406,7 @@ impl Lower<'_> {
             breaks: Vec::new(),
             continues: Vec::new(),
             match_depth: self.match_boundaries.len(),
+            surviving_temps,
         });
         let availability_checkpoint = self.consumed_undo.len();
         self.dead_depth += 1;
@@ -2400,6 +2577,9 @@ impl Lower<'_> {
             };
         let then_state = self.restore_availability(checkpoint);
         self.restore_temps(temp_checkpoint);
+        if let Some(branch) = branch {
+            self.enter_edge(branch, 1)?;
+        }
         self.dead_depth -= 1;
         let else_start = BlockId(self.blocks.len());
         if let Some(branch) = branch
@@ -2487,6 +2667,13 @@ impl Lower<'_> {
             };
             let state = self.restore_availability(checkpoint);
             self.restore_temps(temp_checkpoint);
+            if let Some(end) = [then_end, end]
+                .into_iter()
+                .flatten()
+                .find(|end| matches!(self.blocks[end.0].terminator, Terminator::Jump { .. }))
+            {
+                self.enter_edge(end, 0)?;
+            }
             self.dead_depth -= 1;
             (state, continues, end)
         } else {
@@ -2615,9 +2802,6 @@ impl Lower<'_> {
         if self.emission == EmissionMode::Analyze {
             return BlockId(usize::MAX);
         }
-        if matches!(terminator, Terminator::Return { .. }) && !self.match_boundaries.is_empty() {
-            self.cleanup_match_boundaries(0);
-        }
         let mut terminator = terminator;
         let pending = std::mem::take(&mut self.pending_charges);
         match &mut terminator {
@@ -2637,22 +2821,48 @@ impl Lower<'_> {
             ..
         } = &terminator
         {
-            self.drop_live_temps(span, Some(*value));
+            let mut locals = std::mem::take(&mut self.deferred_return_locals);
+            locals.extend(self.boundary_locals(0));
+            self.plan_exit(
+                ExitPlan {
+                    surviving: HashSet::new(),
+                    locals,
+                    reserved: Some(*value),
+                },
+                span,
+            );
             self.temp_live(*value, false);
         } else if let Terminator::BranchBool { condition, .. } = &terminator {
             self.temp_live(*condition, false);
         } else if let Terminator::Yield { value, .. } = &terminator {
             self.temp_live(*value, false);
         } else if let Terminator::Unreachable { span, .. } = &terminator {
-            self.drop_live_temps(span, None);
+            self.plan_exit(
+                ExitPlan {
+                    surviving: HashSet::new(),
+                    locals: Vec::new(),
+                    reserved: None,
+                },
+                span,
+            );
         }
         super::count_cfg_work(1);
         let id = BlockId(self.blocks.len());
+        let edge_count = match terminator {
+            Terminator::BranchBool { .. } => 2,
+            Terminator::Jump { .. } | Terminator::Yield { .. } => 1,
+            Terminator::Return { .. } | Terminator::Unreachable { .. } => 0,
+        };
+        let mut edge = self.edge_state();
+        if let Terminator::Yield { value, .. } = terminator {
+            edge.suspended = true;
+            edge.delivered = Some(value);
+        }
         self.temp_blocks.push(TempBlockState {
             entry: self.temp_block_entry.clone(),
-            exit: self.live_temps.clone(),
+            edges: vec![edge; edge_count],
         });
-        self.temp_block_entry = self.live_temps.clone();
+        self.temp_block_entry = self.edge_state();
         self.blocks.push(BasicBlock {
             id,
             instructions: std::mem::take(&mut self.instructions),
@@ -3019,7 +3229,13 @@ impl Lower<'_> {
             return None;
         }
         let retained = self.output_retained(&op);
+        let loan = if let Op::BeginLoan { root, loan, .. } = &op {
+            Some((*root, *loan))
+        } else {
+            None
+        };
         self.consume_op_temps(&op);
+        self.track_local_op(&op);
         count_loan_work();
         super::count_cfg_work(1);
         let id = TempId(self.next_temp);
@@ -3046,6 +3262,9 @@ impl Lower<'_> {
             charges,
         });
         self.temp_live(id, true);
+        if let Some(loan) = loan {
+            self.temp_loans.insert(id, loan);
+        }
         if !retained.is_empty() {
             self.retained_temps.insert(id, retained);
         }
@@ -3056,7 +3275,14 @@ impl Lower<'_> {
             return;
         }
         self.statement_retained(&op);
+        if let Op::DropValue(temp) = &op
+            && let Some((root, loan)) = self.temp_loans.get(temp)
+            && let Some(active) = self.active_loans.get_mut(root)
+        {
+            active.retain(|held| held.loan != *loan);
+        }
         self.consume_op_temps(&op);
+        self.track_local_op(&op);
         count_loan_work();
         super::count_cfg_work(1);
         let id = self.instructions.len();
@@ -3436,6 +3662,7 @@ impl Lower<'_> {
         depth: usize,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<(), CompileError> {
+        let surviving = self.live_temps.clone();
         let saved = self.scope;
         self.scope = ScopeId(self.next_scope);
         self.next_scope += 1;
@@ -3451,23 +3678,33 @@ impl Lower<'_> {
             .last()
             .ok_or(CompileError::InvalidIr("scope stack"))?
             .clone();
-        for name in dropping.iter().rev() {
-            let id = *self
-                .visible
-                .get(name)
-                .and_then(|v| v.last())
-                .ok_or(CompileError::InvalidIr("scope name"))?;
-            if self.poisoned.contains(&id) {
-                continue;
-            }
-            if !self.consumed_at.contains_key(&id) {
-                self.statement_op(
-                    Op::DropLocal(id),
-                    block.close_span.clone(),
-                    Access::Own,
-                    false,
-                );
-            }
+        let locals = dropping
+            .iter()
+            .rev()
+            .map(|name| {
+                self.visible
+                    .get(name)
+                    .and_then(|v| v.last())
+                    .copied()
+                    .map(|id| (id, block.close_span.clone()))
+                    .ok_or(CompileError::InvalidIr("scope name"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if self
+            .terminated
+            .is_some_and(|term| matches!(term, Termination::Return(_)))
+            && self.emission == EmissionMode::Live
+        {
+            self.deferred_return_locals.extend(locals);
+        } else if self.emission == EmissionMode::Live {
+            self.plan_exit(
+                ExitPlan {
+                    surviving,
+                    locals,
+                    reserved: None,
+                },
+                &block.close_span,
+            );
         }
         self.leave_scope(saved)?;
         Ok(())
@@ -3496,6 +3733,7 @@ impl Lower<'_> {
         depth: usize,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<Option<Flow>, CompileError> {
+        let surviving = self.live_temps.clone();
         let saved = self.scope;
         self.scope = ScopeId(self.next_scope);
         self.next_scope += 1;
@@ -3623,20 +3861,33 @@ impl Lower<'_> {
             .last()
             .ok_or(CompileError::InvalidIr("scope stack"))?
             .clone();
-        for name in dropping.iter().rev() {
-            let id = *self
-                .visible
-                .get(name)
-                .and_then(|v| v.last())
-                .ok_or(CompileError::InvalidIr("scope name"))?;
-            if !self.poisoned.contains(&id) && !self.consumed_at.contains_key(&id) {
-                self.statement_op(
-                    Op::DropLocal(id),
-                    block.close_span.clone(),
-                    Access::Own,
-                    false,
-                );
-            }
+        let locals = dropping
+            .iter()
+            .rev()
+            .map(|name| {
+                self.visible
+                    .get(name)
+                    .and_then(|v| v.last())
+                    .copied()
+                    .map(|id| (id, block.close_span.clone()))
+                    .ok_or(CompileError::InvalidIr("scope name"))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        if self
+            .terminated
+            .is_some_and(|term| matches!(term, Termination::Return(_)))
+            && self.emission == EmissionMode::Live
+        {
+            self.deferred_return_locals.extend(locals);
+        } else if self.emission == EmissionMode::Live {
+            self.plan_exit(
+                ExitPlan {
+                    surviving,
+                    locals,
+                    reserved: final_value.as_ref().and_then(Flow::temp),
+                },
+                &block.close_span,
+            );
         }
         self.leave_scope(saved)?;
         Ok(final_value)
@@ -5711,9 +5962,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         }
     }
 
@@ -5897,9 +6153,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let Statement::Let {
             value: expression, ..
@@ -5968,9 +6229,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let main = ast.functions.iter().find(|f| f.name == "Main").unwrap();
         lower
@@ -6044,9 +6310,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -6094,9 +6365,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -6209,9 +6485,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -6258,9 +6539,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let statements = &ast.functions[0].body.statements;
         lower.statement(&statements[0], 0, &mut Vec::new()).unwrap();
@@ -6332,9 +6618,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -6413,9 +6704,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -6507,9 +6803,14 @@ mod tests {
             retained_temps: HashMap::new(),
             requested_receiver: None,
             live_temps: HashSet::new(),
+            live_locals: HashSet::new(),
+            local_head: None,
+            local_history: Vec::new(),
+            temp_loans: HashMap::new(),
             temp_undo: Vec::new(),
-            temp_block_entry: HashSet::new(),
+            temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
+            deferred_return_locals: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower

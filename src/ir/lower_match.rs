@@ -204,6 +204,7 @@ impl Lower<'_> {
         expected: Option<&Ty>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<Flow, CompileError> {
+        let outer_temps = self.live_temps.clone();
         if self.emission == EmissionMode::Live {
             self.pending_charges.push(WorkCharge {
                 ticks: 1,
@@ -406,7 +407,6 @@ impl Lower<'_> {
         }
         self.match_boundaries.push(MatchBoundary {
             root,
-            held: loan_temp,
             span: Span {
                 file: selection.span.file.clone(),
                 start: selection.span.end.saturating_sub(1),
@@ -424,11 +424,15 @@ impl Lower<'_> {
         let mut slot = None;
         self.dead_depth += 1;
         for arm in &selection.arms {
+            let fallthrough = previous_branches.first().copied();
             for branch in previous_branches.drain(..) {
                 let next = BlockId(self.blocks.len());
                 if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
                     *no = next;
                 }
+            }
+            if let Some(branch) = fallthrough {
+                self.enter_edge(branch, 1)?;
             }
             let condition = self.match_condition(root, &selected_ty, &arm.pattern)?;
             let branch = if branch_mode == EmissionMode::Live {
@@ -493,15 +497,19 @@ impl Lower<'_> {
                     .last()
                     .cloned()
                     .ok_or(CompileError::InvalidIr("guard scope"))?;
-                for name in guard_names.iter().rev() {
-                    let id = self.get(name)?;
-                    self.statement_op(
-                        Op::DropLocal(id),
-                        arm.body.close_span.clone(),
-                        Access::Own,
-                        false,
-                    );
-                }
+                let guard_locals = guard_names
+                    .iter()
+                    .rev()
+                    .map(|name| self.get(name).map(|id| (id, arm.body.close_span.clone())))
+                    .collect::<Result<Vec<_>, _>>()?;
+                self.plan_exit(
+                    ExitPlan {
+                        surviving: self.live_temps.clone(),
+                        locals: guard_locals,
+                        reserved: None,
+                    },
+                    &arm.body.close_span,
+                );
                 self.leave_scope(saved)?;
                 if branch_mode == EmissionMode::Live {
                     let guard_branch = self.finish_block(Terminator::BranchBool {
@@ -521,6 +529,7 @@ impl Lower<'_> {
             self.next_scope += 1;
             self.scope_parents.push(Some(saved));
             self.scopes.push(Vec::new());
+            let arm_surviving = self.live_temps.clone();
             self.bind_match_pattern(
                 root,
                 &selected_ty,
@@ -557,16 +566,26 @@ impl Lower<'_> {
                 .last()
                 .cloned()
                 .ok_or(CompileError::InvalidIr("match arm scope"))?;
-            for name in names.iter().rev() {
-                let id = self.get(name)?;
-                if !self.consumed_at.contains_key(&id) {
-                    self.statement_op(
-                        Op::DropLocal(id),
-                        arm.body.close_span.clone(),
-                        Access::Own,
-                        false,
-                    );
-                }
+            let locals = names
+                .iter()
+                .rev()
+                .map(|name| self.get(name).map(|id| (id, arm.body.close_span.clone())))
+                .collect::<Result<Vec<_>, _>>()?;
+            if self
+                .terminated
+                .is_some_and(|term| matches!(term, Termination::Return(_)))
+                && self.emission == EmissionMode::Live
+            {
+                self.deferred_return_locals.extend(locals);
+            } else if self.emission == EmissionMode::Live {
+                self.plan_exit(
+                    ExitPlan {
+                        surviving: arm_surviving,
+                        locals,
+                        reserved: None,
+                    },
+                    &arm.body.close_span,
+                );
             }
             self.leave_scope(saved)?;
             self.emission = branch_mode;
@@ -595,20 +614,28 @@ impl Lower<'_> {
         self.dead_depth -= 1;
         if branch_mode == EmissionMode::Live {
             let fallback = BlockId(self.blocks.len());
+            let fallthrough = previous_branches.first().copied();
             for branch in previous_branches {
                 if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
                     *no = fallback;
                 }
+            }
+            if let Some(branch) = fallthrough {
+                self.enter_edge(branch, 1)?;
             }
             let close_span = Span {
                 file: selection.span.file.clone(),
                 start: selection.span.end.saturating_sub(1),
                 end: selection.span.end,
             };
-            self.statement_op(Op::DropLocal(root), close_span.clone(), Access::Own, false);
-            if let Some(held) = loan_temp {
-                self.statement_op(Op::DropValue(held), close_span, Access::Own, false);
-            }
+            self.plan_exit(
+                ExitPlan {
+                    surviving: std::collections::HashSet::new(),
+                    locals: vec![(root, close_span.clone())],
+                    reserved: None,
+                },
+                &close_span,
+            );
             self.finish_block(Terminator::Unreachable {
                 span: selection.span.clone(),
                 charges: Vec::new(),
@@ -616,6 +643,10 @@ impl Lower<'_> {
             self.restore_temps(temp_checkpoint);
         }
         let join = BlockId(self.blocks.len());
+        let continuing_end = ends
+            .iter()
+            .copied()
+            .find(|end| matches!(self.blocks[end.0].terminator, Terminator::Jump { .. }));
         for end in ends {
             if let Terminator::Jump { target, .. } = &mut self.blocks[end.0].terminator {
                 *target = join;
@@ -631,28 +662,23 @@ impl Lower<'_> {
                 ty: expression.then_some(result_ty),
             });
         }
-        if let Some(held) = loan_temp {
-            self.statement_op(
-                Op::DropValue(held),
-                selection.span.clone(),
-                Access::Own,
-                false,
-            );
+        if let Some(end) = continuing_end {
+            self.enter_edge(end, 0)?;
         }
-        if let Some(id) = loan_root
-            && let Some(loans) = self.active_loans.get_mut(&id)
-        {
-            loans.pop();
-        }
-        self.statement_op(
-            Op::DropLocal(root),
-            Span {
-                file: selection.span.file.clone(),
-                start: selection.span.end.saturating_sub(1),
-                end: selection.span.end,
+        self.plan_exit(
+            ExitPlan {
+                surviving: outer_temps,
+                locals: vec![(
+                    root,
+                    Span {
+                        file: selection.span.file.clone(),
+                        start: selection.span.end.saturating_sub(1),
+                        end: selection.span.end,
+                    },
+                )],
+                reserved: None,
             },
-            Access::Own,
-            false,
+            &selection.span,
         );
         if !expression {
             return Ok(Flow::Value {
