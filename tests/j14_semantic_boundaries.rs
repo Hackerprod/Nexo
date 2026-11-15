@@ -151,8 +151,9 @@ const BLOCK_NEXT: &[&str] = &[
     "}",
 ];
 
-fn syntax_at(
+fn syntax_at_kind(
     source: &str,
+    kind: &str,
     token: &str,
     start: usize,
     context: &str,
@@ -180,12 +181,12 @@ fn syntax_at(
         "{source}: {report}"
     );
     assert!(
-        report.contains(&format!("\"text\":\"{token}\",\"span\":{{\"file\":"))
-            && report.contains(&format!(
-                "\"start\":{start},\"end\":{}",
-                start + token.len()
-            ))
-            && report.contains(&format!("\"expected_tokens\":{expected}"))
+        report.contains(&format!(
+            "\"kind\":\"{kind}\",\"text\":\"{token}\",\"span\":{{\"file\":"
+        )) && report.contains(&format!(
+            "\"start\":{start},\"end\":{}",
+            start + token.len()
+        )) && report.contains(&format!("\"expected_tokens\":{expected}"))
             && report.contains(&format!("\"parser_context\":\"{context}\"")),
         "{source}: {report}"
     );
@@ -194,6 +195,113 @@ fn syntax_at(
         report[position..].contains(&format!("\"start\":{prefix},\"end\":{start}")),
         "{source}: {report}"
     );
+}
+
+fn syntax_at(
+    source: &str,
+    token: &str,
+    start: usize,
+    context: &str,
+    first: &[&str],
+    prefix: usize,
+) {
+    syntax_at_kind(source, "keyword", token, start, context, first, prefix);
+}
+
+const PATTERN_FIRST: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "_",
+    "edit",
+    "false",
+    "move",
+    "true",
+];
+
+#[test]
+fn constructor_pattern_after_comma_includes_sign() {
+    syntax_at_kind(
+        "fn Main(){let o:Option<I64>=Some(1);match o{Some(n,)=>{},None=>{}}}",
+        "symbol",
+        ")",
+        51,
+        "grammar.Pattern",
+        PATTERN_FIRST,
+        44,
+    );
+    checked("fn Main(){let o:Option<I64>=Some(-1);match o{Some(-1)=>{},_=>{}}}");
+}
+
+#[test]
+fn pattern_signed_integer_requires_digits_after_arm_comma() {
+    syntax_at_kind(
+        "fn Main(){match 1{1=>{},-}}",
+        "symbol",
+        "}",
+        25,
+        "signed_integer",
+        &["IntLiteral"],
+        24,
+    );
+    checked("fn Main(){match 1{1=>{},-1=>{},_=>{}}}");
+}
+
+#[test]
+fn pattern_signed_integer_requires_digits_in_first_arm() {
+    syntax_at_kind(
+        "fn Main(){match 1{-=>{},_=>{}}}",
+        "symbol",
+        "=>",
+        19,
+        "signed_integer",
+        &["IntLiteral"],
+        18,
+    );
+    checked("fn Main(){match 1{-1=>{},_=>{}}}");
+}
+
+#[test]
+fn pattern_rejects_question_at_its_own_token() {
+    syntax_at_kind(
+        "fn Main(){match 1{?=>{},_=>{}}}",
+        "symbol",
+        "?",
+        18,
+        "grammar.Pattern",
+        PATTERN_FIRST,
+        18,
+    );
+    checked("fn Main(){match 1{_=>{}}}");
+}
+
+#[test]
+fn constructor_pattern_rejects_question_at_its_own_token() {
+    syntax_at_kind(
+        "fn Main(){let o:Option<I64>=Some(1);match o{Some(?)=>{},None=>{}}}",
+        "symbol",
+        "?",
+        49,
+        "grammar.Pattern",
+        PATTERN_FIRST,
+        49,
+    );
+    checked("fn Main(){let o:Option<I64>=Some(1);match o{Some(_)=>{},None=>{}}}");
+}
+
+#[test]
+fn match_arm_after_comma_eof_includes_sign() {
+    syntax_at_kind(
+        "fn Main(){match 1{1=>{},",
+        "eof",
+        "",
+        24,
+        "grammar.Arm",
+        PATTERN_FIRST,
+        10,
+    );
+    checked("fn Main(){match 1{1=>{},_=>{}}}");
 }
 
 macro_rules! syntax_fixture {

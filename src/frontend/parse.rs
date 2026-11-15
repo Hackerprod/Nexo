@@ -29,6 +29,17 @@ const EXPR_START: &[&str] = &[
     "move",
     "true",
 ];
+const PATTERN_FIRST: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "_",
+    "edit",
+    "false",
+    "move",
+    "true",
+];
 const TRY_START: &[&str] = &[
     "(",
     "-",
@@ -1687,42 +1698,14 @@ impl Parser<'_> {
                 first(self.new_profile, FirstSet::Expr),
                 false,
             ),
-            ListKind::ConstructorPattern => (
-                ")",
-                "grammar.Pattern",
-                &[
-                    "(",
-                    "IntLiteral",
-                    "Name",
-                    "_",
-                    "edit",
-                    "false",
-                    "move",
-                    "true",
-                ][..],
-                false,
-            ),
+            ListKind::ConstructorPattern => (")", "grammar.Pattern", PATTERN_FIRST, false),
             ListKind::TypeArgument => (
                 ">",
                 "grammar.Type",
                 first(self.new_profile, FirstSet::Type),
                 false,
             ),
-            ListKind::MatchArm => (
-                "}",
-                "grammar.Arm",
-                &[
-                    "(",
-                    "IntLiteral",
-                    "Name",
-                    "_",
-                    "edit",
-                    "false",
-                    "move",
-                    "true",
-                ][..],
-                true,
-            ),
+            ListKind::MatchArm => ("}", "grammar.Arm", PATTERN_FIRST, true),
         };
         if self.eof() || (self.at_text(close) && !trailing) {
             let prefix_start = if matches!(
@@ -2995,16 +2978,8 @@ impl Parser<'_> {
             return Err(self.feature("methods", t.span));
         }
         if t.text == "-" {
-            let s = self.take().span.start as usize;
-            if self.peek().kind == Kind::Integer {
-                let n = self.take();
-                return Ok(Expr::Integer(
-                    format!("-{}", n.text),
-                    self.span(s, n.span.end as usize),
-                ));
-            }
-            let unexpected = self.peek().clone();
-            return Err(self.syntax(&unexpected, "signed_integer", &["IntLiteral"], s));
+            let (number, span) = self.signed_integer()?;
+            return Ok(Expr::Integer(number, span));
         }
         let prefix_follows = self.tokens.get(self.at + 1).is_some_and(|next| {
             matches!(next.kind, Kind::Name | Kind::Integer)
@@ -3216,6 +3191,28 @@ impl Parser<'_> {
             None,
         ))
     }
+    fn signed_integer(&mut self) -> Result<(String, Span), Box<Diagnostic>> {
+        let sign = self.take();
+        debug_assert_eq!(sign.text, "-");
+        if self.peek().kind == Kind::Integer {
+            let magnitude = self.take();
+            return Ok((
+                format!("-{}", magnitude.text),
+                self.span(sign.span.start as usize, magnitude.span.end as usize),
+            ));
+        }
+        let unexpected = self.peek().clone();
+        Err(self.syntax(
+            &unexpected,
+            "signed_integer",
+            &["IntLiteral"],
+            sign.span.start as usize,
+        ))
+    }
+    fn starts_pattern(&self) -> bool {
+        matches!(self.peek().kind, Kind::Name | Kind::Integer)
+            || matches!(self.peek().text.as_str(), "(" | "-" | "true" | "false")
+    }
     fn if_form(&mut self, value_target: bool) -> Result<Expr, Box<Diagnostic>> {
         if value_target {
             let start = self.take().span.start as usize;
@@ -3413,6 +3410,19 @@ impl Parser<'_> {
     }
 
     fn pattern_inner(&mut self) -> Result<Pattern, Box<Diagnostic>> {
+        let next = self.peek().clone();
+        if !self.starts_pattern() {
+            return Err(self.syntax(
+                &next,
+                "grammar.Pattern",
+                PATTERN_FIRST,
+                next.span.start as usize,
+            ));
+        }
+        if next.text == "-" {
+            let (number, span) = self.signed_integer()?;
+            return Ok(Pattern::Integer(number, span));
+        }
         let token = self.take();
         let start = token.span.start as usize;
         if token.text == "(" {
@@ -3428,13 +3438,6 @@ impl Parser<'_> {
         }
         if token.kind == Kind::Integer {
             return Ok(Pattern::Integer(token.text, token.span));
-        }
-        if token.text == "-" && self.peek().kind == Kind::Integer {
-            let magnitude = self.take();
-            return Ok(Pattern::Integer(
-                format!("-{}", magnitude.text),
-                self.span(start, magnitude.span.end as usize),
-            ));
         }
         if token.text == "true" || token.text == "false" {
             return Ok(Pattern::Bool(token.text == "true", token.span));
@@ -3452,14 +3455,7 @@ impl Parser<'_> {
         } else {
             (None, token)
         };
-        if name.kind != Kind::Name {
-            return Err(self.err(
-                "grammar.Pattern",
-                &["Name", "_", "IntLiteral", "true", "false"],
-                start,
-                None,
-            ));
-        }
+        debug_assert_eq!(name.kind, Kind::Name);
         if mode.is_none() && self.eat("(") {
             let mut args = Vec::new();
             while !self.at_text(")") && !self.eof() {
