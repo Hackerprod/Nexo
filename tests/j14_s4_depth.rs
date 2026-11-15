@@ -384,11 +384,9 @@ fn viewed_closure_capture_does_not_extend_owned_depth() {
 
 #[test]
 fn option_depth_reports_once_at_the_first_exceeding_constructor() {
-    for count in [128] {
-        let source = format!("fn Main(){{{}}}", option_bindings(count));
-        let (status, report) = j_check(&source);
-        assert_eq!(status, 0, "{count}: {report}");
-    }
+    let source = format!("fn Main(){{{}}}", option_bindings(128));
+    let (status, report) = j_check(&source);
+    assert_eq!(status, 0, "128: {report}");
     for count in [129, 130, 300] {
         let source = format!("fn Main(){{{}}}", option_bindings(count));
         let start = source.find("Some(a128)").unwrap() as u64;

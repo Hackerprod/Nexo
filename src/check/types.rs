@@ -2290,23 +2290,22 @@ impl Checker<'_> {
         }
         if error.code == "NX-E0003"
             && error.data.get("budget_kind") == Some(&DataValue::String("value_type_depth".into()))
-        {
-            if let Some(previous) = self.errors.iter_mut().find(|previous| {
+            && let Some(previous) = self.errors.iter_mut().find(|previous| {
                 previous.code == "NX-E0003"
                     && previous.data.get("budget_kind")
                         == Some(&DataValue::String("value_type_depth".into()))
-            }) {
-                let site = |diagnostic: &Diagnostic| {
-                    diagnostic
-                        .primary_span
-                        .as_ref()
-                        .map_or((u64::MAX, u64::MAX), |span| (span.start, span.end))
-                };
-                if site(&error) < site(previous) {
-                    *previous = error;
-                }
-                return;
+            })
+        {
+            let site = |diagnostic: &Diagnostic| {
+                diagnostic
+                    .primary_span
+                    .as_ref()
+                    .map_or((u64::MAX, u64::MAX), |span| (span.start, span.end))
+            };
+            if site(&error) < site(previous) {
+                *previous = error;
             }
+            return;
         }
         if error.operation != Operation::AnalysisLimit
             && let Some(span) = &error.primary_span
