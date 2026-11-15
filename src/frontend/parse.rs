@@ -772,6 +772,134 @@ mod tests {
     use crate::diagnostic::DataValue;
 
     #[test]
+    fn production_table_has_108_declared_entry_fixtures() {
+        // The spellings and A/D/X decisions are transcribed independently
+        // from J14-b1-r1 §R1. The table itself must not supply the oracle.
+        let fixtures: [(&str, &str, Option<&str>); 36] = [
+            ("fn", "AAA", None),
+            ("gen", "AXX", None),
+            ("for", "XAX", None),
+            ("yield", "XAX", None),
+            ("break", "XAX", None),
+            ("continue", "XAX", None),
+            ("match", "XAA", None),
+            ("if", "XAA", None),
+            ("while", "XAX", None),
+            ("let", "XAX", None),
+            ("var", "XAX", None),
+            ("return", "XAX", None),
+            ("@", "DDD", Some("attributes")),
+            ("struct", "DDD", Some("user_types")),
+            ("enum", "DDD", Some("user_types")),
+            ("type", "DDD", Some("user_types")),
+            ("trait", "DDD", Some("traits_generics")),
+            ("impl", "DDD", Some("traits_generics")),
+            ("where", "DDD", Some("traits_generics")),
+            ("dyn", "DDD", Some("traits_generics")),
+            ("use", "DDD", Some("modules_visibility")),
+            ("mod", "DDD", Some("modules_visibility")),
+            ("pub", "DDD", Some("modules_visibility")),
+            ("extend", "DDD", Some("extensions")),
+            ("extension", "DDD", Some("extensions")),
+            ("const", "DDD", Some("comptime")),
+            ("comptime", "DDD", Some("comptime")),
+            ("async", "DDD", Some("async")),
+            ("await", "DDD", Some("async")),
+            ("region", "DDD", Some("region")),
+            ("self", "DDD", Some("methods")),
+            ("super", "XXX", None),
+            ("package", "XXX", None),
+            ("and", "XXX", None),
+            ("or", "XXX", None),
+            ("not", "XAA", None),
+        ];
+        assert_eq!(PRODUCTION_ROWS.len() * 3, 108);
+        let mut seen = HashSet::new();
+        for (word, decisions, feature) in fixtures {
+            let token = lex::lex("matrix.n", word).unwrap().remove(0);
+            let terminal = production(&token).expect(word);
+            assert!(seen.insert(terminal), "duplicate terminal: {word}");
+            for (index, state) in [
+                GrammarState::ModuleItem,
+                GrammarState::BlockItem,
+                GrammarState::Primary,
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                let expected = match decisions.as_bytes()[index] {
+                    b'A' => Entry::Active,
+                    b'D' => Entry::Deferred(feature.unwrap()),
+                    b'X' => Entry::Invalid,
+                    _ => panic!("bad fixture: {word}"),
+                };
+                assert_eq!(
+                    production_entry(&token, state),
+                    Some(expected),
+                    "{word}/{index}"
+                );
+                let source = match index {
+                    0 => word.to_string(),
+                    1 => format!("fn Main(){{{word}}}"),
+                    _ => format!("fn Main(){{let x={word};}}"),
+                };
+                let start = source.rfind(word).unwrap();
+                let result = parse_new_profile("matrix.n", &source);
+                match expected {
+                    Entry::Deferred(id) => {
+                        let d = result.unwrap_err();
+                        assert_eq!(d.code, "NX-E0006", "{word}/{index}");
+                        assert_eq!(d.feature_id.as_deref(), Some(id), "{word}/{index}");
+                        assert_eq!(d.stage, Stage::Parse);
+                        assert_eq!(d.operation, Operation::SyntaxParse);
+                        assert_eq!(d.primary_span.as_ref().unwrap().start as usize, start);
+                        assert_eq!(
+                            d.primary_span.as_ref().unwrap().end as usize,
+                            start + word.len()
+                        );
+                        assert_eq!(
+                            d.data.get("pending_scope"),
+                            Some(&DataValue::String("later_adr".into()))
+                        );
+                        d.validate("matrix.n", &source).unwrap();
+                    }
+                    Entry::Invalid => {
+                        let d = result.unwrap_err();
+                        assert_eq!(d.code, "NX-E0002", "{word}/{index}: {d:?}");
+                        assert_eq!(d.primary_span.as_ref().unwrap().start as usize, start);
+                        assert_eq!(
+                            d.primary_span.as_ref().unwrap().end as usize,
+                            start + word.len()
+                        );
+                        assert_eq!(
+                            d.parser_context.as_deref(),
+                            Some(match index {
+                                0 => "module_item",
+                                1 => "block_item",
+                                _ => "binding_initializer",
+                            }),
+                            "{word}/{index}"
+                        );
+                        d.validate("matrix.n", &source).unwrap();
+                    }
+                    Entry::Active => {
+                        if let Err(d) = result {
+                            assert_ne!(d.code, "NX-E0006", "{word}/{index}: {d:?}");
+                            d.validate("matrix.n", &source).unwrap();
+                        }
+                    }
+                }
+            }
+        }
+        assert_eq!(seen.len(), 36);
+        assert!(
+            PRODUCTION_ROWS
+                .iter()
+                .all(|row| seen.contains(&row.production))
+        );
+    }
+
+    #[test]
     fn parser_token_probe_units_scale_with_source_length() {
         fn measured(target: usize) -> u64 {
             let mut source = String::from("fn F(){");
@@ -1041,6 +1169,271 @@ enum GrammarState {
     ModuleItem,
     BlockItem,
     Primary,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+enum Production {
+    FnDecl,
+    GenDecl,
+    ForStmt,
+    YieldStmt,
+    BreakStmt,
+    ContinueStmt,
+    MatchStmt,
+    IfStmt,
+    WhileStmt,
+    LetBinding,
+    VarBinding,
+    ReturnStmt,
+    Attribute,
+    StructDecl,
+    EnumDecl,
+    AliasDecl,
+    TraitDecl,
+    ImplDecl,
+    WhereClause,
+    DynType,
+    UseDecl,
+    ModDecl,
+    PubModifier,
+    ExtendDecl,
+    Extension,
+    ConstDecl,
+    Comptime,
+    Async,
+    AwaitExpr,
+    RegionStmt,
+    SelfPath,
+    SuperPath,
+    PackagePath,
+    AndOp,
+    OrOp,
+    NotOp,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Entry {
+    Active,
+    Deferred(&'static str),
+    Invalid,
+}
+
+#[derive(Clone, Copy)]
+struct ProductionRow {
+    production: Production,
+    entries: [Entry; 3],
+}
+
+const A: Entry = Entry::Active;
+const X: Entry = Entry::Invalid;
+const fn d(id: &'static str) -> Entry {
+    Entry::Deferred(id)
+}
+
+// One row per reserved terminal in the exterior D15 entry grammar. The
+// columns are ModuleItem, BlockItem, and Expr/Primary, respectively.
+const PRODUCTION_ROWS: [ProductionRow; 36] = [
+    ProductionRow {
+        production: Production::FnDecl,
+        entries: [A, A, A],
+    },
+    ProductionRow {
+        production: Production::GenDecl,
+        entries: [A, X, X],
+    },
+    ProductionRow {
+        production: Production::ForStmt,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::YieldStmt,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::BreakStmt,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::ContinueStmt,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::MatchStmt,
+        entries: [X, A, A],
+    },
+    ProductionRow {
+        production: Production::IfStmt,
+        entries: [X, A, A],
+    },
+    ProductionRow {
+        production: Production::WhileStmt,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::LetBinding,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::VarBinding,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::ReturnStmt,
+        entries: [X, A, X],
+    },
+    ProductionRow {
+        production: Production::Attribute,
+        entries: [d("attributes"); 3],
+    },
+    ProductionRow {
+        production: Production::StructDecl,
+        entries: [d("user_types"); 3],
+    },
+    ProductionRow {
+        production: Production::EnumDecl,
+        entries: [d("user_types"); 3],
+    },
+    ProductionRow {
+        production: Production::AliasDecl,
+        entries: [d("user_types"); 3],
+    },
+    ProductionRow {
+        production: Production::TraitDecl,
+        entries: [d("traits_generics"); 3],
+    },
+    ProductionRow {
+        production: Production::ImplDecl,
+        entries: [d("traits_generics"); 3],
+    },
+    ProductionRow {
+        production: Production::WhereClause,
+        entries: [d("traits_generics"); 3],
+    },
+    ProductionRow {
+        production: Production::DynType,
+        entries: [d("traits_generics"); 3],
+    },
+    ProductionRow {
+        production: Production::UseDecl,
+        entries: [d("modules_visibility"); 3],
+    },
+    ProductionRow {
+        production: Production::ModDecl,
+        entries: [d("modules_visibility"); 3],
+    },
+    ProductionRow {
+        production: Production::PubModifier,
+        entries: [d("modules_visibility"); 3],
+    },
+    ProductionRow {
+        production: Production::ExtendDecl,
+        entries: [d("extensions"); 3],
+    },
+    ProductionRow {
+        production: Production::Extension,
+        entries: [d("extensions"); 3],
+    },
+    ProductionRow {
+        production: Production::ConstDecl,
+        entries: [d("comptime"); 3],
+    },
+    ProductionRow {
+        production: Production::Comptime,
+        entries: [d("comptime"); 3],
+    },
+    ProductionRow {
+        production: Production::Async,
+        entries: [d("async"); 3],
+    },
+    ProductionRow {
+        production: Production::AwaitExpr,
+        entries: [d("async"); 3],
+    },
+    ProductionRow {
+        production: Production::RegionStmt,
+        entries: [d("region"); 3],
+    },
+    ProductionRow {
+        production: Production::SelfPath,
+        entries: [d("methods"); 3],
+    },
+    ProductionRow {
+        production: Production::SuperPath,
+        entries: [X; 3],
+    },
+    ProductionRow {
+        production: Production::PackagePath,
+        entries: [X; 3],
+    },
+    ProductionRow {
+        production: Production::AndOp,
+        entries: [X; 3],
+    },
+    ProductionRow {
+        production: Production::OrOp,
+        entries: [X; 3],
+    },
+    ProductionRow {
+        production: Production::NotOp,
+        entries: [X, A, A],
+    },
+];
+
+// This is only the lexical spelling-to-terminal conversion. All production
+// decisions, including deferred features, come from PRODUCTION_ROWS.
+fn production(token: &Token) -> Option<Production> {
+    Some(match token.text.as_str() {
+        "fn" => Production::FnDecl,
+        "gen" => Production::GenDecl,
+        "for" => Production::ForStmt,
+        "yield" => Production::YieldStmt,
+        "break" => Production::BreakStmt,
+        "continue" => Production::ContinueStmt,
+        "match" => Production::MatchStmt,
+        "if" => Production::IfStmt,
+        "while" => Production::WhileStmt,
+        "let" => Production::LetBinding,
+        "var" => Production::VarBinding,
+        "return" => Production::ReturnStmt,
+        "@" => Production::Attribute,
+        "struct" => Production::StructDecl,
+        "enum" => Production::EnumDecl,
+        "type" => Production::AliasDecl,
+        "trait" => Production::TraitDecl,
+        "impl" => Production::ImplDecl,
+        "where" => Production::WhereClause,
+        "dyn" => Production::DynType,
+        "use" => Production::UseDecl,
+        "mod" => Production::ModDecl,
+        "pub" => Production::PubModifier,
+        "extend" => Production::ExtendDecl,
+        "extension" => Production::Extension,
+        "const" => Production::ConstDecl,
+        "comptime" => Production::Comptime,
+        "async" => Production::Async,
+        "await" => Production::AwaitExpr,
+        "region" => Production::RegionStmt,
+        "self" => Production::SelfPath,
+        "super" => Production::SuperPath,
+        "package" => Production::PackagePath,
+        "and" => Production::AndOp,
+        "or" => Production::OrOp,
+        "not" => Production::NotOp,
+        _ => return None,
+    })
+}
+
+fn production_entry(token: &Token, state: GrammarState) -> Option<Entry> {
+    let terminal = production(token)?;
+    let column = match state {
+        GrammarState::ModuleItem => 0,
+        GrammarState::BlockItem => 1,
+        GrammarState::Primary => 2,
+    };
+    PRODUCTION_ROWS
+        .iter()
+        .find(|row| row.production == terminal)
+        .map(|row| row.entries[column])
 }
 
 #[derive(Clone, Copy)]
@@ -1355,7 +1748,10 @@ impl Parser<'_> {
         let start = 0;
         let mut fs = Vec::new();
         while !self.eof() {
-            if self.word("fn") || (self.new_profile && self.word("gen")) {
+            if (self.new_profile
+                && production_entry(self.peek(), GrammarState::ModuleItem) == Some(Entry::Active))
+                || (!self.new_profile && self.word("fn"))
+            {
                 if let Some(name) = self
                     .tokens
                     .get(self.at + if self.word("gen") { 2 } else { 1 })
@@ -3233,25 +3629,14 @@ impl Parser<'_> {
 
     fn deferred_in_state(&self, state: GrammarState) -> Option<Box<Diagnostic>> {
         let token = self.peek();
-        let (context, first) = match state {
-            GrammarState::ModuleItem => ("module_item", first(self.new_profile, FirstSet::Module)),
-            GrammarState::BlockItem => ("block_item", first(self.new_profile, FirstSet::Block)),
-            GrammarState::Primary => ("grammar.Primary", first(self.new_profile, FirstSet::Expr)),
-        };
-        // These terminals belong to active productions of the complete grammar.
-        // Reaching a different state means no production can consume them here.
-        if self.new_profile && state == GrammarState::BlockItem && token.text == "for" {
-            return None;
+        if !self.new_profile {
+            return deferred_feature(&token.text)
+                .map(|feature| self.feature(feature, token.span.clone()));
         }
-        if self.new_profile
-            && matches!(
-                token.text.as_str(),
-                "for" | "break" | "continue" | "yield" | "gen" | "match"
-            )
-        {
-            return Some(self.err(context, first, token.span.start as usize, None));
+        match production_entry(token, state) {
+            Some(Entry::Deferred(id)) => Some(self.feature(id, token.span.clone())),
+            _ => None,
         }
-        deferred_feature(&token.text).map(|feature| self.feature(feature, token.span.clone()))
     }
 
     fn feature(&self, id: &str, s: Span) -> Box<Diagnostic> {
@@ -3404,6 +3789,16 @@ impl Parser<'_> {
         is_restriction(&self.peek().text)
     }
     fn starts_expr(&self) -> bool {
+        if !self.new_profile {
+            return self.starts_expr_legacy();
+        }
+        self.starts_atom()
+            || matches!(
+                production_entry(self.peek(), GrammarState::Primary),
+                Some(Entry::Active | Entry::Deferred(_))
+            )
+    }
+    fn starts_expr_legacy(&self) -> bool {
         matches!(
             self.peek().kind,
             Kind::Name | Kind::Integer | Kind::Decimal | Kind::String
@@ -3413,9 +3808,19 @@ impl Parser<'_> {
         ) || deferred_feature(&self.peek().text).is_some()
     }
     fn starts_try(&self) -> bool {
-        self.starts_expr() && !self.word("if")
+        self.starts_expr() && production(self.peek()) != Some(Production::IfStmt)
     }
     fn starts_postfix(&self) -> bool {
+        if !self.new_profile {
+            return self.starts_postfix_legacy();
+        }
+        self.starts_atom()
+            || matches!(
+                production_entry(self.peek(), GrammarState::Primary),
+                Some(Entry::Deferred(_))
+            )
+    }
+    fn starts_postfix_legacy(&self) -> bool {
         matches!(
             self.peek().kind,
             Kind::Name | Kind::Integer | Kind::Decimal | Kind::String
@@ -3425,11 +3830,34 @@ impl Parser<'_> {
         ) || deferred_feature(&self.peek().text).is_some()
     }
     fn starts_statement(&self) -> bool {
+        if !self.new_profile {
+            return self.starts_statement_legacy();
+        }
+        self.starts_atom()
+            || matches!(
+                production_entry(self.peek(), GrammarState::BlockItem),
+                Some(Entry::Active | Entry::Deferred(_))
+            )
+            || self.starts_block_open()
+    }
+    fn starts_statement_legacy(&self) -> bool {
         self.starts_expr()
             || matches!(
                 self.peek().text.as_str(),
                 "let" | "var" | "return" | "while" | "{"
             )
+    }
+    fn starts_atom(&self) -> bool {
+        matches!(
+            self.peek().kind,
+            Kind::Name | Kind::Integer | Kind::Decimal | Kind::String
+        ) || matches!(
+            self.peek().text.as_str(),
+            "(" | "[" | "-" | "true" | "false"
+        )
+    }
+    fn starts_block_open(&self) -> bool {
+        self.peek().text == "{"
     }
     fn word(&self, s: &str) -> bool {
         self.peek().text == s

@@ -56,6 +56,291 @@ fn rejected(source: &str, code: &str) -> String {
     reports.remove(0)
 }
 
+const MODULE_NEXT: &[&str] = &["EOF", "fn", "gen"];
+const EXPR_START: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "true",
+];
+const TRY_START: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "move",
+    "true",
+];
+const GROUP_FIRST: &[&str] = &[
+    "(",
+    ")",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "true",
+];
+const ARRAY_FIRST: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "]",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "true",
+];
+const BRANCH_FIRST: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "move",
+    "true",
+    "{",
+];
+const BLOCK_NEXT: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "break",
+    "continue",
+    "edit",
+    "false",
+    "fn",
+    "for",
+    "if",
+    "let",
+    "match",
+    "move",
+    "return",
+    "true",
+    "var",
+    "while",
+    "yield",
+    "{",
+    "}",
+];
+
+fn syntax_at(
+    source: &str,
+    token: &str,
+    start: usize,
+    context: &str,
+    first: &[&str],
+    prefix: usize,
+) {
+    let report = rejected(source, "NX-E0002");
+    let expected = format!(
+        "[{}]",
+        first
+            .iter()
+            .map(|x| format!("\"{x}\""))
+            .collect::<Vec<_>>()
+            .join(",")
+    );
+    assert!(
+        report.contains("\"subcause\":null")
+            && report.contains("\"stage\":\"parse\"")
+            && report.contains("\"operation\":\"syntax.parse\"")
+            && report.contains("\"feature_id\":null")
+            && report.contains("\"expected_tokens_kind\":\"admissible_set\"")
+            && report.contains("\"related_spans\":[]")
+            && report.contains("\"repair\":[]")
+            && report.contains("\"data\":{}"),
+        "{source}: {report}"
+    );
+    assert!(
+        report.contains(&format!("\"text\":\"{token}\",\"span\":{{\"file\":"))
+            && report.contains(&format!(
+                "\"start\":{start},\"end\":{}",
+                start + token.len()
+            ))
+            && report.contains(&format!("\"expected_tokens\":{expected}"))
+            && report.contains(&format!("\"parser_context\":\"{context}\"")),
+        "{source}: {report}"
+    );
+    let position = report.find("\"recognized_prefix\":").unwrap();
+    assert!(
+        report[position..].contains(&format!("\"start\":{prefix},\"end\":{start}")),
+        "{source}: {report}"
+    );
+}
+
+macro_rules! syntax_fixture {
+    ($name:ident, $source:literal, $token:literal, $start:expr, $context:literal, $first:ident, $prefix:expr) => {
+        #[test]
+        fn $name() {
+            syntax_at($source, $token, $start, $context, $first, $prefix);
+        }
+    };
+}
+
+syntax_fixture!(
+    module_match_is_syntax,
+    "match",
+    "match",
+    0,
+    "module_item",
+    MODULE_NEXT,
+    0
+);
+syntax_fixture!(
+    module_for_after_function_is_syntax,
+    "fn Main(){}for",
+    "for",
+    11,
+    "module_item",
+    MODULE_NEXT,
+    0
+);
+syntax_fixture!(
+    module_continue_is_syntax,
+    "continue Main(){}",
+    "continue",
+    0,
+    "module_item",
+    MODULE_NEXT,
+    0
+);
+syntax_fixture!(
+    binding_gen_is_syntax,
+    "fn Main(){let x=gen;}",
+    "gen",
+    16,
+    "binding_initializer",
+    EXPR_START,
+    10
+);
+syntax_fixture!(
+    binding_yield_is_syntax,
+    "fn Main(){let x=yield;}",
+    "yield",
+    16,
+    "binding_initializer",
+    EXPR_START,
+    10
+);
+syntax_fixture!(
+    binding_break_is_syntax,
+    "fn Main(){var o:Option<I64>=break(1);}",
+    "break",
+    28,
+    "binding_initializer",
+    EXPR_START,
+    10
+);
+syntax_fixture!(
+    binding_for_is_syntax,
+    "fn Main(){let x=for;}",
+    "for",
+    16,
+    "binding_initializer",
+    EXPR_START,
+    10
+);
+syntax_fixture!(
+    binary_gen_uses_try_context,
+    "fn Main(){let x=1+gen;}",
+    "gen",
+    18,
+    "grammar.TryExpr",
+    TRY_START,
+    18
+);
+syntax_fixture!(
+    argument_gen_uses_arguments_context,
+    "fn Main(){Print(gen);}",
+    "gen",
+    16,
+    "grammar.Arguments",
+    GROUP_FIRST,
+    15
+);
+syntax_fixture!(
+    array_gen_uses_array_first,
+    "fn Main(){let x=[gen];}",
+    "gen",
+    17,
+    "grammar.Primary",
+    ARRAY_FIRST,
+    16
+);
+syntax_fixture!(
+    group_gen_uses_group_first,
+    "fn Main(){let x=(gen);}",
+    "gen",
+    17,
+    "grammar.Primary",
+    GROUP_FIRST,
+    16
+);
+syntax_fixture!(
+    condition_gen_keeps_primary_context,
+    "fn Main(){if gen{}}",
+    "gen",
+    13,
+    "grammar.Primary",
+    EXPR_START,
+    13
+);
+syntax_fixture!(
+    branch_gen_uses_branch_context,
+    "fn Main(){let x=if true then gen else 0;}",
+    "gen",
+    29,
+    "grammar.BranchOperand",
+    BRANCH_FIRST,
+    29
+);
+syntax_fixture!(
+    closure_binding_gen_uses_initializer_context,
+    "fn Main(){let f=fn [](){let x=gen;};}",
+    "gen",
+    30,
+    "binding_initializer",
+    EXPR_START,
+    24
+);
+syntax_fixture!(
+    block_gen_after_statement_uses_block_context,
+    "fn Main(){let x=1;gen}",
+    "gen",
+    18,
+    "grammar.Block",
+    BLOCK_NEXT,
+    9
+);
+
 #[test]
 fn nested_match_restores_enclosing_temporaries_on_impossible_edges() {
     let inner = "match true{true=>{value:true;},false=>{value:false;}}";
