@@ -8,9 +8,9 @@ fn causes(source: &str) -> Vec<(String, Option<String>, String)> {
     check_proposed("causal_obligations.n", source, false)
         .err()
         .unwrap_or_default()
-        .iter()
-        .map(|error| {
-            error.validate("causal_obligations.n", source).unwrap();
+        .into_iter()
+        .map(|mut error| {
+            error.publish("causal_obligations.n", source).unwrap();
             let span = error.primary_span.as_ref().unwrap();
             (
                 error.code.clone(),
@@ -32,9 +32,12 @@ fn exact_cause(
     found: Option<&str>,
     related: &[(RelatedRole, &str)],
 ) {
-    let errors = check_proposed("causal_obligations.n", source, false).unwrap_err();
-    let error = &errors[index];
-    error.validate("causal_obligations.n", source).unwrap();
+    let mut error = check_proposed("causal_obligations.n", source, false)
+        .unwrap_err()
+        .into_iter()
+        .nth(index)
+        .unwrap();
+    error.publish("causal_obligations.n", source).unwrap();
     assert_eq!(error.code, code);
     assert_eq!(error.subcause.as_deref(), subcause);
     let span = error.primary_span.as_ref().unwrap();
