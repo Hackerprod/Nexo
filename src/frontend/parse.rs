@@ -845,7 +845,7 @@ mod tests {
                     _ => panic!("bad fixture: {word}"),
                 };
                 assert_eq!(
-                    production_entry(&token, state),
+                    production_entry(&token, state).map(|(_, entry)| entry),
                     Some(expected),
                     "{word}/{index}"
                 );
@@ -1175,6 +1175,10 @@ fn deferred_feature(word: &str) -> Option<&'static str> {
     }
 }
 
+fn legacy_deferred(word: &str) -> Option<&'static str> {
+    deferred_feature(word)
+}
+
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum GrammarState {
     ModuleItem,
@@ -1434,17 +1438,93 @@ fn production(token: &Token) -> Option<Production> {
     })
 }
 
-fn production_entry(token: &Token, state: GrammarState) -> Option<Entry> {
+fn production_row(token: &Token) -> Option<&'static ProductionRow> {
     let terminal = production(token)?;
+    PRODUCTION_ROWS
+        .iter()
+        .find(|row| row.production == terminal)
+}
+
+fn production_try_excluded(token: &Token) -> bool {
+    production_row(token).is_some_and(|row| row.production == Production::IfStmt)
+}
+
+fn module_choice(row: &ProductionRow) -> ModuleChoice {
+    match row.production {
+        Production::FnDecl => ModuleChoice::Fn,
+        Production::GenDecl => ModuleChoice::Gen,
+        _ => ModuleChoice::Invalid,
+    }
+}
+
+fn block_choice(row: &ProductionRow) -> BlockChoice {
+    match row.production {
+        Production::MatchStmt => BlockChoice::Match,
+        Production::YieldStmt | Production::BreakStmt | Production::ContinueStmt => {
+            BlockChoice::Guard
+        }
+        Production::LetBinding | Production::VarBinding => BlockChoice::Binding,
+        Production::ReturnStmt => BlockChoice::Return,
+        Production::IfStmt => BlockChoice::If,
+        Production::WhileStmt => BlockChoice::While,
+        Production::ForStmt => BlockChoice::For,
+        _ => BlockChoice::Expr,
+    }
+}
+
+fn primary_choice(row: &ProductionRow) -> PrimaryChoice {
+    match row.production {
+        Production::IfStmt => PrimaryChoice::If,
+        Production::MatchStmt => PrimaryChoice::Match,
+        Production::FnDecl => PrimaryChoice::Fn,
+        Production::NotOp => PrimaryChoice::Not,
+        Production::SelfPath => PrimaryChoice::SelfPath,
+        _ => PrimaryChoice::Atom,
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ModuleChoice {
+    Fn,
+    Gen,
+    Deferred,
+    Invalid,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum BlockChoice {
+    Match,
+    Guard,
+    Binding,
+    Return,
+    If,
+    While,
+    For,
+    Expr,
+    Deferred,
+    Invalid,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PrimaryChoice {
+    If,
+    Match,
+    Fn,
+    Not,
+    SelfPath,
+    Atom,
+    Deferred,
+    Invalid,
+}
+
+// nexo:full-profile-dispatch
+fn production_entry(token: &Token, state: GrammarState) -> Option<(&'static ProductionRow, Entry)> {
     let column = match state {
         GrammarState::ModuleItem => 0,
         GrammarState::BlockItem => 1,
         GrammarState::Primary => 2,
     };
-    PRODUCTION_ROWS
-        .iter()
-        .find(|row| row.production == terminal)
-        .map(|row| row.entries[column])
+    production_row(token).map(|row| (row, row.entries[column]))
 }
 
 #[derive(Clone, Copy)]
@@ -1727,14 +1807,30 @@ impl Parser<'_> {
         self.callable_count += 1;
         Ok(())
     }
+    // nexo:full-profile-dispatch
+    fn select_module_entry(&self) -> ModuleChoice {
+        if !self.new_profile {
+            return self.select_module_entry_legacy();
+        }
+        match production_entry(self.peek(), GrammarState::ModuleItem) {
+            Some((row, Entry::Active)) => module_choice(row),
+            Some((_, Entry::Deferred(_))) => ModuleChoice::Deferred,
+            _ => ModuleChoice::Invalid,
+        }
+    }
+    fn select_module_entry_legacy(&self) -> ModuleChoice {
+        if self.word("fn") {
+            ModuleChoice::Fn
+        } else {
+            ModuleChoice::Invalid
+        }
+    }
     fn program(mut self) -> ParseResult {
         let start = 0;
         let mut fs = Vec::new();
         while !self.eof() {
-            if (self.new_profile
-                && production_entry(self.peek(), GrammarState::ModuleItem) == Some(Entry::Active))
-                || (!self.new_profile && self.word("fn"))
-            {
+            let choice = self.select_module_entry();
+            if matches!(choice, ModuleChoice::Fn | ModuleChoice::Gen) {
                 if let Some(name) = self
                     .tokens
                     .get(self.at + if self.word("gen") { 2 } else { 1 })
@@ -2393,20 +2489,45 @@ impl Parser<'_> {
         self.statement_start = previous_start;
         result
     }
+    // nexo:full-profile-dispatch
+    fn select_block_entry(&self) -> BlockChoice {
+        if !self.new_profile {
+            return self.select_block_entry_legacy();
+        }
+        match production_entry(self.peek(), GrammarState::BlockItem) {
+            Some((row, Entry::Active)) => block_choice(row),
+            Some((_, Entry::Deferred(_))) => BlockChoice::Deferred,
+            _ => BlockChoice::Invalid,
+        }
+    }
+    fn select_block_entry_legacy(&self) -> BlockChoice {
+        if self.guard_context > 0
+            && matches!(self.peek().text.as_str(), "break" | "continue" | "yield")
+        {
+            BlockChoice::Guard
+        } else if self.word("let") || self.word("var") {
+            BlockChoice::Binding
+        } else if self.word("return") {
+            BlockChoice::Return
+        } else if self.word("if") {
+            BlockChoice::If
+        } else if self.word("while") {
+            BlockChoice::While
+        } else {
+            BlockChoice::Expr
+        }
+    }
     fn statement_inner(
         &mut self,
         value_target: bool,
         block_start: usize,
     ) -> Result<Statement, Box<Diagnostic>> {
+        let choice = self.select_block_entry();
         let st = self.peek().span.start as usize;
-        if self.new_profile && self.word("match") {
+        if choice == BlockChoice::Match {
             return Ok(Statement::Match(self.match_form(false)?));
         }
-        if (self.guard_context > 0
-            || (self.new_profile
-                && matches!(self.peek().text.as_str(), "yield" | "break" | "continue")))
-            && matches!(self.peek().text.as_str(), "break" | "continue" | "yield")
-        {
+        if choice == BlockChoice::Guard {
             let token = self.take();
             if token.text == "yield" && !self.starts_expr() {
                 return Err(self.err(
@@ -2439,7 +2560,7 @@ impl Parser<'_> {
         if let Some(error) = self.deferred_in_state(GrammarState::BlockItem) {
             return Err(error);
         }
-        if self.word("let") || self.word("var") {
+        if choice == BlockChoice::Binding {
             let mutable = self.eat("var");
             if !mutable {
                 self.eat("let");
@@ -2478,7 +2599,8 @@ impl Parser<'_> {
                 span: self.span(st, end),
             });
         }
-        if self.eat("return") {
+        if choice == BlockChoice::Return {
+            self.eat("return");
             let val = if !self.starts_expr() || self.line_break_before_next() {
                 None
             } else {
@@ -2565,7 +2687,7 @@ impl Parser<'_> {
                 span: self.span(st, end),
             });
         }
-        if self.word("if") {
+        if choice == BlockChoice::If {
             let e = self.if_form(false)?;
             if let Expr::If {
                 condition,
@@ -2590,7 +2712,7 @@ impl Parser<'_> {
                 });
             }
         }
-        if self.word("while") {
+        if choice == BlockChoice::While {
             self.take();
             let c = self.expr(0)?;
             let b = self.block()?;
@@ -2601,7 +2723,8 @@ impl Parser<'_> {
                 span: self.span(st, end),
             });
         }
-        if self.new_profile && self.eat("for") {
+        if choice == BlockChoice::For {
+            self.eat("for");
             if self.at_text("edit") {
                 let span = self.take().span;
                 let mut error = self.feature("for_iteration", span);
@@ -2952,7 +3075,36 @@ impl Parser<'_> {
         }
         Ok(lhs)
     }
+    // nexo:full-profile-dispatch
+    fn select_primary_entry(&self) -> PrimaryChoice {
+        if !self.new_profile {
+            return self.select_primary_entry_legacy();
+        }
+        match production_entry(self.peek(), GrammarState::Primary) {
+            Some((row, Entry::Active)) => primary_choice(row),
+            Some((row, Entry::Deferred(_))) if primary_choice(row) == PrimaryChoice::SelfPath => {
+                PrimaryChoice::SelfPath
+            }
+            Some((_, Entry::Deferred(_))) => PrimaryChoice::Deferred,
+            Some((_, Entry::Invalid)) => PrimaryChoice::Invalid,
+            _ => PrimaryChoice::Atom,
+        }
+    }
+    fn select_primary_entry_legacy(&self) -> PrimaryChoice {
+        if self.word("if") {
+            PrimaryChoice::If
+        } else if self.word("fn") {
+            PrimaryChoice::Fn
+        } else if self.word("not") {
+            PrimaryChoice::Not
+        } else if self.word("self") {
+            PrimaryChoice::SelfPath
+        } else {
+            PrimaryChoice::Atom
+        }
+    }
     fn prefix(&mut self) -> Result<Expr, Box<Diagnostic>> {
+        let choice = self.select_primary_entry();
         let t = self.peek().clone();
         if t.kind == Kind::Decimal {
             return Err(self.feature("float_literal", t.span));
@@ -2966,7 +3118,7 @@ impl Parser<'_> {
         if matches!(t.text.as_str(), "..<" | "..=") {
             return Err(self.feature("range", t.span));
         }
-        if t.text == "not" {
+        if choice == PrimaryChoice::Not {
             return Err(self.syntax(
                 &t,
                 "unsupported_unary_operator",
@@ -2974,7 +3126,7 @@ impl Parser<'_> {
                 self.statement_start,
             ));
         }
-        if t.text == "self" {
+        if choice == PrimaryChoice::SelfPath {
             return Err(self.feature("methods", t.span));
         }
         if t.text == "-" {
@@ -3086,13 +3238,13 @@ impl Parser<'_> {
             self.check_expression_height(&result)?;
             return Ok(result);
         }
-        if t.text == "if" {
+        if choice == PrimaryChoice::If {
             return self.if_form(true);
         }
-        if self.new_profile && t.text == "match" {
+        if choice == PrimaryChoice::Match {
             return Ok(Expr::Match(Box::new(self.match_form(true)?)));
         }
-        if t.text == "fn" {
+        if choice == PrimaryChoice::Fn {
             return if self.new_profile {
                 self.closure()
             } else {
@@ -3623,14 +3775,15 @@ impl Parser<'_> {
         false
     }
 
+    // nexo:full-profile-dispatch
     fn deferred_in_state(&self, state: GrammarState) -> Option<Box<Diagnostic>> {
         let token = self.peek();
         if !self.new_profile {
-            return deferred_feature(&token.text)
+            return legacy_deferred(&token.text)
                 .map(|feature| self.feature(feature, token.span.clone()));
         }
         match production_entry(token, state) {
-            Some(Entry::Deferred(id)) => Some(self.feature(id, token.span.clone())),
+            Some((_, Entry::Deferred(id))) => Some(self.feature(id, token.span.clone())),
             _ => None,
         }
     }
@@ -3784,13 +3937,14 @@ impl Parser<'_> {
     fn starts_restriction(&self) -> bool {
         is_restriction(&self.peek().text)
     }
+    // nexo:full-profile-dispatch
     fn starts_expr(&self) -> bool {
         if !self.new_profile {
             return self.starts_expr_legacy();
         }
         self.starts_atom()
             || matches!(
-                production_entry(self.peek(), GrammarState::Primary),
+                production_entry(self.peek(), GrammarState::Primary).map(|(_, entry)| entry),
                 Some(Entry::Active | Entry::Deferred(_))
             )
     }
@@ -3801,18 +3955,20 @@ impl Parser<'_> {
         ) || matches!(
             self.peek().text.as_str(),
             "(" | "[" | "-" | "true" | "false" | "if" | "fn" | "not"
-        ) || deferred_feature(&self.peek().text).is_some()
+        ) || legacy_deferred(&self.peek().text).is_some()
     }
+    // nexo:full-profile-dispatch
     fn starts_try(&self) -> bool {
-        self.starts_expr() && production(self.peek()) != Some(Production::IfStmt)
+        self.starts_expr() && !production_try_excluded(self.peek())
     }
+    // nexo:full-profile-dispatch
     fn starts_postfix(&self) -> bool {
         if !self.new_profile {
             return self.starts_postfix_legacy();
         }
         self.starts_atom()
             || matches!(
-                production_entry(self.peek(), GrammarState::Primary),
+                production_entry(self.peek(), GrammarState::Primary).map(|(_, entry)| entry),
                 Some(Entry::Deferred(_))
             )
     }
@@ -3823,15 +3979,16 @@ impl Parser<'_> {
         ) || matches!(
             self.peek().text.as_str(),
             "(" | "[" | "-" | "true" | "false"
-        ) || deferred_feature(&self.peek().text).is_some()
+        ) || legacy_deferred(&self.peek().text).is_some()
     }
+    // nexo:full-profile-dispatch
     fn starts_statement(&self) -> bool {
         if !self.new_profile {
             return self.starts_statement_legacy();
         }
         self.starts_atom()
             || matches!(
-                production_entry(self.peek(), GrammarState::BlockItem),
+                production_entry(self.peek(), GrammarState::BlockItem).map(|(_, entry)| entry),
                 Some(Entry::Active | Entry::Deferred(_))
             )
             || self.starts_block_open()
@@ -3843,6 +4000,7 @@ impl Parser<'_> {
                 "let" | "var" | "return" | "while" | "{"
             )
     }
+    // nexo:full-profile-dispatch
     fn starts_atom(&self) -> bool {
         matches!(
             self.peek().kind,
@@ -3852,6 +4010,7 @@ impl Parser<'_> {
             "(" | "[" | "-" | "true" | "false"
         )
     }
+    // nexo:full-profile-dispatch
     fn starts_block_open(&self) -> bool {
         self.peek().text == "{"
     }

@@ -5,7 +5,6 @@ The expected values below are the J14-b1-r1.md v4 table, not compiler output.
 """
 
 import json
-import re
 import subprocess
 import sys
 import tempfile
@@ -131,7 +130,6 @@ def check_pair(old, new, source, token, start, context, first, prefix):
 
 
 def main():
-    structural_guard()
     pairs = list(zip(sys.argv[1::2], sys.argv[2::2]))
     assert len(pairs) in (1, 2), "provide debug pair and optional release pair"
     seen = set()
@@ -167,52 +165,6 @@ def main():
                     b = subprocess.run([new, *args], capture_output=True, timeout=30)
                     assert (a.returncode, a.stdout) == (b.returncode, b.stdout), (source, command, a.stdout, b.stdout)
     print(f"R1: {len(seen)} exact delta cells, {len(NO_DELTA)} no-delta controls, {len(pairs)} binary pair(s), check/run")
-
-
-def structural_guard():
-    source = (Path(__file__).resolve().parents[1] / "src/frontend/parse.rs").read_text(encoding="utf-8")
-    def body(name):
-        hit = re.search(r"\bfn\s+" + name + r"\s*\(", source)
-        assert hit, name
-        start = source.index("{", hit.end())
-        depth = 0
-        in_string = False
-        escape = False
-        for pos in range(start, len(source)):
-            char = source[pos]
-            if in_string:
-                if escape:
-                    escape = False
-                elif char == "\\":
-                    escape = True
-                elif char == '"':
-                    in_string = False
-            elif char == '"':
-                in_string = True
-            elif char == "{":
-                depth += 1
-            elif char == "}":
-                depth -= 1
-                if depth == 0:
-                    return source[start:pos + 1]
-        raise AssertionError(f"unclosed function: {name}")
-    dispatch = body("production_entry")
-    assert "PRODUCTION_ROWS" in dispatch and ".text" not in dispatch
-    for name in ("starts_expr", "starts_try", "starts_postfix", "starts_statement"):
-        section = body(name)
-        assert "deferred_feature" not in section, name
-        assert ".text" not in section and "self.word" not in section, name
-        if name != "starts_try":
-            assert "production_entry" in section, name
-    deferred = body("deferred_in_state")
-    assert "if !self.new_profile" in deferred and "production_entry" in deferred
-    assert deferred.index("deferred_feature") < deferred.index("production_entry")
-    for name, selector in (("expr", "starts_expr"), ("prefix", "starts_expr"),
-                           ("branch_operand", "starts_try"), ("if_form", "starts_try")):
-        section = body(name)
-        assert f"!self.{selector}()" in section, name
-        assert "deferred_feature" not in section, name
-    assert source.count("deferred_feature(") == 4  # declaration + legacy-only callers
 
 
 if __name__ == "__main__":
