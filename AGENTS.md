@@ -63,6 +63,18 @@ trabajó en él.
 6. **Cortes grandes.** Un plan con muchas soluciones se divide en bloques coherentes (por dependencias
    y por familia); cada bloque recorre el flujo completo, para que B y D validen por partes.
 
+### Vía rápida para correcciones simples (decisión del propietario, 2026-11-14)
+
+El coordinador decide, y registra el motivo en el informe de cierre, cuándo una corrección es **simple y
+obvia** y no necesita el ciclo completo de plan y propuesta. Criterios (todos): causa raíz de una sola línea
+o función, ya comprobada leyendo el código; un único archivo o rutina; sin interacción con otros
+mecanismos (propiedad, temporales, cobertura, diagnósticos, cuotas); sin cambio de comportamiento de
+programas ya aceptados; sin decisión de laguna del ADR. En la vía rápida: C implementa con regresión
+(que falla sin la corrección y pasa con ella) y pasa la puerta mecánica; D (CL) hace UNA verificación
+dirigida con fidelidad al código y diferencial; sin propuesta ni plan previos. Ante la duda, o si aparece
+una interacción, se vuelve al ciclo completo. Los mecanismos con interacciones (p. ej. estado de
+temporales por arista, cobertura de `match`, orden de cierre) nunca van por la vía rápida.
+
 Qué cuenta como FAIL lo fija «Rigor proporcional y presupuesto de validación» (solo defectos
 reproducibles; núcleo vs andamiaje). Los ciclos 2, 4.1–4.3 se repiten hasta PASS; si no convergen, el
 coordinador lo registra y reduce el alcance o reabre el diseño (Flujo A) en vez de iterar sin fin.
