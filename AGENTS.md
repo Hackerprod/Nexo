@@ -27,9 +27,32 @@ No se crea una rev 0.3.
 1. Codex (GPT 6 Sol o Luna) implementa.
 2. Subagente Sonnet 5.5 valida robustez y detecta desvíos (respecto del ADR, el roadmap y
    la idea central).
-3. Si da **PASS**, se comienza la siguiente fase. Si no, el coordinador especifica el motivo
-   y ordena a Codex corregir, iterando hasta PASS dentro del presupuesto de «Rigor proporcional y
-   presupuesto de validación».
+3. Si da **PASS**, se comienza la siguiente fase. Si no, se aplica el **Flujo de corrección**
+   (abajo), dentro del presupuesto de «Rigor proporcional y presupuesto de validación».
+
+### Flujo de corrección de bloqueantes (decisión del propietario, 2026-11-14)
+
+Un arreglo aplicado sin análisis previo puede parchear un síntoma o romper otra cosa. Por eso, cuando
+una validación encuentra bloqueantes, **nadie toca código antes de que una propuesta esté validada**:
+
+1. **Propuesta (sin código).** El implementador escribe un `.md` en `docs/correcciones/<corte>-rN.md` con,
+   por cada defecto o familia: repro literal; causa raíz comprobada leyendo el código (archivo y función);
+   familia afectada (variantes hermanas que fallan por la misma causa); solución propuesta como
+   mecanismo único (qué cambia y dónde); por qué no es un parche ni un caso especial; efectos laterales
+   (qué otros comportamientos, diagnósticos o cifras toca y cómo se comprobará que no cambian);
+   alternativas descartadas; pruebas a añadir (regresión, familia y no regresión); orden y dependencias
+   entre defectos. Si dos defectos comparten causa, una sola solución.
+2. **Validación de la propuesta.** Un subagente distinto del implementador la revisa contra el ADR y el
+   código: ¿la causa es la real?, ¿la solución cubre la familia?, ¿es mecanismo único?, ¿qué rompe?, ¿las
+   pruebas bastan? Veredicto PASS / CAMBIOS con lista numerada. Máximo dos iteraciones de propuesta; si no
+   converge, se reduce el alcance o se reabre el diseño (Flujo A) y se registra.
+3. **Implementación.** El implementador aplica exactamente la propuesta validada; si descubre que no
+   basta, para y revisa la propuesta (no improvisa).
+4. **Validación del código.** Verificación dirigida de los defectos y su familia, más el diferencial,
+   el fuzz y los oráculos del corte; un cambio de comportamiento no previsto en la propuesta es defecto.
+5. **Revisión de diff al cierre.** Un modelo distinto del implementador revisa el diff completo del
+   corte buscando parches, casos especiales, rutas duplicadas, constantes hechas para pasar una prueba
+   y código muerto.
 
 ## Reglas comunes
 
