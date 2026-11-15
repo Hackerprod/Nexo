@@ -4144,37 +4144,11 @@ impl Checker<'_> {
             );
             return Err(error);
         }
-        let inferred_values = self.inferred_value_depth(ty);
-        let mut arrays = 0;
-        let mut values = 0;
-        let mut work = vec![(ty, 0usize, 0usize)];
-        while let Some((node, a, v)) = work.pop() {
-            arrays = arrays.max(a);
-            values = values.max(v);
-            match node {
-                Type::Array(inner) => work.push((inner, a + 1, v + 1)),
-                Type::Union(_, first, second) => {
-                    if let Some(second) = second {
-                        work.push((second, a, v + 1));
-                    }
-                    work.push((first, a, v + 1));
-                }
-                Type::I64
-                | Type::Bool
-                | Type::Unit
-                | Type::MockResource
-                | Type::MockBlockingResource
-                | Type::Closure { .. }
-                | Type::Generator { .. }
-                | Type::Deferred(_)
-                | Type::Never
-                | Type::Tainted => {}
-            }
-        }
+        let (arrays, values) = self.compound_depth(ty);
         let (kind, observed) = if arrays > 128 {
             ("array_type_depth", arrays)
-        } else if values.max(inferred_values) > 128 {
-            ("value_type_depth", values.max(inferred_values))
+        } else if values > 128 {
+            ("value_type_depth", values)
         } else {
             return Ok(());
         };
@@ -4193,38 +4167,49 @@ impl Checker<'_> {
         Err(d)
     }
 
-    fn inferred_value_depth(&self, ty: &Type) -> usize {
+    fn compound_depth(&self, ty: &Type) -> (usize, usize) {
         enum Part<'a> {
             Ty(&'a Type),
             Var(u64),
+            Leave(u64),
         }
-        let mut work = vec![(Part::Ty(ty), 0_usize)];
-        let mut deepest = 0;
-        while let Some((part, depth)) = work.pop() {
-            deepest = deepest.max(depth);
-            if depth > 128 {
-                return depth;
+        let mut work = vec![(Part::Ty(ty), 0_usize, 0_usize)];
+        let mut active = HashSet::new();
+        let (mut arrays, mut values) = (0, 0);
+        while let Some((part, array_depth, value_depth)) = work.pop() {
+            if let Part::Leave(root) = part {
+                active.remove(&root);
+                continue;
             }
+            arrays = arrays.max(array_depth);
+            values = values.max(value_depth);
             match part {
-                Part::Ty(Type::Array(child)) => work.push((Part::Ty(child), depth + 1)),
+                Part::Leave(_) => unreachable!(),
+                Part::Ty(Type::Array(child)) => {
+                    work.push((Part::Ty(child), array_depth + 1, value_depth + 1));
+                }
                 Part::Ty(Type::Union(_, first, second)) => {
-                    work.push((Part::Ty(first), depth + 1));
+                    work.push((Part::Ty(first), array_depth, value_depth + 1));
                     if let Some(second) = second {
-                        work.push((Part::Ty(second), depth + 1));
+                        work.push((Part::Ty(second), array_depth, value_depth + 1));
                     }
                 }
-                Part::Ty(Type::Generator { item, .. }) => work.push((Part::Ty(item), depth + 1)),
+                Part::Ty(Type::Generator { item, .. }) => {
+                    work.push((Part::Ty(item), array_depth, value_depth + 1));
+                }
                 Part::Ty(Type::Closure { site, .. }) => {
-                    deepest = deepest.max(depth + 1);
+                    values = values.max(value_depth + 1);
                     if let Some(draft) = self.closures.get(site) {
                         for (_, mode, _, _, _, captured, _) in &draft.captures {
                             if matches!(mode, CaptureMode::Copy | CaptureMode::Move) {
-                                work.push((Part::Ty(captured), depth + 1));
+                                work.push((Part::Ty(captured), array_depth, value_depth + 1));
                             }
                         }
                     }
                 }
-                Part::Ty(Type::Deferred(id)) => work.push((Part::Var(*id), depth)),
+                Part::Ty(Type::Deferred(id)) => {
+                    work.push((Part::Var(*id), array_depth, value_depth));
+                }
                 Part::Var(id) => {
                     let mut root = id;
                     while let Some(node) = self.type_nodes.get(&root) {
@@ -4236,14 +4221,21 @@ impl Checker<'_> {
                     let Some(node) = self.type_nodes.get(&root) else {
                         continue;
                     };
+                    // Occurs checks reject cycles while solving. Guard this
+                    // walk before expanding a node so malformed graphs never
+                    // turn depth accounting into an unbounded traversal.
+                    if !active.insert(root) {
+                        continue;
+                    }
+                    work.push((Part::Leave(root), array_depth, value_depth));
                     if let Some((concrete, _)) = &node.concrete {
-                        work.push((Part::Ty(concrete), depth));
+                        work.push((Part::Ty(concrete), array_depth, value_depth));
                     } else if let Some(child) = node.array_child {
-                        work.push((Part::Var(child), depth + 1));
+                        work.push((Part::Var(child), array_depth + 1, value_depth + 1));
                     } else if let Some(children) = node.variant_children {
                         for variant in children.variants {
                             if let Some(child) = variant.payload {
-                                work.push((Part::Var(child), depth + 1));
+                                work.push((Part::Var(child), array_depth, value_depth + 1));
                             }
                         }
                     }
@@ -4251,7 +4243,7 @@ impl Checker<'_> {
                 _ => {}
             }
         }
-        deepest
+        (arrays, values)
     }
 
     fn type_annotation_span(&self, start: u64, end: u64, marker: &str) -> Option<Span> {
@@ -9711,6 +9703,36 @@ mod quota_tests {
             errors: Vec::new(),
             closures: HashMap::new(),
         }
+    }
+
+    #[test]
+    fn inferred_array_path_keeps_array_depth_priority_over_value_depth() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let mut roots = Vec::new();
+        for _ in 0..=129 {
+            roots.push(checker.new_variable(&site(0)).unwrap());
+        }
+        for pair in roots.windows(2) {
+            checker.type_nodes.get_mut(&pair[0]).unwrap().array_child = Some(pair[1]);
+        }
+        let error = checker
+            .check_depth(&Type::Deferred(roots[0]), &site(7))
+            .unwrap_err();
+        assert_eq!(error.code, "NX-E0003");
+        assert_eq!(error.stage, Stage::Types);
+        assert_eq!(error.operation, Operation::AnalysisLimit);
+        assert_eq!(error.primary_span, Some(site(7)));
+        assert_eq!(
+            error.data.get("budget_kind"),
+            Some(&DataValue::String("array_type_depth".into()))
+        );
+        assert_eq!(error.data.get("limit"), Some(&DataValue::UInt(128)));
+        assert_eq!(error.data.get("observed"), Some(&DataValue::UInt(129)));
     }
 
     #[test]

@@ -1602,15 +1602,18 @@ Ejemplo válido: la fuente frames-8 de §7.2 con profundidad 8 ejecuta con
 `limit=8`, `observed=9`, primario [64,68), sin observaciones ni reserva final.
 
 `value_type_depth` cuenta los constructores del tipo compuesto: Array,
-Option, Result, closure y estado nominal Generator. Recorre los componentes
-del tipo y los campos propietarios de una closure; la cadena de llamadas a
-generadores distintos se rige por `call_frames`, sin expandir las firmas de
-otros generadores como si fueran un único tipo fuente recursivo. Ejemplo
-válido: `gen fn G()->I64{yield 1;}fn Main(){let g=G();let o=Some(move g);}`.
-La misma fuente con 129 envoltorios `Some(move ...)` consecutivos se rechaza
-con NX-E0003, `stage=types`, `operation=analysis.limit`,
-`budget_kind=value_type_depth`, `limit=128`, `observed=129`, en el primer
-envoltorio que rebasa la cota.
+Option, Result, closure y el propio estado nominal Generator como un nivel.
+Recorre los componentes del tipo y los campos propietarios de una closure o
+generador; la cadena de llamadas a generadores distintos se rige por
+`call_frames`, sin expandir las firmas de otros generadores como si fueran
+un único tipo fuente recursivo. Ejemplo válido: la fuente
+`gen fn G()->I64{yield 1;}fn Main(){let a0=G();` seguida, para cada
+`i=1..127`, de `let aI=Some(move aPREV);` (I/PREV son `i`/`i-1` en decimal)
+y de `}`; el Generator y 127 envoltorios Option suman 128 niveles y se
+aceptan sin diagnósticos. Ejemplo inválido: añadir antes de `}`
+`let a128=Some(move a127);` suma 129 niveles y emite un único NX-E0003,
+`stage=types`, `operation=analysis.limit`, `budget_kind=value_type_depth`,
+`limit=128`, `observed=129`, con primario sobre ese `Some(move a127)`.
 
 ## 11. EX04 reducido ejecutable
 
