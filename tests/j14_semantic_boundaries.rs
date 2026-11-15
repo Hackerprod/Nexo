@@ -476,11 +476,21 @@ fn transitive_suspend_safe_diagnostic_is_canonically_ordered() {
 }
 
 #[test]
-fn unresolved_scrutinee_precedes_guard_body_constraints() {
-    rejected(
-        "fn Main(){match if true then{value:None;}else{value:Some(Err(1));}{None if true=>{let v:Option<Result<I64,I64>>=None;},Some(Ok(p))=>{},_=>{}}}",
-        "NX-E0113",
-    );
+fn unresolved_scrutinee_reports_each_constructor_after_guard_constraints() {
+    let source = "fn Main(){match if true then{value:None;}else{value:Some(Err(1));}{None if true=>{let v:Option<Result<I64,I64>>=None;},Some(Ok(p))=>{},_=>{}}}";
+    for command in ["check", "run"] {
+        let (status, report) = cli(command, source);
+        assert_eq!(status, 1, "{report}");
+        assert_eq!(
+            report.matches("\"code\":\"NX-E0113\"").count(),
+            3,
+            "{report}"
+        );
+        assert!(
+            !report.contains("NX-E1304") && !report.contains("internal_error"),
+            "{report}"
+        );
+    }
     checked(
         "fn Main(){let o:Option<Result<I64,I64>>=Some(Err(1));match o{None if true=>{},Some(Ok(p))=>{},_=>{}}}",
     );
@@ -698,7 +708,9 @@ fn match_expression_unifies_deferred_option_arms() {
     checked("fn Main(){let x=match true{true=>{value:Some(1);},false=>{value:None;}};}");
     checked("fn Main(){let x=match true{true=>{value:None;},false=>{value:Some(1);}};}");
     checked("fn Main(){let x=match 1{0=>{value:None;},1=>{value:Some(1);},_=>{value:None;}};}");
-    checked("fn Main(){let x:Option<I64>=match true{true=>{value:None;},false=>{value:Some(1);}};}");
+    checked(
+        "fn Main(){let x:Option<I64>=match true{true=>{value:None;},false=>{value:Some(1);}};}",
+    );
     checked("fn Main(){let x=match true{true=>{value:Ok(1);},false=>{value:Err(true);}};}");
     rejected(
         "fn Main(){let x=match true{true=>{value:Some(1);},false=>{value:Some(true);}};}",

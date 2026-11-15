@@ -688,6 +688,8 @@ fn compile_ast_with_flow_limit(
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let mut parameters = Vec::new();
         for (index, (p, (_, mode, ty))) in source
@@ -864,38 +866,20 @@ fn compile_ast_with_flow_limit(
             }
             Some(unit)
         };
-        let (entry, other_blocks) = if all_paths_return {
-            let mut all = lower.blocks;
-            if all.is_empty() {
-                return Err(CompileError::InvalidIr("return flow"));
-            }
-            (all.remove(0), all)
-        } else if lower.blocks.is_empty() {
-            (
-                BasicBlock {
-                    id: BlockId(0),
-                    instructions: lower.instructions,
-                    terminator: Terminator::Return {
-                        value,
-                        span,
-                        charges: vec![],
-                    },
-                },
-                Vec::new(),
-            )
-        } else {
-            lower.blocks.push(BasicBlock {
-                id: BlockId(lower.blocks.len()),
-                instructions: lower.instructions,
-                terminator: Terminator::Return {
-                    value,
-                    span,
-                    charges: vec![],
-                },
+        if !all_paths_return {
+            lower.finish_block(Terminator::Return {
+                value,
+                span,
+                charges: vec![],
             });
-            let mut all = lower.blocks;
-            (all.remove(0), all)
-        };
+        }
+        lower.validate_temp_edges()?;
+        let mut all = lower.blocks;
+        if all.is_empty() {
+            return Err(CompileError::InvalidIr("return flow"));
+        }
+        let entry = all.remove(0);
+        let other_blocks = all;
         let mut function = Function {
             id: FunctionId(source.name.clone()),
             table_index: index,
@@ -1136,6 +1120,12 @@ fn count_partial_ir_items(lower: &Lower<'_>) -> u64 {
             .sum::<u64>()
 }
 
+#[derive(Clone)]
+struct TempBlockState {
+    entry: HashSet<TempId>,
+    exit: HashSet<TempId>,
+}
+
 struct Lower<'a> {
     instructions: Vec<Instruction>,
     pending_charges: Vec<WorkCharge>,
@@ -1168,6 +1158,8 @@ struct Lower<'a> {
     requested_receiver: Option<(ParameterMode, Span)>,
     live_temps: HashSet<TempId>,
     temp_undo: Vec<(TempId, bool)>,
+    temp_block_entry: HashSet<TempId>,
+    temp_blocks: Vec<TempBlockState>,
 }
 
 impl Lower<'_> {
@@ -1196,6 +1188,7 @@ impl Lower<'_> {
                 self.statement_op(Op::DropLocal(id), cleanup_span.clone(), Access::Own, false);
             }
         }
+        self.drop_live_temps(span, None);
         let id = self.finish_block(Terminator::Jump {
             target: if token == "break" {
                 BlockId(usize::MAX)
@@ -1517,6 +1510,44 @@ impl Lower<'_> {
                 self.live_temps.remove(&id);
             }
         }
+        if self.instructions.is_empty() {
+            self.temp_block_entry = self.live_temps.clone();
+        }
+    }
+    fn drop_live_temps(&mut self, span: &Span, except: Option<TempId>) {
+        let mut pending: Vec<_> = self
+            .live_temps
+            .iter()
+            .copied()
+            .filter(|id| Some(*id) != except)
+            .collect();
+        pending.sort_by_key(|id| std::cmp::Reverse(id.0));
+        for id in pending {
+            self.statement_op(Op::DropValue(id), span.clone(), Access::Own, false);
+        }
+    }
+    fn validate_temp_edges(&self) -> Result<(), CompileError> {
+        if self.blocks.len() != self.temp_blocks.len() {
+            return Err(CompileError::InvalidIr("temporary block state"));
+        }
+        for (block, state) in self.blocks.iter().zip(&self.temp_blocks) {
+            let targets: Vec<BlockId> = match &block.terminator {
+                Terminator::Jump { target, .. } => vec![*target],
+                Terminator::BranchBool { yes, no, .. } => vec![*yes, *no],
+                Terminator::Yield { resume, .. } => vec![*resume],
+                Terminator::Return { .. } | Terminator::Unreachable { .. } => Vec::new(),
+            };
+            for target in targets {
+                let successor = self
+                    .temp_blocks
+                    .get(target.0)
+                    .ok_or(CompileError::InvalidIr("temporary edge target"))?;
+                if state.exit != successor.entry {
+                    return Err(CompileError::InvalidIr("temporary edge state"));
+                }
+            }
+        }
+        Ok(())
     }
     fn consume_op_temps(&mut self, op: &Op) {
         match op {
@@ -2610,36 +2641,28 @@ impl Lower<'_> {
                 charges.splice(0..0, pending);
             }
         }
-        // a return value is excluded from pending drops above. After this
-        // point finish_block does not inspect live_temps: a final return has
-        // no successor, while branch lowering restores its temp checkpoint
-        // before lowering another block. Therefore marking this value live
-        // instead of dead below cannot change emitted IR or diagnostics;
-        // the dead mark keeps the local bookkeeping precise.
         if let Terminator::Return {
             value: Some(value),
             span,
             ..
         } = &terminator
         {
-            let mut pending: Vec<_> = self
-                .live_temps
-                .iter()
-                .copied()
-                .filter(|id| *id != *value)
-                .collect();
-            pending.sort_by_key(|id| std::cmp::Reverse(id.0));
-            for id in pending {
-                self.statement_op(Op::DropValue(id), span.clone(), Access::Own, false);
-            }
+            self.drop_live_temps(span, Some(*value));
             self.temp_live(*value, false);
         } else if let Terminator::BranchBool { condition, .. } = &terminator {
             self.temp_live(*condition, false);
         } else if let Terminator::Yield { value, .. } = &terminator {
             self.temp_live(*value, false);
+        } else if let Terminator::Unreachable { span, .. } = &terminator {
+            self.drop_live_temps(span, None);
         }
         super::count_cfg_work(1);
         let id = BlockId(self.blocks.len());
+        self.temp_blocks.push(TempBlockState {
+            entry: self.temp_block_entry.clone(),
+            exit: self.live_temps.clone(),
+        });
+        self.temp_block_entry = self.live_temps.clone();
         self.blocks.push(BasicBlock {
             id,
             instructions: std::mem::take(&mut self.instructions),
@@ -3662,6 +3685,7 @@ impl Lower<'_> {
                     self.emission,
                     self.consumed_undo.len(),
                     self.temp_undo.len(),
+                    self.temp_block_entry.clone(),
                 ));
                 self.dead_depth += 1;
                 self.emission = EmissionMode::Analyze;
@@ -3711,6 +3735,7 @@ impl Lower<'_> {
             emission,
             undo,
             temp_undo,
+            temp_block_entry,
         )) = unreachable
         {
             while self.consumed_undo.len() > undo {
@@ -3750,12 +3775,14 @@ impl Lower<'_> {
             self.instructions = instructions;
             self.pending_charges = pending_charges;
             self.blocks.truncate(blocks);
+            self.temp_blocks.truncate(blocks);
             self.next_scope = next_scope;
             self.scope_parents.truncate(next_scope);
             self.next_temp = next_temp;
             self.terminated = terminated;
             self.emission = emission;
             self.restore_temps(temp_undo);
+            self.temp_block_entry = temp_block_entry;
             self.dead_depth -= 1;
             if self.dead_depth == 0 {
                 self.consumed_undo.clear();
@@ -5695,6 +5722,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         }
     }
 
@@ -5879,6 +5908,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let Statement::Let {
             value: expression, ..
@@ -5948,6 +5979,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let main = ast.functions.iter().find(|f| f.name == "Main").unwrap();
         lower
@@ -6022,6 +6055,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -6070,6 +6105,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -6183,6 +6220,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -6230,6 +6269,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let statements = &ast.functions[0].body.statements;
         lower.statement(&statements[0], 0, &mut Vec::new()).unwrap();
@@ -6302,6 +6343,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -6381,6 +6424,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -6473,6 +6518,8 @@ mod tests {
             requested_receiver: None,
             live_temps: HashSet::new(),
             temp_undo: Vec::new(),
+            temp_block_entry: HashSet::new(),
+            temp_blocks: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower

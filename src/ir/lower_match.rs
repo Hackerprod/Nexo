@@ -594,7 +594,6 @@ impl Lower<'_> {
         }
         self.dead_depth -= 1;
         if branch_mode == EmissionMode::Live {
-            let fallback_temps = self.temp_undo.len();
             let fallback = BlockId(self.blocks.len());
             for branch in previous_branches {
                 if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
@@ -610,24 +609,11 @@ impl Lower<'_> {
             if let Some(held) = loan_temp {
                 self.statement_op(Op::DropValue(held), close_span, Access::Own, false);
             }
-            // The no-arm edge is unreachable after coverage checking, but it
-            // still has to account for temporaries held by enclosing matches.
-            // Each nested selection uses this same cleanup path.
-            let mut held: Vec<_> = self.live_temps.iter().copied().collect();
-            held.sort_by_key(|temp| std::cmp::Reverse(temp.0));
-            for temp in held {
-                self.statement_op(
-                    Op::DropValue(temp),
-                    selection.span.clone(),
-                    Access::Own,
-                    false,
-                );
-            }
             self.finish_block(Terminator::Unreachable {
                 span: selection.span.clone(),
                 charges: Vec::new(),
             });
-            self.restore_temps(fallback_temps);
+            self.restore_temps(temp_checkpoint);
         }
         let join = BlockId(self.blocks.len());
         for end in ends {

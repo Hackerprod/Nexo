@@ -2651,6 +2651,53 @@ impl Checker<'_> {
         }
     }
 
+    // Coverage and pattern bindings need the constructor identities already
+    // established in the inference graph, even when a payload stays open.
+    fn selection_type(&mut self, ty: &Type, depth: usize) -> Type {
+        if depth > 128 {
+            return ty.clone();
+        }
+        match ty {
+            Type::Deferred(id) => {
+                if let Some((concrete, _)) = self.concrete(*id) {
+                    return concrete;
+                }
+                let root = self.root(*id);
+                let node = self.type_nodes[&root].clone();
+                if let Some(child) = node.array_child {
+                    return Type::Array(Arc::new(
+                        self.selection_type(&Type::Deferred(child), depth + 1),
+                    ));
+                }
+                if let Some(union) = node.variant_children {
+                    let payloads: Vec<_> = union
+                        .variants
+                        .iter()
+                        .filter_map(|variant| variant.payload)
+                        .map(|child| {
+                            Arc::new(self.selection_type(&Type::Deferred(child), depth + 1))
+                        })
+                        .collect();
+                    return match (union.kind, payloads.as_slice()) {
+                        (UnionKind::Option, [some]) => Type::option(some.clone()),
+                        (UnionKind::Result, [ok, err]) => Type::result(ok.clone(), err.clone()),
+                        _ => ty.clone(),
+                    };
+                }
+                ty.clone()
+            }
+            Type::Array(child) => Type::Array(Arc::new(self.selection_type(child, depth + 1))),
+            Type::Union(UnionKind::Option, some, None) => {
+                Type::option(Arc::new(self.selection_type(some, depth + 1)))
+            }
+            Type::Union(UnionKind::Result, ok, Some(err)) => Type::result(
+                Arc::new(self.selection_type(ok, depth + 1)),
+                Arc::new(self.selection_type(err, depth + 1)),
+            ),
+            _ => ty.clone(),
+        }
+    }
+
     fn bind(
         &mut self,
         id: u64,
@@ -7100,69 +7147,19 @@ impl Checker<'_> {
         expected_span: Option<&Span>,
     ) -> Result<Type, Box<Diagnostic>> {
         let inferred = self.expr(&selection.scrutinee, None, None)?;
-        let selected = self
-            .resolved_syntax_type(&inferred)
-            .map(|ty| Type::from(&ty))
-            .unwrap_or(inferred);
+        let mut selected = self.selection_type(&inferred, 0);
         let selected_origin = Self::primary_span(&selection.scrutinee);
-        if internal_state(&selected).is_some() {
-            for (union, span) in self.pending_variant_constructors() {
-                if selection.scrutinee.span().start <= span.start
-                    && span.end <= selection.scrutinee.span().end
-                {
-                    let mut paths = Vec::new();
-                    self.unresolved_union_paths(union, "$".into(), 0, &mut paths);
-                    if !paths.is_empty() {
-                        let scrutinee_span = selection.scrutinee.span();
-                        self.pending.retain(|entry| !matches!(entry,
-                            PendingConstraint::VariantConstructor { span, .. }
-                            if scrutinee_span.start <= span.start && span.end <= scrutinee_span.end
-                        ));
-                        let mut diagnostic = names::diagnostic(
-                            "NX-E0113",
-                            None,
-                            Stage::Types,
-                            Operation::TypesInfer,
-                            span,
-                        );
-                        diagnostic
-                            .data
-                            .insert("unresolved_components".into(), DataValue::Array(paths));
-                        return Err(diagnostic);
-                    }
-                }
-            }
-        }
-        let mut previous: Vec<&Pattern> = Vec::new();
         let mut joined: Option<(Type, Span)> = None;
         for arm in &selection.arms {
+            selected = self.selection_type(&selected, 0);
             self.pattern_type(&arm.pattern, &selected, &selected_origin)?;
-            if crate::check::match_coverage::subsumed(&selected, &arm.pattern, &previous) {
-                let mut diagnostic = names::diagnostic(
-                    "NX-E1304",
-                    Some("unreachable_arm"),
-                    Stage::Types,
-                    Operation::TypesCheck,
-                    arm.pattern.span().clone(),
-                );
-                for pattern in &previous {
-                    diagnostic.related_spans.push(RelatedSpan {
-                        role: RelatedRole::Context,
-                        span: pattern.span().clone(),
-                    });
+            if let Some(guard) = &arm.guard
+                && let Err(error) = self.expr(guard, Some(&Type::Bool), arm.guard_span.as_ref())
+            {
+                if error.operation == Operation::AnalysisLimit {
+                    return Err(error);
                 }
-                names::sort_related(&mut diagnostic);
-                return Err(diagnostic);
-            }
-            if let Some(guard) = &arm.guard {
-                if let Err(error) = self.expr(guard, Some(&Type::Bool), arm.guard_span.as_ref()) {
-                    if error.operation == Operation::AnalysisLimit {
-                        return Err(error);
-                    }
-                    self.record_error(error);
-                }
-            } else {
-                previous.push(&arm.pattern);
+                self.record_error(error);
             }
             if expression {
                 let (value, failed, _) = self.branch(
@@ -7197,6 +7194,30 @@ impl Checker<'_> {
                 }
             } else {
                 self.block(&arm.body)?;
+            }
+        }
+        selected = self.selection_type(&selected, 0);
+        let mut previous: Vec<&Pattern> = Vec::new();
+        for arm in &selection.arms {
+            if crate::check::match_coverage::subsumed(&selected, &arm.pattern, &previous) {
+                let mut diagnostic = names::diagnostic(
+                    "NX-E1304",
+                    Some("unreachable_arm"),
+                    Stage::Types,
+                    Operation::TypesCheck,
+                    arm.pattern.span().clone(),
+                );
+                for pattern in &previous {
+                    diagnostic.related_spans.push(RelatedSpan {
+                        role: RelatedRole::Context,
+                        span: pattern.span().clone(),
+                    });
+                }
+                names::sort_related(&mut diagnostic);
+                return Err(diagnostic);
+            }
+            if arm.guard.is_none() {
+                previous.push(&arm.pattern);
             }
         }
         if let Some(witness) = crate::check::match_coverage::missing(&selected, &previous) {
