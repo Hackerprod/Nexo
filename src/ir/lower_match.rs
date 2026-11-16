@@ -10,177 +10,249 @@ struct MatchSource {
     provisional: bool,
 }
 
+pub(super) struct MatchInnerState<'a> {
+    selection: &'a parse::Match,
+    expression: bool,
+    depth: usize,
+    expected: Option<Ty>,
+    outer_temps: HashSet<TempId>,
+    selected_ty: Ty,
+    loan_root: Option<LocalId>,
+    loan_temp: Option<TempId>,
+    root: LocalId,
+    result_ty: Ty,
+    prior_locals: usize,
+    checkpoint: usize,
+    temp_checkpoint: usize,
+    branch_mode: EmissionMode,
+    previous_branches: Vec<BlockId>,
+    ends: Vec<BlockId>,
+    states: Vec<(HashMap<LocalId, Availability>, bool)>,
+    slot: Option<LocalId>,
+    arm_index: usize,
+}
+
+pub(super) enum MatchStart<'a> {
+    Completed(Flow),
+    Active(Box<MatchInnerState<'a>>),
+}
+pub(super) struct MatchSelectionPrelude {
+    pub(super) outer_temps: HashSet<TempId>,
+    pub(super) selected_ty: Ty,
+}
+
+pub(super) struct MatchArmState<'a> {
+    arm: &'a parse::Arm,
+    saved: ScopeId,
+    surviving: HashSet<TempId>,
+}
+pub(super) struct MatchSnapshot {
+    locals: usize,
+    next_scope: usize,
+    visible: HashMap<String, Vec<LocalId>>,
+    scopes: Vec<Vec<String>>,
+    scope: ScopeId,
+    active_loans: HashMap<LocalId, Vec<ActiveLoan>>,
+    match_boundaries: Vec<MatchBoundary>,
+    consumed_at: HashMap<LocalId, Vec<(Span, bool)>>,
+    maybe_consumed_at: HashMap<LocalId, Vec<(Span, bool)>>,
+    consumed_undo: usize,
+    poisoned: HashSet<LocalId>,
+    retained_locals: HashMap<LocalId, Vec<RetainedLoan>>,
+    retained_temps: HashMap<TempId, Vec<RetainedLoan>>,
+}
+impl<'a> MatchArmState<'a> {
+    pub(super) fn body(&self) -> &'a parse::Block {
+        &self.arm.body
+    }
+}
+impl<'a> MatchInnerState<'a> {
+    pub(super) fn depth(&self) -> usize {
+        self.depth
+    }
+    pub(super) fn is_expression(&self) -> bool {
+        self.expression
+    }
+    pub(super) fn expected(&self) -> Option<Ty> {
+        self.expected.clone()
+    }
+    pub(super) fn selection(&self) -> &'a parse::Match {
+        self.selection
+    }
+}
+
 fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
-    fn record(found: &mut Vec<(&'static str, Span)>, cause: &'static str, span: Span) {
-        found.push((cause, span));
+    enum Frame<'a> {
+        Expr(&'a parse::Expr),
+        Statement(&'a parse::Statement),
+        Block(&'a parse::Block),
+        Selection(&'a parse::Match),
     }
-    fn block(block: &parse::Block, found: &mut Vec<(&'static str, Span)>) {
-        for statement in &block.statements {
-            statement_violation(statement, found);
-        }
-    }
-    fn statement_violation(statement: &parse::Statement, found: &mut Vec<(&'static str, Span)>) {
-        match statement {
-            parse::Statement::Let { value, .. } | parse::Statement::Expr { value, .. } => {
-                walk(value, found)
-            }
-            parse::Statement::Assign { place, value, .. } => {
-                record(found, "guard_mutation", place.span().clone());
-                walk(place, found);
-                walk(value, found);
-            }
-            parse::Statement::Return { value, span } => {
-                record(
-                    found,
-                    "guard_control",
-                    Span {
-                        file: span.file.clone(),
-                        start: span.start,
-                        end: span.start + 6,
-                    },
-                );
-                if let Some(value) = value {
-                    walk(value, found);
+    let mut found = Vec::new();
+    let mut frames = vec![Frame::Expr(expr)];
+    while let Some(frame) = frames.pop() {
+        match frame {
+            Frame::Block(block) => {
+                for statement in block.statements.iter().rev() {
+                    frames.push(Frame::Statement(statement));
                 }
             }
-            parse::Statement::GuardControl {
-                token_span, value, ..
-            } => {
-                record(found, "guard_control", token_span.clone());
-                if let Some(value) = value {
-                    walk(value, found);
+            Frame::Statement(statement) => match statement {
+                parse::Statement::Let { value, .. } | parse::Statement::Expr { value, .. } => {
+                    frames.push(Frame::Expr(value));
                 }
-            }
-            parse::Statement::Value { value, .. } => {
-                if let Some(value) = value {
-                    walk(value, found);
+                parse::Statement::Assign { place, value, .. } => {
+                    found.push(("guard_mutation", place.span().clone()));
+                    frames.push(Frame::Expr(value));
+                    frames.push(Frame::Expr(place));
                 }
-            }
-            parse::Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                walk(condition, found);
-                block(then_block, found);
-                if let Some(other) = otherwise {
-                    statement_violation(other, found);
-                }
-            }
-            parse::Statement::While {
-                condition, body, ..
-            } => {
-                walk(condition, found);
-                block(body, found);
-            }
-            parse::Statement::For { iterable, body, .. } => {
-                walk(iterable, found);
-                block(body, found);
-            }
-            parse::Statement::Match(selection) => selection_violation(selection, found),
-            parse::Statement::Block(body) => block(body, found),
-        }
-    }
-    fn selection_violation(selection: &parse::Match, found: &mut Vec<(&'static str, Span)>) {
-        if let Some(span) = &selection.mode_span {
-            record(
-                found,
-                if selection.mode == Some(Mode::Consume) {
-                    "guard_transfer"
-                } else {
-                    "guard_mutation"
-                },
-                span.clone(),
-            );
-        }
-        walk(&selection.scrutinee, found);
-        for arm in &selection.arms {
-            if let Some(guard) = &arm.guard {
-                walk(guard, found);
-            }
-            block(&arm.body, found);
-        }
-    }
-    fn walk(expr: &parse::Expr, found: &mut Vec<(&'static str, Span)>) {
-        match expr {
-            parse::Expr::Unary { mode, value, span } => {
-                let cause = match mode {
-                    Mode::Consume => Some("guard_transfer"),
-                    Mode::Inout => Some("guard_mutation"),
-                    Mode::Read
-                        if span.start == value.span().start && span.end > value.span().end =>
-                    {
-                        Some("guard_control")
-                    }
-                    _ => None,
-                };
-                if let Some(cause) = cause {
-                    let token = if cause == "guard_control" {
-                        Span {
-                            file: span.file.clone(),
-                            start: span.end - 1,
-                            end: span.end,
-                        }
-                    } else {
+                parse::Statement::Return { value, span } => {
+                    found.push((
+                        "guard_control",
                         Span {
                             file: span.file.clone(),
                             start: span.start,
-                            end: span.start + 4,
-                        }
-                    };
-                    record(found, cause, token);
-                }
-                walk(value, found);
-            }
-            parse::Expr::Call { target, args, .. } => {
-                if matches!(target.as_ref(), parse::Expr::Name(name, _) if name == "Drop") {
-                    record(found, "guard_transfer", target.span().clone());
-                }
-                walk(target, found);
-                for arg in args {
-                    walk(&arg.value, found);
-                }
-            }
-            parse::Expr::Array(items, _) => {
-                for item in items {
-                    walk(item, found);
-                }
-            }
-            parse::Expr::Group(inner, _) => walk(inner, found),
-            parse::Expr::Binary { left, right, .. } => {
-                walk(left, found);
-                walk(right, found);
-            }
-            parse::Expr::Index { target, index, .. } => {
-                walk(target, found);
-                walk(index, found);
-            }
-            parse::Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                walk(condition, found);
-                block(then_block, found);
-                if let Some(other) = otherwise {
-                    match other.as_ref() {
-                        parse::Else::Block(body) => block(body, found),
-                        parse::Else::If(inner) => walk(inner, found),
+                            end: span.start + 6,
+                        },
+                    ));
+                    if let Some(value) = value {
+                        frames.push(Frame::Expr(value));
                     }
                 }
+                parse::Statement::GuardControl {
+                    token_span, value, ..
+                } => {
+                    found.push(("guard_control", token_span.clone()));
+                    if let Some(value) = value {
+                        frames.push(Frame::Expr(value));
+                    }
+                }
+                parse::Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        frames.push(Frame::Expr(value));
+                    }
+                }
+                parse::Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(other) = otherwise {
+                        frames.push(Frame::Statement(other));
+                    }
+                    frames.push(Frame::Block(then_block));
+                    frames.push(Frame::Expr(condition));
+                }
+                parse::Statement::While {
+                    condition, body, ..
+                } => {
+                    frames.push(Frame::Block(body));
+                    frames.push(Frame::Expr(condition));
+                }
+                parse::Statement::For { iterable, body, .. } => {
+                    frames.push(Frame::Block(body));
+                    frames.push(Frame::Expr(iterable));
+                }
+                parse::Statement::Match(selection) => frames.push(Frame::Selection(selection)),
+                parse::Statement::Block(body) => frames.push(Frame::Block(body)),
+            },
+            Frame::Selection(selection) => {
+                if let Some(span) = &selection.mode_span {
+                    found.push((
+                        if selection.mode == Some(Mode::Consume) {
+                            "guard_transfer"
+                        } else {
+                            "guard_mutation"
+                        },
+                        span.clone(),
+                    ));
+                }
+                for arm in selection.arms.iter().rev() {
+                    frames.push(Frame::Block(&arm.body));
+                    if let Some(guard) = &arm.guard {
+                        frames.push(Frame::Expr(guard));
+                    }
+                }
+                frames.push(Frame::Expr(&selection.scrutinee));
             }
-            parse::Expr::Match(selection) => selection_violation(selection, found),
-            parse::Expr::Name(..)
-            | parse::Expr::Integer(..)
-            | parse::Expr::Bool(..)
-            | parse::Expr::Unit(..)
-            | parse::Expr::Closure(..) => {}
+            Frame::Expr(expr) => match expr {
+                parse::Expr::Unary { mode, value, span } => {
+                    let cause = match mode {
+                        Mode::Consume => Some("guard_transfer"),
+                        Mode::Inout => Some("guard_mutation"),
+                        Mode::Read
+                            if span.start == value.span().start && span.end > value.span().end =>
+                        {
+                            Some("guard_control")
+                        }
+                        _ => None,
+                    };
+                    if let Some(cause) = cause {
+                        let token = if cause == "guard_control" {
+                            Span {
+                                file: span.file.clone(),
+                                start: span.end - 1,
+                                end: span.end,
+                            }
+                        } else {
+                            Span {
+                                file: span.file.clone(),
+                                start: span.start,
+                                end: span.start + 4,
+                            }
+                        };
+                        found.push((cause, token));
+                    }
+                    frames.push(Frame::Expr(value));
+                }
+                parse::Expr::Call { target, args, .. } => {
+                    if matches!(target.as_ref(), parse::Expr::Name(name, _) if name == "Drop") {
+                        found.push(("guard_transfer", target.span().clone()));
+                    }
+                    for arg in args.iter().rev() {
+                        frames.push(Frame::Expr(&arg.value));
+                    }
+                    frames.push(Frame::Expr(target));
+                }
+                parse::Expr::Array(items, _) => {
+                    for item in items.iter().rev() {
+                        frames.push(Frame::Expr(item));
+                    }
+                }
+                parse::Expr::Group(inner, _) => frames.push(Frame::Expr(inner)),
+                parse::Expr::Binary { left, right, .. } => {
+                    frames.push(Frame::Expr(right));
+                    frames.push(Frame::Expr(left));
+                }
+                parse::Expr::Index { target, index, .. } => {
+                    frames.push(Frame::Expr(index));
+                    frames.push(Frame::Expr(target));
+                }
+                parse::Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(other) = otherwise {
+                        match other.as_ref() {
+                            parse::Else::Block(body) => frames.push(Frame::Block(body)),
+                            parse::Else::If(inner) => frames.push(Frame::Expr(inner)),
+                        }
+                    }
+                    frames.push(Frame::Block(then_block));
+                    frames.push(Frame::Expr(condition));
+                }
+                parse::Expr::Match(selection) => frames.push(Frame::Selection(selection)),
+                parse::Expr::Name(..)
+                | parse::Expr::Integer(..)
+                | parse::Expr::Bool(..)
+                | parse::Expr::Unit(..)
+                | parse::Expr::Closure(..) => {}
+            },
         }
     }
-    let mut found = Vec::new();
-    walk(expr, &mut found);
     found.sort_by_key(|(cause, span)| {
         (
             span.start,
@@ -204,58 +276,69 @@ impl Lower<'_> {
         expected: Option<&Ty>,
         diagnostics: &mut Vec<Diagnostic>,
     ) -> Result<Flow, CompileError> {
-        if self.emission == EmissionMode::Live {
-            return self.match_selection_inner(selection, expression, depth, expected, diagnostics);
+        self.run_lower_tasks(
+            LowerRoot::Match {
+                selection,
+                depth,
+                expected: expression.then(|| expected.cloned().unwrap_or(Ty::Unit)),
+            },
+            diagnostics,
+            |_, _, value| {
+                if expression {
+                    value.ok_or(CompileError::InvalidIr("match expression flow"))
+                } else {
+                    Ok(Flow::Value {
+                        temp: None,
+                        ty: Ty::Unit,
+                    })
+                }
+            },
+        )
+    }
+    pub(super) fn capture_match_snapshot(&self) -> MatchSnapshot {
+        MatchSnapshot {
+            locals: self.locals.len(),
+            next_scope: self.next_scope,
+            visible: self.visible.clone(),
+            scopes: self.scopes.clone(),
+            scope: self.scope,
+            active_loans: self.active_loans.clone(),
+            match_boundaries: self.match_boundaries.clone(),
+            consumed_at: self.consumed_at.clone(),
+            maybe_consumed_at: self.maybe_consumed_at.clone(),
+            consumed_undo: self.consumed_undo.len(),
+            poisoned: self.poisoned.clone(),
+            retained_locals: self.retained_locals.clone(),
+            retained_temps: self.retained_temps.clone(),
         }
-        let locals = self.locals.len();
-        let next_scope = self.next_scope;
-        let visible = self.visible.clone();
-        let scopes = self.scopes.clone();
-        let scope = self.scope;
-        let active_loans = self.active_loans.clone();
-        let match_boundaries = self.match_boundaries.clone();
-        let consumed_at = self.consumed_at.clone();
-        let maybe_consumed_at = self.maybe_consumed_at.clone();
-        let consumed_undo = self.consumed_undo.len();
-        let poisoned = self.poisoned.clone();
-        let retained_locals = self.retained_locals.clone();
-        let retained_temps = self.retained_temps.clone();
-        let result =
-            self.match_selection_inner(selection, expression, depth, expected, diagnostics);
-        self.locals.truncate(locals);
-        self.name_spans.truncate(locals);
-        self.next_scope = next_scope;
-        self.scope_parents.truncate(next_scope);
-        self.visible = visible;
-        self.scopes = scopes;
-        self.scope = scope;
-        self.active_loans = active_loans;
-        self.match_boundaries = match_boundaries;
-        self.consumed_at = consumed_at;
-        self.maybe_consumed_at = maybe_consumed_at;
-        self.consumed_undo.truncate(consumed_undo);
-        self.poisoned = poisoned;
-        self.retained_locals = retained_locals;
-        self.retained_temps = retained_temps;
-        result
+    }
+    pub(super) fn restore_match_snapshot(&mut self, snapshot: MatchSnapshot) {
+        self.locals.truncate(snapshot.locals);
+        self.name_spans.truncate(snapshot.locals);
+        self.next_scope = snapshot.next_scope;
+        self.scope_parents.truncate(snapshot.next_scope);
+        self.visible = snapshot.visible;
+        self.scopes = snapshot.scopes;
+        self.scope = snapshot.scope;
+        self.active_loans = snapshot.active_loans;
+        self.match_boundaries = snapshot.match_boundaries;
+        self.consumed_at = snapshot.consumed_at;
+        self.maybe_consumed_at = snapshot.maybe_consumed_at;
+        self.consumed_undo.truncate(snapshot.consumed_undo);
+        self.poisoned = snapshot.poisoned;
+        self.retained_locals = snapshot.retained_locals;
+        self.retained_temps = snapshot.retained_temps;
     }
 
-    fn match_selection_inner(
+    pub(super) fn begin_match_selection<'a>(
         &mut self,
-        selection: &parse::Match,
+        selection: &'a parse::Match,
         expression: bool,
         depth: usize,
         expected: Option<&Ty>,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<Flow, CompileError> {
-        let outer_temps = self.live_temps.clone();
-        if self.emission == EmissionMode::Live {
-            self.pending_charges.push(WorkCharge {
-                ticks: 1,
-                origin: selection.keyword_span.clone(),
-            });
-        }
-        let selected_ty = self.resolved_expr(&selection.scrutinee)?;
+    ) -> Result<MatchStart<'a>, CompileError> {
+        let prelude = self.match_selection_prelude(selection)?;
+        let selected_ty = prelude.selected_ty.clone();
         let selected = match selection.mode {
             Some(Mode::Consume) => {
                 let name = place_name(&selection.scrutinee)
@@ -329,10 +412,54 @@ impl Lower<'_> {
             }
             _ => self.expr(&selection.scrutinee, depth + 1, Some(&selected_ty))?,
         };
-        if selected.diverged() {
-            return Ok(Flow::Diverged {
-                ty: expected.cloned(),
+        self.begin_match_selection_after_selected(
+            selection, expression, depth, expected, prelude, selected,
+        )
+    }
+    pub(super) fn match_selection_prelude(
+        &mut self,
+        selection: &parse::Match,
+    ) -> Result<MatchSelectionPrelude, CompileError> {
+        let outer_temps = self.live_temps.clone();
+        if self.emission == EmissionMode::Live {
+            self.pending_charges.push(WorkCharge {
+                ticks: 1,
+                origin: selection.keyword_span.clone(),
             });
+        }
+        let selected_ty = self.resolved_expr(&selection.scrutinee)?;
+        Ok(MatchSelectionPrelude {
+            outer_temps,
+            selected_ty,
+        })
+    }
+    pub(super) fn match_needs_scrutinee_expr(&self, selection: &parse::Match) -> bool {
+        selection.mode.is_none()
+            && (parse::place_parts(&selection.scrutinee).is_none()
+                || (place_name(&selection.scrutinee) == Some("None")
+                    && self
+                        .visible
+                        .get("None")
+                        .and_then(|ids| ids.last())
+                        .is_none()))
+    }
+    pub(super) fn begin_match_selection_after_selected<'a>(
+        &mut self,
+        selection: &'a parse::Match,
+        expression: bool,
+        depth: usize,
+        expected: Option<&Ty>,
+        prelude: MatchSelectionPrelude,
+        selected: Flow,
+    ) -> Result<MatchStart<'a>, CompileError> {
+        let MatchSelectionPrelude {
+            outer_temps,
+            selected_ty,
+        } = prelude;
+        if selected.diverged() {
+            return Ok(MatchStart::Completed(Flow::Diverged {
+                ty: expected.cloned(),
+            }));
         }
         let loan_root = if selection.mode.is_none() || selection.mode == Some(Mode::Inout) {
             let name =
@@ -364,9 +491,9 @@ impl Lower<'_> {
             for index_expr in index_exprs {
                 let flow = self.expr_mode(index_expr, depth + 1, Some(&Ty::I64), true)?;
                 if flow.diverged() {
-                    return Ok(Flow::Diverged {
+                    return Ok(MatchStart::Completed(Flow::Diverged {
                         ty: expected.cloned(),
-                    });
+                    }));
                 }
                 if let Some(temp) = flow.temp() {
                     indexes.push(temp);
@@ -466,199 +593,262 @@ impl Lower<'_> {
         let checkpoint = self.consumed_undo.len();
         let temp_checkpoint = self.temp_undo.len();
         let branch_mode = self.emission;
-        let mut previous_branches: Vec<BlockId> = Vec::new();
-        let mut ends = Vec::new();
-        let mut states = Vec::new();
-        let mut slot = None;
+        let previous_branches: Vec<BlockId> = Vec::new();
+        let ends = Vec::new();
+        let states = Vec::new();
+        let slot = None;
         self.dead_depth += 1;
-        for arm in &selection.arms {
-            let fallthrough = previous_branches.first().copied();
-            for branch in previous_branches.drain(..) {
-                let next = BlockId(self.blocks.len());
-                if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
-                    *no = next;
-                }
+        Ok(MatchStart::Active(Box::new(MatchInnerState {
+            selection,
+            expression,
+            depth,
+            expected: expected.cloned(),
+            outer_temps,
+            selected_ty,
+            loan_root,
+            loan_temp,
+            root,
+            result_ty,
+            prior_locals,
+            checkpoint,
+            temp_checkpoint,
+            branch_mode,
+            previous_branches,
+            ends,
+            states,
+            slot,
+            arm_index: 0,
+        })))
+    }
+    pub(super) fn begin_match_arm<'a>(
+        &mut self,
+        state: &mut MatchInnerState<'a>,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Result<Option<MatchArmState<'a>>, CompileError> {
+        let Some(arm) = state.selection.arms.get(state.arm_index) else {
+            return Ok(None);
+        };
+        state.arm_index += 1;
+        let selection = state.selection;
+        let depth = state.depth;
+        let selected_ty = &state.selected_ty;
+        let loan_root = state.loan_root;
+        let loan_temp = state.loan_temp;
+        let root = state.root;
+        let branch_mode = state.branch_mode;
+        let fallthrough = state.previous_branches.first().copied();
+        for branch in state.previous_branches.drain(..) {
+            let next = BlockId(self.blocks.len());
+            if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
+                *no = next;
             }
-            if let Some(branch) = fallthrough {
-                self.enter_edge(branch, 1)?;
-            }
-            let condition = self.match_condition(root, &selected_ty, &arm.pattern)?;
-            let branch = if branch_mode == EmissionMode::Live {
-                let branch = self.finish_block(Terminator::BranchBool {
-                    condition: condition.ok_or(CompileError::InvalidIr("match condition"))?,
-                    yes: BlockId(self.blocks.len() + 1),
-                    no: BlockId(usize::MAX),
-                    span: arm.pattern.span().clone(),
-                    charges: Vec::new(),
-                });
-                Some(branch)
-            } else {
-                None
-            };
-            if let Some(branch) = branch {
-                previous_branches.push(branch);
-            }
-            if let Some(guard) = &arm.guard {
-                let violations = guard_violations(guard);
-                for (subcause, primary) in &violations {
-                    diagnostics.push(*crate::check::names::diagnostic(
-                        "NX-E1305",
-                        Some(subcause),
-                        diagnostic::Stage::Ownership,
-                        diagnostic::Operation::OwnershipCheck,
-                        primary.clone(),
-                    ));
-                }
-                let saved = self.scope;
-                self.scope = ScopeId(self.next_scope);
-                self.next_scope += 1;
-                self.scope_parents.push(Some(saved));
-                self.scopes.push(Vec::new());
-                self.bind_match_pattern(
-                    root,
-                    &selected_ty,
-                    &arm.pattern,
-                    &mut Vec::new(),
-                    selection,
-                    MatchSource {
-                        local: loan_root,
-                        loan: loan_temp,
-                        provisional: true,
-                    },
-                )?;
-                // A forbidden guard has no committed effects. Use a Bool
-                // condition so the same arm and fallthrough analysis can
-                // continue and report independent ownership sites.
-                let checked = if violations.is_empty() {
-                    self.expr(guard, depth + 1, Some(&Ty::Bool))?
-                } else {
-                    self.emitted(
-                        Op::ConstBool(true),
-                        Ty::Bool,
-                        guard.span().clone(),
-                        Access::Own,
-                        false,
-                    )
-                };
-                let guard_names = self
-                    .scopes
-                    .last()
-                    .cloned()
-                    .ok_or(CompileError::InvalidIr("guard scope"))?;
-                let guard_locals = guard_names
-                    .iter()
-                    .rev()
-                    .map(|name| self.get(name).map(|id| (id, arm.body.close_span.clone())))
-                    .collect::<Result<Vec<_>, _>>()?;
-                self.plan_exit(
-                    ExitPlan {
-                        surviving: self.live_temps.clone(),
-                        locals: guard_locals,
-                        reserved: None,
-                    },
-                    &arm.body.close_span,
-                );
-                self.leave_scope(saved)?;
-                if branch_mode == EmissionMode::Live {
-                    let guard_branch = self.finish_block(Terminator::BranchBool {
-                        condition: checked
-                            .temp()
-                            .ok_or(CompileError::InvalidIr("match guard condition"))?,
-                        yes: BlockId(self.blocks.len() + 1),
-                        no: BlockId(usize::MAX),
-                        span: guard.span().clone(),
-                        charges: Vec::new(),
-                    });
-                    previous_branches.push(guard_branch);
-                }
+        }
+        if let Some(branch) = fallthrough {
+            self.enter_edge(branch, 1)?;
+        }
+        let condition = self.match_condition(root, selected_ty, &arm.pattern)?;
+        let branch = if branch_mode == EmissionMode::Live {
+            let branch = self.finish_block(Terminator::BranchBool {
+                condition: condition.ok_or(CompileError::InvalidIr("match condition"))?,
+                yes: BlockId(self.blocks.len() + 1),
+                no: BlockId(usize::MAX),
+                span: arm.pattern.span().clone(),
+                charges: Vec::new(),
+            });
+            Some(branch)
+        } else {
+            None
+        };
+        if let Some(branch) = branch {
+            state.previous_branches.push(branch);
+        }
+        if let Some(guard) = &arm.guard {
+            let violations = guard_violations(guard);
+            for (subcause, primary) in &violations {
+                diagnostics.push(*crate::check::names::diagnostic(
+                    "NX-E1305",
+                    Some(subcause),
+                    diagnostic::Stage::Ownership,
+                    diagnostic::Operation::OwnershipCheck,
+                    primary.clone(),
+                ));
             }
             let saved = self.scope;
             self.scope = ScopeId(self.next_scope);
             self.next_scope += 1;
             self.scope_parents.push(Some(saved));
             self.scopes.push(Vec::new());
-            let arm_surviving = self.live_temps.clone();
             self.bind_match_pattern(
                 root,
-                &selected_ty,
+                selected_ty,
                 &arm.pattern,
                 &mut Vec::new(),
                 selection,
                 MatchSource {
                     local: loan_root,
                     loan: loan_temp,
-                    provisional: false,
+                    provisional: true,
                 },
             )?;
-            let value = if expression {
-                self.scoped_value_block(
-                    &arm.body,
-                    expected,
-                    &selection.keyword_span,
-                    depth + 1,
-                    diagnostics,
-                )?
+            // A forbidden guard has no committed effects. Use a Bool
+            // condition so the same arm and fallthrough analysis can
+            // continue and report independent ownership sites.
+            let checked = if violations.is_empty() {
+                self.expr(guard, depth + 1, Some(&Ty::Bool))?
             } else {
-                self.scoped_block(&arm.body, depth + 1, diagnostics)?;
-                None
+                self.emitted(
+                    Op::ConstBool(true),
+                    Ty::Bool,
+                    guard.span().clone(),
+                    Access::Own,
+                    false,
+                )
             };
-            if let Some(Flow::Value {
-                temp: Some(temp),
-                ty,
-            }) = value
-            {
-                self.union_slot(&mut slot, temp, ty, &result_ty, &arm.body.span)?;
-            }
-            let names = self
+            let guard_names = self
                 .scopes
                 .last()
                 .cloned()
-                .ok_or(CompileError::InvalidIr("match arm scope"))?;
-            let locals = names
+                .ok_or(CompileError::InvalidIr("guard scope"))?;
+            let guard_locals = guard_names
                 .iter()
                 .rev()
                 .map(|name| self.get(name).map(|id| (id, arm.body.close_span.clone())))
                 .collect::<Result<Vec<_>, _>>()?;
-            if self
-                .terminated
-                .is_some_and(|term| matches!(term, Termination::Return(_)))
-                && self.emission == EmissionMode::Live
-            {
-                self.deferred_return_locals.extend(locals);
-            } else if self.emission == EmissionMode::Live {
-                self.plan_exit(
-                    ExitPlan {
-                        surviving: arm_surviving,
-                        locals,
-                        reserved: None,
-                    },
-                    &arm.body.close_span,
-                );
-            }
+            self.plan_exit(
+                ExitPlan {
+                    surviving: self.live_temps.clone(),
+                    locals: guard_locals,
+                    reserved: None,
+                },
+                &arm.body.close_span,
+            );
             self.leave_scope(saved)?;
-            self.emission = branch_mode;
-            let continuing = self.terminated.is_none();
-            let termination = self.terminated.take();
-            if branch_mode == EmissionMode::Live && termination != Some(Termination::Diverged) {
-                let end =
-                    self.finish_block(if let Some(Termination::Return(value)) = termination {
-                        Terminator::Return {
-                            value: Some(value),
-                            span: arm.body.span.clone(),
-                            charges: Vec::new(),
-                        }
-                    } else {
-                        Terminator::Jump {
-                            target: BlockId(usize::MAX),
-                            span: arm.body.span.clone(),
-                            charges: Vec::new(),
-                        }
-                    });
-                ends.push(end);
+            if branch_mode == EmissionMode::Live {
+                let guard_branch = self.finish_block(Terminator::BranchBool {
+                    condition: checked
+                        .temp()
+                        .ok_or(CompileError::InvalidIr("match guard condition"))?,
+                    yes: BlockId(self.blocks.len() + 1),
+                    no: BlockId(usize::MAX),
+                    span: guard.span().clone(),
+                    charges: Vec::new(),
+                });
+                state.previous_branches.push(guard_branch);
             }
-            states.push((self.restore_availability(checkpoint), continuing));
-            self.restore_temps(temp_checkpoint);
         }
+        let saved = self.scope;
+        self.scope = ScopeId(self.next_scope);
+        self.next_scope += 1;
+        self.scope_parents.push(Some(saved));
+        self.scopes.push(Vec::new());
+        let arm_surviving = self.live_temps.clone();
+        self.bind_match_pattern(
+            root,
+            selected_ty,
+            &arm.pattern,
+            &mut Vec::new(),
+            selection,
+            MatchSource {
+                local: loan_root,
+                loan: loan_temp,
+                provisional: false,
+            },
+        )?;
+        Ok(Some(MatchArmState {
+            arm,
+            saved,
+            surviving: arm_surviving,
+        }))
+    }
+    pub(super) fn finish_match_arm(
+        &mut self,
+        state: &mut MatchInnerState<'_>,
+        arm_state: MatchArmState<'_>,
+        value: Option<Flow>,
+    ) -> Result<(), CompileError> {
+        let arm = arm_state.arm;
+        let saved = arm_state.saved;
+        let arm_surviving = arm_state.surviving;
+        let result_ty = &state.result_ty;
+        let branch_mode = state.branch_mode;
+        if let Some(Flow::Value {
+            temp: Some(temp),
+            ty,
+        }) = value
+        {
+            self.union_slot(&mut state.slot, temp, ty, result_ty, &arm.body.span)?;
+        }
+        let names = self
+            .scopes
+            .last()
+            .cloned()
+            .ok_or(CompileError::InvalidIr("match arm scope"))?;
+        let locals = names
+            .iter()
+            .rev()
+            .map(|name| self.get(name).map(|id| (id, arm.body.close_span.clone())))
+            .collect::<Result<Vec<_>, _>>()?;
+        if self
+            .terminated
+            .is_some_and(|term| matches!(term, Termination::Return(_)))
+            && self.emission == EmissionMode::Live
+        {
+            self.deferred_return_locals.extend(locals);
+        } else if self.emission == EmissionMode::Live {
+            self.plan_exit(
+                ExitPlan {
+                    surviving: arm_surviving,
+                    locals,
+                    reserved: None,
+                },
+                &arm.body.close_span,
+            );
+        }
+        self.leave_scope(saved)?;
+        self.emission = branch_mode;
+        let continuing = self.terminated.is_none();
+        let termination = self.terminated.take();
+        if branch_mode == EmissionMode::Live && termination != Some(Termination::Diverged) {
+            let end = self.finish_block(if let Some(Termination::Return(value)) = termination {
+                Terminator::Return {
+                    value: Some(value),
+                    span: arm.body.span.clone(),
+                    charges: Vec::new(),
+                }
+            } else {
+                Terminator::Jump {
+                    target: BlockId(usize::MAX),
+                    span: arm.body.span.clone(),
+                    charges: Vec::new(),
+                }
+            });
+            state.ends.push(end);
+        }
+        state
+            .states
+            .push((self.restore_availability(state.checkpoint), continuing));
+        self.restore_temps(state.temp_checkpoint);
+        Ok(())
+    }
+    pub(super) fn finish_match_selection(
+        &mut self,
+        state: Box<MatchInnerState<'_>>,
+    ) -> Result<Flow, CompileError> {
+        let MatchInnerState {
+            selection,
+            expression,
+            outer_temps,
+            root,
+            result_ty,
+            prior_locals,
+            temp_checkpoint,
+            branch_mode,
+            previous_branches,
+            ends,
+            states,
+            slot,
+            ..
+        } = *state;
         self.dead_depth -= 1;
         if branch_mode == EmissionMode::Live {
             let fallback = BlockId(self.blocks.len());
@@ -747,7 +937,6 @@ impl Lower<'_> {
             false,
         ))
     }
-
     fn match_condition(
         &mut self,
         root: LocalId,
@@ -795,83 +984,104 @@ impl Lower<'_> {
         path: &mut Vec<VariantTag>,
         tests: &mut Vec<TempId>,
     ) -> Result<(), CompileError> {
-        let op = match pattern {
-            Pattern::Wildcard(_) => Some(Op::TestLiteral {
-                local: root,
-                path: path.clone(),
-                literal: MatchLiteral::Any,
-            }),
-            Pattern::Name { name, .. }
-                if name == "None"
-                    && matches!(
-                        ty,
-                        Ty::Union {
-                            kind: UnionKind::Option,
-                            ..
+        let mut current_ty = ty;
+        let mut current_pattern = pattern;
+        let original_path_len = path.len();
+        let result = (|| -> Result<(), CompileError> {
+            loop {
+                let op = match current_pattern {
+                    Pattern::Wildcard(_) => Some(Op::TestLiteral {
+                        local: root,
+                        path: path.clone(),
+                        literal: MatchLiteral::Any,
+                    }),
+                    Pattern::Name { name, .. }
+                        if name == "None"
+                            && matches!(
+                                current_ty,
+                                Ty::Union {
+                                    kind: UnionKind::Option,
+                                    ..
+                                }
+                            ) =>
+                    {
+                        Some(Op::TestVariant {
+                            local: root,
+                            path: path.clone(),
+                            tag: VariantTag(0),
+                        })
+                    }
+                    Pattern::Name { .. } => Some(Op::TestLiteral {
+                        local: root,
+                        path: path.clone(),
+                        literal: MatchLiteral::Any,
+                    }),
+                    Pattern::Integer(value, _) => Some(Op::TestLiteral {
+                        local: root,
+                        path: path.clone(),
+                        literal: MatchLiteral::I64(
+                            value
+                                .parse()
+                                .map_err(|_| CompileError::InvalidIr("pattern integer"))?,
+                        ),
+                    }),
+                    Pattern::Bool(value, _) => Some(Op::TestLiteral {
+                        local: root,
+                        path: path.clone(),
+                        literal: MatchLiteral::Bool(*value),
+                    }),
+                    Pattern::Constructor { name, args, .. } => {
+                        let union = current_ty
+                            .union_descriptor()
+                            .ok_or(CompileError::InvalidIr("pattern union"))?;
+                        let tag = union
+                            .kind
+                            .variant_tag(name)
+                            .ok_or(CompileError::InvalidIr("pattern variant"))?;
+                        let op = Op::TestVariant {
+                            local: root,
+                            path: path.clone(),
+                            tag,
+                        };
+                        if let Some(test) = self.emit(
+                            op,
+                            Ty::Bool,
+                            current_pattern.span().clone(),
+                            Access::Read,
+                            false,
+                        ) {
+                            tests.push(test);
                         }
-                    ) =>
-            {
-                Some(Op::TestVariant {
-                    local: root,
-                    path: path.clone(),
-                    tag: VariantTag(0),
-                })
-            }
-            Pattern::Name { .. } => Some(Op::TestLiteral {
-                local: root,
-                path: path.clone(),
-                literal: MatchLiteral::Any,
-            }),
-            Pattern::Integer(value, _) => Some(Op::TestLiteral {
-                local: root,
-                path: path.clone(),
-                literal: MatchLiteral::I64(
-                    value
-                        .parse()
-                        .map_err(|_| CompileError::InvalidIr("pattern integer"))?,
-                ),
-            }),
-            Pattern::Bool(value, _) => Some(Op::TestLiteral {
-                local: root,
-                path: path.clone(),
-                literal: MatchLiteral::Bool(*value),
-            }),
-            Pattern::Constructor { name, args, .. } => {
-                let union = ty
-                    .union_descriptor()
-                    .ok_or(CompileError::InvalidIr("pattern union"))?;
-                let tag = union
-                    .kind
-                    .variant_tag(name)
-                    .ok_or(CompileError::InvalidIr("pattern variant"))?;
-                let op = Op::TestVariant {
-                    local: root,
-                    path: path.clone(),
-                    tag,
+                        if let Some(arg) = args.first() {
+                            let payload = union
+                                .variant(tag)
+                                .and_then(|variant| variant.payload)
+                                .ok_or(CompileError::InvalidIr("pattern payload"))?;
+                            path.push(tag);
+                            current_ty = payload;
+                            current_pattern = arg;
+                            continue;
+                        }
+                        break;
+                    }
                 };
-                if let Some(test) =
-                    self.emit(op, Ty::Bool, pattern.span().clone(), Access::Read, false)
+                if let Some(op) = op
+                    && let Some(test) = self.emit(
+                        op,
+                        Ty::Bool,
+                        current_pattern.span().clone(),
+                        Access::Read,
+                        false,
+                    )
                 {
                     tests.push(test);
                 }
-                if let Some(arg) = args.first() {
-                    let payload = union
-                        .variant(tag)
-                        .and_then(|variant| variant.payload)
-                        .ok_or(CompileError::InvalidIr("pattern payload"))?;
-                    path.push(tag);
-                    self.match_tests(root, payload, arg, path, tests)?;
-                    path.pop();
-                }
-                return Ok(());
+                break;
             }
-        };
-        if let Some(op) = op
-            && let Some(test) = self.emit(op, Ty::Bool, pattern.span().clone(), Access::Read, false)
-        {
-            tests.push(test);
-        }
-        Ok(())
+            Ok(())
+        })();
+        path.truncate(original_path_len);
+        result
     }
 
     fn bind_match_pattern(
@@ -883,140 +1093,11 @@ impl Lower<'_> {
         selection: &parse::Match,
         source: MatchSource,
     ) -> Result<(), CompileError> {
-        match pattern {
-            Pattern::Name { name, mode, span }
-                if !(name == "None"
-                    && matches!(
-                        ty,
-                        Ty::Union {
-                            kind: UnionKind::Option,
-                            ..
-                        }
-                    )) =>
-            {
-                if !source.provisional
-                    && *mode == Some(Mode::Consume)
-                    && self.locals[root.0].parameter_mode.is_some()
-                {
-                    return Err(self.pattern_permission_error(
-                        selection,
-                        source.local.unwrap_or(root),
-                        span.clone(),
-                        "consume",
-                    ));
-                }
-                if !source.provisional
-                    && *mode == Some(Mode::Inout)
-                    && selection.mode != Some(Mode::Inout)
-                {
-                    return Err(self.pattern_permission_error(
-                        selection,
-                        source.local.unwrap_or(root),
-                        span.clone(),
-                        "borrow_inout",
-                    ));
-                }
-                let binding_ty = self.resolved_type(
-                    self.inferred_bindings
-                        .bindings
-                        .get(&span.start)
-                        .ok_or(CompileError::InvalidIr("match binding type"))?,
-                )?;
-                let moved = !source.provisional && *mode == Some(Mode::Consume);
-                let edited = !source.provisional && *mode == Some(Mode::Inout);
-                let id = LocalId(self.locals.len());
-                self.locals.push(Local {
-                    id,
-                    name: name.clone(),
-                    name_span: span.clone(),
-                    ty: binding_ty.clone(),
-                    mutable: edited,
-                    scope: self.scope,
-                    parameter_mode: if edited {
-                        Some(ParameterMode::Inout)
-                    } else {
-                        (!moved).then_some(ParameterMode::Read)
-                    },
-                });
-                self.name_spans.push(span.clone());
-                self.visible.entry(name.clone()).or_default().push(id);
-                self.scopes
-                    .last_mut()
-                    .ok_or(CompileError::InvalidIr("match scope"))?
-                    .push(name.clone());
-                if edited {
-                    self.statement_op(
-                        Op::BindEdit {
-                            local: id,
-                            root: source.local.ok_or(CompileError::InvalidIr("edit source"))?,
-                            proof: root,
-                            loan: source.loan,
-                            path: path.clone(),
-                        },
-                        span.clone(),
-                        Access::Write,
-                        false,
-                    );
-                    return Ok(());
-                }
-                let flow = if moved && path.is_empty() {
-                    self.mark_consumed(root, Some((span.clone(), false)));
-                    self.emitted(
-                        Op::TransferValue(root),
-                        binding_ty,
-                        span.clone(),
-                        Access::Own,
-                        false,
-                    )
-                } else if moved {
-                    self.emitted(
-                        Op::ExtractPayload {
-                            local: root,
-                            path: path.clone(),
-                        },
-                        binding_ty,
-                        span.clone(),
-                        Access::Write,
-                        false,
-                    )
-                } else if path.is_empty() {
-                    self.emitted(
-                        Op::BorrowValue(root),
-                        binding_ty,
-                        span.clone(),
-                        Access::Read,
-                        false,
-                    )
-                } else {
-                    self.emitted(
-                        Op::ProjectPayload {
-                            local: root,
-                            path: path.clone(),
-                        },
-                        binding_ty,
-                        span.clone(),
-                        Access::Read,
-                        false,
-                    )
-                };
-                if let Some(value) = flow.temp() {
-                    self.statement_op(
-                        if moved {
-                            Op::WritePlace { local: id, value }
-                        } else {
-                            Op::BindView {
-                                local: id,
-                                value,
-                                hold: false,
-                            }
-                        },
-                        span.clone(),
-                        Access::Write,
-                        false,
-                    );
-                }
-            }
-            Pattern::Constructor { name, args, .. } => {
+        let saved_path_len = path.len();
+        let result = (|| {
+            let mut ty = ty;
+            let mut pattern = pattern;
+            while let Pattern::Constructor { name, args, .. } = pattern {
                 let union = ty
                     .union_descriptor()
                     .ok_or(CompileError::InvalidIr("pattern union"))?;
@@ -1024,18 +1105,156 @@ impl Lower<'_> {
                     .kind
                     .variant_tag(name)
                     .ok_or(CompileError::InvalidIr("pattern variant"))?;
-                if let (Some(arg), Some(payload)) = (
+                let (Some(arg), Some(payload)) = (
                     args.first(),
                     union.variant(tag).and_then(|variant| variant.payload),
-                ) {
-                    path.push(tag);
-                    self.bind_match_pattern(root, payload, arg, path, selection, source)?;
-                    path.pop();
-                }
+                ) else {
+                    break;
+                };
+                path.push(tag);
+                ty = payload;
+                pattern = arg;
             }
-            _ => {}
-        }
-        Ok(())
+            match pattern {
+                Pattern::Name { name, mode, span }
+                    if !(name == "None"
+                        && matches!(
+                            ty,
+                            Ty::Union {
+                                kind: UnionKind::Option,
+                                ..
+                            }
+                        )) =>
+                {
+                    if !source.provisional
+                        && *mode == Some(Mode::Consume)
+                        && self.locals[root.0].parameter_mode.is_some()
+                    {
+                        return Err(self.pattern_permission_error(
+                            selection,
+                            source.local.unwrap_or(root),
+                            span.clone(),
+                            "consume",
+                        ));
+                    }
+                    if !source.provisional
+                        && *mode == Some(Mode::Inout)
+                        && selection.mode != Some(Mode::Inout)
+                    {
+                        return Err(self.pattern_permission_error(
+                            selection,
+                            source.local.unwrap_or(root),
+                            span.clone(),
+                            "borrow_inout",
+                        ));
+                    }
+                    let binding_ty = self.resolved_type(
+                        self.inferred_bindings
+                            .bindings
+                            .get(&span.start)
+                            .ok_or(CompileError::InvalidIr("match binding type"))?,
+                    )?;
+                    let moved = !source.provisional && *mode == Some(Mode::Consume);
+                    let edited = !source.provisional && *mode == Some(Mode::Inout);
+                    let id = LocalId(self.locals.len());
+                    self.locals.push(Local {
+                        id,
+                        name: name.clone(),
+                        name_span: span.clone(),
+                        ty: binding_ty.clone(),
+                        mutable: edited,
+                        scope: self.scope,
+                        parameter_mode: if edited {
+                            Some(ParameterMode::Inout)
+                        } else {
+                            (!moved).then_some(ParameterMode::Read)
+                        },
+                    });
+                    self.name_spans.push(span.clone());
+                    self.visible.entry(name.clone()).or_default().push(id);
+                    self.scopes
+                        .last_mut()
+                        .ok_or(CompileError::InvalidIr("match scope"))?
+                        .push(name.clone());
+                    if edited {
+                        self.statement_op(
+                            Op::BindEdit {
+                                local: id,
+                                root: source.local.ok_or(CompileError::InvalidIr("edit source"))?,
+                                proof: root,
+                                loan: source.loan,
+                                path: path.clone(),
+                            },
+                            span.clone(),
+                            Access::Write,
+                            false,
+                        );
+                        return Ok(());
+                    }
+                    let flow = if moved && path.is_empty() {
+                        self.mark_consumed(root, Some((span.clone(), false)));
+                        self.emitted(
+                            Op::TransferValue(root),
+                            binding_ty,
+                            span.clone(),
+                            Access::Own,
+                            false,
+                        )
+                    } else if moved {
+                        self.emitted(
+                            Op::ExtractPayload {
+                                local: root,
+                                path: path.clone(),
+                            },
+                            binding_ty,
+                            span.clone(),
+                            Access::Write,
+                            false,
+                        )
+                    } else if path.is_empty() {
+                        self.emitted(
+                            Op::BorrowValue(root),
+                            binding_ty,
+                            span.clone(),
+                            Access::Read,
+                            false,
+                        )
+                    } else {
+                        self.emitted(
+                            Op::ProjectPayload {
+                                local: root,
+                                path: path.clone(),
+                            },
+                            binding_ty,
+                            span.clone(),
+                            Access::Read,
+                            false,
+                        )
+                    };
+                    if let Some(value) = flow.temp() {
+                        self.statement_op(
+                            if moved {
+                                Op::WritePlace { local: id, value }
+                            } else {
+                                Op::BindView {
+                                    local: id,
+                                    value,
+                                    hold: false,
+                                }
+                            },
+                            span.clone(),
+                            Access::Write,
+                            false,
+                        );
+                    }
+                }
+                Pattern::Constructor { .. } => {}
+                _ => {}
+            }
+            Ok(())
+        })();
+        path.truncate(saved_path_len);
+        result
     }
 
     fn pattern_permission_error(
@@ -1147,5 +1366,88 @@ impl Lower<'_> {
                 },
             );
         }
+    }
+}
+
+#[cfg(test)]
+mod guard_traversal_tests {
+    use super::*;
+    use std::process::Command;
+
+    #[test]
+    fn nested_guard_reports_transfers_in_source_order() {
+        let source = "fn Main(){match 1{_ if (move x)==Drop(1)=>{},_=>{}}}";
+        let ast = parse::parse_new_profile("guard.n", source).expect("parse guard");
+        let parse::Statement::Match(selection) = &ast.functions[0].body.statements[0] else {
+            panic!("match statement");
+        };
+        let guard = selection.arms[0].guard.as_ref().expect("match guard");
+        let violations = guard_violations(guard);
+        assert_eq!(
+            violations
+                .iter()
+                .map(|(cause, span)| (*cause, span.start, span.end))
+                .collect::<Vec<_>>(),
+            vec![
+                (
+                    "guard_transfer",
+                    source.find("move").unwrap() as u64,
+                    source.find("move").unwrap() as u64 + 4
+                ),
+                (
+                    "guard_transfer",
+                    source.find("Drop").unwrap() as u64,
+                    source.find("Drop").unwrap() as u64 + 4
+                ),
+            ]
+        );
+    }
+
+    #[test]
+    fn deep_guard_child() {
+        if std::env::var_os("J16_DEEP_GUARD_CHILD").is_none() {
+            return;
+        }
+        let source = format!(
+            "fn Main(){{match 1{{_ if {}move x{}=>{{}},_=>{{}}}}}}",
+            "(".repeat(120),
+            ")".repeat(120)
+        );
+        let ast = parse::parse_new_profile("guard.n", &source).expect("parse guard");
+        let parse::Statement::Match(selection) = &ast.functions[0].body.statements[0] else {
+            panic!("match statement");
+        };
+        let guard = selection.arms[0].guard.as_ref().expect("match guard");
+        std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(64 * 1024)
+                .spawn_scoped(scope, || {
+                    let violations = guard_violations(guard);
+                    assert_eq!(violations.len(), 1);
+                    assert_eq!(violations[0].0, "guard_transfer");
+                    assert_eq!(violations[0].1.start, source.find("move").unwrap() as u64);
+                })
+                .unwrap()
+                .join()
+                .unwrap();
+        });
+    }
+
+    #[test]
+    fn nested_guard_fits_small_worker() {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "ir::lower::lower_match::guard_traversal_tests::deep_guard_child",
+            ])
+            .env("J16_DEEP_GUARD_CHILD", "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 }

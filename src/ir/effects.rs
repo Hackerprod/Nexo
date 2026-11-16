@@ -971,104 +971,119 @@ fn add(a: EffectSummary, b: EffectSummary) -> EffectSummary {
 }
 
 fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
-    fn expr(value: &Expr, out: &mut Vec<Span>) {
-        match value {
-            Expr::Match(selection) => selection_spans(selection, out),
-            Expr::Array(items, _) => {
-                for item in items {
-                    expr(item, out);
+    enum Frame<'a> {
+        Block(&'a crate::frontend::parse::Block),
+        Statement(&'a Statement),
+        Expr(&'a Expr),
+        Selection(&'a crate::frontend::parse::Match),
+        Guard(&'a Expr),
+    }
+    let mut frames = vec![Frame::Block(block)];
+    while let Some(frame) = frames.pop() {
+        match frame {
+            Frame::Block(block) => {
+                for statement in block.statements.iter().rev() {
+                    frames.push(Frame::Statement(statement));
                 }
             }
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => expr(inner, out),
-            Expr::Binary { left, right, .. } => {
-                expr(left, out);
-                expr(right, out);
-            }
-            Expr::Call { target, args, .. } => {
-                expr(target, out);
-                for arg in args {
-                    expr(&arg.value, out);
+            Frame::Statement(statement) => match statement {
+                Statement::Match(selection) => frames.push(Frame::Selection(selection)),
+                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                    frames.push(Frame::Expr(value));
                 }
-            }
-            Expr::Index { target, index, .. } => {
-                expr(target, out);
-                expr(index, out);
-            }
-            Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                expr(condition, out);
-                guard_spans(then_block, out);
-                if let Some(other) = otherwise {
-                    match other.as_ref() {
-                        Else::Block(block) => guard_spans(block, out),
-                        Else::If(value) => expr(value, out),
+                Statement::Assign { place, value, .. } => {
+                    frames.push(Frame::Expr(value));
+                    frames.push(Frame::Expr(place));
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        frames.push(Frame::Expr(value));
                     }
                 }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(other) = otherwise {
+                        frames.push(Frame::Statement(other));
+                    }
+                    frames.push(Frame::Block(then_block));
+                    frames.push(Frame::Expr(condition));
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    frames.push(Frame::Block(body));
+                    frames.push(Frame::Expr(condition));
+                }
+                Statement::For { iterable, body, .. } => {
+                    frames.push(Frame::Block(body));
+                    frames.push(Frame::Expr(iterable));
+                }
+                Statement::Block(body) => frames.push(Frame::Block(body)),
+            },
+            Frame::Expr(value) => match value {
+                Expr::Match(selection) => frames.push(Frame::Selection(selection)),
+                Expr::Array(items, _) => {
+                    for item in items.iter().rev() {
+                        frames.push(Frame::Expr(item));
+                    }
+                }
+                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    frames.push(Frame::Expr(inner));
+                }
+                Expr::Binary { left, right, .. } => {
+                    frames.push(Frame::Expr(right));
+                    frames.push(Frame::Expr(left));
+                }
+                Expr::Call { target, args, .. } => {
+                    for arg in args.iter().rev() {
+                        frames.push(Frame::Expr(&arg.value));
+                    }
+                    frames.push(Frame::Expr(target));
+                }
+                Expr::Index { target, index, .. } => {
+                    frames.push(Frame::Expr(index));
+                    frames.push(Frame::Expr(target));
+                }
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(other) = otherwise {
+                        match other.as_ref() {
+                            Else::Block(block) => frames.push(Frame::Block(block)),
+                            Else::If(value) => frames.push(Frame::Expr(value)),
+                        }
+                    }
+                    frames.push(Frame::Block(then_block));
+                    frames.push(Frame::Expr(condition));
+                }
+                Expr::Name(..)
+                | Expr::Integer(..)
+                | Expr::Bool(..)
+                | Expr::Unit(..)
+                | Expr::Closure(..) => {}
+            },
+            Frame::Selection(selection) => {
+                for arm in selection.arms.iter().rev() {
+                    frames.push(Frame::Block(&arm.body));
+                    if let Some(guard) = &arm.guard {
+                        frames.push(Frame::Guard(guard));
+                    }
+                }
+                frames.push(Frame::Expr(&selection.scrutinee));
             }
-            Expr::Name(..)
-            | Expr::Integer(..)
-            | Expr::Bool(..)
-            | Expr::Unit(..)
-            | Expr::Closure(..) => {}
-        }
-    }
-    fn selection_spans(selection: &crate::frontend::parse::Match, out: &mut Vec<Span>) {
-        expr(&selection.scrutinee, out);
-        for arm in &selection.arms {
-            if let Some(guard) = &arm.guard {
+            Frame::Guard(guard) => {
                 out.push(guard.span().clone());
-                expr(guard, out);
+                frames.push(Frame::Expr(guard));
             }
-            guard_spans(&arm.body, out);
-        }
-    }
-    for statement in &block.statements {
-        match statement {
-            Statement::Match(selection) => selection_spans(selection, out),
-            Statement::Let { value, .. } | Statement::Expr { value, .. } => expr(value, out),
-            Statement::Assign { place, value, .. } => {
-                expr(place, out);
-                expr(value, out);
-            }
-            Statement::Return { value, .. }
-            | Statement::GuardControl { value, .. }
-            | Statement::Value { value, .. } => {
-                if let Some(value) = value {
-                    expr(value, out);
-                }
-            }
-            Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                expr(condition, out);
-                guard_spans(then_block, out);
-                if let Some(other) = otherwise {
-                    let synthetic = crate::frontend::parse::Block {
-                        statements: vec![(**other).clone()],
-                        span: crate::frontend::parse::statement_span(other).clone(),
-                        close_span: crate::frontend::parse::statement_span(other).clone(),
-                    };
-                    guard_spans(&synthetic, out);
-                }
-            }
-            Statement::While {
-                condition, body, ..
-            } => {
-                expr(condition, out);
-                guard_spans(body, out);
-            }
-            Statement::For { iterable, body, .. } => {
-                expr(iterable, out);
-                guard_spans(body, out);
-            }
-            Statement::Block(body) => guard_spans(body, out),
         }
     }
 }
@@ -2009,7 +2024,7 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
 
 pub(super) fn populate_exit_info(
     function: &mut Function,
-    source_function: &crate::frontend::parse::Function,
+    source_body: &crate::frontend::parse::Block,
 ) {
     use super::model::{ExitClass, ExitInfo, Terminator};
     let drop_sources = explicit_drop_sources(function);
@@ -2017,7 +2032,7 @@ pub(super) fn populate_exit_info(
         .chain(&function.blocks)
         .collect();
     let count = blocks.len();
-    let source_returns = return_spans(&source_function.body, &function.source_text);
+    let source_returns = return_spans(source_body, &function.source_text);
     super::count_cfg_work(source_returns.len() as u64);
     let tracked: HashSet<_> = function
         .locals
@@ -2218,11 +2233,11 @@ pub(super) fn populate_exit_info(
             if explicit.is_some() {
                 next_source_return += 1;
             }
-            let is_implicit = explicit.is_none() && span == &source_function.body.span;
+            let is_implicit = explicit.is_none() && span == &source_body.span;
             let exit_span = if let Some(explicit) = explicit {
                 explicit
             } else if is_implicit {
-                source_function.body.close_span.clone()
+                source_body.close_span.clone()
             } else {
                 span.clone()
             };
@@ -2270,49 +2285,62 @@ fn ordered_local_ids(bits: &[u64]) -> Vec<super::model::LocalId> {
 }
 
 fn return_spans(block: &crate::frontend::parse::Block, source: &str) -> Vec<Span> {
+    enum Frame<'a> {
+        Block(&'a crate::frontend::parse::Block),
+        Statement(&'a Statement, bool),
+    }
     let mut spans = Vec::new();
-    for statement in &block.statements {
-        super::count_cfg_work(1);
-        spans.extend(return_spans_statement(statement, source));
+    let mut frames = vec![Frame::Block(block)];
+    while let Some(frame) = frames.pop() {
+        match frame {
+            Frame::Block(block) => {
+                for statement in block.statements.iter().rev() {
+                    frames.push(Frame::Statement(statement, true));
+                }
+            }
+            Frame::Statement(statement, count_work) => {
+                if count_work {
+                    super::count_cfg_work(1);
+                }
+                match statement {
+                    Statement::Return { span, .. } => {
+                        let mut span = span.clone();
+                        if span.end > span.start
+                            && source.as_bytes().get(span.end as usize - 1) == Some(&b';')
+                        {
+                            span.end -= 1;
+                        }
+                        spans.push(span);
+                    }
+                    Statement::Block(block) => frames.push(Frame::Block(block)),
+                    Statement::If {
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        if let Some(other) = otherwise {
+                            frames.push(Frame::Statement(other, false));
+                        }
+                        frames.push(Frame::Block(then_block));
+                    }
+                    Statement::While { body, .. } | Statement::For { body, .. } => {
+                        frames.push(Frame::Block(body));
+                    }
+                    Statement::Match(selection) => {
+                        for arm in selection.arms.iter().rev() {
+                            frames.push(Frame::Block(&arm.body));
+                        }
+                    }
+                    Statement::Let { .. }
+                    | Statement::Assign { .. }
+                    | Statement::GuardControl { .. }
+                    | Statement::Value { .. }
+                    | Statement::Expr { .. } => {}
+                }
+            }
+        }
     }
     spans
-}
-
-fn return_spans_statement(statement: &Statement, source: &str) -> Vec<Span> {
-    match statement {
-        Statement::Return { span, .. } => {
-            let mut span = span.clone();
-            if span.end > span.start && source.as_bytes().get(span.end as usize - 1) == Some(&b';')
-            {
-                span.end -= 1;
-            }
-            vec![span]
-        }
-        Statement::Block(block) => return_spans(block, source),
-        Statement::If {
-            then_block,
-            otherwise,
-            ..
-        } => {
-            let mut spans = return_spans(then_block, source);
-            if let Some(other) = otherwise {
-                spans.extend(return_spans_statement(other, source));
-            }
-            spans
-        }
-        Statement::While { body, .. } => return_spans(body, source),
-        Statement::For { body, .. } => return_spans(body, source),
-        Statement::Match(selection) => selection
-            .arms
-            .iter()
-            .flat_map(|arm| return_spans(&arm.body, source))
-            .collect(),
-        Statement::Let { .. }
-        | Statement::Assign { .. }
-        | Statement::GuardControl { .. }
-        | Statement::Value { .. }
-        | Statement::Expr { .. } => Vec::new(),
-    }
 }
 
 #[cfg(test)]
@@ -3586,7 +3614,7 @@ mod tests {
         }
         assert!(
             std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                populate_exit_info(&mut function, &ast.functions[0])
+                populate_exit_info(&mut function, &ast.functions[0].body)
             }))
             .is_ok()
         );
