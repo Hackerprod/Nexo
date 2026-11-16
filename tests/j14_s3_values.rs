@@ -64,6 +64,48 @@ fn assert_unit(source: &str, printed: Option<&str>, events: &[&str]) {
     assert_eq!(report.trim_end(), expected_unit(printed, events));
 }
 
+#[test]
+fn integer_match_selects_the_equal_literal_arm() {
+    assert_unit(
+        "fn Main(){match 1{1=>{Print(11);},_=>{Print(22);}}}",
+        Some("11"),
+        &[],
+    );
+}
+
+#[test]
+fn resource_transfer_closes_inner_scope_before_owner() {
+    assert_unit(
+        include_str!("../corpus/objetivo/03_resource_transfer.n"),
+        None,
+        &[
+            "open:0:10",
+            "inspect:0:10",
+            "open:1:20",
+            "inspect:1:20",
+            "close:1:20",
+            "close:0:10",
+        ],
+    );
+}
+
+#[test]
+fn cold_generator_construction_requires_a_ninth_frame() {
+    let source = "gen fn G()->I64{yield 1;}fn F1(){F2();}fn F2(){F3();}fn F3(){F4();}fn F4(){F5();}fn F5(){F6();}fn F6(){F7();}fn F7(){let g=G();}fn Main(){F1();}";
+    let (status, report) = run_profile(source, "f0-0003-b-test-frames-8-v1");
+    assert_eq!(status, 1, "{report}");
+    for expected in [
+        "\"code\":\"R0002\"",
+        "\"operation\":\"runtime.limit\"",
+        "\"start\":123,\"end\":126",
+        "\"limit\":8,\"observed\":9,\"runtime_budget_kind\":\"call_frames\"",
+        "\"events\":[]",
+        "\"reserved_observation_bytes\":0",
+    ] {
+        assert!(report.contains(expected), "{expected}: {report}");
+    }
+}
+
 fn array_source(depth: usize, body: &str) -> String {
     let mut source = String::from("fn Main(){let a0=[1];");
     for index in 1..depth {

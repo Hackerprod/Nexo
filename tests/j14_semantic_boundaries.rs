@@ -56,6 +56,25 @@ fn rejected(source: &str, code: &str) -> String {
     reports.remove(0)
 }
 
+#[test]
+fn deferred_await_reports_async_at_its_token() {
+    let report = rejected("fn Main(){let x=await 1;}", "NX-E0006");
+    assert!(report.contains("\"feature_id\":\"async\""), "{report}");
+    assert!(report.contains("\"start\":16,\"end\":21"), "{report}");
+}
+
+#[test]
+fn ungrouped_if_cannot_be_a_branch_operand() {
+    syntax_at(
+        "fn Main(){let x=if true then if false then 1 else 2 else 3;Print(x);}",
+        "if",
+        29,
+        "grammar.BranchOperand",
+        BRANCH_FIRST,
+        29,
+    );
+}
+
 const MODULE_NEXT: &[&str] = &["EOF", "fn", "gen"];
 const EXPR_START: &[&str] = &[
     "(",
