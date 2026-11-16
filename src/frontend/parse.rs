@@ -11,6 +11,79 @@ pub(crate) fn measure_parse_work(source: &str) -> (Result<Ast, Box<Diagnostic>>,
     (result, units)
 }
 
+#[cfg(test)]
+mod j16_parser_stack_probe {
+    use super::*;
+
+    #[test]
+    fn direct_204_kib_child() {
+        let Ok(family) = std::env::var("J16_PARSER_DIRECT_204") else {
+            return;
+        };
+        let source = match family.as_str() {
+            "block" => format!(
+                "fn Main(){{{}let x=1;{}}}",
+                "{".repeat(126),
+                "}".repeat(126)
+            ),
+            "closure" => format!(
+                "fn Main(){{let f={}1{};}}",
+                "fn(){let g=".repeat(63),
+                ";}".repeat(63)
+            ),
+            "match_expr" => {
+                let mut expr = String::from("1");
+                for _ in 0..63 {
+                    expr = format!("match 1{{_=>{{value:{expr};}}}}");
+                }
+                format!("fn Main(){{let x={expr};}}")
+            }
+            _ => panic!("unknown family: {family}"),
+        };
+        std::thread::Builder::new()
+            .stack_size(204 * 1024)
+            .spawn(move || parse_inner("probe.n", &source, None, true).unwrap())
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn direct_204_kib_file_child() {
+        let Ok(path) = std::env::var("J16_PARSER_CASE_FILE") else {
+            return;
+        };
+        let source = std::fs::read_to_string(path).unwrap();
+        let result = std::thread::Builder::new()
+            .stack_size(204 * 1024)
+            .spawn(move || parse_inner("probe.n", &source, None, true))
+            .unwrap()
+            .join()
+            .unwrap();
+        match std::env::var("J16_PARSER_EXPECT").as_deref() {
+            Ok("ok") => {
+                result.unwrap();
+            }
+            Ok(expected) => {
+                let diagnostic = result.unwrap_err();
+                let span = diagnostic.primary_span.as_ref().unwrap();
+                let kind = match diagnostic.data.get("budget_kind") {
+                    Some(DataValue::String(kind)) => kind.as_str(),
+                    _ => "",
+                };
+                let actual = format!("{}:{}:{}:{}", diagnostic.code, kind, span.start, span.end);
+                assert_eq!(actual, expected, "{diagnostic:?}");
+                assert_eq!(diagnostic.subcause, None);
+                assert_eq!(diagnostic.stage, Stage::Parse);
+                assert_eq!(diagnostic.operation, Operation::AnalysisLimit);
+                assert_eq!(diagnostic.data.get("limit"), Some(&DataValue::UInt(128)));
+                assert_eq!(diagnostic.data.get("observed"), Some(&DataValue::UInt(129)));
+            }
+            Err(_) => panic!("J16_PARSER_EXPECT is required"),
+        }
+    }
+}
+
 use super::lex::{self, Kind, Token};
 use crate::diagnostic::{
     self, DataValue, Diagnostic, ExpectedTokensKind, Namespace, Operation, RelatedRole,
@@ -440,16 +513,17 @@ impl Pattern {
 }
 
 fn collect_pattern_bindings(pattern: &Pattern, bindings: &mut HashSet<String>) {
-    match pattern {
-        Pattern::Name { name, .. } => {
-            bindings.insert(name.clone());
-        }
-        Pattern::Constructor { args, .. } => {
-            for arg in args {
-                collect_pattern_bindings(arg, bindings);
+    let mut pending = vec![pattern];
+    while let Some(pattern) = pending.pop() {
+        match pattern {
+            Pattern::Name { name, .. } => {
+                bindings.insert(name.clone());
             }
+            Pattern::Constructor { args, .. } => {
+                pending.extend(args.iter().rev());
+            }
+            _ => {}
         }
-        _ => {}
     }
 }
 
@@ -1542,199 +1616,292 @@ enum ListKind {
 // An `edit` argument is consumed by call binding. Descendants of that
 // argument, including index expressions, do not inherit that permission.
 fn unadmitted_edit_in_block(block: &Block) -> Option<Span> {
-    block
-        .statements
-        .iter()
-        .find_map(unadmitted_edit_in_statement)
+    unadmitted_edit_walk(EditNode::Block(block))
 }
 
-fn unadmitted_edit_in_statement(statement: &Statement) -> Option<Span> {
-    match statement {
-        Statement::Let { value, .. }
-        | Statement::Expr { value, .. }
-        | Statement::Return {
-            value: Some(value), ..
-        }
-        | Statement::GuardControl {
-            value: Some(value), ..
-        }
-        | Statement::Value {
-            value: Some(value), ..
-        } => unadmitted_edit_in_expr(value, false),
-        Statement::Assign { place, value, .. } => {
-            unadmitted_edit_in_expr(place, false).or_else(|| unadmitted_edit_in_expr(value, false))
-        }
-        Statement::If {
-            condition,
-            then_block,
-            otherwise,
-            ..
-        } => unadmitted_edit_in_expr(condition, false)
-            .or_else(|| unadmitted_edit_in_block(then_block))
-            .or_else(|| otherwise.as_deref().and_then(unadmitted_edit_in_statement)),
-        Statement::While {
-            condition, body, ..
-        } => unadmitted_edit_in_expr(condition, false).or_else(|| unadmitted_edit_in_block(body)),
-        Statement::For { iterable, body, .. } => {
-            unadmitted_edit_in_expr(iterable, false).or_else(|| unadmitted_edit_in_block(body))
-        }
-        Statement::Match(selection) => unadmitted_edit_in_match(selection),
-        Statement::Block(block) => unadmitted_edit_in_block(block),
-        Statement::Return { value: None, .. }
-        | Statement::GuardControl { value: None, .. }
-        | Statement::Value { value: None, .. } => None,
-    }
+#[derive(Clone, Copy)]
+enum EditNode<'a> {
+    Expr(&'a Expr, bool),
+    Statement(&'a Statement),
+    Block(&'a Block),
+    Match(&'a Match),
+    Else(&'a Else),
+    Arm(&'a Arm),
 }
 
-fn unadmitted_edit_in_expr(expr: &Expr, immediate_argument: bool) -> Option<Span> {
-    match expr {
-        Expr::Closure(closure) => unadmitted_edit_in_block(&closure.body),
-        Expr::Unary {
-            mode: Mode::Inout,
-            value,
-            span,
-        } => {
-            if !immediate_argument && !matches!(&**value, Expr::Call { .. }) {
-                Some(span.clone())
-            } else {
-                unadmitted_edit_in_expr(value, false)
+fn unadmitted_edit_walk(root: EditNode<'_>) -> Option<Span> {
+    let mut pending = vec![root];
+    while let Some(node) = pending.pop() {
+        match node {
+            EditNode::Block(block) => {
+                pending.extend(block.statements.iter().rev().map(EditNode::Statement));
+            }
+            EditNode::Statement(statement) => match statement {
+                Statement::Let { value, .. }
+                | Statement::Expr { value, .. }
+                | Statement::Return {
+                    value: Some(value), ..
+                }
+                | Statement::GuardControl {
+                    value: Some(value), ..
+                }
+                | Statement::Value {
+                    value: Some(value), ..
+                } => {
+                    pending.push(EditNode::Expr(value, false));
+                }
+                Statement::Assign { place, value, .. } => {
+                    pending.push(EditNode::Expr(value, false));
+                    pending.push(EditNode::Expr(place, false));
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(otherwise) = otherwise {
+                        pending.push(EditNode::Statement(otherwise));
+                    }
+                    pending.push(EditNode::Block(then_block));
+                    pending.push(EditNode::Expr(condition, false));
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    pending.push(EditNode::Block(body));
+                    pending.push(EditNode::Expr(condition, false));
+                }
+                Statement::For { iterable, body, .. } => {
+                    pending.push(EditNode::Block(body));
+                    pending.push(EditNode::Expr(iterable, false));
+                }
+                Statement::Match(selection) => pending.push(EditNode::Match(selection)),
+                Statement::Block(block) => pending.push(EditNode::Block(block)),
+                Statement::Return { value: None, .. }
+                | Statement::GuardControl { value: None, .. }
+                | Statement::Value { value: None, .. } => {}
+            },
+            EditNode::Expr(expr, immediate_argument) => match expr {
+                Expr::Closure(closure) => pending.push(EditNode::Block(&closure.body)),
+                Expr::Unary {
+                    mode: Mode::Inout,
+                    value,
+                    span,
+                } if !immediate_argument && !matches!(&**value, Expr::Call { .. }) => {
+                    return Some(span.clone());
+                }
+                Expr::Unary { value, .. } | Expr::Group(value, _) => {
+                    pending.push(EditNode::Expr(value, false));
+                }
+                Expr::Array(items, _) => {
+                    pending.extend(items.iter().rev().map(|item| EditNode::Expr(item, false)));
+                }
+                Expr::Binary { left, right, .. }
+                | Expr::Index {
+                    target: left,
+                    index: right,
+                    ..
+                } => {
+                    pending.push(EditNode::Expr(right, false));
+                    pending.push(EditNode::Expr(left, false));
+                }
+                Expr::Call { target, args, .. } => {
+                    pending.extend(
+                        args.iter()
+                            .rev()
+                            .map(|arg| EditNode::Expr(&arg.value, true)),
+                    );
+                    pending.push(EditNode::Expr(target, false));
+                }
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(otherwise) = otherwise {
+                        pending.push(EditNode::Else(otherwise));
+                    }
+                    pending.push(EditNode::Block(then_block));
+                    pending.push(EditNode::Expr(condition, false));
+                }
+                Expr::Match(selection) => pending.push(EditNode::Match(selection)),
+                Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+            },
+            EditNode::Match(selection) => {
+                pending.extend(selection.arms.iter().rev().map(EditNode::Arm));
+                pending.push(EditNode::Expr(&selection.scrutinee, false));
+            }
+            EditNode::Else(otherwise) => match otherwise {
+                Else::Block(block) => pending.push(EditNode::Block(block)),
+                Else::If(expr) => pending.push(EditNode::Expr(expr, false)),
+            },
+            EditNode::Arm(arm) => {
+                pending.push(EditNode::Block(&arm.body));
+                if let Some(guard) = &arm.guard {
+                    pending.push(EditNode::Expr(guard, false));
+                }
             }
         }
-        Expr::Unary { value, .. } | Expr::Group(value, _) => unadmitted_edit_in_expr(value, false),
-        Expr::Array(items, _) => items
-            .iter()
-            .find_map(|item| unadmitted_edit_in_expr(item, false)),
-        Expr::Binary { left, right, .. } => {
-            unadmitted_edit_in_expr(left, false).or_else(|| unadmitted_edit_in_expr(right, false))
-        }
-        // The direct `edit r(...)` shape is rejected as receiver_mode while
-        // parsing; a grouped target is inspected with permission reset by
-        // Group. Thus even granting permission at the target edge cannot
-        // admit it (edit_cannot_become_a_call_or_index_target).
-        Expr::Call { target, args, .. } => unadmitted_edit_in_expr(target, false).or_else(|| {
-            args.iter()
-                .find_map(|arg| unadmitted_edit_in_expr(&arg.value, true))
-        }),
-        // Likewise, direct `edit r[i]` is one outer Unary and a grouped
-        // `(edit r)[i]` loses argument permission at Group.
-        Expr::Index { target, index, .. } => {
-            unadmitted_edit_in_expr(target, false).or_else(|| unadmitted_edit_in_expr(index, false))
-        }
-        Expr::If {
-            condition,
-            then_block,
-            otherwise,
-            ..
-        } => unadmitted_edit_in_expr(condition, false)
-            .or_else(|| unadmitted_edit_in_block(then_block))
-            .or_else(|| {
-                otherwise.as_deref().and_then(|branch| match branch {
-                    Else::Block(block) => unadmitted_edit_in_block(block),
-                    Else::If(expr) => unadmitted_edit_in_expr(expr, false),
-                })
-            }),
-        Expr::Match(selection) => unadmitted_edit_in_match(selection),
-        Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => None,
     }
-}
-fn unadmitted_edit_in_match(selection: &Match) -> Option<Span> {
-    unadmitted_edit_in_expr(&selection.scrutinee, false).or_else(|| {
-        selection.arms.iter().find_map(|arm| {
-            arm.guard
-                .as_ref()
-                .and_then(|guard| unadmitted_edit_in_expr(guard, false))
-                .or_else(|| unadmitted_edit_in_block(&arm.body))
-        })
-    })
+    None
 }
 fn returns_unit(expr: &Expr) -> bool {
-    match expr {
-        Expr::Unit(_) => true,
-        Expr::Group(inner, _) => returns_unit(inner),
-        _ => false,
+    let mut current = expr;
+    while let Expr::Group(inner, _) = current {
+        current = inner;
     }
+    matches!(current, Expr::Unit(_))
 }
 fn non_unit_return(statement: &Statement) -> Option<Span> {
-    match statement {
-        Statement::Return {
-            value: Some(v),
-            span,
-        } if !returns_unit(v) => Some(Span {
-            file: span.file.clone(),
-            start: span.start,
-            end: v.span().end,
-        }),
-        Statement::Block(b) => b.statements.iter().find_map(non_unit_return),
-        Statement::If {
-            condition,
-            then_block,
-            otherwise,
-            ..
-        } => expr_non_unit_return(condition).or_else(|| {
-            then_block
-                .statements
-                .iter()
-                .find_map(non_unit_return)
-                .or_else(|| otherwise.as_deref().and_then(non_unit_return))
-        }),
-        Statement::While {
-            condition, body, ..
-        } => expr_non_unit_return(condition)
-            .or_else(|| body.statements.iter().find_map(non_unit_return)),
-        Statement::Match(selection) => match_non_unit_return(selection),
-        Statement::Let { value, .. }
-        | Statement::Assign { value, .. }
-        | Statement::Expr { value, .. }
-        | Statement::Value {
-            value: Some(value), ..
-        }
-        | Statement::Return {
-            value: Some(value), ..
-        }
-        | Statement::GuardControl {
-            value: Some(value), ..
-        } => expr_non_unit_return(value),
-        _ => None,
+    #[derive(Clone, Copy)]
+    enum Node<'a> {
+        Statement(&'a Statement),
+        Expr(&'a Expr),
+        Block(&'a Block),
+        Match(&'a Match),
+        Else(&'a Else),
+        Arm(&'a Arm),
     }
-}
-fn expr_non_unit_return(expr: &Expr) -> Option<Span> {
-    match expr {
-        Expr::If {
-            condition,
-            then_block,
-            otherwise,
-            ..
-        } => expr_non_unit_return(condition)
-            .or_else(|| then_block.statements.iter().find_map(non_unit_return))
-            .or_else(|| match otherwise.as_deref() {
-                Some(Else::Block(b)) => b.statements.iter().find_map(non_unit_return),
-                Some(Else::If(e)) => expr_non_unit_return(e),
-                None => None,
-            }),
-        Expr::Group(e, _) | Expr::Unary { value: e, .. } => expr_non_unit_return(e),
-        Expr::Binary { left, right, .. } => {
-            expr_non_unit_return(left).or_else(|| expr_non_unit_return(right))
+    let mut pending = vec![Node::Statement(statement)];
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Statement(statement) => match statement {
+                Statement::Return {
+                    value: Some(value),
+                    span,
+                } if !returns_unit(value) => {
+                    return Some(Span {
+                        file: span.file.clone(),
+                        start: span.start,
+                        end: value.span().end,
+                    });
+                }
+                Statement::Block(block) => pending.push(Node::Block(block)),
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(otherwise) = otherwise {
+                        pending.push(Node::Statement(otherwise));
+                    }
+                    pending.push(Node::Block(then_block));
+                    pending.push(Node::Expr(condition));
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    pending.push(Node::Block(body));
+                    pending.push(Node::Expr(condition));
+                }
+                Statement::Match(selection) => pending.push(Node::Match(selection)),
+                Statement::Let { value, .. }
+                | Statement::Assign { value, .. }
+                | Statement::Expr { value, .. }
+                | Statement::Value {
+                    value: Some(value), ..
+                }
+                | Statement::Return {
+                    value: Some(value), ..
+                }
+                | Statement::GuardControl {
+                    value: Some(value), ..
+                } => {
+                    pending.push(Node::Expr(value));
+                }
+                Statement::For { .. }
+                | Statement::Return { value: None, .. }
+                | Statement::GuardControl { value: None, .. }
+                | Statement::Value { value: None, .. } => {}
+            },
+            Node::Expr(expr) => match expr {
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(otherwise) = otherwise {
+                        pending.push(Node::Else(otherwise));
+                    }
+                    pending.push(Node::Block(then_block));
+                    pending.push(Node::Expr(condition));
+                }
+                Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                    pending.push(Node::Expr(value));
+                }
+                Expr::Binary { left, right, .. }
+                | Expr::Index {
+                    target: left,
+                    index: right,
+                    ..
+                } => {
+                    pending.push(Node::Expr(right));
+                    pending.push(Node::Expr(left));
+                }
+                Expr::Call { target, args, .. } => {
+                    pending.extend(args.iter().rev().map(|arg| Node::Expr(&arg.value)));
+                    pending.push(Node::Expr(target));
+                }
+                Expr::Array(items, _) => pending.extend(items.iter().rev().map(Node::Expr)),
+                Expr::Match(selection) => pending.push(Node::Match(selection)),
+                Expr::Closure(..)
+                | Expr::Name(..)
+                | Expr::Integer(..)
+                | Expr::Bool(..)
+                | Expr::Unit(..) => {}
+            },
+            Node::Block(block) => {
+                pending.extend(block.statements.iter().rev().map(Node::Statement));
+            }
+            Node::Match(selection) => {
+                pending.extend(selection.arms.iter().rev().map(Node::Arm));
+                pending.push(Node::Expr(&selection.scrutinee));
+            }
+            Node::Else(otherwise) => match otherwise {
+                Else::Block(block) => pending.push(Node::Block(block)),
+                Else::If(expr) => pending.push(Node::Expr(expr)),
+            },
+            Node::Arm(arm) => {
+                pending.push(Node::Block(&arm.body));
+                if let Some(guard) = &arm.guard {
+                    pending.push(Node::Expr(guard));
+                }
+            }
         }
-        Expr::Call { target, args, .. } => expr_non_unit_return(target)
-            .or_else(|| args.iter().find_map(|arg| expr_non_unit_return(&arg.value))),
-        Expr::Index { target, index, .. } => {
-            expr_non_unit_return(target).or_else(|| expr_non_unit_return(index))
-        }
-        Expr::Array(xs, _) => xs.iter().find_map(expr_non_unit_return),
-        Expr::Match(selection) => match_non_unit_return(selection),
-        _ => None,
     }
+    None
 }
-fn match_non_unit_return(selection: &Match) -> Option<Span> {
-    expr_non_unit_return(&selection.scrutinee).or_else(|| {
-        selection.arms.iter().find_map(|arm| {
-            arm.guard
-                .as_ref()
-                .and_then(expr_non_unit_return)
-                .or_else(|| arm.body.statements.iter().find_map(non_unit_return))
-        })
-    })
+#[derive(Clone, Copy)]
+enum ConstructEntry {
+    Expr(u8),
+    Block(bool),
+    #[cfg(test)]
+    Statement {
+        value_target: bool,
+        block_start: usize,
+    },
 }
+
+enum ConstructResult {
+    Expr(Expr),
+    Block(Block),
+    #[cfg(test)]
+    Statement(Box<Statement>),
+}
+
+struct ClosureHead {
+    fn_span: Span,
+    start: usize,
+    captures: Option<Vec<Capture>>,
+    params: Vec<ClosureParameter>,
+    result: Option<Type>,
+    with_clause: Option<WithClause>,
+}
+
 struct Parser<'a> {
     file: &'a str,
     source: &'a str,
@@ -1807,6 +1974,1530 @@ impl Parser<'_> {
         self.callable_count += 1;
         Ok(())
     }
+    fn expr(&mut self, min: u8) -> Result<Expr, Box<Diagnostic>> {
+        match self.parse_construct(ConstructEntry::Expr(min))? {
+            ConstructResult::Expr(expr) => Ok(expr),
+            _ => unreachable!("expression entry returned another construct"),
+        }
+    }
+
+    fn parse_construct(
+        &mut self,
+        entry: ConstructEntry,
+    ) -> Result<ConstructResult, Box<Diagnostic>> {
+        struct BlockFrame {
+            start: usize,
+            value_target: bool,
+            statements: Vec<Statement>,
+            pending_value: Option<Span>,
+        }
+        struct MatchFrame {
+            keyword: Token,
+            expression: bool,
+            mode: Option<Mode>,
+            mode_span: Option<Span>,
+            scrutinee: Expr,
+            arms: Vec<Arm>,
+        }
+        enum Task {
+            Enter(u8),
+            BlockStart {
+                value_target: bool,
+            },
+            StatementStart {
+                value_target: bool,
+                block_start: usize,
+            },
+            StatementBinding {
+                start: usize,
+                mutable: bool,
+                name: String,
+                annotation: Option<Type>,
+            },
+            StatementReturn {
+                start: usize,
+            },
+            StatementGuard {
+                start: usize,
+                token: Token,
+            },
+            StatementValue {
+                start: usize,
+                marker: Span,
+            },
+            StatementExpr {
+                start: usize,
+            },
+            StatementAssign {
+                start: usize,
+                place: Expr,
+            },
+            StatementWhileCondition {
+                start: usize,
+            },
+            StatementWhileBody {
+                start: usize,
+                condition: Expr,
+            },
+            StatementForIterable {
+                start: usize,
+                name: Token,
+            },
+            StatementForBody {
+                start: usize,
+                name: Token,
+                iterable: Expr,
+            },
+            StatementDirectBlock,
+            StatementMatch,
+            StatementIfCondition {
+                branches: Vec<(usize, Expr, Block)>,
+                start: usize,
+            },
+            StatementIfThen {
+                branches: Vec<(usize, Expr, Block)>,
+                start: usize,
+                condition: Expr,
+            },
+            StatementIfElse {
+                branches: Vec<(usize, Expr, Block)>,
+            },
+            MatchStart {
+                expression: bool,
+            },
+            MatchAfterScrutinee {
+                keyword: Token,
+                expression: bool,
+                mode: Option<Mode>,
+                mode_span: Option<Span>,
+            },
+            MatchNextArm(MatchFrame),
+            MatchAfterGuard {
+                frame: MatchFrame,
+                pattern: Pattern,
+                guard_span: Option<Span>,
+            },
+            MatchAfterBody {
+                frame: MatchFrame,
+                pattern: Pattern,
+                guard_span: Option<Span>,
+                guard: Option<Expr>,
+            },
+            MatchFinish(MatchFrame),
+            ExprAfterMatch,
+            ClosureAfterBody(ClosureHead),
+            BlockNext(BlockFrame),
+            BlockAfterStatement {
+                frame: BlockFrame,
+                statement_token: usize,
+                previous_start: usize,
+            },
+            Prefix,
+            Continue {
+                min: u8,
+                logical_entry: bool,
+                try_seen: bool,
+            },
+            Group {
+                start: usize,
+            },
+            Array {
+                start: usize,
+                elements: Vec<Expr>,
+                after_comma: bool,
+                pending_element: bool,
+            },
+            Call {
+                target: Expr,
+                start: usize,
+                arguments_start: usize,
+                args: Vec<Argument>,
+                after_comma: bool,
+                pending_arg: Option<(usize, Option<String>)>,
+            },
+            Index {
+                target: Expr,
+                start: usize,
+                selector_start: usize,
+                index_start: usize,
+            },
+            Binary {
+                left: Expr,
+                op: String,
+            },
+            IfCondition {
+                start: usize,
+            },
+            IfThenExpr {
+                start: usize,
+                condition: Expr,
+            },
+            IfThenBlock {
+                start: usize,
+                condition: Expr,
+            },
+            IfAfterThen {
+                start: usize,
+                condition: Expr,
+                then_block: Block,
+            },
+            IfElseExpr {
+                start: usize,
+                condition: Expr,
+                then_block: Block,
+            },
+            IfElseBlock {
+                start: usize,
+                condition: Expr,
+                then_block: Block,
+            },
+        }
+        fn value_block(operand: Expr) -> Block {
+            let span = operand.span().clone();
+            Block {
+                statements: vec![Statement::Value {
+                    value: Some(operand),
+                    marker: None,
+                    span: span.clone(),
+                }],
+                span: span.clone(),
+                close_span: Span {
+                    file: span.file.clone(),
+                    start: span.end,
+                    end: span.end,
+                },
+            }
+        }
+        fn accept_statement(
+            parser: &mut Parser<'_>,
+            frame: &mut BlockFrame,
+            statement_token: usize,
+            statement: Statement,
+        ) -> Result<(), Box<Diagnostic>> {
+            if matches!(
+                &statement,
+                Statement::If { .. }
+                    | Statement::While { .. }
+                    | Statement::For { .. }
+                    | Statement::Block(_)
+            ) && parser.at_text(";")
+                && parser.peek().span.start == parser.peek().span.end
+            {
+                parser.take();
+            }
+            if let Some(value_span) = frame.pending_value.take() {
+                let next_span = statement_span(&statement).clone();
+                let mut diagnostic = parser.branch_error("non_final_branch_value", value_span);
+                diagnostic.related_spans.push(RelatedSpan {
+                    role: RelatedRole::Context,
+                    span: next_span,
+                });
+                return Err(diagnostic);
+            }
+            if let Statement::Value { .. } = &statement {
+                let value = &parser.tokens[statement_token];
+                let colon = &parser.tokens[statement_token + 1];
+                frame.pending_value =
+                    Some(parser.span(value.span.start as usize, colon.span.end as usize));
+            }
+            frame.statements.push(statement);
+            Ok(())
+        }
+        fn finish_if_statement(
+            parser: &Parser<'_>,
+            mut branches: Vec<(usize, Expr, Block)>,
+            mut otherwise: Option<Else>,
+        ) -> Result<Statement, Box<Diagnostic>> {
+            while let Some((start, condition, then_block)) = branches.pop() {
+                let end = otherwise
+                    .as_ref()
+                    .map_or(then_block.span.end as usize, |branch| {
+                        else_span(branch).end as usize
+                    });
+                let candidate = Expr::If {
+                    condition: Box::new(condition),
+                    then_block,
+                    otherwise: otherwise.map(Box::new),
+                    span: parser.span(start, end),
+                };
+                parser.check_expression_height(&candidate)?;
+                if branches.is_empty()
+                    && let Expr::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        span,
+                    } = candidate
+                {
+                    return Ok(Statement::If {
+                        condition: *condition,
+                        then_block,
+                        otherwise: otherwise.map(|branch| {
+                            Box::new(match *branch {
+                                Else::Block(block) => Statement::Block(block),
+                                Else::If(expr) => Statement::Expr {
+                                    span: expr.span().clone(),
+                                    value: *expr,
+                                },
+                            })
+                        }),
+                        span,
+                    });
+                }
+                otherwise = Some(Else::If(Box::new(candidate)));
+            }
+            unreachable!("if form has a branch")
+        }
+        let mut tasks = vec![match entry {
+            ConstructEntry::Expr(min) => Task::Enter(min),
+            ConstructEntry::Block(value_target) => Task::BlockStart { value_target },
+            #[cfg(test)]
+            ConstructEntry::Statement {
+                value_target,
+                block_start,
+            } => Task::StatementStart {
+                value_target,
+                block_start,
+            },
+        }];
+        let mut result: Option<Expr> = None;
+        let mut block_result: Option<Block> = None;
+        let mut statement_result: Option<Statement> = None;
+        let mut match_result: Option<Match> = None;
+        'work: while let Some(task) = tasks.pop() {
+            match task {
+                Task::BlockStart { value_target } => {
+                    self.depth += 1;
+                    if self.depth > 128 {
+                        self.depth -= 1;
+                        return Err(self.nesting_error("syntax_nesting"));
+                    }
+                    let start = self.peek().span.start as usize;
+                    self.expect("{", "grammar.Block", &["{"], start)?;
+                    self.local_scopes.push(HashSet::new());
+                    tasks.push(Task::BlockNext(BlockFrame {
+                        start,
+                        value_target,
+                        statements: Vec::new(),
+                        pending_value: None,
+                    }));
+                }
+                Task::BlockNext(frame) => {
+                    if self.at_text("}") || self.eof() {
+                        if self.eof() && frame.statements.is_empty() {
+                            return Err(self.err(
+                                "block_item",
+                                first(self.new_profile, FirstSet::Block),
+                                frame.start,
+                                None,
+                            ));
+                        }
+                        let close = self.peek().span.clone();
+                        let end = close.end as usize;
+                        self.expect(
+                            "}",
+                            "grammar.Block",
+                            first(self.new_profile, FirstSet::Block),
+                            frame.start,
+                        )?;
+                        self.depth -= 1;
+                        self.local_scopes.pop();
+                        block_result = Some(Block {
+                            statements: frame.statements,
+                            span: self.span(frame.start, end),
+                            close_span: close,
+                        });
+                    } else {
+                        if !self.starts_statement() {
+                            return Err(self.err(
+                                if frame.statements.is_empty() {
+                                    "block_item"
+                                } else {
+                                    "grammar.Block"
+                                },
+                                first(self.new_profile, FirstSet::Block),
+                                frame.start,
+                                None,
+                            ));
+                        }
+                        let statement_token = self.at;
+                        let start = self.peek().span.start as usize;
+                        let previous_start = std::mem::replace(&mut self.statement_start, start);
+                        let value_target = frame.value_target;
+                        let block_start = frame.start;
+                        tasks.push(Task::BlockAfterStatement {
+                            frame,
+                            statement_token,
+                            previous_start,
+                        });
+                        tasks.push(Task::StatementStart {
+                            value_target,
+                            block_start,
+                        });
+                    }
+                }
+                Task::BlockAfterStatement {
+                    mut frame,
+                    statement_token,
+                    previous_start,
+                } => {
+                    self.statement_start = previous_start;
+                    accept_statement(
+                        self,
+                        &mut frame,
+                        statement_token,
+                        statement_result.take().expect("statement result"),
+                    )?;
+                    tasks.push(Task::BlockNext(frame));
+                }
+                Task::StatementStart {
+                    value_target,
+                    block_start,
+                } => {
+                    let choice = self.statement_inner()?;
+                    let start = self.peek().span.start as usize;
+                    if choice == BlockChoice::Match {
+                        tasks.push(Task::StatementMatch);
+                        tasks.push(Task::MatchStart { expression: false });
+                    } else if choice == BlockChoice::Guard {
+                        let token = self.take();
+                        if token.text == "yield" && !self.starts_expr() {
+                            return Err(self.err(
+                                "grammar.YieldStmt",
+                                first(self.new_profile, FirstSet::Expr),
+                                start,
+                                None,
+                            ));
+                        }
+                        if token.text == "yield" {
+                            tasks.push(Task::StatementGuard { start, token });
+                            tasks.push(Task::Enter(0));
+                        } else {
+                            let end = self.terminator(
+                                start,
+                                token.span.clone(),
+                                TerminatedStatement::Other,
+                            )?;
+                            statement_result = Some(Statement::GuardControl {
+                                token: token.text,
+                                value: None,
+                                guarded: self.guard_context > 0,
+                                token_span: token.span,
+                                span: self.span(start, end),
+                            });
+                        }
+                    } else if choice == BlockChoice::Binding {
+                        let mutable = self.eat("var");
+                        if !mutable {
+                            self.eat("let");
+                        }
+                        let name = self.expect_name("binding_name", &["Name"], start)?;
+                        let annotation = if self.eat(":") {
+                            Some(self.ty()?)
+                        } else {
+                            None
+                        };
+                        self.expect(
+                            "=",
+                            "grammar.Binding",
+                            if annotation.is_some() {
+                                &["="]
+                            } else {
+                                &[":", "="]
+                            },
+                            start,
+                        )?;
+                        if !self.starts_expr() {
+                            return Err(self.err(
+                                "binding_initializer",
+                                first(self.new_profile, FirstSet::Expr),
+                                start,
+                                None,
+                            ));
+                        }
+                        tasks.push(Task::StatementBinding {
+                            start,
+                            mutable,
+                            name: name.text,
+                            annotation,
+                        });
+                        tasks.push(Task::Enter(0));
+                    } else if choice == BlockChoice::Return {
+                        self.eat("return");
+                        if !self.starts_expr() || self.line_break_before_next() {
+                            let span = self.span(start, self.prev_end());
+                            let end = self.terminator(start, span, TerminatedStatement::Other)?;
+                            statement_result = Some(Statement::Return {
+                                value: None,
+                                span: self.span(start, end),
+                            });
+                        } else {
+                            tasks.push(Task::StatementReturn { start });
+                            tasks.push(Task::Enter(0));
+                        }
+                    } else if self.word("value")
+                        && self.tokens.get(self.at + 1).is_some_and(|x| x.text == ":")
+                        && self.source[self.peek().span.end as usize
+                            ..self.tokens[self.at + 1].span.start as usize]
+                            .find(['\r', '\n'])
+                            .is_none()
+                    {
+                        self.take();
+                        let colon = self.take();
+                        let marker = self.span(start, colon.span.end as usize);
+                        if !value_target {
+                            let mut diagnostic = self.branch_error("invalid_value_target", marker);
+                            diagnostic.related_spans.push(RelatedSpan {
+                                role: RelatedRole::Context,
+                                span: self.span(block_start, block_start + 1),
+                            });
+                            return Err(diagnostic);
+                        }
+                        if !self.starts_expr() || self.line_break_before_next() {
+                            let mut diagnostic = self.branch_error("missing_value_operand", marker);
+                            diagnostic.related_spans.push(RelatedSpan {
+                                role: RelatedRole::Context,
+                                span: self.span(block_start, block_start + 1),
+                            });
+                            let after = colon.span.end as usize;
+                            let next = self.peek().span.start as usize;
+                            let trivia = if next == after
+                                && self.peek().span.start == self.peek().span.end
+                            {
+                                &self.source[after..]
+                            } else {
+                                &self.source[after..next]
+                            };
+                            let delimiter = if let Some(offset) = trivia.find(['\r', '\n']) {
+                                let start = after + offset;
+                                let len =
+                                    if trivia.as_bytes().get(offset..offset + 2) == Some(b"\r\n") {
+                                        2
+                                    } else {
+                                        1
+                                    };
+                                self.span(start, start + len)
+                            } else {
+                                self.peek().span.clone()
+                            };
+                            diagnostic.related_spans.push(RelatedSpan {
+                                role: RelatedRole::Delimiter,
+                                span: delimiter,
+                            });
+                            return Err(diagnostic);
+                        }
+                        tasks.push(Task::StatementValue { start, marker });
+                        tasks.push(Task::Enter(0));
+                    } else if choice == BlockChoice::If {
+                        self.take();
+                        tasks.push(Task::StatementIfCondition {
+                            branches: Vec::new(),
+                            start,
+                        });
+                        tasks.push(Task::Enter(0));
+                    } else if choice == BlockChoice::While {
+                        self.take();
+                        tasks.push(Task::StatementWhileCondition { start });
+                        tasks.push(Task::Enter(0));
+                    } else if choice == BlockChoice::For {
+                        self.eat("for");
+                        if self.at_text("edit") {
+                            let span = self.take().span;
+                            let mut error = self.feature("for_iteration", span);
+                            error.feature_id = Some("for_iteration".into());
+                            error.message = "Recognized construct is outside the profile.".into();
+                            error.data.insert(
+                                "pending_scope".into(),
+                                DataValue::String("later_adr".into()),
+                            );
+                            return Err(error);
+                        }
+                        let name = self.expect_name("grammar.ForBinding", &["Name"], start)?;
+                        self.expect("in", "grammar.ForBinding", &["in"], start)?;
+                        tasks.push(Task::StatementForIterable { start, name });
+                        tasks.push(Task::Enter(0));
+                    } else if self.at_text("{") {
+                        tasks.push(Task::StatementDirectBlock);
+                        tasks.push(Task::BlockStart {
+                            value_target: false,
+                        });
+                    } else {
+                        tasks.push(Task::StatementExpr { start });
+                        tasks.push(Task::Enter(1));
+                    }
+                }
+                Task::StatementBinding {
+                    start,
+                    mutable,
+                    name,
+                    annotation,
+                } => {
+                    let value = result.take().expect("binding value");
+                    self.reject_function_value(&value)?;
+                    let end =
+                        self.terminator(start, value.span().clone(), TerminatedStatement::Binding)?;
+                    if let Some(scope) = self.local_scopes.last_mut() {
+                        scope.insert(name.clone());
+                    }
+                    statement_result = Some(Statement::Let {
+                        mutable,
+                        name,
+                        annotation,
+                        value,
+                        span: self.span(start, end),
+                    });
+                }
+                Task::StatementReturn { start } => {
+                    let value = result.take().expect("return value");
+                    self.reject_function_value(&value)?;
+                    let end =
+                        self.terminator(start, value.span().clone(), TerminatedStatement::Other)?;
+                    statement_result = Some(Statement::Return {
+                        value: Some(value),
+                        span: self.span(start, end),
+                    });
+                }
+                Task::StatementGuard { start, token } => {
+                    let value = result.take().expect("yield value");
+                    let end =
+                        self.terminator(start, value.span().clone(), TerminatedStatement::Other)?;
+                    statement_result = Some(Statement::GuardControl {
+                        token: token.text,
+                        value: Some(value),
+                        guarded: self.guard_context > 0,
+                        token_span: token.span,
+                        span: self.span(start, end),
+                    });
+                }
+                Task::StatementValue { start, marker } => {
+                    let value = result.take().expect("branch value");
+                    let end =
+                        self.terminator(start, value.span().clone(), TerminatedStatement::Other)?;
+                    statement_result = Some(Statement::Value {
+                        value: Some(value),
+                        marker: Some(marker),
+                        span: self.span(start, end),
+                    });
+                }
+                Task::StatementExpr { start } => {
+                    let expression = result.take().expect("statement expression");
+                    if is_place_expr(&expression) && self.eat("=") {
+                        tasks.push(Task::StatementAssign {
+                            start,
+                            place: expression,
+                        });
+                        tasks.push(Task::Enter(0));
+                    } else {
+                        let end = self.terminator(
+                            start,
+                            expression.span().clone(),
+                            TerminatedStatement::Other,
+                        )?;
+                        self.reject_function_value(&expression)?;
+                        statement_result = Some(Statement::Expr {
+                            value: expression,
+                            span: self.span(start, end),
+                        });
+                    }
+                }
+                Task::StatementAssign { start, place } => {
+                    let value = result.take().expect("assignment value");
+                    self.reject_function_value(&value)?;
+                    let end =
+                        self.terminator(start, value.span().clone(), TerminatedStatement::Other)?;
+                    statement_result = Some(Statement::Assign {
+                        place,
+                        value,
+                        span: self.span(start, end),
+                    });
+                }
+                Task::StatementWhileCondition { start } => {
+                    let condition = result.take().expect("while condition");
+                    tasks.push(Task::StatementWhileBody { start, condition });
+                    tasks.push(Task::BlockStart {
+                        value_target: false,
+                    });
+                }
+                Task::StatementWhileBody { start, condition } => {
+                    let body = block_result.take().expect("while body");
+                    statement_result = Some(Statement::While {
+                        condition,
+                        span: self.span(start, body.span.end as usize),
+                        body,
+                    });
+                }
+                Task::StatementForIterable { start, name } => {
+                    let iterable = result.take().expect("for iterable");
+                    self.local_scopes.push(HashSet::from([name.text.clone()]));
+                    tasks.push(Task::StatementForBody {
+                        start,
+                        name,
+                        iterable,
+                    });
+                    tasks.push(Task::BlockStart {
+                        value_target: false,
+                    });
+                }
+                Task::StatementForBody {
+                    start,
+                    name,
+                    iterable,
+                } => {
+                    self.local_scopes.pop();
+                    let body = block_result.take().expect("for body");
+                    statement_result = Some(Statement::For {
+                        name: name.text,
+                        name_span: name.span,
+                        iterable,
+                        span: self.span(start, body.span.end as usize),
+                        body,
+                    });
+                }
+                Task::StatementDirectBlock => {
+                    statement_result =
+                        Some(Statement::Block(block_result.take().expect("direct block")));
+                }
+                Task::StatementMatch => {
+                    statement_result = Some(Statement::Match(
+                        match_result.take().expect("match statement"),
+                    ));
+                }
+                Task::StatementIfCondition { branches, start } => {
+                    let condition = result.take().expect("if condition");
+                    tasks.push(Task::StatementIfThen {
+                        branches,
+                        start,
+                        condition,
+                    });
+                    tasks.push(Task::BlockStart {
+                        value_target: false,
+                    });
+                }
+                Task::StatementIfThen {
+                    mut branches,
+                    start,
+                    condition,
+                } => {
+                    let then_block = block_result.take().expect("if block");
+                    branches.push((start, condition, then_block));
+                    if self.eat("else") {
+                        if self.eof() || (!self.word("if") && !self.at_text("{")) {
+                            return Err(self.err("grammar.IfForm", ELSE_FIRST, start, None));
+                        }
+                        if self.word("if") {
+                            let next_start = self.take().span.start as usize;
+                            tasks.push(Task::StatementIfCondition {
+                                branches,
+                                start: next_start,
+                            });
+                            tasks.push(Task::Enter(0));
+                        } else {
+                            tasks.push(Task::StatementIfElse { branches });
+                            tasks.push(Task::BlockStart {
+                                value_target: false,
+                            });
+                        }
+                    } else {
+                        statement_result = Some(finish_if_statement(self, branches, None)?);
+                    }
+                }
+                Task::StatementIfElse { branches } => {
+                    let otherwise = Else::Block(block_result.take().expect("else block"));
+                    statement_result = Some(finish_if_statement(self, branches, Some(otherwise))?);
+                }
+                Task::MatchStart { expression } => {
+                    let keyword = self.take();
+                    let (mode, mode_span) = if self.word("move") || self.word("edit") {
+                        let token = self.take();
+                        let mode = if token.text == "move" {
+                            Mode::Consume
+                        } else {
+                            Mode::Inout
+                        };
+                        (Some(mode), Some(token.span))
+                    } else {
+                        (None, None)
+                    };
+                    tasks.push(Task::MatchAfterScrutinee {
+                        keyword,
+                        expression,
+                        mode,
+                        mode_span,
+                    });
+                    tasks.push(Task::Enter(0));
+                }
+                Task::MatchAfterScrutinee {
+                    keyword,
+                    expression,
+                    mode,
+                    mode_span,
+                } => {
+                    let scrutinee = result.take().expect("match scrutinee");
+                    if mode.is_some() && !is_place_expr(&scrutinee) {
+                        let prefix = mode_span.as_ref().expect("match mode has span");
+                        return Err(self.syntax(
+                            &self.tokens[self.at.saturating_sub(1)],
+                            if mode == Some(Mode::Consume) {
+                                "consume_place"
+                            } else {
+                                "inout_place"
+                            },
+                            &["Place"],
+                            prefix.start as usize,
+                        ));
+                    }
+                    if mode == Some(Mode::Consume) && is_projected_place(&scrutinee) {
+                        let mut diagnostic =
+                            self.feature("partial_transfer", scrutinee.span().clone());
+                        if let Some(span) = mode_span.clone() {
+                            diagnostic.related_spans.push(RelatedSpan {
+                                role: RelatedRole::Context,
+                                span,
+                            });
+                        }
+                        return Err(diagnostic);
+                    }
+                    self.expect("{", "grammar.Match", &["{"], keyword.span.start as usize)?;
+                    tasks.push(Task::MatchNextArm(MatchFrame {
+                        keyword,
+                        expression,
+                        mode,
+                        mode_span,
+                        scrutinee,
+                        arms: Vec::new(),
+                    }));
+                }
+                Task::MatchNextArm(frame) => {
+                    if self.at_text("}") || self.eof() {
+                        tasks.push(Task::MatchFinish(frame));
+                    } else {
+                        let pattern = self.pattern()?;
+                        let mut bindings = HashSet::new();
+                        collect_pattern_bindings(&pattern, &mut bindings);
+                        self.local_scopes.push(bindings);
+                        let guard_span = self.word("if").then(|| self.take().span);
+                        if !self.new_profile
+                            && let Some(span) = &guard_span
+                        {
+                            self.note_pending("match_guard", span.clone());
+                        }
+                        if guard_span.is_some() {
+                            self.guard_context += 1;
+                            tasks.push(Task::MatchAfterGuard {
+                                frame,
+                                pattern,
+                                guard_span,
+                            });
+                            tasks.push(Task::Enter(0));
+                        } else {
+                            let expression = frame.expression;
+                            self.expect(
+                                "=>",
+                                "grammar.Arm",
+                                &["=>"],
+                                pattern.span().start as usize,
+                            )?;
+                            tasks.push(Task::MatchAfterBody {
+                                frame,
+                                pattern,
+                                guard_span: None,
+                                guard: None,
+                            });
+                            tasks.push(Task::BlockStart {
+                                value_target: expression,
+                            });
+                        }
+                    }
+                }
+                Task::MatchAfterGuard {
+                    frame,
+                    pattern,
+                    guard_span,
+                } => {
+                    self.guard_context -= 1;
+                    let guard = result.take().expect("match guard");
+                    self.expect("=>", "grammar.Arm", &["=>"], pattern.span().start as usize)?;
+                    let expression = frame.expression;
+                    tasks.push(Task::MatchAfterBody {
+                        frame,
+                        pattern,
+                        guard_span,
+                        guard: Some(guard),
+                    });
+                    tasks.push(Task::BlockStart {
+                        value_target: expression,
+                    });
+                }
+                Task::MatchAfterBody {
+                    mut frame,
+                    pattern,
+                    guard_span,
+                    guard,
+                } => {
+                    let body = block_result.take().expect("match arm body");
+                    self.local_scopes.pop();
+                    let span = self.span(pattern.span().start as usize, body.span.end as usize);
+                    frame.arms.push(Arm {
+                        pattern,
+                        guard,
+                        guard_span,
+                        body,
+                        span,
+                    });
+                    if self.list_separator(ListKind::MatchArm, frame.keyword.span.start as usize)? {
+                        tasks.push(Task::MatchNextArm(frame));
+                    } else {
+                        tasks.push(Task::MatchFinish(frame));
+                    }
+                }
+                Task::MatchFinish(frame) => {
+                    self.expect(
+                        "}",
+                        "grammar.Match",
+                        &[",", "}"],
+                        frame.keyword.span.start as usize,
+                    )?;
+                    match_result = Some(Match {
+                        scrutinee: Box::new(frame.scrutinee),
+                        mode: frame.mode,
+                        mode_span: frame.mode_span,
+                        arms: frame.arms,
+                        span: self.span(frame.keyword.span.start as usize, self.prev_end()),
+                        keyword_span: frame.keyword.span,
+                    });
+                }
+                Task::ExprAfterMatch => {
+                    result = Some(Expr::Match(Box::new(
+                        match_result.take().expect("match expression"),
+                    )));
+                }
+                Task::ClosureAfterBody(head) => {
+                    let body = block_result.take().expect("closure body");
+                    self.local_scopes.pop();
+                    let span = self.span(head.start, body.span.end as usize);
+                    result = Some(Expr::Closure(Box::new(Closure {
+                        fn_span: head.fn_span,
+                        captures: head.captures,
+                        params: head.params,
+                        result: head.result,
+                        with_clause: head.with_clause,
+                        body,
+                        span,
+                    })));
+                }
+                Task::Enter(min) => {
+                    let logical_entry = min == 0;
+                    if logical_entry && self.depth == 128 {
+                        return Err(self.nesting_error("syntax_nesting"));
+                    }
+                    if logical_entry {
+                        self.depth += 1;
+                    }
+                    if min > 0 && !self.starts_try() {
+                        return Err(self.err(
+                            "grammar.TryExpr",
+                            first(self.new_profile, FirstSet::Try),
+                            self.peek().span.start as usize,
+                            None,
+                        ));
+                    }
+                    tasks.push(Task::Continue {
+                        min,
+                        logical_entry,
+                        try_seen: false,
+                    });
+                    tasks.push(Task::Prefix);
+                }
+                Task::Prefix => {
+                    let token = self.peek().clone();
+                    if self.select_primary_entry() == PrimaryChoice::If {
+                        self.take();
+                        tasks.push(Task::IfCondition {
+                            start: token.span.start as usize,
+                        });
+                        tasks.push(Task::Enter(0));
+                    } else if self.select_primary_entry() == PrimaryChoice::Match {
+                        tasks.push(Task::ExprAfterMatch);
+                        tasks.push(Task::MatchStart { expression: true });
+                    } else if self.select_primary_entry() == PrimaryChoice::Fn {
+                        if !self.new_profile {
+                            return Err(self.feature("closure", token.span));
+                        }
+                        let head = self.closure_head()?;
+                        self.local_scopes
+                            .push(head.params.iter().map(|p| p.name.clone()).collect());
+                        tasks.push(Task::ClosureAfterBody(head));
+                        tasks.push(Task::BlockStart {
+                            value_target: false,
+                        });
+                    } else if self.eat("(") {
+                        let start = token.span.start as usize;
+                        if self.eat(")") {
+                            result = Some(Expr::Unit(self.span(start, self.prev_end())));
+                        } else {
+                            if !self.starts_expr() {
+                                return Err(self.err(
+                                    "grammar.Primary",
+                                    first(self.new_profile, FirstSet::Group),
+                                    start,
+                                    None,
+                                ));
+                            }
+                            tasks.push(Task::Group { start });
+                            tasks.push(Task::Enter(0));
+                        }
+                    } else if self.eat("[") {
+                        tasks.push(Task::Array {
+                            start: token.span.start as usize,
+                            elements: Vec::new(),
+                            after_comma: false,
+                            pending_element: false,
+                        });
+                    } else {
+                        result = Some(self.prefix()?);
+                    }
+                }
+                Task::Group { start } => {
+                    let inner = result.take().expect("group expression has a result");
+                    if self.eat(",") {
+                        return Err(self.feature("tuple", self.prev_span()));
+                    }
+                    let end = self.peek().span.end as usize;
+                    self.expect(")", "grammar.Primary", &[")"], start)?;
+                    result = Some(Expr::Group(Box::new(inner), self.span(start, end)));
+                }
+                Task::Array {
+                    start,
+                    mut elements,
+                    mut after_comma,
+                    pending_element,
+                } => {
+                    if pending_element {
+                        elements.push(result.take().expect("array element has a result"));
+                        if self.list_separator(ListKind::ArrayElement, start)? {
+                            after_comma = true;
+                        } else {
+                            let end = self.peek().span.end as usize;
+                            self.expect("]", "grammar.Primary", &[",", "]"], start)?;
+                            let span = self.span(start, end);
+                            let height =
+                                1 + elements.iter().map(expression_height).max().unwrap_or(0);
+                            self.check_candidate_height(height, span.clone())?;
+                            if elements.iter().any(is_resource_constructor) {
+                                let mut d = self.feature("resource_array", span);
+                                d.stage = Stage::Types;
+                                d.operation = Operation::TypesCheck;
+                                return Err(d);
+                            }
+                            result = Some(Expr::Array(elements, span));
+                            continue;
+                        }
+                    }
+                    if self.at_text("]") || self.eof() {
+                        let end = self.peek().span.end as usize;
+                        self.expect(
+                            "]",
+                            "grammar.Primary",
+                            if elements.is_empty() {
+                                first(self.new_profile, FirstSet::Array)
+                            } else {
+                                &[",", "]"]
+                            },
+                            start,
+                        )?;
+                        let span = self.span(start, end);
+                        let height = 1 + elements.iter().map(expression_height).max().unwrap_or(0);
+                        self.check_candidate_height(height, span.clone())?;
+                        if elements.iter().any(is_resource_constructor) {
+                            let mut d = self.feature("resource_array", span);
+                            d.stage = Stage::Types;
+                            d.operation = Operation::TypesCheck;
+                            return Err(d);
+                        }
+                        result = Some(Expr::Array(elements, span));
+                    } else {
+                        if !self.starts_expr() {
+                            return Err(self.err(
+                                if after_comma {
+                                    "array_element"
+                                } else {
+                                    "grammar.Primary"
+                                },
+                                if after_comma {
+                                    first(self.new_profile, FirstSet::Expr)
+                                } else {
+                                    first(self.new_profile, FirstSet::Array)
+                                },
+                                start,
+                                None,
+                            ));
+                        }
+                        tasks.push(Task::Array {
+                            start,
+                            elements,
+                            after_comma,
+                            pending_element: true,
+                        });
+                        tasks.push(Task::Enter(0));
+                    }
+                }
+                Task::Call {
+                    target,
+                    start,
+                    arguments_start,
+                    mut args,
+                    mut after_comma,
+                    pending_arg,
+                } => {
+                    if let Some((argument_start, label)) = pending_arg {
+                        let value = result.take().expect("call argument has a result");
+                        self.reject_function_value(&value)?;
+                        args.push(Argument {
+                            label,
+                            value,
+                            span: self.span(argument_start, self.prev_end()),
+                        });
+                        if self
+                            .list_separator(ListKind::Argument, self.peek().span.start as usize)?
+                        {
+                            after_comma = true;
+                        } else {
+                            let end = self.peek().span.end as usize;
+                            self.expect(
+                                ")",
+                                "grammar.Arguments",
+                                if args.is_empty() {
+                                    first(self.new_profile, FirstSet::Group)
+                                } else {
+                                    &[")", ","]
+                                },
+                                arguments_start,
+                            )?;
+                            let call = Expr::Call {
+                                target: Box::new(target),
+                                args,
+                                span: self.span(start, end),
+                            };
+                            self.check_expression_height(&call)?;
+                            result = Some(call);
+                            continue;
+                        }
+                    }
+                    if self.at_text(")") || self.eof() {
+                        let end = self.peek().span.end as usize;
+                        self.expect(
+                            ")",
+                            "grammar.Arguments",
+                            if args.is_empty() {
+                                first(self.new_profile, FirstSet::Group)
+                            } else {
+                                &[")", ","]
+                            },
+                            arguments_start,
+                        )?;
+                        let call = Expr::Call {
+                            target: Box::new(target),
+                            args,
+                            span: self.span(start, end),
+                        };
+                        self.check_expression_height(&call)?;
+                        result = Some(call);
+                    } else {
+                        if !self.starts_expr() {
+                            return Err(self.err(
+                                if after_comma {
+                                    "grammar.Argument"
+                                } else {
+                                    "grammar.Arguments"
+                                },
+                                if after_comma {
+                                    first(self.new_profile, FirstSet::Expr)
+                                } else {
+                                    first(self.new_profile, FirstSet::Group)
+                                },
+                                if after_comma {
+                                    self.peek().span.start as usize
+                                } else {
+                                    arguments_start
+                                },
+                                None,
+                            ));
+                        }
+                        let argument_start = self.peek().span.start as usize;
+                        let label = if self.peek().kind == Kind::Name
+                            && self.tokens.get(self.at + 1).is_some_and(|t| t.text == ":")
+                        {
+                            let name = self.take().text;
+                            self.take();
+                            Some(name)
+                        } else {
+                            None
+                        };
+                        tasks.push(Task::Call {
+                            target,
+                            start,
+                            arguments_start,
+                            args,
+                            after_comma,
+                            pending_arg: Some((argument_start, label)),
+                        });
+                        tasks.push(Task::Enter(0));
+                    }
+                }
+                Task::Index {
+                    target,
+                    start,
+                    selector_start,
+                    index_start,
+                } => {
+                    let index = result.take().expect("index expression has a result");
+                    let end = self.peek().span.end as usize;
+                    self.expect("]", "grammar.Index", &["]"], index_start)?;
+                    let selector = self.span(selector_start, self.prev_end());
+                    let indexed = Expr::Index {
+                        target: Box::new(target),
+                        index: Box::new(index),
+                        selector,
+                        span: self.span(start, end),
+                    };
+                    self.check_expression_height(&indexed)?;
+                    result = Some(indexed);
+                }
+                Task::Binary { left, op } => {
+                    let right = result.take().expect("binary right side has a result");
+                    let start = left.span().start as usize;
+                    let binary = Expr::Binary {
+                        op,
+                        left: Box::new(left),
+                        right: Box::new(right),
+                        span: self.span(start, self.prev_end()),
+                    };
+                    self.check_expression_height(&binary)?;
+                    result = Some(binary);
+                }
+                Task::IfCondition { start } => {
+                    let condition = result.take().expect("if condition has a result");
+                    self.expect("then", "grammar.IfExpr", &["then"], start)?;
+                    if self.at_text("{") {
+                        tasks.push(Task::IfThenBlock { start, condition });
+                        tasks.push(Task::BlockStart { value_target: true });
+                    } else {
+                        if !self.starts_try() {
+                            return Err(self.err(
+                                "grammar.BranchOperand",
+                                first(self.new_profile, FirstSet::Branch),
+                                self.peek().span.start as usize,
+                                None,
+                            ));
+                        }
+                        tasks.push(Task::IfThenExpr { start, condition });
+                        tasks.push(Task::Enter(1));
+                    }
+                }
+                Task::IfThenExpr { start, condition } => {
+                    let then_block = value_block(result.take().expect("if branch has a result"));
+                    tasks.push(Task::IfAfterThen {
+                        start,
+                        condition,
+                        then_block,
+                    });
+                }
+                Task::IfThenBlock { start, condition } => {
+                    let then_block = block_result.take().expect("if expression block");
+                    tasks.push(Task::IfAfterThen {
+                        start,
+                        condition,
+                        then_block,
+                    });
+                }
+                Task::IfAfterThen {
+                    start,
+                    condition,
+                    then_block,
+                } => {
+                    if !self.eat("else") {
+                        return Err(self.branch_error("missing_else", self.span(start, start + 2)));
+                    }
+                    if !self.at_text("{") && !self.starts_try() {
+                        return Err(self.err(
+                            "grammar.BranchOperand",
+                            first(self.new_profile, FirstSet::Branch),
+                            start,
+                            None,
+                        ));
+                    }
+                    if self.at_text("{") {
+                        tasks.push(Task::IfElseBlock {
+                            start,
+                            condition,
+                            then_block,
+                        });
+                        tasks.push(Task::BlockStart { value_target: true });
+                    } else {
+                        tasks.push(Task::IfElseExpr {
+                            start,
+                            condition,
+                            then_block,
+                        });
+                        tasks.push(Task::Enter(1));
+                    }
+                }
+                Task::IfElseExpr {
+                    start,
+                    condition,
+                    then_block,
+                } => {
+                    let operand = result.take().expect("else branch has a result");
+                    let mut ungrouped = &operand;
+                    while let Expr::Group(inner, _) = ungrouped {
+                        ungrouped = inner;
+                    }
+                    let otherwise = if matches!(ungrouped, Expr::If { .. }) {
+                        let mut nested = operand;
+                        while let Expr::Group(inner, _) = nested {
+                            nested = *inner;
+                        }
+                        Else::If(Box::new(nested))
+                    } else {
+                        Else::Block(value_block(operand))
+                    };
+                    let expression = Expr::If {
+                        condition: Box::new(condition),
+                        then_block,
+                        otherwise: Some(Box::new(otherwise)),
+                        span: self.span(start, self.prev_end()),
+                    };
+                    self.check_expression_height(&expression)?;
+                    result = Some(expression);
+                }
+                Task::IfElseBlock {
+                    start,
+                    condition,
+                    then_block,
+                } => {
+                    let otherwise =
+                        Else::Block(block_result.take().expect("else expression block"));
+                    let expression = Expr::If {
+                        condition: Box::new(condition),
+                        then_block,
+                        otherwise: Some(Box::new(otherwise)),
+                        span: self.span(start, self.prev_end()),
+                    };
+                    self.check_expression_height(&expression)?;
+                    result = Some(expression);
+                }
+                Task::Continue {
+                    min,
+                    logical_entry,
+                    mut try_seen,
+                } => {
+                    let mut lhs = result.take().expect("expression prefix has a result");
+                    loop {
+                        if try_seen && matches!(self.peek().text.as_str(), "?" | "(" | "[") {
+                            return Err(self.err(
+                                "grammar.TryExpr",
+                                &["+", "-", ";", "<", "=="],
+                                lhs.span().start as usize,
+                                None,
+                            ));
+                        }
+                        if matches!(&lhs, Expr::If { .. })
+                            && matches!(self.peek().text.as_str(), "(" | "[")
+                        {
+                            return Err(self.err(
+                                "grammar.Expr",
+                                &[";"],
+                                lhs.span().start as usize,
+                                None,
+                            ));
+                        }
+                        if self.at_text("(") {
+                            let start = lhs.span().start as usize;
+                            self.take();
+                            let arguments_start = self.prev_start();
+                            tasks.push(Task::Continue {
+                                min,
+                                logical_entry,
+                                try_seen,
+                            });
+                            tasks.push(Task::Call {
+                                target: lhs,
+                                start,
+                                arguments_start,
+                                args: Vec::new(),
+                                after_comma: false,
+                                pending_arg: None,
+                            });
+                            continue 'work;
+                        }
+                        if self.eat("[") {
+                            let start = lhs.span().start as usize;
+                            let selector_start = self.prev_start();
+                            let index_start = self.prev_start();
+                            tasks.push(Task::Continue {
+                                min,
+                                logical_entry,
+                                try_seen,
+                            });
+                            tasks.push(Task::Index {
+                                target: lhs,
+                                start,
+                                selector_start,
+                                index_start,
+                            });
+                            tasks.push(Task::Enter(0));
+                            continue 'work;
+                        }
+                        if self.at_text("?") {
+                            if min == 4 {
+                                break;
+                            }
+                            if matches!(&lhs, Expr::If { .. }) {
+                                return Err(self.err(
+                                    "grammar.Expr",
+                                    &[";"],
+                                    lhs.span().start as usize,
+                                    None,
+                                ));
+                            }
+                            self.take();
+                            let start = lhs.span().start as usize;
+                            lhs = Expr::Unary {
+                                mode: Mode::Read,
+                                value: Box::new(lhs),
+                                span: self.span(start, self.prev_end()),
+                            };
+                            self.check_expression_height(&lhs)?;
+                            try_seen = true;
+                            continue;
+                        }
+                        let op = self.peek().text.as_str();
+                        if op == "." {
+                            if self.new_profile
+                                && matches!(&lhs, Expr::Name(name, _) if name == "Iterator")
+                                && self.tokens.get(self.at + 1).is_some_and(|next| {
+                                    crate::prelude::pending_intrinsic(&format!(
+                                        "Iterator.{}",
+                                        next.text
+                                    ))
+                                    .is_some()
+                                })
+                            {
+                                if self.function_names.contains("Iterator")
+                                    || self
+                                        .local_scopes
+                                        .iter()
+                                        .any(|scope| scope.contains("Iterator"))
+                                {
+                                    return Err(self.feature("methods", self.peek().span.clone()));
+                                }
+                                let start = lhs.span().start as usize;
+                                self.take();
+                                let member = self.take();
+                                lhs = Expr::Name(
+                                    format!("Iterator.{}", member.text),
+                                    self.span(start, member.span.end as usize),
+                                );
+                                continue;
+                            }
+                            return Err(self.feature("methods", self.peek().span.clone()));
+                        }
+                        if op == ".." {
+                            let token = self.peek().clone();
+                            return Err(self.syntax(
+                                &token,
+                                "range_endpoint",
+                                &["..<", "..="],
+                                lhs.span().start as usize,
+                            ));
+                        }
+                        if matches!(op, "..<" | "..=") {
+                            return Err(self.feature("range", self.peek().span.clone()));
+                        }
+                        if op == "+=" {
+                            return Err(
+                                self.feature("compound_assignment", self.peek().span.clone())
+                            );
+                        }
+                        if self.new_profile
+                            && op == "<"
+                            && matches!(&lhs, Expr::Name(..))
+                            && self.generic_head_call()
+                        {
+                            return Err(self.feature("traits_generics", self.peek().span.clone()));
+                        }
+                        if matches!(
+                            op,
+                            "*" | "/" | "%" | "!=" | ">" | "<=" | ">=" | "and" | "or"
+                        ) {
+                            let token = self.peek().clone();
+                            return Err(self.syntax(
+                                &token,
+                                "unsupported_binary_operator",
+                                &["+", "-", "<", "=="],
+                                self.statement_start,
+                            ));
+                        }
+                        let prec = match op {
+                            "==" | "<" => 1,
+                            "+" | "-" => 2,
+                            _ => 0,
+                        };
+                        if prec < min || prec == 0 {
+                            break;
+                        }
+                        if matches!(&lhs, Expr::If { .. }) {
+                            return Err(self.err(
+                                "grammar.Expr",
+                                &[";"],
+                                lhs.span().start as usize,
+                                None,
+                            ));
+                        }
+                        if prec == 1
+                            && matches!(&lhs, Expr::Binary { op, .. } if op == "<" || op == "==")
+                        {
+                            return Err(self.err(
+                                "grammar.CompareExpr",
+                                &[";"],
+                                lhs.span().start as usize,
+                                None,
+                            ));
+                        }
+                        let operator = self.take();
+                        tasks.push(Task::Continue {
+                            min,
+                            logical_entry,
+                            try_seen,
+                        });
+                        tasks.push(Task::Binary {
+                            left: lhs,
+                            op: operator.text,
+                        });
+                        tasks.push(Task::Enter(prec + 1));
+                        continue 'work;
+                    }
+                    if logical_entry {
+                        self.depth -= 1;
+                    }
+                    result = Some(lhs);
+                }
+            }
+        }
+        match entry {
+            ConstructEntry::Expr(_) => Ok(ConstructResult::Expr(
+                result.expect("expression has a result"),
+            )),
+            ConstructEntry::Block(_) => Ok(ConstructResult::Block(
+                block_result.expect("block has a result"),
+            )),
+            #[cfg(test)]
+            ConstructEntry::Statement { .. } => Ok(ConstructResult::Statement(Box::new(
+                statement_result.expect("statement has a result"),
+            ))),
+        }
+    }
+
     // nexo:full-profile-dispatch
     fn select_module_entry(&self) -> ModuleChoice {
         if !self.new_profile {
@@ -2022,7 +3713,7 @@ impl Parser<'_> {
             span: self.span(start, end),
         })
     }
-    fn closure(&mut self) -> Result<Expr, Box<Diagnostic>> {
+    fn closure_head(&mut self) -> Result<ClosureHead, Box<Diagnostic>> {
         let fn_token = self.take();
         let start = fn_token.span.start as usize;
         self.charge_callable(fn_token.span.clone())?;
@@ -2113,20 +3804,14 @@ impl Parser<'_> {
             let token = self.peek().clone();
             return Err(self.syntax(&token, "grammar.ClosureBody", &["{"], start));
         }
-        self.local_scopes
-            .push(params.iter().map(|p| p.name.clone()).collect());
-        let body = self.block()?;
-        self.local_scopes.pop();
-        let span = self.span(start, body.span.end as usize);
-        Ok(Expr::Closure(Box::new(Closure {
+        Ok(ClosureHead {
             fn_span: fn_token.span,
+            start,
             captures,
             params,
             result,
             with_clause,
-            body,
-            span,
-        })))
+        })
     }
     fn with_clause(
         &mut self,
@@ -2302,84 +3987,110 @@ impl Parser<'_> {
         d
     }
     fn ty(&mut self) -> Result<Type, Box<Diagnostic>> {
-        self.depth += 1;
-        if self.depth > 128 {
-            self.depth -= 1;
-            return Err(self.nesting_error("syntax_nesting"));
+        enum Frame {
+            Array,
+            Option,
+            ResultFirst,
+            ResultSecond(Type),
         }
-        let t = if self.eat("I64") {
-            Type::I64
-        } else if self.eat("Bool") {
-            Type::Bool
-        } else if self.eat("MockResource") {
-            Type::MockResource
-        } else if self.eat("MockBlockingResource") {
-            Type::MockBlockingResource
-        } else if self.eat("(") {
-            self.expect(")", "grammar.Type", &[")"], self.prev_start())?;
-            Type::Unit
-        } else if self.eat("Array") {
-            self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
-            let x = self.ty()?;
-            self.expect_type_close()?;
-            Type::Array(Box::new(x))
-        } else if self.eat("Result") {
-            self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
-            let a = self.ty()?;
-            if !self.list_separator(ListKind::TypeArgument, self.prev_start())? {
-                self.expect(",", "grammar.Type", &[","], self.prev_start())?;
+        let mut frames = Vec::new();
+        'parse: loop {
+            self.depth += 1;
+            if self.depth > 128 {
+                self.depth -= 1;
+                return Err(self.nesting_error("syntax_nesting"));
             }
-            let b = self.ty()?;
-            self.expect_type_close()?;
-            Type::Result(Box::new(a), Box::new(b))
-        } else if self.new_profile && self.eat("Option") {
-            self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
-            let payload = self.ty()?;
-            self.expect_type_close()?;
-            Type::Option(Box::new(payload))
-        } else {
-            let tok = self.peek().clone();
-            if tok.text == "Option" {
-                if self.new_profile {
-                    self.take();
-                    self.expect("<", "grammar.Type", &["<"], tok.span.start as usize)?;
-                    let _payload = self.ty()?;
-                    self.expect_type_close()?;
-                    return Err(self.feature(
-                        "option",
-                        self.span(tok.span.start as usize, self.prev_end()),
-                    ));
+            let mut t = if self.eat("I64") {
+                Type::I64
+            } else if self.eat("Bool") {
+                Type::Bool
+            } else if self.eat("MockResource") {
+                Type::MockResource
+            } else if self.eat("MockBlockingResource") {
+                Type::MockBlockingResource
+            } else if self.eat("(") {
+                self.expect(")", "grammar.Type", &[")"], self.prev_start())?;
+                Type::Unit
+            } else if self.eat("Array") {
+                self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
+                frames.push(Frame::Array);
+                continue 'parse;
+            } else if self.eat("Result") {
+                self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
+                frames.push(Frame::ResultFirst);
+                continue 'parse;
+            } else if self.new_profile && self.eat("Option") {
+                self.expect("<", "grammar.Type", &["<"], self.prev_start())?;
+                frames.push(Frame::Option);
+                continue 'parse;
+            } else {
+                let tok = self.peek().clone();
+                if tok.text == "Option" {
+                    if self.new_profile {
+                        self.take();
+                        self.expect("<", "grammar.Type", &["<"], tok.span.start as usize)?;
+                        let _payload = self.ty()?;
+                        self.expect_type_close()?;
+                        return Err(self.feature(
+                            "option",
+                            self.span(tok.span.start as usize, self.prev_end()),
+                        ));
+                    }
+                    return Err(self.feature("option", tok.span));
                 }
-                return Err(self.feature("option", tok.span));
-            }
-            if tok.kind == Kind::Name {
-                let id = if matches!(tok.text.as_str(), "Future" | "TaskHandle" | "TaskOutcome") {
-                    "async"
-                } else {
-                    "unsupported_type"
-                };
-                let mut end = tok.span.end;
-                let mut next = self.at + 1;
-                while self.tokens.get(next).is_some_and(|t| t.text == ".")
-                    && self
-                        .tokens
-                        .get(next + 1)
-                        .is_some_and(|t| t.kind == Kind::Name)
-                {
-                    end = self.tokens[next + 1].span.end;
-                    next += 2;
+                if tok.kind == Kind::Name {
+                    let id = if matches!(tok.text.as_str(), "Future" | "TaskHandle" | "TaskOutcome")
+                    {
+                        "async"
+                    } else {
+                        "unsupported_type"
+                    };
+                    let mut end = tok.span.end;
+                    let mut next = self.at + 1;
+                    while self.tokens.get(next).is_some_and(|t| t.text == ".")
+                        && self
+                            .tokens
+                            .get(next + 1)
+                            .is_some_and(|t| t.kind == Kind::Name)
+                    {
+                        end = self.tokens[next + 1].span.end;
+                        next += 2;
+                    }
+                    return Err(self.feature(id, self.span(tok.span.start as usize, end as usize)));
                 }
-                return Err(self.feature(id, self.span(tok.span.start as usize, end as usize)));
+                return Err(self.err(
+                    "grammar.Type",
+                    first(self.new_profile, FirstSet::Type),
+                    self.peek().span.start as usize,
+                    None,
+                ));
+            };
+            loop {
+                self.depth -= 1;
+                match frames.pop() {
+                    Some(Frame::Array) => {
+                        self.expect_type_close()?;
+                        t = Type::Array(Box::new(t));
+                    }
+                    Some(Frame::Option) => {
+                        self.expect_type_close()?;
+                        t = Type::Option(Box::new(t));
+                    }
+                    Some(Frame::ResultFirst) => {
+                        if !self.list_separator(ListKind::TypeArgument, self.prev_start())? {
+                            self.expect(",", "grammar.Type", &[","], self.prev_start())?;
+                        }
+                        frames.push(Frame::ResultSecond(t));
+                        continue 'parse;
+                    }
+                    Some(Frame::ResultSecond(first)) => {
+                        self.expect_type_close()?;
+                        t = Type::Result(Box::new(first), Box::new(t));
+                    }
+                    None => return Ok(t),
+                }
             }
-            return Err(self.err(
-                "grammar.Type",
-                first(self.new_profile, FirstSet::Type),
-                self.peek().span.start as usize,
-                None,
-            ));
-        };
-        self.depth -= 1;
-        Ok(t)
+        }
     }
     fn expect_type_close(&mut self) -> Result<(), Box<Diagnostic>> {
         if self.eat(">") {
@@ -2402,82 +4113,12 @@ impl Parser<'_> {
         self.block_with_target(false)
     }
     fn block_with_target(&mut self, value_target: bool) -> Result<Block, Box<Diagnostic>> {
-        self.depth += 1;
-        if self.depth > 128 {
-            self.depth -= 1;
-            return Err(self.nesting_error("syntax_nesting"));
+        match self.parse_construct(ConstructEntry::Block(value_target))? {
+            ConstructResult::Block(block) => Ok(block),
+            _ => unreachable!("block entry returned another construct"),
         }
-        let st = self.peek().span.start as usize;
-        self.expect("{", "grammar.Block", &["{"], st)?;
-        self.local_scopes.push(HashSet::new());
-        let mut ss = Vec::new();
-        let mut pending_value: Option<Span> = None;
-        while !self.at_text("}") && !self.eof() {
-            if !self.starts_statement() {
-                return Err(self.err(
-                    if ss.is_empty() {
-                        "block_item"
-                    } else {
-                        "grammar.Block"
-                    },
-                    first(self.new_profile, FirstSet::Block),
-                    st,
-                    None,
-                ));
-            }
-            let statement_token = self.at;
-            let statement = self.statement(value_target, st)?;
-            if matches!(
-                &statement,
-                Statement::If { .. }
-                    | Statement::While { .. }
-                    | Statement::For { .. }
-                    | Statement::Block(_)
-            ) && self.at_text(";")
-                && self.peek().span.start == self.peek().span.end
-            {
-                self.take();
-            }
-            if let Some(value_span) = pending_value.take() {
-                let next_span = statement_span(&statement).clone();
-                let mut d = self.branch_error("non_final_branch_value", value_span);
-                d.related_spans.push(RelatedSpan {
-                    role: RelatedRole::Context,
-                    span: next_span,
-                });
-                return Err(d);
-            }
-            if let Statement::Value { .. } = &statement {
-                let value = &self.tokens[statement_token];
-                let colon = &self.tokens[statement_token + 1];
-                pending_value = Some(self.span(value.span.start as usize, colon.span.end as usize));
-            }
-            ss.push(statement)
-        }
-        if self.eof() && ss.is_empty() {
-            return Err(self.err(
-                "block_item",
-                first(self.new_profile, FirstSet::Block),
-                st,
-                None,
-            ));
-        }
-        let close = self.peek().span.clone();
-        let end = close.end as usize;
-        self.expect(
-            "}",
-            "grammar.Block",
-            first(self.new_profile, FirstSet::Block),
-            st,
-        )?;
-        self.depth -= 1;
-        self.local_scopes.pop();
-        Ok(Block {
-            statements: ss,
-            span: self.span(st, end),
-            close_span: close,
-        })
     }
+    #[cfg(test)]
     fn statement(
         &mut self,
         value_target: bool,
@@ -2485,7 +4126,15 @@ impl Parser<'_> {
     ) -> Result<Statement, Box<Diagnostic>> {
         let start = self.peek().span.start as usize;
         let previous_start = std::mem::replace(&mut self.statement_start, start);
-        let result = self.statement_inner(value_target, block_start);
+        let result = self
+            .parse_construct(ConstructEntry::Statement {
+                value_target,
+                block_start,
+            })
+            .map(|result| match result {
+                ConstructResult::Statement(statement) => *statement,
+                _ => unreachable!("statement entry returned another construct"),
+            });
         self.statement_start = previous_start;
         result
     }
@@ -2517,262 +4166,14 @@ impl Parser<'_> {
             BlockChoice::Expr
         }
     }
-    fn statement_inner(
-        &mut self,
-        value_target: bool,
-        block_start: usize,
-    ) -> Result<Statement, Box<Diagnostic>> {
+    fn statement_inner(&self) -> Result<BlockChoice, Box<Diagnostic>> {
         let choice = self.select_block_entry();
-        let st = self.peek().span.start as usize;
-        if choice == BlockChoice::Match {
-            return Ok(Statement::Match(self.match_form(false)?));
-        }
-        if choice == BlockChoice::Guard {
-            let token = self.take();
-            if token.text == "yield" && !self.starts_expr() {
-                return Err(self.err(
-                    "grammar.YieldStmt",
-                    first(self.new_profile, FirstSet::Expr),
-                    st,
-                    None,
-                ));
-            }
-            let value = if token.text == "yield" {
-                Some(self.expr(0)?)
-            } else {
-                None
-            };
-            let end = self.terminator(
-                st,
-                value
-                    .as_ref()
-                    .map_or_else(|| token.span.clone(), |value| value.span().clone()),
-                TerminatedStatement::Other,
-            )?;
-            return Ok(Statement::GuardControl {
-                token: token.text,
-                value,
-                guarded: self.guard_context > 0,
-                token_span: token.span,
-                span: self.span(st, end),
-            });
-        }
-        if let Some(error) = self.deferred_in_state(GrammarState::BlockItem) {
+        if !matches!(choice, BlockChoice::Match | BlockChoice::Guard)
+            && let Some(error) = self.deferred_in_state(GrammarState::BlockItem)
+        {
             return Err(error);
         }
-        if choice == BlockChoice::Binding {
-            let mutable = self.eat("var");
-            if !mutable {
-                self.eat("let");
-            }
-            let n = self.expect_name("binding_name", &["Name"], st)?;
-            let ann = if self.eat(":") {
-                Some(self.ty()?)
-            } else {
-                None
-            };
-            self.expect(
-                "=",
-                "grammar.Binding",
-                if ann.is_some() { &["="] } else { &[":", "="] },
-                st,
-            )?;
-            if !self.starts_expr() {
-                return Err(self.err(
-                    "binding_initializer",
-                    first(self.new_profile, FirstSet::Expr),
-                    st,
-                    None,
-                ));
-            }
-            let v = self.expr(0)?;
-            self.reject_function_value(&v)?;
-            let end = self.terminator(st, v.span().clone(), TerminatedStatement::Binding)?;
-            if let Some(scope) = self.local_scopes.last_mut() {
-                scope.insert(n.text.clone());
-            }
-            return Ok(Statement::Let {
-                mutable,
-                name: n.text,
-                annotation: ann,
-                value: v,
-                span: self.span(st, end),
-            });
-        }
-        if choice == BlockChoice::Return {
-            self.eat("return");
-            let val = if !self.starts_expr() || self.line_break_before_next() {
-                None
-            } else {
-                Some(self.expr(0)?)
-            };
-            if let Some(value) = &val {
-                self.reject_function_value(value)?;
-            }
-            let end = self.terminator(
-                st,
-                val.as_ref()
-                    .map(|x| x.span().clone())
-                    .unwrap_or_else(|| self.span(st, self.prev_end())),
-                TerminatedStatement::Other,
-            )?;
-            return Ok(Statement::Return {
-                value: val,
-                span: self.span(st, end),
-            });
-        }
-        if self.word("value")
-            && self.tokens.get(self.at + 1).is_some_and(|x| x.text == ":")
-            && self.source
-                [self.peek().span.end as usize..self.tokens[self.at + 1].span.start as usize]
-                .find(['\r', '\n'])
-                .is_none()
-        {
-            self.take();
-            let colon = self.take();
-            let marker = self.span(st, colon.span.end as usize);
-            if !value_target {
-                let mut d = self.branch_error("invalid_value_target", marker);
-                d.related_spans.push(RelatedSpan {
-                    role: RelatedRole::Context,
-                    span: self.span(block_start, block_start + 1),
-                });
-                return Err(d);
-            }
-            let val = if !self.starts_expr() || self.line_break_before_next() {
-                None
-            } else {
-                Some(self.expr(0)?)
-            };
-            if val.is_none() {
-                let mut d = self.branch_error("missing_value_operand", marker);
-                d.related_spans.push(RelatedSpan {
-                    role: RelatedRole::Context,
-                    span: self.span(block_start, block_start + 1),
-                });
-                let after = colon.span.end as usize;
-                let next = self.peek().span.start as usize;
-                let trivia = if next == after && self.peek().span.start == self.peek().span.end {
-                    &self.source[after..]
-                } else {
-                    &self.source[after..next]
-                };
-                let delimiter = if let Some(offset) = trivia.find(['\r', '\n']) {
-                    let start = after + offset;
-                    let len = if trivia.as_bytes().get(offset..offset + 2) == Some(b"\r\n") {
-                        2
-                    } else {
-                        1
-                    };
-                    self.span(start, start + len)
-                } else {
-                    self.peek().span.clone()
-                };
-                d.related_spans.push(RelatedSpan {
-                    role: RelatedRole::Delimiter,
-                    span: delimiter,
-                });
-                return Err(d);
-            }
-            let end = self.terminator(
-                st,
-                val.as_ref()
-                    .map(|x| x.span().clone())
-                    .unwrap_or_else(|| self.span(st, self.prev_end())),
-                TerminatedStatement::Other,
-            )?;
-            return Ok(Statement::Value {
-                value: val,
-                marker: Some(marker),
-                span: self.span(st, end),
-            });
-        }
-        if choice == BlockChoice::If {
-            let e = self.if_form(false)?;
-            if let Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                span,
-            } = e
-            {
-                return Ok(Statement::If {
-                    condition: *condition,
-                    then_block,
-                    otherwise: otherwise.map(|x| {
-                        Box::new(match *x {
-                            Else::Block(block) => Statement::Block(block),
-                            Else::If(expr) => Statement::Expr {
-                                span: expr.span().clone(),
-                                value: *expr,
-                            },
-                        })
-                    }),
-                    span,
-                });
-            }
-        }
-        if choice == BlockChoice::While {
-            self.take();
-            let c = self.expr(0)?;
-            let b = self.block()?;
-            let end = b.span.end as usize;
-            return Ok(Statement::While {
-                condition: c,
-                body: b,
-                span: self.span(st, end),
-            });
-        }
-        if choice == BlockChoice::For {
-            self.eat("for");
-            if self.at_text("edit") {
-                let span = self.take().span;
-                let mut error = self.feature("for_iteration", span);
-                error.feature_id = Some("for_iteration".into());
-                error.message = "Recognized construct is outside the profile.".into();
-                error.data.insert(
-                    "pending_scope".into(),
-                    DataValue::String("later_adr".into()),
-                );
-                return Err(error);
-            }
-            let name = self.expect_name("grammar.ForBinding", &["Name"], st)?;
-            self.expect("in", "grammar.ForBinding", &["in"], st)?;
-            let iterable = self.expr(0)?;
-            self.local_scopes.push(HashSet::from([name.text.clone()]));
-            let body = self.block();
-            self.local_scopes.pop();
-            let body = body?;
-            return Ok(Statement::For {
-                name: name.text,
-                name_span: name.span,
-                iterable,
-                span: self.span(st, body.span.end as usize),
-                body,
-            });
-        }
-        if self.at_text("{") {
-            return Ok(Statement::Block(self.block()?));
-        }
-        // ExprStmt enters CompareExpr directly (§13.13); no enclosing Expr
-        // activation is charged. Child arguments, indices and groups still are.
-        let e = self.expr(1)?;
-        if is_place_expr(&e) && self.eat("=") {
-            let val = self.expr(0)?;
-            self.reject_function_value(&val)?;
-            let end = self.terminator(st, val.span().clone(), TerminatedStatement::Other)?;
-            return Ok(Statement::Assign {
-                place: e,
-                value: val,
-                span: self.span(st, end),
-            });
-        }
-        let end = self.terminator(st, e.span().clone(), TerminatedStatement::Other)?;
-        self.reject_function_value(&e)?;
-        Ok(Statement::Expr {
-            value: e,
-            span: self.span(st, end),
-        })
+        Ok(choice)
     }
     fn terminator(
         &mut self,
@@ -2844,236 +4245,6 @@ impl Parser<'_> {
             ],
         });
         d
-    }
-    fn expr(&mut self, min: u8) -> Result<Expr, Box<Diagnostic>> {
-        let logical_entry = min == 0;
-        if logical_entry && self.depth == 128 {
-            return Err(self.nesting_error("syntax_nesting"));
-        }
-        if logical_entry {
-            self.depth += 1;
-        }
-        if min > 0 && !self.starts_try() {
-            return Err(self.err(
-                "grammar.TryExpr",
-                first(self.new_profile, FirstSet::Try),
-                self.peek().span.start as usize,
-                None,
-            ));
-        }
-        let mut lhs = self.prefix()?;
-        let mut try_seen = false;
-        loop {
-            if try_seen && matches!(self.peek().text.as_str(), "?" | "(" | "[") {
-                return Err(self.err(
-                    "grammar.TryExpr",
-                    &["+", "-", ";", "<", "=="],
-                    lhs.span().start as usize,
-                    None,
-                ));
-            }
-            if matches!(&lhs, Expr::If { .. }) && matches!(self.peek().text.as_str(), "(" | "[") {
-                return Err(self.err("grammar.Expr", &[";"], lhs.span().start as usize, None));
-            }
-            if self.at_text("(") {
-                let start = lhs.span().start as usize;
-                self.take();
-                let arguments_start = self.prev_start();
-                let mut args = Vec::new();
-                let mut after_comma = false;
-                while !self.at_text(")") && !self.eof() {
-                    if !self.starts_expr() {
-                        return Err(self.err(
-                            if after_comma {
-                                "grammar.Argument"
-                            } else {
-                                "grammar.Arguments"
-                            },
-                            if after_comma {
-                                first(self.new_profile, FirstSet::Expr)
-                            } else {
-                                first(self.new_profile, FirstSet::Group)
-                            },
-                            if after_comma {
-                                self.peek().span.start as usize
-                            } else {
-                                arguments_start
-                            },
-                            None,
-                        ));
-                    }
-                    let as_ = self.peek().span.start as usize;
-                    let label = if self.peek().kind == Kind::Name
-                        && self.tokens.get(self.at + 1).is_some_and(|t| t.text == ":")
-                    {
-                        let n = self.take().text;
-                        self.take();
-                        Some(n)
-                    } else {
-                        None
-                    };
-                    let v = self.expr(0)?;
-                    self.reject_function_value(&v)?;
-                    args.push(Argument {
-                        label,
-                        value: v,
-                        span: self.span(as_, self.prev_end()),
-                    });
-                    if !self.list_separator(ListKind::Argument, self.peek().span.start as usize)? {
-                        break;
-                    }
-                    after_comma = true;
-                }
-                let end = self.peek().span.end as usize;
-                self.expect(
-                    ")",
-                    "grammar.Arguments",
-                    if args.is_empty() {
-                        first(self.new_profile, FirstSet::Group)
-                    } else {
-                        &[")", ","]
-                    },
-                    arguments_start,
-                )?;
-                lhs = Expr::Call {
-                    target: Box::new(lhs),
-                    args,
-                    span: self.span(start, end),
-                };
-                self.check_expression_height(&lhs)?;
-                continue;
-            }
-            if self.eat("[") {
-                let start = lhs.span().start as usize;
-                let selector_start = self.prev_start();
-                let index_start = self.prev_start();
-                let ix = self.expr(0)?;
-                let end = self.peek().span.end as usize;
-                self.expect("]", "grammar.Index", &["]"], index_start)?;
-                let selector = self.span(selector_start, self.prev_end());
-                lhs = Expr::Index {
-                    target: Box::new(lhs),
-                    index: Box::new(ix),
-                    selector,
-                    span: self.span(start, end),
-                };
-                self.check_expression_height(&lhs)?;
-                continue;
-            }
-            if self.at_text("?") {
-                if min == 4 {
-                    break;
-                }
-                if matches!(&lhs, Expr::If { .. }) {
-                    return Err(self.err("grammar.Expr", &[";"], lhs.span().start as usize, None));
-                }
-                self.take();
-                let s = lhs.span().start as usize;
-                lhs = Expr::Unary {
-                    mode: Mode::Read,
-                    value: Box::new(lhs),
-                    span: self.span(s, self.prev_end()),
-                };
-                self.check_expression_height(&lhs)?;
-                try_seen = true;
-                continue;
-            }
-            let op = self.peek().text.as_str();
-            if op == "." {
-                if self.new_profile
-                    && matches!(&lhs, Expr::Name(name, _) if name == "Iterator")
-                    && self.tokens.get(self.at + 1).is_some_and(|next| {
-                        crate::prelude::pending_intrinsic(&format!("Iterator.{}", next.text))
-                            .is_some()
-                    })
-                {
-                    if self.function_names.contains("Iterator")
-                        || self
-                            .local_scopes
-                            .iter()
-                            .any(|scope| scope.contains("Iterator"))
-                    {
-                        return Err(self.feature("methods", self.peek().span.clone()));
-                    }
-                    let start = lhs.span().start as usize;
-                    self.take();
-                    let member = self.take();
-                    lhs = Expr::Name(
-                        format!("Iterator.{}", member.text),
-                        self.span(start, member.span.end as usize),
-                    );
-                    continue;
-                }
-                return Err(self.feature("methods", self.peek().span.clone()));
-            }
-            if op == ".." {
-                let t = self.peek().clone();
-                return Err(self.syntax(
-                    &t,
-                    "range_endpoint",
-                    &["..<", "..="],
-                    lhs.span().start as usize,
-                ));
-            }
-            if matches!(op, "..<" | "..=") {
-                return Err(self.feature("range", self.peek().span.clone()));
-            }
-            if op == "+=" {
-                return Err(self.feature("compound_assignment", self.peek().span.clone()));
-            }
-            if self.new_profile
-                && op == "<"
-                && matches!(&lhs, Expr::Name(..))
-                && self.generic_head_call()
-            {
-                return Err(self.feature("traits_generics", self.peek().span.clone()));
-            }
-            if matches!(
-                op,
-                "*" | "/" | "%" | "!=" | ">" | "<=" | ">=" | "and" | "or"
-            ) {
-                let t = self.peek().clone();
-                return Err(self.syntax(
-                    &t,
-                    "unsupported_binary_operator",
-                    &["+", "-", "<", "=="],
-                    self.statement_start,
-                ));
-            }
-            let prec = match op {
-                "==" | "<" => 1,
-                "+" | "-" => 2,
-                _ => 0,
-            };
-            if prec < min || prec == 0 {
-                break;
-            }
-            if matches!(&lhs, Expr::If { .. }) {
-                return Err(self.err("grammar.Expr", &[";"], lhs.span().start as usize, None));
-            }
-            if prec == 1 && matches!(&lhs, Expr::Binary { op, .. } if op == "<" || op == "==") {
-                return Err(self.err(
-                    "grammar.CompareExpr",
-                    &[";"],
-                    lhs.span().start as usize,
-                    None,
-                ));
-            }
-            let o = self.take();
-            let rhs = self.expr(prec + 1)?;
-            let s = lhs.span().start as usize;
-            lhs = Expr::Binary {
-                op: o.text,
-                left: Box::new(lhs),
-                right: Box::new(rhs),
-                span: self.span(s, self.prev_end()),
-            };
-            self.check_expression_height(&lhs)?;
-        }
-        if logical_entry {
-            self.depth -= 1;
-        }
-        Ok(lhs)
     }
     // nexo:full-profile-dispatch
     fn select_primary_entry(&self) -> PrimaryChoice {
@@ -3238,19 +4409,6 @@ impl Parser<'_> {
             self.check_expression_height(&result)?;
             return Ok(result);
         }
-        if choice == PrimaryChoice::If {
-            return self.if_form(true);
-        }
-        if choice == PrimaryChoice::Match {
-            return Ok(Expr::Match(Box::new(self.match_form(true)?)));
-        }
-        if choice == PrimaryChoice::Fn {
-            return if self.new_profile {
-                self.closure()
-            } else {
-                Err(self.feature("closure", t.span))
-            };
-        }
         if let Some(error) = self.deferred_in_state(GrammarState::Primary) {
             return Err(error);
         }
@@ -3265,76 +4423,6 @@ impl Parser<'_> {
         if t.kind == Kind::Name {
             self.take();
             return Ok(Expr::Name(t.text, t.span));
-        }
-        if self.eat("(") {
-            let st = t.span.start as usize;
-            if self.eat(")") {
-                return Ok(Expr::Unit(self.span(st, self.prev_end())));
-            }
-            if !self.starts_expr() {
-                return Err(self.err(
-                    "grammar.Primary",
-                    first(self.new_profile, FirstSet::Group),
-                    st,
-                    None,
-                ));
-            }
-            let x = self.expr(0)?;
-            if self.eat(",") {
-                return Err(self.feature("tuple", self.prev_span()));
-            }
-            let end = self.peek().span.end as usize;
-            self.expect(")", "grammar.Primary", &[")"], st)?;
-            return Ok(Expr::Group(Box::new(x), self.span(st, end)));
-        }
-        if self.eat("[") {
-            let st = t.span.start as usize;
-            let mut xs = Vec::new();
-            let mut after_comma = false;
-            while !self.at_text("]") && !self.eof() {
-                if !self.starts_expr() {
-                    return Err(self.err(
-                        if after_comma {
-                            "array_element"
-                        } else {
-                            "grammar.Primary"
-                        },
-                        if after_comma {
-                            first(self.new_profile, FirstSet::Expr)
-                        } else {
-                            first(self.new_profile, FirstSet::Array)
-                        },
-                        st,
-                        None,
-                    ));
-                }
-                xs.push(self.expr(0)?);
-                if !self.list_separator(ListKind::ArrayElement, st)? {
-                    break;
-                }
-                after_comma = true;
-            }
-            let end = self.peek().span.end as usize;
-            self.expect(
-                "]",
-                "grammar.Primary",
-                if xs.is_empty() {
-                    first(self.new_profile, FirstSet::Array)
-                } else {
-                    &[",", "]"]
-                },
-                st,
-            )?;
-            let span = self.span(st, end);
-            let height = 1 + xs.iter().map(expression_height).max().unwrap_or(0);
-            self.check_candidate_height(height, span.clone())?;
-            if xs.iter().any(is_resource_constructor) {
-                let mut d = self.feature("resource_array", span);
-                d.stage = Stage::Types;
-                d.operation = Operation::TypesCheck;
-                return Err(d);
-            }
-            return Ok(Expr::Array(xs, span));
         }
         Err(self.err(
             "grammar.Primary",
@@ -3365,269 +4453,130 @@ impl Parser<'_> {
         matches!(self.peek().kind, Kind::Name | Kind::Integer)
             || matches!(self.peek().text.as_str(), "(" | "-" | "true" | "false")
     }
-    fn if_form(&mut self, value_target: bool) -> Result<Expr, Box<Diagnostic>> {
-        if value_target {
-            let start = self.take().span.start as usize;
-            let condition = self.expr(0)?;
-            self.expect("then", "grammar.IfExpr", &["then"], start)?;
-            let then_block = self.branch_operand()?;
-            if !self.eat("else") {
-                return Err(self.branch_error("missing_else", self.span(start, start + 2)));
-            }
-            if !self.at_text("{") && !self.starts_try() {
-                return Err(self.err(
-                    "grammar.BranchOperand",
-                    first(self.new_profile, FirstSet::Branch),
-                    start,
-                    None,
-                ));
-            }
-            let otherwise = if self.at_text("{") {
-                Else::Block(self.block_with_target(true)?)
-            } else {
-                let operand = self.expr(1)?;
-                let mut ungrouped = &operand;
-                while let Expr::Group(inner, _) = ungrouped {
-                    ungrouped = inner;
-                }
-                if let Expr::If { .. } = ungrouped {
-                    Else::If(Box::new(ungrouped.clone()))
-                } else {
-                    let span = operand.span().clone();
-                    Else::Block(Block {
-                        statements: vec![Statement::Value {
-                            value: Some(operand),
-                            marker: None,
-                            span: span.clone(),
-                        }],
-                        span: span.clone(),
-                        close_span: Span {
-                            file: span.file.clone(),
-                            start: span.end,
-                            end: span.end,
-                        },
-                    })
-                }
-            };
-            let end = self.prev_end();
-            let expression = Expr::If {
-                condition: Box::new(condition),
-                then_block,
-                otherwise: Some(Box::new(otherwise)),
-                span: self.span(start, end),
-            };
-            self.check_expression_height(&expression)?;
-            return Ok(expression);
-        }
-        let mut branches = Vec::new();
-        let otherwise = loop {
-            let st = self.take().span.start as usize;
-            let condition = self.expr(0)?;
-            let then_block = self.block_with_target(value_target)?;
-            branches.push((st, condition, then_block));
-            if !self.eat("else") {
-                if value_target {
-                    let first = branches[0].0;
-                    return Err(self.branch_error("missing_else", self.span(first, first + 2)));
-                }
-                break None;
-            }
-            if self.eof() {
-                return Err(self.err("grammar.IfForm", ELSE_FIRST, st, None));
-            }
-            if !self.word("if") && !self.at_text("{") {
-                return Err(self.err("grammar.IfForm", ELSE_FIRST, st, None));
-            }
-            if !self.word("if") {
-                break Some(Else::Block(self.block_with_target(value_target)?));
-            }
-        };
-        let mut otherwise = otherwise;
-        while let Some((st, condition, then_block)) = branches.pop() {
-            let end = otherwise
-                .as_ref()
-                .map_or(then_block.span.end as usize, |x| else_span(x).end as usize);
-            let candidate = Expr::If {
-                condition: Box::new(condition),
-                then_block,
-                otherwise: otherwise.map(Box::new),
-                span: self.span(st, end),
-            };
-            self.check_expression_height(&candidate)?;
-            if branches.is_empty() {
-                return Ok(candidate);
-            }
-            otherwise = Some(Else::If(Box::new(candidate)));
-        }
-        unreachable!("if form has a branch")
-    }
-    fn match_form(&mut self, expression: bool) -> Result<Match, Box<Diagnostic>> {
-        let keyword = self.take();
-        let (mode, mode_span) = if self.word("move") || self.word("edit") {
-            let token = self.take();
-            let mode = if token.text == "move" {
-                Mode::Consume
-            } else {
-                Mode::Inout
-            };
-            (Some(mode), Some(token.span))
-        } else {
-            (None, None)
-        };
-        let scrutinee = self.expr(0)?;
-        if mode.is_some() && !is_place_expr(&scrutinee) {
-            let prefix = mode_span.as_ref().unwrap();
-            return Err(self.syntax(
-                &self.tokens[self.at.saturating_sub(1)],
-                if mode == Some(Mode::Consume) {
-                    "consume_place"
-                } else {
-                    "inout_place"
-                },
-                &["Place"],
-                prefix.start as usize,
-            ));
-        }
-        if mode == Some(Mode::Consume) && is_projected_place(&scrutinee) {
-            let mut d = self.feature("partial_transfer", scrutinee.span().clone());
-            if let Some(span) = mode_span.clone() {
-                d.related_spans.push(RelatedSpan {
-                    role: RelatedRole::Context,
-                    span,
-                });
-            }
-            return Err(d);
-        }
-        self.expect("{", "grammar.Match", &["{"], keyword.span.start as usize)?;
-        let mut arms = Vec::new();
-        while !self.at_text("}") && !self.eof() {
-            let pattern = self.pattern()?;
-            let mut bindings = HashSet::new();
-            collect_pattern_bindings(&pattern, &mut bindings);
-            self.local_scopes.push(bindings);
-            let guard_span = self.word("if").then(|| self.take().span);
-            if !self.new_profile
-                && let Some(span) = &guard_span
-            {
-                self.note_pending("match_guard", span.clone());
-            }
-            let guard = if guard_span.is_some() {
-                self.guard_context += 1;
-                let parsed = self.expr(0);
-                self.guard_context -= 1;
-                Some(parsed?)
-            } else {
-                None
-            };
-            self.expect("=>", "grammar.Arm", &["=>"], pattern.span().start as usize)?;
-            let body = self.block_with_target(expression)?;
-            self.local_scopes.pop();
-            let span = self.span(pattern.span().start as usize, body.span.end as usize);
-            arms.push(Arm {
-                pattern,
-                guard,
-                guard_span,
-                body,
-                span,
-            });
-            if !self.list_separator(ListKind::MatchArm, keyword.span.start as usize)? {
-                break;
-            }
-        }
-        self.expect(
-            "}",
-            "grammar.Match",
-            &[",", "}"],
-            keyword.span.start as usize,
-        )?;
-        Ok(Match {
-            scrutinee: Box::new(scrutinee),
-            mode,
-            mode_span,
-            arms,
-            span: self.span(keyword.span.start as usize, self.prev_end()),
-            keyword_span: keyword.span,
-        })
-    }
-
     fn pattern(&mut self) -> Result<Pattern, Box<Diagnostic>> {
-        self.depth += 1;
-        if self.depth > 128 {
-            self.depth -= 1;
-            return Err(self.nesting_error("syntax_nesting"));
-        }
-        let result = self.pattern_inner();
-        self.depth -= 1;
+        let previous_depth = self.depth;
+        let result = self.pattern_iter();
+        self.depth = previous_depth;
         result
     }
 
-    fn pattern_inner(&mut self) -> Result<Pattern, Box<Diagnostic>> {
-        let next = self.peek().clone();
-        if !self.starts_pattern() {
-            return Err(self.syntax(
-                &next,
-                "grammar.Pattern",
-                PATTERN_FIRST,
-                next.span.start as usize,
-            ));
+    fn pattern_iter(&mut self) -> Result<Pattern, Box<Diagnostic>> {
+        enum Frame {
+            Group {
+                start: usize,
+            },
+            Constructor {
+                name: String,
+                start: usize,
+                args: Vec<Pattern>,
+            },
         }
-        if next.text == "-" {
-            let (number, span) = self.signed_integer()?;
-            return Ok(Pattern::Integer(number, span));
-        }
-        let token = self.take();
-        let start = token.span.start as usize;
-        if token.text == "(" {
-            let inner = self.pattern()?;
-            if self.eat(",") {
-                return Err(self.feature("tuple", self.tokens[self.at - 1].span.clone()));
+        let mut frames = Vec::new();
+        'parse: loop {
+            self.depth += 1;
+            if self.depth > 128 {
+                self.depth -= 1;
+                return Err(self.nesting_error("syntax_nesting"));
             }
-            self.expect(")", "grammar.Pattern", &["(", ")"], start)?;
-            return Ok(inner);
-        }
-        if token.text == "_" {
-            return Ok(Pattern::Wildcard(token.span));
-        }
-        if token.kind == Kind::Integer {
-            return Ok(Pattern::Integer(token.text, token.span));
-        }
-        if token.text == "true" || token.text == "false" {
-            return Ok(Pattern::Bool(token.text == "true", token.span));
-        }
-        let (mode, name) = if token.text == "edit" || token.text == "move" {
-            let name = self.expect_name("grammar.Pattern", &["Name"], start)?;
-            (
-                Some(if token.text == "edit" {
-                    Mode::Inout
+            let next = self.peek().clone();
+            if !self.starts_pattern() {
+                return Err(self.syntax(
+                    &next,
+                    "grammar.Pattern",
+                    PATTERN_FIRST,
+                    next.span.start as usize,
+                ));
+            }
+            let mut pattern = if next.text == "-" {
+                let (number, span) = self.signed_integer()?;
+                Pattern::Integer(number, span)
+            } else {
+                let token = self.take();
+                let start = token.span.start as usize;
+                if token.text == "(" {
+                    frames.push(Frame::Group { start });
+                    continue 'parse;
+                }
+                if token.text == "_" {
+                    Pattern::Wildcard(token.span)
+                } else if token.kind == Kind::Integer {
+                    Pattern::Integer(token.text, token.span)
+                } else if token.text == "true" || token.text == "false" {
+                    Pattern::Bool(token.text == "true", token.span)
                 } else {
-                    Mode::Consume
-                }),
-                name,
-            )
-        } else {
-            (None, token)
-        };
-        debug_assert_eq!(name.kind, Kind::Name);
-        if mode.is_none() && self.eat("(") {
-            let mut args = Vec::new();
-            while !self.at_text(")") && !self.eof() {
-                args.push(self.pattern()?);
-                if !self.list_separator(ListKind::ConstructorPattern, start)? {
-                    break;
+                    let (mode, name) = if token.text == "edit" || token.text == "move" {
+                        let name = self.expect_name("grammar.Pattern", &["Name"], start)?;
+                        (
+                            Some(if token.text == "edit" {
+                                Mode::Inout
+                            } else {
+                                Mode::Consume
+                            }),
+                            name,
+                        )
+                    } else {
+                        (None, token)
+                    };
+                    debug_assert_eq!(name.kind, Kind::Name);
+                    if mode.is_none() && self.eat("(") {
+                        if !self.at_text(")") && !self.eof() {
+                            frames.push(Frame::Constructor {
+                                name: name.text,
+                                start,
+                                args: Vec::new(),
+                            });
+                            continue 'parse;
+                        }
+                        self.expect(")", "grammar.Pattern", &[")", ","], start)?;
+                        Pattern::Constructor {
+                            name: name.text,
+                            args: Vec::new(),
+                            span: self.span(start, self.prev_end()),
+                        }
+                    } else {
+                        Pattern::Name {
+                            name: name.text,
+                            mode,
+                            span: self.span(start, self.prev_end()),
+                        }
+                    }
+                }
+            };
+            loop {
+                self.depth -= 1;
+                match frames.pop() {
+                    Some(Frame::Group { start }) => {
+                        if self.eat(",") {
+                            return Err(
+                                self.feature("tuple", self.tokens[self.at - 1].span.clone())
+                            );
+                        }
+                        self.expect(")", "grammar.Pattern", &["(", ")"], start)?;
+                    }
+                    Some(Frame::Constructor {
+                        name,
+                        start,
+                        mut args,
+                    }) => {
+                        args.push(pattern);
+                        if self.list_separator(ListKind::ConstructorPattern, start)?
+                            && !self.at_text(")")
+                            && !self.eof()
+                        {
+                            frames.push(Frame::Constructor { name, start, args });
+                            continue 'parse;
+                        }
+                        self.expect(")", "grammar.Pattern", &[")", ","], start)?;
+                        pattern = Pattern::Constructor {
+                            name,
+                            args,
+                            span: self.span(start, self.prev_end()),
+                        };
+                    }
+                    None => return Ok(pattern),
                 }
             }
-            self.expect(")", "grammar.Pattern", &[")", ","], start)?;
-            return Ok(Pattern::Constructor {
-                name: name.text,
-                args,
-                span: self.span(start, self.prev_end()),
-            });
         }
-        Ok(Pattern::Name {
-            name: name.text,
-            mode,
-            span: self.span(start, self.prev_end()),
-        })
     }
 
     fn note_pending(&mut self, feature: &'static str, span: Span) {
@@ -3640,34 +4589,6 @@ impl Parser<'_> {
         }
     }
 
-    fn branch_operand(&mut self) -> Result<Block, Box<Diagnostic>> {
-        if self.at_text("{") {
-            return self.block_with_target(true);
-        }
-        if !self.starts_try() {
-            return Err(self.err(
-                "grammar.BranchOperand",
-                first(self.new_profile, FirstSet::Branch),
-                self.peek().span.start as usize,
-                None,
-            ));
-        }
-        let operand = self.expr(1)?;
-        let span = operand.span().clone();
-        Ok(Block {
-            statements: vec![Statement::Value {
-                value: Some(operand),
-                marker: None,
-                span: span.clone(),
-            }],
-            span: span.clone(),
-            close_span: Span {
-                file: span.file.clone(),
-                start: span.end,
-                end: span.end,
-            },
-        })
-    }
     fn check_expression_height(&self, expr: &Expr) -> Result<(), Box<Diagnostic>> {
         self.check_candidate_height(expression_height(expr), expr.span().clone())
     }
@@ -3831,28 +4752,37 @@ impl Parser<'_> {
         d
     }
     fn function_value(&self, expr: &Expr) -> Option<Span> {
-        match expr {
-            Expr::Name(name, span)
-                if self.function_names.contains(name)
-                    && !self
-                        .local_scopes
-                        .iter()
-                        .rev()
-                        .any(|scope| scope.contains(name)) =>
-            {
-                Some(span.clone())
+        let mut pending = vec![expr];
+        while let Some(expr) = pending.pop() {
+            match expr {
+                Expr::Name(name, span)
+                    if self.function_names.contains(name)
+                        && !self
+                            .local_scopes
+                            .iter()
+                            .rev()
+                            .any(|scope| scope.contains(name)) =>
+                {
+                    return Some(span.clone());
+                }
+                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => pending.push(inner),
+                Expr::Binary { left, right, .. }
+                | Expr::Index {
+                    target: left,
+                    index: right,
+                    ..
+                } => {
+                    pending.push(right);
+                    pending.push(left);
+                }
+                Expr::Call { args, .. } => {
+                    pending.extend(args.iter().rev().map(|arg| &arg.value));
+                }
+                Expr::Array(xs, _) => pending.extend(xs.iter().rev()),
+                _ => {}
             }
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => self.function_value(inner),
-            Expr::Binary { left, right, .. } => self
-                .function_value(left)
-                .or_else(|| self.function_value(right)),
-            Expr::Call { args, .. } => args.iter().find_map(|arg| self.function_value(&arg.value)),
-            Expr::Index { target, index, .. } => self
-                .function_value(target)
-                .or_else(|| self.function_value(index)),
-            Expr::Array(xs, _) => xs.iter().find_map(|x| self.function_value(x)),
-            _ => None,
         }
+        None
     }
     fn reject_function_value(&self, expr: &Expr) -> Result<(), Box<Diagnostic>> {
         if let Some(span) = self.function_value(expr) {
@@ -4091,19 +5021,27 @@ impl Parser<'_> {
     }
 }
 fn place_root_failure(expr: &Expr) -> Option<u64> {
-    match expr {
-        Expr::Name(..) => None,
-        Expr::Group(inner, _) => place_root_failure(inner),
-        Expr::Index { target, .. } => place_root_failure(target),
-        Expr::Binary { left, right, .. } => {
-            place_root_failure(left).or(Some(left.span().end.min(right.span().start)))
+    let mut current = expr;
+    let mut fallback = None;
+    loop {
+        match current {
+            Expr::Name(..) => return fallback,
+            Expr::Group(inner, _) => current = inner,
+            Expr::Index { target, .. } => current = target,
+            Expr::Binary { left, right, .. } => {
+                fallback = Some(left.span().end.min(right.span().start));
+                current = left;
+            }
+            Expr::Unary {
+                mode: Mode::Read,
+                value,
+                span,
+            } => {
+                fallback = Some(span.end - 1);
+                current = value;
+            }
+            other => return Some(other.span().start),
         }
-        Expr::Unary {
-            mode: Mode::Read,
-            value,
-            span,
-        } => place_root_failure(value).or(Some(span.end - 1)),
-        other => Some(other.span().start),
     }
 }
 pub(crate) fn place_parts(expr: &Expr) -> Option<(&Expr, Vec<&Expr>)> {
@@ -4129,141 +5067,187 @@ fn is_place_expr(expr: &Expr) -> bool {
     place_parts(expr).is_some()
 }
 fn has_call_root(expr: &Expr) -> bool {
-    match expr {
-        Expr::Call { .. } => true,
-        Expr::Group(inner, _) | Expr::Index { target: inner, .. } => has_call_root(inner),
-        _ => false,
+    let mut current = expr;
+    loop {
+        match current {
+            Expr::Call { .. } => return true,
+            Expr::Group(inner, _) | Expr::Index { target: inner, .. } => current = inner,
+            _ => return false,
+        }
     }
 }
 fn is_projected_place(expr: &Expr) -> bool {
-    match expr {
-        Expr::Index { .. } => true,
-        Expr::Group(inner, _) => is_projected_place(inner),
-        _ => false,
+    let mut current = expr;
+    while let Expr::Group(inner, _) = current {
+        current = inner;
     }
+    matches!(current, Expr::Index { .. })
 }
 fn is_resource_constructor(expr: &Expr) -> bool {
     matches!(expr, Expr::Call { target, .. } if matches!(&**target, Expr::Name(name, _) if name == "MockOpen" || name == "MockBlockingOpen"))
 }
 
 fn expression_height(expr: &Expr) -> usize {
-    match expr {
-        Expr::Closure(..) => 1,
-        Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => 1,
-        Expr::Group(inner, _) => expression_height(inner),
-        Expr::Array(elements, _) => 1 + elements.iter().map(expression_height).max().unwrap_or(0),
-        Expr::Unary { value, .. } => 1 + expression_height(value),
-        Expr::Binary { left, right, .. } => {
-            1 + expression_height(left).max(expression_height(right))
-        }
-        Expr::Call { target, args, .. } => {
-            1 + expression_height(target).max(
-                args.iter()
-                    .map(|arg| expression_height(&arg.value))
-                    .max()
-                    .unwrap_or(0),
-            )
-        }
-        Expr::Index { target, index, .. } => {
-            1 + expression_height(target).max(expression_height(index))
-        }
-        Expr::If {
-            condition,
-            then_block,
-            otherwise,
-            ..
-        } => {
-            let branch = then_block
-                .statements
-                .iter()
-                .map(statement_expression_height)
-                .max()
-                .unwrap_or(0);
-            let alternative = otherwise.as_ref().map_or(0, |other| match &**other {
-                Else::Block(block) => block
-                    .statements
-                    .iter()
-                    .map(statement_expression_height)
-                    .max()
-                    .unwrap_or(0),
-                Else::If(expr) => expression_height(expr),
-            });
-            1 + expression_height(condition).max(branch).max(alternative)
-        }
-        Expr::Match(selection) => match_expression_height(selection),
-    }
+    height_walk(HeightNode::Expr(expr))
 }
 
-fn statement_expression_height(statement: &Statement) -> usize {
-    match statement {
-        Statement::Let { value, .. }
-        | Statement::Assign { value, .. }
-        | Statement::Expr { value, .. } => expression_height(value),
-        Statement::Return { value, .. }
-        | Statement::GuardControl { value, .. }
-        | Statement::Value { value, .. } => value.as_ref().map_or(0, expression_height),
-        Statement::If {
-            condition,
-            then_block,
-            otherwise,
-            ..
-        } => expression_height(condition)
-            .max(
-                then_block
-                    .statements
-                    .iter()
-                    .map(statement_expression_height)
-                    .max()
-                    .unwrap_or(0),
-            )
-            .max(
-                otherwise
-                    .as_ref()
-                    .map_or(0, |other| statement_expression_height(other)),
-            ),
-        Statement::While {
-            condition, body, ..
-        } => expression_height(condition).max(
-            body.statements
-                .iter()
-                .map(statement_expression_height)
-                .max()
-                .unwrap_or(0),
-        ),
-        Statement::For { iterable, body, .. } => expression_height(iterable).max(
-            body.statements
-                .iter()
-                .map(statement_expression_height)
-                .max()
-                .unwrap_or(0),
-        ),
-        Statement::Match(selection) => match_expression_height(selection),
-        Statement::Block(block) => block
-            .statements
-            .iter()
-            .map(statement_expression_height)
-            .max()
-            .unwrap_or(0),
-    }
+#[derive(Clone, Copy)]
+enum HeightNode<'a> {
+    Expr(&'a Expr),
+    Statement(&'a Statement),
+    Block(&'a Block),
+    Else(&'a Else),
+    Match(&'a Match),
+    Arm(&'a Arm),
 }
-fn match_expression_height(selection: &Match) -> usize {
-    1 + expression_height(&selection.scrutinee).max(
-        selection
-            .arms
-            .iter()
-            .map(|arm| {
-                arm.guard.as_ref().map_or(0, expression_height).max(
-                    arm.body
-                        .statements
-                        .iter()
-                        .map(statement_expression_height)
-                        .max()
-                        .unwrap_or(0),
-                )
-            })
-            .max()
-            .unwrap_or(0),
-    )
+
+fn height_walk(root: HeightNode<'_>) -> usize {
+    enum Work<'a> {
+        Visit(HeightNode<'a>),
+        Finish { children: usize, increment: usize },
+    }
+    let mut work = vec![Work::Visit(root)];
+    let mut heights = Vec::new();
+    while let Some(step) = work.pop() {
+        match step {
+            Work::Finish {
+                children,
+                increment,
+            } => {
+                let first = heights.len() - children;
+                let maximum = heights.drain(first..).max().unwrap_or(0);
+                heights.push(increment + maximum);
+            }
+            Work::Visit(node) => {
+                let mut children = Vec::new();
+                let increment = match node {
+                    HeightNode::Expr(expr) => match expr {
+                        Expr::Closure(..)
+                        | Expr::Name(..)
+                        | Expr::Integer(..)
+                        | Expr::Bool(..)
+                        | Expr::Unit(..) => 1,
+                        Expr::Group(inner, _) => {
+                            children.push(HeightNode::Expr(inner));
+                            0
+                        }
+                        Expr::Array(elements, _) => {
+                            children.extend(elements.iter().map(HeightNode::Expr));
+                            1
+                        }
+                        Expr::Unary { value, .. } => {
+                            children.push(HeightNode::Expr(value));
+                            1
+                        }
+                        Expr::Binary { left, right, .. } => {
+                            children.push(HeightNode::Expr(left));
+                            children.push(HeightNode::Expr(right));
+                            1
+                        }
+                        Expr::Call { target, args, .. } => {
+                            children.push(HeightNode::Expr(target));
+                            children.extend(args.iter().map(|arg| HeightNode::Expr(&arg.value)));
+                            1
+                        }
+                        Expr::Index { target, index, .. } => {
+                            children.push(HeightNode::Expr(target));
+                            children.push(HeightNode::Expr(index));
+                            1
+                        }
+                        Expr::If {
+                            condition,
+                            then_block,
+                            otherwise,
+                            ..
+                        } => {
+                            children.push(HeightNode::Expr(condition));
+                            children.push(HeightNode::Block(then_block));
+                            if let Some(otherwise) = otherwise {
+                                children.push(HeightNode::Else(otherwise));
+                            }
+                            1
+                        }
+                        Expr::Match(selection) => {
+                            children.push(HeightNode::Match(selection));
+                            0
+                        }
+                    },
+                    HeightNode::Statement(statement) => {
+                        match statement {
+                            Statement::Let { value, .. }
+                            | Statement::Assign { value, .. }
+                            | Statement::Expr { value, .. } => {
+                                children.push(HeightNode::Expr(value));
+                            }
+                            Statement::Return { value, .. }
+                            | Statement::GuardControl { value, .. }
+                            | Statement::Value { value, .. } => {
+                                if let Some(value) = value {
+                                    children.push(HeightNode::Expr(value));
+                                }
+                            }
+                            Statement::If {
+                                condition,
+                                then_block,
+                                otherwise,
+                                ..
+                            } => {
+                                children.push(HeightNode::Expr(condition));
+                                children.push(HeightNode::Block(then_block));
+                                if let Some(otherwise) = otherwise {
+                                    children.push(HeightNode::Statement(otherwise));
+                                }
+                            }
+                            Statement::While {
+                                condition, body, ..
+                            } => {
+                                children.push(HeightNode::Expr(condition));
+                                children.push(HeightNode::Block(body));
+                            }
+                            Statement::For { iterable, body, .. } => {
+                                children.push(HeightNode::Expr(iterable));
+                                children.push(HeightNode::Block(body));
+                            }
+                            Statement::Match(selection) => {
+                                children.push(HeightNode::Match(selection));
+                            }
+                            Statement::Block(block) => children.push(HeightNode::Block(block)),
+                        }
+                        0
+                    }
+                    HeightNode::Block(block) => {
+                        children.extend(block.statements.iter().map(HeightNode::Statement));
+                        0
+                    }
+                    HeightNode::Else(otherwise) => {
+                        match otherwise {
+                            Else::Block(block) => children.push(HeightNode::Block(block)),
+                            Else::If(expr) => children.push(HeightNode::Expr(expr)),
+                        }
+                        0
+                    }
+                    HeightNode::Match(selection) => {
+                        children.push(HeightNode::Expr(&selection.scrutinee));
+                        children.extend(selection.arms.iter().map(HeightNode::Arm));
+                        1
+                    }
+                    HeightNode::Arm(arm) => {
+                        if let Some(guard) = &arm.guard {
+                            children.push(HeightNode::Expr(guard));
+                        }
+                        children.push(HeightNode::Block(&arm.body));
+                        0
+                    }
+                };
+                work.push(Work::Finish {
+                    children: children.len(),
+                    increment,
+                });
+                work.extend(children.into_iter().rev().map(Work::Visit));
+            }
+        }
+    }
+    heights.pop().unwrap_or(0)
 }
 
 #[cfg(test)]
