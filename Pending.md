@@ -462,3 +462,26 @@ La medición de Windows aisló cada fase y probó potencias de dos desde 256 KiB
 **J16 — 256 KiB completos del front-end y batería integrada de escala.** Repetir parser, checker, lowering, verificador, formateador y destrucción a 256 KiB en plataforma que lo permita, conforme a F0-0003 §13.2. Repros: `fn Main(){` + 126 `{` + `let x=1;` + 126 `}` + `}`; `let x=` + 126 `(` + `1` + 126 `)`; 126 arrays, binarios e `if` anidados; 128 accesos de índice independientes; mezcla de 63 bloques y 63 paréntesis; 2.000 `x=x+1;`; closure de 500 capturas `view`; 200 generadores suspendidos; positivos de J02–J13 y fuentes literales frames-8 7/8/9. Con 129 bloques se exige NX-E0003/analysis.limit/syntax_nesting (128/129), sin diagnóstico nuevo ni reducción del límite. La implementación J16 deberá reducir frames y recorridos en la raíz y conservar estas regresiones.
 
 La pasada final de mutación de J14 detectó cinco cambios y restauró los SHA-256 en `docs/validation/F0-0003-J14-mutations.json`; no dejó supervivientes sin programa. La primera pasada se repitió al corregir la ocupación de slots fríos, por lo que solo la final acredita el árbol actual. El fuzz release de 20.000 fuentes con semilla 202611142137 se repitió tras la corrección sin pánicos, fallos internos ni diagnósticos inválidos, con cuotas reducidas de ejecución. `sh scripts/validate.sh` en copia limpia de D: terminó con exit 0, incluidas las suites debug/release, formato y Clippy estricto.
+
+
+## F0-0003 — J14 corregido tras la validación independiente (2026-11-15)
+
+La validación independiente del J14 anterior dio FAIL con diez defectos (D1–D10). Se corrigieron por el Flujo B con el plan `docs/correcciones/J14-r1.md` (S1–S9), tres bloques y sus propuestas (`J14-b1-r1/r2`, `J14-b2-r1`, `J14-b3-r1`), una pasada única de mutación de núcleo (`.scratch/j14-mutacion.md`: 155 mutantes, cinco supervivientes con programa, cubiertos con regresiones P1–P5) y confirmación final D' con PASS. Medidor público: 15/29 (11, 14 y 15 ejecutan; 16–19 y 29 conservan su motivo). Informes en `.scratch/val-j14/`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| J14-GE-RESIDUAL-01/02 | Residuales declarados de la guardia estructural de dispatch del parser (constante alias; forma kind+longitud; mutación tras el punto de commit). | `tests/j14_dispatch_guard.rs`. | J16 |
+| J14-Q-REDUCIDO | `?` ejecutado por `BranchVariant` con alcance reducido. | Fila Pending de S1. | J16 |
+| J14-TEMP-S4 | Los temporales propietarios dinámicos no cuentan en `value_type_depth`: solo slots (parámetros, locales, slot oculto de `for`, capturas de closures locales). Un generador con un temporal propietario de 128 niveles pendiente en `yield` se acepta. | Decisión revertible del coordinador; ADR §7.2 «valores vivos en slots». | J16 |
+| NB-J14-S4-CASCADA | `array_type_depth` sigue emitiendo un diagnóstico por función (igual que la base); `value_type_depth` emite uno por compilación. Decidir si se unifica. | `check` de un programa con varias funciones sobre el límite. | J16 |
+| J14-FRONT-256 | Prueba integral de 256 KiB del front-end: con el hilo principal a 256 KiB, 2.000 `Some(move ..)` desborda en debug (igual en la base); `check` de 1.000–1.500 enlaces tarda 6–15 s en debug. | F0-0003 §10.3. | J16 |
+| J14-SELF-STAGE | La etapa de `self` permanece en HEAD (§10.2 diferido). | — | J16 |
+| NB-J14-NX-E1105 | Desaparición no declarada de NX-E1105 (requiere declaración y regresión); NX-E1105 al escribir `i` dentro de `match i`. | Programas del informe del bloque 2. | J16 |
+| NB-J14-LIMPIEZA | Estructuras redundantes `live_locals`/`local_history`, `deferred_return_locals`; variantes `Deferred`/`Invalid` sin uso. | Revisión de diff de D. | Endurecimiento |
+| NB-J14-RUN-MAIN | `run` rechaza `fn Main()->I64` mientras `check` lo acepta. | CLI. | J15/J16 |
+| NB-J14-DIAMANTE | Tiempo exponencial de `check` con closures `copy` en diamante. | Informe de D, bloque 2. | J16 |
+| NB-J14-F0003-2.2 | El texto de F0-0003 §2.2 describe J02–J14 como emitibles; reconciliar. | Lectura de §2.2. | Cierre F0-0003 |
+| NB-J14-D3-NOTA | En la tabla D3, las filas 2 y 4 emiten NX-E0113 y NX-E1304 simultáneamente. | Plan J14-r1. | Cierre F0-0003 |
+| NB-J14-CIERRE-RETURN | El orden de cierre en `return` cambia (bloque 2) y también afecta al perfil `f0-0002-b-v2` en una fuente de test. | Informe de D'. | Informativo |
+| NB-J14-MUT-HUECOS | 46 supervivientes de mutación sin programa (p. ej. `cacheable` en `types.rs`, `TempValue` en `machine.rs`, `parse.rs:1786/3982`). | `.scratch/j14-mutacion.md`. | Endurecimiento |
+| NB-J14-TIEMPOS | El test de K=1563 `Some(move ..)` tarda ~60 s en debug; timeouts de arranque aislados en fuzz no reproducibles. | — | Informativo |
