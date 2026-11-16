@@ -119,6 +119,38 @@ fn source(family: &str) -> String {
             "=>{},}}".into(),
         ]
         .concat(),
+        "edit_simple" => "fn F(x:edit I64){}fn Main(){var a=1;F(edit a);}".into(),
+        "edit_nested_40" | "edit_nested_42" => {
+            let depth = if family == "edit_nested_40" { 40 } else { 42 };
+            format!(
+                "fn F(x:edit I64)->I64{{return 1;}}fn Main(){{var a=[1];let y={}0{};}}",
+                "F(edit a[".repeat(depth),
+                "])".repeat(depth)
+            )
+        }
+        "move_call_63" | "edit_call_63" => {
+            let mode = if family == "move_call_63" {
+                "move"
+            } else {
+                "edit"
+            };
+            format!(
+                "fn Main(){{let f=fn(p:move I64){{}};let y={}1{};}}",
+                format!("{mode} f(").repeat(63),
+                ")".repeat(63)
+            )
+        }
+        "move_arg_42" => format!(
+            "fn F(x:move I64){{}}fn Main(){{let f=fn(p:move I64){{}};F({}1{});}}",
+            "move f(".repeat(42),
+            ")".repeat(42)
+        ),
+        "objectives" => std::fs::read_to_string(
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("corpus/objetivo")
+                .join(std::env::var("J16_OBJECTIVE_NAME").unwrap()),
+        )
+        .unwrap(),
         _ => unreachable!("unknown parser family"),
     }
 }
@@ -213,6 +245,12 @@ fn parser_families_finish_in_256_kib_worker() {
         "block129",
         "type129",
         "pattern129",
+        "edit_simple",
+        "edit_nested_40",
+        "edit_nested_42",
+        "move_call_63",
+        "edit_call_63",
+        "move_arg_42",
     ] {
         let output = Command::new(&binary)
             .args(["--exact", "parser_child"])
@@ -227,5 +265,61 @@ fn parser_families_finish_in_256_kib_worker() {
             String::from_utf8_lossy(&output.stdout),
             String::from_utf8_lossy(&output.stderr)
         );
+    }
+}
+
+#[test]
+fn mode_operands_and_objectives_finish_in_256_kib_parser_workers() {
+    let binary = std::env::current_exe().unwrap();
+    let objectives = [
+        "01_integer_limits.n",
+        "02_nested_copy.n",
+        "03_resource_transfer.n",
+        "04_return_cleanup.n",
+        "05_shadow_scope.n",
+        "06_result_ok.n",
+        "07_result_error.n",
+        "08_array_update.n",
+        "09_mock_request.n",
+        "10_mock_write.n",
+        "11_ex04_generador.n",
+        "12_option_match.n",
+        "13_option_none.n",
+        "14_closure_capture.n",
+        "15_generator_sum.n",
+    ];
+    for kib in [256] {
+        for (family, objective) in [
+            "edit_simple",
+            "edit_nested_40",
+            "edit_nested_42",
+            "move_call_63",
+            "edit_call_63",
+            "move_arg_42",
+        ]
+        .into_iter()
+        .map(|family| (family, None))
+        .chain(
+            objectives
+                .into_iter()
+                .map(|name| ("objectives", Some(name))),
+        ) {
+            let mut command = Command::new(&binary);
+            command
+                .args(["--exact", "parser_child"])
+                .env("J16_PARSER_CASE", family)
+                .env("NEXO_STACK_MINIMUM_CASE", format!("PARSER:{family}"))
+                .env("NEXO_PROBE_PARSER_KIB", kib.to_string());
+            if let Some(name) = objective {
+                command.env("J16_OBJECTIVE_NAME", name);
+            }
+            let output = command.output().unwrap();
+            assert!(
+                output.status.success(),
+                "{family}/{objective:?}/{kib}: {} {}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
     }
 }

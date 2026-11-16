@@ -54,8 +54,12 @@ mod j16_parser_stack_probe {
             return;
         };
         let source = std::fs::read_to_string(path).unwrap();
+        let kib = std::env::var("J16_PARSER_STACK_KIB")
+            .ok()
+            .and_then(|value| value.parse::<usize>().ok())
+            .unwrap_or(204);
         let result = std::thread::Builder::new()
-            .stack_size(204 * 1024)
+            .stack_size(kib * 1024)
             .spawn(move || parse_inner("probe.n", &source, None, true))
             .unwrap()
             .join()
@@ -1877,7 +1881,6 @@ fn non_unit_return(statement: &Statement) -> Option<Span> {
 }
 #[derive(Clone, Copy)]
 enum ConstructEntry {
-    Expr(u8),
     Block(bool),
     #[cfg(test)]
     Statement {
@@ -1887,10 +1890,14 @@ enum ConstructEntry {
 }
 
 enum ConstructResult {
-    Expr(Expr),
     Block(Block),
     #[cfg(test)]
     Statement(Box<Statement>),
+}
+
+enum PrefixValue {
+    Expr(Expr),
+    Mode { mode: Mode, start: usize },
 }
 
 struct ClosureHead {
@@ -1974,13 +1981,6 @@ impl Parser<'_> {
         self.callable_count += 1;
         Ok(())
     }
-    fn expr(&mut self, min: u8) -> Result<Expr, Box<Diagnostic>> {
-        match self.parse_construct(ConstructEntry::Expr(min))? {
-            ConstructResult::Expr(expr) => Ok(expr),
-            _ => unreachable!("expression entry returned another construct"),
-        }
-    }
-
     fn parse_construct(
         &mut self,
         entry: ConstructEntry,
@@ -2093,6 +2093,10 @@ impl Parser<'_> {
                 previous_start: usize,
             },
             Prefix,
+            ModeOperand {
+                mode: Mode,
+                start: usize,
+            },
             Continue {
                 min: u8,
                 logical_entry: bool,
@@ -2249,7 +2253,6 @@ impl Parser<'_> {
             unreachable!("if form has a branch")
         }
         let mut tasks = vec![match entry {
-            ConstructEntry::Expr(min) => Task::Enter(min),
             ConstructEntry::Block(value_target) => Task::BlockStart { value_target },
             #[cfg(test)]
             ConstructEntry::Statement {
@@ -2954,8 +2957,77 @@ impl Parser<'_> {
                             pending_element: false,
                         });
                     } else {
-                        result = Some(self.prefix()?);
+                        match self.prefix()? {
+                            PrefixValue::Expr(expr) => result = Some(expr),
+                            PrefixValue::Mode { mode, start } => {
+                                tasks.push(Task::ModeOperand { mode, start });
+                                tasks.push(Task::Enter(4));
+                            }
+                        }
                     }
+                }
+                Task::ModeOperand { mode, start } => {
+                    let val = result.take().expect("mode operand has a result");
+                    let receiver_call = self.new_profile && matches!(val, Expr::Call { .. });
+                    if has_call_root(&val) && !receiver_call {
+                        return Err(self.feature("receiver_mode", self.span(start, start + 4)));
+                    }
+                    if let Expr::Call { target, .. } = &val
+                        && receiver_call
+                        && let Some(bad) = place_root_failure(target)
+                    {
+                        let tok = self
+                            .tokens
+                            .iter()
+                            .find(|t| t.span.start == bad)
+                            .cloned()
+                            .unwrap_or_else(|| self.peek().clone());
+                        return Err(self.syntax(
+                            &tok,
+                            if mode == Mode::Consume {
+                                "consume_place"
+                            } else {
+                                "inout_place"
+                            },
+                            &["Place"],
+                            start,
+                        ));
+                    }
+                    if let Some(bad) = (!receiver_call).then(|| place_root_failure(&val)).flatten()
+                    {
+                        let tok = self
+                            .tokens
+                            .iter()
+                            .find(|t| t.span.start == bad)
+                            .cloned()
+                            .unwrap_or_else(|| self.peek().clone());
+                        return Err(self.syntax(
+                            &tok,
+                            if mode == Mode::Consume {
+                                "consume_place"
+                            } else {
+                                "inout_place"
+                            },
+                            &["Place"],
+                            start,
+                        ));
+                    }
+                    if mode == Mode::Consume && is_projected_place(&val) {
+                        let mut d = self.feature("partial_transfer", val.span().clone());
+                        d.related_spans.push(RelatedSpan {
+                            role: RelatedRole::Context,
+                            span: self.span(start, start + 4),
+                        });
+                        return Err(d);
+                    }
+                    let span = self.span(start, val.span().end as usize);
+                    let expression = Expr::Unary {
+                        mode,
+                        value: Box::new(val),
+                        span,
+                    };
+                    self.check_expression_height(&expression)?;
+                    result = Some(expression);
                 }
                 Task::Group { start } => {
                     let inner = result.take().expect("group expression has a result");
@@ -3485,9 +3557,6 @@ impl Parser<'_> {
             }
         }
         match entry {
-            ConstructEntry::Expr(_) => Ok(ConstructResult::Expr(
-                result.expect("expression has a result"),
-            )),
             ConstructEntry::Block(_) => Ok(ConstructResult::Block(
                 block_result.expect("block has a result"),
             )),
@@ -4026,16 +4095,7 @@ impl Parser<'_> {
             } else {
                 let tok = self.peek().clone();
                 if tok.text == "Option" {
-                    if self.new_profile {
-                        self.take();
-                        self.expect("<", "grammar.Type", &["<"], tok.span.start as usize)?;
-                        let _payload = self.ty()?;
-                        self.expect_type_close()?;
-                        return Err(self.feature(
-                            "option",
-                            self.span(tok.span.start as usize, self.prev_end()),
-                        ));
-                    }
+                    // The new profile consumed Option above; this is the legacy path.
                     return Err(self.feature("option", tok.span));
                 }
                 if tok.kind == Kind::Name {
@@ -4115,6 +4175,7 @@ impl Parser<'_> {
     fn block_with_target(&mut self, value_target: bool) -> Result<Block, Box<Diagnostic>> {
         match self.parse_construct(ConstructEntry::Block(value_target))? {
             ConstructResult::Block(block) => Ok(block),
+            #[cfg(test)]
             _ => unreachable!("block entry returned another construct"),
         }
     }
@@ -4274,7 +4335,7 @@ impl Parser<'_> {
             PrimaryChoice::Atom
         }
     }
-    fn prefix(&mut self) -> Result<Expr, Box<Diagnostic>> {
+    fn prefix(&mut self) -> Result<PrefixValue, Box<Diagnostic>> {
         let choice = self.select_primary_entry();
         let t = self.peek().clone();
         if t.kind == Kind::Decimal {
@@ -4302,7 +4363,7 @@ impl Parser<'_> {
         }
         if t.text == "-" {
             let (number, span) = self.signed_integer()?;
-            return Ok(Expr::Integer(number, span));
+            return Ok(PrefixValue::Expr(Expr::Integer(number, span)));
         }
         let prefix_follows = self.tokens.get(self.at + 1).is_some_and(|next| {
             matches!(next.kind, Kind::Name | Kind::Integer)
@@ -4326,7 +4387,7 @@ impl Parser<'_> {
                 ));
             }
             // A selected access mode cannot itself be a Place root. Reject a
-            // second selected mode before recursive descent, including hostile
+            // second selected mode before entering the operand, including hostile
             // chains, while leaving a bare contextual Name available as a root.
             if matches!(self.peek().text.as_str(), "move" | "edit")
                 && self.tokens.get(self.at + 1).is_some_and(|next| {
@@ -4346,83 +4407,23 @@ impl Parser<'_> {
                     op,
                 ));
             }
-            // AccessExpr owns its Postfix; TryExpr applies '?' to the completed
-            // access, including the mode prefix (§3).
-            let val = self.expr(4)?;
-            let receiver_call = self.new_profile && matches!(val, Expr::Call { .. });
-            if has_call_root(&val) && !receiver_call {
-                return Err(self.feature("receiver_mode", self.span(op, op + 4)));
-            }
-            if let Expr::Call { target, .. } = &val
-                && receiver_call
-                && let Some(bad) = place_root_failure(target)
-            {
-                let tok = self
-                    .tokens
-                    .iter()
-                    .find(|t| t.span.start == bad)
-                    .cloned()
-                    .unwrap_or_else(|| self.peek().clone());
-                return Err(self.syntax(
-                    &tok,
-                    if m == Mode::Consume {
-                        "consume_place"
-                    } else {
-                        "inout_place"
-                    },
-                    &["Place"],
-                    op,
-                ));
-            }
-            if let Some(bad) = (!receiver_call).then(|| place_root_failure(&val)).flatten() {
-                let tok = self
-                    .tokens
-                    .iter()
-                    .find(|t| t.span.start == bad)
-                    .cloned()
-                    .unwrap_or_else(|| self.peek().clone());
-                return Err(self.syntax(
-                    &tok,
-                    if m == Mode::Consume {
-                        "consume_place"
-                    } else {
-                        "inout_place"
-                    },
-                    &["Place"],
-                    op,
-                ));
-            }
-            if m == Mode::Consume && is_projected_place(&val) {
-                let mut d = self.feature("partial_transfer", val.span().clone());
-                d.related_spans.push(RelatedSpan {
-                    role: RelatedRole::Context,
-                    span: self.span(op, op + 4),
-                });
-                return Err(d);
-            }
-            let sp = self.span(op, val.span().end as usize);
-            let result = Expr::Unary {
-                mode: m,
-                value: Box::new(val),
-                span: sp,
-            };
-            self.check_expression_height(&result)?;
-            return Ok(result);
+            // The operand resumes in the same construct machine at precedence 4.
+            return Ok(PrefixValue::Mode { mode: m, start: op });
         }
         if let Some(error) = self.deferred_in_state(GrammarState::Primary) {
             return Err(error);
         }
         if t.kind == Kind::Integer {
             self.take();
-            return Ok(Expr::Integer(t.text, t.span));
+            return Ok(PrefixValue::Expr(Expr::Integer(t.text, t.span)));
         }
         if t.text == "true" || t.text == "false" {
             self.take();
-            return Ok(Expr::Bool(t.text == "true", t.span));
+            return Ok(PrefixValue::Expr(Expr::Bool(t.text == "true", t.span)));
         }
         if t.kind == Kind::Name {
             self.take();
-            return Ok(Expr::Name(t.text, t.span));
+            return Ok(PrefixValue::Expr(Expr::Name(t.text, t.span)));
         }
         Err(self.err(
             "grammar.Primary",

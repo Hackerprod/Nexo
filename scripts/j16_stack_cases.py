@@ -15,6 +15,8 @@ TEST = "frontend::parse::j16_parser_stack_probe::direct_204_kib_file_child"
 
 
 def source(family: str, depth: int) -> str:
+    if family.startswith("objective_"):
+        return (ROOT / "corpus" / "objetivo" / family.removeprefix("objective_")).read_text(encoding="utf-8")
     if family == "block":
         return f'fn Main(){{{"{" * depth}let x=1;{"}" * depth}}}'
     if family == "group":
@@ -70,6 +72,20 @@ def source(family: str, depth: int) -> str:
         return f'fn F(x:view {"Array<" * depth}I64{">" * depth}){{}}fn Main(){{}}'
     if family == "pattern":
         return 'fn Main(){match 1{' + '(' * depth + '_' + ')' * depth + '=>{},}}'
+    if family == "edit_nested":
+        return ('fn F(x:edit I64)->I64{return 1;}fn Main(){var a=[1];let y='
+                + 'F(edit a[' * depth + '0' + '])' * depth + ';}')
+    if family in ("move_call", "edit_call", "mode_alternating"):
+        modes = (["move"] * depth if family == "move_call" else
+                 ["edit"] * depth if family == "edit_call" else
+                 ["move" if i % 2 == 0 else "edit" for i in range(depth)])
+        return ('fn Main(){let f=fn(p:move I64){};let y='
+                + ''.join(f'{mode} f(' for mode in modes) + '1' + ')' * depth + ';}')
+    if family == "move_arg":
+        return ('fn F(x:move I64){}fn Main(){let f=fn(p:move I64){};F('
+                + 'move f(' * depth + '1' + ')' * depth + ');}')
+    if family == "edit_simple":
+        return 'fn F(x:edit I64){}fn Main(){var a=1;F(edit a);}'
     raise ValueError(family)
 
 
@@ -94,10 +110,20 @@ CASES = [
     ("match_stmt", 60, "ok"),
     ("type", 126, "ok"),
     ("pattern", 126, "ok"),
+    ("edit_simple", 1, "ok"),
+    ("edit_nested", 40, "ok"),
+    ("edit_nested", 42, "ok"),
+    ("move_call", 63, "ok"),
+    ("edit_call", 63, "ok"),
+    ("mode_alternating", 63, "ok"),
+    ("move_arg", 42, "ok"),
     ("block", 128, "NX-E0003:syntax_nesting:137:138"),
     ("type", 128, "NX-E0003:syntax_nesting:780:783"),
     ("pattern", 128, "NX-E0003:syntax_nesting:145:146"),
 ]
+CASES.extend((f"objective_{path.name}", 0, "ok") for path in sorted(
+    (ROOT / "corpus" / "objetivo").glob("*.n")) if path.name[:2].isdigit()
+    and 1 <= int(path.name[:2]) <= 15)
 
 
 def main() -> int:
@@ -105,7 +131,8 @@ def main() -> int:
     scratch.mkdir(exist_ok=True)
     if not scratch.resolve().is_relative_to(ROOT.resolve()):
         raise RuntimeError("probe scratch is outside the project")
-    for profile in ("debug", "release"):
+    for profile, kib in ((profile, kib) for profile in ("debug", "release")
+                         for kib in (204, 256)):
         with tempfile.TemporaryDirectory(prefix="j16-p-", dir=scratch) as tmp:
             directory = Path(tmp)
             if not directory.resolve().is_relative_to(scratch.resolve()):
@@ -117,6 +144,7 @@ def main() -> int:
                 env = os.environ.copy()
                 env["J16_PARSER_CASE_FILE"] = str(path)
                 env["J16_PARSER_EXPECT"] = expected
+                env["J16_PARSER_STACK_KIB"] = str(kib)
                 command = ["cargo", "test", "--locked", "--offline"]
                 if profile == "release":
                     command.append("--release")
@@ -124,7 +152,7 @@ def main() -> int:
                 result = subprocess.run(command, cwd=ROOT, env=env, capture_output=True,
                                         text=True, encoding="utf-8", errors="replace", timeout=120)
                 sha = hashlib.sha256(program.encode()).hexdigest()
-                print(f"{profile} {family} {depth} {sha} exit={result.returncode}", flush=True)
+                print(f"{profile} {kib} {family} {depth} {sha} exit={result.returncode}", flush=True)
                 if result.returncode:
                     print(result.stdout)
                     print(result.stderr)
