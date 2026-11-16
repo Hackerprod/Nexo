@@ -485,3 +485,16 @@ La validación independiente del J14 anterior dio FAIL con diez defectos (D1–D
 | NB-J14-CIERRE-RETURN | El orden de cierre en `return` cambia (bloque 2) y también afecta al perfil `f0-0002-b-v2` en una fuente de test. | Informe de D'. | Informativo |
 | NB-J14-MUT-HUECOS | 46 supervivientes de mutación sin programa (p. ej. `cacheable` en `types.rs`, `TempValue` en `machine.rs`, `parse.rs:1786/3982`). | `.scratch/j14-mutacion.md`. | Endurecimiento |
 | NB-J14-TIEMPOS | El test de K=1563 `Some(move ..)` tarda ~60 s en debug; timeouts de arranque aislados en fuzz no reproducibles. | — | Informativo |
+
+
+## F0-0003 — J15 cerrado (2026-11-15)
+
+J15 acredita EX04 por la interfaz CLI real con entradas variables (`--mock-env`; sin argv de aplicación ni stdin, laguna L1 decidida en F0-0003), errores tipados, abandono (`break`) y la regresión de EX01–EX03 de los perfiles `f0-0002-b-v2` y `f0-0003-b-v1`. Plan `docs/correcciones/J15-r1.md` (B: PASS), implementación `tests/j15_cli.rs` y dos líneas de F0-0003 (commit `d698142`), D: PASS, D': PASS. No cambia `src/`; objetivo público 15/29. Informes en `.scratch/val-j15/`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| NB-J15-01 | La fórmula de bytes de EX04 está duplicada cuatro veces en `tests/j15_cli.rs`. | Lectura del archivo. | Endurecimiento |
+| NB-J15-02 | La configuración errónea de `--mock-env` solo se prueba con `{bad` en J15; las demás razones las cubre la suite previa. | `tests/j15_cli.rs`. | J16 |
+| NB-J15-03 | Las mutaciones por línea de `checked_add` y `close:` dependen de números de línea de `machine.rs`; citar por contexto si el archivo cambia. | Informe de B. | Informativo |
+
+**I07c.** Su cierre real sigue pendiente: ver `docs/I07c-PENDIENTE.md`. Lo lleva una sesión paralela en la rama `i07c-estructural`; el orquestador principal solo integra a main tras el D' de ese carril.
