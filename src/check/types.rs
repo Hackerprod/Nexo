@@ -9904,115 +9904,122 @@ impl Checker<'_> {
         selected: &Type,
         origin: &Span,
     ) -> Result<(), Box<Diagnostic>> {
-        self.charge_solver(pattern.span())?;
-        match pattern {
-            Pattern::Wildcard(_) => Ok(()),
-            Pattern::Integer(_, span) => {
-                if selected == &Type::I64 || pretty(selected).is_none() {
-                    Ok(())
-                } else {
-                    Err(mismatch(
-                        span.clone(),
-                        span.clone(),
-                        Some(origin.clone()),
-                        &pretty(selected).unwrap_or_default(),
-                        &Type::I64,
-                    ))
-                }
-            }
-            Pattern::Bool(_, span) => {
-                if selected == &Type::Bool || pretty(selected).is_none() {
-                    Ok(())
-                } else {
-                    Err(mismatch(
-                        span.clone(),
-                        span.clone(),
-                        Some(origin.clone()),
-                        &pretty(selected).unwrap_or_default(),
-                        &Type::Bool,
-                    ))
-                }
-            }
-            Pattern::Name { name, span, .. }
-                if name == "None" && matches!(selected, Type::Union(UnionKind::Option, ..)) =>
-            {
-                Ok(())
-            }
-            Pattern::Name { span, .. } => {
-                self.locals.insert(
-                    span.start,
-                    Known {
-                        ty: selected.clone(),
-                        origin: origin.clone(),
-                        variable: if let Type::Deferred(id) = selected {
-                            Some(*id)
-                        } else {
-                            None
-                        },
-                    },
-                );
-                Ok(())
-            }
-            Pattern::Constructor { name, args, span } => {
-                let kind = match name.as_str() {
-                    "Some" | "None" => UnionKind::Option,
-                    "Ok" | "Err" => UnionKind::Result,
-                    _ => return Ok(()), // names.resolve owns unknown constructors.
-                };
-                let Some(descriptor) = concrete_union(selected).filter(|union| union.kind == kind)
-                else {
-                    if pretty(selected).is_none() {
-                        // The scrutinee's unresolved constructor reports NX-E0113.
+        let mut pattern = pattern;
+        let mut selected = selected;
+        loop {
+            self.charge_solver(pattern.span())?;
+            match pattern {
+                Pattern::Wildcard(_) => return Ok(()),
+                Pattern::Integer(_, span) => {
+                    if selected == &Type::I64 || pretty(selected).is_none() {
                         return Ok(());
+                    } else {
+                        return Err(mismatch(
+                            span.clone(),
+                            span.clone(),
+                            Some(origin.clone()),
+                            &pretty(selected).unwrap_or_default(),
+                            &Type::I64,
+                        ));
                     }
-                    let mut diagnostic = names::diagnostic(
-                        "NX-E1325",
-                        Some("constructor_type"),
-                        Stage::Types,
-                        Operation::TypesCheck,
-                        span.clone(),
-                    );
-                    diagnostic.data.insert(
-                        "constructor".into(),
-                        DataValue::String(format!("prelude:{name}")),
-                    );
-                    diagnostic.data.insert(
-                        "scrutinee_type".into(),
-                        DataValue::String(pretty(selected).unwrap_or_default()),
-                    );
-                    return Err(diagnostic);
-                };
-                let Some(tag) = kind.variant_tag(name) else {
-                    return Ok(());
-                };
-                let Some(variant) = descriptor.variant(tag) else {
-                    return Ok(());
-                };
-                let arity = usize::from(variant.payload.is_some());
-                if args.len() != arity {
-                    let mut diagnostic = names::diagnostic(
-                        "NX-E1325",
-                        Some("constructor_arity"),
-                        Stage::Types,
-                        Operation::TypesCheck,
-                        span.clone(),
-                    );
-                    diagnostic.data.insert(
-                        "constructor".into(),
-                        DataValue::String(format!("prelude:{name}")),
-                    );
-                    diagnostic
-                        .data
-                        .insert("expected_arity".into(), DataValue::UInt(arity as u64));
-                    diagnostic
-                        .data
-                        .insert("found_arity".into(), DataValue::UInt(args.len() as u64));
-                    return Err(diagnostic);
                 }
-                if let (Some(payload), Some(arg)) = (variant.payload, args.first()) {
-                    self.pattern_type(arg, payload, origin)?;
+                Pattern::Bool(_, span) => {
+                    if selected == &Type::Bool || pretty(selected).is_none() {
+                        return Ok(());
+                    } else {
+                        return Err(mismatch(
+                            span.clone(),
+                            span.clone(),
+                            Some(origin.clone()),
+                            &pretty(selected).unwrap_or_default(),
+                            &Type::Bool,
+                        ));
+                    }
                 }
-                Ok(())
+                Pattern::Name { name, span, .. }
+                    if name == "None" && matches!(selected, Type::Union(UnionKind::Option, ..)) =>
+                {
+                    return Ok(());
+                }
+                Pattern::Name { span, .. } => {
+                    self.locals.insert(
+                        span.start,
+                        Known {
+                            ty: selected.clone(),
+                            origin: origin.clone(),
+                            variable: if let Type::Deferred(id) = selected {
+                                Some(*id)
+                            } else {
+                                None
+                            },
+                        },
+                    );
+                    return Ok(());
+                }
+                Pattern::Constructor { name, args, span } => {
+                    let kind = match name.as_str() {
+                        "Some" | "None" => UnionKind::Option,
+                        "Ok" | "Err" => UnionKind::Result,
+                        _ => return Ok(()), // names.resolve owns unknown constructors.
+                    };
+                    let Some(descriptor) =
+                        concrete_union(selected).filter(|union| union.kind == kind)
+                    else {
+                        if pretty(selected).is_none() {
+                            // The scrutinee's unresolved constructor reports NX-E0113.
+                            return Ok(());
+                        }
+                        let mut diagnostic = names::diagnostic(
+                            "NX-E1325",
+                            Some("constructor_type"),
+                            Stage::Types,
+                            Operation::TypesCheck,
+                            span.clone(),
+                        );
+                        diagnostic.data.insert(
+                            "constructor".into(),
+                            DataValue::String(format!("prelude:{name}")),
+                        );
+                        diagnostic.data.insert(
+                            "scrutinee_type".into(),
+                            DataValue::String(pretty(selected).unwrap_or_default()),
+                        );
+                        return Err(diagnostic);
+                    };
+                    let Some(tag) = kind.variant_tag(name) else {
+                        return Ok(());
+                    };
+                    let Some(variant) = descriptor.variant(tag) else {
+                        return Ok(());
+                    };
+                    let arity = usize::from(variant.payload.is_some());
+                    if args.len() != arity {
+                        let mut diagnostic = names::diagnostic(
+                            "NX-E1325",
+                            Some("constructor_arity"),
+                            Stage::Types,
+                            Operation::TypesCheck,
+                            span.clone(),
+                        );
+                        diagnostic.data.insert(
+                            "constructor".into(),
+                            DataValue::String(format!("prelude:{name}")),
+                        );
+                        diagnostic
+                            .data
+                            .insert("expected_arity".into(), DataValue::UInt(arity as u64));
+                        diagnostic
+                            .data
+                            .insert("found_arity".into(), DataValue::UInt(args.len() as u64));
+                        return Err(diagnostic);
+                    }
+                    if let (Some(payload), Some(arg)) = (variant.payload, args.first()) {
+                        pattern = arg;
+                        selected = payload;
+                        continue;
+                    }
+                    return Ok(());
+                }
             }
         }
     }
@@ -12042,6 +12049,26 @@ mod j16_probe_types {
                 }
                 format!("fn Main(){{{body}}}")
             }
+            "pattern_group" => [
+                "fn Main(){match 1{",
+                &"(".repeat(126),
+                "_",
+                &")".repeat(126),
+                "=>{}}}",
+            ]
+            .concat(),
+            "pattern_guard_arms" => [
+                "fn Main(){match 0{",
+                &"0 if true=>{},".repeat(126),
+                "_=>{}}}",
+            ]
+            .concat(),
+            "pattern_integer_arms" => [
+                "fn Main(){match 0{",
+                &(0..126).map(|n| format!("{n}=>{{}},")).collect::<String>(),
+                "_=>{}}}",
+            ]
+            .concat(),
             _ => panic!("unknown family: {family}"),
         }
     }
@@ -12098,6 +12125,9 @@ mod j16_probe_types {
             "match_scrutinee",
             "match_expr",
             "match_stmt",
+            "pattern_group",
+            "pattern_guard_arms",
+            "pattern_integer_arms",
             "if_expr",
             "else_if",
             "closure",
@@ -12145,6 +12175,67 @@ mod j16_probe_types {
 #[cfg(test)]
 mod quota_tests {
     use super::*;
+
+    #[test]
+    fn j16_direct_pattern_type_child() {
+        let Ok(kind) = std::env::var("J16_DIRECT_PATTERN_TYPE") else {
+            return;
+        };
+        let span = Span {
+            file: "pattern.n".into(),
+            start: 0,
+            end: 1,
+        };
+        let mut pattern = Pattern::Wildcard(span.clone());
+        let mut ty = Type::I64;
+        for _ in 0..126 {
+            pattern = Pattern::Constructor {
+                name: kind.clone(),
+                args: vec![pattern],
+                span: span.clone(),
+            };
+            ty = match kind.as_str() {
+                "Some" => Type::option(Arc::new(ty)),
+                "Ok" => Type::result(Arc::new(ty), Arc::new(Type::I64)),
+                "Err" => Type::result(Arc::new(Type::I64), Arc::new(ty)),
+                _ => unreachable!(),
+            };
+        }
+        let pattern = Arc::new(pattern);
+        let ty = Arc::new(ty);
+        let ast = parse::parse_new_profile("pattern.n", "fn Main(){}").unwrap();
+        let resolved = names::resolve_with_option("pattern.n", "fn Main(){}", &ast, true).unwrap();
+        std::thread::Builder::new()
+            .stack_size(204 * 1024)
+            .spawn(move || {
+                let mut checker = empty_checker(&resolved);
+                checker.pattern_type(&pattern, &ty, &span).unwrap();
+                assert_eq!(checker.solver_steps, 127);
+            })
+            .unwrap()
+            .join()
+            .unwrap();
+    }
+
+    #[test]
+    fn j16_direct_pattern_type_parent() {
+        for kind in ["Some", "Ok", "Err"] {
+            let output = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "check::types::quota_tests::j16_direct_pattern_type_child",
+                ])
+                .env("J16_DIRECT_PATTERN_TYPE", kind)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{kind}: {} {}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
 
     #[test]
     fn reduced_quota_withholds_consumer_of_unclosed_binary_domain() {
