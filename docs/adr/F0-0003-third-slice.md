@@ -1679,6 +1679,8 @@ Entorno de éxito para límite 3, con el esquema completo heredado:
 {"schema_version":1,"mock_read_records":[],"mock_write_i64":[{"ok":null},{"ok":null},{"ok":null}],"mock_request":[{"ok":"3"}],"mock_reply":[]}
 ```
 
+En J15, «entradas variables» significa cambiar entre invocaciones el archivo JSON pasado a `nexo run` mediante `--mock-env`, conforme a A2 §12.4. `mock_request` entrega el límite y `mock_write_i64` entrega las respuestas en orden FIFO. No hay argumento posicional de aplicación ni lectura de stdin en este perfil. Ejemplo válido: guardar la fuente literal anterior como `ex04.n` y su entorno como `limite3.json`, y ejecutar `nexo run ex04.n --mock-env limite3.json --profile f0-0003-b-v1 --format json`; el resultado es `ok`, stdout `["0","1","4"]` y los eventos de la fila Completo. Ejemplo inválido de configuración: guardar `{bad` como `mala.json` y ejecutar el mismo comando con `--mock-env mala.json`; termina con exit 2, `outcome={"kind":"driver_error","reason":"invalid_mock_json"}`, `diagnostics=[]`, sin observaciones. Omitir `--mock-env` equivale a colas vacías y en esta fuente da `Err(-9000)` por `MockRequest`, sin adquirir recurso.
+
 | Caso | Variación del entorno | Resultado y observación requerida |
 |---|---|---|
 | Completo | El JSON anterior | Ok, exit 0; stdout ["0","1","4"]; eventos request:ok:3, open:0:4, inspect:0:4, write_i64:0:ok, inspect:0:4, write_i64:1:ok, inspect:0:4, write_i64:4:ok, close:0:4. Cada escritura exitosa va seguida inmediatamente de su stdout. |
