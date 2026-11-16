@@ -615,6 +615,124 @@ struct PreparedLet {
     written: Option<Type>,
 }
 
+struct AssignmentProgress<'a> {
+    place: &'a Expr,
+    value: &'a Expr,
+    local: Option<u64>,
+    concrete: Option<(Type, Span)>,
+    expected: Option<(Type, Span)>,
+    lhs_tainted: bool,
+}
+
+struct BinaryIndependentProgress<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    left: Type,
+    pending_before: usize,
+    left_domain_failed: bool,
+    left_tainted: bool,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct IndexSelectorProgress<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    base: Type,
+    prior_taint: Option<bool>,
+    deferred_child: Option<u64>,
+}
+
+struct ArrayFrameState<'a> {
+    expr: &'a Expr,
+    items: &'a [Expr],
+    span: &'a Span,
+    context: OwnedCheckContext,
+    previous_owner: Option<(u64, u64)>,
+    element_expected: Option<Type>,
+    next: usize,
+    current_expected: Option<Type>,
+    current_origin: Option<Span>,
+    prior_taint: bool,
+    item_type: Option<Type>,
+    item_origin: Option<Span>,
+    pending: Vec<(u64, Span)>,
+    diverges: bool,
+    invalid: bool,
+}
+
+struct BinaryRightProgress<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    left: Type,
+    pending_before: usize,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct BinaryDeferredProgress<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    left: Type,
+    pending_before_left: usize,
+    pending_before_operator: usize,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct BinaryLeftErrorProgress<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    error: Box<Diagnostic>,
+    left_tainted: bool,
+    left_domain_failed: bool,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct CallProgress<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    arg_index: usize,
+    prior_taint: bool,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct ClosureCallFrameState<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    draft: ClosureDraft,
+    slots: Vec<usize>,
+    next: usize,
+    prior_taint: bool,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct TryAddFrameState<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    next: usize,
+    failed: bool,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct AssertEqFrameState<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    next: usize,
+    prior_taint: bool,
+    prior_errors: usize,
+    pending_start: usize,
+    pending_generation: u64,
+    values: [Option<Type>; 2],
+    evidence: [Option<PendingOperandEvidence>; 2],
+    invalid: bool,
+    previous_owner: Option<(u64, u64)>,
+}
+
+struct UnionCallProgress<'a> {
+    expr: &'a Expr,
+    context: OwnedCheckContext,
+    prior_taint: bool,
+    previous_owner: Option<(u64, u64)>,
+}
+
 struct ClosureProgress<'a> {
     closure: &'a parse::Closure,
     context: OwnedCheckContext,
@@ -628,6 +746,7 @@ struct ClosureProgress<'a> {
     owns_resource: bool,
     next: usize,
     pending_statement: Option<ClosurePending<'a>>,
+    pending_direct: bool,
 }
 
 struct ClosureLet<'a> {
@@ -647,10 +766,18 @@ enum ClosurePending<'a> {
 
 enum ClosureAction<'a> {
     Value(&'a Expr, OwnedCheckContext),
+    Statement(&'a Statement),
     Done(Result<(), Box<Diagnostic>>),
 }
 
 fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> Mode {
+    enum Node<'a> {
+        Expr(&'a Expr, Mode),
+        Name(&'a Span, Mode),
+        Block(&'a Block),
+        Statement(&'a Statement),
+        Match(&'a parse::Match),
+    }
     fn rank(mode: Mode) -> u8 {
         match mode {
             Mode::Read => 0,
@@ -658,136 +785,118 @@ fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> 
             Mode::Consume => 2,
         }
     }
-    fn raise(found: &mut Mode, requested: Mode) {
-        if rank(requested) > rank(*found) {
-            *found = requested;
-        }
-    }
-    fn expr(value: &Expr, requested: Mode, source: u64, resolved: &Resolved, found: &mut Mode) {
-        match value {
-            Expr::Name(_, span) => {
+    let mut found = Mode::Read;
+    let mut pending = vec![Node::Block(&closure.body)];
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Name(span, requested) => {
                 if matches!(resolved.uses.get(&span.start), Some(ResolvedUse::Local(local)) if local.name_span.start == source)
+                    && rank(requested) > rank(found)
                 {
-                    raise(found, requested);
+                    found = requested;
                 }
             }
-            Expr::Closure(inner) => {
-                if let Some(captures) = &inner.captures {
-                    for capture in captures {
-                        expr(
-                            &Expr::Name(capture.name.clone(), capture.name_span.clone()),
-                            match capture.mode {
+            Node::Expr(value, requested) => match value {
+                Expr::Name(_, span) => pending.push(Node::Name(span, requested)),
+                Expr::Closure(inner) => {
+                    if let Some(captures) = &inner.captures {
+                        for capture in captures.iter().rev() {
+                            let mode = match capture.mode {
                                 CaptureMode::View | CaptureMode::Copy => Mode::Read,
                                 CaptureMode::Edit => Mode::Inout,
                                 CaptureMode::Move => Mode::Consume,
-                            },
-                            source,
-                            resolved,
-                            found,
-                        );
-                    }
-                } else {
-                    block(&inner.body, source, resolved, found);
-                }
-            }
-            Expr::Unary { mode, value, .. } => {
-                let mode = if rank(*mode) > rank(requested) {
-                    *mode
-                } else {
-                    requested
-                };
-                expr(value, mode, source, resolved, found);
-            }
-            Expr::Group(inner, _) => expr(inner, requested, source, resolved, found),
-            Expr::Array(items, _) => {
-                for item in items {
-                    expr(item, Mode::Read, source, resolved, found);
-                }
-            }
-            Expr::Binary { left, right, .. }
-            | Expr::Index {
-                target: left,
-                index: right,
-                ..
-            } => {
-                expr(left, requested, source, resolved, found);
-                expr(right, Mode::Read, source, resolved, found);
-            }
-            Expr::Call { target, args, span } => {
-                expr(target, requested, source, resolved, found);
-                let signature = resolved
-                    .calls
-                    .get(&(span.start, span.end))
-                    .and_then(|binding| {
-                        names::signature(resolved, &binding.target)
-                            .map(|signature| (binding, signature))
-                    });
-                for (index, arg) in args.iter().enumerate() {
-                    let mode = if index == 0
-                        && matches!(&**target, Expr::Name(name, _) if name == "Drop")
-                    {
-                        Mode::Consume
+                            };
+                            pending.push(Node::Name(&capture.name_span, mode));
+                        }
                     } else {
-                        signature
-                            .as_ref()
-                            .and_then(|(binding, signature)| {
-                                binding
-                                    .slots
-                                    .get(index)
-                                    .and_then(|slot| signature.params.get(*slot))
-                            })
-                            .map_or(Mode::Read, |p| p.mode)
-                    };
-                    expr(&arg.value, mode, source, resolved, found);
-                }
-            }
-            Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                expr(condition, Mode::Read, source, resolved, found);
-                block(then_block, source, resolved, found);
-                match otherwise.as_deref() {
-                    Some(Else::Block(other)) => block(other, source, resolved, found),
-                    Some(Else::If(other)) => expr(other, Mode::Read, source, resolved, found),
-                    None => {}
-                }
-            }
-            Expr::Match(selection) => {
-                expr(
-                    &selection.scrutinee,
-                    selection.mode.unwrap_or(Mode::Read),
-                    source,
-                    resolved,
-                    found,
-                );
-                for arm in &selection.arms {
-                    if let Some(guard) = &arm.guard {
-                        expr(guard, Mode::Read, source, resolved, found);
+                        pending.push(Node::Block(&inner.body));
                     }
-                    block(&arm.body, source, resolved, found);
                 }
+                Expr::Unary { mode, value, .. } => {
+                    pending.push(Node::Expr(
+                        value,
+                        if rank(*mode) > rank(requested) {
+                            *mode
+                        } else {
+                            requested
+                        },
+                    ));
+                }
+                Expr::Group(inner, _) => pending.push(Node::Expr(inner, requested)),
+                Expr::Array(items, _) => {
+                    pending.extend(items.iter().rev().map(|item| Node::Expr(item, Mode::Read)));
+                }
+                Expr::Binary { left, right, .. }
+                | Expr::Index {
+                    target: left,
+                    index: right,
+                    ..
+                } => {
+                    pending.push(Node::Expr(right, Mode::Read));
+                    pending.push(Node::Expr(left, requested));
+                }
+                Expr::Call { target, args, span } => {
+                    let signature =
+                        resolved
+                            .calls
+                            .get(&(span.start, span.end))
+                            .and_then(|binding| {
+                                names::signature(resolved, &binding.target)
+                                    .map(|signature| (binding, signature))
+                            });
+                    for (index, arg) in args.iter().enumerate().rev() {
+                        let mode = if index == 0
+                            && matches!(&**target, Expr::Name(name, _) if name == "Drop")
+                        {
+                            Mode::Consume
+                        } else {
+                            signature
+                                .as_ref()
+                                .and_then(|(binding, signature)| {
+                                    binding
+                                        .slots
+                                        .get(index)
+                                        .and_then(|slot| signature.params.get(*slot))
+                                })
+                                .map_or(Mode::Read, |p| p.mode)
+                        };
+                        pending.push(Node::Expr(&arg.value, mode));
+                    }
+                    pending.push(Node::Expr(target, requested));
+                }
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    match otherwise.as_deref() {
+                        Some(Else::Block(other)) => pending.push(Node::Block(other)),
+                        Some(Else::If(other)) => pending.push(Node::Expr(other, Mode::Read)),
+                        None => {}
+                    }
+                    pending.push(Node::Block(then_block));
+                    pending.push(Node::Expr(condition, Mode::Read));
+                }
+                Expr::Match(selection) => pending.push(Node::Match(selection)),
+                Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+            },
+            Node::Block(block) => {
+                pending.extend(block.statements.iter().rev().map(Node::Statement))
             }
-            Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
-        }
-    }
-    fn block(body_block: &Block, source: u64, resolved: &Resolved, found: &mut Mode) {
-        for statement in &body_block.statements {
-            match statement {
+            Node::Statement(statement) => match statement {
                 Statement::Let { value, .. } | Statement::Expr { value, .. } => {
-                    expr(value, Mode::Read, source, resolved, found)
+                    pending.push(Node::Expr(value, Mode::Read))
                 }
                 Statement::Assign { place, value, .. } => {
-                    expr(place, Mode::Inout, source, resolved, found);
-                    expr(value, Mode::Read, source, resolved, found);
+                    pending.push(Node::Expr(value, Mode::Read));
+                    pending.push(Node::Expr(place, Mode::Inout));
                 }
                 Statement::Return { value, .. }
                 | Statement::GuardControl { value, .. }
                 | Statement::Value { value, .. } => {
                     if let Some(value) = value {
-                        expr(value, Mode::Read, source, resolved, found);
+                        pending.push(Node::Expr(value, Mode::Read));
                     }
                 }
                 Statement::If {
@@ -796,80 +905,82 @@ fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> 
                     otherwise,
                     ..
                 } => {
-                    expr(condition, Mode::Read, source, resolved, found);
-                    block(then_block, source, resolved, found);
                     if let Some(otherwise) = otherwise {
-                        block_statement(otherwise, source, resolved, found);
+                        pending.push(Node::Statement(otherwise));
                     }
+                    pending.push(Node::Block(then_block));
+                    pending.push(Node::Expr(condition, Mode::Read));
                 }
                 Statement::While {
                     condition, body, ..
                 } => {
-                    expr(condition, Mode::Read, source, resolved, found);
-                    block(body, source, resolved, found);
+                    pending.push(Node::Block(body));
+                    pending.push(Node::Expr(condition, Mode::Read));
                 }
                 Statement::For { iterable, body, .. } => {
-                    expr(iterable, Mode::Read, source, resolved, found);
-                    block(body, source, resolved, found);
+                    pending.push(Node::Block(body));
+                    pending.push(Node::Expr(iterable, Mode::Read));
                 }
-                Statement::Match(selection) => {
-                    expr(
-                        &selection.scrutinee,
-                        selection.mode.unwrap_or(Mode::Read),
-                        source,
-                        resolved,
-                        found,
-                    );
-                    for arm in &selection.arms {
-                        if let Some(guard) = &arm.guard {
-                            expr(guard, Mode::Read, source, resolved, found);
-                        }
-                        block(&arm.body, source, resolved, found);
+                Statement::Match(selection) => pending.push(Node::Match(selection)),
+                Statement::Block(inner) => pending.push(Node::Block(inner)),
+            },
+            Node::Match(selection) => {
+                for arm in selection.arms.iter().rev() {
+                    pending.push(Node::Block(&arm.body));
+                    if let Some(guard) = &arm.guard {
+                        pending.push(Node::Expr(guard, Mode::Read));
                     }
                 }
-                Statement::Block(inner) => block(inner, source, resolved, found),
+                pending.push(Node::Expr(
+                    &selection.scrutinee,
+                    selection.mode.unwrap_or(Mode::Read),
+                ));
             }
         }
     }
-    fn block_statement(statement: &Statement, source: u64, resolved: &Resolved, found: &mut Mode) {
-        block(
-            &Block {
-                statements: vec![statement.clone()],
-                span: parse::statement_span(statement).clone(),
-                close_span: parse::statement_span(statement).clone(),
-            },
-            source,
-            resolved,
-            found,
-        );
-    }
-    let mut found = Mode::Read;
-    block(&closure.body, source, resolved, &mut found);
     found
 }
 
 fn closure_has_value_return(block: &Block) -> bool {
-    fn statement(stmt: &Statement) -> bool {
-        match stmt {
-            Statement::Return { value: Some(_), .. } => true,
-            Statement::If {
-                then_block,
-                otherwise,
-                ..
-            } => {
-                closure_has_value_return(then_block) || otherwise.as_deref().is_some_and(statement)
+    enum Node<'a> {
+        Block(&'a Block),
+        Statement(&'a Statement),
+    }
+    let mut pending = vec![Node::Block(block)];
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Block(block) => {
+                pending.extend(block.statements.iter().rev().map(Node::Statement))
             }
-            Statement::While { body, .. } | Statement::Block(body) => {
-                closure_has_value_return(body)
-            }
-            Statement::Match(selection) => selection
-                .arms
-                .iter()
-                .any(|arm| closure_has_value_return(&arm.body)),
-            _ => false,
+            Node::Statement(statement) => match statement {
+                Statement::Return { value: Some(_), .. } => return true,
+                Statement::If {
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(otherwise) = otherwise {
+                        pending.push(Node::Statement(otherwise));
+                    }
+                    pending.push(Node::Block(then_block));
+                }
+                Statement::While { body, .. } | Statement::Block(body) => {
+                    pending.push(Node::Block(body));
+                }
+                Statement::Match(selection) => {
+                    pending.extend(
+                        selection
+                            .arms
+                            .iter()
+                            .rev()
+                            .map(|arm| Node::Block(&arm.body)),
+                    );
+                }
+                _ => {}
+            },
         }
     }
-    block.statements.iter().any(statement)
+    false
 }
 
 #[allow(clippy::vec_box)] // Shared semantic diagnostics retain the boxed representation.
@@ -886,118 +997,124 @@ pub(crate) enum ResolvedType {
 }
 
 fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
-    fn expression(expr: &Expr, types: &mut InferredTypes) {
-        types
-            .expressions
-            .entry(span_key(expr.span()))
-            .or_insert(ResolvedType::Unresolved);
-        match expr {
-            Expr::Array(items, _) => {
-                for item in items {
-                    expression(item, types);
-                }
-            }
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => expression(inner, types),
-            Expr::Binary { left, right, .. } => {
-                expression(left, types);
-                expression(right, types);
-            }
-            Expr::Call { target, args, .. } => {
-                expression(target, types);
-                for arg in args {
-                    expression(&arg.value, types);
-                }
-            }
-            Expr::Index { target, index, .. } => {
-                expression(target, types);
-                expression(index, types);
-            }
-            Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                expression(condition, types);
-                block(then_block, types);
-                match otherwise.as_deref() {
-                    Some(crate::frontend::parse::Else::Block(b)) => block(b, types),
-                    Some(crate::frontend::parse::Else::If(e)) => expression(e, types),
-                    None => {}
-                }
-            }
-            Expr::Match(selection) => {
-                expression(&selection.scrutinee, types);
-                for arm in &selection.arms {
-                    if let Some(guard) = &arm.guard {
-                        expression(guard, types);
+    enum Node<'a> {
+        Expression(&'a Expr),
+        Statement(&'a Statement),
+        Block(&'a Block),
+        Match(&'a parse::Match),
+    }
+    let mut pending = Vec::new();
+    for function in ast.functions.iter().rev() {
+        pending.push(Node::Block(&function.body));
+    }
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Expression(expr) => {
+                inferred
+                    .expressions
+                    .entry(span_key(expr.span()))
+                    .or_insert(ResolvedType::Unresolved);
+                match expr {
+                    Expr::Array(items, _) => {
+                        pending.extend(items.iter().rev().map(Node::Expression))
                     }
-                    block(&arm.body, types);
+                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                        pending.push(Node::Expression(inner));
+                    }
+                    Expr::Binary { left, right, .. }
+                    | Expr::Index {
+                        target: left,
+                        index: right,
+                        ..
+                    } => {
+                        pending.push(Node::Expression(right));
+                        pending.push(Node::Expression(left));
+                    }
+                    Expr::Call { target, args, .. } => {
+                        pending.extend(args.iter().rev().map(|arg| Node::Expression(&arg.value)));
+                        pending.push(Node::Expression(target));
+                    }
+                    Expr::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        match otherwise.as_deref() {
+                            Some(Else::Block(block)) => pending.push(Node::Block(block)),
+                            Some(Else::If(expr)) => pending.push(Node::Expression(expr)),
+                            None => {}
+                        }
+                        pending.push(Node::Block(then_block));
+                        pending.push(Node::Expression(condition));
+                    }
+                    Expr::Match(selection) => pending.push(Node::Match(selection)),
+                    Expr::Name(..)
+                    | Expr::Integer(..)
+                    | Expr::Bool(..)
+                    | Expr::Unit(..)
+                    | Expr::Closure(..) => {}
                 }
             }
-            Expr::Name(..)
-            | Expr::Integer(..)
-            | Expr::Bool(..)
-            | Expr::Unit(..)
-            | Expr::Closure(..) => {}
-        }
-    }
-    fn statement(stmt: &Statement, types: &mut InferredTypes) {
-        match stmt {
-            Statement::Let { value, .. } | Statement::Expr { value, .. } => {
-                expression(value, types)
-            }
-            Statement::Assign { place, value, .. } => {
-                expression(place, types);
-                expression(value, types);
-            }
-            Statement::Return {
-                value: Some(value), ..
-            }
-            | Statement::GuardControl {
-                value: Some(value), ..
-            }
-            | Statement::Value {
-                value: Some(value), ..
-            } => expression(value, types),
-            Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                expression(condition, types);
-                block(then_block, types);
-                if let Some(other) = otherwise {
-                    statement(other, types);
+            Node::Statement(stmt) => match stmt {
+                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                    pending.push(Node::Expression(value));
                 }
+                Statement::Assign { place, value, .. } => {
+                    pending.push(Node::Expression(value));
+                    pending.push(Node::Expression(place));
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        pending.push(Node::Expression(value));
+                    }
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    if let Some(otherwise) = otherwise {
+                        pending.push(Node::Statement(otherwise));
+                    }
+                    pending.push(Node::Block(then_block));
+                    pending.push(Node::Expression(condition));
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    pending.push(Node::Block(body));
+                    pending.push(Node::Expression(condition));
+                }
+                Statement::For { iterable, body, .. } => {
+                    pending.push(Node::Block(body));
+                    pending.push(Node::Expression(iterable));
+                }
+                Statement::Match(selection) => {
+                    inferred
+                        .expressions
+                        .entry(span_key(&selection.span))
+                        .or_insert(ResolvedType::Unresolved);
+                    pending.push(Node::Match(selection));
+                }
+                Statement::Block(block) => pending.push(Node::Block(block)),
+            },
+            Node::Block(block) => {
+                pending.extend(block.statements.iter().rev().map(Node::Statement))
             }
-            Statement::While {
-                condition, body, ..
-            } => {
-                expression(condition, types);
-                block(body, types);
+            Node::Match(selection) => {
+                for arm in selection.arms.iter().rev() {
+                    pending.push(Node::Block(&arm.body));
+                    if let Some(guard) = &arm.guard {
+                        pending.push(Node::Expression(guard));
+                    }
+                }
+                pending.push(Node::Expression(&selection.scrutinee));
             }
-            Statement::For { iterable, body, .. } => {
-                expression(iterable, types);
-                block(body, types);
-            }
-            Statement::Match(selection) => {
-                expression(&Expr::Match(Box::new(selection.clone())), types)
-            }
-            Statement::Block(b) => block(b, types),
-            Statement::Return { value: None, .. }
-            | Statement::GuardControl { value: None, .. }
-            | Statement::Value { value: None, .. } => {}
         }
-    }
-    fn block(block: &Block, types: &mut InferredTypes) {
-        for stmt in &block.statements {
-            statement(stmt, types);
-        }
-    }
-    for function in &ast.functions {
-        block(&function.body, inferred);
     }
 }
 
@@ -1115,6 +1232,13 @@ impl OwnedCheckContext {
     }
 }
 
+enum DriveStart<'a> {
+    Expression(&'a Expr, OwnedCheckContext),
+    Block(&'a Block),
+    #[cfg(test)]
+    StatementSite(&'a Statement),
+}
+
 struct BranchProgress<'a> {
     block: &'a Block,
     context: OwnedCheckContext,
@@ -1125,6 +1249,7 @@ struct BranchProgress<'a> {
 }
 
 enum BranchAction<'a> {
+    Statement(&'a Statement),
     Value {
         expr: &'a Expr,
         context: OwnedCheckContext,
@@ -1145,13 +1270,6 @@ struct MatchProgress<'a> {
     stage: MatchStage,
 }
 
-struct StatementMatchProgress<'a> {
-    selection: &'a parse::Match,
-    selected: Type,
-    selected_origin: Span,
-    next: usize,
-}
-
 enum MatchStage {
     Arm,
     Guard,
@@ -1163,6 +1281,7 @@ enum MatchStage {
 }
 
 enum MatchAction<'a> {
+    Statement(&'a Statement),
     Value(&'a Expr, OwnedCheckContext),
     Done(Result<Type, Box<Diagnostic>>),
 }
@@ -1207,6 +1326,7 @@ enum IfStage {
 }
 
 enum IfAction<'a> {
+    Statement(&'a Statement),
     Value(&'a Expr, OwnedCheckContext),
     Done(IfResult),
 }
@@ -1215,19 +1335,31 @@ type IfResult = Result<(Option<Type>, bool, bool), Box<Diagnostic>>;
 
 enum PrecomputedType {
     Whole(Result<Type, Box<Diagnostic>>),
-    ArrayFirst {
+    ArrayComplete {
         result: Result<Type, Box<Diagnostic>>,
-        prior_taint: bool,
+        constructor_pair: bool,
     },
-    IndexTarget(Result<Type, Box<Diagnostic>>),
+    IndexTarget {
+        target: Result<Type, Box<Diagnostic>>,
+        selector: Option<Result<Type, Box<Diagnostic>>>,
+        deferred_child: Option<u64>,
+    },
+    UnaryOperand(Result<Type, Box<Diagnostic>>),
     BinaryLeft {
         result: Result<Type, Box<Diagnostic>>,
         pending_before: usize,
+        independent_right: Option<bool>,
     },
     BinaryRight {
         left: Type,
         result: Result<Type, Box<Diagnostic>>,
         pending_before: usize,
+    },
+    BinaryDeferredRight {
+        left: Type,
+        result: Result<Type, Box<Diagnostic>>,
+        pending_before_left: usize,
+        pending_before_operator: usize,
     },
     CallComplete(Result<Type, Box<Diagnostic>>),
     CallTarget(Result<Type, Box<Diagnostic>>),
@@ -1238,6 +1370,16 @@ enum PrecomputedType {
         pending_before: usize,
     },
 }
+
+struct IndexPrepared {
+    target: Result<Type, Box<Diagnostic>>,
+    selector: Option<Result<Type, Box<Diagnostic>>>,
+    deferred_child: Option<u64>,
+}
+type BinaryLeftPrepared = (Result<Type, Box<Diagnostic>>, usize, Option<bool>);
+type BinaryFrame<'a> = (&'a Expr, OwnedCheckContext, usize, Option<(u64, u64)>);
+type GroupFrame<'a> = (&'a Expr, &'a Expr, &'a Span, OwnedCheckContext);
+type OwnedExpressionFrame<'a> = (&'a Expr, OwnedCheckContext, Option<(u64, u64)>);
 
 #[derive(Clone, Copy)]
 struct UnifyPolicy {
@@ -1266,6 +1408,13 @@ fn compare_source_site(
     };
     let related = (policy.related_expected && left_origin != found).then_some(left_origin);
     Some(mismatch(found.clone(), found, related, &label, right))
+}
+
+enum BindingReadNode<'a> {
+    Expr(&'a Expr),
+    Block(&'a Block),
+    Statement(&'a Statement),
+    Match(&'a parse::Match),
 }
 
 #[allow(clippy::vec_box)] // Public semantic result keeps boxed diagnostics.
@@ -1519,6 +1668,7 @@ impl Checker<'_> {
             owns_resource,
             next: 0,
             pending_statement: None,
+            pending_direct: false,
         })
     }
 
@@ -1556,6 +1706,15 @@ impl Checker<'_> {
         progress: &mut ClosureProgress<'b>,
         returned: Option<Result<Type, Box<Diagnostic>>>,
     ) -> ClosureAction<'b> {
+        if progress.pending_direct {
+            progress.pending_direct = false;
+            if !self.analysis_exhausted
+                && let Err(error) = self.resolve_pending_projections(false)
+            {
+                self.block_depth -= 1;
+                return ClosureAction::Done(Err(error));
+            }
+        }
         if let Some(pending) = progress.pending_statement.take() {
             let returned = returned.expect("closure statement has a result");
             let (statement, prior_taint, outcome) = match pending {
@@ -1658,7 +1817,8 @@ impl Checker<'_> {
                     }),
                 );
             } else {
-                self.statement_at_site(statement);
+                progress.pending_direct = true;
+                return ClosureAction::Statement(statement);
             }
             if !self.analysis_exhausted
                 && let Err(error) = self.resolve_pending_projections(false)
@@ -1672,39 +1832,81 @@ impl Checker<'_> {
     }
 
     fn intrinsic_assignment_type(&self, expression: &Expr) -> Option<Type> {
-        // Only syntax with a determined, context-free constructor type is
-        // evidence about this assignment. Cross-operand and branch joins
-        // remain obligations of the checking pass (§4.1.2.2–4).
-        match expression {
-            Expr::Integer(text, _) if text.parse::<i64>().is_ok() => Some(Type::I64),
-            Expr::Bool(..) => Some(Type::Bool),
-            Expr::Unit(..) => Some(Type::Unit),
-            Expr::Group(inner, _) => self.intrinsic_assignment_type(inner),
-            Expr::Array(items, _) => {
-                let first = self.intrinsic_assignment_type(items.first()?)?;
-                if !copyable(&first) || contains_resource(&first) {
-                    return None;
-                }
-                if items
-                    .iter()
-                    .skip(1)
-                    .all(|item| self.intrinsic_assignment_type(item).as_ref() == Some(&first))
-                {
-                    Some(Type::Array(Arc::new(first)))
-                } else {
-                    None
+        // Only context-free constructors are evidence for this assignment.
+        enum Frame<'a> {
+            Enter(&'a Expr),
+            Array {
+                items: &'a [Expr],
+                next: usize,
+                first: Option<Type>,
+            },
+        }
+        let mut frames = vec![Frame::Enter(expression)];
+        let mut result = None;
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(expression) => match expression {
+                    Expr::Integer(text, _) if text.parse::<i64>().is_ok() => {
+                        result = Some(Type::I64)
+                    }
+                    Expr::Bool(..) => result = Some(Type::Bool),
+                    Expr::Unit(..) => result = Some(Type::Unit),
+                    Expr::Group(inner, _) => frames.push(Frame::Enter(inner)),
+                    Expr::Array(items, _) => {
+                        if let Some(first) = items.first() {
+                            frames.push(Frame::Array {
+                                items,
+                                next: 0,
+                                first: None,
+                            });
+                            frames.push(Frame::Enter(first));
+                        } else {
+                            result = None;
+                        }
+                    }
+                    Expr::Name(_, span) => {
+                        result = match self.resolved.uses.get(&span.start) {
+                            Some(ResolvedUse::Local(local)) => self
+                                .locals
+                                .get(&local.name_span.start)
+                                .filter(|known| {
+                                    known.variable.is_none() && internal_state(&known.ty).is_none()
+                                })
+                                .map(|known| known.ty.clone()),
+                            _ => None,
+                        };
+                    }
+                    _ => result = None,
+                },
+                Frame::Array { items, next, first } => {
+                    let Some(value) = result.take() else {
+                        continue;
+                    };
+                    let first = if let Some(first) = first {
+                        if value != first {
+                            continue;
+                        }
+                        first
+                    } else {
+                        if !copyable(&value) || contains_resource(&value) {
+                            continue;
+                        }
+                        value
+                    };
+                    if next + 1 == items.len() {
+                        result = Some(Type::Array(Arc::new(first)));
+                    } else {
+                        frames.push(Frame::Array {
+                            items,
+                            next: next + 1,
+                            first: Some(first),
+                        });
+                        frames.push(Frame::Enter(&items[next + 1]));
+                    }
                 }
             }
-            Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
-                Some(ResolvedUse::Local(local)) => self
-                    .locals
-                    .get(&local.name_span.start)
-                    .filter(|known| known.variable.is_none() && internal_state(&known.ty).is_none())
-                    .map(|known| known.ty.clone()),
-                _ => None,
-            },
-            _ => None,
         }
+        result
     }
 
     fn collect_planned_shapes(&mut self) -> bool {
@@ -2140,11 +2342,12 @@ impl Checker<'_> {
     }
 
     fn expression_has_array_root(&mut self, value: &Expr) -> bool {
+        let mut value = value;
+        while let Expr::Group(inner, _) | Expr::Unary { value: inner, .. } = value {
+            value = inner;
+        }
         match value {
             Expr::Array(..) => true,
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
-                self.expression_has_array_root(inner)
-            }
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => {
                     let known = self.locals.get(&local.name_span.start).cloned();
@@ -2197,45 +2400,87 @@ impl Checker<'_> {
     }
 
     fn expression_shape_hint(&mut self, value: &Expr) -> ShapeHint {
-        match value {
-            Expr::Array(items, _) => {
-                let first = items
-                    .first()
-                    .map(|item| self.expression_shape_hint(item))
-                    .unwrap_or(ShapeHint::Unknown);
-                if items
-                    .iter()
-                    .skip(1)
-                    .all(|item| self.expression_shape_hint(item) == first)
-                {
-                    ShapeHint::Array(Box::new(first))
-                } else {
-                    ShapeHint::Unknown
-                }
-            }
-            Expr::Group(inner, _) => self.expression_shape_hint(inner),
-            Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
-                Some(ResolvedUse::Local(local)) => {
-                    let known = self.locals.get(&local.name_span.start).cloned();
-                    match known {
-                        Some(Known {
-                            variable: Some(id), ..
-                        }) => self.variable_shape_hint(id),
-                        Some(known) => Self::type_shape_hint(&known.ty),
-                        None => ShapeHint::Unknown,
+        enum Frame<'a> {
+            Enter(&'a Expr),
+            Array {
+                items: &'a [Expr],
+                next: usize,
+                first: Option<ShapeHint>,
+            },
+            Index,
+        }
+        let mut frames = vec![Frame::Enter(value)];
+        let mut result = ShapeHint::Unknown;
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(value) => match value {
+                    Expr::Array(items, _) => {
+                        if items.is_empty() {
+                            result = ShapeHint::Array(Box::new(ShapeHint::Unknown));
+                        } else {
+                            frames.push(Frame::Array {
+                                items,
+                                next: 0,
+                                first: None,
+                            });
+                            frames.push(Frame::Enter(&items[0]));
+                        }
+                    }
+                    Expr::Group(inner, _) => frames.push(Frame::Enter(inner)),
+                    Expr::Name(_, span) => {
+                        result = match self.resolved.uses.get(&span.start) {
+                            Some(ResolvedUse::Local(local)) => {
+                                let known = self.locals.get(&local.name_span.start).cloned();
+                                match known {
+                                    Some(Known {
+                                        variable: Some(id), ..
+                                    }) => self.variable_shape_hint(id),
+                                    Some(known) => Self::type_shape_hint(&known.ty),
+                                    None => ShapeHint::Unknown,
+                                }
+                            }
+                            _ => ShapeHint::Unknown,
+                        };
+                    }
+                    Expr::Integer(..) => result = ShapeHint::Scalar(Type::I64),
+                    Expr::Bool(..) => result = ShapeHint::Scalar(Type::Bool),
+                    Expr::Unit(..) => result = ShapeHint::Scalar(Type::Unit),
+                    Expr::Index { target, .. } => {
+                        frames.push(Frame::Index);
+                        frames.push(Frame::Enter(target));
+                    }
+                    _ => result = ShapeHint::Unknown,
+                },
+                Frame::Array { items, next, first } => {
+                    let first = if let Some(first) = first {
+                        if result != first {
+                            result = ShapeHint::Unknown;
+                            continue;
+                        }
+                        first
+                    } else {
+                        std::mem::replace(&mut result, ShapeHint::Unknown)
+                    };
+                    if next + 1 == items.len() {
+                        result = ShapeHint::Array(Box::new(first));
+                    } else {
+                        frames.push(Frame::Array {
+                            items,
+                            next: next + 1,
+                            first: Some(first),
+                        });
+                        frames.push(Frame::Enter(&items[next + 1]));
                     }
                 }
-                _ => ShapeHint::Unknown,
-            },
-            Expr::Integer(..) => ShapeHint::Scalar(Type::I64),
-            Expr::Bool(..) => ShapeHint::Scalar(Type::Bool),
-            Expr::Unit(..) => ShapeHint::Scalar(Type::Unit),
-            Expr::Index { target, .. } => match self.expression_shape_hint(target) {
-                ShapeHint::Array(child) => *child,
-                _ => ShapeHint::Unknown,
-            },
-            _ => ShapeHint::Unknown,
+                Frame::Index => {
+                    result = match result {
+                        ShapeHint::Array(child) => *child,
+                        _ => ShapeHint::Unknown,
+                    };
+                }
+            }
         }
+        result
     }
 
     fn shape_hints_conflict(left: &ShapeHint, right: &ShapeHint) -> bool {
@@ -4258,6 +4503,10 @@ impl Checker<'_> {
     }
 
     fn expression_origin(&mut self, e: &Expr) -> Span {
+        let mut e = e;
+        while let Expr::Group(inner, _) | Expr::Index { target: inner, .. } = e {
+            e = inner;
+        }
         match e {
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => {
@@ -4272,8 +4521,6 @@ impl Checker<'_> {
                 }
                 _ => span.clone(),
             },
-            Expr::Group(inner, _) => self.expression_origin(inner),
-            Expr::Index { target, .. } => self.expression_origin(target),
             _ => Self::primary_span(e),
         }
     }
@@ -4294,115 +4541,121 @@ impl Checker<'_> {
     }
 
     fn expression_reads_binding(&self, expression: &Expr, site: u64) -> bool {
-        match expression {
-            Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
-                Some(ResolvedUse::Local(local)) => local.name_span.start == site,
-                _ => false,
-            },
-            Expr::Array(items, _) => items
-                .iter()
-                .any(|item| self.expression_reads_binding(item, site)),
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
-                self.expression_reads_binding(inner, site)
-            }
-            Expr::Binary { left, right, .. } => {
-                self.expression_reads_binding(left, site)
-                    || self.expression_reads_binding(right, site)
-            }
-            Expr::Call { target, args, .. } => {
-                self.expression_reads_binding(target, site)
-                    || args
-                        .iter()
-                        .any(|argument| self.expression_reads_binding(&argument.value, site))
-            }
-            Expr::Index { target, index, .. } => {
-                self.expression_reads_binding(target, site)
-                    || self.expression_reads_binding(index, site)
-            }
-            Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                self.expression_reads_binding(condition, site)
-                    || self.block_reads_binding(then_block, site)
-                    || otherwise
-                        .as_ref()
-                        .is_some_and(|otherwise| match otherwise.as_ref() {
-                            Else::Block(block) => self.block_reads_binding(block, site),
-                            Else::If(expression) => self.expression_reads_binding(expression, site),
-                        })
-            }
-            Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) | Expr::Closure(..) => false,
-            Expr::Match(selection) => {
-                self.expression_reads_binding(&selection.scrutinee, site)
-                    || selection.arms.iter().any(|arm| {
-                        arm.guard
-                            .as_ref()
-                            .is_some_and(|guard| self.expression_reads_binding(guard, site))
-                            || self.block_reads_binding(&arm.body, site)
-                    })
-            }
-        }
+        self.reads_binding_node(BindingReadNode::Expr(expression), site)
     }
 
-    fn block_reads_binding(&self, block: &Block, site: u64) -> bool {
-        block
-            .statements
-            .iter()
-            .any(|statement| self.statement_reads_binding(statement, site))
-    }
-
-    fn statement_reads_binding(&self, statement: &Statement, site: u64) -> bool {
-        match statement {
-            Statement::Let { value, .. } | Statement::Expr { value, .. } => {
-                self.expression_reads_binding(value, site)
-            }
-            Statement::Assign { place, value, .. } => {
-                self.expression_reads_binding(place, site)
-                    || self.expression_reads_binding(value, site)
-            }
-            Statement::Return { value, .. }
-            | Statement::GuardControl { value, .. }
-            | Statement::Value { value, .. } => value
-                .as_ref()
-                .is_some_and(|value| self.expression_reads_binding(value, site)),
-            Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                self.expression_reads_binding(condition, site)
-                    || self.block_reads_binding(then_block, site)
-                    || otherwise
-                        .as_ref()
-                        .is_some_and(|otherwise| self.statement_reads_binding(otherwise, site))
-            }
-            Statement::While {
-                condition, body, ..
-            } => {
-                self.expression_reads_binding(condition, site)
-                    || self.block_reads_binding(body, site)
-            }
-            Statement::For { iterable, body, .. } => {
-                self.expression_reads_binding(iterable, site)
-                    || self.block_reads_binding(body, site)
-            }
-            Statement::Block(block) => self.block_reads_binding(block, site),
-            Statement::Match(selection) => {
-                self.expression_reads_binding(&Expr::Match(Box::new(selection.clone())), site)
+    fn reads_binding_node(&self, node: BindingReadNode<'_>, site: u64) -> bool {
+        use BindingReadNode as Node;
+        let mut pending = vec![node];
+        while let Some(node) = pending.pop() {
+            match node {
+                Node::Expr(expression) => match expression {
+                    Expr::Name(_, span) => {
+                        if matches!(self.resolved.uses.get(&span.start), Some(ResolvedUse::Local(local)) if local.name_span.start == site)
+                        {
+                            return true;
+                        }
+                    }
+                    Expr::Array(items, _) => pending.extend(items.iter().rev().map(Node::Expr)),
+                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                        pending.push(Node::Expr(inner))
+                    }
+                    Expr::Binary { left, right, .. }
+                    | Expr::Index {
+                        target: left,
+                        index: right,
+                        ..
+                    } => {
+                        pending.push(Node::Expr(right));
+                        pending.push(Node::Expr(left));
+                    }
+                    Expr::Call { target, args, .. } => {
+                        pending.extend(args.iter().rev().map(|arg| Node::Expr(&arg.value)));
+                        pending.push(Node::Expr(target));
+                    }
+                    Expr::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        match otherwise.as_deref() {
+                            Some(Else::Block(block)) => pending.push(Node::Block(block)),
+                            Some(Else::If(expr)) => pending.push(Node::Expr(expr)),
+                            None => {}
+                        }
+                        pending.push(Node::Block(then_block));
+                        pending.push(Node::Expr(condition));
+                    }
+                    Expr::Match(selection) => pending.push(Node::Match(selection)),
+                    Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) | Expr::Closure(..) => {}
+                },
+                Node::Block(block) => {
+                    pending.extend(block.statements.iter().rev().map(Node::Statement))
+                }
+                Node::Statement(statement) => match statement {
+                    Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                        pending.push(Node::Expr(value))
+                    }
+                    Statement::Assign { place, value, .. } => {
+                        pending.push(Node::Expr(value));
+                        pending.push(Node::Expr(place));
+                    }
+                    Statement::Return { value, .. }
+                    | Statement::GuardControl { value, .. }
+                    | Statement::Value { value, .. } => {
+                        if let Some(value) = value {
+                            pending.push(Node::Expr(value));
+                        }
+                    }
+                    Statement::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        if let Some(otherwise) = otherwise {
+                            pending.push(Node::Statement(otherwise));
+                        }
+                        pending.push(Node::Block(then_block));
+                        pending.push(Node::Expr(condition));
+                    }
+                    Statement::While {
+                        condition, body, ..
+                    } => {
+                        pending.push(Node::Block(body));
+                        pending.push(Node::Expr(condition));
+                    }
+                    Statement::For { iterable, body, .. } => {
+                        pending.push(Node::Block(body));
+                        pending.push(Node::Expr(iterable));
+                    }
+                    Statement::Match(selection) => pending.push(Node::Match(selection)),
+                    Statement::Block(block) => pending.push(Node::Block(block)),
+                },
+                Node::Match(selection) => {
+                    for arm in selection.arms.iter().rev() {
+                        pending.push(Node::Block(&arm.body));
+                        if let Some(guard) = &arm.guard {
+                            pending.push(Node::Expr(guard));
+                        }
+                    }
+                    pending.push(Node::Expr(&selection.scrutinee));
+                }
             }
         }
+        false
     }
 
     fn assignment_value_variable(&self, e: &Expr) -> Option<u64> {
         // Assignment copies the binding's established type and provenance.
         // Equality instead keeps its operand as a source witness
         // (§§4.1.2.4, 4.1.2.6 and 13.15).
+        let mut e = e;
+        while let Expr::Group(inner, _) = e {
+            e = inner;
+        }
         match e {
-            Expr::Group(inner, _) => self.assignment_value_variable(inner),
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => self
                     .locals
@@ -4415,8 +4668,11 @@ impl Checker<'_> {
     }
 
     fn binding_variable_at_source(&self, e: &Expr) -> Option<u64> {
+        let mut e = e;
+        while let Expr::Group(inner, _) = e {
+            e = inner;
+        }
         match e {
-            Expr::Group(inner, _) => self.binding_variable_at_source(inner),
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => self
                     .locals
@@ -4431,20 +4687,26 @@ impl Checker<'_> {
     // Grouping has no diagnostic site of its own. Every expression site
     // passed to the solver or a diagnostic constructor uses this span.
     fn primary_span(e: &Expr) -> Span {
-        match e {
-            Expr::Group(inner, _) => Self::primary_span(inner),
-            _ => e.span().clone(),
+        let mut e = e;
+        while let Expr::Group(inner, _) = e {
+            e = inner;
         }
+        e.span().clone()
     }
 
     fn normal_witness_span(&self, expression: &Expr) -> Span {
-        match expression {
-            Expr::Group(inner, _) => self.normal_witness_span(inner),
-            Expr::If {
+        let mut expression = expression;
+        loop {
+            if let Expr::Group(inner, _) = expression {
+                expression = inner;
+                continue;
+            }
+            if let Expr::If {
                 then_block,
                 otherwise,
                 ..
-            } => {
+            } = expression
+            {
                 let first = branch_value_expr(then_block);
                 let second = match otherwise.as_deref() {
                     Some(Else::Block(block)) => branch_value_expr(block),
@@ -4459,16 +4721,17 @@ impl Checker<'_> {
                     && !second_diverges
                     && let Some(second) = second
                 {
-                    return self.normal_witness_span(second);
+                    expression = second;
+                    continue;
                 } else if second_diverges
                     && !first_diverges
                     && let Some(first) = first
                 {
-                    return self.normal_witness_span(first);
+                    expression = first;
+                    continue;
                 }
-                Self::primary_span(expression)
             }
-            _ => Self::primary_span(expression),
+            return Self::primary_span(expression);
         }
     }
 
@@ -4478,28 +4741,33 @@ impl Checker<'_> {
     // change from a join error to leaf mismatches under that context, so its
     // diagnosis must wait for the base shape (§§4.1.2.3–4, RD107).
     fn context_stable_selector(e: &Expr) -> bool {
-        match e {
-            Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => true,
-            Expr::Group(inner, _) => Self::context_stable_selector(inner),
-            Expr::Binary { left, right, .. } => {
-                Self::context_stable_selector(left) && Self::context_stable_selector(right)
+        let mut pending = vec![e];
+        while let Some(e) = pending.pop() {
+            match e {
+                Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+                Expr::Group(inner, _) => pending.push(inner),
+                Expr::Binary { left, right, .. } => {
+                    pending.push(right);
+                    pending.push(left);
+                }
+                Expr::Array(..)
+                | Expr::If { .. }
+                | Expr::Index { .. }
+                | Expr::Call { .. }
+                | Expr::Unary { .. }
+                | Expr::Match(..)
+                | Expr::Closure(..) => return false,
             }
-            Expr::Array(..)
-            | Expr::If { .. }
-            | Expr::Index { .. }
-            | Expr::Call { .. }
-            | Expr::Unary { .. }
-            | Expr::Match(..)
-            | Expr::Closure(..) => false,
         }
+        true
     }
 
     fn is_value_if(e: &Expr) -> bool {
-        match e {
-            Expr::Group(inner, _) => Self::is_value_if(inner),
-            Expr::If { .. } => true,
-            _ => false,
+        let mut e = e;
+        while let Expr::Group(inner, _) = e {
+            e = inner;
         }
+        matches!(e, Expr::If { .. })
     }
 
     fn check_depth(&self, ty: &Type, origin: &Span) -> Result<(), Box<Diagnostic>> {
@@ -5416,257 +5684,12 @@ impl Checker<'_> {
     }
 
     fn block(&mut self, b: &Block) -> Result<(), Box<Diagnostic>> {
-        enum Frame<'a> {
-            Block {
-                block: &'a Block,
-                next: usize,
-                waiting: Option<bool>,
-            },
-            Statement {
-                statement: &'a Statement,
-                stage: u8,
-            },
-            Match(Box<StatementMatchProgress<'a>>),
-        }
-        type BlockResult = Result<(), Box<Diagnostic>>;
-        let mut frames = vec![Frame::Block {
-            block: b,
-            next: 0,
-            waiting: None,
-        }];
-        self.block_depth += 1;
-        let mut completed: Option<BlockResult> = None;
-        loop {
-            if let Some(outcome) = completed.take() {
-                let Some(parent) = frames.last() else {
-                    return outcome;
-                };
-                match parent {
-                    Frame::Block {
-                        block,
-                        next,
-                        waiting,
-                    } => {
-                        let statement = &block.statements[next - 1];
-                        self.finish_statement_at_site(statement, waiting.unwrap(), outcome);
-                        if let Frame::Block { waiting, .. } = frames.last_mut().unwrap() {
-                            *waiting = None;
-                        }
-                        if !self.analysis_exhausted
-                            && let Err(error) = self.resolve_pending_projections(false)
-                        {
-                            frames.pop();
-                            self.block_depth -= 1;
-                            completed = Some(Err(error));
-                        }
-                    }
-                    Frame::Statement { statement, stage } => {
-                        if matches!(statement, Statement::While { .. }) {
-                            self.loop_depth -= 1;
-                        }
-                        if *stage == 1
-                            && let Statement::If {
-                                otherwise: Some(other),
-                                ..
-                            } = statement
-                            && outcome.is_ok()
-                        {
-                            if let Frame::Statement { stage, .. } = frames.last_mut().unwrap() {
-                                *stage = 2;
-                            }
-                            frames.push(Frame::Statement {
-                                statement: other,
-                                stage: 0,
-                            });
-                        } else {
-                            frames.pop();
-                            completed = Some(outcome);
-                        }
-                    }
-                    Frame::Match(_) => {
-                        if outcome.is_err() {
-                            frames.pop();
-                            completed = Some(outcome);
-                        }
-                    }
-                }
-                continue;
-            }
-            match frames.last_mut().unwrap() {
-                Frame::Block {
-                    block,
-                    next,
-                    waiting,
-                } => {
-                    if *next == block.statements.len() {
-                        frames.pop();
-                        self.block_depth -= 1;
-                        completed = Some(Ok(()));
-                        continue;
-                    }
-                    let statement = &block.statements[*next];
-                    *next += 1;
-                    if self.block_depth == 1 {
-                        let span = parse::statement_span(statement);
-                        self.top_statement_start = span.start;
-                        self.top_statement_end = span.end;
-                    }
-                    if !self.analysis_exhausted
-                        && matches!(
-                            statement,
-                            Statement::Block(_)
-                                | Statement::If { .. }
-                                | Statement::While { .. }
-                                | Statement::Match(_)
-                        )
-                    {
-                        *waiting = Some(std::mem::take(&mut self.tainted));
-                        frames.push(Frame::Statement {
-                            statement,
-                            stage: 0,
-                        });
-                    } else {
-                        self.statement_at_site(statement);
-                        if !self.analysis_exhausted
-                            && let Err(error) = self.resolve_pending_projections(false)
-                        {
-                            frames.pop();
-                            self.block_depth -= 1;
-                            completed = Some(Err(error));
-                        }
-                    }
-                }
-                Frame::Statement { statement, stage } => {
-                    debug_assert_eq!(*stage, 0);
-                    match statement {
-                        Statement::Block(child) => {
-                            *stage = 1;
-                            self.block_depth += 1;
-                            frames.push(Frame::Block {
-                                block: child,
-                                next: 0,
-                                waiting: None,
-                            });
-                        }
-                        Statement::If {
-                            condition,
-                            then_block,
-                            ..
-                        } => {
-                            if let Err(error) = self.statement_condition(condition) {
-                                frames.pop();
-                                completed = Some(Err(error));
-                            } else {
-                                *stage = 1;
-                                self.block_depth += 1;
-                                frames.push(Frame::Block {
-                                    block: then_block,
-                                    next: 0,
-                                    waiting: None,
-                                });
-                            }
-                        }
-                        Statement::While {
-                            condition, body, ..
-                        } => {
-                            if let Err(error) = self.statement_condition(condition) {
-                                frames.pop();
-                                completed = Some(Err(error));
-                            } else {
-                                *stage = 1;
-                                self.loop_depth += 1;
-                                self.block_depth += 1;
-                                frames.push(Frame::Block {
-                                    block: body,
-                                    next: 0,
-                                    waiting: None,
-                                });
-                            }
-                        }
-                        Statement::Match(selection) => {
-                            match self.expr(&selection.scrutinee, None, None) {
-                                Err(error) => {
-                                    frames.pop();
-                                    completed = Some(Err(error));
-                                }
-                                Ok(inferred) => {
-                                    *stage = 1;
-                                    frames.push(Frame::Match(Box::new(StatementMatchProgress {
-                                        selection,
-                                        selected: self.selection_type(&inferred, 0),
-                                        selected_origin: Self::primary_span(&selection.scrutinee),
-                                        next: 0,
-                                    })));
-                                }
-                            }
-                        }
-                        _ => {
-                            let outcome = self.statement(statement);
-                            frames.pop();
-                            completed = Some(outcome);
-                        }
-                    }
-                }
-                Frame::Match(progress) => {
-                    if progress.next == progress.selection.arms.len() {
-                        let outcome = self
-                            .finish_selection(
-                                progress.selection,
-                                &progress.selected,
-                                &None,
-                                false,
-                                None,
-                            )
-                            .map(|_| ());
-                        frames.pop();
-                        completed = Some(outcome);
-                        continue;
-                    }
-                    let arm = &progress.selection.arms[progress.next];
-                    progress.selected = self.selection_type(&progress.selected, 0);
-                    if let Err(error) = self.pattern_type(
-                        &arm.pattern,
-                        &progress.selected,
-                        &progress.selected_origin,
-                    ) {
-                        frames.pop();
-                        completed = Some(Err(error));
-                        continue;
-                    }
-                    if let Some(guard) = &arm.guard
-                        && let Err(error) =
-                            self.expr(guard, Some(&Type::Bool), arm.guard_span.as_ref())
-                    {
-                        if error.operation == Operation::AnalysisLimit {
-                            frames.pop();
-                            completed = Some(Err(error));
-                            continue;
-                        }
-                        self.record_error(error);
-                    }
-                    progress.next += 1;
-                    self.block_depth += 1;
-                    frames.push(Frame::Block {
-                        block: &arm.body,
-                        next: 0,
-                        waiting: None,
-                    });
-                }
-            }
-        }
+        self.drive(DriveStart::Block(b)).map(|_| ())
     }
 
+    #[cfg(test)]
     fn statement_at_site(&mut self, statement: &Statement) {
-        if self.analysis_exhausted {
-            return;
-        }
-        // Each statement starts with a clean local taint bit. Its result is
-        // merged back afterward, so the bit left by an earlier statement
-        // cannot suppress an independent error in this statement (§13.9).
-        let previous_taint = self.tainted;
-        self.tainted = false;
-        let outcome = self.statement(statement);
-        self.finish_statement_at_site(statement, previous_taint, outcome);
+        let _ = self.drive(DriveStart::StatementSite(statement));
     }
 
     fn finish_statement_at_site(
@@ -5747,18 +5770,263 @@ impl Checker<'_> {
         }
     }
 
-    fn statement_condition(&mut self, condition: &Expr) -> Result<(), Box<Diagnostic>> {
-        match self.expr(condition, Some(&Type::Bool), None) {
-            Ok(_) => Ok(()),
-            Err(error) if error.operation == Operation::AnalysisLimit => Err(error),
-            Err(error) => {
-                // The body is checked hypothetically even when the condition
-                // fails. Its declarations and operands own independent sites.
-                self.record_error(error);
-                self.tainted = true;
-                Ok(())
+    fn prepare_for_type(
+        &mut self,
+        name_span: &Span,
+        iterable: &Expr,
+        got: Type,
+    ) -> Result<(), Box<Diagnostic>> {
+        let got = self
+            .resolved_syntax_type(&got)
+            .map(|ty| Type::from(&ty))
+            .unwrap_or(got);
+        if self.generator_item.is_some() && matches!(got, Type::Generator { .. }) {
+            self.hidden_for.push(got.clone());
+        }
+        let item = match got {
+            Type::Generator { item, .. } => (*item).clone(),
+            Type::Array(_) => {
+                let mut error = names::diagnostic(
+                    "NX-E0006",
+                    None,
+                    Stage::Types,
+                    Operation::TypesCheck,
+                    iterable.span().clone(),
+                );
+                error.feature_id = Some("for_iteration".into());
+                error.data.insert(
+                    "pending_scope".into(),
+                    DataValue::String("later_adr".into()),
+                );
+                return Err(error);
+            }
+            other if pretty(&other).is_none() => Type::Tainted,
+            other => {
+                return Err(mismatch(
+                    Self::primary_span(iterable),
+                    Self::primary_span(iterable),
+                    None,
+                    "domain:iterable",
+                    &other,
+                ));
+            }
+        };
+        self.locals.insert(
+            name_span.start,
+            Known {
+                ty: item,
+                origin: name_span.clone(),
+                variable: None,
+            },
+        );
+        Ok(())
+    }
+
+    fn prepare_assignment_plan(&mut self, place: &Expr, value: &Expr) {
+        if self.planning
+            && let Expr::Name(_, span) = place
+            && let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&span.start)
+        {
+            if self.eligible_shapes.contains(&local.name_span.start)
+                && !self
+                    .pre_assignment_snapshot
+                    .contains_key(&local.name_span.start)
+                && let Some(id) = self
+                    .locals
+                    .get(&local.name_span.start)
+                    .and_then(|known| known.variable)
+            {
+                let concrete = self.concrete_evidence(id);
+                self.pre_assignment_snapshot
+                    .insert(local.name_span.start, concrete);
+            }
+            self.assigned_bases.insert(local.name_span.start);
+            self.assignment_starts
+                .entry(local.name_span.start)
+                .or_insert(span.start);
+            self.first_assignment_rhs_starts
+                .entry(local.name_span.start)
+                .or_insert(Self::primary_span(value).start);
+            if let Some(ty @ Type::Array(_)) = self.intrinsic_assignment_type(value) {
+                self.assignment_type_plan
+                    .entry(local.name_span.start)
+                    .or_insert((ty, Self::primary_span(value)));
+            }
+            if !self.prefix_concrete.contains_key(&local.name_span.start)
+                && let Some(id) = self
+                    .locals
+                    .get(&local.name_span.start)
+                    .and_then(|known| known.variable)
+                && let Some(concrete) = self.concrete_evidence(id)
+            {
+                self.prefix_concrete.insert(local.name_span.start, concrete);
             }
         }
+        if self.planning
+            && matches!(place, Expr::Index { .. })
+            && let Some(site) = self.place_root_binding_site(place)
+            && self.eligible_shapes.contains(&site)
+            && self.expression_reads_binding(value, site)
+        {
+            self.nested_assignment_sites.insert(site);
+        }
+    }
+
+    fn prepare_assignment_rhs<'a>(
+        &mut self,
+        place: &'a Expr,
+        value: &'a Expr,
+        lhs: Type,
+    ) -> (OwnedCheckContext, AssignmentProgress<'a>) {
+        let lhs_tainted = std::mem::take(&mut self.tainted);
+        let local = self.expression_variable(place).or_else(|| {
+            if let Expr::Name(_, span) = place {
+                match self.resolved.uses.get(&span.start) {
+                    Some(ResolvedUse::Local(local)) => self
+                        .locals
+                        .get(&local.name_span.start)
+                        .and_then(|known| known.variable),
+                    _ => None,
+                }
+            } else {
+                None
+            }
+        });
+        let (context, concrete, expected) = if let Some(local) = local {
+            let intrinsic_origin = self.origin_intrinsic(local);
+            let concrete = self.concrete(local);
+            let projected = if concrete.is_none() && self.expression_has_array_root(value) {
+                self.projection_expected(local)
+            } else {
+                None
+            };
+            let expected = concrete.clone().or(projected.clone());
+            let root = self.root(local);
+            let nested_shape = self.type_nodes[&root]
+                .array_child
+                .map(|child| self.root(child))
+                .is_some_and(|child| self.type_nodes[&child].array_child.is_some());
+            let shape_context = if expected.is_none()
+                && matches!(place, Expr::Name(..))
+                && self.expression_has_array_root(value)
+                && nested_shape
+            {
+                Some(Type::Deferred(local))
+            } else {
+                None
+            };
+            let expected_span = expected
+                .as_ref()
+                .filter(|_| projected.is_some() || !intrinsic_origin)
+                .filter(|(_, origin)| origin.start < Self::primary_span(place).start)
+                .map(|(_, origin)| origin.clone());
+            (
+                OwnedCheckContext {
+                    expected: expected
+                        .as_ref()
+                        .map(|(ty, _)| ty.clone())
+                        .or(shape_context),
+                    related_expected: expected_span.is_some(),
+                    expected_span,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    deferred_element: false,
+                },
+                concrete,
+                expected,
+            )
+        } else {
+            let origin = self.expression_origin(place);
+            (
+                OwnedCheckContext {
+                    expected: (internal_state(&lhs) != Some(Type::Tainted)).then_some(lhs),
+                    expected_span: Some(origin),
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: true,
+                    deferred_element: false,
+                },
+                None,
+                None,
+            )
+        };
+        (
+            context,
+            AssignmentProgress {
+                place,
+                value,
+                local,
+                concrete,
+                expected,
+                lhs_tainted,
+            },
+        )
+    }
+
+    fn finish_assignment_rhs(
+        &mut self,
+        progress: AssignmentProgress<'_>,
+        result: Result<Type, Box<Diagnostic>>,
+    ) -> Result<(), Box<Diagnostic>> {
+        let outcome = (|| {
+            let Some(local) = progress.local else {
+                result?;
+                return Ok(());
+            };
+            let rhs = match result {
+                Ok(rhs) => rhs,
+                Err(error) => {
+                    if error.feature_id.as_deref() == Some("resource_array") {
+                        let root = self.root(local);
+                        if self.type_nodes[&root].array_constructed {
+                            self.failed_constructors.insert(root);
+                        }
+                    }
+                    return Err(error);
+                }
+            };
+            if self.tainted {
+                return Ok(());
+            }
+            let place = progress.place;
+            let value = progress.value;
+            let left_origin = progress
+                .expected
+                .as_ref()
+                .filter(|(_, origin)| origin.start < Self::primary_span(place).start)
+                .map(|(_, origin)| origin.clone())
+                .unwrap_or_else(|| {
+                    if matches!(place, Expr::Index { .. }) {
+                        Self::primary_span(value)
+                    } else {
+                        Self::primary_span(place)
+                    }
+                });
+            let right = self
+                .assignment_value_variable(value)
+                .map(Type::Deferred)
+                .unwrap_or(rhs);
+            let right_origin = self.expression_origin(value);
+            self.unify(
+                Type::Deferred(local),
+                right,
+                left_origin,
+                right_origin.clone(),
+                Self::primary_span(value),
+                false,
+            )?;
+            if progress.concrete.is_none()
+                && matches!(place, Expr::Name(..))
+                && matches!(self.concrete(local), Some((Type::Array(_), _)))
+            {
+                self.retain_assignment_origin(local, &right_origin);
+            }
+            Ok(())
+        })();
+        self.tainted |= progress.lhs_tainted;
+        outcome
     }
 
     fn prepare_let(
@@ -5853,199 +6121,11 @@ impl Checker<'_> {
         Ok(())
     }
 
-    fn statement(&mut self, s: &Statement) -> Result<(), Box<Diagnostic>> {
-        match s {
-            Statement::Let {
-                annotation,
-                value,
-                span,
-                ..
-            } => {
-                let prepared = self.prepare_let(annotation.as_ref(), value, span)?;
-                let got = self.expr(
-                    value,
-                    prepared.written.as_ref(),
-                    prepared.annotation_span.as_ref(),
-                );
-                self.finish_let(s, prepared, got)
-            }
-            Statement::Assign { place, value, .. } => {
-                if self.planning
-                    && let Expr::Name(_, span) = place
-                    && let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&span.start)
-                {
-                    if self.eligible_shapes.contains(&local.name_span.start)
-                        && !self
-                            .pre_assignment_snapshot
-                            .contains_key(&local.name_span.start)
-                        && let Some(id) = self
-                            .locals
-                            .get(&local.name_span.start)
-                            .and_then(|known| known.variable)
-                    {
-                        // Each binding has its own prefix. Another local's
-                        // earlier assignment cannot snapshot this one before
-                        // an intervening source constraint (§4.1.2.7).
-                        let concrete = self.concrete_evidence(id);
-                        self.pre_assignment_snapshot
-                            .insert(local.name_span.start, concrete);
-                    }
-                    self.assigned_bases.insert(local.name_span.start);
-                    self.assignment_starts
-                        .entry(local.name_span.start)
-                        .or_insert(span.start);
-                    self.first_assignment_rhs_starts
-                        .entry(local.name_span.start)
-                        .or_insert(Self::primary_span(value).start);
-                    if let Some(ty @ Type::Array(_)) = self.intrinsic_assignment_type(value) {
-                        self.assignment_type_plan
-                            .entry(local.name_span.start)
-                            .or_insert((ty, Self::primary_span(value)));
-                    }
-                    if !self.prefix_concrete.contains_key(&local.name_span.start)
-                        && let Some(id) = self
-                            .locals
-                            .get(&local.name_span.start)
-                            .and_then(|known| known.variable)
-                        && let Some(concrete) = self.concrete_evidence(id)
-                    {
-                        self.prefix_concrete.insert(local.name_span.start, concrete);
-                    }
-                }
-                if self.planning
-                    && matches!(place, Expr::Index { .. })
-                    && let Some(site) = self.place_root_binding_site(place)
-                    && self.eligible_shapes.contains(&site)
-                    && self.expression_reads_binding(value, site)
-                {
-                    // A self-referential indexed write cannot borrow the
-                    // origin of a later root assignment as its own witness
-                    // (RD89, §§4.1.2.3 and 4.1.2.7).
-                    self.nested_assignment_sites.insert(site);
-                }
-                let lhs = self.expr(place, None, None)?;
-                // The destination and RHS are separate expression sites.
-                // A poisoned destination must not suppress the RHS's own
-                // contextual checks (F0-0002 §4.1.2.5).
-                let lhs_tainted = std::mem::take(&mut self.tainted);
-                let rhs_result = (|| {
-                    let deferred_local = self.expression_variable(place).or_else(|| {
-                        if let Expr::Name(_, span) = place {
-                            match self.resolved.uses.get(&span.start) {
-                                Some(ResolvedUse::Local(local)) => self
-                                    .locals
-                                    .get(&local.name_span.start)
-                                    .and_then(|known| known.variable),
-                                _ => None,
-                            }
-                        } else {
-                            None
-                        }
-                    });
-                    if let Some(local) = deferred_local {
-                        let intrinsic_origin = self.origin_intrinsic(local);
-                        let concrete = self.concrete(local);
-                        let projected =
-                            if concrete.is_none() && self.expression_has_array_root(value) {
-                                self.projection_expected(local)
-                            } else {
-                                None
-                            };
-                        let expected = concrete.as_ref().or(projected.as_ref());
-                        // A root can have an established Array shape while
-                        // its deepest element remains unresolved. Preserve
-                        // that structural context for an array RHS so each
-                        // incompatible leaf owns its site (§4.1.2.2–3,6).
-                        let root = self.root(local);
-                        let nested_shape = self.type_nodes[&root]
-                            .array_child
-                            .map(|child| self.root(child))
-                            .is_some_and(|child| self.type_nodes[&child].array_child.is_some());
-                        let shape_context = if expected.is_none()
-                            && matches!(place, Expr::Name(..))
-                            && self.expression_has_array_root(value)
-                            && nested_shape
-                        {
-                            Some(Type::Deferred(local))
-                        } else {
-                            None
-                        };
-                        let rhs = match self.expr(
-                            value,
-                            expected.map(|(ty, _)| ty).or(shape_context.as_ref()),
-                            expected
-                                .filter(|_| projected.is_some() || !intrinsic_origin)
-                                .filter(|(_, origin)| {
-                                    origin.start < Self::primary_span(place).start
-                                })
-                                .map(|(_, origin)| origin),
-                        ) {
-                            Ok(rhs) => rhs,
-                            Err(error) => {
-                                // The forbidden resource-array feature has no
-                                // valid element type to propagate through this
-                                // destination. Its gate owns the constructor.
-                                if error.feature_id.as_deref() == Some("resource_array") {
-                                    let root = self.root(local);
-                                    if self.type_nodes[&root].array_constructed {
-                                        self.failed_constructors.insert(root);
-                                    }
-                                }
-                                return Err(error);
-                            }
-                        };
-                        if self.tainted {
-                            return Ok(());
-                        }
-                        let left_origin = expected
-                            .as_ref()
-                            // A planned type may be completed by a later
-                            // assignment. That future source cannot become
-                            // the witness of this earlier write (RD89,
-                            // §§4.1.2.3 and 4.1.2.7).
-                            .filter(|(_, origin)| origin.start < Self::primary_span(place).start)
-                            .map(|(_, origin)| origin.clone())
-                            .unwrap_or_else(|| {
-                                if matches!(place, Expr::Index { .. }) {
-                                    // The destination selects an element; the
-                                    // RHS is its source witness (§13.15, RD89).
-                                    Self::primary_span(value)
-                                } else {
-                                    Self::primary_span(place)
-                                }
-                            });
-                        let right = self
-                            .assignment_value_variable(value)
-                            .map(Type::Deferred)
-                            .unwrap_or(rhs);
-                        let right_origin = self.expression_origin(value);
-                        self.unify(
-                            Type::Deferred(local),
-                            right,
-                            left_origin,
-                            right_origin.clone(),
-                            Self::primary_span(value),
-                            false,
-                        )?;
-                        if concrete.is_none()
-                            && matches!(place, Expr::Name(..))
-                            && matches!(self.concrete(local), Some((Type::Array(_), _)))
-                        {
-                            self.retain_assignment_origin(local, &right_origin);
-                        }
-                        return Ok(());
-                    }
-                    // An invalid destination cannot impose a type on its RHS.
-                    // The RHS still owns independent obligations such as an
-                    // internally incompatible union (§4.1.2.5, §13.9).
-                    let origin = Some(self.expression_origin(place));
-                    let valid_lhs = (internal_state(&lhs) != Some(Type::Tainted)).then_some(&lhs);
-                    self.expr(value, valid_lhs, origin.as_ref())?;
-                    Ok(())
-                })();
-                self.tainted |= lhs_tainted;
-                rhs_result
-            }
+    fn statement_without_expression(
+        &mut self,
+        statement: &Statement,
+    ) -> Result<(), Box<Diagnostic>> {
+        match statement {
             Statement::Return { value, span } => {
                 if value.is_some() && self.generator_item.is_some() {
                     let primary = Span {
@@ -6068,15 +6148,8 @@ impl Checker<'_> {
                     }
                     return Err(error);
                 }
-                if let Some(value) = value {
-                    let expected = self.result.clone();
-                    let origin = self.result_span.clone();
-                    let actual = self.expr(value, Some(&expected), origin.as_ref())?;
-                    if matches!(expected, Type::Deferred(_)) && !self.tainted {
-                        let site = Self::primary_span(value);
-                        self.unify(expected, actual, site.clone(), site.clone(), site, false)?;
-                    }
-                } else if matches!(self.result, Type::Deferred(_)) {
+                debug_assert!(value.is_none());
+                if matches!(self.result, Type::Deferred(_)) {
                     let site = Span {
                         file: self.file.into(),
                         start: span.start,
@@ -6103,7 +6176,7 @@ impl Checker<'_> {
                         });
                     let result_label =
                         pretty(&self.result).ok_or_else(|| unresolved_type(primary.clone()))?;
-                    let mut d = mismatch(
+                    let mut diagnostic = mismatch(
                         primary.clone(),
                         Span {
                             file: self.file.into(),
@@ -6114,16 +6187,20 @@ impl Checker<'_> {
                         &result_label,
                         &Type::Unit,
                     );
-                    // An empty return has no expression to serve as found_type.
-                    d.related_spans.retain(|r| r.role != RelatedRole::FoundType);
-                    let next = self.tokens.iter().find(|t| t.span.start >= primary.end);
-                    if let Some(newline) = next.filter(|t| t.kind == Kind::Newline) {
-                        d.related_spans.push(RelatedSpan {
+                    diagnostic
+                        .related_spans
+                        .retain(|span| span.role != RelatedRole::FoundType);
+                    let next = self
+                        .tokens
+                        .iter()
+                        .find(|token| token.span.start >= primary.end);
+                    if let Some(newline) = next.filter(|token| token.kind == Kind::Newline) {
+                        diagnostic.related_spans.push(RelatedSpan {
                             role: RelatedRole::Delimiter,
                             span: newline.span.clone(),
                         });
                     }
-                    return Err(d);
+                    return Err(diagnostic);
                 }
                 Ok(())
             }
@@ -6152,10 +6229,8 @@ impl Checker<'_> {
                 }
                 if token == "yield" && !guarded {
                     if let Some(item) = self.generator_item.clone() {
-                        if let Some(value) = value {
-                            let origin = self.result_span.clone();
-                            self.expr(value, Some(&item), origin.as_ref())?;
-                        } else if item != Type::Unit {
+                        debug_assert!(value.is_none());
+                        if item != Type::Unit {
                             return Err(mismatch(
                                 token_span.clone(),
                                 token_span.clone(),
@@ -6174,100 +6249,11 @@ impl Checker<'_> {
                         token_span.clone(),
                     ));
                 }
-                if let Some(value) = value {
-                    self.expr(value, None, None)?;
-                }
+                debug_assert!(value.is_none());
                 Ok(())
             }
-            Statement::Value { value, .. } => {
-                if let Some(value) = value {
-                    self.expr(value, None, None)?;
-                }
-                Ok(())
-            }
-            Statement::Expr { value, .. } => {
-                self.expr(value, None, None)?;
-                Ok(())
-            }
-            Statement::Block(b) => self.block(b),
-            Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                self.statement_condition(condition)?;
-                self.block(then_block)?;
-                if let Some(other) = otherwise {
-                    self.statement(other)?;
-                }
-                Ok(())
-            }
-            Statement::While {
-                condition, body, ..
-            } => {
-                self.statement_condition(condition)?;
-                self.loop_depth += 1;
-                let checked = self.block(body);
-                self.loop_depth -= 1;
-                checked
-            }
-            Statement::For {
-                name_span,
-                iterable,
-                body,
-                ..
-            } => {
-                let got = self.expr(iterable, None, None)?;
-                let got = self
-                    .resolved_syntax_type(&got)
-                    .map(|ty| Type::from(&ty))
-                    .unwrap_or(got);
-                if self.generator_item.is_some() && matches!(got, Type::Generator { .. }) {
-                    self.hidden_for.push(got.clone());
-                }
-                let item = match got {
-                    Type::Generator { item, .. } => (*item).clone(),
-                    Type::Array(_) => {
-                        let mut error = names::diagnostic(
-                            "NX-E0006",
-                            None,
-                            Stage::Types,
-                            Operation::TypesCheck,
-                            iterable.span().clone(),
-                        );
-                        error.feature_id = Some("for_iteration".into());
-                        error.data.insert(
-                            "pending_scope".into(),
-                            DataValue::String("later_adr".into()),
-                        );
-                        return Err(error);
-                    }
-                    other if pretty(&other).is_none() => Type::Tainted,
-                    other => {
-                        return Err(mismatch(
-                            Self::primary_span(iterable),
-                            Self::primary_span(iterable),
-                            None,
-                            "domain:iterable",
-                            &other,
-                        ));
-                    }
-                };
-                self.locals.insert(
-                    name_span.start,
-                    Known {
-                        ty: item,
-                        origin: name_span.clone(),
-                        variable: None,
-                    },
-                );
-                self.loop_depth += 1;
-                let checked = self.block(body);
-                self.loop_depth -= 1;
-                checked
-            }
-            Statement::Match(selection) => self.selection(selection).map(|_| ()),
+            Statement::Value { value: None, .. } => Ok(()),
+            _ => unreachable!("statement without expression must be a leaf"),
         }
     }
 
@@ -6305,79 +6291,58 @@ impl Checker<'_> {
         )
     }
 
-    fn check_against_outer(
-        &mut self,
-        e: &Expr,
-        expected: &Type,
-        expected_span: &Span,
-    ) -> Result<Type, Box<Diagnostic>> {
-        self.check_against_context(
-            e,
-            CheckContext {
-                expected: Some(expected),
-                expected_span: Some(expected_span),
-                check_here: true,
-                anchor: None,
-                outer_compare: true,
-                related_expected: true,
-                deferred_element: false,
-            },
-        )
-    }
-
     fn check_against_context(
         &mut self,
         e: &Expr,
         context: CheckContext<'_>,
     ) -> Result<Type, Box<Diagnostic>> {
+        self.drive(DriveStart::Expression(e, OwnedCheckContext::new(context)))
+    }
+
+    fn drive(&mut self, start: DriveStart<'_>) -> Result<Type, Box<Diagnostic>> {
+        enum Task<'a> {
+            StatementSite(&'a Statement),
+            Statement(&'a Statement),
+            Block(&'a Block),
+        }
         enum Frame<'a> {
-            Group(&'a Expr, &'a Expr, &'a Span, OwnedCheckContext),
-            Array {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-                prior_taint: bool,
-                previous_owner: Option<(u64, u64)>,
+            StatementSite(&'a Statement, bool),
+            StatementExpr,
+            StatementLet(&'a Statement, Box<PreparedLet>),
+            StatementReturn(&'a Expr, Type),
+            AssignmentPlace(&'a Statement),
+            AssignmentValue(Box<AssignmentProgress<'a>>),
+            StatementIf(&'a Statement, u8),
+            StatementWhile(&'a Statement, u8),
+            StatementFor(&'a Statement, u8),
+            StatementMatchScrutinee(&'a parse::Match),
+            StatementMatch {
+                selection: &'a parse::Match,
+                selected: Type,
+                selected_origin: Span,
+                next: usize,
+                stage: u8,
             },
-            Index {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-                previous_owner: Option<(u64, u64)>,
-            },
-            Binary {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-                pending_before: usize,
-                previous_owner: Option<(u64, u64)>,
-            },
-            BinaryRight {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-                left: Type,
-                pending_before: usize,
-                previous_owner: Option<(u64, u64)>,
-            },
-            Call {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-                arg_index: usize,
-                prior_taint: bool,
-                previous_owner: Option<(u64, u64)>,
-            },
-            CallTarget {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-                previous_owner: Option<(u64, u64)>,
-            },
-            UnionCall {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-                prior_taint: bool,
-                previous_owner: Option<(u64, u64)>,
-            },
-            MatchScrutinee {
-                expr: &'a Expr,
-                context: OwnedCheckContext,
-            },
+            Block(&'a Block, usize),
+            Group(Box<GroupFrame<'a>>),
+            Unary(Box<(&'a Expr, OwnedCheckContext)>),
+            UnaryPropagated(Box<(&'a Expr, OwnedCheckContext)>),
+            Array(Box<ArrayFrameState<'a>>),
+            Index(Box<OwnedExpressionFrame<'a>>),
+            IndexSelector(Box<IndexSelectorProgress<'a>>),
+            Binary(Box<BinaryFrame<'a>>),
+            BinaryRight(Box<BinaryRightProgress<'a>>),
+            BinaryDeferredRight(Box<BinaryDeferredProgress<'a>>),
+            BinaryIndependentLeftError(Box<BinaryLeftErrorProgress<'a>>),
+            BinaryIndependentRight(Box<BinaryIndependentProgress<'a>>),
+            Call(Box<CallProgress<'a>>),
+            CallTarget(Box<OwnedExpressionFrame<'a>>),
+            ClosureCall(Box<ClosureCallFrameState<'a>>),
+            UnionCall(Box<UnionCallProgress<'a>>),
+            IntrinsicOne(Box<OwnedExpressionFrame<'a>>),
+            TryAdd(Box<TryAddFrameState<'a>>),
+            AssertEq(Box<AssertEqFrameState<'a>>),
+            MatchScrutinee(Box<(&'a Expr, OwnedCheckContext)>),
             Match {
                 expr: &'a Expr,
                 progress: Box<MatchProgress<'a>>,
@@ -6389,318 +6354,947 @@ impl Checker<'_> {
             },
         }
         let mut frames = Vec::new();
-        let mut inner = e;
-        let mut inner_context = OwnedCheckContext::new(context);
+        let sentinel = Expr::Unit(Span {
+            file: self.file.into(),
+            start: 0,
+            end: 0,
+        });
+        let (mut inner, mut inner_context, mut pending_task) = match start {
+            DriveStart::Expression(e, context) => (e, context, None),
+            DriveStart::Block(block) => (
+                &sentinel,
+                OwnedCheckContext {
+                    expected: None,
+                    expected_span: None,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: false,
+                    deferred_element: false,
+                },
+                Some(Task::Block(block)),
+            ),
+            #[cfg(test)]
+            DriveStart::StatementSite(statement) => (
+                &sentinel,
+                OwnedCheckContext {
+                    expected: None,
+                    expected_span: None,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: false,
+                    deferred_element: false,
+                },
+                Some(Task::StatementSite(statement)),
+            ),
+        };
+        let mut ready_result: Option<Result<Type, Box<Diagnostic>>> = None;
         'evaluate: loop {
-            let mut computed_leaf = None;
-            loop {
-                match inner {
-                    Expr::Closure(closure) => {
-                        let context = inner_context.clone();
-                        match self.closure_begin(closure, inner_context) {
-                            Err(error) => {
-                                inner_context = context;
-                                computed_leaf = Some(PrecomputedType::ClosureComplete(Err(error)));
-                                break;
+            if let Some(task) = pending_task.take() {
+                match task {
+                    Task::StatementSite(statement) => {
+                        if self.analysis_exhausted {
+                            ready_result = Some(Ok(Type::Unit));
+                        } else {
+                            let prior_taint = std::mem::take(&mut self.tainted);
+                            frames.push(Frame::StatementSite(statement, prior_taint));
+                            pending_task = Some(Task::Statement(statement));
+                            continue 'evaluate;
+                        }
+                    }
+                    Task::Statement(statement) => match statement {
+                        Statement::Assign { place, value, .. } => {
+                            self.prepare_assignment_plan(place, value);
+                            frames.push(Frame::AssignmentPlace(statement));
+                            inner = place;
+                            inner_context = OwnedCheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
+                        Statement::Let {
+                            annotation,
+                            value,
+                            span,
+                            ..
+                        } => match self.prepare_let(annotation.as_ref(), value, span) {
+                            Ok(prepared) => {
+                                inner_context = OwnedCheckContext {
+                                    expected: prepared.written.clone(),
+                                    expected_span: prepared.annotation_span.clone(),
+                                    check_here: true,
+                                    anchor: None,
+                                    outer_compare: false,
+                                    related_expected: prepared.annotation_span.is_some(),
+                                    deferred_element: false,
+                                };
+                                frames.push(Frame::StatementLet(statement, Box::new(prepared)));
+                                inner = value;
+                                continue 'evaluate;
                             }
-                            Ok(mut progress) => {
-                                self.block_depth += 1;
-                                match self.closure_body_advance(&mut progress, None) {
-                                    ClosureAction::Value(value, child_context) => {
-                                        frames.push(Frame::Closure {
-                                            expr: inner,
-                                            progress: Box::new(progress),
-                                        });
-                                        inner = value;
-                                        inner_context = child_context;
-                                        continue 'evaluate;
-                                    }
-                                    ClosureAction::Done(checked) => {
-                                        computed_leaf = Some(PrecomputedType::ClosureComplete(
-                                            self.closure_finish(progress, checked),
-                                        ));
-                                        inner_context = context;
-                                        break;
+                            Err(error) => ready_result = Some(Err(error)),
+                        },
+                        Statement::Expr { value, .. } => {
+                            frames.push(Frame::StatementExpr);
+                            inner = value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                            continue 'evaluate;
+                        }
+                        Statement::Value {
+                            value: Some(value), ..
+                        } => {
+                            frames.push(Frame::StatementExpr);
+                            inner = value;
+                            inner_context = OwnedCheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
+                        Statement::Return {
+                            value: Some(value), ..
+                        } if self.generator_item.is_none() => {
+                            let expected = self.result.clone();
+                            frames.push(Frame::StatementReturn(value, expected.clone()));
+                            inner = value;
+                            inner_context = OwnedCheckContext {
+                                expected: Some(expected),
+                                expected_span: self.result_span.clone(),
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: self.result_span.is_some(),
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
+                        Statement::GuardControl {
+                            token,
+                            value: Some(value),
+                            guarded,
+                            ..
+                        } if !matches!(token.as_str(), "break" | "continue") || *guarded => {
+                            if token == "yield" && !guarded && self.generator_item.is_none() {
+                                ready_result = Some(
+                                    self.statement_without_expression(statement)
+                                        .map(|_| Type::Unit),
+                                );
+                            } else {
+                                let item = (token == "yield" && !guarded)
+                                    .then(|| self.generator_item.clone())
+                                    .flatten();
+                                frames.push(Frame::StatementExpr);
+                                inner = value;
+                                inner_context = OwnedCheckContext {
+                                    expected: item,
+                                    expected_span: (token == "yield" && !guarded)
+                                        .then(|| self.result_span.clone())
+                                        .flatten(),
+                                    check_here: true,
+                                    anchor: None,
+                                    outer_compare: false,
+                                    related_expected: token == "yield"
+                                        && !guarded
+                                        && self.result_span.is_some(),
+                                    deferred_element: false,
+                                };
+                                continue 'evaluate;
+                            }
+                        }
+                        Statement::If { condition, .. } => {
+                            frames.push(Frame::StatementIf(statement, 0));
+                            inner = condition;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::Bool),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                            continue 'evaluate;
+                        }
+                        Statement::While { condition, .. } => {
+                            frames.push(Frame::StatementWhile(statement, 0));
+                            inner = condition;
+                            inner_context = OwnedCheckContext {
+                                expected: Some(Type::Bool),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
+                        Statement::For { iterable, .. } => {
+                            frames.push(Frame::StatementFor(statement, 0));
+                            inner = iterable;
+                            inner_context = OwnedCheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
+                        Statement::Match(selection) => {
+                            frames.push(Frame::StatementMatchScrutinee(selection));
+                            inner = &selection.scrutinee;
+                            inner_context = OwnedCheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
+                        Statement::Block(block) => {
+                            pending_task = Some(Task::Block(block));
+                            continue 'evaluate;
+                        }
+                        _ => {
+                            ready_result = Some(
+                                self.statement_without_expression(statement)
+                                    .map(|_| Type::Unit),
+                            )
+                        }
+                    },
+                    Task::Block(block) => {
+                        self.block_depth += 1;
+                        if let Some(statement) = block.statements.first() {
+                            if self.block_depth == 1 {
+                                let span = parse::statement_span(statement);
+                                self.top_statement_start = span.start;
+                                self.top_statement_end = span.end;
+                            }
+                            frames.push(Frame::Block(block, 1));
+                            pending_task = Some(Task::StatementSite(statement));
+                            continue 'evaluate;
+                        }
+                        self.block_depth -= 1;
+                        ready_result = Some(Ok(Type::Unit));
+                    }
+                }
+            }
+            let mut result = if let Some(result) = ready_result.take() {
+                result
+            } else {
+                let mut computed_leaf = None;
+                loop {
+                    match inner {
+                        Expr::Closure(closure) => {
+                            let context = inner_context.clone();
+                            match self.closure_begin(closure, inner_context.clone()) {
+                                Err(error) => {
+                                    inner_context = context;
+                                    computed_leaf =
+                                        Some(PrecomputedType::ClosureComplete(Err(error)));
+                                    break;
+                                }
+                                Ok(mut progress) => {
+                                    self.block_depth += 1;
+                                    match self.closure_body_advance(&mut progress, None) {
+                                        ClosureAction::Statement(statement) => {
+                                            frames.push(Frame::Closure {
+                                                expr: inner,
+                                                progress: Box::new(progress),
+                                            });
+                                            pending_task = Some(Task::StatementSite(statement));
+                                            continue 'evaluate;
+                                        }
+                                        ClosureAction::Value(value, child_context) => {
+                                            frames.push(Frame::Closure {
+                                                expr: inner,
+                                                progress: Box::new(progress),
+                                            });
+                                            inner = value;
+                                            inner_context = child_context;
+                                            continue 'evaluate;
+                                        }
+                                        ClosureAction::Done(checked) => {
+                                            computed_leaf = Some(PrecomputedType::ClosureComplete(
+                                                self.closure_finish(progress, checked),
+                                            ));
+                                            inner_context = context;
+                                            break;
+                                        }
                                     }
                                 }
                             }
                         }
-                    }
-                    Expr::Group(value, span) => {
-                        let child_context = inner_context.clone();
-                        frames.push(Frame::Group(inner, value, span, inner_context));
-                        inner = value;
-                        inner_context = child_context;
-                    }
-                    Expr::Array(items, _) if items.len() == 1 => {
-                        let expected = inner_context
-                            .expected
-                            .as_ref()
-                            .filter(|_| !inner_context.outer_compare);
-                        if matches!(expected, Some(Type::Deferred(_))) {
+                        Expr::Group(value, span) => {
+                            let child_context = inner_context.clone();
+                            frames.push(Frame::Group(Box::new((
+                                inner,
+                                value,
+                                span,
+                                inner_context,
+                            ))));
+                            inner = value;
+                            inner_context = child_context;
+                        }
+                        Expr::Array(items, span) if !items.is_empty() => {
+                            let element_expected = match inner_context
+                                .expected
+                                .as_ref()
+                                .filter(|_| !inner_context.outer_compare)
+                            {
+                                Some(Type::Array(element)) => Some(element.as_ref().clone()),
+                                Some(Type::Deferred(id)) => {
+                                    let root = self.root(*id);
+                                    self.type_nodes[&root].array_child.map(Type::Deferred)
+                                }
+                                _ => None,
+                            };
+                            let previous_owner = self.numeric_domain_owner;
+                            self.numeric_domain_owner = None;
+                            let mut state = ArrayFrameState {
+                                expr: inner,
+                                items,
+                                span,
+                                item_type: element_expected.clone(),
+                                item_origin: inner_context.expected_span.clone(),
+                                context: inner_context,
+                                previous_owner,
+                                element_expected,
+                                next: 0,
+                                current_expected: None,
+                                current_origin: None,
+                                prior_taint: false,
+                                pending: Vec::new(),
+                                diverges: false,
+                                invalid: false,
+                            };
+                            (inner, inner_context) = self.array_next(&mut state);
+                            frames.push(Frame::Array(Box::new(state)));
+                        }
+                        Expr::Index { target, .. } => {
+                            let previous_owner = self.numeric_domain_owner;
+                            self.numeric_domain_owner = None;
+                            frames.push(Frame::Index(Box::new((
+                                inner,
+                                inner_context,
+                                previous_owner,
+                            ))));
+                            inner = target;
+                            inner_context = OwnedCheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                        }
+                        Expr::Unary { mode: Mode::Read, .. }
+                            if self.generator_item.is_some() =>
+                        {
                             break;
                         }
-                        let element_expected = match expected {
-                            Some(Type::Array(element)) => Some(element.as_ref()),
-                            _ => None,
-                        };
-                        let previous_owner = self.numeric_domain_owner;
-                        self.numeric_domain_owner = None;
-                        let prior_taint = std::mem::take(&mut self.tainted);
-                        frames.push(Frame::Array {
-                            expr: inner,
-                            context: inner_context.clone(),
-                            prior_taint,
-                            previous_owner,
-                        });
-                        inner = &items[0];
-                        inner_context = OwnedCheckContext {
-                            expected: element_expected.cloned(),
-                            expected_span: inner_context.expected_span.clone(),
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: inner_context.expected_span.is_some(),
-                            deferred_element: element_expected.is_some(),
-                        };
-                    }
-                    Expr::Index { target, .. } => {
-                        let previous_owner = self.numeric_domain_owner;
-                        self.numeric_domain_owner = None;
-                        frames.push(Frame::Index {
-                            expr: inner,
-                            context: inner_context,
-                            previous_owner,
-                        });
-                        inner = target;
-                        inner_context = OwnedCheckContext {
-                            expected: None,
-                            expected_span: None,
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        };
-                    }
-                    Expr::Binary { op, left, .. } => {
-                        let previous_owner = self.numeric_domain_owner;
-                        self.numeric_domain_owner = None;
-                        let pending_before = self.pending_join_count();
-                        let numeric = matches!(op.as_str(), "+" | "-");
-                        if numeric {
-                            self.numeric_domain_owner = Some(span_key(inner.span()));
+                        Expr::Unary {
+                            mode: Mode::Read,
+                            value,
+                            ..
+                        } => {
+                            frames.push(Frame::Unary(Box::new((inner, inner_context))));
+                            inner = value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
                         }
-                        frames.push(Frame::Binary {
-                            expr: inner,
-                            context: inner_context,
-                            pending_before,
-                            previous_owner,
-                        });
-                        inner = left;
-                        inner_context = OwnedCheckContext {
-                            expected: numeric.then_some(Type::I64),
-                            expected_span: None,
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        };
-                    }
-                    Expr::Call { args, span, .. }
-                        if !args.is_empty()
-                            && self
+                        Expr::Unary { value, .. } => {
+                            let child_context = OwnedCheckContext::new(CheckContext {
+                                expected: inner_context.expected.as_ref(),
+                                expected_span: inner_context.expected_span.as_ref(),
+                                check_here: inner_context.check_here,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: inner_context.expected_span.is_some(),
+                                deferred_element: false,
+                            });
+                            frames.push(Frame::UnaryPropagated(Box::new((inner, inner_context))));
+                            inner = value;
+                            inner_context = child_context;
+                        }
+                        Expr::Binary { op, left, .. } => {
+                            let previous_owner = self.numeric_domain_owner;
+                            self.numeric_domain_owner = None;
+                            let pending_before = self.pending_join_count();
+                            let numeric = matches!(op.as_str(), "+" | "-");
+                            if numeric {
+                                self.numeric_domain_owner = Some(span_key(inner.span()));
+                            }
+                            frames.push(Frame::Binary(Box::new((
+                                inner,
+                                inner_context,
+                                pending_before,
+                                previous_owner,
+                            ))));
+                            inner = left;
+                            inner_context = OwnedCheckContext {
+                                expected: numeric.then_some(Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                        }
+                        Expr::Call { args, span, .. }
+                            if !args.is_empty()
+                                && self
+                                    .resolved
+                                    .calls
+                                    .get(&(span.start, span.end))
+                                    .is_some_and(|binding| {
+                                        !matches!(binding.target, ResolvedUse::Intrinsic(_))
+                                    }) =>
+                        {
+                            let binding = &self.resolved.calls[&(span.start, span.end)];
+                            let signature = names::signature(self.resolved, &binding.target)
+                                .expect("callable binding");
+                            let formal = &signature.params[binding.slots[0]];
+                            let prior_taint = self.tainted;
+                            self.tainted = false;
+                            let previous_owner = self.numeric_domain_owner.take();
+                            frames.push(Frame::Call(Box::new(CallProgress {
+                                expr: inner,
+                                context: inner_context,
+                                arg_index: 0,
+                                prior_taint,
+                                previous_owner,
+                            })));
+                            inner = &args[0].value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::from(&formal.ty)),
+                                expected_span: Some(&formal.type_span),
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: true,
+                                deferred_element: false,
+                            });
+                        }
+                        Expr::Call { args, span, .. }
+                            if self
                                 .resolved
                                 .calls
                                 .get(&(span.start, span.end))
                                 .is_some_and(|binding| {
-                                    !matches!(binding.target, ResolvedUse::Intrinsic(_))
-                                }) =>
-                    {
-                        let binding = &self.resolved.calls[&(span.start, span.end)];
-                        let signature = names::signature(self.resolved, &binding.target)
-                            .expect("callable binding");
-                        let formal = &signature.params[binding.slots[0]];
-                        let prior_taint = self.tainted;
-                        self.tainted = false;
-                        let previous_owner = self.numeric_domain_owner.take();
-                        frames.push(Frame::Call {
-                            expr: inner,
-                            context: inner_context,
-                            arg_index: 0,
-                            prior_taint,
-                            previous_owner,
-                        });
-                        inner = &args[0].value;
-                        inner_context = OwnedCheckContext::new(CheckContext {
-                            expected: Some(&Type::from(&formal.ty)),
-                            expected_span: Some(&formal.type_span),
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: true,
-                            deferred_element: false,
-                        });
-                    }
-                    Expr::Call { args, span, .. }
-                        if self
-                            .resolved
-                            .calls
-                            .get(&(span.start, span.end))
-                            .is_some_and(|binding| {
-                                matches!(&binding.target, ResolvedUse::Intrinsic(name)
+                                    matches!(&binding.target, ResolvedUse::Intrinsic(name)
                                     if matches!(name.as_str(), "Some" | "Ok" | "Err"))
-                            }) =>
-                    {
-                        let binding = &self.resolved.calls[&(span.start, span.end)];
-                        let ResolvedUse::Intrinsic(name) = &binding.target else {
-                            unreachable!("union call has an intrinsic binding")
-                        };
-                        let argument = &args[binding
-                            .slots
-                            .iter()
-                            .position(|slot| *slot == 0)
-                            .expect("complete union binding")]
-                        .value;
-                        let kind = if name == "Some" {
-                            UnionKind::Option
-                        } else {
-                            UnionKind::Result
-                        };
-                        let tag = kind.variant_tag(name).expect("closed union intrinsic");
-                        let payload_expected = inner_context
-                            .expected
-                            .as_ref()
-                            .and_then(concrete_union)
-                            .filter(|union| union.kind == kind)
-                            .and_then(|union| {
-                                union.variant(tag).and_then(|variant| variant.payload)
-                            })
-                            .cloned();
-                        let prior_taint = self.tainted;
-                        self.tainted = false;
-                        let previous_owner = self.numeric_domain_owner.take();
-                        let child_context = OwnedCheckContext {
-                            expected: payload_expected,
-                            expected_span: inner_context.expected_span.clone(),
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: inner_context.expected_span.is_some(),
-                            deferred_element: false,
-                        };
-                        frames.push(Frame::UnionCall {
-                            expr: inner,
-                            context: inner_context,
-                            prior_taint,
-                            previous_owner,
-                        });
-                        inner = argument;
-                        inner_context = child_context;
-                    }
-                    Expr::Call { target, span, .. }
-                        if !self.resolved.calls.contains_key(&(span.start, span.end)) =>
-                    {
-                        let previous_owner = self.numeric_domain_owner.take();
-                        frames.push(Frame::CallTarget {
-                            expr: inner,
-                            context: inner_context,
-                            previous_owner,
-                        });
-                        inner = target;
-                        inner_context = OwnedCheckContext::new(CheckContext {
-                            expected: None,
-                            expected_span: None,
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        });
-                    }
-                    Expr::If {
-                        condition,
-                        then_block,
-                        otherwise,
-                        ..
-                    } => {
-                        let pending_before_if = self.pending_join_count();
-                        let previous_if = self.active_if_span.replace(inner.span().clone());
-                        let prior_taint = self.tainted;
-                        self.tainted = false;
-                        let pending_before_condition = self.pending.len();
-                        let branch_context = OwnedCheckContext {
-                            expected: inner_context
+                                }) =>
+                        {
+                            let binding = &self.resolved.calls[&(span.start, span.end)];
+                            let ResolvedUse::Intrinsic(name) = &binding.target else {
+                                unreachable!("union call has an intrinsic binding")
+                            };
+                            let argument = &args[binding
+                                .slots
+                                .iter()
+                                .position(|slot| *slot == 0)
+                                .expect("complete union binding")]
+                            .value;
+                            let kind = if name == "Some" {
+                                UnionKind::Option
+                            } else {
+                                UnionKind::Result
+                            };
+                            let tag = kind.variant_tag(name).expect("closed union intrinsic");
+                            let payload_expected = inner_context
                                 .expected
                                 .as_ref()
-                                .filter(|_| !inner_context.outer_compare)
-                                .cloned(),
-                            expected_span: inner_context
-                                .expected_span
-                                .as_ref()
-                                .filter(|_| !inner_context.outer_compare)
-                                .cloned(),
-                            ..inner_context.clone()
-                        };
-                        frames.push(Frame::If(Box::new(IfProgress {
-                            expr: inner,
+                                .and_then(concrete_union)
+                                .filter(|union| union.kind == kind)
+                                .and_then(|union| {
+                                    union.variant(tag).and_then(|variant| variant.payload)
+                                })
+                                .cloned();
+                            let prior_taint = self.tainted;
+                            self.tainted = false;
+                            let previous_owner = self.numeric_domain_owner.take();
+                            let child_context = OwnedCheckContext {
+                                expected: payload_expected,
+                                expected_span: inner_context.expected_span.clone(),
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: inner_context.expected_span.is_some(),
+                                deferred_element: false,
+                            };
+                            frames.push(Frame::UnionCall(Box::new(UnionCallProgress {
+                                expr: inner,
+                                context: inner_context,
+                                prior_taint,
+                                previous_owner,
+                            })));
+                            inner = argument;
+                            inner_context = child_context;
+                        }
+                        Expr::Call { args, span, .. }
+                            if self.resolved.calls.get(&(span.start, span.end)).is_some_and(|binding| {
+                                matches!(&binding.target, ResolvedUse::Intrinsic(name) if name == "AssertEq")
+                            }) =>
+                        {
+                            let previous_owner = self.numeric_domain_owner.take();
+                            let mut state = AssertEqFrameState {
+                                expr: inner,
+                                context: inner_context,
+                                next: 0,
+                                prior_taint: false,
+                                prior_errors: 0,
+                                pending_start: 0,
+                                pending_generation: 0,
+                                values: [None, None],
+                                evidence: [None, None],
+                                invalid: false,
+                                previous_owner,
+                            };
+                            self.assert_eq_prepare(&mut state);
+                            frames.push(Frame::AssertEq(Box::new(state)));
+                            inner = &args[0].value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
+                        Expr::Call { args, span, .. }
+                            if self.resolved.calls.get(&(span.start, span.end)).is_some_and(|binding| {
+                                matches!(&binding.target, ResolvedUse::Intrinsic(name) if name == "TryAdd")
+                            }) =>
+                        {
+                            let previous_owner = self.numeric_domain_owner.take();
+                            frames.push(Frame::TryAdd(Box::new(TryAddFrameState {
+                                expr: inner,
+                                context: inner_context,
+                                next: 1,
+                                failed: false,
+                                previous_owner,
+                            })));
+                            inner = &args[0].value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
+                        Expr::Call { args, span, .. }
+                            if self.resolved.calls.get(&(span.start, span.end)).is_some_and(|binding| {
+                                matches!(&binding.target, ResolvedUse::Intrinsic(name)
+                                    if !matches!(name.as_str(), "Some" | "Ok" | "Err" | "TryAdd" | "AssertEq" | "MockRequest" | "MockUnknown" | "Fail"))
+                            }) =>
+                        {
+                            let binding = &self.resolved.calls[&(span.start, span.end)];
+                            let ResolvedUse::Intrinsic(name) = &binding.target else { unreachable!() };
+                            let argument = &args[binding.slots.iter().position(|slot| *slot == 0).expect("complete intrinsic binding")].value;
+                            let numeric = matches!(name.as_str(), "MockOpen" | "MockBlockingOpen" | "MockWriteI64" | "MockReply");
+                            let previous_owner = self.numeric_domain_owner.take();
+                            frames.push(Frame::IntrinsicOne(Box::new((inner, inner_context, previous_owner))));
+                            inner = argument;
+                            inner_context = OwnedCheckContext {
+                                expected: numeric.then_some(Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                        }
+                        Expr::Call { target, span, .. }
+                            if !self.resolved.calls.contains_key(&(span.start, span.end)) =>
+                        {
+                            let previous_owner = self.numeric_domain_owner.take();
+                            frames.push(Frame::CallTarget(Box::new((
+                                inner,
+                                inner_context,
+                                previous_owner,
+                            ))));
+                            inner = target;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
+                        Expr::If {
                             condition,
                             then_block,
-                            otherwise: otherwise.as_deref(),
-                            context: inner_context,
-                            branch_context,
-                            previous_if,
-                            pending_before_if,
-                            prior_taint,
-                            pending_before_condition,
-                            stage: IfStage::Condition,
-                            branch: None,
-                            first: None,
-                            first_failed: false,
-                            first_anchored: false,
-                            first_partial: false,
-                            first_span: None,
-                            first_for_anchor: None,
-                            anchor_error: None,
-                            anchor_pending: false,
-                            anchor: None,
-                        })));
-                        inner = condition;
-                        inner_context = OwnedCheckContext::new(CheckContext {
-                            expected: Some(&Type::Bool),
-                            expected_span: None,
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        });
+                            otherwise,
+                            ..
+                        } => {
+                            let pending_before_if = self.pending_join_count();
+                            let previous_if = self.active_if_span.replace(inner.span().clone());
+                            let prior_taint = self.tainted;
+                            self.tainted = false;
+                            let pending_before_condition = self.pending.len();
+                            let branch_context = OwnedCheckContext {
+                                expected: inner_context
+                                    .expected
+                                    .as_ref()
+                                    .filter(|_| !inner_context.outer_compare)
+                                    .cloned(),
+                                expected_span: inner_context
+                                    .expected_span
+                                    .as_ref()
+                                    .filter(|_| !inner_context.outer_compare)
+                                    .cloned(),
+                                ..inner_context.clone()
+                            };
+                            frames.push(Frame::If(Box::new(IfProgress {
+                                expr: inner,
+                                condition,
+                                then_block,
+                                otherwise: otherwise.as_deref(),
+                                context: inner_context,
+                                branch_context,
+                                previous_if,
+                                pending_before_if,
+                                prior_taint,
+                                pending_before_condition,
+                                stage: IfStage::Condition,
+                                branch: None,
+                                first: None,
+                                first_failed: false,
+                                first_anchored: false,
+                                first_partial: false,
+                                first_span: None,
+                                first_for_anchor: None,
+                                anchor_error: None,
+                                anchor_pending: false,
+                                anchor: None,
+                            })));
+                            inner = condition;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::Bool),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
+                        Expr::Match(selection) => {
+                            frames.push(Frame::MatchScrutinee(Box::new((inner, inner_context))));
+                            inner = &selection.scrutinee;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
+                        _ => break,
                     }
-                    Expr::Match(selection) => {
-                        frames.push(Frame::MatchScrutinee {
-                            expr: inner,
-                            context: inner_context,
-                        });
-                        inner = &selection.scrutinee;
-                        inner_context = OwnedCheckContext::new(CheckContext {
-                            expected: None,
-                            expected_span: None,
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        });
-                    }
-                    _ => break,
                 }
-            }
-            let mut result =
-                self.check_against_context_one(inner, inner_context.borrowed(), computed_leaf);
+                self.check_against_context_one(inner, inner_context.borrowed(), computed_leaf)
+            };
             while let Some(frame) = frames.pop() {
                 match frame {
-                    Frame::Group(group, child, span, context) => {
+                    Frame::StatementSite(statement, prior_taint) => {
+                        self.finish_statement_at_site(statement, prior_taint, result.map(|_| ()));
+                        result = Ok(Type::Unit);
+                    }
+                    Frame::StatementExpr => {
+                        result = result.map(|_| Type::Unit);
+                    }
+                    Frame::StatementLet(statement, prepared) => {
+                        result = self
+                            .finish_let(statement, *prepared, result)
+                            .map(|_| Type::Unit);
+                    }
+                    Frame::StatementReturn(value, expected) => {
+                        result = result.and_then(|actual| {
+                            if matches!(expected, Type::Deferred(_)) && !self.tainted {
+                                let site = Self::primary_span(value);
+                                self.unify(
+                                    expected,
+                                    actual,
+                                    site.clone(),
+                                    site.clone(),
+                                    site,
+                                    false,
+                                )?;
+                            }
+                            Ok(Type::Unit)
+                        });
+                    }
+                    Frame::AssignmentPlace(statement) => {
+                        let lhs = match result {
+                            Ok(lhs) => lhs,
+                            Err(error) => {
+                                result = Err(error);
+                                continue;
+                            }
+                        };
+                        let Statement::Assign { place, value, .. } = statement else {
+                            unreachable!("assignment frame owns an assignment")
+                        };
+                        let (context, progress) = self.prepare_assignment_rhs(place, value, lhs);
+                        frames.push(Frame::AssignmentValue(Box::new(progress)));
+                        inner = value;
+                        inner_context = context;
+                        continue 'evaluate;
+                    }
+                    Frame::AssignmentValue(progress) => {
+                        result = self
+                            .finish_assignment_rhs(*progress, result)
+                            .map(|_| Type::Unit);
+                    }
+                    Frame::StatementIf(statement, stage) => {
+                        if stage == 0 {
+                            match result {
+                                Err(error) if error.operation == Operation::AnalysisLimit => {
+                                    result = Err(error);
+                                    continue;
+                                }
+                                Err(error) => {
+                                    self.record_error(error);
+                                    self.tainted = true;
+                                }
+                                Ok(_) => {}
+                            }
+                            let Statement::If { then_block, .. } = statement else {
+                                unreachable!("if frame owns an if statement")
+                            };
+                            frames.push(Frame::StatementIf(statement, 1));
+                            pending_task = Some(Task::Block(then_block));
+                            continue 'evaluate;
+                        }
+                        if stage == 1
+                            && result.is_ok()
+                            && let Statement::If {
+                                otherwise: Some(other),
+                                ..
+                            } = statement
+                        {
+                            frames.push(Frame::StatementIf(statement, 2));
+                            pending_task = Some(Task::Statement(other));
+                            continue 'evaluate;
+                        }
+                    }
+                    Frame::StatementWhile(statement, stage) => {
+                        if stage == 0 {
+                            match result {
+                                Err(error) if error.operation == Operation::AnalysisLimit => {
+                                    result = Err(error);
+                                    continue;
+                                }
+                                Err(error) => {
+                                    self.record_error(error);
+                                    self.tainted = true;
+                                }
+                                Ok(_) => {}
+                            }
+                            let Statement::While { body, .. } = statement else {
+                                unreachable!("while frame owns a while statement")
+                            };
+                            self.loop_depth += 1;
+                            frames.push(Frame::StatementWhile(statement, 1));
+                            pending_task = Some(Task::Block(body));
+                            continue 'evaluate;
+                        }
+                        self.loop_depth -= 1;
+                    }
+                    Frame::StatementFor(statement, stage) => {
+                        if stage == 0 {
+                            let Statement::For {
+                                name_span,
+                                iterable,
+                                body,
+                                ..
+                            } = statement
+                            else {
+                                unreachable!("for frame owns a for statement")
+                            };
+                            result = result.and_then(|got| {
+                                self.prepare_for_type(name_span, iterable, got)
+                                    .map(|_| Type::Unit)
+                            });
+                            if result.is_err() {
+                                continue;
+                            }
+                            self.loop_depth += 1;
+                            frames.push(Frame::StatementFor(statement, 1));
+                            pending_task = Some(Task::Block(body));
+                            continue 'evaluate;
+                        }
+                        self.loop_depth -= 1;
+                    }
+                    Frame::StatementMatchScrutinee(selection) => {
+                        let inferred = match result {
+                            Ok(inferred) => inferred,
+                            Err(error) => {
+                                result = Err(error);
+                                continue;
+                            }
+                        };
+                        frames.push(Frame::StatementMatch {
+                            selection,
+                            selected: self.selection_type(&inferred, 0),
+                            selected_origin: Self::primary_span(&selection.scrutinee),
+                            next: 0,
+                            stage: 0,
+                        });
+                        result = Ok(Type::Unit);
+                        continue;
+                    }
+                    Frame::StatementMatch {
+                        selection,
+                        mut selected,
+                        selected_origin,
+                        mut next,
+                        stage,
+                    } => {
+                        if stage == 2 && result.is_err() {
+                            continue;
+                        }
+                        if stage == 1 {
+                            if let Err(error) = result {
+                                if error.operation == Operation::AnalysisLimit {
+                                    result = Err(error);
+                                    continue;
+                                }
+                                self.record_error(error);
+                            }
+                            let arm = &selection.arms[next];
+                            next += 1;
+                            pending_task = Some(Task::Block(&arm.body));
+                            frames.push(Frame::StatementMatch {
+                                selection,
+                                selected,
+                                selected_origin,
+                                next,
+                                stage: 2,
+                            });
+                            continue 'evaluate;
+                        }
+                        if next == selection.arms.len() {
+                            result = self
+                                .finish_selection(selection, &selected, &None, false, None)
+                                .map(|_| Type::Unit);
+                            continue;
+                        }
+                        let arm = &selection.arms[next];
+                        selected = self.selection_type(&selected, 0);
+                        if let Err(error) =
+                            self.pattern_type(&arm.pattern, &selected, &selected_origin)
+                        {
+                            result = Err(error);
+                            continue;
+                        }
+                        if let Some(guard) = &arm.guard {
+                            inner = guard;
+                            inner_context = OwnedCheckContext {
+                                expected: Some(Type::Bool),
+                                expected_span: arm.guard_span.clone(),
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: arm.guard_span.is_some(),
+                                deferred_element: false,
+                            };
+                            frames.push(Frame::StatementMatch {
+                                selection,
+                                selected,
+                                selected_origin,
+                                next,
+                                stage: 1,
+                            });
+                            continue 'evaluate;
+                        }
+                        next += 1;
+                        pending_task = Some(Task::Block(&arm.body));
+                        frames.push(Frame::StatementMatch {
+                            selection,
+                            selected,
+                            selected_origin,
+                            next,
+                            stage: 2,
+                        });
+                        continue 'evaluate;
+                    }
+                    Frame::Block(block, next) => {
+                        if result.is_err() {
+                            self.block_depth -= 1;
+                            continue;
+                        }
+                        if !self.analysis_exhausted
+                            && let Err(error) = self.resolve_pending_projections(false)
+                        {
+                            self.block_depth -= 1;
+                            result = Err(error);
+                            continue;
+                        }
+                        if let Some(statement) = block.statements.get(next) {
+                            if self.block_depth == 1 {
+                                let span = parse::statement_span(statement);
+                                self.top_statement_start = span.start;
+                                self.top_statement_end = span.end;
+                            }
+                            frames.push(Frame::Block(block, next + 1));
+                            pending_task = Some(Task::StatementSite(statement));
+                            continue 'evaluate;
+                        }
+                        self.block_depth -= 1;
+                        result = Ok(Type::Unit);
+                    }
+                    Frame::Group(progress) => {
+                        let (group, child, span, context) = *progress;
                         self.propagate_group(child, span);
                         result = self.check_against_context_one(
                             group,
@@ -6708,41 +7302,303 @@ impl Checker<'_> {
                             Some(PrecomputedType::Whole(result)),
                         );
                     }
-                    Frame::Array {
-                        expr,
-                        context,
-                        prior_taint,
-                        previous_owner,
-                    } => {
-                        self.numeric_domain_owner = previous_owner;
+                    Frame::Unary(progress) => {
+                        let (expr, context) = *progress;
                         result = self.check_against_context_one(
                             expr,
                             context.borrowed(),
-                            Some(PrecomputedType::ArrayFirst {
-                                result,
-                                prior_taint,
+                            Some(PrecomputedType::UnaryOperand(result)),
+                        );
+                    }
+                    Frame::UnaryPropagated(progress) => {
+                        let (expr, context) = *progress;
+                        result = self.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::Whole(result)),
+                        );
+                    }
+                    Frame::Array(progress) => {
+                        let mut state = *progress;
+                        let accepted = self.array_accept(&mut state, result);
+                        if accepted.is_ok() {
+                            state.next += 1;
+                            if state.next < state.items.len() {
+                                (inner, inner_context) = self.array_next(&mut state);
+                                frames.push(Frame::Array(Box::new(state)));
+                                continue 'evaluate;
+                            }
+                        }
+                        self.numeric_domain_owner = state.previous_owner;
+                        let expr = state.expr;
+                        let context = state.context.clone();
+                        let constructor_pair = state.element_expected.is_some();
+                        let outcome = accepted.and_then(|_| self.array_finish(state));
+                        result = self.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::ArrayComplete {
+                                result: outcome,
+                                constructor_pair,
                             }),
                         );
                     }
-                    Frame::Index {
-                        expr,
-                        context,
-                        previous_owner,
-                    } => {
+                    Frame::Index(progress) => {
+                        let (expr, context, previous_owner) = *progress;
                         self.numeric_domain_owner = previous_owner;
+                        match result {
+                            Ok(base) => {
+                                let Expr::Index { target, index, .. } = expr else {
+                                    unreachable!("index frame owns an index")
+                                };
+                                let deferred_target =
+                                    self.deferred_exprs.contains(&span_key(target.span()));
+                                let mut deferred_child = None;
+                                let mut pending_projection = false;
+                                if deferred_target
+                                    && !matches!(base, Type::Tainted | Type::Never)
+                                    && let Some(id) = self.expression_variable(target)
+                                {
+                                    let root = self.root(id);
+                                    if self.type_nodes[&root].array_child.is_some() {
+                                        match self.require_array(id, &Self::primary_span(target)) {
+                                            Ok(child) => deferred_child = Some(child),
+                                            Err(error) => {
+                                                result = self.check_against_context_one(
+                                                    expr,
+                                                    context.borrowed(),
+                                                    Some(PrecomputedType::Whole(Err(error))),
+                                                );
+                                                continue;
+                                            }
+                                        }
+                                    } else {
+                                        pending_projection = true;
+                                    }
+                                }
+                                if pending_projection {
+                                    result = self.check_against_context_one(
+                                        expr,
+                                        context.borrowed(),
+                                        Some(PrecomputedType::IndexTarget {
+                                            target: Ok(base),
+                                            selector: None,
+                                            deferred_child: None,
+                                        }),
+                                    );
+                                    continue;
+                                }
+                                let divergent_target = deferred_target
+                                    && self.divergent_exprs.contains(&span_key(target.span()));
+                                let expected =
+                                    matches!(base, Type::Array(_) | Type::Tainted | Type::Never)
+                                        || deferred_child.is_some()
+                                        || divergent_target;
+                                let prior_taint = (!matches!(base, Type::Array(_) | Type::Never)
+                                    && deferred_child.is_none()
+                                    && !divergent_target)
+                                    .then(|| std::mem::take(&mut self.tainted));
+                                frames.push(Frame::IndexSelector(Box::new(
+                                    IndexSelectorProgress {
+                                        expr,
+                                        context,
+                                        base,
+                                        prior_taint,
+                                        deferred_child,
+                                    },
+                                )));
+                                inner = index;
+                                inner_context = OwnedCheckContext {
+                                    expected: expected.then_some(Type::I64),
+                                    expected_span: None,
+                                    check_here: true,
+                                    anchor: None,
+                                    outer_compare: false,
+                                    related_expected: false,
+                                    deferred_element: false,
+                                };
+                                continue 'evaluate;
+                            }
+                            other => {
+                                result = self.check_against_context_one(
+                                    expr,
+                                    context.borrowed(),
+                                    Some(PrecomputedType::IndexTarget {
+                                        target: other,
+                                        selector: None,
+                                        deferred_child: None,
+                                    }),
+                                );
+                            }
+                        }
+                    }
+                    Frame::IndexSelector(progress) => {
+                        let IndexSelectorProgress {
+                            expr,
+                            context,
+                            base,
+                            prior_taint,
+                            deferred_child,
+                        } = *progress;
+                        if let Some(prior_taint) = prior_taint {
+                            self.tainted |= prior_taint;
+                        }
                         result = self.check_against_context_one(
                             expr,
                             context.borrowed(),
-                            Some(PrecomputedType::IndexTarget(result)),
+                            Some(PrecomputedType::IndexTarget {
+                                target: Ok(base),
+                                selector: Some(result),
+                                deferred_child,
+                            }),
                         );
                     }
-                    Frame::Binary {
-                        expr,
-                        context,
-                        pending_before,
-                        previous_owner,
-                    } => {
+                    Frame::Binary(progress) => {
+                        let (expr, context, pending_before, previous_owner) = *progress;
                         self.numeric_domain_owner = None;
+                        if matches!(&result, Err(error) if error.operation != Operation::AnalysisLimit)
+                        {
+                            let Err(error) = result else { unreachable!() };
+                            let Expr::Binary {
+                                op, left, right, ..
+                            } = expr
+                            else {
+                                unreachable!("binary frame owns a binary")
+                            };
+                            let numeric = matches!(op.as_str(), "+" | "-");
+                            let left_domain_failed = numeric
+                                && error.primary_span.as_ref() == Some(&Self::primary_span(left))
+                                && error.data.get("expected_type")
+                                    == Some(&DataValue::String("I64".into()));
+                            let left_tainted = std::mem::take(&mut self.tainted);
+                            if numeric {
+                                self.numeric_domain_owner =
+                                    Some((left.span().start, right.span().end));
+                            }
+                            frames.push(Frame::BinaryIndependentLeftError(Box::new(
+                                BinaryLeftErrorProgress {
+                                    expr,
+                                    context,
+                                    error,
+                                    left_tainted,
+                                    left_domain_failed,
+                                    previous_owner,
+                                },
+                            )));
+                            inner = right;
+                            inner_context = OwnedCheckContext {
+                                expected: (numeric && !left_domain_failed).then_some(Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
+                        if let (
+                            Expr::Binary {
+                                op, left, right, ..
+                            },
+                            Ok(left_type),
+                        ) = (expr, &result)
+                        {
+                            let numeric = matches!(op.as_str(), "+" | "-");
+                            let pending_domain = self
+                                .pending_domain_calls
+                                .contains(&span_key(&Self::primary_span(left)));
+                            let joined = self.pending_join_count() > pending_before;
+                            let failed_join =
+                                self.failed_join_exprs.contains(&span_key(left.span()));
+                            let left_domain_failed = if pending_domain {
+                                Some(
+                                    numeric
+                                        && self.type_determined(left_type)
+                                        && *left_type != Type::I64
+                                        && !failed_join,
+                                )
+                            } else if numeric && joined {
+                                Some(self.type_determined(left_type) && *left_type != Type::I64)
+                            } else if failed_join || self.tainted {
+                                Some(self.context_rejections.contains(&span_key(left.span())))
+                            } else if numeric
+                                && *left_type != Type::I64
+                                && !self.deferred_exprs.contains(&span_key(left.span()))
+                            {
+                                let pending_left_result =
+                                    self.pending.iter().any(|entry| match entry {
+                                        PendingConstraint::BinaryDomain(domain) => {
+                                            domain.result == Self::primary_span(left)
+                                        }
+                                        _ => false,
+                                    });
+                                Some(!pending_left_result)
+                            } else {
+                                None
+                            };
+                            if let Some(left_domain_failed) = left_domain_failed {
+                                let left_tainted = std::mem::take(&mut self.tainted);
+                                if numeric {
+                                    self.numeric_domain_owner =
+                                        Some((left.span().start, right.span().end));
+                                }
+                                frames.push(Frame::BinaryIndependentRight(Box::new(
+                                    BinaryIndependentProgress {
+                                        expr,
+                                        context,
+                                        left: left_type.clone(),
+                                        pending_before,
+                                        left_domain_failed,
+                                        left_tainted,
+                                        previous_owner,
+                                    },
+                                )));
+                                inner = right;
+                                inner_context = OwnedCheckContext {
+                                    expected: (numeric && !left_domain_failed).then_some(Type::I64),
+                                    expected_span: None,
+                                    check_here: true,
+                                    anchor: None,
+                                    outer_compare: false,
+                                    related_expected: false,
+                                    deferred_element: false,
+                                };
+                                continue 'evaluate;
+                            }
+                        }
+                        if let (
+                            Expr::Binary {
+                                op, left, right, ..
+                            },
+                            Ok(left_type),
+                        ) = (expr, &result)
+                            && self.deferred_exprs.contains(&span_key(left.span()))
+                        {
+                            let numeric = matches!(op.as_str(), "+" | "-");
+                            let pending_before_operator = self.pending_join_count();
+                            frames.push(Frame::BinaryDeferredRight(Box::new(
+                                BinaryDeferredProgress {
+                                    expr,
+                                    context,
+                                    left: left_type.clone(),
+                                    pending_before_left: pending_before,
+                                    pending_before_operator,
+                                    previous_owner,
+                                },
+                            )));
+                            inner = right;
+                            inner_context = OwnedCheckContext {
+                                expected: numeric.then_some(Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            continue 'evaluate;
+                        }
                         if let (
                             Expr::Binary {
                                 op, left, right, ..
@@ -6775,13 +7631,13 @@ impl Checker<'_> {
                                     deferred_element: false,
                                 };
                                 let pending_before = self.pending_join_count();
-                                frames.push(Frame::BinaryRight {
+                                frames.push(Frame::BinaryRight(Box::new(BinaryRightProgress {
                                     expr,
                                     context,
                                     left: left_type,
                                     pending_before,
                                     previous_owner,
-                                });
+                                })));
                                 inner = right;
                                 inner_context = right_context;
                                 continue 'evaluate;
@@ -6793,17 +7649,19 @@ impl Checker<'_> {
                             Some(PrecomputedType::BinaryLeft {
                                 result,
                                 pending_before,
+                                independent_right: None,
                             }),
                         );
                         self.numeric_domain_owner = previous_owner;
                     }
-                    Frame::BinaryRight {
-                        expr,
-                        context,
-                        left,
-                        pending_before,
-                        previous_owner,
-                    } => {
+                    Frame::BinaryRight(progress) => {
+                        let BinaryRightProgress {
+                            expr,
+                            context,
+                            left,
+                            pending_before,
+                            previous_owner,
+                        } = *progress;
                         self.numeric_domain_owner = None;
                         result = self.check_against_context_one(
                             expr,
@@ -6816,13 +7674,126 @@ impl Checker<'_> {
                         );
                         self.numeric_domain_owner = previous_owner;
                     }
-                    Frame::Call {
-                        expr,
-                        context,
-                        arg_index,
-                        prior_taint,
-                        previous_owner,
-                    } => {
+                    Frame::BinaryDeferredRight(progress) => {
+                        let BinaryDeferredProgress {
+                            expr,
+                            context,
+                            left,
+                            pending_before_left,
+                            pending_before_operator,
+                            previous_owner,
+                        } = *progress;
+                        self.numeric_domain_owner = None;
+                        result = self.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::BinaryDeferredRight {
+                                left,
+                                result,
+                                pending_before_left,
+                                pending_before_operator,
+                            }),
+                        );
+                        self.numeric_domain_owner = previous_owner;
+                    }
+                    Frame::BinaryIndependentLeftError(progress) => {
+                        let BinaryLeftErrorProgress {
+                            expr,
+                            context,
+                            error,
+                            left_tainted,
+                            left_domain_failed,
+                            previous_owner,
+                        } = *progress;
+                        let Expr::Binary {
+                            op, left, right, ..
+                        } = expr
+                        else {
+                            unreachable!("independent frame owns a binary")
+                        };
+                        self.numeric_domain_owner = None;
+                        let right_tainted = self.tainted;
+                        let outcome = self.finish_independent_binary_rhs(
+                            op,
+                            left,
+                            right,
+                            left_domain_failed,
+                            result,
+                            right_tainted,
+                        );
+                        let binary_result = match outcome {
+                            Ok(right_failed) => {
+                                self.tainted |= left_tainted;
+                                if right_failed {
+                                    self.record_error(error);
+                                    self.deferred_exprs.insert(span_key(expr.span()));
+                                    self.tainted = true;
+                                    Ok(Type::Tainted)
+                                } else {
+                                    Err(error)
+                                }
+                            }
+                            Err(error) => Err(error),
+                        };
+                        result = self.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::Whole(binary_result)),
+                        );
+                        self.numeric_domain_owner = previous_owner;
+                    }
+                    Frame::BinaryIndependentRight(progress) => {
+                        let BinaryIndependentProgress {
+                            expr,
+                            context,
+                            left,
+                            pending_before,
+                            left_domain_failed,
+                            left_tainted,
+                            previous_owner,
+                        } = *progress;
+                        let Expr::Binary {
+                            op,
+                            left: left_expr,
+                            right,
+                            ..
+                        } = expr
+                        else {
+                            unreachable!("independent frame owns a binary")
+                        };
+                        self.numeric_domain_owner = None;
+                        let right_tainted = self.tainted;
+                        let outcome = self.finish_independent_binary_rhs(
+                            op,
+                            left_expr,
+                            right,
+                            left_domain_failed,
+                            result,
+                            right_tainted,
+                        );
+                        self.tainted |= left_tainted;
+                        result = match outcome {
+                            Ok(right_failed) => self.check_against_context_one(
+                                expr,
+                                context.borrowed(),
+                                Some(PrecomputedType::BinaryLeft {
+                                    result: Ok(left),
+                                    pending_before,
+                                    independent_right: Some(right_failed),
+                                }),
+                            ),
+                            Err(error) => Err(error),
+                        };
+                        self.numeric_domain_owner = previous_owner;
+                    }
+                    Frame::Call(progress) => {
+                        let CallProgress {
+                            expr,
+                            context,
+                            arg_index,
+                            prior_taint,
+                            previous_owner,
+                        } = *progress;
                         let Expr::Call { args, span, .. } = expr else {
                             unreachable!("call frame owns a call")
                         };
@@ -6854,13 +7825,13 @@ impl Checker<'_> {
                             });
                             let prior_taint = self.tainted;
                             self.tainted = false;
-                            frames.push(Frame::Call {
+                            frames.push(Frame::Call(Box::new(CallProgress {
                                 expr,
                                 context,
                                 arg_index: next,
                                 prior_taint,
                                 previous_owner,
-                            });
+                            })));
                             inner = &args[next].value;
                             inner_context = next_context;
                             continue 'evaluate;
@@ -6874,25 +7845,122 @@ impl Checker<'_> {
                         );
                         self.numeric_domain_owner = previous_owner;
                     }
-                    Frame::CallTarget {
-                        expr,
-                        context,
-                        previous_owner,
-                    } => {
+                    Frame::CallTarget(progress) => {
+                        let (expr, context, previous_owner) = *progress;
                         self.numeric_domain_owner = None;
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::CallTarget(result)),
-                        );
+                        if let Ok(Type::Closure { site, .. }) = &result {
+                            let Expr::Call { target, args, .. } = expr else {
+                                unreachable!("call target frame owns a call")
+                            };
+                            match self.prepare_closure_call(*site, target, args) {
+                                Ok((draft, slots)) if !args.is_empty() => {
+                                    let formal = &draft.params[slots[0]];
+                                    inner = &args[0].value;
+                                    inner_context = OwnedCheckContext::new(CheckContext {
+                                        expected: Some(&formal.3),
+                                        expected_span: Some(&formal.2),
+                                        check_here: true,
+                                        anchor: None,
+                                        outer_compare: false,
+                                        related_expected: true,
+                                        deferred_element: false,
+                                    });
+                                    let prior_taint = std::mem::take(&mut self.tainted);
+                                    frames.push(Frame::ClosureCall(Box::new(
+                                        ClosureCallFrameState {
+                                            expr,
+                                            context,
+                                            draft,
+                                            slots,
+                                            next: 0,
+                                            prior_taint,
+                                            previous_owner,
+                                        },
+                                    )));
+                                    continue 'evaluate;
+                                }
+                                Ok((draft, _)) => {
+                                    result = self.check_against_context_one(
+                                        expr,
+                                        context.borrowed(),
+                                        Some(PrecomputedType::CallComplete(Ok(draft.result))),
+                                    );
+                                }
+                                Err(error) => {
+                                    result = self.check_against_context_one(
+                                        expr,
+                                        context.borrowed(),
+                                        Some(PrecomputedType::CallComplete(Err(error))),
+                                    );
+                                }
+                            }
+                        } else {
+                            result = self.check_against_context_one(
+                                expr,
+                                context.borrowed(),
+                                Some(PrecomputedType::CallTarget(result)),
+                            );
+                        }
                         self.numeric_domain_owner = previous_owner;
                     }
-                    Frame::UnionCall {
-                        expr,
-                        context,
-                        prior_taint,
-                        previous_owner,
-                    } => {
+                    Frame::ClosureCall(progress) => {
+                        let mut state = *progress;
+                        let Expr::Call { args, .. } = state.expr else {
+                            unreachable!("closure call frame owns a call")
+                        };
+                        let formal = &state.draft.params[state.slots[state.next]];
+                        let outcome = result.and_then(|got| {
+                            self.unify(
+                                formal.3.clone(),
+                                got,
+                                formal.2.clone(),
+                                Self::primary_span(&args[state.next].value),
+                                Self::primary_span(&args[state.next].value),
+                                false,
+                            )
+                        });
+                        let tainted = self.tainted;
+                        self.tainted = state.prior_taint || tainted;
+                        if let Err(error) = outcome {
+                            if error.operation == Operation::AnalysisLimit {
+                                self.numeric_domain_owner = state.previous_owner;
+                                result = Err(error);
+                                continue;
+                            }
+                            self.record_error(error);
+                            self.tainted = true;
+                        }
+                        state.next += 1;
+                        if state.next < args.len() {
+                            let formal = &state.draft.params[state.slots[state.next]];
+                            inner = &args[state.next].value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&formal.3),
+                                expected_span: Some(&formal.2),
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: true,
+                                deferred_element: false,
+                            });
+                            state.prior_taint = std::mem::take(&mut self.tainted);
+                            frames.push(Frame::ClosureCall(Box::new(state)));
+                            continue 'evaluate;
+                        }
+                        result = self.check_against_context_one(
+                            state.expr,
+                            state.context.borrowed(),
+                            Some(PrecomputedType::CallComplete(Ok(state.draft.result))),
+                        );
+                        self.numeric_domain_owner = state.previous_owner;
+                    }
+                    Frame::UnionCall(progress) => {
+                        let UnionCallProgress {
+                            expr,
+                            context,
+                            prior_taint,
+                            previous_owner,
+                        } = *progress;
                         let Expr::Call { args, span, .. } = expr else {
                             unreachable!("union call frame owns a call")
                         };
@@ -6924,7 +7992,119 @@ impl Checker<'_> {
                         );
                         self.numeric_domain_owner = previous_owner;
                     }
-                    Frame::MatchScrutinee { expr, context } => {
+                    Frame::IntrinsicOne(progress) => {
+                        let (expr, context, previous_owner) = *progress;
+                        let Expr::Call { args, span, .. } = expr else {
+                            unreachable!("intrinsic frame owns a call")
+                        };
+                        let binding = &self.resolved.calls[&(span.start, span.end)];
+                        let ResolvedUse::Intrinsic(name) = &binding.target else {
+                            unreachable!("intrinsic frame has an intrinsic binding")
+                        };
+                        self.numeric_domain_owner = None;
+                        let outcome = self.check_intrinsic(
+                            name,
+                            args,
+                            &binding.slots,
+                            span,
+                            context.expected.as_ref(),
+                            context.expected_span.as_ref(),
+                            Some(result),
+                        );
+                        result = self.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::CallComplete(outcome)),
+                        );
+                        self.numeric_domain_owner = previous_owner;
+                    }
+                    Frame::TryAdd(progress) => {
+                        let mut state = *progress;
+                        let Expr::Call { args, .. } = state.expr else {
+                            unreachable!("TryAdd frame owns a call")
+                        };
+                        match result {
+                            Err(error) if error.operation == Operation::AnalysisLimit => {
+                                self.numeric_domain_owner = state.previous_owner;
+                                result = Err(error);
+                                continue;
+                            }
+                            Err(error) => {
+                                self.record_error(error);
+                                state.failed = true;
+                            }
+                            Ok(_) => {}
+                        }
+                        if state.next < args.len() {
+                            inner = &args[state.next].value;
+                            state.next += 1;
+                            frames.push(Frame::TryAdd(Box::new(state)));
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                            continue 'evaluate;
+                        }
+                        self.numeric_domain_owner = None;
+                        let result_type = if state.failed {
+                            Type::Tainted
+                        } else {
+                            Type::from(
+                                &names::intrinsic("TryAdd").expect("closed intrinsic").result,
+                            )
+                        };
+                        result = self.check_against_context_one(
+                            state.expr,
+                            state.context.borrowed(),
+                            Some(PrecomputedType::CallComplete(Ok(result_type))),
+                        );
+                        self.numeric_domain_owner = state.previous_owner;
+                    }
+                    Frame::AssertEq(progress) => {
+                        let mut state = *progress;
+                        if let Err(error) = self.assert_eq_accept(&mut state, result) {
+                            self.numeric_domain_owner = state.previous_owner;
+                            result = Err(error);
+                            continue;
+                        }
+                        let Expr::Call { args, .. } = state.expr else {
+                            unreachable!("AssertEq frame owns a call")
+                        };
+                        state.next += 1;
+                        if state.next < args.len() {
+                            self.assert_eq_prepare(&mut state);
+                            inner = &args[state.next].value;
+                            frames.push(Frame::AssertEq(Box::new(state)));
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: None,
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                            continue 'evaluate;
+                        }
+                        self.numeric_domain_owner = None;
+                        let expr = state.expr;
+                        let context = state.context.clone();
+                        let previous_owner = state.previous_owner;
+                        let outcome = self.finish_assert_eq(state);
+                        result = self.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::CallComplete(outcome)),
+                        );
+                        self.numeric_domain_owner = previous_owner;
+                    }
+                    Frame::MatchScrutinee(progress) => {
+                        let (expr, context) = *progress;
                         let Expr::Match(selection) = expr else {
                             unreachable!("match scrutinee frame owns a match")
                         };
@@ -6948,6 +8128,14 @@ impl Checker<'_> {
                                     stage: MatchStage::Arm,
                                 };
                                 match self.match_advance(&mut progress, None) {
+                                    MatchAction::Statement(statement) => {
+                                        frames.push(Frame::Match {
+                                            expr,
+                                            progress: Box::new(progress),
+                                        });
+                                        pending_task = Some(Task::StatementSite(statement));
+                                        continue 'evaluate;
+                                    }
                                     MatchAction::Value(value, context) => {
                                         frames.push(Frame::Match {
                                             expr,
@@ -6970,6 +8158,11 @@ impl Checker<'_> {
                     }
                     Frame::Match { expr, mut progress } => {
                         match self.match_advance(&mut progress, Some(result)) {
+                            MatchAction::Statement(statement) => {
+                                frames.push(Frame::Match { expr, progress });
+                                pending_task = Some(Task::StatementSite(statement));
+                                continue 'evaluate;
+                            }
                             MatchAction::Value(value, context) => {
                                 frames.push(Frame::Match { expr, progress });
                                 inner = value;
@@ -6986,6 +8179,11 @@ impl Checker<'_> {
                         }
                     }
                     Frame::If(mut progress) => match self.if_advance(&mut progress, Some(result)) {
+                        IfAction::Statement(statement) => {
+                            frames.push(Frame::If(progress));
+                            pending_task = Some(Task::StatementSite(statement));
+                            continue 'evaluate;
+                        }
                         IfAction::Value(value, context) => {
                             frames.push(Frame::If(progress));
                             inner = value;
@@ -7006,6 +8204,11 @@ impl Checker<'_> {
                     },
                     Frame::Closure { expr, mut progress } => {
                         match self.closure_body_advance(&mut progress, Some(result)) {
+                            ClosureAction::Statement(statement) => {
+                                frames.push(Frame::Closure { expr, progress });
+                                pending_task = Some(Task::StatementSite(statement));
+                                continue 'evaluate;
+                            }
                             ClosureAction::Value(value, context) => {
                                 frames.push(Frame::Closure { expr, progress });
                                 inner = value;
@@ -7072,6 +8275,14 @@ impl Checker<'_> {
         context: CheckContext<'_>,
         computed: Option<PrecomputedType>,
     ) -> Result<Type, Box<Diagnostic>> {
+        let mut unary_operand = None;
+        let computed = match computed {
+            Some(PrecomputedType::UnaryOperand(result)) => {
+                unary_operand = Some(result);
+                None
+            }
+            other => other,
+        };
         let CheckContext {
             expected,
             expected_span,
@@ -7081,6 +8292,14 @@ impl Checker<'_> {
         } = context;
         let mut context_use = if matches!(computed, Some(PrecomputedType::Whole(_))) {
             ContextUse::Propagated
+        } else if matches!(
+            computed,
+            Some(PrecomputedType::ArrayComplete {
+                constructor_pair: true,
+                ..
+            })
+        ) {
+            ContextUse::ConstructorPair
         } else {
             ContextUse::Compare
         };
@@ -7091,30 +8310,34 @@ impl Checker<'_> {
         ) {
             self.numeric_domain_owner = None;
         }
-        let (whole, binary_left, binary_right, array_first, index_target, if_result, call_target) =
+        let (whole, binary_left, binary_right, index_target, if_result, call_target) =
             match computed {
-                Some(PrecomputedType::ArrayFirst {
-                    result,
-                    prior_taint,
+                Some(PrecomputedType::ArrayComplete { result, .. }) => {
+                    (Some(result), None, None, None, None, None)
+                }
+                Some(PrecomputedType::IndexTarget {
+                    target,
+                    selector,
+                    deferred_child,
                 }) => (
                     None,
                     None,
                     None,
-                    Some((result, prior_taint)),
-                    None,
+                    Some(IndexPrepared {
+                        target,
+                        selector,
+                        deferred_child,
+                    }),
                     None,
                     None,
                 ),
-                Some(PrecomputedType::IndexTarget(result)) => {
-                    (None, None, None, None, Some(result), None, None)
-                }
                 Some(PrecomputedType::BinaryLeft {
                     result,
                     pending_before,
+                    independent_right,
                 }) => (
                     None,
-                    Some((result, pending_before)),
-                    None,
+                    Some((result, pending_before, independent_right)),
                     None,
                     None,
                     None,
@@ -7131,32 +8354,37 @@ impl Checker<'_> {
                     None,
                     None,
                     None,
+                ),
+                Some(PrecomputedType::BinaryDeferredRight {
+                    left,
+                    result,
+                    pending_before_left,
+                    pending_before_operator,
+                }) => (
+                    None,
+                    Some((Ok(left.clone()), pending_before_left, None)),
+                    Some((left, result, pending_before_operator)),
+                    None,
+                    None,
                     None,
                 ),
                 Some(
                     PrecomputedType::CallComplete(result)
                     | PrecomputedType::MatchComplete(result)
                     | PrecomputedType::ClosureComplete(result),
-                ) => (Some(result), None, None, None, None, None, None),
+                ) => (Some(result), None, None, None, None, None),
                 Some(PrecomputedType::CallTarget(result)) => {
-                    (None, None, None, None, None, None, Some(result))
+                    (None, None, None, None, None, Some(result))
                 }
                 Some(PrecomputedType::IfComplete {
                     result,
                     pending_before,
-                }) => (
-                    None,
-                    None,
-                    None,
-                    None,
-                    None,
-                    Some((result, pending_before)),
-                    None,
-                ),
+                }) => (None, None, None, None, Some((result, pending_before)), None),
                 Some(PrecomputedType::Whole(result)) => {
-                    (Some(result), None, None, None, None, None, None)
+                    (Some(result), None, None, None, None, None)
                 }
-                None => (None, None, None, None, None, None, None),
+                Some(PrecomputedType::UnaryOperand(_)) => unreachable!("unary operand separated"),
+                None => (None, None, None, None, None, None),
             };
         let result = match whole {
             Some(result) => result,
@@ -7166,7 +8394,7 @@ impl Checker<'_> {
                 &mut context_use,
                 binary_left,
                 binary_right,
-                array_first,
+                unary_operand,
                 index_target,
                 if_result,
                 call_target,
@@ -7315,17 +8543,16 @@ impl Checker<'_> {
         e: &Expr,
         context: CheckContext<'_>,
         context_use: &mut ContextUse,
-        binary_left: Option<(Result<Type, Box<Diagnostic>>, usize)>,
+        binary_left: Option<BinaryLeftPrepared>,
         binary_right: Option<(Type, Result<Type, Box<Diagnostic>>, usize)>,
-        mut array_first: Option<(Result<Type, Box<Diagnostic>>, bool)>,
-        index_target: Option<Result<Type, Box<Diagnostic>>>,
+        unary_operand: Option<Result<Type, Box<Diagnostic>>>,
+        index_target: Option<IndexPrepared>,
         if_result: Option<(IfResult, usize)>,
         call_target: Option<Result<Type, Box<Diagnostic>>>,
     ) -> Result<Type, Box<Diagnostic>> {
         let CheckContext {
             expected,
             expected_span,
-            check_here,
             outer_compare,
             ..
         } = context;
@@ -7405,7 +8632,7 @@ impl Checker<'_> {
                         question,
                     ));
                 }
-                let operand = self.expr(value, None, None)?;
+                let operand = unary_operand.expect("unary operand is prepared by driver")?;
                 if self.tainted || operand == Type::Tainted {
                     return Ok(Type::Tainted);
                 }
@@ -7498,10 +8725,7 @@ impl Checker<'_> {
                 }
                 Ok(ok.as_ref().clone())
             }
-            Expr::Unary { value, .. } => {
-                *context_use = ContextUse::Propagated;
-                self.check_against(value, expected, expected_span, check_here)
-            }
+            Expr::Unary { .. } => unreachable!("unary operand is scheduled by driver"),
             Expr::Array(xs, span) => {
                 let element_expected_type = match expected.filter(|_| !outer_compare) {
                     Some(Type::Array(t)) => Some(t.as_ref().clone()),
@@ -7534,347 +8758,29 @@ impl Checker<'_> {
                     });
                     return Ok(Type::Array(Arc::new(Type::Deferred(child))));
                 };
-                let mut item_type = element_expected.cloned();
-                let mut item_origin = expected_span.cloned();
-                let mut pending: Vec<(u64, Span)> = Vec::new();
-                let mut diverges = false;
-                let mut invalid = false;
-                for (index, item) in xs.iter().enumerate() {
-                    let origin = if index == 0 {
-                        expected_span
-                    } else {
-                        item_origin.as_ref()
-                    };
-                    let prior_taint = if index == 0 {
-                        array_first
-                            .as_ref()
-                            .map(|(_, prior)| *prior)
-                            .unwrap_or(self.tainted)
-                    } else {
-                        self.tainted
-                    };
-                    if index != 0 || array_first.is_none() {
-                        self.tainted = false;
-                    }
-                    // §4.7 checks each operand against a concrete context at
-                    // its own site; §13.9 keeps independent element errors.
-                    let item_expected = element_expected
-                        .or_else(|| item_type.as_ref().filter(|ty| internal_state(ty).is_none()));
-                    let pending_shape = pending.first().and_then(|(id, _)| {
-                        let root = self.root(*id);
-                        self.type_nodes[&root]
-                            .array_child
-                            .map(|_| Type::Deferred(*id))
-                    });
-                    let item_expected = item_expected.or(pending_shape.as_ref());
-                    let outcome = if index == 0 {
-                        if let Some((result, _)) = array_first.take() {
-                            result
-                        } else {
-                            self.check_against_context(
-                                item,
-                                CheckContext {
-                                    expected: item_expected,
-                                    expected_span: origin,
-                                    check_here: true,
-                                    anchor: None,
-                                    outer_compare: false,
-                                    related_expected: origin.is_some(),
-                                    deferred_element: element_expected.is_some()
-                                        || pending_shape.is_some(),
-                                },
-                            )
-                        }
-                    } else {
-                        self.check_against_context(
-                            item,
-                            CheckContext {
-                                expected: item_expected,
-                                expected_span: origin,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: origin.is_some(),
-                                deferred_element: element_expected.is_some()
-                                    || pending_shape.is_some(),
-                            },
-                        )
-                    };
-                    let item_tainted =
-                        self.tainted || self.failed_join_exprs.contains(&span_key(item.span()));
-                    self.tainted = prior_taint || item_tainted;
-                    let got = match outcome {
-                        Ok(got) => got,
-                        Err(error) => {
-                            // charge_solver has already retained the first
-                            // denied global charge. The compilation barrier
-                            // emits it once even if this return is swallowed
-                            // by a tainted enclosing expression. Swallowing
-                            // it here could change only the internal inferred
-                            // table after exhaustion; NX-E0003 still blocks
-                            // every consumer of executable inferred types.
-                            if error.operation == Operation::AnalysisLimit {
-                                return Err(error);
-                            }
-                            // A child can report one internal error and
-                            // return another independent one. Its taint
-                            // suppresses only a comparison of the child's
-                            // unusable result with this array's element.
-                            self.record_error(error);
-                            // `invalid` forces the constructor to return
-                            // Tainted after visiting its other elements.
-                            // Each child has an isolated taint bit, so setting
-                            // the parent bit here cannot affect an independent
-                            // child or the final result.
-                            invalid = true;
-                            continue;
-                        }
-                    };
-                    if item_tainted {
-                        invalid = true;
-                        continue;
-                    }
-                    if self.pending_domain_calls.contains(&span_key(item.span()))
-                        && let Some(wanted) = item_expected
-                        && internal_state(wanted).is_none()
-                        && internal_state(&got).is_none()
-                        && compare_source_site(
-                            wanted,
-                            &got,
-                            origin.cloned().unwrap_or_else(|| Self::primary_span(item)),
-                            Self::primary_span(item),
-                            UnifyPolicy {
-                                branch: false,
-                                related_expected: origin.is_some(),
-                            },
-                        )
-                        .is_some()
-                    {
-                        // Closure owns the child's diagnostic. The array
-                        // cannot lend its provisional element type to a
-                        // sibling while that obligation remains open.
-                        invalid = true;
-                        continue;
-                    }
-                    diverges |= self.divergent_exprs.contains(&span_key(item.span()));
-                    if item_expected.is_some() {
-                        // The first concrete element fixes the element type.
-                        // Each later element is checked in its own subtree;
-                        // an invalid element cannot replace that type.
-                        // A result whose domain is still pending cannot be
-                        // the sole witness for an independent later site.
-                        // Prefer the next valid element of the same type.
-                        if item_origin.as_ref().is_some_and(|origin| {
-                            self.pending_domain_calls.contains(&span_key(origin))
-                        }) && !self.pending_domain_calls.contains(&span_key(item.span()))
-                        {
-                            item_origin = Some(Self::primary_span(item));
-                        }
-                        continue;
-                    }
-                    if self.deferred_exprs.contains(&span_key(item.span())) {
-                        if let Some(id) = self.expression_variable(item) {
-                            self.require_copyable(id, &Self::primary_span(item), false)?;
-                            if let Some(expected_item) = item_type.as_ref() {
-                                // item_type is assigned only from a
-                                // non-deferred result (or a concrete source
-                                // annotation). check_against just compared
-                                // this child with that concrete item type.
-                                // Thus both sides cannot be concrete and
-                                // incompatible here; branch-mode's special
-                                // mismatch arm is unreachable.
-                                self.unify(
-                                    expected_item.clone(),
-                                    Type::Deferred(id),
-                                    origin.cloned().unwrap_or_else(|| span.clone()),
-                                    Self::primary_span(item),
-                                    Self::primary_span(item),
-                                    false,
-                                )?;
-                            } else {
-                                if let Some((first, first_origin)) = pending.first() {
-                                    // Deferred siblings are constrained at
-                                    // the second occurrence, in source order.
-                                    // Waiting until the array closes would
-                                    // move an eventual conflict to the whole
-                                    // constructor (§4.1.2.6).
-                                    let before = self.pending_join_count();
-                                    self.unify(
-                                        Type::Deferred(*first),
-                                        Type::Deferred(id),
-                                        first_origin.clone(),
-                                        Self::primary_span(item),
-                                        Self::primary_span(item),
-                                        false,
-                                    )?;
-                                    if self.pending_join_count() > before {
-                                        self.failed_join_exprs.insert(span_key(e.span()));
-                                        // The rejected sibling cannot join
-                                        // the pending witness set. A later
-                                        // element is compared with the first
-                                        // valid one (§§4.1.2.4–5, 13.9).
-                                        continue;
-                                    }
-                                }
-                                if pending.is_empty() {
-                                    item_origin = Some(Self::primary_span(item));
-                                }
-                                pending.push((id, Self::primary_span(item)));
-                            }
-                        }
-                        continue;
-                    }
-                    if item_type.is_none() {
-                        let concrete_origin = Self::primary_span(item);
-                        let mut first_conflict = false;
-                        for (id, source_origin) in &pending {
-                            let before_conflict = self.pending_join_count();
-                            let projected_reference = self.projection_items.contains(id);
-                            let source_type = projected_reference
-                                .then(|| self.concrete(*id).map(|(ty, _)| ty))
-                                .flatten();
-                            let equality = self.unify(
-                                Type::Deferred(*id),
-                                got.clone(),
-                                source_origin.clone(),
-                                concrete_origin.clone(),
-                                Self::primary_span(item),
-                                false,
-                            );
-                            match equality {
-                                Ok(_) => {}
-                                Err(error) if error.operation == Operation::AnalysisLimit => {
-                                    return Err(error);
-                                }
-                                Err(error) => {
-                                    // A rejected element does not replace the
-                                    // first witness. Later elements retain
-                                    // independent equality sites (§4.1.2.4).
-                                    let error = source_type
-                                        .as_ref()
-                                        .and_then(|source_type| {
-                                            compare_source_site(
-                                                source_type,
-                                                &got,
-                                                source_origin.clone(),
-                                                Self::primary_span(item),
-                                                UnifyPolicy {
-                                                    branch: false,
-                                                    related_expected: true,
-                                                },
-                                            )
-                                        })
-                                        .unwrap_or(error);
-                                    self.record_error(error);
-                                    first_conflict = true;
-                                }
-                            }
-                            first_conflict |= self.pending_join_count() > before_conflict;
-                        }
-                        if first_conflict {
-                            // ADR §4.1.2.2,4: a rejected shape equality
-                            // cannot replace the first array element as the
-                            // reference for later siblings.
-                            invalid = true;
-                            continue;
-                        }
-                        pending.clear();
-                        item_type = Some(got);
-                        // ADR §4.1.2.4,6: the first valid array element is
-                        // the source witness for later element checks.
-                        item_origin = Some(concrete_origin);
-                    } else if let Some(prior) = item_type.clone() {
-                        let prior_origin = origin.cloned().unwrap_or_else(|| span.clone());
-                        let concrete_origin = Self::primary_span(item);
-                        match self.unify(
-                            prior,
-                            got,
-                            prior_origin,
-                            concrete_origin,
-                            Self::primary_span(item),
-                            false,
-                        ) {
-                            Ok(ty) => item_type = Some(ty),
-                            // Returning the quota here avoids recording more
-                            // partial inferred entries. If swallowed, the
-                            // global quota_error still emits the same sole
-                            // NX-E0003, and that exhausted inferred table
-                            // is never consumed for executable IR.
-                            Err(error) if error.operation == Operation::AnalysisLimit => {
-                                return Err(error);
-                            }
-                            Err(error) => {
-                                // `invalid` returns Tainted at the array
-                                // boundary, which sets the same parent taint.
-                                // Siblings reset their own taint bit.
-                                self.record_error(error);
-                                self.tainted = true;
-                                invalid = true;
-                            }
-                        }
-                    }
-                }
-                if invalid {
-                    return Ok(Type::Tainted);
-                }
-                if let Some(item) = item_type {
-                    if contains_resource(&item) {
-                        return Err(resource_array(span.clone()));
-                    }
-                    let resolved_item = self
-                        .resolved_syntax_type(&item)
-                        .map(|ty| Type::from(&ty))
-                        .unwrap_or_else(|| item.clone());
-                    self.check_depth(&Type::Array(Arc::new(resolved_item)), span)?;
-                    if diverges {
-                        self.divergent_exprs.insert(span_key(e.span()));
-                    }
-                    Ok(Type::Array(Arc::new(item)))
-                } else {
-                    self.deferred_exprs.insert(span_key(e.span()));
-                    if diverges {
-                        self.divergent_exprs.insert(span_key(e.span()));
-                    }
-                    if let Some((child, _)) = pending.first() {
-                        let id = self.new_variable(span)?;
-                        self.type_nodes.get_mut(&id).unwrap().array_child = Some(*child);
-                        self.type_nodes.get_mut(&id).unwrap().array_origin = Some(span.clone());
-                        self.type_nodes.get_mut(&id).unwrap().array_constructed = true;
-                        self.check_one_inferred_depth(id, span)?;
-                        self.expr_vars.insert(span_key(e.span()), id);
-                        // Every constructor owns an element-resolution
-                        // obligation, even when the pending element came
-                        // from another constructor or a projection (ADR
-                        // §4.1.2.2, RD122/RD127).
-                        self.pending.push(PendingConstraint::Constructor {
-                            child: *child,
-                            array: id,
-                            span: span.clone(),
-                        });
-                        Ok(Type::Array(Arc::new(Type::Deferred(*child))))
-                    } else if diverges {
-                        let child = self.new_variable(span)?;
-                        let array = self.new_variable(span)?;
-                        self.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
-                        self.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
-                        self.type_nodes.get_mut(&array).unwrap().array_constructed = true;
-                        self.require_copyable(child, span, false)?;
-                        self.expr_vars.insert(span_key(e.span()), array);
-                        self.pending.push(PendingConstraint::Constructor {
-                            child,
-                            array,
-                            span: span.clone(),
-                        });
-                        Ok(Type::Array(Arc::new(Type::Deferred(child))))
-                    } else {
-                        Ok(Type::Tainted)
-                    }
-                }
+                unreachable!("nonempty array is scheduled by driver")
             }
             Expr::Binary {
                 op, left, right, ..
             } => {
-                if let Some((left_type, right_result, pending_before_right)) = binary_right {
+                if binary_left.is_some()
+                    && let Some((left_type, right_result, pending_before_operator)) = binary_right
+                {
+                    return self.finish_deferred_binary_right(
+                        e,
+                        op,
+                        left,
+                        right,
+                        left_type,
+                        right_result,
+                        pending_before_operator,
+                        expected,
+                        expected_span,
+                    );
+                }
+                if binary_left.is_none()
+                    && let Some((left_type, right_result, pending_before_right)) = binary_right
+                {
                     return self.finish_binary_right(
                         e,
                         op,
@@ -7887,32 +8793,9 @@ impl Checker<'_> {
                         expected_span,
                     );
                 }
-                let (left_result, pending_before_left) =
+                let (left_result, pending_before_left, independent_right) =
                     binary_left.expect("binary left operand is prepared by check_against_context");
-                let l = match left_result {
-                    Ok(left_ty) => left_ty,
-                    Err(error) => {
-                        if error.operation == Operation::AnalysisLimit {
-                            return Err(error);
-                        }
-                        let left_tainted = self.tainted;
-                        self.tainted = false;
-                        let left_domain_failed = matches!(op.as_str(), "+" | "-")
-                            && error.primary_span.as_ref() == Some(&Self::primary_span(left))
-                            && error.data.get("expected_type")
-                                == Some(&DataValue::String("I64".into()));
-                        let right_tainted =
-                            self.independent_binary_rhs(op, left, right, left_domain_failed)?;
-                        self.tainted |= left_tainted;
-                        if right_tainted {
-                            self.record_error(error);
-                            self.deferred_exprs.insert(span_key(e.span()));
-                            self.tainted = true;
-                            return Ok(Type::Tainted);
-                        }
-                        return Err(error);
-                    }
-                };
+                let l = left_result?;
                 if self
                     .pending_domain_calls
                     .contains(&span_key(&Self::primary_span(left)))
@@ -7920,12 +8803,8 @@ impl Checker<'_> {
                     // A pending operand domain does not yet authorize the
                     // operation's nominal result as a cross-operand witness.
                     // The other operand still has its own domain site.
-                    let left_domain_failed = matches!(op.as_str(), "+" | "-")
-                        && self.type_determined(&l)
-                        && l != Type::I64
-                        && !self.failed_join_exprs.contains(&span_key(left.span()));
                     let right_tainted =
-                        self.independent_binary_rhs(op, left, right, left_domain_failed)?;
+                        independent_right.expect("independent binary right operand");
                     if right_tainted {
                         // The sibling owns a real failure. Its containing
                         // operation has no nominal value for a selector or
@@ -7993,25 +8872,16 @@ impl Checker<'_> {
                 if matches!(op.as_str(), "+" | "-")
                     && self.pending_join_count() > pending_before_left
                 {
-                    let left_tainted = self.tainted;
-                    self.tainted = false;
                     // ADR §4.1.2.4-5: an internal failed join contaminates
                     // this operand but has not consumed this operator's
                     // domain site. A direct left-domain conflict has.
-                    let left_domain_failed = self.type_determined(&l) && l != Type::I64;
-                    self.independent_binary_rhs(op, left, right, left_domain_failed)?;
-                    self.tainted |= left_tainted;
+                    independent_right.expect("independent binary right operand");
                     self.failed_join_exprs.insert(span_key(e.span()));
                     self.tainted = true;
                     return Ok(Type::I64);
                 }
                 if self.failed_join_exprs.contains(&span_key(left.span())) {
-                    let left_tainted = self.tainted;
-                    self.tainted = false;
-                    let left_domain_failed =
-                        self.context_rejections.contains(&span_key(left.span()));
-                    self.independent_binary_rhs(op, left, right, left_domain_failed)?;
-                    self.tainted |= left_tainted;
+                    independent_right.expect("independent binary right operand");
                     self.failed_join_exprs.insert(span_key(e.span()));
                     self.tainted = true;
                     return Ok(if matches!(op.as_str(), "<" | "==") {
@@ -8024,13 +8894,7 @@ impl Checker<'_> {
                     // A child already recorded its own error. Visit the
                     // independent sibling, but suppress the operator error
                     // that would depend on the invalid left value.
-                    self.tainted = false;
-                    self.independent_binary_rhs(
-                        op,
-                        left,
-                        right,
-                        self.context_rejections.contains(&span_key(left.span())),
-                    )?;
+                    independent_right.expect("independent binary right operand");
                     self.tainted = true;
                     self.deferred_exprs.insert(span_key(e.span()));
                     return Ok(if matches!(op.as_str(), "<" | "==") {
@@ -8039,190 +8903,8 @@ impl Checker<'_> {
                         Type::I64
                     });
                 }
-                if self.deferred_exprs.contains(&span_key(left.span())) {
-                    let pending_before_operator = self.pending_join_count();
-                    let left_variable = self.expression_variable(left);
-                    let numeric = matches!(op.as_str(), "+" | "-");
-                    let right_ty = match self.expr(right, numeric.then_some(&Type::I64), None) {
-                        Ok(ty) => ty,
-                        Err(error) if error.operation == Operation::AnalysisLimit => {
-                            return Err(error);
-                        }
-                        Err(error) if matches!(op.as_str(), "<" | "==") => {
-                            self.record_error(error);
-                            if let Some(domain_error) =
-                                self.comparison_domain_error(op, left, right, &l)?
-                            {
-                                self.record_error(domain_error);
-                            }
-                            self.tainted = true;
-                            return Ok(Type::Tainted);
-                        }
-                        Err(error) => return Err(error),
-                    };
-                    if self
-                        .pending_domain_calls
-                        .contains(&span_key(&Self::primary_span(right)))
-                    {
-                        if matches!(op.as_str(), "<" | "==") {
-                            if let Some(domain_error) =
-                                self.comparison_domain_error(op, left, right, &l)?
-                            {
-                                self.record_error(domain_error);
-                            }
-                            if let (Some((variable, domain)), Some(found)) = (
-                                self.pending_operation_guard(right),
-                                self.pending_operation_type(right),
-                            ) {
-                                self.pending
-                                    .push(PendingConstraint::GuardedComparison(Box::new(
-                                        PendingGuardedComparison {
-                                            variable,
-                                            domain,
-                                            expected: left_variable
-                                                .map(Type::Deferred)
-                                                .unwrap_or(l.clone()),
-                                            found,
-                                            expected_origin: Self::primary_span(left),
-                                            found_site: Self::primary_span(right),
-                                            result: Self::primary_span(e),
-                                            consumer_expected: expected.cloned(),
-                                            consumer_origin: expected_span.cloned(),
-                                            domain_error_if_equal: None,
-                                            additional_domains: Vec::new(),
-                                            projections: Vec::new(),
-                                            dependent_results: Vec::new(),
-                                            require_resolved: false,
-                                        },
-                                    )));
-                            }
-                        }
-                        self.pending_domain_calls.insert(span_key(e.span()));
-                        if !self.tainted && self.pending_nominal_available(right) {
-                            return Ok(if matches!(op.as_str(), "<" | "==") {
-                                Type::Bool
-                            } else {
-                                Type::I64
-                            });
-                        }
-                        return Ok(Type::Tainted);
-                    }
-                    if self.tainted || self.failed_join_exprs.contains(&span_key(right.span())) {
-                        if matches!(op.as_str(), "<" | "==")
-                            && let Some(domain_error) =
-                                self.comparison_domain_error(op, left, right, &l)?
-                        {
-                            self.record_error(domain_error);
-                        }
-                        return Ok(Type::Tainted);
-                    }
-                    if matches!(op.as_str(), "<" | "==") {
-                        // ADR §4.1.2.4: both operands are synthesized before
-                        // equality; only then is the common domain tested.
-                        let right_variable = self.expression_variable(right);
-                        let left_type = left_variable.map(Type::Deferred).unwrap_or(l.clone());
-                        let right_type = right_variable
-                            .map(Type::Deferred)
-                            .unwrap_or(right_ty.clone());
-                        let left_determined = self.type_determined(&left_type);
-                        let right_determined = self.type_determined(&right_type);
-                        let found_site = if left_determined || !right_determined {
-                            Self::primary_span(left)
-                        } else {
-                            Self::primary_span(right)
-                        };
-                        let operator = self.operator_span(left.span(), right.span(), op);
-                        let common = self.unify(
-                            left_type,
-                            right_type,
-                            Self::primary_span(left),
-                            Self::primary_span(right),
-                            Self::primary_span(right),
-                            false,
-                        )?;
-                        if self.pending_join_count() > pending_before_operator {
-                            self.failed_join_exprs.insert(span_key(e.span()));
-                            return Ok(Type::Bool);
-                        }
-                        let variable = left_variable.or(right_variable);
-                        let complete = variable
-                            .and_then(|id| self.concrete(id).map(|(ty, _)| ty))
-                            .or_else(|| (internal_state(&common).is_none()).then_some(common));
-                        let domain = if op == "<" {
-                            "I64"
-                        } else {
-                            "domain:copyable_data"
-                        };
-                        if let Some(ty) = complete {
-                            let valid = if op == "<" {
-                                ty == Type::I64
-                            } else {
-                                comparable_data(&ty)
-                            };
-                            if !valid {
-                                return Err(mismatch(operator, found_site, None, domain, &ty));
-                            }
-                        } else if let Some(id) = variable {
-                            let root = self.root(id);
-                            if op == "<" && self.type_nodes[&root].array_child.is_none() {
-                                self.unify_with_expected_origin(
-                                    Type::I64,
-                                    Type::Deferred(id),
-                                    operator.clone(),
-                                    operator.clone(),
-                                    operator,
-                                    UnifyPolicy {
-                                        branch: false,
-                                        related_expected: false,
-                                    },
-                                )?;
-                            } else {
-                                self.pending.push(PendingConstraint::BinaryDomain(Box::new(
-                                    PendingBinaryDomain {
-                                        variable: id,
-                                        operator,
-                                        found: found_site,
-                                        domain,
-                                        result: e.span().clone(),
-                                    },
-                                )));
-                                self.defer_nominal_domain(
-                                    id,
-                                    domain,
-                                    e.span(),
-                                    &Type::Bool,
-                                    expected,
-                                    expected_span,
-                                    None,
-                                );
-                            }
-                        }
-                        return Ok(Type::Bool);
-                    }
-                    if let Some(id) = left_variable {
-                        // < and == returned above; only + and - reach here.
-                        self.unify(
-                            Type::Deferred(id),
-                            Type::I64,
-                            Self::primary_span(left),
-                            Self::primary_span(left),
-                            Self::primary_span(left),
-                            false,
-                        )?;
-                    }
-                    if self.pending_join_count() > pending_before_operator {
-                        self.failed_join_exprs.insert(span_key(e.span()));
-                    }
-                    return Ok(Type::I64);
-                }
                 if matches!(op.as_str(), "+" | "-") && l != Type::I64 {
-                    let pending_left_result = self.pending.iter().any(|entry| match entry {
-                        PendingConstraint::BinaryDomain(domain) => {
-                            domain.result == Self::primary_span(left)
-                        }
-                        _ => false,
-                    });
-                    self.independent_binary_rhs(op, left, right, !pending_left_result)?;
+                    independent_right.expect("independent binary right operand");
                     return Err(mismatch(
                         Self::primary_span(left),
                         Self::primary_span(left),
@@ -8231,49 +8913,17 @@ impl Checker<'_> {
                         &l,
                     ));
                 }
-                let left_origin = Self::primary_span(left);
-                let pending_before_right = self.pending_join_count();
-                let right_result = if matches!(op.as_str(), "+" | "-") {
-                    self.check_against_context(
-                        right,
-                        CheckContext {
-                            expected: Some(&Type::I64),
-                            expected_span: Some(&left_origin),
-                            check_here: true,
-                            anchor: None,
-                            outer_compare: false,
-                            related_expected: false,
-                            deferred_element: false,
-                        },
-                    )
-                } else {
-                    self.check_against_outer(right, &l, &left_origin)
-                };
-                self.finish_binary_right(
-                    e,
-                    op,
-                    left,
-                    right,
-                    &l,
-                    right_result,
-                    pending_before_right,
-                    expected,
-                    expected_span,
-                )
+                unreachable!("binary right operand is prepared by driver")
             }
             Expr::Index { target, index, .. } => {
-                let base =
-                    index_target.expect("index target is prepared by check_against_context")?;
+                let IndexPrepared {
+                    target: base,
+                    selector: mut precomputed_selector,
+                    deferred_child,
+                } = index_target.expect("index target is prepared by check_against_context");
+                let base = base?;
                 if base == Type::Tainted {
-                    let previous_taint = self.tainted;
-                    self.tainted = false;
-                    let outcome = self.expr(index, Some(&Type::I64), None);
-                    let index_tainted = self.tainted;
-                    // `previous_taint` is already true when `base` is Tainted.
-                    // This branch returns Tainted, and check_against_context
-                    // restores the bit before any parent observes the value.
-                    // On AnalysisLimit, quota_error owns the denied charge.
-                    self.tainted = previous_taint || index_tainted;
+                    let outcome = precomputed_selector.take().expect("tainted index selector");
                     if let Err(error) = outcome {
                         if error.operation == Operation::AnalysisLimit {
                             return Err(error);
@@ -8283,7 +8933,7 @@ impl Checker<'_> {
                     return Ok(Type::Tainted);
                 }
                 if base == Type::Never {
-                    self.expr(index, Some(&Type::I64), None)?;
+                    precomputed_selector.take().expect("never index selector")?;
                     self.deferred_exprs.insert(span_key(e.span()));
                     self.divergent_exprs.insert(span_key(e.span()));
                     return Ok(Type::Never);
@@ -8292,8 +8942,11 @@ impl Checker<'_> {
                     if let Some(id) = self.expression_variable(target) {
                         let root = self.root(id);
                         let child = if self.type_nodes[&root].array_child.is_some() {
-                            let child = self.require_array(id, &Self::primary_span(target))?;
-                            self.expr(index, Some(&Type::I64), None)?;
+                            let child =
+                                deferred_child.expect("deferred array prepared by index frame");
+                            precomputed_selector
+                                .take()
+                                .expect("deferred array selector")?;
                             if self.failed_join_exprs.contains(&span_key(index.span())) {
                                 // The selector's deferred domain is already
                                 // incompatible with its established Array
@@ -8334,7 +8987,9 @@ impl Checker<'_> {
                         return Ok(Type::Deferred(child));
                     }
                     if self.divergent_exprs.contains(&span_key(target.span())) {
-                        self.expr(index, Some(&Type::I64), None)?;
+                        precomputed_selector
+                            .take()
+                            .expect("divergent index selector")?;
                         self.deferred_exprs.insert(span_key(e.span()));
                         self.divergent_exprs.insert(span_key(e.span()));
                         return Ok(Type::Never);
@@ -8344,11 +8999,7 @@ impl Checker<'_> {
                     // An invalid or still hypothetical union cannot prove
                     // its result non-indexable. Visit the selector's own
                     // constraints without using the missing Array context.
-                    let previous_taint = self.tainted;
-                    self.tainted = false;
-                    let selector = self.expr(index, None, None);
-                    let selector_tainted = self.tainted;
-                    self.tainted = previous_taint || selector_tainted;
+                    let selector = precomputed_selector.take().expect("union index selector");
                     if let Err(error) = selector {
                         if error.operation == Operation::AnalysisLimit {
                             return Err(error);
@@ -8362,11 +9013,9 @@ impl Checker<'_> {
                     // not suppress an independent error inside the selector.
                     // Without an Array base the I64 selector context is not
                     // activated (RD117).
-                    let previous_taint = self.tainted;
-                    self.tainted = false;
-                    let selector = self.expr(index, None, None);
-                    let selector_tainted = self.tainted;
-                    self.tainted = previous_taint || selector_tainted;
+                    let selector = precomputed_selector
+                        .take()
+                        .expect("nonarray index selector");
                     if let Err(error) = selector {
                         if error.operation == Operation::AnalysisLimit {
                             return Err(error);
@@ -8382,7 +9031,7 @@ impl Checker<'_> {
                         &base,
                     ));
                 };
-                self.expr(index, Some(&Type::I64), None)?;
+                precomputed_selector.take().expect("array index selector")?;
                 if self.failed_join_exprs.contains(&span_key(index.span())) {
                     return Ok(Type::Tainted);
                 }
@@ -8392,56 +9041,6 @@ impl Checker<'_> {
                 let Some(binding) = self.resolved.calls.get(&(span.start, span.end)) else {
                     let target_ty =
                         call_target.expect("call target is prepared by check_against_context")?;
-                    if let Type::Closure { site, .. } = target_ty {
-                        let draft = self.closures.get(&site).cloned().ok_or_else(|| {
-                            names::diagnostic(
-                                "NX-E1111",
-                                None,
-                                Stage::Types,
-                                Operation::TypesCheck,
-                                target.span().clone(),
-                            )
-                        })?;
-                        let params = draft
-                            .params
-                            .iter()
-                            .map(|(name, mode, name_span, _)| names::ParameterSig {
-                                name: name.clone(),
-                                name_span: name_span.clone(),
-                                type_span: name_span.clone(),
-                                mode: *mode,
-                                ty: SyntaxType::Unit,
-                            })
-                            .collect();
-                        let slots = names::bind_arguments(params, target.span(), args)?;
-                        for (arg, slot) in args.iter().zip(slots) {
-                            let formal = &draft.params[slot];
-                            let previous_taint = self.tainted;
-                            self.tainted = false;
-                            let outcome = self
-                                .expr(&arg.value, Some(&formal.3), Some(&formal.2))
-                                .and_then(|got| {
-                                    self.unify(
-                                        formal.3.clone(),
-                                        got,
-                                        formal.2.clone(),
-                                        Self::primary_span(&arg.value),
-                                        Self::primary_span(&arg.value),
-                                        false,
-                                    )
-                                });
-                            let tainted = self.tainted;
-                            self.tainted = previous_taint || tainted;
-                            if let Err(error) = outcome {
-                                if error.operation == Operation::AnalysisLimit {
-                                    return Err(error);
-                                }
-                                self.record_error(error);
-                                self.tainted = true;
-                            }
-                        }
-                        return Ok(draft.result);
-                    }
                     if target_ty == Type::Tainted {
                         self.tainted = true;
                         return Ok(Type::Tainted);
@@ -8478,6 +9077,7 @@ impl Checker<'_> {
                         span,
                         expected,
                         expected_span,
+                        None,
                     );
                 }
                 // Nonempty resolved calls enter their argument frames before
@@ -8560,6 +9160,538 @@ impl Checker<'_> {
             }
             Expr::Match(_) => unreachable!("match expressions complete through their frame"),
         }
+    }
+
+    #[allow(clippy::too_many_arguments)] // The continuation preserves the parent's sites.
+    #[allow(clippy::too_many_arguments)]
+    fn array_next<'a>(&mut self, state: &mut ArrayFrameState<'a>) -> (&'a Expr, OwnedCheckContext) {
+        let index = state.next;
+        let item = &state.items[index];
+        let origin = if index == 0 {
+            state.context.expected_span.clone()
+        } else {
+            state.item_origin.clone()
+        };
+        let pending_shape = state.pending.first().and_then(|(id, _)| {
+            let root = self.root(*id);
+            self.type_nodes[&root]
+                .array_child
+                .map(|_| Type::Deferred(*id))
+        });
+        let expected = state
+            .element_expected
+            .as_ref()
+            .or_else(|| {
+                state
+                    .item_type
+                    .as_ref()
+                    .filter(|ty| internal_state(ty).is_none())
+            })
+            .or(pending_shape.as_ref())
+            .cloned();
+        state.current_expected = expected.clone();
+        state.current_origin = origin.clone();
+        state.prior_taint = std::mem::take(&mut self.tainted);
+        (
+            item,
+            OwnedCheckContext {
+                expected,
+                expected_span: origin.clone(),
+                check_here: true,
+                anchor: None,
+                outer_compare: false,
+                related_expected: origin.is_some(),
+                deferred_element: state.element_expected.is_some() || pending_shape.is_some(),
+            },
+        )
+    }
+
+    fn array_accept(
+        &mut self,
+        state: &mut ArrayFrameState<'_>,
+        outcome: Result<Type, Box<Diagnostic>>,
+    ) -> Result<(), Box<Diagnostic>> {
+        let ArrayFrameState {
+            expr: e,
+            items,
+            span,
+            next,
+            current_expected,
+            current_origin,
+            prior_taint,
+            item_type,
+            item_origin,
+            pending,
+            diverges,
+            invalid,
+            ..
+        } = state;
+        let item = &items[*next];
+        let item_expected = current_expected.as_ref();
+        let origin = current_origin.as_ref();
+        let prior_taint = *prior_taint;
+        let item_tainted = self.tainted || self.failed_join_exprs.contains(&span_key(item.span()));
+        self.tainted = prior_taint || item_tainted;
+        let got = match outcome {
+            Ok(got) => got,
+            Err(error) => {
+                // charge_solver has already retained the first
+                // denied global charge. The compilation barrier
+                // emits it once even if this return is swallowed
+                // by a tainted enclosing expression. Swallowing
+                // it here could change only the internal inferred
+                // table after exhaustion; NX-E0003 still blocks
+                // every consumer of executable inferred types.
+                if error.operation == Operation::AnalysisLimit {
+                    return Err(error);
+                }
+                // A child can report one internal error and
+                // return another independent one. Its taint
+                // suppresses only a comparison of the child's
+                // unusable result with this array's element.
+                self.record_error(error);
+                // `invalid` forces the constructor to return
+                // Tainted after visiting its other elements.
+                // Each child has an isolated taint bit, so setting
+                // the parent bit here cannot affect an independent
+                // child or the final result.
+                *invalid = true;
+                return Ok(());
+            }
+        };
+        if item_tainted {
+            *invalid = true;
+            return Ok(());
+        }
+        if self.pending_domain_calls.contains(&span_key(item.span()))
+            && let Some(wanted) = item_expected
+            && internal_state(wanted).is_none()
+            && internal_state(&got).is_none()
+            && compare_source_site(
+                wanted,
+                &got,
+                origin.cloned().unwrap_or_else(|| Self::primary_span(item)),
+                Self::primary_span(item),
+                UnifyPolicy {
+                    branch: false,
+                    related_expected: origin.is_some(),
+                },
+            )
+            .is_some()
+        {
+            // Closure owns the child's diagnostic. The array
+            // cannot lend its provisional element type to a
+            // sibling while that obligation remains open.
+            *invalid = true;
+            return Ok(());
+        }
+        *diverges |= self.divergent_exprs.contains(&span_key(item.span()));
+        if item_expected.is_some() {
+            // The first concrete element fixes the element type.
+            // Each later element is checked in its own subtree;
+            // an invalid element cannot replace that type.
+            // A result whose domain is still pending cannot be
+            // the sole witness for an independent later site.
+            // Prefer the next valid element of the same type.
+            if item_origin
+                .as_ref()
+                .is_some_and(|origin| self.pending_domain_calls.contains(&span_key(origin)))
+                && !self.pending_domain_calls.contains(&span_key(item.span()))
+            {
+                *item_origin = Some(Self::primary_span(item));
+            }
+            return Ok(());
+        }
+        if self.deferred_exprs.contains(&span_key(item.span())) {
+            if let Some(id) = self.expression_variable(item) {
+                self.require_copyable(id, &Self::primary_span(item), false)?;
+                if let Some(expected_item) = item_type.as_ref() {
+                    // item_type is assigned only from a
+                    // non-deferred result (or a concrete source
+                    // annotation). check_against just compared
+                    // this child with that concrete item type.
+                    // Thus both sides cannot be concrete and
+                    // incompatible here; branch-mode's special
+                    // mismatch arm is unreachable.
+                    self.unify(
+                        expected_item.clone(),
+                        Type::Deferred(id),
+                        origin.cloned().unwrap_or_else(|| span.clone()),
+                        Self::primary_span(item),
+                        Self::primary_span(item),
+                        false,
+                    )?;
+                } else {
+                    if let Some((first, first_origin)) = pending.first() {
+                        // Deferred siblings are constrained at
+                        // the second occurrence, in source order.
+                        // Waiting until the array closes would
+                        // move an eventual conflict to the whole
+                        // constructor (§4.1.2.6).
+                        let before = self.pending_join_count();
+                        self.unify(
+                            Type::Deferred(*first),
+                            Type::Deferred(id),
+                            first_origin.clone(),
+                            Self::primary_span(item),
+                            Self::primary_span(item),
+                            false,
+                        )?;
+                        if self.pending_join_count() > before {
+                            self.failed_join_exprs.insert(span_key(e.span()));
+                            // The rejected sibling cannot join
+                            // the pending witness set. A later
+                            // element is compared with the first
+                            // valid one (§§4.1.2.4–5, 13.9).
+                            return Ok(());
+                        }
+                    }
+                    if pending.is_empty() {
+                        *item_origin = Some(Self::primary_span(item));
+                    }
+                    pending.push((id, Self::primary_span(item)));
+                }
+            }
+            return Ok(());
+        }
+        if item_type.is_none() {
+            let concrete_origin = Self::primary_span(item);
+            let mut first_conflict = false;
+            for (id, source_origin) in pending.iter() {
+                let before_conflict = self.pending_join_count();
+                let projected_reference = self.projection_items.contains(id);
+                let source_type = projected_reference
+                    .then(|| self.concrete(*id).map(|(ty, _)| ty))
+                    .flatten();
+                let equality = self.unify(
+                    Type::Deferred(*id),
+                    got.clone(),
+                    source_origin.clone(),
+                    concrete_origin.clone(),
+                    Self::primary_span(item),
+                    false,
+                );
+                match equality {
+                    Ok(_) => {}
+                    Err(error) if error.operation == Operation::AnalysisLimit => {
+                        return Err(error);
+                    }
+                    Err(error) => {
+                        // A rejected element does not replace the
+                        // first witness. Later elements retain
+                        // independent equality sites (§4.1.2.4).
+                        let error = source_type
+                            .as_ref()
+                            .and_then(|source_type| {
+                                compare_source_site(
+                                    source_type,
+                                    &got,
+                                    source_origin.clone(),
+                                    Self::primary_span(item),
+                                    UnifyPolicy {
+                                        branch: false,
+                                        related_expected: true,
+                                    },
+                                )
+                            })
+                            .unwrap_or(error);
+                        self.record_error(error);
+                        first_conflict = true;
+                    }
+                }
+                first_conflict |= self.pending_join_count() > before_conflict;
+            }
+            if first_conflict {
+                // ADR §4.1.2.2,4: a rejected shape equality
+                // cannot replace the first array element as the
+                // reference for later siblings.
+                *invalid = true;
+                return Ok(());
+            }
+            pending.clear();
+            *item_type = Some(got);
+            // ADR §4.1.2.4,6: the first valid array element is
+            // the source witness for later element checks.
+            *item_origin = Some(concrete_origin);
+        } else if let Some(prior) = item_type.clone() {
+            let prior_origin = origin.cloned().unwrap_or_else(|| span.clone());
+            let concrete_origin = Self::primary_span(item);
+            match self.unify(
+                prior,
+                got,
+                prior_origin,
+                concrete_origin,
+                Self::primary_span(item),
+                false,
+            ) {
+                Ok(ty) => *item_type = Some(ty),
+                // Returning the quota here avoids recording more
+                // partial inferred entries. If swallowed, the
+                // global quota_error still emits the same sole
+                // NX-E0003, and that exhausted inferred table
+                // is never consumed for executable IR.
+                Err(error) if error.operation == Operation::AnalysisLimit => {
+                    return Err(error);
+                }
+                Err(error) => {
+                    // `invalid` returns Tainted at the array
+                    // boundary, which sets the same parent taint.
+                    // Siblings reset their own taint bit.
+                    self.record_error(error);
+                    self.tainted = true;
+                    *invalid = true;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    fn array_finish(&mut self, state: ArrayFrameState<'_>) -> Result<Type, Box<Diagnostic>> {
+        let ArrayFrameState {
+            expr: e,
+            span,
+            item_type,
+            pending,
+            diverges,
+            invalid,
+            ..
+        } = state;
+        if invalid {
+            return Ok(Type::Tainted);
+        }
+        if let Some(item) = item_type {
+            if contains_resource(&item) {
+                return Err(resource_array(span.clone()));
+            }
+            let resolved_item = self
+                .resolved_syntax_type(&item)
+                .map(|ty| Type::from(&ty))
+                .unwrap_or_else(|| item.clone());
+            self.check_depth(&Type::Array(Arc::new(resolved_item)), span)?;
+            if diverges {
+                self.divergent_exprs.insert(span_key(e.span()));
+            }
+            Ok(Type::Array(Arc::new(item)))
+        } else {
+            self.deferred_exprs.insert(span_key(e.span()));
+            if diverges {
+                self.divergent_exprs.insert(span_key(e.span()));
+            }
+            if let Some((child, _)) = pending.first() {
+                let id = self.new_variable(span)?;
+                self.type_nodes.get_mut(&id).unwrap().array_child = Some(*child);
+                self.type_nodes.get_mut(&id).unwrap().array_origin = Some(span.clone());
+                self.type_nodes.get_mut(&id).unwrap().array_constructed = true;
+                self.check_one_inferred_depth(id, span)?;
+                self.expr_vars.insert(span_key(e.span()), id);
+                // Every constructor owns an element-resolution
+                // obligation, even when the pending element came
+                // from another constructor or a projection (ADR
+                // §4.1.2.2, RD122/RD127).
+                self.pending.push(PendingConstraint::Constructor {
+                    child: *child,
+                    array: id,
+                    span: span.clone(),
+                });
+                Ok(Type::Array(Arc::new(Type::Deferred(*child))))
+            } else if diverges {
+                let child = self.new_variable(span)?;
+                let array = self.new_variable(span)?;
+                self.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
+                self.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
+                self.type_nodes.get_mut(&array).unwrap().array_constructed = true;
+                self.require_copyable(child, span, false)?;
+                self.expr_vars.insert(span_key(e.span()), array);
+                self.pending.push(PendingConstraint::Constructor {
+                    child,
+                    array,
+                    span: span.clone(),
+                });
+                Ok(Type::Array(Arc::new(Type::Deferred(child))))
+            } else {
+                Ok(Type::Tainted)
+            }
+        }
+    }
+
+    #[allow(clippy::too_many_arguments)] // The deferred operator retains both source sites.
+    fn finish_deferred_binary_right(
+        &mut self,
+        e: &Expr,
+        op: &String,
+        left: &Expr,
+        right: &Expr,
+        l: Type,
+        right_result: Result<Type, Box<Diagnostic>>,
+        pending_before_operator: usize,
+        expected: Option<&Type>,
+        expected_span: Option<&Span>,
+    ) -> Result<Type, Box<Diagnostic>> {
+        let left_variable = self.expression_variable(left);
+        let right_ty = match right_result {
+            Ok(ty) => ty,
+            Err(error) if error.operation == Operation::AnalysisLimit => {
+                return Err(error);
+            }
+            Err(error) if matches!(op.as_str(), "<" | "==") => {
+                self.record_error(error);
+                if let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)? {
+                    self.record_error(domain_error);
+                }
+                self.tainted = true;
+                return Ok(Type::Tainted);
+            }
+            Err(error) => return Err(error),
+        };
+        if self
+            .pending_domain_calls
+            .contains(&span_key(&Self::primary_span(right)))
+        {
+            if matches!(op.as_str(), "<" | "==") {
+                if let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)? {
+                    self.record_error(domain_error);
+                }
+                if let (Some((variable, domain)), Some(found)) = (
+                    self.pending_operation_guard(right),
+                    self.pending_operation_type(right),
+                ) {
+                    self.pending
+                        .push(PendingConstraint::GuardedComparison(Box::new(
+                            PendingGuardedComparison {
+                                variable,
+                                domain,
+                                expected: left_variable.map(Type::Deferred).unwrap_or(l.clone()),
+                                found,
+                                expected_origin: Self::primary_span(left),
+                                found_site: Self::primary_span(right),
+                                result: Self::primary_span(e),
+                                consumer_expected: expected.cloned(),
+                                consumer_origin: expected_span.cloned(),
+                                domain_error_if_equal: None,
+                                additional_domains: Vec::new(),
+                                projections: Vec::new(),
+                                dependent_results: Vec::new(),
+                                require_resolved: false,
+                            },
+                        )));
+                }
+            }
+            self.pending_domain_calls.insert(span_key(e.span()));
+            if !self.tainted && self.pending_nominal_available(right) {
+                return Ok(if matches!(op.as_str(), "<" | "==") {
+                    Type::Bool
+                } else {
+                    Type::I64
+                });
+            }
+            return Ok(Type::Tainted);
+        }
+        if self.tainted || self.failed_join_exprs.contains(&span_key(right.span())) {
+            if matches!(op.as_str(), "<" | "==")
+                && let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)?
+            {
+                self.record_error(domain_error);
+            }
+            return Ok(Type::Tainted);
+        }
+        if matches!(op.as_str(), "<" | "==") {
+            // ADR §4.1.2.4: both operands are synthesized before
+            // equality; only then is the common domain tested.
+            let right_variable = self.expression_variable(right);
+            let left_type = left_variable.map(Type::Deferred).unwrap_or(l.clone());
+            let right_type = right_variable
+                .map(Type::Deferred)
+                .unwrap_or(right_ty.clone());
+            let left_determined = self.type_determined(&left_type);
+            let right_determined = self.type_determined(&right_type);
+            let found_site = if left_determined || !right_determined {
+                Self::primary_span(left)
+            } else {
+                Self::primary_span(right)
+            };
+            let operator = self.operator_span(left.span(), right.span(), op);
+            let common = self.unify(
+                left_type,
+                right_type,
+                Self::primary_span(left),
+                Self::primary_span(right),
+                Self::primary_span(right),
+                false,
+            )?;
+            if self.pending_join_count() > pending_before_operator {
+                self.failed_join_exprs.insert(span_key(e.span()));
+                return Ok(Type::Bool);
+            }
+            let variable = left_variable.or(right_variable);
+            let complete = variable
+                .and_then(|id| self.concrete(id).map(|(ty, _)| ty))
+                .or_else(|| (internal_state(&common).is_none()).then_some(common));
+            let domain = if op == "<" {
+                "I64"
+            } else {
+                "domain:copyable_data"
+            };
+            if let Some(ty) = complete {
+                let valid = if op == "<" {
+                    ty == Type::I64
+                } else {
+                    comparable_data(&ty)
+                };
+                if !valid {
+                    return Err(mismatch(operator, found_site, None, domain, &ty));
+                }
+            } else if let Some(id) = variable {
+                let root = self.root(id);
+                if op == "<" && self.type_nodes[&root].array_child.is_none() {
+                    self.unify_with_expected_origin(
+                        Type::I64,
+                        Type::Deferred(id),
+                        operator.clone(),
+                        operator.clone(),
+                        operator,
+                        UnifyPolicy {
+                            branch: false,
+                            related_expected: false,
+                        },
+                    )?;
+                } else {
+                    self.pending.push(PendingConstraint::BinaryDomain(Box::new(
+                        PendingBinaryDomain {
+                            variable: id,
+                            operator,
+                            found: found_site,
+                            domain,
+                            result: e.span().clone(),
+                        },
+                    )));
+                    self.defer_nominal_domain(
+                        id,
+                        domain,
+                        e.span(),
+                        &Type::Bool,
+                        expected,
+                        expected_span,
+                        None,
+                    );
+                }
+            }
+            return Ok(Type::Bool);
+        }
+        if let Some(id) = left_variable {
+            // < and == returned above; only + and - reach here.
+            self.unify(
+                Type::Deferred(id),
+                Type::I64,
+                Self::primary_span(left),
+                Self::primary_span(left),
+                Self::primary_span(left),
+                false,
+            )?;
+        }
+        if self.pending_join_count() > pending_before_operator {
+            self.failed_join_exprs.insert(span_key(e.span()));
+        }
+        Ok(Type::I64)
     }
 
     #[allow(clippy::too_many_arguments)] // The continuation preserves the parent's sites.
@@ -8706,26 +9838,6 @@ impl Checker<'_> {
             span: span.clone(),
         });
         Ok(Type::option(Arc::new(Type::Deferred(some))))
-    }
-
-    fn selection(&mut self, selection: &parse::Match) -> Result<Type, Box<Diagnostic>> {
-        let inferred = self.expr(&selection.scrutinee, None, None)?;
-        let mut selected = self.selection_type(&inferred, 0);
-        let selected_origin = Self::primary_span(&selection.scrutinee);
-        for arm in &selection.arms {
-            selected = self.selection_type(&selected, 0);
-            self.pattern_type(&arm.pattern, &selected, &selected_origin)?;
-            if let Some(guard) = &arm.guard
-                && let Err(error) = self.expr(guard, Some(&Type::Bool), arm.guard_span.as_ref())
-            {
-                if error.operation == Operation::AnalysisLimit {
-                    return Err(error);
-                }
-                self.record_error(error);
-            }
-            self.block(&arm.body)?;
-        }
-        self.finish_selection(selection, &selected, &None, false, None)
     }
 
     fn finish_selection(
@@ -9152,6 +10264,9 @@ impl Checker<'_> {
                 IfStage::FirstBranch => {
                     let branch = progress.branch.as_mut().expect("first branch exists");
                     match self.branch_next(branch) {
+                        BranchAction::Statement(statement) => {
+                            return IfAction::Statement(statement);
+                        }
                         BranchAction::Value {
                             expr,
                             context,
@@ -9208,6 +10323,9 @@ impl Checker<'_> {
                 IfStage::SecondBranch => {
                     let branch = progress.branch.as_mut().expect("second branch exists");
                     match self.branch_next(branch) {
+                        BranchAction::Statement(statement) => {
+                            return IfAction::Statement(statement);
+                        }
                         BranchAction::Value {
                             expr,
                             context,
@@ -9398,6 +10516,7 @@ impl Checker<'_> {
         };
         loop {
             match self.branch_next(&mut progress) {
+                BranchAction::Statement(statement) => self.statement_at_site(statement),
                 BranchAction::Value {
                     expr,
                     context,
@@ -9415,7 +10534,7 @@ impl Checker<'_> {
     }
 
     fn branch_next<'b>(&mut self, progress: &mut BranchProgress<'b>) -> BranchAction<'b> {
-        while let Some(statement) = progress.block.statements.get(progress.next) {
+        if let Some(statement) = progress.block.statements.get(progress.next) {
             progress.next += 1;
             if let Statement::Value {
                 value: Some(expr), ..
@@ -9446,9 +10565,9 @@ impl Checker<'_> {
                     nested_anchor,
                 };
             }
-            self.statement_at_site(statement);
             progress.result = None;
             progress.anchor_consumed = false;
+            return BranchAction::Statement(statement);
         }
         BranchAction::Done(
             progress.result.take(),
@@ -9602,6 +10721,9 @@ impl Checker<'_> {
             }
             let branch = progress.branch.as_mut().unwrap();
             match self.branch_next(branch) {
+                BranchAction::Statement(statement) => {
+                    return MatchAction::Statement(statement);
+                }
                 BranchAction::Value {
                     expr,
                     context,
@@ -9762,31 +10884,17 @@ impl Checker<'_> {
         Ok(None)
     }
 
-    fn independent_binary_rhs(
+    fn finish_independent_binary_rhs(
         &mut self,
         op: &str,
         left: &Expr,
         right: &Expr,
         left_domain_failed: bool,
+        result: Result<Type, Box<Diagnostic>>,
+        right_tainted: bool,
     ) -> Result<bool, Box<Diagnostic>> {
-        // ADR §4.1.2.4–5: a tainted left result suppresses only the cross
-        // comparison. The right operand still owns its intrinsic domain.
         let numeric = matches!(op, "+" | "-");
-        let prior_taint = self.tainted;
-        self.tainted = false;
-        let previous_numeric_owner = self.numeric_domain_owner;
-        if numeric {
-            self.numeric_domain_owner = Some((left.span().start, right.span().end));
-        }
-        let result = self.expr(
-            right,
-            (numeric && !left_domain_failed).then_some(&Type::I64),
-            None,
-        );
         let right_failed = result.is_err();
-        self.numeric_domain_owner = previous_numeric_owner;
-        let right_tainted = self.tainted;
-        self.tainted |= prior_taint;
         match result {
             Ok(ty) if numeric && left_domain_failed && !right_tainted => {
                 if let Some(id) = self.expression_variable(right)
@@ -9949,6 +11057,230 @@ impl Checker<'_> {
         }
     }
 
+    fn prepare_closure_call(
+        &self,
+        site: u64,
+        target: &Expr,
+        args: &[crate::frontend::parse::Argument],
+    ) -> Result<(ClosureDraft, Vec<usize>), Box<Diagnostic>> {
+        let draft = self.closures.get(&site).cloned().ok_or_else(|| {
+            names::diagnostic(
+                "NX-E1111",
+                None,
+                Stage::Types,
+                Operation::TypesCheck,
+                target.span().clone(),
+            )
+        })?;
+        let params = draft
+            .params
+            .iter()
+            .map(|(name, mode, name_span, _)| names::ParameterSig {
+                name: name.clone(),
+                name_span: name_span.clone(),
+                type_span: name_span.clone(),
+                mode: *mode,
+                ty: SyntaxType::Unit,
+            })
+            .collect();
+        let slots = names::bind_arguments(params, target.span(), args)?;
+        Ok((draft, slots))
+    }
+
+    fn assert_eq_prepare(&mut self, state: &mut AssertEqFrameState<'_>) {
+        state.prior_taint = self.tainted;
+        self.tainted = false;
+        state.prior_errors = self.errors.len();
+        state.pending_start = self.pending.len();
+        state.pending_generation = self.pending_generation;
+    }
+
+    fn assert_eq_accept(
+        &mut self,
+        state: &mut AssertEqFrameState<'_>,
+        result: Result<Type, Box<Diagnostic>>,
+    ) -> Result<(), Box<Diagnostic>> {
+        let Expr::Call { args, span, .. } = state.expr else {
+            unreachable!("AssertEq frame owns a call")
+        };
+        let arg = &args[state.next];
+        let slot = self.resolved.calls[&(span.start, span.end)].slots[state.next];
+        let tainted = self.tainted;
+        let site = Self::primary_span(&arg.value);
+        let recover = (tainted || matches!(result, Ok(Type::Tainted)))
+            .then(|| {
+                self.conditional_result_types
+                    .get(&span_key(&site))
+                    .cloned()
+                    .zip(self.pending_operand_evidence(
+                        &arg.value,
+                        state.pending_start,
+                        state.pending_generation,
+                    ))
+            })
+            .flatten()
+            .filter(|_| {
+                self.errors.len() == state.prior_errors
+                    && !self
+                        .failed_join_exprs
+                        .iter()
+                        .any(|&(start, end)| site.start <= start && end <= site.end)
+            });
+        self.tainted = state.prior_taint || (tainted && recover.is_none());
+        state.values[slot] = Some(match result {
+            Ok(_) if let Some((nominal, guards)) = recover => {
+                state.evidence[slot] = Some(guards);
+                nominal
+            }
+            Ok(ty) if !tainted && !self.failed_join_exprs.contains(&span_key(arg.value.span())) => {
+                ty
+            }
+            Ok(_) => {
+                state.invalid = true;
+                Type::Tainted
+            }
+            Err(error) if error.operation == Operation::AnalysisLimit => return Err(error),
+            Err(error) => {
+                self.record_error(error);
+                state.invalid = true;
+                Type::Tainted
+            }
+        });
+        Ok(())
+    }
+
+    fn finish_assert_eq(&mut self, state: AssertEqFrameState<'_>) -> Result<Type, Box<Diagnostic>> {
+        let Expr::Call {
+            args,
+            span: call_span,
+            ..
+        } = state.expr
+        else {
+            unreachable!("AssertEq frame owns a call")
+        };
+        let slots = self.resolved.calls[&(call_span.start, call_span.end)]
+            .slots
+            .clone();
+        let ordered = |index: usize| -> &Expr {
+            &args[slots
+                .iter()
+                .position(|slot| *slot == index)
+                .expect("complete binding")]
+            .value
+        };
+        let values = state.values;
+        let evidence = state.evidence;
+        let mut invalid = state.invalid;
+        let declared_result = Type::from(
+            &names::intrinsic("AssertEq")
+                .expect("closed intrinsic")
+                .result,
+        );
+        let first_var = self.expression_variable(ordered(0));
+        let second_var = self.expression_variable(ordered(1));
+        let first = values[0].as_ref().expect("complete binding").clone();
+        let second = values[1].as_ref().expect("complete binding").clone();
+        let left = first_var.map(Type::Deferred).unwrap_or(first.clone());
+        let right = second_var.map(Type::Deferred).unwrap_or(second.clone());
+        let left_origin = Self::primary_span(ordered(0));
+        let right_origin = Self::primary_span(ordered(1));
+        if !invalid {
+            let composite_guard = evidence.into_iter().flatten().fold(
+                PendingOperandEvidence::default(),
+                |mut all, side| {
+                    all.domains.extend(side.domains);
+                    all.projections.extend(side.projections);
+                    all.results.extend(side.results);
+                    all
+                },
+            );
+            let guard = self
+                .pending_operation_guard(ordered(0))
+                .or_else(|| self.pending_operation_guard(ordered(1)));
+            let composite =
+                !composite_guard.domains.is_empty() || !composite_guard.projections.is_empty();
+            if let Some((variable, domain)) = guard
+                .or_else(|| {
+                    composite_guard.domains.first().copied().or_else(|| {
+                        composite_guard
+                            .projections
+                            .first()
+                            .map(|&(base, _)| (base, "domain:array"))
+                    })
+                })
+                .filter(|_| {
+                    // A nominal result with an undecided domain must
+                    // not bind the other, still pending operand before
+                    // that domain is resolved (§4.1.2.3).
+                    internal_state(&left).is_none() || internal_state(&right).is_none()
+                })
+            {
+                let additional_domains = composite_guard
+                    .domains
+                    .into_iter()
+                    .filter(|&entry| entry != (variable, domain))
+                    .collect();
+                self.pending
+                    .push(PendingConstraint::GuardedComparison(Box::new(
+                        PendingGuardedComparison {
+                            variable,
+                            domain,
+                            expected: left,
+                            found: right,
+                            expected_origin: left_origin,
+                            found_site: right_origin,
+                            result: call_span.clone(),
+                            consumer_expected: None,
+                            consumer_origin: None,
+                            domain_error_if_equal: None,
+                            additional_domains,
+                            projections: composite_guard.projections,
+                            dependent_results: composite_guard.results,
+                            require_resolved: composite,
+                        },
+                    )));
+            } else {
+                self.unify(
+                    left,
+                    right,
+                    left_origin,
+                    right_origin,
+                    Self::primary_span(ordered(1)),
+                    false,
+                )?;
+            }
+        }
+        // ADR §4.1.2.4–5: equality precedes this domain check, and
+        // each valid argument retains its own independent site.
+        for (index, value) in [first, second].into_iter().enumerate() {
+            if value == Type::Tainted {
+                continue;
+            }
+            let operand = ordered(index);
+            if let Some(id) = self.expression_variable(operand) {
+                if let Err(error) = self.require_copyable(id, &Self::primary_span(operand), true) {
+                    if error.operation == Operation::AnalysisLimit {
+                        return Err(error);
+                    }
+                    self.record_error(error);
+                    invalid = true;
+                }
+            } else if internal_state(&value).is_none() && !comparable_data(&value) {
+                self.record_error(mismatch(
+                    Self::primary_span(operand),
+                    Self::primary_span(operand),
+                    None,
+                    "domain:copyable_data",
+                    &value,
+                ));
+                invalid = true;
+            }
+        }
+        self.tainted |= invalid;
+        Ok(declared_result.clone())
+    }
+
+    #[allow(clippy::too_many_arguments)] // The prepared argument retains the call's source context.
     fn check_intrinsic(
         &mut self,
         name: &str,
@@ -9957,7 +11289,9 @@ impl Checker<'_> {
         call_span: &Span,
         expected: Option<&Type>,
         expected_span: Option<&Span>,
+        prepared: Option<Result<Type, Box<Diagnostic>>>,
     ) -> Result<Type, Box<Diagnostic>> {
+        let mut prepared = prepared;
         let declared = names::intrinsic(name).expect("intrinsic resolved from closed manifest");
         let declared_result = Type::from(&declared.result);
         let ordered = |index: usize| -> &Expr {
@@ -9970,7 +11304,7 @@ impl Checker<'_> {
         match name {
             "Iterator.Next" => {
                 let argument = ordered(0);
-                let got = self.expr(argument, None, None)?;
+                let got = prepared.take().expect("intrinsic argument is scheduled")?;
                 if let Type::Generator { item, .. } = got {
                     Ok(Type::option(item))
                 } else {
@@ -9984,32 +11318,13 @@ impl Checker<'_> {
                 }
             }
             "MockOpen" | "MockBlockingOpen" | "MockWriteI64" | "MockReply" => {
-                self.expr(ordered(0), Some(&Type::I64), None)?;
+                prepared.take().expect("intrinsic argument is scheduled")?;
                 Ok(declared_result.clone())
             }
-            "TryAdd" => {
-                // Type checking is in written order even when labels permute slots.
-                let mut failed = false;
-                for arg in args {
-                    match self.expr(&arg.value, Some(&Type::I64), None) {
-                        Ok(_) => {}
-                        Err(error) if error.operation == Operation::AnalysisLimit => {
-                            return Err(error);
-                        }
-                        Err(error) => {
-                            self.record_error(error);
-                            failed = true;
-                        }
-                    }
-                }
-                if failed {
-                    return Ok(Type::Tainted);
-                }
-                Ok(declared_result.clone())
-            }
+            "TryAdd" => unreachable!("TryAdd arguments are scheduled by driver"),
             "MockRequest" | "MockUnknown" | "Fail" => Ok(declared_result.clone()),
             "MockReadRecords" => {
-                let got = self.expr(ordered(0), None, None)?;
+                let got = prepared.take().expect("intrinsic argument is scheduled")?;
                 if got != Type::MockResource {
                     return Err(mismatch(
                         Self::primary_span(ordered(0)),
@@ -10022,7 +11337,7 @@ impl Checker<'_> {
                 Ok(declared_result.clone())
             }
             "Inspect" => {
-                let got = self.expr(ordered(0), None, None)?;
+                let got = prepared.take().expect("intrinsic argument is scheduled")?;
                 let before = self.pending_domain_count();
                 self.check_intrinsic_domain(ordered(0), &got, "domain:mock_resource")?;
                 self.remember_pending_domain_result(
@@ -10035,11 +11350,11 @@ impl Checker<'_> {
                 Ok(declared_result.clone())
             }
             "Drop" => {
-                self.expr(ordered(0), None, None)?;
+                prepared.take().expect("intrinsic argument is scheduled")?;
                 Ok(declared_result.clone())
             }
             "Len" => {
-                let got = self.expr(ordered(0), None, None)?;
+                let got = prepared.take().expect("intrinsic argument is scheduled")?;
                 let before = self.pending_domain_count();
                 self.check_intrinsic_domain(ordered(0), &got, "domain:array")?;
                 self.remember_pending_domain_result(
@@ -10056,7 +11371,7 @@ impl Checker<'_> {
                 Ok(declared_result.clone())
             }
             "Print" => {
-                let got = self.expr(ordered(0), None, None)?;
+                let got = prepared.take().expect("intrinsic argument is scheduled")?;
                 let before = self.pending_domain_count();
                 self.check_intrinsic_domain(ordered(0), &got, "domain:copyable_data")?;
                 if internal_state(&got).is_none() && !comparable_data(&got) {
@@ -10077,171 +11392,7 @@ impl Checker<'_> {
                 );
                 Ok(declared_result.clone())
             }
-            "AssertEq" => {
-                let mut values: [Option<Type>; 2] = [None, None];
-                let mut evidence: [Option<PendingOperandEvidence>; 2] = [None, None];
-                let mut invalid = false;
-                for (arg, &slot) in args.iter().zip(slots) {
-                    let prior_taint = self.tainted;
-                    self.tainted = false;
-                    let prior_errors = self.errors.len();
-                    let pending_start = self.pending.len();
-                    let pending_generation = self.pending_generation;
-                    let result = self.expr(&arg.value, None, None);
-                    let tainted = self.tainted;
-                    let site = Self::primary_span(&arg.value);
-                    let recover = (tainted || matches!(result, Ok(Type::Tainted)))
-                        .then(|| {
-                            self.conditional_result_types
-                                .get(&span_key(&site))
-                                .cloned()
-                                .zip(self.pending_operand_evidence(
-                                    &arg.value,
-                                    pending_start,
-                                    pending_generation,
-                                ))
-                        })
-                        .flatten()
-                        .filter(|_| {
-                            self.errors.len() == prior_errors
-                                && !self
-                                    .failed_join_exprs
-                                    .iter()
-                                    .any(|&(start, end)| site.start <= start && end <= site.end)
-                        });
-                    self.tainted = prior_taint || (tainted && recover.is_none());
-                    values[slot] = Some(match result {
-                        Ok(_) if let Some((nominal, guards)) = recover => {
-                            evidence[slot] = Some(guards);
-                            nominal
-                        }
-                        Ok(ty)
-                            if !tainted
-                                && !self
-                                    .failed_join_exprs
-                                    .contains(&span_key(arg.value.span())) =>
-                        {
-                            ty
-                        }
-                        Ok(_) => {
-                            invalid = true;
-                            Type::Tainted
-                        }
-                        Err(error) if error.operation == Operation::AnalysisLimit => {
-                            return Err(error);
-                        }
-                        Err(error) => {
-                            self.record_error(error);
-                            invalid = true;
-                            Type::Tainted
-                        }
-                    });
-                }
-                let first_var = self.expression_variable(ordered(0));
-                let second_var = self.expression_variable(ordered(1));
-                let first = values[0].as_ref().expect("complete binding").clone();
-                let second = values[1].as_ref().expect("complete binding").clone();
-                let left = first_var.map(Type::Deferred).unwrap_or(first.clone());
-                let right = second_var.map(Type::Deferred).unwrap_or(second.clone());
-                let left_origin = Self::primary_span(ordered(0));
-                let right_origin = Self::primary_span(ordered(1));
-                if !invalid {
-                    let composite_guard = evidence.into_iter().flatten().fold(
-                        PendingOperandEvidence::default(),
-                        |mut all, side| {
-                            all.domains.extend(side.domains);
-                            all.projections.extend(side.projections);
-                            all.results.extend(side.results);
-                            all
-                        },
-                    );
-                    let guard = self
-                        .pending_operation_guard(ordered(0))
-                        .or_else(|| self.pending_operation_guard(ordered(1)));
-                    let composite = !composite_guard.domains.is_empty()
-                        || !composite_guard.projections.is_empty();
-                    if let Some((variable, domain)) = guard
-                        .or_else(|| {
-                            composite_guard.domains.first().copied().or_else(|| {
-                                composite_guard
-                                    .projections
-                                    .first()
-                                    .map(|&(base, _)| (base, "domain:array"))
-                            })
-                        })
-                        .filter(|_| {
-                            // A nominal result with an undecided domain must
-                            // not bind the other, still pending operand before
-                            // that domain is resolved (§4.1.2.3).
-                            internal_state(&left).is_none() || internal_state(&right).is_none()
-                        })
-                    {
-                        let additional_domains = composite_guard
-                            .domains
-                            .into_iter()
-                            .filter(|&entry| entry != (variable, domain))
-                            .collect();
-                        self.pending
-                            .push(PendingConstraint::GuardedComparison(Box::new(
-                                PendingGuardedComparison {
-                                    variable,
-                                    domain,
-                                    expected: left,
-                                    found: right,
-                                    expected_origin: left_origin,
-                                    found_site: right_origin,
-                                    result: call_span.clone(),
-                                    consumer_expected: None,
-                                    consumer_origin: None,
-                                    domain_error_if_equal: None,
-                                    additional_domains,
-                                    projections: composite_guard.projections,
-                                    dependent_results: composite_guard.results,
-                                    require_resolved: composite,
-                                },
-                            )));
-                    } else {
-                        self.unify(
-                            left,
-                            right,
-                            left_origin,
-                            right_origin,
-                            Self::primary_span(ordered(1)),
-                            false,
-                        )?;
-                    }
-                }
-                // ADR §4.1.2.4–5: equality precedes this domain check, and
-                // each valid argument retains its own independent site.
-                for (index, value) in [first, second].into_iter().enumerate() {
-                    if value == Type::Tainted {
-                        continue;
-                    }
-                    let operand = ordered(index);
-                    if let Some(id) = self.expression_variable(operand) {
-                        if let Err(error) =
-                            self.require_copyable(id, &Self::primary_span(operand), true)
-                        {
-                            if error.operation == Operation::AnalysisLimit {
-                                return Err(error);
-                            }
-                            self.record_error(error);
-                            invalid = true;
-                        }
-                    } else if internal_state(&value).is_none() && !comparable_data(&value) {
-                        self.record_error(mismatch(
-                            Self::primary_span(operand),
-                            Self::primary_span(operand),
-                            None,
-                            "domain:copyable_data",
-                            &value,
-                        ));
-                        invalid = true;
-                    }
-                }
-                self.tainted |= invalid;
-                Ok(declared_result.clone())
-            }
+            "AssertEq" => unreachable!("AssertEq arguments are scheduled by driver"),
             _ => unreachable!("union constructors complete in expression frames"),
         }
     }
@@ -10259,75 +11410,11 @@ pub(crate) fn check_with_partial(
 }
 
 fn cyclic_generator<'a>(ast: &'a Ast, resolved: &Resolved) -> Option<&'a Function> {
-    fn calls_in_expression(
-        expr: &Expr,
-        names: &HashMap<&str, usize>,
-        resolved: &Resolved,
-        edges: &mut HashSet<usize>,
-    ) {
-        match expr {
-            Expr::Call { target, args, span } => {
-                if let Some(names::CallBinding {
-                    target: ResolvedUse::Function(name),
-                    ..
-                }) = resolved.calls.get(&(span.start, span.end))
-                    && let Some(index) = names.get(name.as_str())
-                {
-                    edges.insert(*index);
-                }
-                calls_in_expression(target, names, resolved, edges);
-                for arg in args {
-                    calls_in_expression(&arg.value, names, resolved, edges);
-                }
-            }
-            Expr::Array(items, _) => {
-                for item in items {
-                    calls_in_expression(item, names, resolved, edges);
-                }
-            }
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
-                calls_in_expression(inner, names, resolved, edges);
-            }
-            Expr::Binary { left, right, .. }
-            | Expr::Index {
-                target: left,
-                index: right,
-                ..
-            } => {
-                calls_in_expression(left, names, resolved, edges);
-                calls_in_expression(right, names, resolved, edges);
-            }
-            Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                calls_in_expression(condition, names, resolved, edges);
-                calls_in_block(then_block, names, resolved, edges);
-                match otherwise.as_deref() {
-                    Some(Else::Block(block)) => calls_in_block(block, names, resolved, edges),
-                    Some(Else::If(next)) => calls_in_expression(next, names, resolved, edges),
-                    None => {}
-                }
-            }
-            Expr::Match(selection) => {
-                calls_in_expression(&selection.scrutinee, names, resolved, edges);
-                for arm in &selection.arms {
-                    if let Some(guard) = &arm.guard {
-                        calls_in_expression(guard, names, resolved, edges);
-                    }
-                    calls_in_block(&arm.body, names, resolved, edges);
-                }
-            }
-            // A closure body executes only when called; its captures are already
-            // represented by values constructed in the enclosing body.
-            Expr::Closure(_)
-            | Expr::Name(..)
-            | Expr::Integer(..)
-            | Expr::Bool(..)
-            | Expr::Unit(..) => {}
-        }
+    enum Node<'a> {
+        Expr(&'a Expr),
+        Block(&'a Block),
+        Statement(&'a Statement),
+        Match(&'a parse::Match),
     }
     fn calls_in_block(
         block: &Block,
@@ -10335,60 +11422,111 @@ fn cyclic_generator<'a>(ast: &'a Ast, resolved: &Resolved) -> Option<&'a Functio
         resolved: &Resolved,
         edges: &mut HashSet<usize>,
     ) {
-        for statement in &block.statements {
-            match statement {
-                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
-                    calls_in_expression(value, names, resolved, edges)
+        let mut pending = vec![Node::Block(block)];
+        while let Some(node) = pending.pop() {
+            match node {
+                Node::Block(block) => {
+                    pending.extend(block.statements.iter().rev().map(Node::Statement));
                 }
-                Statement::Assign { place, value, .. } => {
-                    calls_in_expression(place, names, resolved, edges);
-                    calls_in_expression(value, names, resolved, edges);
-                }
-                Statement::Return { value, .. }
-                | Statement::GuardControl { value, .. }
-                | Statement::Value { value, .. } => {
-                    if let Some(value) = value {
-                        calls_in_expression(value, names, resolved, edges);
+                Node::Statement(statement) => match statement {
+                    Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                        pending.push(Node::Expr(value));
                     }
-                }
-                Statement::If {
-                    condition,
-                    then_block,
-                    otherwise,
-                    ..
-                } => {
-                    calls_in_expression(condition, names, resolved, edges);
-                    calls_in_block(then_block, names, resolved, edges);
-                    if let Some(otherwise) = otherwise {
-                        calls_in_block(
-                            &Block {
-                                statements: vec![*otherwise.clone()],
-                                span: block.span.clone(),
-                                close_span: block.close_span.clone(),
-                            },
-                            names,
-                            resolved,
-                            edges,
-                        );
+                    Statement::Assign { place, value, .. } => {
+                        pending.push(Node::Expr(value));
+                        pending.push(Node::Expr(place));
                     }
+                    Statement::Return { value, .. }
+                    | Statement::GuardControl { value, .. }
+                    | Statement::Value { value, .. } => {
+                        if let Some(value) = value {
+                            pending.push(Node::Expr(value));
+                        }
+                    }
+                    Statement::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        if let Some(otherwise) = otherwise {
+                            pending.push(Node::Statement(otherwise));
+                        }
+                        pending.push(Node::Block(then_block));
+                        pending.push(Node::Expr(condition));
+                    }
+                    Statement::While {
+                        condition, body, ..
+                    } => {
+                        pending.push(Node::Block(body));
+                        pending.push(Node::Expr(condition));
+                    }
+                    Statement::For { iterable, body, .. } => {
+                        pending.push(Node::Block(body));
+                        pending.push(Node::Expr(iterable));
+                    }
+                    Statement::Match(selection) => pending.push(Node::Match(selection)),
+                    Statement::Block(inner) => pending.push(Node::Block(inner)),
+                },
+                Node::Expr(expr) => match expr {
+                    Expr::Call { target, args, span } => {
+                        if let Some(names::CallBinding {
+                            target: ResolvedUse::Function(name),
+                            ..
+                        }) = resolved.calls.get(&(span.start, span.end))
+                            && let Some(index) = names.get(name.as_str())
+                        {
+                            edges.insert(*index);
+                        }
+                        pending.extend(args.iter().rev().map(|arg| Node::Expr(&arg.value)));
+                        pending.push(Node::Expr(target));
+                    }
+                    Expr::Array(items, _) => {
+                        pending.extend(items.iter().rev().map(Node::Expr));
+                    }
+                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                        pending.push(Node::Expr(inner));
+                    }
+                    Expr::Binary { left, right, .. }
+                    | Expr::Index {
+                        target: left,
+                        index: right,
+                        ..
+                    } => {
+                        pending.push(Node::Expr(right));
+                        pending.push(Node::Expr(left));
+                    }
+                    Expr::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        match otherwise.as_deref() {
+                            Some(Else::Block(block)) => pending.push(Node::Block(block)),
+                            Some(Else::If(next)) => pending.push(Node::Expr(next)),
+                            None => {}
+                        }
+                        pending.push(Node::Block(then_block));
+                        pending.push(Node::Expr(condition));
+                    }
+                    Expr::Match(selection) => pending.push(Node::Match(selection)),
+                    // Closure bodies run only when called.
+                    Expr::Closure(_)
+                    | Expr::Name(..)
+                    | Expr::Integer(..)
+                    | Expr::Bool(..)
+                    | Expr::Unit(..) => {}
+                },
+                Node::Match(selection) => {
+                    for arm in selection.arms.iter().rev() {
+                        pending.push(Node::Block(&arm.body));
+                        if let Some(guard) = &arm.guard {
+                            pending.push(Node::Expr(guard));
+                        }
+                    }
+                    pending.push(Node::Expr(&selection.scrutinee));
                 }
-                Statement::While {
-                    condition, body, ..
-                } => {
-                    calls_in_expression(condition, names, resolved, edges);
-                    calls_in_block(body, names, resolved, edges);
-                }
-                Statement::For { iterable, body, .. } => {
-                    calls_in_expression(iterable, names, resolved, edges);
-                    calls_in_block(body, names, resolved, edges);
-                }
-                Statement::Match(selection) => calls_in_expression(
-                    &Expr::Match(Box::new(selection.clone())),
-                    names,
-                    resolved,
-                    edges,
-                ),
-                Statement::Block(inner) => calls_in_block(inner, names, resolved, edges),
             }
         }
     }
@@ -10767,6 +11905,43 @@ mod j16_probe_types {
 
     fn source(family: &str) -> String {
         match family {
+            "block_closure_alternation" => format!(
+                "fn Main(){{{}{} }}",
+                "{let f=fn(){".repeat(30),
+                "};}".repeat(30)
+            ),
+            "else_if_body" => format!(
+                "fn Main(){{{}{} }}",
+                "if false{}else if true{".repeat(126),
+                "}".repeat(126)
+            ),
+            "for_body" => format!(
+                "gen fn Gen()->I64{{yield 1;}}fn Main(){{{}{} }}",
+                "for x in Gen(){".repeat(126),
+                "}".repeat(126)
+            ),
+            "index_branch" => {
+                let mut body = "let z=1;".to_owned();
+                for _ in 0..30 {
+                    body = format!("let v=[1][if true then {{{body}value:0;}} else 0];");
+                }
+                format!("fn Main(){{{body}}}")
+            }
+            "index_nonarray" => {
+                let mut body = "let z=1;".to_owned();
+                for _ in 0..30 {
+                    body = format!("let v=true[if true then {{{body}value:0;}} else 0];");
+                }
+                format!("fn Main(){{{body}}}")
+            }
+            "index_deferred" => {
+                let mut body = "let z=1;".to_owned();
+                for _ in 0..30 {
+                    body =
+                        format!("var a=[];let v=a[if true then {{{body}value:0;}} else 0];a=[1];");
+                }
+                format!("fn Main(){{{body}}}")
+            }
             "block" => format!(
                 "fn Main(){{{}let x=1;{}}}",
                 "{".repeat(126),
@@ -10793,6 +11968,11 @@ mod j16_probe_types {
                 "fn Main(){{let x={}1{};}}",
                 "1+(".repeat(126),
                 ")".repeat(126)
+            ),
+            "binary_error_right" => format!(
+                "fn Main(){{let x={}true{};}}",
+                "true+(".repeat(60),
+                ")".repeat(60)
             ),
             "call_arg" => format!(
                 "fn F(x:view I64)->I64{{return x;}}fn Main(){{let x={}1{};}}",
@@ -10877,18 +12057,36 @@ mod j16_probe_types {
         let ast = parse::parse_new_profile("stack.n", &source).unwrap();
         let resolved = names::resolve_with_option("stack.n", &source, &ast, true).unwrap();
         let report = std::thread::Builder::new()
-            .stack_size(204 * 1024)
+            .stack_size(
+                std::env::var("J16_STACK_KIB")
+                    .ok()
+                    .and_then(|value| value.parse::<usize>().ok())
+                    .unwrap_or(204)
+                    * 1024,
+            )
             .spawn(move || check_with_partial_limit("stack.n", &source, &ast, &resolved, 1_000_000))
             .unwrap()
             .join()
             .unwrap();
-        assert!(report.errors.is_empty(), "{family}: {:?}", report.errors);
+        if let Ok(expected) = std::env::var("J16_TYPES_EXPECT_ERROR") {
+            assert_eq!(
+                report.errors.first().map(|error| error.code.as_str()),
+                Some(expected.as_str())
+            );
+        } else {
+            assert!(report.errors.is_empty(), "{family}: {:?}", report.errors);
+        }
     }
 
     #[test]
     fn parent() {
         let exe = std::env::current_exe().unwrap();
         for family in [
+            "block_closure_alternation",
+            "else_if_body",
+            "for_body",
+            "index_branch",
+            "index_deferred",
             "block",
             "group",
             "array",
@@ -10915,6 +12113,23 @@ mod j16_probe_types {
                     "--nocapture",
                 ])
                 .env("J16_TYPES_FAMILY", family)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{family}: {} {}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        for (family, error) in [
+            ("binary_error_right", "NX-E0102"),
+            ("index_nonarray", "NX-E0102"),
+        ] {
+            let output = Command::new(&exe)
+                .args(["--exact", "check::types::j16_probe_types::child"])
+                .env("J16_TYPES_FAMILY", family)
+                .env("J16_TYPES_EXPECT_ERROR", error)
                 .output()
                 .unwrap();
             assert!(
