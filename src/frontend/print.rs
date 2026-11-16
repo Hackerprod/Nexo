@@ -184,581 +184,1003 @@ fn ty(value: &Type, out: &mut Writer, bound: usize) -> usize {
     }
 }
 fn block(value: &Block, out: &mut Writer, structural: bool) {
-    let mut current = value;
-    let mut outers = Vec::new();
-    loop {
-        let start = current.span.start as usize;
-        at(out, "{", Role::BlockOpen, start, start + 1);
-        if let [Statement::Block(next)] = current.statements.as_slice() {
-            outers.push(current.span.end as usize);
-            current = next;
-            continue;
-        }
-        for statement in &current.statements {
-            stmt(statement, out);
-        }
-        let end = current.span.end as usize;
-        out.token_at(
-            "}",
-            Role::BlockClose,
-            structural && outers.is_empty(),
-            end - 1,
-            end,
-        );
-        break;
-    }
-    let outer_count = outers.len();
-    for (i, end) in outers.into_iter().rev().enumerate() {
-        out.token_at(
-            "}",
-            Role::BlockClose,
-            structural && i + 1 == outer_count,
-            end - 1,
-            end,
-        );
-    }
+    run_print_frames(Frame::Block(value, structural), out);
 }
-fn stmt(statement: &Statement, out: &mut Writer) {
-    match statement {
-        Statement::Let {
-            mutable,
-            name,
-            annotation,
-            value,
-            span,
-        } => {
-            let start = span.start as usize;
-            let keyword = if *mutable { "var" } else { "let" };
-            at(out, keyword, Role::Word, start, start + keyword.len());
-            let name_end = after(out, name, Role::Word, start + keyword.len());
-            if let Some(annotation) = annotation {
-                let colon_end = after(out, ":", Role::Colon, name_end);
-                ty(annotation, out, colon_end);
+enum Frame<'a> {
+    Visit(&'a Expr, u8),
+    Stmt(&'a Statement),
+    StmtElse(&'a Statement),
+    StmtIf(&'a Expr),
+    Argument(&'a Argument),
+    Else(&'a Else),
+    Branch(&'a Block, bool),
+    Match(&'a Match),
+    Arm(&'a Arm, Option<usize>),
+    Block(&'a Block, bool),
+    CloseBlock(usize, bool),
+    Before(&'static str, Role, usize),
+    Terminator(usize),
+    After(&'a str, Role, usize),
+    At(&'static str, Role, usize, usize),
+    Inserted(&'static str, Role),
+    GroupEnd,
+}
+
+fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
+    let mut frames = vec![root];
+    while let Some(frame) = frames.pop() {
+        let (value, parent) = match frame {
+            Frame::Visit(value, parent) => (value, parent),
+            Frame::Argument(argument) => {
+                if let Some(label) = &argument.label {
+                    let end = after(out, label, Role::Word, argument.span.start as usize);
+                    after(out, ":", Role::Colon, end);
+                }
+                frames.push(Frame::Visit(&argument.value, 0));
+                continue;
             }
-            before(out, "=", Role::Binary, value.span().start as usize);
-            expr(value, out, 0);
-            out.terminator(span.end as usize);
-        }
-        Statement::Assign { place, value, span } => {
-            expr(place, out, 0);
-            after(out, "=", Role::Binary, place.span().end as usize);
-            expr(value, out, 0);
-            out.terminator(span.end as usize);
-        }
-        Statement::Return { value, span } => {
-            let start = span.start as usize;
-            at(out, "return", Role::Word, start, start + 6);
-            if let Some(value) = value {
-                expr(value, out, 0);
+            Frame::Else(value) => {
+                match value {
+                    Else::Block(value) => frames.push(Frame::Branch(value, true)),
+                    Else::If(value) => {
+                        inserted(out, "(", Role::Open);
+                        frames.push(Frame::Inserted(")", Role::Close));
+                        frames.push(Frame::Visit(value, 0));
+                    }
+                }
+                continue;
             }
-            out.terminator(span.end as usize);
-        }
-        Statement::GuardControl {
-            token,
-            value,
-            span,
-            token_span,
-            ..
-        } => {
-            at(
-                out,
-                token,
-                Role::Word,
-                token_span.start as usize,
-                token_span.end as usize,
-            );
-            if let Some(value) = value {
-                expr(value, out, 0);
+            Frame::Branch(branch, is_else) => {
+                if let [
+                    Statement::Value {
+                        value: Some(value),
+                        marker,
+                        ..
+                    },
+                ] = branch.statements.as_slice()
+                {
+                    let mut inner = value;
+                    while let Expr::Group(grouped, _) = inner {
+                        inner = grouped;
+                    }
+                    let explicit = marker.is_some();
+                    if !(is_else && matches!(inner, Expr::If { .. }))
+                        && (!explicit
+                            || (!out
+                                .has_comment(branch.span.start as usize, branch.span.end as usize)
+                                && !out.has_comment_before(branch.span.start as usize)
+                                && !out.has_comment_after_in_group(branch.span.end as usize)))
+                    {
+                        if matches!(value, Expr::If { .. }) {
+                            inserted(out, "(", Role::Open);
+                            frames.push(Frame::Inserted(")", Role::Close));
+                        }
+                        frames.push(Frame::Visit(value, 0));
+                        continue;
+                    }
+                }
+                frames.push(Frame::Block(branch, false));
+                continue;
             }
-            out.terminator(span.end as usize);
-        }
-        Statement::Value {
-            value,
-            marker,
-            span,
-            ..
-        } => {
-            if let Some(marker) = marker {
-                let start = marker.start as usize;
-                at(out, "value", Role::Word, start, start + 5);
-                after(out, ":", Role::Colon, start + 5);
+            Frame::Match(selection) => {
+                let start = selection.keyword_span.start as usize;
+                at(out, "match", Role::Word, start, start + 5);
+                if let Some(mode_span) = &selection.mode_span {
+                    let word = mode(selection.mode.unwrap_or(Mode::Read));
+                    at(
+                        out,
+                        word,
+                        Role::Word,
+                        mode_span.start as usize,
+                        mode_span.end as usize,
+                    );
+                }
+                let end = selection.span.end as usize;
+                frames.push(Frame::At("}", Role::BlockClose, end - 1, end));
+                for index in (0..selection.arms.len()).rev() {
+                    let comma =
+                        (index > 0).then(|| selection.arms[index - 1].body.span.end as usize);
+                    frames.push(Frame::Arm(&selection.arms[index], comma));
+                }
+                frames.push(Frame::After(
+                    "{",
+                    Role::BlockOpen,
+                    selection.scrutinee.span().end as usize,
+                ));
+                frames.push(Frame::Visit(&selection.scrutinee, 0));
+                continue;
             }
-            if let Some(value) = value {
-                expr(value, out, 0);
+            Frame::Arm(arm, comma) => {
+                if let Some(bound) = comma {
+                    after(out, ",", Role::Comma, bound);
+                }
+                print_pattern(&arm.pattern, out);
+                frames.push(Frame::Block(&arm.body, false));
+                frames.push(Frame::After(
+                    "=>",
+                    Role::Arrow,
+                    arm.pattern.span().end as usize,
+                ));
+                if let (Some(guard), Some(span)) = (&arm.guard, &arm.guard_span) {
+                    at(
+                        out,
+                        "if",
+                        Role::Word,
+                        span.start as usize,
+                        span.end as usize,
+                    );
+                    frames.push(Frame::Visit(guard, 0));
+                }
+                continue;
             }
-            out.terminator(span.end as usize);
-        }
-        Statement::Expr { value, span } => {
-            expr(value, out, u8::from(matches!(value, Expr::If { .. })));
-            out.terminator(span.end as usize);
-        }
-        Statement::Block(value) => block(value, out, true),
-        Statement::While {
-            condition, body, ..
-        } => {
-            let start = statement_span(statement).start as usize;
-            at(out, "while", Role::Word, start, start + 5);
-            expr(condition, out, 0);
-            block(body, out, true);
-        }
-        Statement::For {
-            name,
-            name_span,
-            iterable,
-            body,
-            ..
-        } => {
-            let start = statement_span(statement).start as usize;
-            at(out, "for", Role::Word, start, start + 3);
-            at(
-                out,
-                name,
-                Role::Word,
-                name_span.start as usize,
-                name_span.end as usize,
-            );
-            after(out, "in", Role::Word, name_span.end as usize);
-            expr(iterable, out, 0);
-            block(body, out, true);
-        }
-        Statement::If {
-            condition,
-            then_block,
-            otherwise,
-            ..
-        } => {
-            let start = statement_span(statement).start as usize;
-            at(out, "if", Role::Word, start, start + 2);
-            expr(condition, out, 0);
-            block(then_block, out, true);
-            if let Some(otherwise) = otherwise {
-                after(out, "else", Role::Else, then_block.span.end as usize);
-                match &**otherwise {
-                    Statement::Block(value) => block(value, out, true),
+            Frame::Block(value, structural) => {
+                let mut current = value;
+                let mut outers = Vec::new();
+                loop {
+                    let start = current.span.start as usize;
+                    at(out, "{", Role::BlockOpen, start, start + 1);
+                    if let [Statement::Block(next)] = current.statements.as_slice() {
+                        outers.push(current.span.end as usize);
+                        current = next;
+                        continue;
+                    }
+                    break;
+                }
+                let nested = !outers.is_empty();
+                for (index, end) in outers.into_iter().enumerate() {
+                    frames.push(Frame::CloseBlock(end, structural && index == 0));
+                }
+                frames.push(Frame::CloseBlock(
+                    current.span.end as usize,
+                    structural && !nested,
+                ));
+                for statement in current.statements.iter().rev() {
+                    frames.push(Frame::Stmt(statement));
+                }
+                continue;
+            }
+            Frame::CloseBlock(end, structural) => {
+                out.token_at("}", Role::BlockClose, structural, end - 1, end);
+                continue;
+            }
+            Frame::Stmt(statement) => {
+                match statement {
+                    Statement::Let {
+                        mutable,
+                        name,
+                        annotation,
+                        value,
+                        span,
+                    } => {
+                        let start = span.start as usize;
+                        let keyword = if *mutable { "var" } else { "let" };
+                        at(out, keyword, Role::Word, start, start + keyword.len());
+                        let name_end = after(out, name, Role::Word, start + keyword.len());
+                        if let Some(annotation) = annotation {
+                            let colon_end = after(out, ":", Role::Colon, name_end);
+                            ty(annotation, out, colon_end);
+                        }
+                        frames.push(Frame::Terminator(span.end as usize));
+                        frames.push(Frame::Visit(value, 0));
+                        frames.push(Frame::Before(
+                            "=",
+                            Role::Binary,
+                            value.span().start as usize,
+                        ));
+                    }
+                    Statement::Assign { place, value, span } => {
+                        frames.push(Frame::Terminator(span.end as usize));
+                        frames.push(Frame::Visit(value, 0));
+                        frames.push(Frame::After("=", Role::Binary, place.span().end as usize));
+                        frames.push(Frame::Visit(place, 0));
+                    }
+                    Statement::Return { value, span } => {
+                        let start = span.start as usize;
+                        at(out, "return", Role::Word, start, start + 6);
+                        frames.push(Frame::Terminator(span.end as usize));
+                        if let Some(value) = value {
+                            frames.push(Frame::Visit(value, 0));
+                        }
+                    }
+                    Statement::GuardControl {
+                        token,
+                        value,
+                        span,
+                        token_span,
+                        ..
+                    } => {
+                        at(
+                            out,
+                            token,
+                            Role::Word,
+                            token_span.start as usize,
+                            token_span.end as usize,
+                        );
+                        frames.push(Frame::Terminator(span.end as usize));
+                        if let Some(value) = value {
+                            frames.push(Frame::Visit(value, 0));
+                        }
+                    }
+                    Statement::Value {
+                        value,
+                        marker,
+                        span,
+                        ..
+                    } => {
+                        if let Some(marker) = marker {
+                            let start = marker.start as usize;
+                            at(out, "value", Role::Word, start, start + 5);
+                            after(out, ":", Role::Colon, start + 5);
+                        }
+                        frames.push(Frame::Terminator(span.end as usize));
+                        if let Some(value) = value {
+                            frames.push(Frame::Visit(value, 0));
+                        }
+                    }
+                    Statement::Expr { value, span } => {
+                        frames.push(Frame::Terminator(span.end as usize));
+                        frames.push(Frame::Visit(
+                            value,
+                            u8::from(matches!(value, Expr::If { .. })),
+                        ));
+                    }
+                    Statement::Block(value) => frames.push(Frame::Block(value, true)),
+                    Statement::While {
+                        condition, body, ..
+                    } => {
+                        let start = statement_span(statement).start as usize;
+                        at(out, "while", Role::Word, start, start + 5);
+                        frames.push(Frame::Block(body, true));
+                        frames.push(Frame::Visit(condition, 0));
+                    }
+                    Statement::For {
+                        name,
+                        name_span,
+                        iterable,
+                        body,
+                        ..
+                    } => {
+                        let start = statement_span(statement).start as usize;
+                        at(out, "for", Role::Word, start, start + 3);
+                        at(
+                            out,
+                            name,
+                            Role::Word,
+                            name_span.start as usize,
+                            name_span.end as usize,
+                        );
+                        after(out, "in", Role::Word, name_span.end as usize);
+                        frames.push(Frame::Block(body, true));
+                        frames.push(Frame::Visit(iterable, 0));
+                    }
+                    Statement::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        let start = statement_span(statement).start as usize;
+                        at(out, "if", Role::Word, start, start + 2);
+                        if let Some(otherwise) = otherwise {
+                            frames.push(Frame::StmtElse(otherwise));
+                            frames.push(Frame::After(
+                                "else",
+                                Role::Else,
+                                then_block.span.end as usize,
+                            ));
+                        }
+                        frames.push(Frame::Block(then_block, true));
+                        frames.push(Frame::Visit(condition, 0));
+                    }
+                    Statement::Match(selection) => frames.push(Frame::Match(selection)),
+                }
+                continue;
+            }
+            Frame::StmtElse(statement) => {
+                match statement {
+                    Statement::Block(value) => frames.push(Frame::Block(value, true)),
                     Statement::Expr {
                         value: value @ Expr::If { .. },
                         ..
-                    } => stmt_if_expr(value, out),
-                    Statement::Expr { value, .. } => expr(value, out, 0),
-                    other => stmt(other, out),
+                    } => frames.push(Frame::StmtIf(value)),
+                    Statement::Expr { value, .. } => frames.push(Frame::Visit(value, 0)),
+                    other => frames.push(Frame::Stmt(other)),
                 }
+                continue;
             }
-        }
-        Statement::Match(selection) => print_match(selection, out),
-    }
-}
-fn stmt_if_expr(value: &Expr, out: &mut Writer) {
-    if let Expr::If {
-        condition,
-        then_block,
-        otherwise,
-        ..
-    } = value
-    {
-        let start = value.span().start as usize;
-        at(out, "if", Role::Word, start, start + 2);
-        expr(condition, out, 0);
-        block(then_block, out, true);
-        if let Some(otherwise) = otherwise {
-            after(out, "else", Role::Else, then_block.span.end as usize);
-            match &**otherwise {
-                Else::Block(value) => block(value, out, true),
-                Else::If(next) => stmt_if_expr(next, out),
+            Frame::StmtIf(value) => {
+                if let Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } = value
+                {
+                    let start = value.span().start as usize;
+                    at(out, "if", Role::Word, start, start + 2);
+                    if let Some(otherwise) = otherwise {
+                        match &**otherwise {
+                            Else::Block(value) => frames.push(Frame::Block(value, true)),
+                            Else::If(value) => frames.push(Frame::StmtIf(value)),
+                        }
+                        frames.push(Frame::After(
+                            "else",
+                            Role::Else,
+                            then_block.span.end as usize,
+                        ));
+                    }
+                    frames.push(Frame::Block(then_block, true));
+                    frames.push(Frame::Visit(condition, 0));
+                }
+                continue;
             }
-        }
-    }
-}
-fn expr(value: &Expr, out: &mut Writer, parent: u8) {
-    match value {
-        Expr::Closure(closure) => {
-            let start = closure.fn_span.start as usize;
-            at(out, "fn", Role::Function, start, start + 2);
-            let mut end = closure.fn_span.end as usize;
-            if let Some(captures) = &closure.captures {
-                end = after(out, "[", Role::AttachedOpen, end);
-                for (index, capture) in captures.iter().enumerate() {
+            Frame::Before(text, role, bound) => {
+                before(out, text, role, bound);
+                continue;
+            }
+            Frame::Terminator(bound) => {
+                out.terminator(bound);
+                continue;
+            }
+            Frame::After(text, role, bound) => {
+                after(out, text, role, bound);
+                continue;
+            }
+            Frame::At(text, role, start, end) => {
+                at(out, text, role, start, end);
+                continue;
+            }
+            Frame::Inserted(text, role) => {
+                inserted(out, text, role);
+                continue;
+            }
+            Frame::GroupEnd => {
+                out.group_end();
+                continue;
+            }
+        };
+        match value {
+            Expr::Closure(closure) => {
+                let start = closure.fn_span.start as usize;
+                at(out, "fn", Role::Function, start, start + 2);
+                let mut end = closure.fn_span.end as usize;
+                if let Some(captures) = &closure.captures {
+                    end = after(out, "[", Role::AttachedOpen, end);
+                    for (index, capture) in captures.iter().enumerate() {
+                        if index > 0 {
+                            end = after(out, ",", Role::Comma, end);
+                        }
+                        let mode = match capture.mode {
+                            CaptureMode::View => "view",
+                            CaptureMode::Copy => "copy",
+                            CaptureMode::Edit => "edit",
+                            CaptureMode::Move => "move",
+                        };
+                        end = after(out, mode, Role::Word, end);
+                        end = after(out, &capture.name, Role::Word, end);
+                    }
+                    end = after(out, "]", Role::Close, end);
+                }
+                end = after(out, "(", Role::AttachedOpen, end);
+                for (index, param) in closure.params.iter().enumerate() {
                     if index > 0 {
                         end = after(out, ",", Role::Comma, end);
                     }
-                    let mode = match capture.mode {
-                        CaptureMode::View => "view",
-                        CaptureMode::Copy => "copy",
-                        CaptureMode::Edit => "edit",
-                        CaptureMode::Move => "move",
-                    };
-                    end = after(out, mode, Role::Word, end);
-                    end = after(out, &capture.name, Role::Word, end);
-                }
-                end = after(out, "]", Role::Close, end);
-            }
-            end = after(out, "(", Role::AttachedOpen, end);
-            for (index, param) in closure.params.iter().enumerate() {
-                if index > 0 {
-                    end = after(out, ",", Role::Comma, end);
-                }
-                end = after(out, &param.name, Role::Word, end);
-                end = after(out, ":", Role::Colon, end);
-                end = after(out, mode(param.mode), Role::Word, end);
-                if let Some(param_type) = &param.ty {
-                    end = ty(param_type, out, end);
-                }
-            }
-            end = after(out, ")", Role::Close, end);
-            if let Some(result) = &closure.result {
-                end = after(out, "->", Role::Arrow, end);
-                end = ty(result, out, end);
-            }
-            if let Some(clause) = &closure.with_clause {
-                end = after(out, "with", Role::Word, end);
-                match clause {
-                    WithClause::Simple(items) => {
-                        for (index, restriction) in items.iter().enumerate() {
-                            if index > 0 {
-                                end = after(out, ",", Role::Comma, end);
-                            }
-                            end = after(out, &restriction.name, Role::Word, end);
-                        }
+                    end = after(out, &param.name, Role::Word, end);
+                    end = after(out, ":", Role::Colon, end);
+                    end = after(out, mode(param.mode), Role::Word, end);
+                    if let Some(param_type) = &param.ty {
+                        end = ty(param_type, out, end);
                     }
-                    WithClause::Operations(operations) => {
-                        end = after(out, "{", Role::ContractOpen, end);
-                        for (index, operation) in operations.iter().enumerate() {
-                            if index > 0 {
-                                end = after(out, ",", Role::Comma, end);
-                            }
-                            end = after(out, &operation.name, Role::Word, end);
-                            end = after(out, "(", Role::AttachedOpen, end);
-                            for (index, restriction) in operation.restrictions.iter().enumerate() {
+                }
+                end = after(out, ")", Role::Close, end);
+                if let Some(result) = &closure.result {
+                    end = after(out, "->", Role::Arrow, end);
+                    end = ty(result, out, end);
+                }
+                if let Some(clause) = &closure.with_clause {
+                    end = after(out, "with", Role::Word, end);
+                    match clause {
+                        WithClause::Simple(items) => {
+                            for (index, restriction) in items.iter().enumerate() {
                                 if index > 0 {
                                     end = after(out, ",", Role::Comma, end);
                                 }
                                 end = after(out, &restriction.name, Role::Word, end);
                             }
-                            end = after(out, ")", Role::Close, end);
                         }
-                        after(out, "}", Role::ContractClose, end);
+                        WithClause::Operations(operations) => {
+                            end = after(out, "{", Role::ContractOpen, end);
+                            for (index, operation) in operations.iter().enumerate() {
+                                if index > 0 {
+                                    end = after(out, ",", Role::Comma, end);
+                                }
+                                end = after(out, &operation.name, Role::Word, end);
+                                end = after(out, "(", Role::AttachedOpen, end);
+                                for (index, restriction) in
+                                    operation.restrictions.iter().enumerate()
+                                {
+                                    if index > 0 {
+                                        end = after(out, ",", Role::Comma, end);
+                                    }
+                                    end = after(out, &restriction.name, Role::Word, end);
+                                }
+                                end = after(out, ")", Role::Close, end);
+                            }
+                            after(out, "}", Role::ContractClose, end);
+                        }
+                    }
+                }
+                frames.push(Frame::Block(&closure.body, false));
+            }
+            Expr::Name(name, span) => word_at(out, name, span.start as usize, span.end as usize),
+            Expr::Integer(name, span) => out.token_from_span(
+                name,
+                Role::Word,
+                false,
+                span.start as usize,
+                span.end as usize,
+            ),
+            Expr::Bool(value, span) => word_at(
+                out,
+                if *value { "true" } else { "false" },
+                span.start as usize,
+                span.end as usize,
+            ),
+            Expr::Unit(span) => {
+                let start = span.start as usize;
+                let end = span.end as usize;
+                at(out, "(", Role::Open, start, start + 1);
+                at(out, ")", Role::Close, end - 1, end);
+            }
+            Expr::Array(items, span) => {
+                let mut closes = vec![span.end as usize];
+                let mut elements = items.as_slice();
+                let mut start = span.start as usize;
+                while let [Expr::Array(inner, inner_span)] = elements {
+                    at(out, "[", Role::Open, start, start + 1);
+                    start = inner_span.start as usize;
+                    closes.push(inner_span.end as usize);
+                    elements = inner;
+                }
+                at(out, "[", Role::Open, start, start + 1);
+                for end in closes {
+                    frames.push(Frame::At("]", Role::Close, end - 1, end));
+                }
+                for index in (0..elements.len()).rev() {
+                    frames.push(Frame::Visit(&elements[index], 0));
+                    if index > 0 {
+                        frames.push(Frame::After(
+                            ",",
+                            Role::Comma,
+                            elements[index - 1].span().end as usize,
+                        ));
                     }
                 }
             }
-            block(&closure.body, out, false);
-        }
-        Expr::Name(name, span) => word_at(out, name, span.start as usize, span.end as usize),
-        Expr::Integer(name, span) => out.token_from_span(
-            name,
-            Role::Word,
-            false,
-            span.start as usize,
-            span.end as usize,
-        ),
-        Expr::Bool(value, span) => word_at(
-            out,
-            if *value { "true" } else { "false" },
-            span.start as usize,
-            span.end as usize,
-        ),
-        Expr::Unit(span) => {
-            let start = span.start as usize;
-            let end = span.end as usize;
-            at(out, "(", Role::Open, start, start + 1);
-            at(out, ")", Role::Close, end - 1, end);
-        }
-        Expr::Array(items, span) => {
-            let mut closes = Vec::new();
-            let mut elements = items.as_slice();
-            let mut start = span.start as usize;
-            closes.push(span.end as usize);
-            while let [Expr::Array(inner, _)] = elements {
-                at(out, "[", Role::Open, start, start + 1);
-                start = elements[0].span().start as usize;
-                closes.push(elements[0].span().end as usize);
-                elements = inner;
-            }
-            at(out, "[", Role::Open, start, start + 1);
-            for (i, item) in elements.iter().enumerate() {
-                if i > 0 {
-                    after(out, ",", Role::Comma, elements[i - 1].span().end as usize);
+            Expr::Group(inner, span) => {
+                out.group_start(span.end as usize);
+                let mut groups = vec![(span.start as usize, span.end as usize)];
+                let mut item = inner.as_ref();
+                while let Expr::Group(next, span) = item {
+                    groups.push((span.start as usize, span.end as usize));
+                    item = next;
                 }
-                expr(item, out, 0);
-            }
-            for end in closes.into_iter().rev() {
-                out.token_at("]", Role::Close, false, end - 1, end);
-            }
-        }
-        Expr::Group(inner, span) => {
-            out.group_start(span.end as usize);
-            let mut groups = vec![(span.start as usize, span.end as usize)];
-            let mut item = inner.as_ref();
-            while let Expr::Group(next, span) = item {
-                groups.push((span.start as usize, span.end as usize));
-                item = next;
-            }
-            for &(start, _) in &groups {
-                at(out, "(", Role::Open, start, start + 1);
-            }
-            expr(item, out, 0);
-            for &(_, end) in groups.iter().rev() {
-                at(out, ")", Role::Close, end - 1, end);
-            }
-            out.group_end();
-        }
-        Expr::Unary {
-            mode: Mode::Read,
-            value,
-            span,
-        } => {
-            expr(value, out, 3);
-            let end = span.end as usize;
-            at(out, "?", Role::Suffix, end - 1, end);
-        }
-        Expr::Unary {
-            mode: prefix,
-            value,
-            span,
-        } => {
-            let start = span.start as usize;
-            let text = mode(*prefix);
-            at(out, text, Role::Word, start, start + text.len());
-            expr(value, out, 3);
-        }
-        Expr::Binary {
-            op, left, right, ..
-        } => {
-            let p = if op == "+" || op == "-" { 2 } else { 1 };
-            let wrap = p < parent;
-            if wrap {
-                inserted(out, "(", Role::Open);
-            }
-            expr(left, out, p + u8::from(p == 1));
-            after(out, op, Role::Binary, left.span().end as usize);
-            expr(right, out, p + 1);
-            if wrap {
-                inserted(out, ")", Role::Close);
-            }
-        }
-        Expr::Call { target, args, span } => {
-            expr(target, out, 3);
-            after(out, "(", Role::AttachedOpen, target.span().end as usize);
-            for (i, argument) in args.iter().enumerate() {
-                if i > 0 {
-                    after(out, ",", Role::Comma, args[i - 1].span.end as usize);
+                for &(start, _) in &groups {
+                    at(out, "(", Role::Open, start, start + 1);
                 }
-                if let Some(label) = &argument.label {
-                    let end = after(out, label, Role::Word, argument.span.start as usize);
-                    after(out, ":", Role::Colon, end);
+                frames.push(Frame::GroupEnd);
+                for &(_, end) in &groups {
+                    frames.push(Frame::At(")", Role::Close, end - 1, end));
                 }
-                expr(&argument.value, out, 0);
+                frames.push(Frame::Visit(item, 0));
             }
-            out.token_at(
-                ")",
-                Role::Close,
-                false,
-                span.end as usize - 1,
-                span.end as usize,
-            );
-        }
-        Expr::Index {
-            target,
-            index,
-            span,
-            ..
-        } => {
-            expr(target, out, 3);
-            after(out, "[", Role::AttachedOpen, target.span().end as usize);
-            expr(index, out, 0);
-            out.token_at(
-                "]",
-                Role::Close,
-                false,
-                span.end as usize - 1,
-                span.end as usize,
-            );
-        }
-        Expr::If {
-            condition,
-            then_block,
-            otherwise,
-            span,
-        } => {
-            if parent > 0 {
-                inserted(out, "(", Role::Open);
+            Expr::Unary {
+                mode: Mode::Read,
+                value,
+                span,
+            } => {
+                let end = span.end as usize;
+                frames.push(Frame::At("?", Role::Suffix, end - 1, end));
+                frames.push(Frame::Visit(value, 3));
             }
-            let start = span.start as usize;
-            at(out, "if", Role::Word, start, start + 2);
-            expr(condition, out, 0);
-            after(out, "then", Role::Word, condition.span().end as usize);
-            branch_operand(then_block, out, false);
-            if let Some(otherwise) = otherwise {
-                after(out, "else", Role::Else, then_block.span.end as usize);
-                print_else(otherwise, out);
+            Expr::Unary {
+                mode: prefix,
+                value,
+                span,
+            } => {
+                let text = mode(*prefix);
+                let start = span.start as usize;
+                at(out, text, Role::Word, start, start + text.len());
+                frames.push(Frame::Visit(value, 3));
             }
-            if parent > 0 {
-                inserted(out, ")", Role::Close);
+            Expr::Binary {
+                op, left, right, ..
+            } => {
+                let p = if op == "+" || op == "-" { 2 } else { 1 };
+                let wrap = p < parent;
+                if wrap {
+                    inserted(out, "(", Role::Open);
+                    frames.push(Frame::Inserted(")", Role::Close));
+                }
+                frames.push(Frame::Visit(right, p + 1));
+                frames.push(Frame::After(op, Role::Binary, left.span().end as usize));
+                frames.push(Frame::Visit(left, p + u8::from(p == 1)));
             }
-        }
-        Expr::Match(selection) => {
-            if parent > 0 {
-                inserted(out, "(", Role::Open);
+            Expr::Call { target, args, span } => {
+                let end = span.end as usize;
+                frames.push(Frame::At(")", Role::Close, end - 1, end));
+                for index in (0..args.len()).rev() {
+                    frames.push(Frame::Argument(&args[index]));
+                    if index > 0 {
+                        frames.push(Frame::After(
+                            ",",
+                            Role::Comma,
+                            args[index - 1].span.end as usize,
+                        ));
+                    }
+                }
+                frames.push(Frame::After(
+                    "(",
+                    Role::AttachedOpen,
+                    target.span().end as usize,
+                ));
+                frames.push(Frame::Visit(target, 3));
             }
-            print_match(selection, out);
-            if parent > 0 {
-                inserted(out, ")", Role::Close);
+            Expr::Index {
+                target,
+                index,
+                span,
+                ..
+            } => {
+                let end = span.end as usize;
+                frames.push(Frame::At("]", Role::Close, end - 1, end));
+                frames.push(Frame::Visit(index, 0));
+                frames.push(Frame::After(
+                    "[",
+                    Role::AttachedOpen,
+                    target.span().end as usize,
+                ));
+                frames.push(Frame::Visit(target, 3));
+            }
+            Expr::If {
+                condition,
+                then_block,
+                otherwise,
+                span,
+            } => {
+                if parent > 0 {
+                    inserted(out, "(", Role::Open);
+                    frames.push(Frame::Inserted(")", Role::Close));
+                }
+                let start = span.start as usize;
+                at(out, "if", Role::Word, start, start + 2);
+                if let Some(otherwise) = otherwise {
+                    frames.push(Frame::Else(otherwise));
+                    frames.push(Frame::After(
+                        "else",
+                        Role::Else,
+                        then_block.span.end as usize,
+                    ));
+                }
+                frames.push(Frame::Branch(then_block, false));
+                frames.push(Frame::After(
+                    "then",
+                    Role::Word,
+                    condition.span().end as usize,
+                ));
+                frames.push(Frame::Visit(condition, 0));
+            }
+            Expr::Match(selection) => {
+                if parent > 0 {
+                    inserted(out, "(", Role::Open);
+                    frames.push(Frame::Inserted(")", Role::Close));
+                }
+                frames.push(Frame::Match(selection));
             }
         }
     }
 }
-fn print_match(selection: &Match, out: &mut Writer) {
-    let start = selection.keyword_span.start as usize;
-    at(out, "match", Role::Word, start, start + 5);
-    if let Some(mode_span) = &selection.mode_span {
-        let word = mode(selection.mode.unwrap_or(Mode::Read));
-        at(
-            out,
-            word,
-            Role::Word,
-            mode_span.start as usize,
-            mode_span.end as usize,
-        );
+
+fn print_pattern(pattern: &Pattern, out: &mut Writer) {
+    enum Frame<'a> {
+        Enter(&'a Pattern),
+        Comma(usize),
+        Close(usize),
     }
-    expr(&selection.scrutinee, out, 0);
-    after(
-        out,
-        "{",
-        Role::BlockOpen,
-        selection.scrutinee.span().end as usize,
-    );
-    for (index, arm) in selection.arms.iter().enumerate() {
-        if index > 0 {
-            after(
+    let mut frames = vec![Frame::Enter(pattern)];
+    while let Some(frame) = frames.pop() {
+        let pattern = match frame {
+            Frame::Enter(pattern) => pattern,
+            Frame::Comma(bound) => {
+                after(out, ",", Role::Comma, bound);
+                continue;
+            }
+            Frame::Close(bound) => {
+                after(out, ")", Role::Close, bound);
+                continue;
+            }
+        };
+        match pattern {
+            Pattern::Wildcard(span) => {
+                at(out, "_", Role::Word, span.start as usize, span.end as usize)
+            }
+            Pattern::Integer(text, span) => at(
                 out,
-                ",",
-                Role::Comma,
-                selection.arms[index - 1].body.span.end as usize,
-            );
-        }
-        print_pattern(&arm.pattern, out);
-        if let (Some(guard), Some(span)) = (&arm.guard, &arm.guard_span) {
-            at(
-                out,
-                "if",
+                text,
                 Role::Word,
                 span.start as usize,
                 span.end as usize,
-            );
-            expr(guard, out, 0);
-        }
-        after(out, "=>", Role::Arrow, arm.pattern.span().end as usize);
-        block(&arm.body, out, false);
-    }
-    let end = selection.span.end as usize;
-    at(out, "}", Role::BlockClose, end - 1, end);
-}
-fn print_pattern(pattern: &Pattern, out: &mut Writer) {
-    match pattern {
-        Pattern::Wildcard(span) => at(out, "_", Role::Word, span.start as usize, span.end as usize),
-        Pattern::Integer(text, span) => at(
-            out,
-            text,
-            Role::Word,
-            span.start as usize,
-            span.end as usize,
-        ),
-        Pattern::Bool(value, span) => at(
-            out,
-            if *value { "true" } else { "false" },
-            Role::Word,
-            span.start as usize,
-            span.end as usize,
-        ),
-        Pattern::Name {
-            name,
-            mode: binding_mode,
-            span,
-        } => {
-            if let Some(binding_mode) = binding_mode {
-                let word = mode(*binding_mode);
-                at(
-                    out,
-                    word,
-                    Role::Word,
-                    span.start as usize,
-                    span.start as usize + word.len(),
-                );
-                after(out, name, Role::Word, span.start as usize + word.len());
-            } else {
+            ),
+            Pattern::Bool(value, span) => at(
+                out,
+                if *value { "true" } else { "false" },
+                Role::Word,
+                span.start as usize,
+                span.end as usize,
+            ),
+            Pattern::Name {
+                name,
+                mode: binding_mode,
+                span,
+            } => {
+                if let Some(binding_mode) = binding_mode {
+                    let word = mode(*binding_mode);
+                    at(
+                        out,
+                        word,
+                        Role::Word,
+                        span.start as usize,
+                        span.start as usize + word.len(),
+                    );
+                    after(out, name, Role::Word, span.start as usize + word.len());
+                } else {
+                    at(
+                        out,
+                        name,
+                        Role::Word,
+                        span.start as usize,
+                        span.end as usize,
+                    );
+                }
+            }
+            Pattern::Constructor { name, args, span } => {
                 at(
                     out,
                     name,
                     Role::Word,
                     span.start as usize,
-                    span.end as usize,
+                    span.start as usize + name.len(),
                 );
-            }
-        }
-        Pattern::Constructor { name, args, span } => {
-            at(
-                out,
-                name,
-                Role::Word,
-                span.start as usize,
-                span.start as usize + name.len(),
-            );
-            after(
-                out,
-                "(",
-                Role::AttachedOpen,
-                span.start as usize + name.len(),
-            );
-            for (index, arg) in args.iter().enumerate() {
-                if index > 0 {
-                    after(out, ",", Role::Comma, args[index - 1].span().end as usize);
+                after(
+                    out,
+                    "(",
+                    Role::AttachedOpen,
+                    span.start as usize + name.len(),
+                );
+                frames.push(Frame::Close(span.end as usize - 1));
+                for index in (0..args.len()).rev() {
+                    frames.push(Frame::Enter(&args[index]));
+                    if index > 0 {
+                        frames.push(Frame::Comma(args[index - 1].span().end as usize));
+                    }
                 }
-                print_pattern(arg, out);
             }
-            after(out, ")", Role::Close, span.end as usize - 1);
         }
     }
 }
-fn print_else(value: &Else, out: &mut Writer) {
-    match value {
-        Else::Block(value) => branch_operand(value, out, true),
-        Else::If(value) => {
-            inserted(out, "(", Role::Open);
-            expr(value, out, 0);
-            inserted(out, ")", Role::Close);
-        }
-    }
-}
-fn branch_operand(branch: &Block, out: &mut Writer, is_else: bool) {
-    if let [
-        Statement::Value {
-            value: Some(value),
-            marker,
-            ..
-        },
-    ] = branch.statements.as_slice()
-    {
-        let mut inner = value;
-        while let Expr::Group(grouped, _) = inner {
-            inner = grouped;
-        }
-        // A parsed explicit branch has both delimiters outside its value span;
-        // a synthesized simple branch has neither. The second comparison is
-        // redundant for accepted trees.
-        let explicit = marker.is_some();
-        if !(is_else && matches!(inner, Expr::If { .. }))
-            && (!explicit
-                || (!out.has_comment(branch.span.start as usize, branch.span.end as usize)
-                    && !out.has_comment_before(branch.span.start as usize)
-                    && !out.has_comment_after_in_group(branch.span.end as usize)))
-        {
-            if matches!(value, Expr::If { .. }) {
-                inserted(out, "(", Role::Open);
-                expr(value, out, 0);
-                inserted(out, ")", Role::Close);
-            } else {
-                expr(value, out, 0);
-            }
+#[cfg(test)]
+mod printer_stack_regression {
+    use super::*;
+    use std::process::Command;
+
+    #[test]
+    fn commented_groups_child_print_with_204_kib() {
+        if std::env::var_os("J16_PRINT_COMMENTS_CHILD").is_none() {
             return;
         }
+        let source = format!(
+            "fn Main(){{let x={}1{};}}",
+            "(// comentario\n".repeat(126),
+            ")".repeat(126)
+        );
+        let cst = crate::frontend::cst::parse_cst("comments-print.n", &source).unwrap();
+        assert_eq!(cst.comments.len(), 126);
+        let expected = print_inner(&cst.ast, Some(&cst)).output;
+        let printed = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(204 * 1024)
+                .spawn_scoped(scope, || print_inner(&cst.ast, Some(&cst)).output)
+                .unwrap()
+                .join()
+                .unwrap()
+        });
+        assert_eq!(printed, expected);
+        let formatted = crate::frontend::format::format_cst("comments-print.n", &cst).unwrap();
+        assert!(formatted.contains("// comentario"));
     }
-    block(branch, out, false);
+
+    #[test]
+    fn commented_groups_print_with_204_kib() {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "frontend::print::printer_stack_regression::commented_groups_child_print_with_204_kib",
+                "--nocapture",
+            ])
+            .env("J16_PRINT_COMMENTS_CHILD", "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn expression_source(family: &str) -> String {
+        match family {
+            "block" => format!(
+                "fn Main(){{{}let x=1;{}}}",
+                "{".repeat(126),
+                "}".repeat(126)
+            ),
+            "if_stmt" => format!("fn Main(){{{}{}}}", "if true{".repeat(126), "}".repeat(126)),
+            "while" => format!(
+                "fn Main(){{{}{}}}",
+                "while true{".repeat(126),
+                "}".repeat(126)
+            ),
+            "group" => format!(
+                "fn Main(){{let x={}1{};}}",
+                "(".repeat(126),
+                ")".repeat(126)
+            ),
+            "array" => format!(
+                "fn Main(){{let x={}1{};}}",
+                "[".repeat(126),
+                "]".repeat(126)
+            ),
+            "binary_left" => format!("fn Main(){{let x=1{};}}", "+1".repeat(126)),
+            "binary_right" => format!(
+                "fn Main(){{let x={}1{};}}",
+                "1+(".repeat(126),
+                ")".repeat(126)
+            ),
+            "call" => format!(
+                "fn F(x:view I64)->I64{{return x;}}fn Main(){{let x={}1{};}}",
+                "F(".repeat(126),
+                ")".repeat(126)
+            ),
+            "some" => format!(
+                "fn Main(){{let x={}1{};}}",
+                "Some(".repeat(126),
+                ")".repeat(126)
+            ),
+            "some_annotated" => format!(
+                "fn Main(){{let x:{}I64{}={}1{};}}",
+                "Option<".repeat(126),
+                ">".repeat(126),
+                "Some(".repeat(126),
+                ")".repeat(126)
+            ),
+            "index" => format!(
+                "fn Main(){{let a={}1{};let x=a{};}}",
+                "[".repeat(126),
+                "]".repeat(126),
+                "[0]".repeat(126)
+            ),
+            "if_expr" => {
+                let mut value = String::from("1");
+                for _ in 0..126 {
+                    value = format!("if true then ({value}) else 0");
+                }
+                format!("fn Main(){{let x={value};}}")
+            }
+            "else_if_expr" => {
+                let mut value = String::from("1");
+                for _ in 0..63 {
+                    value = format!("if false then 0 else ({value})");
+                }
+                format!("fn Main(){{let x={value};}}")
+            }
+            "match_scrutinee" => {
+                let mut value = String::from("1");
+                for _ in 0..60 {
+                    value = format!("match ({value}){{_=>{{value:1;}}}}");
+                }
+                format!("fn Main(){{let x={value};}}")
+            }
+            "match_stmt" => {
+                let mut body = String::new();
+                for _ in 0..60 {
+                    body = format!("match 1{{_=>{{{body}}}}}");
+                }
+                format!("fn Main(){{{body}}}")
+            }
+            "match_expr" => {
+                let mut value = String::from("1");
+                for _ in 0..63 {
+                    value = format!("match 1{{_=>{{value:{value};}}}}");
+                }
+                format!("fn Main(){{let x={value};}}")
+            }
+            "closure" => format!(
+                "fn Main(){{let f={}1{};}}",
+                "fn(){let g=".repeat(63),
+                ";}".repeat(63)
+            ),
+            "closure_called" => {
+                let mut value = String::from("1");
+                for _ in 0..40 {
+                    value = format!("(fn ()->I64{{return {value};}})()");
+                }
+                format!("fn Main(){{let x={value};}}")
+            }
+            "type" => format!(
+                "fn F(x:view {}I64{}){{}}fn Main(){{}}",
+                "Array<".repeat(126),
+                ">".repeat(126)
+            ),
+            "yield_group" => format!(
+                "gen fn G()->I64{{yield {}1{};}}fn Main(){{}}",
+                "(".repeat(126),
+                ")".repeat(126)
+            ),
+            "mixed" => format!(
+                "fn Main(){{{}let x={}1{};{}}}",
+                "{".repeat(63),
+                "(".repeat(63),
+                ")".repeat(63),
+                "}".repeat(63)
+            ),
+            _ => unreachable!(),
+        }
+    }
+
+    #[test]
+    fn expression_family_child_prints_with_204_kib() {
+        let Ok(family) = std::env::var("J16_PRINT_EXPR_CHILD") else {
+            return;
+        };
+        let source = expression_source(&family);
+        let ast = parse_new_profile("expr-print.n", &source).unwrap();
+        let expected = print_inner(&ast, None).output;
+        let printed = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(204 * 1024)
+                .spawn_scoped(scope, || print_inner(&ast, None).output)
+                .unwrap()
+                .join()
+                .unwrap()
+        });
+        assert_eq!(printed, expected, "{family}");
+    }
+
+    #[test]
+    fn expression_families_print_with_204_kib() {
+        for family in [
+            "block",
+            "if_stmt",
+            "while",
+            "group",
+            "array",
+            "binary_left",
+            "binary_right",
+            "call",
+            "some",
+            "some_annotated",
+            "index",
+            "if_expr",
+            "else_if_expr",
+            "match_scrutinee",
+            "match_stmt",
+            "match_expr",
+            "closure",
+            "closure_called",
+            "type",
+            "yield_group",
+            "mixed",
+        ] {
+            let output = Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "--exact",
+                    "frontend::print::printer_stack_regression::expression_family_child_prints_with_204_kib",
+                    "--nocapture",
+                ])
+                .env("J16_PRINT_EXPR_CHILD", family)
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{family}: {} {}",
+                String::from_utf8_lossy(&output.stdout),
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+
+    #[test]
+    fn else_if_child_prints_with_204_kib() {
+        if std::env::var_os("J16_PRINT_ELSE_IF_CHILD").is_none() {
+            return;
+        }
+        let source = format!("fn Main(){{{}{}}}", "if true{}else ".repeat(126), "{}");
+        let ast = parse_new_profile("else-if-print.n", &source).unwrap();
+        let expected = print_inner(&ast, None).output;
+        let printed = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(204 * 1024)
+                .spawn_scoped(scope, || print_inner(&ast, None).output)
+                .unwrap()
+                .join()
+                .unwrap()
+        });
+        assert_eq!(printed, expected);
+    }
+
+    #[test]
+    fn else_if_prints_with_204_kib() {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "frontend::print::printer_stack_regression::else_if_child_prints_with_204_kib",
+                "--nocapture",
+            ])
+            .env("J16_PRINT_ELSE_IF_CHILD", "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    #[test]
+    fn nested_pattern_child_prints_with_204_kib() {
+        if std::env::var_os("J16_PRINT_PATTERN_CHILD").is_none() {
+            return;
+        }
+        let source = [
+            "fn Main(){match 1{".to_owned(),
+            "Some(".repeat(126),
+            "_".to_owned(),
+            ")".repeat(126),
+            "=>{},_=>{}}}".to_owned(),
+        ]
+        .concat();
+        let ast = parse_new_profile("pattern-print.n", &source).unwrap();
+        let expected = print_inner(&ast, None).output;
+        let printed = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(204 * 1024)
+                .spawn_scoped(scope, || print_inner(&ast, None).output)
+                .unwrap()
+                .join()
+                .unwrap()
+        });
+        assert_eq!(printed, expected);
+    }
+
+    #[test]
+    fn nested_pattern_prints_with_204_kib() {
+        let output = Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "frontend::print::printer_stack_regression::nested_pattern_child_prints_with_204_kib",
+                "--nocapture",
+            ])
+            .env("J16_PRINT_PATTERN_CHILD", "1")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
 }
