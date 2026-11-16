@@ -387,6 +387,46 @@ struct Resolver {
     closure_boundaries: Vec<(usize, bool)>,
 }
 
+enum Walk<'a> {
+    Block(&'a Block, bool),
+    Statement(&'a Statement),
+    Expr(&'a Expr, bool),
+    Else(&'a Else),
+    Selection(&'a crate::frontend::parse::Match),
+    Arms(&'a [crate::frontend::parse::Arm]),
+    Pattern(&'a crate::frontend::parse::Pattern),
+    EndBlock(bool),
+    EndExpr,
+    CatchStatement,
+    BindLet {
+        name: &'a str,
+        mutable: bool,
+        span: Span,
+    },
+    CheckUnary {
+        mode: Mode,
+        value: &'a Expr,
+        span: &'a Span,
+    },
+    ForBody {
+        name: &'a str,
+        span: &'a Span,
+        body: &'a Block,
+    },
+    EndFor,
+    EndClosure,
+    BeginArm,
+    CatchArm,
+    EndArm,
+    CallTarget {
+        target: &'a Expr,
+        args: &'a [Argument],
+        span: &'a Span,
+    },
+    CatchArgument(usize),
+    FinishArguments(usize),
+}
+
 impl Resolver {
     fn local_for_closure_use(
         &mut self,
@@ -430,7 +470,7 @@ impl Resolver {
         Ok(Some(local))
     }
 
-    fn closure(&mut self, closure: &Closure) -> Result<(), Box<Diagnostic>> {
+    fn begin_closure(&mut self, closure: &Closure) -> Result<(), Box<Diagnostic>> {
         let mut captured = HashMap::new();
         if let Some(list) = &closure.captures {
             let mut first = HashMap::<&str, Span>::new();
@@ -499,10 +539,7 @@ impl Resolver {
         self.scopes.push(captured);
         self.closure_boundaries
             .push((boundary, closure.captures.is_some()));
-        let result = self.block(&closure.body, false);
-        self.closure_boundaries.pop();
-        self.scopes.pop();
-        result
+        Ok(())
     }
 
     fn lookup(&self, name: &str) -> Option<ResolvedUse> {
@@ -528,378 +565,509 @@ impl Resolver {
         Ok(())
     }
 
-    fn block(&mut self, block: &Block, child: bool) -> Result<(), Box<Diagnostic>> {
-        self.enter(&block.span)?;
-        if child {
-            self.scopes.push(HashMap::new());
-        }
-        for statement in &block.statements {
-            if let Err(error) = self.statement(statement) {
-                self.errors.push(error);
+    fn walk<'a>(&mut self, start: Walk<'a>) -> Result<(), Box<Diagnostic>> {
+        let mut tasks = vec![start];
+        let mut error = None;
+        let mut argument_errors: Vec<Option<Box<Diagnostic>>> = Vec::new();
+        while let Some(task) = tasks.pop() {
+            if error.is_some()
+                && !matches!(
+                    task,
+                    Walk::EndBlock(_)
+                        | Walk::EndExpr
+                        | Walk::CatchStatement
+                        | Walk::BindLet { .. }
+                        | Walk::EndFor
+                        | Walk::EndClosure
+                        | Walk::CatchArm
+                        | Walk::EndArm
+                        | Walk::CatchArgument(_)
+                )
+            {
+                continue;
             }
-        }
-        if child {
-            self.scopes.pop();
-        }
-        self.depth -= 1;
-        Ok(())
-    }
-
-    fn statement(&mut self, s: &Statement) -> Result<(), Box<Diagnostic>> {
-        match s {
-            Statement::Let {
-                mutable,
-                name,
-                value,
-                span,
-                ..
-            } => {
-                let ns = binding_span(&self.tokens, name, span, value);
-                if let Err(error) = self.expr(value, false) {
-                    let scope = self.scopes.last_mut().expect("function scope exists");
-                    scope.entry(name.clone()).or_insert_with(|| Local {
-                        name_span: ns.clone(),
-                        mode: Mode::Read,
-                        mutable: *mutable,
-                    });
-                    return Err(error);
-                }
-                let scope = self.scopes.last_mut().expect("function scope exists");
-                if self.phase == Stage::Names
-                    && let Some(previous) = scope.get(name)
-                {
-                    return Err(duplicate(ns, previous.name_span.clone(), "binding"));
-                }
-                scope.insert(
-                    name.clone(),
-                    Local {
-                        name_span: ns,
-                        mode: Mode::Read,
-                        mutable: *mutable,
-                    },
-                );
-                Ok(())
-            }
-            Statement::Assign { place, value, .. } => {
-                self.expr(place, false)?;
-                self.expr(value, false)
-            }
-            Statement::Return { value, .. }
-            | Statement::GuardControl { value, .. }
-            | Statement::Value { value, .. } => {
-                if let Some(e) = value {
-                    self.expr(e, false)?;
-                }
-                Ok(())
-            }
-            Statement::Expr { value, .. } => self.expr(value, false),
-            Statement::Block(b) => self.block(b, true),
-            Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                self.expr(condition, false)?;
-                self.block(then_block, true)?;
-                if let Some(o) = otherwise {
-                    self.statement(o)?;
-                }
-                Ok(())
-            }
-            Statement::While {
-                condition, body, ..
-            } => {
-                self.expr(condition, false)?;
-                self.block(body, true)
-            }
-            Statement::For {
-                name,
-                name_span,
-                iterable,
-                body,
-                ..
-            } => {
-                self.expr(iterable, false)?;
-                self.scopes.push(HashMap::new());
-                self.scopes.last_mut().expect("for scope").insert(
-                    name.clone(),
-                    Local {
-                        name_span: name_span.clone(),
-                        mode: Mode::Read,
-                        mutable: false,
-                    },
-                );
-                let result = self.block(body, true);
-                self.scopes.pop();
-                result
-            }
-            Statement::Match(selection) => self.selection(selection),
-        }
-    }
-
-    fn else_branch(&mut self, branch: &Else) -> Result<(), Box<Diagnostic>> {
-        match branch {
-            Else::Block(b) => self.block(b, true),
-            Else::If(e) => self.expr(e, false),
-        }
-    }
-
-    fn expr(&mut self, e: &Expr, call_target: bool) -> Result<(), Box<Diagnostic>> {
-        self.enter(e.span())?;
-        let result = self.expr_inner(e, call_target);
-        self.depth -= 1;
-        result
-    }
-
-    fn expr_inner(&mut self, e: &Expr, call_target: bool) -> Result<(), Box<Diagnostic>> {
-        match e {
-            Expr::Closure(closure) => self.closure(closure),
-            Expr::Name(name, span) => {
-                if self.phase == Stage::Arguments {
-                    return Ok(());
-                }
-                let kind = if call_target { "call_target" } else { "value" };
-                let found = if let Some(local) = self.local_for_closure_use(name, span)? {
-                    ResolvedUse::Local(local)
-                } else {
-                    self.lookup(name)
-                        .ok_or_else(|| unknown(span.clone(), kind))?
-                };
-                if !call_target
-                    && name != "None"
-                    && matches!(found, ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
-                {
-                    let mut d = diagnostic(
-                        "NX-E0006",
-                        None,
-                        Stage::Names,
-                        Operation::NamesResolve,
-                        span.clone(),
-                    );
-                    d.feature_id = Some("function_value".into());
-                    d.data.insert(
-                        "pending_scope".into(),
-                        DataValue::String("later_adr".into()),
-                    );
-                    return Err(d);
-                }
-                self.resolved.uses.insert(span.start, found);
-                Ok(())
-            }
-            Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => Ok(()),
-            Expr::Array(xs, _) => xs.iter().try_for_each(|x| self.expr(x, false)),
-            Expr::Group(x, _) => self.expr(x, call_target),
-            Expr::Unary { mode, value, span } => {
-                self.expr(value, false)?;
-                if self.phase == Stage::Names
-                    && *mode != Mode::Read
-                    && let Expr::Call { target, .. } = &**value
-                {
-                    let mut named = target.as_ref();
-                    while let Expr::Group(inner, _) = named {
-                        named = inner;
+            match task {
+                Walk::Block(block, child) => {
+                    if let Err(e) = self.enter(&block.span) {
+                        error = Some(e);
+                        continue;
                     }
-                    if let Expr::Name(_, name_span) = named
-                        && matches!(
-                            self.resolved.uses.get(&name_span.start),
-                            Some(ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
-                        )
-                    {
-                        let mut error = diagnostic(
-                            "NX-E0006",
-                            None,
-                            Stage::Names,
-                            Operation::NamesResolve,
-                            Span {
-                                file: span.file.clone(),
-                                start: span.start,
-                                end: span.start + 4,
+                    if child {
+                        self.scopes.push(HashMap::new());
+                    }
+                    tasks.push(Walk::EndBlock(child));
+                    for statement in block.statements.iter().rev() {
+                        tasks.push(Walk::CatchStatement);
+                        tasks.push(Walk::Statement(statement));
+                    }
+                }
+                Walk::EndBlock(child) => {
+                    if child {
+                        self.scopes.pop();
+                    }
+                    self.depth -= 1;
+                }
+                Walk::CatchStatement => {
+                    if let Some(e) = error.take() {
+                        self.errors.push(e);
+                    }
+                }
+                Walk::Statement(statement) => match statement {
+                    Statement::Let {
+                        mutable,
+                        name,
+                        value,
+                        span,
+                        ..
+                    } => {
+                        let ns = binding_span(&self.tokens, name, span, value);
+                        tasks.push(Walk::BindLet {
+                            name,
+                            mutable: *mutable,
+                            span: ns,
+                        });
+                        tasks.push(Walk::Expr(value, false));
+                    }
+                    Statement::Assign { place, value, .. } => {
+                        tasks.push(Walk::Expr(value, false));
+                        tasks.push(Walk::Expr(place, false));
+                    }
+                    Statement::Return { value, .. }
+                    | Statement::GuardControl { value, .. }
+                    | Statement::Value { value, .. } => {
+                        if let Some(e) = value {
+                            tasks.push(Walk::Expr(e, false));
+                        }
+                    }
+                    Statement::Expr { value, .. } => tasks.push(Walk::Expr(value, false)),
+                    Statement::Block(block) => tasks.push(Walk::Block(block, true)),
+                    Statement::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        if let Some(otherwise) = otherwise {
+                            tasks.push(Walk::Statement(otherwise));
+                        }
+                        tasks.push(Walk::Block(then_block, true));
+                        tasks.push(Walk::Expr(condition, false));
+                    }
+                    Statement::While {
+                        condition, body, ..
+                    } => {
+                        tasks.push(Walk::Block(body, true));
+                        tasks.push(Walk::Expr(condition, false));
+                    }
+                    Statement::For {
+                        name,
+                        name_span,
+                        iterable,
+                        body,
+                        ..
+                    } => {
+                        tasks.push(Walk::ForBody {
+                            name,
+                            span: name_span,
+                            body,
+                        });
+                        tasks.push(Walk::Expr(iterable, false));
+                    }
+                    Statement::Match(selection) => tasks.push(Walk::Selection(selection)),
+                },
+                Walk::BindLet {
+                    name,
+                    mutable,
+                    span,
+                } => {
+                    let scope = self.scopes.last_mut().expect("function scope exists");
+                    if error.is_some() {
+                        scope.entry(name.to_owned()).or_insert_with(|| Local {
+                            name_span: span,
+                            mode: Mode::Read,
+                            mutable,
+                        });
+                    } else if self.phase == Stage::Names {
+                        if let Some(previous) = scope.get(name) {
+                            error = Some(duplicate(span, previous.name_span.clone(), "binding"));
+                        } else {
+                            scope.insert(
+                                name.to_owned(),
+                                Local {
+                                    name_span: span,
+                                    mode: Mode::Read,
+                                    mutable,
+                                },
+                            );
+                        }
+                    } else {
+                        scope.insert(
+                            name.to_owned(),
+                            Local {
+                                name_span: span,
+                                mode: Mode::Read,
+                                mutable,
                             },
                         );
-                        error.feature_id = Some("receiver_mode".into());
-                        error.data.insert(
-                            "pending_scope".into(),
-                            DataValue::String("later_adr".into()),
-                        );
-                        return Err(error);
                     }
                 }
-                Ok(())
-            }
-            Expr::Binary { left, right, .. } => {
-                self.expr(left, false)?;
-                self.expr(right, false)
-            }
-            Expr::Index { target, index, .. } => {
-                self.expr(target, false)?;
-                self.expr(index, false)
-            }
-            Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                ..
-            } => {
-                self.expr(condition, false)?;
-                self.block(then_block, true)?;
-                if let Some(o) = otherwise {
-                    self.else_branch(o)?;
+                Walk::ForBody { name, span, body } => {
+                    self.scopes.push(HashMap::new());
+                    self.scopes.last_mut().expect("for scope").insert(
+                        name.to_owned(),
+                        Local {
+                            name_span: span.clone(),
+                            mode: Mode::Read,
+                            mutable: false,
+                        },
+                    );
+                    tasks.push(Walk::EndFor);
+                    tasks.push(Walk::Block(body, true));
                 }
-                Ok(())
-            }
-            Expr::Call { target, args, span } => {
-                self.expr(target, true)?;
-                if self.phase == Stage::Names {
-                    let mut first = None;
-                    for arg in args {
-                        if let Err(error) = self.expr(&arg.value, false) {
-                            if first.is_none() {
-                                first = Some(error);
+                Walk::EndFor => {
+                    self.scopes.pop();
+                }
+                Walk::Else(branch) => match branch {
+                    Else::Block(block) => tasks.push(Walk::Block(block, true)),
+                    Else::If(expr) => tasks.push(Walk::Expr(expr, false)),
+                },
+                Walk::Expr(expr, call_target) => {
+                    if let Err(e) = self.enter(expr.span()) {
+                        error = Some(e);
+                        continue;
+                    }
+                    tasks.push(Walk::EndExpr);
+                    match expr {
+                        Expr::Closure(closure) => match self.begin_closure(closure) {
+                            Ok(()) => {
+                                tasks.push(Walk::EndClosure);
+                                tasks.push(Walk::Block(&closure.body, false));
+                            }
+                            Err(e) => error = Some(e),
+                        },
+                        Expr::Name(name, span) => {
+                            if let Err(e) = self.resolve_name(name, span, call_target) {
+                                error = Some(e);
+                            }
+                        }
+                        Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+                        Expr::Array(xs, _) => {
+                            for x in xs.iter().rev() {
+                                tasks.push(Walk::Expr(x, false));
+                            }
+                        }
+                        Expr::Group(x, _) => tasks.push(Walk::Expr(x, call_target)),
+                        Expr::Unary { mode, value, span } => {
+                            tasks.push(Walk::CheckUnary {
+                                mode: *mode,
+                                value,
+                                span,
+                            });
+                            tasks.push(Walk::Expr(value, false));
+                        }
+                        Expr::Binary { left, right, .. } => {
+                            tasks.push(Walk::Expr(right, false));
+                            tasks.push(Walk::Expr(left, false));
+                        }
+                        Expr::Index { target, index, .. } => {
+                            tasks.push(Walk::Expr(index, false));
+                            tasks.push(Walk::Expr(target, false));
+                        }
+                        Expr::If {
+                            condition,
+                            then_block,
+                            otherwise,
+                            ..
+                        } => {
+                            if let Some(otherwise) = otherwise {
+                                tasks.push(Walk::Else(otherwise));
+                            }
+                            tasks.push(Walk::Block(then_block, true));
+                            tasks.push(Walk::Expr(condition, false));
+                        }
+                        Expr::Call { target, args, span } => {
+                            tasks.push(Walk::CallTarget { target, args, span });
+                            tasks.push(Walk::Expr(target, true));
+                        }
+                        Expr::Match(selection) => tasks.push(Walk::Selection(selection)),
+                    }
+                }
+                Walk::EndExpr => {
+                    self.depth -= 1;
+                }
+                Walk::EndClosure => {
+                    self.closure_boundaries.pop();
+                    self.scopes.pop();
+                }
+                Walk::CheckUnary { mode, value, span } => {
+                    if let Err(e) = self.check_unary(mode, value, span) {
+                        error = Some(e);
+                    }
+                }
+                Walk::CallTarget { target, args, span } => {
+                    if let Err(e) = self.bind_call_target(target, args, span) {
+                        error = Some(e);
+                    } else if self.phase == Stage::Names {
+                        let slot = argument_errors.len();
+                        argument_errors.push(None);
+                        tasks.push(Walk::FinishArguments(slot));
+                        for arg in args.iter().rev() {
+                            tasks.push(Walk::CatchArgument(slot));
+                            tasks.push(Walk::Expr(&arg.value, false));
+                        }
+                    } else {
+                        for arg in args.iter().rev() {
+                            tasks.push(Walk::Expr(&arg.value, false));
+                        }
+                    }
+                }
+                Walk::CatchArgument(slot) => {
+                    if let Some(e) = error.take() {
+                        if argument_errors[slot].is_none() {
+                            argument_errors[slot] = Some(e);
+                        } else {
+                            self.errors.push(e);
+                        }
+                    }
+                }
+                Walk::FinishArguments(slot) => {
+                    error = argument_errors[slot].take();
+                }
+                Walk::Selection(selection) => {
+                    tasks.push(Walk::Arms(&selection.arms));
+                    tasks.push(Walk::Expr(&selection.scrutinee, false));
+                }
+                Walk::Arms(arms) => {
+                    if let Some((arm, rest)) = arms.split_first() {
+                        tasks.push(Walk::Arms(rest));
+                        tasks.push(Walk::EndArm);
+                        tasks.push(Walk::Block(&arm.body, true));
+                        if let Some(guard) = &arm.guard {
+                            tasks.push(Walk::CatchArm);
+                            tasks.push(Walk::Expr(guard, false));
+                        }
+                        tasks.push(Walk::CatchArm);
+                        tasks.push(Walk::Pattern(&arm.pattern));
+                        tasks.push(Walk::BeginArm);
+                    }
+                }
+                Walk::BeginArm => {
+                    self.scopes.push(HashMap::new());
+                }
+                Walk::CatchArm => {
+                    if let Some(e) = error.take() {
+                        self.errors.push(e);
+                    }
+                }
+                Walk::EndArm => {
+                    self.scopes.pop();
+                }
+                Walk::Pattern(pattern) => {
+                    use crate::frontend::parse::Pattern;
+                    match pattern {
+                        Pattern::Wildcard(_) | Pattern::Integer(..) | Pattern::Bool(..) => {}
+                        Pattern::Name { name, mode, span } => {
+                            if let Err(e) = self.bind_pattern_name(name, *mode, span) {
+                                error = Some(e);
+                            }
+                        }
+                        Pattern::Constructor { name, args, span } => {
+                            if let Err(e) = self.check_pattern_constructor(name, span) {
+                                error = Some(e);
                             } else {
-                                self.errors.push(error);
+                                for arg in args.iter().rev() {
+                                    tasks.push(Walk::Pattern(arg));
+                                }
                             }
                         }
                     }
-                    return first.map_or(Ok(()), Err);
                 }
-                let mut unwrapped = &**target;
-                while let Expr::Group(inner, _) = unwrapped {
-                    unwrapped = inner;
-                }
-                let target_use = match unwrapped {
-                    Expr::Name(_, s) => self.resolved.uses.get(&s.start),
-                    _ => None,
-                }
-                .cloned();
-                let Some(target_use) = target_use else {
-                    return args.iter().try_for_each(|a| self.expr(&a.value, false));
-                };
-                if matches!(target_use, ResolvedUse::Local(_)) {
-                    // A local's callable kind is known only after its initializer
-                    // has been resolved by the shared type graph. Keep argument
-                    // association pending until that type is determined.
-                    return args.iter().try_for_each(|a| self.expr(&a.value, false));
-                }
-                if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "None") {
-                    return Err(argument_error(
-                        "non_callable_target",
-                        target.span().clone(),
-                        None,
-                    ));
-                }
-                let sig = signature(&self.resolved, &target_use).expect("registered target");
-                let slots = Self::bind(&sig, target.span(), args)?;
-                if matches!(&target_use,ResolvedUse::Intrinsic(name) if name == "Drop")
-                    && let Some(arg) = args.first()
-                    && projected_named_place(&arg.value)
-                {
-                    let mut d = diagnostic(
-                        "NX-E0006",
-                        None,
-                        Stage::Arguments,
-                        Operation::CallBind,
-                        arg.value.span().clone(),
-                    );
-                    d.feature_id = Some("partial_transfer".into());
-                    d.data.insert(
-                        "pending_scope".into(),
-                        DataValue::String("later_adr".into()),
-                    );
-                    related(&mut d, RelatedRole::Context, target.span().clone());
-                    return Err(d);
-                }
-                self.resolved.calls.insert(
-                    (span.start, span.end),
-                    CallBinding {
-                        target: target_use,
-                        slots,
-                    },
-                );
-                args.iter().try_for_each(|a| self.expr(&a.value, false))
             }
-            Expr::Match(selection) => self.selection(selection),
         }
+        error.map_or(Ok(()), Err)
     }
 
-    fn selection(
+    fn resolve_name(
         &mut self,
-        selection: &crate::frontend::parse::Match,
+        name: &str,
+        span: &Span,
+        call_target: bool,
     ) -> Result<(), Box<Diagnostic>> {
-        self.expr(&selection.scrutinee, false)?;
-        for arm in &selection.arms {
-            self.scopes.push(HashMap::new());
-            let pattern = self.pattern(&arm.pattern);
-            if let Err(error) = pattern {
-                self.errors.push(error);
+        if self.phase == Stage::Arguments {
+            return Ok(());
+        }
+        let kind = if call_target { "call_target" } else { "value" };
+        let found = if let Some(local) = self.local_for_closure_use(name, span)? {
+            ResolvedUse::Local(local)
+        } else {
+            self.lookup(name)
+                .ok_or_else(|| unknown(span.clone(), kind))?
+        };
+        if !call_target
+            && name != "None"
+            && matches!(found, ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
+        {
+            let mut d = diagnostic(
+                "NX-E0006",
+                None,
+                Stage::Names,
+                Operation::NamesResolve,
+                span.clone(),
+            );
+            d.feature_id = Some("function_value".into());
+            d.data.insert(
+                "pending_scope".into(),
+                DataValue::String("later_adr".into()),
+            );
+            return Err(d);
+        }
+        self.resolved.uses.insert(span.start, found);
+        Ok(())
+    }
+
+    fn check_unary(&self, mode: Mode, value: &Expr, span: &Span) -> Result<(), Box<Diagnostic>> {
+        if self.phase == Stage::Names
+            && mode != Mode::Read
+            && let Expr::Call { target, .. } = value
+        {
+            let mut named = target.as_ref();
+            while let Expr::Group(inner, _) = named {
+                named = inner;
             }
-            if let Some(guard) = &arm.guard
-                && let Err(error) = self.expr(guard, false)
+            if let Expr::Name(_, name_span) = named
+                && matches!(
+                    self.resolved.uses.get(&name_span.start),
+                    Some(ResolvedUse::Function(_) | ResolvedUse::Intrinsic(_))
+                )
             {
-                self.errors.push(error);
+                let mut error = diagnostic(
+                    "NX-E0006",
+                    None,
+                    Stage::Names,
+                    Operation::NamesResolve,
+                    Span {
+                        file: span.file.clone(),
+                        start: span.start,
+                        end: span.start + 4,
+                    },
+                );
+                error.feature_id = Some("receiver_mode".into());
+                error.data.insert(
+                    "pending_scope".into(),
+                    DataValue::String("later_adr".into()),
+                );
+                return Err(error);
             }
-            let checked = self.block(&arm.body, true);
-            self.scopes.pop();
-            checked?;
         }
         Ok(())
     }
 
-    fn pattern(
+    fn bind_call_target(
         &mut self,
-        pattern: &crate::frontend::parse::Pattern,
+        target: &Expr,
+        args: &[Argument],
+        span: &Span,
     ) -> Result<(), Box<Diagnostic>> {
-        use crate::frontend::parse::Pattern;
-        match pattern {
-            Pattern::Wildcard(_) | Pattern::Integer(..) | Pattern::Bool(..) => Ok(()),
-            Pattern::Name { name, mode, span } => {
-                if self.phase == Stage::Names {
-                    let scope = self.scopes.last_mut().expect("arm scope exists");
-                    if let Some(previous) = scope.get(name) {
-                        return Err(duplicate(
-                            span.clone(),
-                            previous.name_span.clone(),
-                            "binding",
-                        ));
-                    }
-                    scope.insert(
-                        name.clone(),
-                        Local {
-                            name_span: span.clone(),
-                            mode: mode.unwrap_or(Mode::Read),
-                            mutable: *mode == Some(Mode::Inout),
-                        },
-                    );
-                } else {
-                    self.scopes.last_mut().expect("arm scope exists").insert(
-                        name.clone(),
-                        Local {
-                            name_span: span.clone(),
-                            mode: mode.unwrap_or(Mode::Read),
-                            mutable: *mode == Some(Mode::Inout),
-                        },
-                    );
-                }
-                Ok(())
-            }
-            Pattern::Constructor { name, args, span } => {
-                if self.phase == Stage::Names
-                    && (!matches!(name.as_str(), "Some" | "None" | "Ok" | "Err")
-                        || !matches!(self.lookup(name), Some(ResolvedUse::Intrinsic(_))))
-                {
-                    let name_span = self
-                        .tokens
-                        .iter()
-                        .find(|token| token.span.start == span.start)
-                        .map_or_else(|| span.clone(), |token| token.span.clone());
-                    return Err(unknown(name_span, "call_target"));
-                }
-                for arg in args {
-                    self.pattern(arg)?;
-                }
-                Ok(())
-            }
+        if self.phase == Stage::Names {
+            return Ok(());
         }
+        let mut unwrapped = target;
+        while let Expr::Group(inner, _) = unwrapped {
+            unwrapped = inner;
+        }
+        let target_use = match unwrapped {
+            Expr::Name(_, s) => self.resolved.uses.get(&s.start),
+            _ => None,
+        }
+        .cloned();
+        let Some(target_use) = target_use else {
+            return Ok(());
+        };
+        if matches!(target_use, ResolvedUse::Local(_)) {
+            return Ok(());
+        }
+        if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "None") {
+            return Err(argument_error(
+                "non_callable_target",
+                target.span().clone(),
+                None,
+            ));
+        }
+        let sig = signature(&self.resolved, &target_use).expect("registered target");
+        let slots = Self::bind(&sig, target.span(), args)?;
+        if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "Drop")
+            && let Some(arg) = args.first()
+            && projected_named_place(&arg.value)
+        {
+            let mut d = diagnostic(
+                "NX-E0006",
+                None,
+                Stage::Arguments,
+                Operation::CallBind,
+                arg.value.span().clone(),
+            );
+            d.feature_id = Some("partial_transfer".into());
+            d.data.insert(
+                "pending_scope".into(),
+                DataValue::String("later_adr".into()),
+            );
+            related(&mut d, RelatedRole::Context, target.span().clone());
+            return Err(d);
+        }
+        self.resolved.calls.insert(
+            (span.start, span.end),
+            CallBinding {
+                target: target_use,
+                slots,
+            },
+        );
+        Ok(())
+    }
+
+    fn bind_pattern_name(
+        &mut self,
+        name: &str,
+        mode: Option<Mode>,
+        span: &Span,
+    ) -> Result<(), Box<Diagnostic>> {
+        let scope = self.scopes.last_mut().expect("arm scope exists");
+        if self.phase == Stage::Names
+            && let Some(previous) = scope.get(name)
+        {
+            return Err(duplicate(
+                span.clone(),
+                previous.name_span.clone(),
+                "binding",
+            ));
+        }
+        scope.insert(
+            name.to_owned(),
+            Local {
+                name_span: span.clone(),
+                mode: mode.unwrap_or(Mode::Read),
+                mutable: mode == Some(Mode::Inout),
+            },
+        );
+        Ok(())
+    }
+
+    fn check_pattern_constructor(&self, name: &str, span: &Span) -> Result<(), Box<Diagnostic>> {
+        if self.phase == Stage::Names
+            && (!matches!(name, "Some" | "None" | "Ok" | "Err")
+                || !matches!(self.lookup(name), Some(ResolvedUse::Intrinsic(_))))
+        {
+            let name_span = self
+                .tokens
+                .iter()
+                .find(|token| token.span.start == span.start)
+                .map_or_else(|| span.clone(), |token| token.span.clone());
+            return Err(unknown(name_span, "call_target"));
+        }
+        Ok(())
+    }
+
+    fn block(&mut self, block: &Block, child: bool) -> Result<(), Box<Diagnostic>> {
+        self.walk(Walk::Block(block, child))
     }
 
     fn bind(
@@ -1153,6 +1321,114 @@ pub fn entry(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn j16_source(family: &str) -> String {
+        match family {
+            "block" => format!(
+                "fn Main(){{{}let x=1;{}}}",
+                "{".repeat(126),
+                "}".repeat(126)
+            ),
+            "group" => format!(
+                "fn Main(){{let x={}1{};}}",
+                "(".repeat(126),
+                ")".repeat(126)
+            ),
+            "array" => format!(
+                "fn Main(){{let x={}1{};}}",
+                "[".repeat(126),
+                "]".repeat(126)
+            ),
+            "call_arg" => format!(
+                "fn F(x:view I64)->I64{{return x;}}fn Main(){{let x={}1{};}}",
+                "F(".repeat(126),
+                ")".repeat(126)
+            ),
+            "pattern" => [
+                "fn Main(){match 1{".to_owned(),
+                "(".repeat(126),
+                "_".to_owned(),
+                ")".repeat(126),
+                "=>{},}}".to_owned(),
+            ]
+            .concat(),
+            "closure" => format!(
+                "fn Main(){{let f={}1{};}}",
+                "fn(){let g=".repeat(63),
+                ";}".repeat(63)
+            ),
+            "match" => {
+                let mut expr = String::from("1");
+                for _ in 0..63 {
+                    expr = format!("match 1{{_=>{{value:{expr};}}}}");
+                }
+                format!("fn Main(){{let x={expr};}}")
+            }
+            _ => unreachable!("unknown names family"),
+        }
+    }
+
+    #[test]
+    fn j16_names_stack_child() {
+        let Ok(family) = std::env::var("J16_NAMES_FAMILY") else {
+            return;
+        };
+        let source = if let Ok(path) = std::env::var("J16_NAMES_SOURCE_FILE") {
+            std::fs::read_to_string(path).unwrap()
+        } else {
+            j16_source(&family)
+        };
+        let stack_kib = std::env::var("J16_NAMES_STACK_KIB")
+            .ok()
+            .map_or(256, |value| value.parse::<usize>().unwrap());
+        let ast = crate::frontend::parse::parse_new_profile("names-stack.n", &source).unwrap();
+        std::thread::scope(|scope| {
+            let handle = std::thread::Builder::new()
+                .stack_size(stack_kib * 1024)
+                .spawn_scoped(scope, || {
+                    resolve_with_option("names-stack.n", &source, &ast, true)
+                })
+                .unwrap();
+            assert!(handle.join().unwrap().is_ok(), "{family}");
+        });
+    }
+
+    #[test]
+    fn j16_names_families_finish_in_256_kib_worker() {
+        let binary = std::env::current_exe().unwrap();
+        for family in [
+            "block", "group", "array", "call_arg", "pattern", "closure", "match",
+        ] {
+            for stack_kib in [204, 256] {
+                let output = std::process::Command::new(&binary)
+                    .args(["--exact", "check::names::tests::j16_names_stack_child"])
+                    .env("J16_NAMES_FAMILY", family)
+                    .env("J16_NAMES_STACK_KIB", stack_kib.to_string())
+                    .output()
+                    .unwrap();
+                assert!(
+                    output.status.success(),
+                    "{family} {stack_kib} KiB: {} {}",
+                    String::from_utf8_lossy(&output.stdout),
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn constructor_pattern_binds_nested_name_before_arm_body() {
+        let accepted = "fn Main(){let x=Some(1);match x{Some(a)=>{let z=a;},_=>{}}}";
+        let missing = accepted.replacen("Some(a)", "Some(_)", 1);
+        let ast = crate::frontend::parse::parse_new_profile("pattern-bind.n", accepted).unwrap();
+        assert!(resolve_with_option("pattern-bind.n", accepted, &ast, true).is_ok());
+        let ast = crate::frontend::parse::parse_new_profile("pattern-bind.n", &missing).unwrap();
+        let errors = resolve_with_option("pattern-bind.n", &missing, &ast, true).unwrap_err();
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E0101");
+        let span = errors[0].primary_span.as_ref().unwrap();
+        assert_eq!((span.start, span.end), (48, 49));
+    }
 
     #[test]
     fn synthetic_ast_name_walk_has_no_secondary_depth_quota() {
