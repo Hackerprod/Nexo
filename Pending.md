@@ -516,3 +516,17 @@ El Bloque 1 de J16 (plan `docs/correcciones/J16-r1.md`, validado por B en cinco 
 | J16-B1-INTERNAL-ERROR-MATCH-SOME | `fn Main(){match Some([]){Some(v) if false=>{let a:Array<I64>=v;},Some(w)=>{let b:Array<I64>=w;},None=>{}}}` da `internal_error` en `check` en base y en HEAD (no regresión). Pertenece a I07c: ver `docs/I07c-PENDIENTE.md` §6. | CLI. | I07c |
 
 Pendiente de J16: Bloque 1b (S1b/S1c con ciclo 0 y PASS de B), Bloque 2 (diagnósticos y residuales de J14, decisión de `?` por `BranchVariant`) y Bloque 3 (batería integrada, mutaciones y matriz). El corte J16 NO está cerrado.
+
+## F0-0003 — J16, Bloque 2 (diagnósticos, `?` y guardia) integrado (2026-11-17)
+
+El Bloque 2 de J16 (plan `docs/correcciones/J16-r1.md` r5) entra en main hasta `8ddd591`: S2 `eb0a323` (`self` reconocido se diagnostica en `names.resolve`/NX-E0006 `methods`, no en parse), S3 `82b8d61` (cierre de permisos y cardinalidad causal; `value_type_depth` una por compilación y `array_type_depth` por función; textos L1/L3 de F0-0003; sin código de producción), S4 `250437d` (`?` con borde Err verificable conservando `BranchVariant`; verificador del IR), S5 `4bf60d9` (guardia estructural de dispatch con pruebas de mutación del propio guard) y regresiones `a70fdef`, `da0d68b`, `8ddd591` tras los FAIL de D y D'. D' dio PASS (diferencial 2.317 fuentes propias en release y 300 en debug, solo diferencias declaradas; `validate.sh` exit 0, objetivo 15/29, RD 152/152). Informes en `.scratch/val-j16/b2-*`. No se tocó `types.rs` (queda para I07c).
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| J16-B2-SELF-SENTENCIA | `self` al inicio de sentencia (`self;`, `self=1;`, `self.x=1;`, cuerpo de closure `{self}`) sigue diagnosticándose en parse (NX-E0006/syntax.parse); `let x=self` y las posiciones de expresión van a names. F2-F33 fija solo el `let`. Decidir si la fila de bloque también pasa a names. | Informe D, `.scratch/c-j16b2-nobloq.md`. | J16 (decisión) |
+| J16-B2-VERIFY-DUP | `verify_propagation_exits` duplica el bloque de transferencia y coteja propietarios locales con `exit_info` sin rederivar temporales pendientes ni la reserva de celdas del error. | Informe D. | Endurecimiento |
+| J16-B2-GUARD-ESCAPES | El guard S5 deja escapar alias `static`, cadena `const B=A`, alias en tupla, sombra `let c2=...choice` y `kind` solo; sin programa Nexo erróneo reproducido. | Informes D y D'. | Endurecimiento |
+| J16-B2-MUT-SUPERVIVIENTES | Sin programa discriminante: S3 `lower_match` sin restaurar `active_loans`; S4 `WriteIndex` sin marcar vivo; S5 alcance de alias a `marked`, omitir `prefix` u omitir `let`; D' M3, M5, M6. | Informes D y D'. | Endurecimiento |
+| J16-B2-TWIN-HARNESS | El arnés `twin` no compila en main (cambió la firma de `run_scalar`); lo arregla la sesión de I07c en su rama cuando necesite medir. | Aviso de `nexo-a4`. | I07c |
+
+Pendiente de J16: Bloque 1b (S1b/S1c, aplazados hasta el solver de I07c) y Bloque 3 (batería integrada, pasada de mutación de núcleo y matriz de límites). El corte J16 NO está cerrado.

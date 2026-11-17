@@ -361,3 +361,5 @@ J14 fue corregido tras la validación independiente (2026-11-15): plan `docs/cor
 J15 cerrado (2026-11-15, `d698142`): solo pruebas y dos líneas de F0-0003. Siguiente J16. Pendiente I07c real: `docs/I07c-PENDIENTE.md`.
 
 J16 Bloque 1 integrado (2026-11-17, hasta `0e6c683`); J16 sigue abierto. Siguiente: ciclo 0 de S1b/S1c, Bloque 2 y Bloque 3 de `docs/correcciones/J16-r1.md`. I07c pendiente real: `docs/I07c-PENDIENTE.md`.
+
+J16 Bloque 2 integrado (2026-11-17, hasta `8ddd591`); J16 sigue abierto. Siguiente: Bloque 3 de `docs/correcciones/J16-r1.md` (batería integrada, mutación de núcleo, matriz de límites); S1b/S1c esperan al solver de I07c. I07c lo lleva la sesión `nexo-a4` (rama `i07c-estructural`).
