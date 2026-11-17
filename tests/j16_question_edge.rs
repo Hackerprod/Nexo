@@ -7,6 +7,7 @@ use std::{
 static NEXT: AtomicUsize = AtomicUsize::new(0);
 
 const ERR_SOURCE: &str = "fn Use(a:move MockResource,b:view I64)->I64{Inspect(a);return b;}fn F()->Result<I64,I64>{let r=MockOpen(1);let x=Use(MockOpen(7),(match true{true=>{let q=MockOpen(2);let e:Result<I64,I64>=Err(9);let z=e?;value:3;},false=>{value:2;}}));return Ok(0);}fn Main(){let x=F();AssertEq(x,Err(9));}";
+const LOOP_SOURCE: &str = "fn Mk(b:view Bool)->Result<MockResource,I64>{if b {return Ok(MockOpen(5));}return Err(6);}fn Main()->Result<(),I64>{var i=0;while i<3{let m=MockOpen(i);let x=Mk(true)?;i=i+1;Inspect(m);}return Ok(());}";
 
 fn report(command: &str, source: &str) -> (i32, String) {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
@@ -86,4 +87,17 @@ fn ok_propagation_keeps_the_pending_call_and_value() {
             "close:0:1",
         ],
     );
+}
+
+#[test]
+fn err_edge_rederivation_clears_resource_dropped_each_iteration() {
+    let (status, check) = report("check", LOOP_SOURCE);
+    assert_eq!(status, 0, "{check}");
+    assert!(check.contains("\"kind\":\"checked\""), "{check}");
+    assert!(check.contains("\"diagnostics\":[]"), "{check}");
+
+    let (status, run) = report("run", LOOP_SOURCE);
+    assert_eq!(status, 0, "{run}");
+    assert!(run.contains("\"kind\":\"ok\""), "{run}");
+    assert!(run.contains("\"diagnostics\":[]"), "{run}");
 }

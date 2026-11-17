@@ -4037,6 +4037,37 @@ mod tests {
             assert_eq!(verify_function(&wrong_error), Err("propagation error type"));
         }
     }
+
+    #[test]
+    fn propagation_err_edge_requires_live_consume_parameter_in_cleanup() {
+        let source = "fn F(p:move MockResource)->Result<I64,I64>{let e:Result<I64,I64>=Err(9);let x=e?;Drop(p);return Ok(0);}fn Main(){let r=MockOpen(1);let x=F(move r);}";
+        let program =
+            compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+        let original = program.functions.function("F").unwrap().clone();
+        assert_eq!(verify_function(&original), Ok(()));
+
+        let owner = original
+            .locals
+            .iter()
+            .find(|local| local.name == "p")
+            .unwrap()
+            .id;
+        assert_eq!(original.parameters[0].local, owner);
+        assert_eq!(original.parameters[0].mode, ParameterMode::Consume);
+        assert!(original.locals[owner.0].ty.has_resource_destructor());
+
+        let mut missing = original.clone();
+        let err_edge = missing
+            .exit_info
+            .iter_mut()
+            .find(|exit| exit.class == super::super::model::ExitClass::Try)
+            .unwrap();
+        assert!(err_edge.live_locals.contains(&owner));
+        err_edge.live_locals.retain(|id| *id != owner);
+        missing.content_hash = super::super::model::content_hash(&missing);
+        assert_eq!(verify_function(&missing), Err("propagation cleanup state"));
+    }
+
     #[test]
     fn verifier_rejects_array_element_type_mismatch() {
         let got = changed("fn Main() {\n    let a = [1, 2];\n}\n", |f| {
