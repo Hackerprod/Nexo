@@ -3429,6 +3429,37 @@ mod tests {
     use crate::ir::{ReducedProfile, compile_scalar_with_profile};
 
     #[test]
+    fn j16_forged_generator_yield_item_is_rejected() {
+        let source = "gen fn G()->I64{yield 1;}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),Some(1));}";
+        let program =
+            compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+        let mut body = program.functions.function("G").unwrap().clone();
+        assert_eq!(verify_function(&body), Ok(()));
+        body.generator_item = Some(Ty::Bool);
+        body.content_hash = super::super::model::content_hash(&body);
+        assert_eq!(verify_function(&body), Err("yield item type or ownership"));
+    }
+
+    #[test]
+    fn j16_forged_generator_resume_item_is_rejected() {
+        let source = "gen fn G()->I64{yield 1;}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),Some(1));}";
+        let program =
+            compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+        let mut main = program.functions.function("Main").unwrap().clone();
+        assert_eq!(verify_function(&main), Ok(()));
+        let resume = std::iter::once(&mut main.block)
+            .chain(&mut main.blocks)
+            .flat_map(|block| &mut block.instructions)
+            .find(|instruction| matches!(instruction.op, Op::ResumeGenerator { .. }))
+            .unwrap();
+        if let Op::ResumeGenerator { item, .. } = &mut resume.op {
+            *item = Ty::Bool;
+        }
+        main.content_hash = super::super::model::content_hash(&main);
+        assert_eq!(verify_function(&main), Err("generator receiver type"));
+    }
+
+    #[test]
     fn match_projection_requires_the_selected_variant_on_every_incoming_edge() {
         let source = "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{},None=>{}}}";
         let program =
