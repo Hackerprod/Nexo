@@ -19,3 +19,14 @@ Alcance: «Registro de correcciones r8» del plan, sección «Mecanismo único d
 ## No bloqueante
 
 - La obligación de procedencia debería, si se conserva, no interactuar con `tainted`; no hay programa que lo exhiba.
+
+## Ronda 2 — plan r9 (HEAD publicado `b9dc9cb`)
+
+Veredicto: **PASS**. Se adopta la vía (a): el motivo 1 de la ronda 1 queda cerrado.
+
+- Mecanismo: una sola condición en `begin_match_selection_after_selected` (`selected.diverged() || (selected_ty == Ty::Never && Analyze)`) más la obligación de patrón en `types.rs`; sin marcador, `lower.rs` fuera. `Live` no puede tomar el atajo, y `Analyze` es código sin continuación normal.
+- Valor vivo no enmascarado: lo garantiza el cierre del checker. En `9b8e03e`, `let l0=None;match l0{Some(x)=>{},_=>{}}` da `NX-E0113`. Tienen negativo/positivo pareado (`None` frente a `Option<I64>`), prueba interna de `InferredTypes` por modo y mutación inversa de la denuncia de componentes pendientes (NX-E0113, no `checked`/`InvalidIr`).
+- Alias, `var` con asignación posterior y `match (l0)` quedan cubiertos: todo es código muerto tras el inicializador divergente, y figuran en los positivos exigidos.
+- Archivos (`lower_match.rs`, `i07c_tests.rs` solo para la prueba interna) y commit S2 único coherentes.
+
+No bloqueante: la frase de r7 «`lower_match.rs` sigue fuera» queda sustituida por r9; conviene que C la trate como histórica.
