@@ -23,3 +23,10 @@ Alcance: registro r7 del plan (sección final), `I07c-Bloque-I-r1.md`, informes 
 3. `docs/validation/i07c-mutations/population.json` cita `constructor_type`; es población de mutación (andamiaje), sin cambio necesario.
 
 Corregido el motivo 1, la enmienda es validable (PASS) sin nueva exploración.
+
+## Ronda 2 (B conserva contexto)
+
+Veredicto: **PASS**.
+
+- El motivo 1 queda cerrado: la tabla de r7 incluye `tests/explain_and_print_output.rs` (plan, fila de la línea 305) con el cambio 4→5 de `explain NX-E0102`, acotado al recuento.
+- Búsqueda de aserciones de recuento de entradas o subcausas de NX-E0102/NX-E1325 en `tests/` y `scripts/`: solo `explain_and_print_output.rs:152` depende del número de subcausas. `tests/cli.rs` (141-248) cuenta diagnósticos emitidos en stderr, no subcausas. `tests/i01_diagnostic.rs:891` (30) corresponde a NX-E0006 y el 910 (73) cuenta códigos. No falta ningún archivo análogo.
