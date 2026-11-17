@@ -30,3 +30,16 @@ Veredicto: **PASS**. Se adopta la vía (a): el motivo 1 de la ronda 1 queda cerr
 - Archivos (`lower_match.rs`, `i07c_tests.rs` solo para la prueba interna) y commit S2 único coherentes.
 
 No bloqueante: la frase de r7 «`lower_match.rs` sigue fuera» queda sustituida por r9; conviene que C la trate como histórica.
+
+## Ronda 3 — plan r10 (HEAD publicado `3729b33`)
+
+Veredicto: **PASS** (lectura de código; no compilé: no hay binario de r10 en `D:\nexo-work`).
+
+- Causa raíz del FAIL de D confirmada en el código: r9 devolvía `Completed` y salteaba `MatchNext`/cuerpos; el análisis de propiedad de `Analyze` está en esa ruta (`corpus/fail/unreachable_resource_copy.n` lo exige).
+- r10 conserva `if selected.diverged()` y solo relaja las dos exigencias de descriptor en `match_tests` (1038) y `bind_match_pattern` (1105) para `Ty::Never` en `Analyze`. No hay flujo duplicado ni tipo inventado. `Live` conserva `InvalidIr("pattern union")` como barrera.
+- Valor vivo irresuelto: sigue siendo NX-E0113 del checker (comprobado en `9b8e03e`), con par vivo y mutación (4).
+- Alias, `var` con asignación y `match (l0)` pasan por la misma ruta.
+- Archivos y commit S2 coherentes; `lower.rs` fuera; el negativo y positivo de D, y la mutación (3), discriminan el atajo.
+- Salidas fijadas: los repros de D conservan la base.
+
+No bloqueante (C vuelve a A/B si falla): en `bind_match_pattern` la distinción `None` variante / binding se hace hoy por `ty`; con `Ty::Never` pasa a ser «Name sin entrada en `InferredTypes.bindings` no es local». Debe cubrirse con test de binding usado (`Some(x)=>{let k=x;}`) y de `None` primero, aún pendientes del checker.
