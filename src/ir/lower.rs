@@ -40,14 +40,12 @@ mod lowering_stack_regression {
             std::thread::Builder::new()
                 .stack_size(204 * 1024)
                 .spawn_scoped(scope, || {
-                    let program = compile_ast_with_flow_limit(
+                    compile_ast_with_flow_limit(
                         &ast,
                         &source,
                         &checked.inferred,
                         AnalysisLimits::NORMAL,
-                    )?;
-                    drop(program);
-                    Ok::<(), CompileError>(())
+                    )
                 })
                 .unwrap()
                 .join()
@@ -77,6 +75,27 @@ mod lowering_stack_regression {
 
     fn family_source(family: &str) -> String {
         match family {
+            "external" => {
+                std::fs::read_to_string(std::env::var("J16_LOWER_SOURCE_FILE").unwrap()).unwrap()
+            }
+            "print_binary" => "fn Main(){Print(1+2);}".into(),
+            "index_nested" => format!(
+                "fn Main(){{let a=[1];let x={}0{};}}",
+                "a[".repeat(126),
+                "]".repeat(126)
+            ),
+            "edit_nested" => format!(
+                "fn G(p:edit I64)->I64{{return 1;}}fn Main(){{var a=[1];let y={}0{};}}",
+                "G(edit a[".repeat(40),
+                "])".repeat(40)
+            ),
+            "alternating_binary_call" => {
+                let mut expr = "1".to_owned();
+                for _ in 0..63 {
+                    expr = format!("(F({expr}))-2");
+                }
+                format!("fn F(x:view I64)->I64{{return x;}}fn Main(){{let y={expr};}}")
+            }
             "block" => format!(
                 "fn Main(){{{}let x=1;{}}}",
                 "{".repeat(126),
@@ -236,43 +255,49 @@ mod lowering_stack_regression {
         };
         let source = family_source(&family);
         let ast = parse::parse_new_profile("family-stack.n", &source).unwrap();
-        let checked =
-            if family.starts_with("some_") || family == "pattern_ctor" || family == "tryadd_arg" {
-                crate::check::check_for_compilation_with_type_limit(
-                    "family-stack.n",
-                    &source,
-                    &ast,
-                    false,
-                    1_000_000,
-                    "f0-0003-b-v1",
-                )
-            } else {
-                crate::check::check_for_compilation("family-stack.n", &source, &ast, false)
-            };
+        let checked = crate::check::check_for_compilation_with_type_limit(
+            "family-stack.n",
+            &source,
+            &ast,
+            false,
+            1_000_000,
+            "f0-0003-b-v1",
+        );
         assert!(checked.errors.is_empty(), "{family}: {:?}", checked.errors);
+        let stack_kib = std::env::var("J16_LOWER_STACK_KIB")
+            .map(|value| value.parse::<usize>().unwrap())
+            .unwrap_or(204);
         let lowered = std::thread::scope(|scope| {
             std::thread::Builder::new()
-                .stack_size(204 * 1024)
+                .stack_size(stack_kib * 1024)
                 .spawn_scoped(scope, || {
-                    let program = compile_ast_with_flow_limit(
+                    compile_ast_with_flow_limit(
                         &ast,
                         &source,
                         &checked.inferred,
                         AnalysisLimits::NORMAL,
-                    )?;
-                    drop(program);
-                    Ok::<(), CompileError>(())
+                    )
                 })
                 .unwrap()
                 .join()
                 .unwrap()
         });
         assert!(lowered.is_ok(), "{family}: {lowered:?}");
+        let program = lowered.unwrap();
+        for function in program.functions.functions() {
+            crate::ir::verify::verify_function(function).unwrap();
+        }
+        crate::ir::verify::verify_program(&program).unwrap();
+        drop(program);
     }
 
     #[test]
     fn families_lower_with_204_kib() {
         for family in [
+            "print_binary",
+            "index_nested",
+            "edit_nested",
+            "alternating_binary_call",
             "block",
             "group",
             "array",
@@ -307,6 +332,7 @@ mod lowering_stack_regression {
                     "--nocapture",
                 ])
                 .env("J16_LOWER_FAMILY_CHILD", family)
+                .env("J16_LOWER_STACK_ISOLATE_VERIFY", "1")
                 .output()
                 .unwrap();
             assert!(
@@ -876,6 +902,10 @@ fn compile_ast_with_flow_limit<'a>(
         span: &'a Span,
     }
     #[cfg(test)]
+    let isolate_lowering = std::env::var_os("J16_LOWER_STACK_ISOLATE_VERIFY").is_some();
+    #[cfg(not(test))]
+    let isolate_lowering = false;
+    #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(&ast.span.file);
     let source_text: std::sync::Arc<str> = std::sync::Arc::from(source_text);
     let tokens = Arc::new(
@@ -1276,7 +1306,9 @@ fn compile_ast_with_flow_limit<'a>(
             continue;
         }
         super::effects::populate_exit_info(&mut function, source_function.body);
-        super::verify::verify_function(&function).map_err(CompileError::InvalidIr)?;
+        if !isolate_lowering {
+            super::verify::verify_function(&function).map_err(CompileError::InvalidIr)?;
+        }
         owned_entries.push(function);
     }
     let entries = owned_entries;
@@ -1350,7 +1382,9 @@ fn compile_ast_with_flow_limit<'a>(
         );
         return Err(CompileError::Rejected(vec![diagnostic]));
     }
-    super::verify::verify_program(&program).map_err(CompileError::InvalidIr)?;
+    if !isolate_lowering {
+        super::verify::verify_program(&program).map_err(CompileError::InvalidIr)?;
+    }
     Ok(program)
 }
 
@@ -1733,7 +1767,8 @@ impl Flow {
     }
 }
 type FunctionSignature = (Vec<(String, ParameterMode, Ty)>, Ty);
-type PreparedCallArguments = (Vec<(usize, TempId)>, Vec<(LocalId, LoanId, Span)>, bool);
+type ReceiverLoan = (LocalId, LoanId, Span);
+type CallParameters = Vec<(String, ParameterMode, Ty)>;
 #[derive(Clone)]
 struct ActiveLoan {
     permission: LoanPermission,
@@ -1829,59 +1864,12 @@ enum StatementElse<'a> {
 }
 enum LowerRoot<'a> {
     Block(&'a [Statement], usize),
-    IfExpr {
-        condition: &'a Expr,
-        then_block: &'a parse::Block,
-        otherwise: Option<&'a parse::Else>,
-        span: &'a Span,
-        depth: usize,
-        expected: Option<Ty>,
-    },
-    Match {
-        selection: &'a parse::Match,
-        depth: usize,
-        expected: Option<Ty>,
-    },
-    UserCall {
-        args: &'a [parse::Argument],
-        name: String,
-        span: &'a Span,
-        depth: usize,
-        inferred: Ty,
-    },
-    IntrinsicCall {
-        args: &'a [parse::Argument],
-        intrinsic: Intrinsic,
-        span: &'a Span,
-        depth: usize,
-        inferred: Ty,
-    },
-    UnaryRead {
-        value: &'a Expr,
-        span: &'a Span,
-        depth: usize,
-        inferred: Ty,
-    },
-    Variant {
-        value: &'a Expr,
-        tag: crate::union::VariantTag,
-        span: &'a Span,
-        depth: usize,
-        inferred: Ty,
-    },
-    If {
-        condition: &'a Expr,
-        then_block: &'a parse::Block,
-        otherwise: Option<StatementElse<'a>>,
-        span: &'a Span,
-        depth: usize,
-    },
-    While {
-        condition: &'a Expr,
-        body: &'a parse::Block,
-        span: &'a Span,
-        depth: usize,
-    },
+    #[cfg(test)]
+    Statement(&'a Statement, usize),
+    #[cfg(test)]
+    Expr(&'a Expr, usize, Option<Ty>),
+    #[cfg(test)]
+    Argument(&'a parse::Argument, ParameterMode, Ty, usize, bool),
 }
 struct IfBeginState {
     entry_emission: EmissionMode,
@@ -1891,6 +1879,20 @@ struct IfBeginState {
     temp_checkpoint: usize,
     prior_locals: usize,
     checkpoint: usize,
+}
+enum ForState {
+    Analyze {
+        saved: ScopeId,
+    },
+    Live {
+        header: BlockId,
+        branch: BlockId,
+        saved: ScopeId,
+        availability_checkpoint: usize,
+        binding: LocalId,
+        option: LocalId,
+        iterator: LocalId,
+    },
 }
 struct IfState {
     entry_emission: EmissionMode,
@@ -2222,37 +2224,14 @@ impl Lower<'_> {
         );
         Ok(())
     }
-    fn if_expression<'b>(
-        &mut self,
-        condition: &'b Expr,
-        then_block: &'b parse::Block,
-        otherwise: Option<&'b parse::Else>,
-        span: &'b Span,
-        depth: usize,
-        expected: Option<&Ty>,
-    ) -> Result<Flow, CompileError> {
-        let mut diagnostics = Vec::new();
-        self.run_lower_tasks(
-            LowerRoot::IfExpr {
-                condition,
-                then_block,
-                otherwise,
-                span,
-                depth,
-                expected: expected.cloned(),
-            },
-            &mut diagnostics,
-            |_, _, value| value.ok_or(CompileError::InvalidIr("if expression flow")),
-        )
-    }
     fn begin_if_expression<'b>(
         &mut self,
-        condition: &'b Expr,
         then_block: &'b parse::Block,
         otherwise: Option<&'b parse::Else>,
         span: &'b Span,
         depth: usize,
         expected: Option<&Ty>,
+        test_flow: Flow,
     ) -> Result<IfExprStarted<'b>, CompileError> {
         let Some(otherwise) = otherwise else {
             // source parsing already emits missing_else at the `if`
@@ -2273,7 +2252,6 @@ impl Lower<'_> {
                 ),
             ]));
         };
-        let test_flow = self.expr_mode(condition, depth + 1, Some(&Ty::Bool), true)?;
         let condition_diverges = test_flow.diverged();
         // expr() already enforces the Bool expectation for a live value;
         // Never is the only non-Bool flow admitted here. This guard is a
@@ -2560,32 +2538,12 @@ impl Lower<'_> {
             false,
         ))
     }
-    fn while_statement(
-        &mut self,
-        condition: &Expr,
-        body: &parse::Block,
-        span: &Span,
-        depth: usize,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<(), CompileError> {
-        self.run_lower_tasks(
-            LowerRoot::While {
-                condition,
-                body,
-                span,
-                depth,
-            },
-            diagnostics,
-            |_, _, _| Ok(()),
-        )
-    }
-    fn for_statement(
+    fn begin_for_after_iterable(
         &mut self,
         statement: &Statement,
-        depth: usize,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<(), CompileError> {
-        let surviving_temps = self.live_temps.clone();
+        flow: Flow,
+        surviving_temps: HashSet<TempId>,
+    ) -> Result<ForState, CompileError> {
         let Statement::For {
             name,
             name_span,
@@ -2596,7 +2554,6 @@ impl Lower<'_> {
         else {
             return Err(CompileError::InvalidIr("for statement"));
         };
-        let flow = self.expr(iterable, depth, None)?;
         let Some(Ty::Generator { item, .. }) = flow.ty() else {
             return Err(CompileError::InvalidIr("for iterable type"));
         };
@@ -2624,9 +2581,7 @@ impl Lower<'_> {
             self.name_spans.push(name_span.clone());
             self.visible.entry(name.into()).or_default().push(id);
             self.emission = EmissionMode::Analyze;
-            let checked = self.scoped_block(body, depth, diagnostics);
-            self.leave_scope(saved)?;
-            return checked;
+            return Ok(ForState::Analyze { saved });
         }
         let iterator = LocalId(self.locals.len());
         self.name_spans.push(span.clone());
@@ -2795,7 +2750,38 @@ impl Lower<'_> {
         });
         let availability_checkpoint = self.consumed_undo.len();
         self.dead_depth += 1;
-        let body_result = self.scoped_block(body, depth, diagnostics);
+        Ok(ForState::Live {
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            option,
+            iterator,
+        })
+    }
+    fn finish_for_after_body(
+        &mut self,
+        state: ForState,
+        body: &parse::Block,
+        body_result: Result<(), CompileError>,
+    ) -> Result<(), CompileError> {
+        let ForState::Live {
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            option,
+            iterator,
+        } = state
+        else {
+            let ForState::Analyze { saved } = state else {
+                unreachable!()
+            };
+            self.leave_scope(saved)?;
+            return body_result;
+        };
         let loop_context = self
             .loop_stack
             .pop()
@@ -2881,31 +2867,12 @@ impl Lower<'_> {
         );
         Ok(())
     }
-    fn if_statement(
-        &mut self,
-        condition: &Expr,
-        then_block: &parse::Block,
-        otherwise: Option<&Statement>,
-        span: &Span,
-        depth: usize,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<(), CompileError> {
-        self.if_statement_form(
-            condition,
-            then_block,
-            otherwise.map(StatementElse::Statement),
-            span,
-            depth,
-            diagnostics,
-        )
-    }
     fn begin_if_statement(
         &mut self,
-        condition: &Expr,
         span: &Span,
+        condition_flow: Flow,
     ) -> Result<IfBeginState, CompileError> {
         let entry_emission = self.emission;
-        let condition_flow = self.expr_mode(condition, 0, Some(&Ty::Bool), true)?;
         let condition_diverges = condition_flow.diverged();
         if condition_flow
             .ty()
@@ -3099,27 +3066,6 @@ impl Lower<'_> {
             self.emission = entry_emission;
         }
         Ok(())
-    }
-    fn if_statement_form(
-        &mut self,
-        condition: &Expr,
-        then_block: &parse::Block,
-        otherwise: Option<StatementElse<'_>>,
-        span: &Span,
-        depth: usize,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<(), CompileError> {
-        self.run_lower_tasks(
-            LowerRoot::If {
-                condition,
-                then_block,
-                otherwise,
-                span,
-                depth,
-            },
-            diagnostics,
-            |_, _, _| Ok(()),
-        )
     }
     fn availability(&self, id: LocalId) -> Availability {
         Availability {
@@ -3730,285 +3676,6 @@ impl Lower<'_> {
             Ok(id)
         }
     }
-    fn call_argument(
-        &mut self,
-        arg: &parse::Argument,
-        mode: ParameterMode,
-        expected: &Ty,
-        depth: usize,
-        retain_place_loan: bool,
-    ) -> Result<(Flow, Option<LocalId>), CompileError> {
-        count_loan_work();
-        if self.emission == EmissionMode::Live
-            && mode == ParameterMode::Inout
-            && let Some(edit) = self.tokens.iter().find(|token| {
-                token.text == "edit"
-                    && token.span.start >= arg.span.start
-                    && token.span.end <= arg.span.end
-            })
-        {
-            self.pending_charges.push(WorkPlanner::charge(
-                WorkEvent::InoutPrefix,
-                edit.span.clone(),
-            ));
-        }
-        if !retain_place_loan {
-            return self
-                .expr_mode(
-                    &arg.value,
-                    depth + 1,
-                    (expected != &Ty::Never).then_some(expected),
-                    mode == ParameterMode::Read,
-                )
-                .map(|flow| (flow, None));
-        }
-        let place = if mode == ParameterMode::Inout {
-            match &arg.value {
-                Expr::Unary {
-                    mode: Mode::Inout,
-                    value,
-                    ..
-                } => Some(value.as_ref()),
-                _ => return Err(CompileError::InvalidIr("edit mode passed checker")),
-            }
-        } else if mode == ParameterMode::Read {
-            Some(&arg.value)
-        } else {
-            None
-        };
-        if let Some(place) = place
-            && let Ok((root, index_exprs)) = place_parts(place)
-            && let Some(name) = place_name(root)
-        {
-            if name == "None" && self.visible.get(name).and_then(|v| v.last()).is_none() {
-                return self
-                    .expr_mode(
-                        &arg.value,
-                        depth + 1,
-                        Some(expected),
-                        mode == ParameterMode::Read,
-                    )
-                    .map(|flow| (flow, None));
-            }
-            let local = self.get(name)?;
-            // F0-0002 §4.1.2.3, RD121: a read loan from a hypothetical
-            // projection has no place to lend. Delegate to the ordinary
-            // expression path, which analyzes the selector without the
-            // conditional I64 context when the base is still unresolved.
-            if mode == ParameterMode::Read
-                && matches!(
-                    self.inferred_bindings
-                        .expressions
-                        .get(&(root.span().start, root.span().end)),
-                    Some(ResolvedType::Unresolved)
-                )
-            {
-                return self
-                    .expr_mode(&arg.value, depth + 1, None, true)
-                    .map(|flow| (flow, None));
-            }
-            let indexed_place = !index_exprs.is_empty();
-            if mode == ParameterMode::Read && self.emission == EmissionMode::Live {
-                if indexed_place {
-                    self.pending_charges.extend(
-                        index_access_spans(&arg.value)
-                            .into_iter()
-                            .map(|origin| WorkPlanner::charge(WorkEvent::ReadSelector, origin)),
-                    );
-                }
-                self.pending_charges.push(WorkPlanner::charge(
-                    WorkEvent::ReadName,
-                    root.span().clone(),
-                ));
-            }
-            if mode == ParameterMode::Inout && self.emission == EmissionMode::Live {
-                self.pending_charges.extend(
-                    index_selectors(place)
-                        .into_iter()
-                        .map(|origin| WorkPlanner::charge(WorkEvent::PlaceSelector, origin)),
-                );
-            }
-            if mode == ParameterMode::Inout {
-                if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
-                    return Err(self.permission_error(local, root.span().clone(), "borrow_inout"));
-                }
-                if !self.locals[local.0].mutable {
-                    return Err(self.immutable_write(root, local));
-                }
-            }
-            let requested = if mode == ParameterMode::Inout {
-                "borrow_inout"
-            } else {
-                "read"
-            };
-            // ADR §14.2 marks the complete selected place in P07 (`a[1]`).
-            let mut indexes = Vec::with_capacity(index_exprs.len());
-            let ty = self.resolved_expr(&arg.value)?;
-            for index_expr in index_exprs {
-                let index_flow = self.expr_mode(index_expr, depth + 1, Some(&Ty::I64), true)?;
-                if index_flow.diverged() {
-                    return Ok((
-                        Flow::Diverged {
-                            ty: (ty != Ty::Never).then_some(ty),
-                        },
-                        None,
-                    ));
-                }
-                if index_flow.ty() != Some(&Ty::I64) {
-                    return Err(CompileError::InvalidIr("loan index type"));
-                }
-                if let Some(id) = index_flow.temp() {
-                    indexes.push(id);
-                }
-            }
-            self.check_place_access(local, root, place, requested, indexed_place)?;
-            if self.locals[local.0].ty == Ty::Never {
-                return Ok((Flow::Value { temp: None, ty }, None));
-            }
-            let permission = if mode == ParameterMode::Inout {
-                LoanPermission::Inout
-            } else {
-                LoanPermission::Read
-            };
-            let loan = LoanId(arg.span.start as usize);
-            let parent = if self.locals[local.0].parameter_mode == Some(ParameterMode::Inout) {
-                Some(local)
-            } else {
-                None
-            };
-            let flow = self.emitted(
-                Op::BeginLoan {
-                    root: local,
-                    indexes,
-                    site: index_site(place, arg.span.clone()),
-                    loan,
-                    origin_span: arg.span.clone(),
-                    permission,
-                    parent,
-                },
-                ty.clone(),
-                arg.value.span().clone(),
-                Access::Read,
-                false,
-            );
-            self.active_loans
-                .entry(local)
-                .or_default()
-                .push(ActiveLoan {
-                    permission,
-                    span: arg.span.clone(),
-                    loan,
-                    parent,
-                });
-            return Ok((flow, Some(local)));
-        }
-        if mode == ParameterMode::Inout {
-            return Err(CompileError::InvalidIr("edit place passed parser"));
-        }
-        let flow = self.expr_mode(
-            &arg.value,
-            depth + 1,
-            (expected != &Ty::Never).then_some(expected),
-            mode == ParameterMode::Read,
-        )?;
-        Ok((flow, None))
-    }
-
-    // A call holds each place loan until all later arguments have been
-    // evaluated. Both user calls and intrinsics use this ownership boundary.
-    fn prepare_call_arguments(
-        &mut self,
-        args: &[parse::Argument],
-        params: &[(String, ParameterMode, Ty)],
-        depth: usize,
-        check_types: bool,
-        retain_place_loans: bool,
-    ) -> Result<PreparedCallArguments, CompileError> {
-        let mut acquired = Vec::new();
-        let result = (|| {
-            let mut used = vec![false; params.len()];
-            let slot_by_name: HashMap<&str, usize> = params
-                .iter()
-                .enumerate()
-                .map(|(index, (name, _, _))| (name.as_str(), index))
-                .collect();
-            let mut prepared = Vec::with_capacity(args.len());
-            let mut argument_errors = Vec::new();
-            let mut dependent = false;
-            let mut diverged = false;
-            let mut next_positional = 0usize;
-            for arg in args {
-                if diverged {
-                    self.terminated = None;
-                }
-                count_loan_work();
-                let slot = if let Some(label) = &arg.label {
-                    slot_by_name
-                        .get(label.as_str())
-                        .copied()
-                        .ok_or(CompileError::InvalidIr("call label passed checker"))?
-                } else {
-                    while used.get(next_positional) == Some(&true) {
-                        next_positional += 1;
-                    }
-                    next_positional
-                };
-                let (_, mode, expected) = params
-                    .get(slot)
-                    .ok_or(CompileError::InvalidIr("call parameter slot"))?;
-                if used[slot] {
-                    return Err(CompileError::InvalidIr("duplicate call argument"));
-                }
-                used[slot] = true;
-                let (argument_flow, loan_root) =
-                    match self.call_argument(arg, *mode, expected, depth, retain_place_loans) {
-                        Ok(value) => value,
-                        Err(CompileError::Rejected(errors)) => {
-                            argument_errors.extend(errors);
-                            continue;
-                        }
-                        Err(CompileError::Dependent) => {
-                            dependent = true;
-                            continue;
-                        }
-                        Err(other) => return Err(other),
-                    };
-                if argument_flow.diverged() {
-                    diverged = true;
-                    self.emission = EmissionMode::Analyze;
-                    continue;
-                }
-                if let Some(root) = loan_root {
-                    acquired.push((root, LoanId(arg.span.start as usize), arg.span.clone()));
-                }
-                if check_types
-                    && argument_flow
-                        .ty()
-                        .is_some_and(|actual| *actual != *expected && *actual != Ty::Never)
-                {
-                    return Err(CompileError::InvalidIr("call argument type passed checker"));
-                }
-                if let Some(id) = argument_flow.temp() {
-                    prepared.push((slot, id));
-                }
-            }
-            if !argument_errors.is_empty() {
-                return Err(CompileError::Rejected(argument_errors));
-            }
-            if dependent {
-                return Err(CompileError::Dependent);
-            }
-            if diverged {
-                self.terminated = Some(Termination::Diverged);
-            }
-            Ok((prepared, diverged))
-        })();
-        if result.is_err() {
-            self.release_call_loans(&acquired);
-        }
-        result.map(|(prepared, diverged)| (prepared, acquired, diverged))
-    }
-
     fn release_call_loans(&mut self, acquired: &[(LocalId, LoanId, Span)]) {
         for (root, _, _) in acquired.iter().rev() {
             if let Some(loans) = self.active_loans.get_mut(root) {
@@ -4065,25 +3732,6 @@ impl Lower<'_> {
             let span = instruction.span.clone();
             self.statement_op(Op::DropValue(temp), span, Access::Own, false);
         }
-    }
-    fn scoped_block(
-        &mut self,
-        block: &parse::Block,
-        depth: usize,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<(), CompileError> {
-        let surviving = self.live_temps.clone();
-        let saved = self.scope;
-        self.scope = ScopeId(self.next_scope);
-        self.next_scope += 1;
-        self.scope_parents.push(Some(saved));
-        self.scopes.push(Vec::new());
-        let body_result = self.block(&block.statements, depth + 1, diagnostics);
-        if let Err(error) = body_result {
-            self.leave_scope(saved)?;
-            return Err(error);
-        }
-        self.finish_scoped_block(block, surviving, saved)
     }
     fn finish_scoped_block(
         &mut self,
@@ -4318,6 +3966,17 @@ impl Lower<'_> {
         enum CallKind {
             User(String),
             Intrinsic(Intrinsic),
+            GeneratorNext {
+                item: Ty,
+            },
+            Closure {
+                site: u64,
+                receiver: Flow,
+                receiver_mode: ParameterMode,
+                capture_count: usize,
+                signature: Vec<(String, ParameterMode, Ty)>,
+                receiver_loan: Option<(LocalId, LoanId, Span)>,
+            },
         }
         struct UserCallState<'a> {
             args: &'a [parse::Argument],
@@ -4338,8 +3997,168 @@ impl Lower<'_> {
             dependent: bool,
             diverged: bool,
         }
+        struct BinaryState<'a> {
+            op: &'a str,
+            left: &'a Expr,
+            right: &'a Expr,
+            span: &'a Span,
+            inferred: Ty,
+            depth: usize,
+            left_flow: Option<Flow>,
+            left_root: Option<LocalId>,
+        }
+        enum IndexKind<'a> {
+            Place {
+                root: &'a Expr,
+                local: LocalId,
+                selectors: Vec<&'a Expr>,
+                ids: Vec<TempId>,
+                diverged: bool,
+            },
+            Unresolved,
+            Value {
+                base: Option<Flow>,
+            },
+        }
+        struct IndexState<'a> {
+            expr: &'a Expr,
+            index: &'a Expr,
+            selector: &'a Span,
+            span: &'a Span,
+            inferred: Ty,
+            depth: usize,
+            borrow: bool,
+            kind: IndexKind<'a>,
+        }
+        enum StatementExprState<'a> {
+            Let {
+                statement: &'a Statement,
+                mutable: bool,
+                name: &'a str,
+                binding_span: Span,
+                expected: Ty,
+            },
+            Expr(&'a Statement),
+            Return(&'a Statement),
+        }
+        struct ArgumentPlaceState<'a> {
+            arg: &'a parse::Argument,
+            place: &'a Expr,
+            root: &'a Expr,
+            local: LocalId,
+            mode: ParameterMode,
+            ty: Ty,
+            depth: usize,
+            indexes: Vec<&'a Expr>,
+            ids: Vec<TempId>,
+        }
+        struct ArrayState<'a> {
+            items: &'a [Expr],
+            span: &'a Span,
+            inferred: Ty,
+            depth: usize,
+            next: usize,
+            ids: Vec<TempId>,
+            diverged: bool,
+            item_errors: Vec<Diagnostic>,
+            dependent: bool,
+        }
+        struct AssignState<'a> {
+            statement: &'a Statement,
+            place: &'a Expr,
+            root: &'a Expr,
+            value: &'a Expr,
+            local: LocalId,
+            selectors: Vec<&'a Expr>,
+            selector_spans: Vec<Span>,
+            next: usize,
+            ids: Vec<TempId>,
+            target_ty: Ty,
+            base_unresolved: bool,
+            diverged: bool,
+        }
+        struct ClosureCallState<'a> {
+            args: &'a [parse::Argument],
+            span: &'a Span,
+            depth: usize,
+            inferred: Ty,
+            site: u64,
+            receiver_mode: ParameterMode,
+        }
+        struct WhileConditionState<'a> {
+            condition: &'a Expr,
+            body: &'a parse::Block,
+            depth: usize,
+            entry_emission: EmissionMode,
+            prior_locals: usize,
+            preheader: BlockId,
+            condition_header: BlockId,
+            checkpoint: usize,
+            temp_checkpoint: usize,
+            surviving_temps: HashSet<TempId>,
+        }
+        struct WhileSecondConditionState<'a> {
+            body: &'a parse::Block,
+            depth: usize,
+            checkpoint: usize,
+            temp_checkpoint: usize,
+            locals: usize,
+            scopes: usize,
+            before_errors: usize,
+            affected: HashSet<u64>,
+            condition_diverges: bool,
+        }
+        struct MatchIndexState<'a> {
+            selection: &'a parse::Match,
+            depth: usize,
+            expected: Option<Ty>,
+            prelude: lower_match::MatchSelectionPrelude,
+            selected: Flow,
+            selectors: Vec<&'a Expr>,
+            ids: Vec<TempId>,
+        }
         enum Task<'a> {
             Block(Box<Frame<'a>>),
+            StatementEnter {
+                statement: &'a Statement,
+                depth: usize,
+            },
+            StatementExprEnter(&'a Statement),
+            StatementExprAfter(Box<StatementExprState<'a>>),
+            AssignEnter(&'a Statement),
+            AssignNextSelector(Box<AssignState<'a>>),
+            AssignAfterSelector(Box<AssignState<'a>>),
+            AssignAfterValue(Box<AssignState<'a>>),
+            ForEnter {
+                statement: &'a Statement,
+                depth: usize,
+            },
+            ForAfterIterable {
+                statement: &'a Statement,
+                depth: usize,
+                surviving_temps: HashSet<TempId>,
+            },
+            ForAfterBody {
+                state: Box<ForState>,
+                body: &'a parse::Block,
+            },
+            YieldEnter {
+                statement: &'a Statement,
+                depth: usize,
+            },
+            YieldAfterValue {
+                token_span: &'a Span,
+                span: &'a Span,
+            },
+            ArgumentEnter {
+                arg: &'a parse::Argument,
+                mode: ParameterMode,
+                expected: Ty,
+                depth: usize,
+                retain_place_loan: bool,
+            },
+            ArgumentPlaceNext(Box<ArgumentPlaceState<'a>>),
+            ArgumentPlaceAfterIndex(Box<ArgumentPlaceState<'a>>),
             ValueBlockEnter {
                 block: &'a parse::Block,
                 expected: Option<Ty>,
@@ -4351,9 +4170,25 @@ impl Lower<'_> {
                 value: &'a Expr,
                 expected: Option<Ty>,
                 depth: usize,
+                borrow: bool,
             },
+            BinaryLeft(Box<BinaryState<'a>>),
+            BinaryRight(Box<BinaryState<'a>>),
+            ArrayNext(Box<ArrayState<'a>>),
+            ArrayAfterItem(Box<ArrayState<'a>>),
+            IndexNext(Box<IndexState<'a>>),
+            IndexAfterSelector(Box<IndexState<'a>>),
+            IndexAfterBase(Box<IndexState<'a>>),
+            IndexAfterValueSelector(Box<IndexState<'a>>),
             IfExprEnter {
                 condition: &'a Expr,
+                then_block: &'a parse::Block,
+                otherwise: Option<&'a parse::Else>,
+                span: &'a Span,
+                depth: usize,
+                expected: Option<Ty>,
+            },
+            IfExprAfterCondition {
                 then_block: &'a parse::Block,
                 otherwise: Option<&'a parse::Else>,
                 span: &'a Span,
@@ -4375,6 +4210,8 @@ impl Lower<'_> {
                 expected: Option<Ty>,
                 prelude: lower_match::MatchSelectionPrelude,
             },
+            MatchIndexNext(Box<MatchIndexState<'a>>),
+            MatchIndexAfterSelector(Box<MatchIndexState<'a>>),
             UserCallEnter {
                 args: &'a [parse::Argument],
                 name: String,
@@ -4389,6 +4226,20 @@ impl Lower<'_> {
                 depth: usize,
                 inferred: Ty,
             },
+            GeneratorNextEnter {
+                args: &'a [parse::Argument],
+                span: &'a Span,
+                depth: usize,
+                inferred: Ty,
+            },
+            OtherCallEnter {
+                target: &'a Expr,
+                args: &'a [parse::Argument],
+                span: &'a Span,
+                depth: usize,
+                inferred: Ty,
+            },
+            ClosureAfterReceiver(Box<ClosureCallState<'a>>),
             UnaryReadEnter {
                 value: &'a Expr,
                 span: &'a Span,
@@ -4403,6 +4254,7 @@ impl Lower<'_> {
             UserCallAfterArgument {
                 state: Box<UserCallState<'a>>,
                 slot: usize,
+                loan_root: Option<LocalId>,
             },
             VariantEnter {
                 value: &'a Expr,
@@ -4417,6 +4269,15 @@ impl Lower<'_> {
                 inferred: Ty,
             },
             MatchNext(Box<lower_match::MatchInnerState<'a>>),
+            MatchGuardAfter {
+                state: Box<lower_match::MatchInnerState<'a>>,
+                arm: &'a parse::Arm,
+                saved: ScopeId,
+            },
+            MatchArmReady {
+                state: Box<lower_match::MatchInnerState<'a>>,
+                arm: lower_match::MatchArmState<'a>,
+            },
             MatchAfterArm {
                 state: Box<lower_match::MatchInnerState<'a>>,
                 arm: lower_match::MatchArmState<'a>,
@@ -4428,6 +4289,8 @@ impl Lower<'_> {
                 span: &'a Span,
                 depth: usize,
             },
+            WhileAfterCondition(Box<WhileConditionState<'a>>),
+            WhileAfterSecondCondition(Box<WhileSecondConditionState<'a>>),
             WhileAfterBody {
                 state: Box<WhileState<'a>>,
             },
@@ -4443,6 +4306,12 @@ impl Lower<'_> {
             },
             IfEnter {
                 condition: &'a Expr,
+                then_block: &'a parse::Block,
+                otherwise: Option<StatementElse<'a>>,
+                span: &'a Span,
+                depth: usize,
+            },
+            IfAfterCondition {
                 then_block: &'a parse::Block,
                 otherwise: Option<StatementElse<'a>>,
                 span: &'a Span,
@@ -4552,6 +4421,177 @@ impl Lower<'_> {
             }
             Ok(())
         }
+        fn declare_binding(
+            lower: &mut Lower<'_>,
+            name: &str,
+            mutable: bool,
+            binding_span: Span,
+            expected: Ty,
+        ) -> Result<LocalId, CompileError> {
+            let id = LocalId(lower.locals.len());
+            lower.name_spans.push(binding_span.clone());
+            lower.locals.push(Local {
+                id,
+                name: name.to_owned(),
+                name_span: binding_span,
+                ty: expected,
+                mutable,
+                scope: lower.scope,
+                parameter_mode: None,
+            });
+            lower.visible.entry(name.to_owned()).or_default().push(id);
+            lower
+                .scopes
+                .last_mut()
+                .ok_or(CompileError::InvalidIr("scope stack"))?
+                .push(name.to_owned());
+            Ok(id)
+        }
+        fn closure_call_state<'a>(
+            lower: &mut Lower<'_>,
+            state: ClosureCallState<'a>,
+            receiver: Flow,
+            receiver_loan: Option<(LocalId, LoanId, Span)>,
+        ) -> Result<UserCallState<'a>, CompileError> {
+            let info = lower
+                .inferred_bindings
+                .closures
+                .get(&state.site)
+                .ok_or(CompileError::InvalidIr("closure call signature"))?;
+            let params = info
+                .params
+                .iter()
+                .map(|(name, mode, ty)| {
+                    Ok((
+                        name.clone(),
+                        match mode {
+                            Mode::Read => ParameterMode::Read,
+                            Mode::Inout => ParameterMode::Inout,
+                            Mode::Consume => ParameterMode::Consume,
+                        },
+                        lower_type(ty)?,
+                    ))
+                })
+                .collect::<Result<Vec<_>, CompileError>>()?;
+            let capture_count = info.captures.len();
+            let signature = lower
+                .user_functions
+                .get(&format!("$closure:{}", state.site))
+                .ok_or(CompileError::InvalidIr("closure body signature"))?
+                .0
+                .clone();
+            let slot_by_name = params
+                .iter()
+                .enumerate()
+                .map(|(index, (label, _, _))| (label.clone(), index))
+                .collect();
+            Ok(UserCallState {
+                args: state.args,
+                kind: CallKind::Closure {
+                    site: state.site,
+                    receiver,
+                    receiver_mode: state.receiver_mode,
+                    capture_count,
+                    signature,
+                    receiver_loan,
+                },
+                span: state.span,
+                depth: state.depth,
+                inferred: state.inferred,
+                used: vec![false; params.len()],
+                slot_by_name,
+                params,
+                check_types: true,
+                retain_place_loans: true,
+                next_positional: 0,
+                index: 0,
+                prepared: Vec::with_capacity(state.args.len()),
+                acquired: Vec::new(),
+                argument_errors: Vec::new(),
+                dependent: false,
+                diverged: false,
+            })
+        }
+        fn named_closure_receiver(
+            lower: &mut Lower<'_>,
+            target: &Expr,
+            receiver_mode: ParameterMode,
+            receiver_span: &Span,
+        ) -> Result<(Flow, Option<ReceiverLoan>), CompileError> {
+            let name = place_name(target).ok_or(CompileError::InvalidIr("closure receiver"))?;
+            let local = lower.get(name)?;
+            lower.check_available(local, target.span().clone())?;
+            if receiver_mode == ParameterMode::Consume
+                && lower.locals[local.0]
+                    .parameter_mode
+                    .is_some_and(|mode| mode != ParameterMode::Consume)
+            {
+                return Err(lower.permission_error(local, target.span().clone(), "consume"));
+            }
+            if receiver_mode == ParameterMode::Inout
+                && lower.locals[local.0].parameter_mode == Some(ParameterMode::Read)
+            {
+                return Err(lower.permission_error(local, target.span().clone(), "borrow_inout"));
+            }
+            if receiver_mode == ParameterMode::Inout && !lower.locals[local.0].mutable {
+                return Err(lower.immutable_write(target, local));
+            }
+            if receiver_mode == ParameterMode::Consume {
+                lower.conflict(local, target.span().clone(), "consume")?;
+                lower.mark_consumed(local, Some((receiver_span.clone(), false)));
+                let flow = lower.emitted(
+                    Op::TransferValue(local),
+                    lower.locals[local.0].ty.clone(),
+                    receiver_span.clone(),
+                    Access::Own,
+                    false,
+                );
+                return Ok((flow, None));
+            }
+            let permission = if receiver_mode == ParameterMode::Inout {
+                LoanPermission::Inout
+            } else {
+                LoanPermission::Read
+            };
+            lower.conflict(
+                local,
+                target.span().clone(),
+                if permission == LoanPermission::Inout {
+                    "borrow_inout"
+                } else {
+                    "read"
+                },
+            )?;
+            let loan = LoanId(target.span().start as usize);
+            let parent = (lower.locals[local.0].parameter_mode == Some(ParameterMode::Inout))
+                .then_some(local);
+            let active = ActiveLoan {
+                permission,
+                span: target.span().clone(),
+                loan,
+                parent,
+            };
+            let flow = lower.emitted(
+                Op::BeginLoan {
+                    root: local,
+                    indexes: Vec::new(),
+                    site: IndexSite {
+                        context: target.span().clone(),
+                        selectors: Vec::new(),
+                    },
+                    loan,
+                    origin_span: target.span().clone(),
+                    permission,
+                    parent,
+                },
+                lower.locals[local.0].ty.clone(),
+                target.span().clone(),
+                Access::Read,
+                false,
+            );
+            lower.active_loans.entry(local).or_default().push(active);
+            Ok((flow, Some((local, loan, target.span().clone()))))
+        }
         let mut tasks = vec![match root {
             LowerRoot::Block(statements, depth) => Task::Block(Box::new(Frame {
                 statements,
@@ -4562,104 +4602,25 @@ impl Lower<'_> {
                 pending: None,
                 value_tail: None,
             })),
-            LowerRoot::IfExpr {
-                condition,
-                then_block,
-                otherwise,
-                span,
-                depth,
-                expected,
-            } => Task::IfExprEnter {
-                condition,
-                then_block,
-                otherwise,
-                span,
-                depth,
-                expected,
-            },
-            LowerRoot::Match {
-                selection,
-                depth,
-                expected,
-            } => Task::MatchEnter {
-                selection,
-                depth,
-                expected,
-            },
-            LowerRoot::UserCall {
-                args,
-                name,
-                span,
-                depth,
-                inferred,
-            } => Task::UserCallEnter {
-                args,
-                name,
-                span,
-                depth,
-                inferred,
-            },
-            LowerRoot::IntrinsicCall {
-                args,
-                intrinsic,
-                span,
-                depth,
-                inferred,
-            } => Task::IntrinsicCallEnter {
-                args,
-                intrinsic,
-                span,
-                depth,
-                inferred,
-            },
-            LowerRoot::UnaryRead {
+            #[cfg(test)]
+            LowerRoot::Statement(statement, depth) => Task::StatementEnter { statement, depth },
+            #[cfg(test)]
+            LowerRoot::Expr(value, depth, expected) => Task::Expr {
                 value,
-                span,
+                expected,
                 depth,
-                inferred,
-            } => Task::UnaryReadEnter {
-                value,
-                span,
-                depth,
-                inferred,
+                borrow: false,
             },
-            LowerRoot::Variant {
-                value,
-                tag,
-                span,
-                depth,
-                inferred,
-            } => Task::VariantEnter {
-                value,
-                tag,
-                span,
-                depth,
-                inferred,
-            },
-            LowerRoot::If {
-                condition,
-                then_block,
-                otherwise,
-                span,
-                depth,
-            } => Task::IfEnter {
-                condition,
-                then_block,
-                otherwise,
-                span,
-                depth,
-            },
-            LowerRoot::While {
-                condition,
-                body,
-                span,
-                depth,
-            } => Task::WhileEnter {
-                condition,
-                body,
-                span,
-                depth,
-            },
+            #[cfg(test)]
+            LowerRoot::Argument(arg, mode, expected, depth, retain_place_loan) => {
+                Task::ArgumentEnter {
+                    arg,
+                    mode,
+                    expected,
+                    depth,
+                    retain_place_loan,
+                }
+            }
         }];
         let mut completed: Option<Result<(), CompileError>> = None;
         let mut completed_value: Option<Result<Option<Flow>, CompileError>> = None;
@@ -4676,6 +4637,907 @@ impl Lower<'_> {
                     );
                 }
                 match tasks.last_mut() {
+                    Some(Task::YieldAfterValue { .. }) => {
+                        let Some(Task::YieldAfterValue { token_span, span }) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("yield continuation"));
+                        };
+                        completed = Some(result.and_then(|value| {
+                            self.finish_yield(
+                                value.ok_or(CompileError::InvalidIr("yield value flow"))?,
+                                token_span,
+                                span,
+                            )
+                        }));
+                    }
+                    Some(Task::ForAfterIterable { .. }) => {
+                        let Some(Task::ForAfterIterable {
+                            statement,
+                            depth,
+                            surviving_temps,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("for iterable continuation"));
+                        };
+                        let started = result.and_then(|value| {
+                            self.begin_for_after_iterable(
+                                statement,
+                                value.ok_or(CompileError::InvalidIr("for iterable flow"))?,
+                                surviving_temps,
+                            )
+                        });
+                        match started {
+                            Err(error) => completed = Some(Err(error)),
+                            Ok(state) => {
+                                let Statement::For { body, .. } = statement else {
+                                    return Err(CompileError::InvalidIr("for statement"));
+                                };
+                                let surviving = self.live_temps.clone();
+                                let saved = self.scope;
+                                self.scope = ScopeId(self.next_scope);
+                                self.next_scope += 1;
+                                self.scope_parents.push(Some(saved));
+                                self.scopes.push(Vec::new());
+                                tasks.push(Task::ForAfterBody {
+                                    state: Box::new(state),
+                                    body,
+                                });
+                                tasks.push(Task::Block(Box::new(Frame {
+                                    statements: &body.statements,
+                                    depth: depth + 1,
+                                    index: 0,
+                                    unreachable: None,
+                                    scoped: Some(Scoped {
+                                        block: body,
+                                        surviving,
+                                        saved,
+                                    }),
+                                    pending: None,
+                                    value_tail: None,
+                                })));
+                            }
+                        }
+                    }
+                    Some(Task::MatchGuardAfter { .. }) => {
+                        let Some(Task::MatchGuardAfter {
+                            mut state,
+                            arm,
+                            saved,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("match guard continuation"));
+                        };
+                        let expression = state.is_expression();
+                        let ready = result.and_then(|value| {
+                            self.finish_match_guard(
+                                &mut state,
+                                arm,
+                                saved,
+                                value.ok_or(CompileError::InvalidIr("match guard flow"))?,
+                            )
+                        });
+                        match ready {
+                            Ok(arm) => tasks.push(Task::MatchArmReady { state, arm }),
+                            Err(error) => {
+                                if expression {
+                                    completed_value = Some(Err(error));
+                                } else {
+                                    completed = Some(Err(error));
+                                }
+                            }
+                        }
+                    }
+                    Some(Task::MatchIndexAfterSelector(_)) => {
+                        let Some(Task::MatchIndexAfterSelector(mut state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("match index continuation"));
+                        };
+                        let expression = state.expected.is_some();
+                        match result {
+                            Err(error) => {
+                                if expression {
+                                    completed_value = Some(Err(error));
+                                } else {
+                                    completed = Some(Err(error));
+                                }
+                            }
+                            Ok(None) => {
+                                let error = CompileError::InvalidIr("match index flow");
+                                if expression {
+                                    completed_value = Some(Err(error));
+                                } else {
+                                    completed = Some(Err(error));
+                                }
+                            }
+                            Ok(Some(flow)) if flow.diverged() => {
+                                let flow = Flow::Diverged { ty: state.expected };
+                                if expression {
+                                    completed_value = Some(Ok(Some(flow)));
+                                } else {
+                                    completed = Some(Ok(()));
+                                }
+                            }
+                            Ok(Some(flow)) => {
+                                if let Some(temp) = flow.temp() {
+                                    state.ids.push(temp);
+                                } else if self.emission == EmissionMode::Live {
+                                    let error = CompileError::InvalidIr("match index");
+                                    if expression {
+                                        completed_value = Some(Err(error));
+                                    } else {
+                                        completed = Some(Err(error));
+                                    }
+                                    continue;
+                                }
+                                tasks.push(Task::MatchIndexNext(state));
+                            }
+                        }
+                    }
+                    Some(Task::WhileAfterSecondCondition(_)) => {
+                        let Some(Task::WhileAfterSecondCondition(state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("while backedge condition"));
+                        };
+                        if matches!(&result, Ok(Some(flow)) if !flow.diverged()) {
+                            self.terminated = None;
+                            let surviving = self.live_temps.clone();
+                            let saved = self.scope;
+                            self.scope = ScopeId(self.next_scope);
+                            self.next_scope += 1;
+                            self.scope_parents.push(Some(saved));
+                            self.scopes.push(Vec::new());
+                            tasks.push(Task::WhileAfterSecond {
+                                checkpoint: state.checkpoint,
+                                temp_checkpoint: state.temp_checkpoint,
+                                locals: state.locals,
+                                scopes: state.scopes,
+                                before_errors: state.before_errors,
+                                affected: state.affected,
+                                body_span: state.body.span.clone(),
+                                condition_diverges: state.condition_diverges,
+                            });
+                            tasks.push(Task::Block(Box::new(Frame {
+                                statements: &state.body.statements,
+                                depth: state.depth + 1,
+                                index: 0,
+                                unreachable: None,
+                                scoped: Some(Scoped {
+                                    block: state.body,
+                                    surviving,
+                                    saved,
+                                }),
+                                pending: None,
+                                value_tail: None,
+                            })));
+                            continue;
+                        }
+                        self.restore_availability(state.checkpoint);
+                        self.restore_temps(state.temp_checkpoint);
+                        self.locals.truncate(state.locals);
+                        self.name_spans.truncate(state.locals);
+                        self.next_scope = state.scopes;
+                        self.scope_parents.truncate(state.scopes);
+                        self.dead_depth -= 1;
+                        self.terminated = state.condition_diverges.then_some(Termination::Diverged);
+                        completed = Some(match result {
+                            Err(error) => Err(add_backedge_to_error(
+                                error,
+                                &state.body.span,
+                                &state.affected,
+                            )),
+                            Ok(None) => Err(CompileError::InvalidIr("while condition flow")),
+                            Ok(Some(_)) => Ok(()),
+                        });
+                    }
+                    Some(Task::WhileAfterCondition(_)) => {
+                        let Some(Task::WhileAfterCondition(state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("while condition continuation"));
+                        };
+                        let test_flow = match result {
+                            Ok(Some(flow)) => flow,
+                            Ok(None) => {
+                                completed =
+                                    Some(Err(CompileError::InvalidIr("while condition flow")));
+                                continue;
+                            }
+                            Err(error) => {
+                                completed = Some(Err(error));
+                                continue;
+                            }
+                        };
+                        let condition_diverges = test_flow.diverged();
+                        let while_state = if condition_diverges
+                            || state.entry_emission == EmissionMode::Analyze
+                        {
+                            self.terminated = None;
+                            self.emission = EmissionMode::Analyze;
+                            WhileState::Analyze {
+                                condition: state.condition,
+                                body: state.body,
+                                depth: state.depth,
+                                checkpoint: state.checkpoint,
+                                temp_checkpoint: state.temp_checkpoint,
+                                prior_locals: state.prior_locals,
+                                condition_diverges,
+                                before_errors: diagnostics.len(),
+                            }
+                        } else {
+                            if test_flow.ty() != Some(&Ty::Bool) {
+                                completed =
+                                    Some(Err(CompileError::InvalidIr("while condition type")));
+                                continue;
+                            }
+                            let condition_state = self.restore_availability(state.checkpoint);
+                            let test = test_flow
+                                .temp()
+                                .ok_or(CompileError::InvalidIr("while condition flow"))?;
+                            let branch = self.finish_block(Terminator::BranchBool {
+                                condition: test,
+                                yes: BlockId(self.blocks.len() + 1),
+                                no: BlockId(usize::MAX),
+                                span: state.condition.span().clone(),
+                                charges: vec![],
+                            });
+                            self.restore_temps(state.temp_checkpoint);
+                            for (id, value) in &condition_state {
+                                self.set_availability(*id, value.clone());
+                            }
+                            self.loop_stack.push(LoopContext {
+                                continue_target: state.condition_header,
+                                scope_depth: self.scopes.len(),
+                                cleanup_span: state.body.close_span.clone(),
+                                breaks: Vec::new(),
+                                continues: Vec::new(),
+                                match_depth: self.match_boundaries.len(),
+                                surviving_temps: state.surviving_temps,
+                            });
+                            WhileState::Live {
+                                entry_emission: state.entry_emission,
+                                condition_header: state.condition_header,
+                                checkpoint: state.checkpoint,
+                                temp_checkpoint: state.temp_checkpoint,
+                                prior_locals: state.prior_locals,
+                                condition_state,
+                                branch,
+                                preheader: state.preheader,
+                                body: state.body,
+                            }
+                        };
+                        let surviving = self.live_temps.clone();
+                        let saved = self.scope;
+                        self.scope = ScopeId(self.next_scope);
+                        self.next_scope += 1;
+                        self.scope_parents.push(Some(saved));
+                        self.scopes.push(Vec::new());
+                        let body = state.body;
+                        let depth = state.depth;
+                        tasks.push(Task::WhileAfterBody {
+                            state: Box::new(while_state),
+                        });
+                        tasks.push(Task::Block(Box::new(Frame {
+                            statements: &body.statements,
+                            depth: depth + 1,
+                            index: 0,
+                            unreachable: None,
+                            scoped: Some(Scoped {
+                                block: body,
+                                surviving,
+                                saved,
+                            }),
+                            pending: None,
+                            value_tail: None,
+                        })));
+                    }
+                    Some(Task::IfAfterCondition { .. }) => {
+                        let Some(Task::IfAfterCondition {
+                            then_block,
+                            otherwise,
+                            span,
+                            depth,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("if statement continuation"));
+                        };
+                        let started = result.and_then(|value| {
+                            self.begin_if_statement(
+                                span,
+                                value.ok_or(CompileError::InvalidIr("if condition flow"))?,
+                            )
+                        });
+                        match started {
+                            Ok(started) => {
+                                let surviving = self.live_temps.clone();
+                                let saved = self.scope;
+                                self.scope = ScopeId(self.next_scope);
+                                self.next_scope += 1;
+                                self.scope_parents.push(Some(saved));
+                                self.scopes.push(Vec::new());
+                                tasks.push(Task::IfAfterThen {
+                                    started,
+                                    then_block,
+                                    otherwise,
+                                    depth,
+                                });
+                                tasks.push(Task::Block(Box::new(Frame {
+                                    statements: &then_block.statements,
+                                    depth: depth + 1,
+                                    index: 0,
+                                    unreachable: None,
+                                    scoped: Some(Scoped {
+                                        block: then_block,
+                                        surviving,
+                                        saved,
+                                    }),
+                                    pending: None,
+                                    value_tail: None,
+                                })));
+                            }
+                            Err(error) => completed = Some(Err(error)),
+                        }
+                    }
+                    Some(Task::IfExprAfterCondition { .. }) => {
+                        let Some(Task::IfExprAfterCondition {
+                            then_block,
+                            otherwise,
+                            span,
+                            depth,
+                            expected,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("if condition continuation"));
+                        };
+                        let started = result.and_then(|value| {
+                            self.begin_if_expression(
+                                then_block,
+                                otherwise,
+                                span,
+                                depth,
+                                expected.as_ref(),
+                                value.ok_or(CompileError::InvalidIr("if condition flow"))?,
+                            )
+                        });
+                        match started {
+                            Ok(started) => {
+                                let expected = Some(started.inferred_ty.clone());
+                                let outer_diagnostics = std::mem::take(diagnostics);
+                                tasks.push(Task::IfExprAfterThen(
+                                    Box::new(started),
+                                    outer_diagnostics,
+                                ));
+                                tasks.push(Task::ValueBlockEnter {
+                                    block: then_block,
+                                    expected,
+                                    if_span: span,
+                                    depth,
+                                });
+                            }
+                            Err(error) => completed_value = Some(Err(error)),
+                        }
+                    }
+                    Some(Task::ClosureAfterReceiver(_)) => {
+                        let Some(Task::ClosureAfterReceiver(state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("closure receiver continuation"));
+                        };
+                        match result {
+                            Err(error) => completed_value = Some(Err(error)),
+                            Ok(None) => {
+                                completed_value =
+                                    Some(Err(CompileError::InvalidIr("closure receiver flow")))
+                            }
+                            Ok(Some(receiver)) if receiver.diverged() => {
+                                completed_value = Some(Ok(Some(Flow::Diverged {
+                                    ty: Some(state.inferred),
+                                })));
+                            }
+                            Ok(Some(receiver)) => {
+                                match closure_call_state(self, *state, receiver, None) {
+                                    Ok(call) => tasks.push(Task::UserCallNext(Box::new(call))),
+                                    Err(error) => completed_value = Some(Err(error)),
+                                }
+                            }
+                        }
+                    }
+                    Some(Task::AssignAfterSelector(_)) => {
+                        let Some(Task::AssignAfterSelector(mut state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr(
+                                "assignment selector continuation",
+                            ));
+                        };
+                        completed_value = match result {
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => {
+                                Some(Err(CompileError::InvalidIr("assignment selector flow")))
+                            }
+                            Ok(Some(flow)) => {
+                                if flow.diverged() {
+                                    state.diverged = true;
+                                    self.emission = EmissionMode::Analyze;
+                                }
+                                if !state.base_unresolved
+                                    && flow
+                                        .ty()
+                                        .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
+                                {
+                                    Some(Err(CompileError::InvalidIr("index type")))
+                                } else {
+                                    if let Some(id) = flow.temp() {
+                                        state.ids.push(id);
+                                    }
+                                    state.next += 1;
+                                    tasks.push(Task::AssignNextSelector(state));
+                                    None
+                                }
+                            }
+                        };
+                    }
+                    Some(Task::AssignAfterValue(_)) => {
+                        let Some(Task::AssignAfterValue(state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("assignment value continuation"));
+                        };
+                        completed = Some(result.and_then(|value| {
+                            let flow =
+                                value.ok_or(CompileError::InvalidIr("assignment value flow"))?;
+                            let indexed = !state.selectors.is_empty();
+                            if indexed {
+                                self.check_available(state.local, state.root.span().clone())?;
+                                if !self.locals[state.local.0].mutable
+                                    && !(self.defer_ownership
+                                        && self.emission == EmissionMode::Live)
+                                {
+                                    return Err(self.immutable_write(state.root, state.local));
+                                }
+                            }
+                            if state.diverged {
+                                self.terminated = Some(Termination::Diverged);
+                                return Ok(());
+                            }
+                            if flow.diverged() {
+                                return Ok(());
+                            }
+                            self.check_place_access(
+                                state.local,
+                                state.root,
+                                state.root,
+                                "write",
+                                indexed,
+                            )?;
+                            if !indexed {
+                                self.mark_consumed(state.local, None);
+                            }
+                            if self.emission == EmissionMode::Analyze {
+                                return Ok(());
+                            }
+                            let temp = flow
+                                .temp()
+                                .ok_or(CompileError::InvalidIr("assignment value flow"))?;
+                            if flow.ty().is_some_and(|ty| {
+                                *ty != state.target_ty
+                                    && *ty != Ty::Never
+                                    && state.target_ty != Ty::Never
+                            }) {
+                                return Err(CompileError::InvalidIr(
+                                    "assignment type passed checker",
+                                ));
+                            }
+                            self.statement_op(
+                                if indexed {
+                                    Op::WriteIndex {
+                                        local: state.local,
+                                        indexes: state.ids,
+                                        site: index_site(state.place, state.place.span().clone()),
+                                        value: temp,
+                                    }
+                                } else {
+                                    Op::WritePlace {
+                                        local: state.local,
+                                        value: temp,
+                                    }
+                                },
+                                statement_span(state.statement),
+                                Access::Write,
+                                false,
+                            );
+                            Ok(())
+                        }));
+                    }
+                    Some(Task::StatementExprAfter(_)) => {
+                        let Some(Task::StatementExprAfter(state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr(
+                                "statement expression continuation",
+                            ));
+                        };
+                        completed = Some(match *state {
+                            StatementExprState::Let {
+                                statement,
+                                mutable,
+                                name,
+                                binding_span,
+                                expected,
+                            } => match result {
+                                Err(
+                                    error @ (CompileError::Rejected(_) | CompileError::Dependent),
+                                ) => {
+                                    let id = declare_binding(
+                                        self,
+                                        name,
+                                        mutable,
+                                        binding_span,
+                                        expected,
+                                    )?;
+                                    self.poisoned.insert(id);
+                                    Err(error)
+                                }
+                                Err(error) => Err(error),
+                                Ok(Some(flow)) => {
+                                    let id = declare_binding(
+                                        self,
+                                        name,
+                                        mutable,
+                                        binding_span,
+                                        expected,
+                                    )?;
+                                    if flow.diverged() || self.emission == EmissionMode::Analyze {
+                                        Ok(())
+                                    } else if let Some(temp) = flow.temp() {
+                                        self.statement_op(
+                                            Op::WritePlace {
+                                                local: id,
+                                                value: temp,
+                                            },
+                                            statement_span(statement),
+                                            Access::Write,
+                                            false,
+                                        );
+                                        Ok(())
+                                    } else {
+                                        Err(CompileError::InvalidIr("binding value flow"))
+                                    }
+                                }
+                                Ok(None) => Err(CompileError::InvalidIr("binding value flow")),
+                            },
+                            StatementExprState::Expr(statement) => result.and_then(|value| {
+                                let flow = value
+                                    .ok_or(CompileError::InvalidIr("expression value flow"))?;
+                                if flow.diverged() || self.emission == EmissionMode::Analyze {
+                                    return Ok(());
+                                }
+                                let temp = flow
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("expression value flow"))?;
+                                self.statement_op(
+                                    Op::DropValue(temp),
+                                    statement_span(statement),
+                                    Access::Own,
+                                    false,
+                                );
+                                Ok(())
+                            }),
+                            StatementExprState::Return(_statement) => result.and_then(|value| {
+                                let flow =
+                                    value.ok_or(CompileError::InvalidIr("return value flow"))?;
+                                if flow.diverged() || self.emission == EmissionMode::Analyze {
+                                    self.terminated = Some(Termination::Diverged);
+                                    return Ok(());
+                                }
+                                let temp = flow
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("return value flow"))?;
+                                if flow.ty() != Some(&self.result) && self.dead_depth == 0 {
+                                    return Err(CompileError::InvalidIr(
+                                        "return type passed checker",
+                                    ));
+                                }
+                                self.terminated = Some(Termination::Return(temp));
+                                Ok(())
+                            }),
+                        });
+                    }
+                    Some(Task::ArgumentPlaceAfterIndex(_)) => {
+                        let Some(Task::ArgumentPlaceAfterIndex(mut state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("loan index continuation"));
+                        };
+                        completed_value = match result {
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => Some(Err(CompileError::InvalidIr("loan index flow"))),
+                            Ok(Some(flow)) if flow.diverged() => Some(Ok(Some(Flow::Diverged {
+                                ty: (state.ty != Ty::Never).then_some(state.ty),
+                            }))),
+                            Ok(Some(flow)) if flow.ty() != Some(&Ty::I64) => {
+                                Some(Err(CompileError::InvalidIr("loan index type")))
+                            }
+                            Ok(Some(flow)) => {
+                                if let Some(id) = flow.temp() {
+                                    state.ids.push(id);
+                                }
+                                tasks.push(Task::ArgumentPlaceNext(state));
+                                None
+                            }
+                        };
+                    }
+                    Some(Task::BinaryLeft(_)) => {
+                        let Some(Task::BinaryLeft(mut state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("binary left continuation"));
+                        };
+                        completed_value = match result {
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => Some(Err(CompileError::InvalidIr("binary left flow"))),
+                            Ok(Some(left_flow)) => {
+                                if left_flow.diverged() {
+                                    self.emission = EmissionMode::Analyze;
+                                    self.terminated = None;
+                                }
+                                let left_type = if state.op == "==" {
+                                    Some(self.resolved_expr(state.left))
+                                } else {
+                                    None
+                                };
+                                match left_type.transpose() {
+                                    Err(error) => Some(Err(error)),
+                                    Ok(left_type) => {
+                                        if matches!(left_type, Some(Ty::Array(_))) {
+                                            state.left_root = place_parts(state.left)
+                                                .ok()
+                                                .and_then(|(root, _)| place_name(root))
+                                                .and_then(|name| {
+                                                    self.visible
+                                                        .get(name)
+                                                        .and_then(|ids| ids.last())
+                                                        .copied()
+                                                });
+                                        }
+                                        if let Some(root) = state.left_root {
+                                            self.active_loans.entry(root).or_default().push(
+                                                ActiveLoan {
+                                                    permission: LoanPermission::Read,
+                                                    span: state.left.span().clone(),
+                                                    loan: LoanId(state.left.span().start as usize),
+                                                    parent: None,
+                                                },
+                                            );
+                                        }
+                                        state.left_flow = Some(left_flow);
+                                        let right = state.right;
+                                        let depth = state.depth;
+                                        tasks.push(Task::BinaryRight(state));
+                                        tasks.push(Task::Expr {
+                                            value: right,
+                                            expected: None,
+                                            depth: depth + 1,
+                                            borrow: true,
+                                        });
+                                        None
+                                    }
+                                }
+                            }
+                        };
+                    }
+                    Some(Task::BinaryRight(_)) => {
+                        let Some(Task::BinaryRight(state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("binary right continuation"));
+                        };
+                        if let Some(root) = state.left_root {
+                            self.active_loans
+                                .get_mut(&root)
+                                .and_then(|loans| loans.pop());
+                        }
+                        completed_value = Some(result.and_then(|value| {
+                            let right_flow =
+                                value.ok_or(CompileError::InvalidIr("binary right flow"))?;
+                            let left_flow = state
+                                .left_flow
+                                .ok_or(CompileError::InvalidIr("binary left flow"))?;
+                            let operator = match state.op {
+                                "+" => Binary::Add,
+                                "-" => Binary::Sub,
+                                "<" => Binary::Less,
+                                "==" => Binary::Equal,
+                                _ => return Err(CompileError::InvalidIr("binary operation")),
+                            };
+                            let ty = state.inferred;
+                            if left_flow.diverged() || right_flow.diverged() {
+                                self.terminated = Some(Termination::Diverged);
+                                self.emission = EmissionMode::Analyze;
+                                Ok(Some(Flow::Diverged { ty: Some(ty) }))
+                            } else if self.emission == EmissionMode::Analyze {
+                                Ok(Some(Flow::Value { temp: None, ty }))
+                            } else if let (Some(left), Some(right)) =
+                                (left_flow.temp(), right_flow.temp())
+                            {
+                                Ok(Some(self.emitted(
+                                    Op::Binary {
+                                        op: operator,
+                                        left,
+                                        right,
+                                    },
+                                    ty,
+                                    state.span.clone(),
+                                    Access::Own,
+                                    false,
+                                )))
+                            } else {
+                                Err(CompileError::InvalidIr("binary operand flow"))
+                            }
+                        }));
+                    }
+                    Some(Task::ArrayAfterItem(_)) => {
+                        let Some(Task::ArrayAfterItem(mut state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("array item continuation"));
+                        };
+                        state.next += 1;
+                        completed_value = match result {
+                            Err(CompileError::Rejected(errors)) => {
+                                state
+                                    .item_errors
+                                    .extend(errors.into_iter().map(|error| *error));
+                                tasks.push(Task::ArrayNext(state));
+                                None
+                            }
+                            Err(CompileError::Dependent) => {
+                                state.dependent = true;
+                                tasks.push(Task::ArrayNext(state));
+                                None
+                            }
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => Some(Err(CompileError::InvalidIr("array item flow"))),
+                            Ok(Some(flow)) => {
+                                if flow.diverged() {
+                                    state.diverged = true;
+                                    self.emission = EmissionMode::Analyze;
+                                } else if let Some(id) = flow.temp() {
+                                    state.ids.push(id);
+                                }
+                                tasks.push(Task::ArrayNext(state));
+                                None
+                            }
+                        };
+                    }
+                    Some(Task::IndexAfterSelector(_)) => {
+                        let Some(Task::IndexAfterSelector(mut state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("index selector continuation"));
+                        };
+                        completed_value = match result {
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => Some(Err(CompileError::InvalidIr("index selector flow"))),
+                            Ok(Some(flow)) => {
+                                let IndexKind::Place {
+                                    root,
+                                    local,
+                                    ids,
+                                    diverged,
+                                    ..
+                                } = &mut state.kind
+                                else {
+                                    return Err(CompileError::InvalidIr("index place state"));
+                                };
+                                if flow.diverged() {
+                                    *diverged = true;
+                                    self.emission = EmissionMode::Analyze;
+                                }
+                                if flow
+                                    .ty()
+                                    .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
+                                {
+                                    Some(Err(CompileError::InvalidIr("index type")))
+                                } else {
+                                    if let Some(id) = flow.temp() {
+                                        ids.push(id);
+                                    }
+                                    match self
+                                        .check_place_access(*local, root, state.expr, "read", true)
+                                    {
+                                        Err(error) => Some(Err(error)),
+                                        Ok(()) => {
+                                            self.statement_op(
+                                                Op::CheckIndex {
+                                                    local: *local,
+                                                    indexes: ids.clone(),
+                                                    site: IndexSite {
+                                                        context: state.expr.span().clone(),
+                                                        selectors: index_selectors(state.expr)
+                                                            .into_iter()
+                                                            .take(ids.len())
+                                                            .collect(),
+                                                    },
+                                                },
+                                                state.span.clone(),
+                                                Access::Read,
+                                                false,
+                                            );
+                                            tasks.push(Task::IndexNext(state));
+                                            None
+                                        }
+                                    }
+                                }
+                            }
+                        };
+                    }
+                    Some(Task::IndexAfterBase(_)) => {
+                        let Some(Task::IndexAfterBase(mut state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("index base continuation"));
+                        };
+                        completed_value = match result {
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => Some(Err(CompileError::InvalidIr("index base flow"))),
+                            Ok(Some(base)) => {
+                                if let IndexKind::Value { base: slot } = &mut state.kind {
+                                    if base.diverged() {
+                                        self.terminated = None;
+                                        self.emission = EmissionMode::Analyze;
+                                    }
+                                    *slot = Some(base);
+                                }
+                                let index = state.index;
+                                let depth = state.depth;
+                                tasks.push(Task::IndexAfterValueSelector(state));
+                                tasks.push(Task::Expr {
+                                    value: index,
+                                    expected: Some(Ty::I64),
+                                    depth: depth + 1,
+                                    borrow: true,
+                                });
+                                None
+                            }
+                        };
+                    }
+                    Some(Task::IndexAfterValueSelector(_)) => {
+                        let Some(Task::IndexAfterValueSelector(state)) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("index value continuation"));
+                        };
+                        completed_value = Some(result.and_then(|value| {
+                            let index_flow =
+                                value.ok_or(CompileError::InvalidIr("index selector flow"))?;
+                            if matches!(state.kind, IndexKind::Unresolved) {
+                                return Ok(Some(Flow::Value {
+                                    temp: None,
+                                    ty: state.inferred,
+                                }));
+                            }
+                            let IndexKind::Value {
+                                base: Some(base_flow),
+                            } = state.kind
+                            else {
+                                return Err(CompileError::InvalidIr("index base state"));
+                            };
+                            if base_flow.diverged() {
+                                self.terminated = Some(Termination::Diverged);
+                                return Ok(Some(Flow::Diverged {
+                                    ty: (state.inferred != Ty::Never).then_some(state.inferred),
+                                }));
+                            }
+                            if index_flow.diverged() {
+                                return Ok(Some(Flow::Diverged {
+                                    ty: (state.inferred != Ty::Never).then_some(state.inferred),
+                                }));
+                            }
+                            if index_flow
+                                .ty()
+                                .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
+                            {
+                                return Err(CompileError::InvalidIr("index type"));
+                            }
+                            if self.emission == EmissionMode::Analyze {
+                                return Ok(Some(Flow::Value {
+                                    temp: None,
+                                    ty: state.inferred,
+                                }));
+                            }
+                            let (Some(base), Some(index)) = (base_flow.temp(), index_flow.temp())
+                            else {
+                                return Err(CompileError::InvalidIr("index operand flow"));
+                            };
+                            Ok(Some(self.emitted(
+                                Op::IndexValue {
+                                    base,
+                                    index,
+                                    site: IndexSite {
+                                        context: state.span.clone(),
+                                        selectors: vec![state.selector.clone()],
+                                    },
+                                },
+                                state.inferred,
+                                state.span.clone(),
+                                Access::Own,
+                                false,
+                            )))
+                        }));
+                    }
                     Some(Task::Block(frame)) if frame.value_tail.is_some() => {
                         let value_tail = frame
                             .value_tail
@@ -4763,6 +5625,8 @@ impl Lower<'_> {
                                 expected.as_ref(),
                                 prelude,
                                 value.ok_or(CompileError::InvalidIr("match scrutinee flow"))?,
+                                Vec::new(),
+                                false,
                             )
                         });
                         match started {
@@ -4786,7 +5650,11 @@ impl Lower<'_> {
                         }
                     }
                     Some(Task::UserCallAfterArgument { .. }) => {
-                        let Some(Task::UserCallAfterArgument { mut state, slot }) = tasks.pop()
+                        let Some(Task::UserCallAfterArgument {
+                            mut state,
+                            slot,
+                            loan_root,
+                        }) = tasks.pop()
                         else {
                             return Err(CompileError::InvalidIr("call argument continuation"));
                         };
@@ -4794,7 +5662,7 @@ impl Lower<'_> {
                         let result = result.and_then(|flow| {
                             Ok((
                                 flow.ok_or(CompileError::InvalidIr("call argument flow"))?,
-                                None,
+                                loan_root,
                             ))
                         });
                         match finish_user_argument(&mut state, slot, arg, result) {
@@ -4938,6 +5806,12 @@ impl Lower<'_> {
                     );
                 }
                 match tasks.last_mut() {
+                    Some(Task::ForAfterBody { .. }) => {
+                        let Some(Task::ForAfterBody { state, body }) = tasks.pop() else {
+                            return Err(CompileError::InvalidIr("for body continuation"));
+                        };
+                        completed = Some(self.finish_for_after_body(*state, body, result));
+                    }
                     Some(Task::Block(frame)) => {
                         let pending = frame
                             .pending
@@ -5046,63 +5920,26 @@ impl Lower<'_> {
                                         let scopes = self.next_scope;
                                         self.terminated = None;
                                         let before_second_errors = diagnostics.len();
-                                        match self.expr_mode(condition, 0, Some(&Ty::Bool), true) {
-                                            Ok(flow) if !flow.diverged() => {
-                                                self.terminated = None;
-                                                let surviving = self.live_temps.clone();
-                                                let saved = self.scope;
-                                                self.scope = ScopeId(self.next_scope);
-                                                self.next_scope += 1;
-                                                self.scope_parents.push(Some(saved));
-                                                self.scopes.push(Vec::new());
-                                                tasks.push(Task::WhileAfterSecond {
-                                                    checkpoint: second_checkpoint,
-                                                    temp_checkpoint: second_temps,
-                                                    locals,
-                                                    scopes,
-                                                    before_errors: before_second_errors,
-                                                    affected,
-                                                    body_span: body.span.clone(),
-                                                    condition_diverges,
-                                                });
-                                                tasks.push(Task::Block(Box::new(Frame {
-                                                    statements: &body.statements,
-                                                    depth: depth + 1,
-                                                    index: 0,
-                                                    unreachable: None,
-                                                    scoped: Some(Scoped {
-                                                        block: body,
-                                                        surviving,
-                                                        saved,
-                                                    }),
-                                                    pending: None,
-                                                    value_tail: None,
-                                                })));
-                                                continue;
-                                            }
-                                            Ok(_) => {}
-                                            Err(error) => {
-                                                self.restore_availability(second_checkpoint);
-                                                self.restore_temps(second_temps);
-                                                self.locals.truncate(locals);
-                                                self.name_spans.truncate(locals);
-                                                self.next_scope = scopes;
-                                                self.scope_parents.truncate(scopes);
-                                                self.dead_depth -= 1;
-                                                self.terminated = condition_diverges
-                                                    .then_some(Termination::Diverged);
-                                                completed = Some(Err(add_backedge_to_error(
-                                                    error, &body.span, &affected,
-                                                )));
-                                                continue;
-                                            }
-                                        }
-                                        self.restore_availability(second_checkpoint);
-                                        self.restore_temps(second_temps);
-                                        self.locals.truncate(locals);
-                                        self.name_spans.truncate(locals);
-                                        self.next_scope = scopes;
-                                        self.scope_parents.truncate(scopes);
+                                        tasks.push(Task::WhileAfterSecondCondition(Box::new(
+                                            WhileSecondConditionState {
+                                                body,
+                                                depth,
+                                                checkpoint: second_checkpoint,
+                                                temp_checkpoint: second_temps,
+                                                locals,
+                                                scopes,
+                                                before_errors: before_second_errors,
+                                                affected,
+                                                condition_diverges,
+                                            },
+                                        )));
+                                        tasks.push(Task::Expr {
+                                            value: condition,
+                                            expected: Some(Ty::Bool),
+                                            depth: 0,
+                                            borrow: true,
+                                        });
+                                        continue;
                                     }
                                 }
                                 self.dead_depth -= 1;
@@ -5249,6 +6086,567 @@ impl Lower<'_> {
             if !matches!(tasks.last(), Some(Task::Block(_))) {
                 let task = tasks.pop().ok_or(CompileError::InvalidIr("lower task"))?;
                 match task {
+                    Task::StatementEnter { statement, depth } => match statement {
+                        Statement::Block(block) => {
+                            if self.emission == EmissionMode::Live {
+                                self.charge_block_statement(block);
+                            }
+                            let surviving = self.live_temps.clone();
+                            let saved = self.scope;
+                            self.scope = ScopeId(self.next_scope);
+                            self.next_scope += 1;
+                            self.scope_parents.push(Some(saved));
+                            self.scopes.push(Vec::new());
+                            tasks.push(Task::Block(Box::new(Frame {
+                                statements: &block.statements,
+                                depth: depth + 1,
+                                index: 0,
+                                unreachable: None,
+                                scoped: Some(Scoped {
+                                    block,
+                                    surviving,
+                                    saved,
+                                }),
+                                pending: None,
+                                value_tail: None,
+                            })));
+                        }
+                        Statement::If {
+                            condition,
+                            then_block,
+                            otherwise,
+                            span,
+                        } => {
+                            if self.emission == EmissionMode::Live {
+                                self.charge_control_statement(span);
+                            }
+                            tasks.push(Task::IfEnter {
+                                condition,
+                                then_block,
+                                otherwise: otherwise.as_deref().map(StatementElse::Statement),
+                                span,
+                                depth,
+                            });
+                        }
+                        Statement::While {
+                            condition,
+                            body,
+                            span,
+                        } => {
+                            if self.emission == EmissionMode::Live {
+                                self.charge_control_statement(span);
+                            }
+                            tasks.push(Task::WhileEnter {
+                                condition,
+                                body,
+                                span,
+                                depth,
+                            });
+                        }
+                        Statement::Match(selection) => tasks.push(Task::MatchEnter {
+                            selection,
+                            depth,
+                            expected: None,
+                        }),
+                        Statement::Let { .. }
+                        | Statement::Expr { .. }
+                        | Statement::Return { value: Some(_), .. } => {
+                            tasks.push(Task::StatementExprEnter(statement));
+                        }
+                        Statement::Assign { .. } => tasks.push(Task::AssignEnter(statement)),
+                        Statement::For { .. } => tasks.push(Task::ForEnter { statement, depth }),
+                        Statement::GuardControl {
+                            token,
+                            guarded: false,
+                            ..
+                        } if token == "yield" => {
+                            tasks.push(Task::YieldEnter { statement, depth });
+                        }
+                        _ => completed = Some(self.statement_leaf(statement)),
+                    },
+                    Task::YieldEnter { statement, depth } => {
+                        let Statement::GuardControl {
+                            token,
+                            value,
+                            token_span,
+                            guarded: false,
+                            span,
+                        } = statement
+                        else {
+                            return Err(CompileError::InvalidIr("yield task"));
+                        };
+                        if token != "yield" {
+                            return Err(CompileError::InvalidIr("yield task"));
+                        }
+                        if self.emission == EmissionMode::Live {
+                            self.pending_charges.push(WorkCharge {
+                                ticks: 1,
+                                origin: token_span.clone(),
+                            });
+                        }
+                        if let Some(value) = value {
+                            tasks.push(Task::YieldAfterValue { token_span, span });
+                            tasks.push(Task::Expr {
+                                value,
+                                expected: None,
+                                depth,
+                                borrow: false,
+                            });
+                        } else {
+                            let flow = self.emitted(
+                                Op::ConstUnit,
+                                Ty::Unit,
+                                token_span.clone(),
+                                Access::Own,
+                                false,
+                            );
+                            completed = Some(self.finish_yield(flow, token_span, span));
+                        }
+                    }
+                    Task::ForEnter { statement, depth } => {
+                        let Statement::For { iterable, span, .. } = statement else {
+                            return Err(CompileError::InvalidIr("for statement"));
+                        };
+                        if self.emission == EmissionMode::Live {
+                            self.charge_control_statement(span);
+                        }
+                        let surviving_temps = self.live_temps.clone();
+                        tasks.push(Task::ForAfterIterable {
+                            statement,
+                            depth,
+                            surviving_temps,
+                        });
+                        tasks.push(Task::Expr {
+                            value: iterable,
+                            expected: None,
+                            depth,
+                            borrow: false,
+                        });
+                    }
+                    Task::AssignEnter(statement) => {
+                        let Statement::Assign { place, value, .. } = statement else {
+                            return Err(CompileError::InvalidIr("assignment task"));
+                        };
+                        if self.emission == EmissionMode::Live {
+                            self.pending_charges.push(WorkPlanner::charge(
+                                WorkEvent::Assignment,
+                                place.span().clone(),
+                            ));
+                        }
+                        let prepared = (|| -> Result<AssignState<'_>, CompileError> {
+                            let (root, selectors) = place_parts(place)?;
+                            let selector_spans = index_selectors(place);
+                            let name = place_name(root)
+                                .ok_or(CompileError::InvalidIr("assignment root"))?;
+                            let local = self.get(name)?;
+                            if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {
+                                return Err(self.permission_error(
+                                    local,
+                                    root.span().clone(),
+                                    "write",
+                                ));
+                            }
+                            if selectors.is_empty() && !self.locals[local.0].mutable {
+                                return Err(self.immutable_write(root, local));
+                            }
+                            let target_ty = self.resolved_expr(place)?;
+                            let base_unresolved = matches!(
+                                self.inferred_bindings
+                                    .expressions
+                                    .get(&(root.span().start, root.span().end)),
+                                Some(ResolvedType::Unresolved)
+                            );
+                            Ok(AssignState {
+                                statement,
+                                place,
+                                root,
+                                value,
+                                local,
+                                ids: Vec::with_capacity(selectors.len()),
+                                selectors,
+                                selector_spans,
+                                next: 0,
+                                target_ty,
+                                base_unresolved,
+                                diverged: false,
+                            })
+                        })();
+                        match prepared {
+                            Ok(state) => tasks.push(Task::AssignNextSelector(Box::new(state))),
+                            Err(error) => completed = Some(Err(error)),
+                        }
+                    }
+                    Task::AssignNextSelector(state) => {
+                        if state.next < state.selectors.len() {
+                            if state.diverged {
+                                self.terminated = None;
+                            }
+                            if self.emission == EmissionMode::Live {
+                                self.pending_charges.push(WorkPlanner::charge(
+                                    WorkEvent::PlaceSelector,
+                                    state.selector_spans[state.next].clone(),
+                                ));
+                            }
+                            let selector = state.selectors[state.next];
+                            let expected = (!state.base_unresolved).then_some(Ty::I64);
+                            tasks.push(Task::AssignAfterSelector(state));
+                            tasks.push(Task::Expr {
+                                value: selector,
+                                expected,
+                                depth: 0,
+                                borrow: false,
+                            });
+                        } else {
+                            if state.diverged {
+                                self.terminated = None;
+                            }
+                            let value = state.value;
+                            let expected =
+                                (state.target_ty != Ty::Never).then_some(state.target_ty.clone());
+                            tasks.push(Task::AssignAfterValue(state));
+                            tasks.push(Task::Expr {
+                                value,
+                                expected,
+                                depth: 0,
+                                borrow: false,
+                            });
+                        }
+                    }
+                    Task::ArgumentEnter {
+                        arg,
+                        mode,
+                        expected,
+                        depth,
+                        retain_place_loan,
+                    } => {
+                        count_loan_work();
+                        if self.emission == EmissionMode::Live
+                            && mode == ParameterMode::Inout
+                            && let Some(edit) = self.tokens.iter().find(|token| {
+                                token.text == "edit"
+                                    && token.span.start >= arg.span.start
+                                    && token.span.end <= arg.span.end
+                            })
+                        {
+                            self.pending_charges.push(WorkPlanner::charge(
+                                WorkEvent::InoutPrefix,
+                                edit.span.clone(),
+                            ));
+                        }
+                        if !retain_place_loan {
+                            tasks.push(Task::Expr {
+                                value: &arg.value,
+                                expected: (expected != Ty::Never).then_some(expected),
+                                depth: depth + 1,
+                                borrow: mode == ParameterMode::Read,
+                            });
+                            continue;
+                        }
+                        let place = if mode == ParameterMode::Inout {
+                            match &arg.value {
+                                Expr::Unary {
+                                    mode: Mode::Inout,
+                                    value,
+                                    ..
+                                } => Some(value.as_ref()),
+                                _ => {
+                                    completed_value = Some(Err(CompileError::InvalidIr(
+                                        "edit mode passed checker",
+                                    )));
+                                    continue;
+                                }
+                            }
+                        } else if mode == ParameterMode::Read {
+                            Some(&arg.value)
+                        } else {
+                            None
+                        };
+                        let rooted = place
+                            .and_then(|place| {
+                                place_parts(place)
+                                    .ok()
+                                    .map(|(root, indexes)| (place, root, indexes))
+                            })
+                            .and_then(|(place, root, indexes)| {
+                                place_name(root).map(|name| (place, root, indexes, name))
+                            });
+                        if let Some((place, root, indexes, name)) = rooted {
+                            if name == "None"
+                                && self.visible.get(name).and_then(|v| v.last()).is_none()
+                            {
+                                tasks.push(Task::Expr {
+                                    value: &arg.value,
+                                    expected: Some(expected),
+                                    depth: depth + 1,
+                                    borrow: mode == ParameterMode::Read,
+                                });
+                                continue;
+                            }
+                            let local = match self.get(name) {
+                                Ok(local) => local,
+                                Err(error) => {
+                                    completed_value = Some(Err(error));
+                                    continue;
+                                }
+                            };
+                            if mode == ParameterMode::Read
+                                && matches!(
+                                    self.inferred_bindings
+                                        .expressions
+                                        .get(&(root.span().start, root.span().end)),
+                                    Some(ResolvedType::Unresolved)
+                                )
+                            {
+                                tasks.push(Task::Expr {
+                                    value: &arg.value,
+                                    expected: None,
+                                    depth: depth + 1,
+                                    borrow: true,
+                                });
+                                continue;
+                            }
+                            if mode == ParameterMode::Read && self.emission == EmissionMode::Live {
+                                if !indexes.is_empty() {
+                                    self.pending_charges.extend(
+                                        index_access_spans(&arg.value).into_iter().map(|origin| {
+                                            WorkPlanner::charge(WorkEvent::ReadSelector, origin)
+                                        }),
+                                    );
+                                }
+                                self.pending_charges.push(WorkPlanner::charge(
+                                    WorkEvent::ReadName,
+                                    root.span().clone(),
+                                ));
+                            }
+                            if mode == ParameterMode::Inout && self.emission == EmissionMode::Live {
+                                self.pending_charges.extend(
+                                    index_selectors(place).into_iter().map(|origin| {
+                                        WorkPlanner::charge(WorkEvent::PlaceSelector, origin)
+                                    }),
+                                );
+                            }
+                            if mode == ParameterMode::Inout {
+                                if self.locals[local.0].parameter_mode == Some(ParameterMode::Read)
+                                {
+                                    completed_value = Some(Err(self.permission_error(
+                                        local,
+                                        root.span().clone(),
+                                        "borrow_inout",
+                                    )));
+                                    continue;
+                                }
+                                if !self.locals[local.0].mutable {
+                                    completed_value = Some(Err(self.immutable_write(root, local)));
+                                    continue;
+                                }
+                            }
+                            match self.resolved_expr(&arg.value) {
+                                Err(error) => completed_value = Some(Err(error)),
+                                Ok(ty) => tasks.push(Task::ArgumentPlaceNext(Box::new(
+                                    ArgumentPlaceState {
+                                        arg,
+                                        place,
+                                        root,
+                                        local,
+                                        mode,
+                                        ty,
+                                        depth,
+                                        indexes,
+                                        ids: Vec::new(),
+                                    },
+                                ))),
+                            }
+                        } else if mode == ParameterMode::Inout {
+                            completed_value =
+                                Some(Err(CompileError::InvalidIr("edit place passed parser")));
+                        } else {
+                            tasks.push(Task::Expr {
+                                value: &arg.value,
+                                expected: (expected != Ty::Never).then_some(expected),
+                                depth: depth + 1,
+                                borrow: mode == ParameterMode::Read,
+                            });
+                        }
+                    }
+                    Task::ArgumentPlaceNext(mut state) => {
+                        if !state.indexes.is_empty() {
+                            let next = state.indexes.remove(0);
+                            let depth = state.depth;
+                            tasks.push(Task::ArgumentPlaceAfterIndex(state));
+                            tasks.push(Task::Expr {
+                                value: next,
+                                expected: Some(Ty::I64),
+                                depth: depth + 1,
+                                borrow: true,
+                            });
+                            continue;
+                        }
+                        let indexed = !index_selectors(state.place).is_empty();
+                        let requested = if state.mode == ParameterMode::Inout {
+                            "borrow_inout"
+                        } else {
+                            "read"
+                        };
+                        if let Err(error) = self.check_place_access(
+                            state.local,
+                            state.root,
+                            state.place,
+                            requested,
+                            indexed,
+                        ) {
+                            completed_value = Some(Err(error));
+                            continue;
+                        }
+                        if self.locals[state.local.0].ty == Ty::Never {
+                            completed_value = Some(Ok(Some(Flow::Value {
+                                temp: None,
+                                ty: state.ty,
+                            })));
+                            continue;
+                        }
+                        let permission = if state.mode == ParameterMode::Inout {
+                            LoanPermission::Inout
+                        } else {
+                            LoanPermission::Read
+                        };
+                        let loan = LoanId(state.arg.span.start as usize);
+                        let parent = (self.locals[state.local.0].parameter_mode
+                            == Some(ParameterMode::Inout))
+                        .then_some(state.local);
+                        let flow = self.emitted(
+                            Op::BeginLoan {
+                                root: state.local,
+                                indexes: state.ids,
+                                site: index_site(state.place, state.arg.span.clone()),
+                                loan,
+                                origin_span: state.arg.span.clone(),
+                                permission,
+                                parent,
+                            },
+                            state.ty,
+                            state.arg.value.span().clone(),
+                            Access::Read,
+                            false,
+                        );
+                        self.active_loans
+                            .entry(state.local)
+                            .or_default()
+                            .push(ActiveLoan {
+                                permission,
+                                span: state.arg.span.clone(),
+                                loan,
+                                parent,
+                            });
+                        match tasks.last_mut() {
+                            Some(Task::UserCallAfterArgument { loan_root, .. }) => {
+                                *loan_root = Some(state.local);
+                            }
+                            #[cfg(test)]
+                            None => {}
+                            _ => {
+                                return Err(CompileError::InvalidIr("loan call continuation"));
+                            }
+                        }
+                        completed_value = Some(Ok(Some(flow)));
+                    }
+                    Task::StatementExprEnter(statement) => match statement {
+                        Statement::Let {
+                            mutable,
+                            name,
+                            value,
+                            ..
+                        } => {
+                            let prepared = (|| -> Result<(Span, Ty), CompileError> {
+                                let binding_span =
+                                    self.name_span(statement, name, value.span().start)?;
+                                if self.emission == EmissionMode::Live {
+                                    let statement_start = statement_span(statement).start;
+                                    if let Some(token) = self
+                                        .tokens
+                                        .iter()
+                                        .find(|token| token.span.start == statement_start)
+                                    {
+                                        self.pending_charges.push(WorkPlanner::charge(
+                                            WorkEvent::Binding,
+                                            token.span.clone(),
+                                        ));
+                                    }
+                                }
+                                let expected = self.resolved_type(
+                                    self.inferred_bindings
+                                        .bindings
+                                        .get(&binding_span.start)
+                                        .ok_or(CompileError::InvalidIr(
+                                            "missing checker binding type",
+                                        ))?,
+                                )?;
+                                Ok((binding_span, expected))
+                            })();
+                            match prepared {
+                                Err(error) => completed = Some(Err(error)),
+                                Ok((binding_span, expected)) => {
+                                    tasks.push(Task::StatementExprAfter(Box::new(
+                                        StatementExprState::Let {
+                                            statement,
+                                            mutable: *mutable,
+                                            name,
+                                            binding_span,
+                                            expected: expected.clone(),
+                                        },
+                                    )));
+                                    tasks.push(Task::Expr {
+                                        value,
+                                        expected: Some(expected),
+                                        depth: 0,
+                                        borrow: false,
+                                    });
+                                }
+                            }
+                        }
+                        Statement::Expr { value, .. } => {
+                            if self.emission == EmissionMode::Live {
+                                self.pending_charges.push(WorkPlanner::charge(
+                                    WorkEvent::ExpressionStatement,
+                                    value.span().clone(),
+                                ));
+                            }
+                            tasks.push(Task::StatementExprAfter(Box::new(
+                                StatementExprState::Expr(statement),
+                            )));
+                            tasks.push(Task::Expr {
+                                value,
+                                expected: None,
+                                depth: 0,
+                                borrow: false,
+                            });
+                        }
+                        Statement::Return {
+                            value: Some(value),
+                            span,
+                        } => {
+                            if self.emission == EmissionMode::Live {
+                                let origin = Span {
+                                    file: span.file.clone(),
+                                    start: span.start,
+                                    end: span
+                                        .end
+                                        .min(span.start.saturating_add("return".len() as u64)),
+                                };
+                                self.pending_charges
+                                    .push(WorkPlanner::charge(WorkEvent::ReturnStatement, origin));
+                            }
+                            tasks.push(Task::StatementExprAfter(Box::new(
+                                StatementExprState::Return(statement),
+                            )));
+                            tasks.push(Task::Expr {
+                                value,
+                                expected: Some(self.result.clone()),
+                                depth: 0,
+                                borrow: false,
+                            });
+                        }
+                        _ => return Err(CompileError::InvalidIr("statement expression task")),
+                    },
                     Task::ValueBlockEnter {
                         block,
                         expected,
@@ -5300,6 +6698,7 @@ impl Lower<'_> {
                         value,
                         expected,
                         depth,
+                        borrow,
                     } => {
                         let mut inner = value;
                         let mut inner_depth = depth;
@@ -5307,7 +6706,143 @@ impl Lower<'_> {
                             inner = next;
                             inner_depth += 1;
                         }
-                        if let Expr::If {
+                        if let Expr::Binary {
+                            op,
+                            left,
+                            right,
+                            span,
+                        } = inner
+                        {
+                            match self.prepare_expr(inner) {
+                                Ok(inferred) => {
+                                    tasks.push(Task::BinaryLeft(Box::new(BinaryState {
+                                        op,
+                                        left,
+                                        right,
+                                        span,
+                                        inferred,
+                                        depth: inner_depth,
+                                        left_flow: None,
+                                        left_root: None,
+                                    })));
+                                    tasks.push(Task::Expr {
+                                        value: left,
+                                        expected: None,
+                                        depth: inner_depth + 1,
+                                        borrow: true,
+                                    });
+                                }
+                                Err(error) => completed_value = Some(Err(error)),
+                            }
+                        } else if let Expr::Array(items, span) = inner {
+                            match self.prepare_expr(inner) {
+                                Err(error) => completed_value = Some(Err(error)),
+                                Ok(inferred) => tasks.push(Task::ArrayNext(Box::new(ArrayState {
+                                    items,
+                                    span,
+                                    inferred,
+                                    depth: inner_depth,
+                                    next: 0,
+                                    ids: Vec::with_capacity(items.len()),
+                                    diverged: false,
+                                    item_errors: Vec::new(),
+                                    dependent: false,
+                                }))),
+                            }
+                        } else if let Expr::Index {
+                            target,
+                            index,
+                            selector,
+                            span,
+                        } = inner
+                        {
+                            match self.prepare_expr(inner) {
+                                Err(error) => completed_value = Some(Err(error)),
+                                Ok(inferred) => {
+                                    let unresolved = matches!(
+                                        self.inferred_bindings
+                                            .expressions
+                                            .get(&(target.span().start, target.span().end)),
+                                        Some(ResolvedType::Unresolved)
+                                    );
+                                    if unresolved && self.emission == EmissionMode::Live {
+                                        completed_value = Some(Err(CompileError::InvalidIr(
+                                            "live unresolved index base",
+                                        )));
+                                        continue;
+                                    }
+                                    let place = if unresolved {
+                                        None
+                                    } else {
+                                        place_parts(inner).ok().and_then(|(root, selectors)| {
+                                            place_name(root).map(|name| (root, selectors, name))
+                                        })
+                                    };
+                                    if let Some((root, selectors, name)) = place {
+                                        match self.get(name) {
+                                            Err(error) => completed_value = Some(Err(error)),
+                                            Ok(local) => {
+                                                if self.emission == EmissionMode::Live {
+                                                    self.pending_charges.extend(
+                                                        index_access_spans(inner)
+                                                            .into_iter()
+                                                            .skip(1)
+                                                            .map(|origin| {
+                                                                WorkPlanner::charge(
+                                                                    WorkEvent::IndexExpression,
+                                                                    origin,
+                                                                )
+                                                            }),
+                                                    );
+                                                    self.pending_charges.push(WorkPlanner::charge(
+                                                        WorkEvent::ReadName,
+                                                        root.span().clone(),
+                                                    ));
+                                                }
+                                                tasks.push(Task::IndexNext(Box::new(IndexState {
+                                                    expr: inner,
+                                                    index,
+                                                    selector,
+                                                    span,
+                                                    inferred,
+                                                    depth: inner_depth,
+                                                    borrow,
+                                                    kind: IndexKind::Place {
+                                                        root,
+                                                        local,
+                                                        ids: Vec::with_capacity(selectors.len()),
+                                                        selectors,
+                                                        diverged: false,
+                                                    },
+                                                })));
+                                            }
+                                        }
+                                    } else {
+                                        let kind = if unresolved {
+                                            IndexKind::Unresolved
+                                        } else {
+                                            IndexKind::Value { base: None }
+                                        };
+                                        tasks.push(Task::IndexAfterBase(Box::new(IndexState {
+                                            expr: inner,
+                                            index,
+                                            selector,
+                                            span,
+                                            inferred,
+                                            depth: inner_depth,
+                                            borrow,
+                                            kind,
+                                        })));
+                                        tasks.push(Task::Expr {
+                                            value: target,
+                                            expected: None,
+                                            depth: inner_depth + 1,
+                                            borrow: false,
+                                        });
+                                    }
+                                }
+                            }
+                        } else if let Expr::If {
                             condition,
                             then_block,
                             otherwise,
@@ -5326,6 +6861,36 @@ impl Lower<'_> {
                                 Err(error) => completed_value = Some(Err(error)),
                             }
                         } else if let Expr::Unary {
+                            mode: Mode::Inout | Mode::Consume,
+                            value,
+                            span,
+                        } = inner
+                            && matches!(value.as_ref(), Expr::Call { .. })
+                        {
+                            match self.prepare_expr(inner) {
+                                Err(error) => completed_value = Some(Err(error)),
+                                Ok(_) => {
+                                    let mode = if matches!(
+                                        inner,
+                                        Expr::Unary {
+                                            mode: Mode::Inout,
+                                            ..
+                                        }
+                                    ) {
+                                        ParameterMode::Inout
+                                    } else {
+                                        ParameterMode::Consume
+                                    };
+                                    self.requested_receiver = Some((mode, span.clone()));
+                                    tasks.push(Task::Expr {
+                                        value,
+                                        expected,
+                                        depth: inner_depth + 1,
+                                        borrow: false,
+                                    });
+                                }
+                            }
+                        } else if let Expr::Unary {
                             mode: Mode::Read,
                             value,
                             span,
@@ -5334,6 +6899,23 @@ impl Lower<'_> {
                             match self.prepare_expr(inner) {
                                 Ok(inferred) => tasks.push(Task::UnaryReadEnter {
                                     value,
+                                    span,
+                                    depth: inner_depth,
+                                    inferred,
+                                }),
+                                Err(error) => completed_value = Some(Err(error)),
+                            }
+                        } else if let Expr::Call { target, args, span } = inner
+                            && place_name(target) == Some("Iterator.Next")
+                            && self
+                                .visible
+                                .get("Iterator.Next")
+                                .and_then(|ids| ids.last())
+                                .is_none()
+                        {
+                            match self.prepare_expr(inner) {
+                                Ok(inferred) => tasks.push(Task::GeneratorNextEnter {
+                                    args,
                                     span,
                                     depth: inner_depth,
                                     inferred,
@@ -5404,6 +6986,17 @@ impl Lower<'_> {
                                 }),
                                 Err(error) => completed_value = Some(Err(error)),
                             }
+                        } else if let Expr::Call { target, args, span } = inner {
+                            match self.prepare_expr(inner) {
+                                Ok(inferred) => tasks.push(Task::OtherCallEnter {
+                                    target,
+                                    args,
+                                    span,
+                                    depth: inner_depth,
+                                    inferred,
+                                }),
+                                Err(error) => completed_value = Some(Err(error)),
+                            }
                         } else if let Expr::Match(selection) = inner {
                             match self.prepare_expr(inner) {
                                 Ok(inferred) => {
@@ -5423,7 +7016,7 @@ impl Lower<'_> {
                                     inner,
                                     inner_depth,
                                     expected.as_ref(),
-                                    false,
+                                    borrow,
                                 )
                                 .map(Some),
                             );
@@ -5437,29 +7030,35 @@ impl Lower<'_> {
                         depth,
                         expected,
                     } => {
-                        match self.begin_if_expression(
-                            condition,
-                            then_block,
-                            otherwise,
-                            span,
-                            depth,
-                            expected.as_ref(),
-                        ) {
-                            Ok(started) => {
-                                let expected = Some(started.inferred_ty.clone());
-                                let outer_diagnostics = std::mem::take(diagnostics);
-                                tasks.push(Task::IfExprAfterThen(
-                                    Box::new(started),
-                                    outer_diagnostics,
-                                ));
-                                tasks.push(Task::ValueBlockEnter {
-                                    block: then_block,
-                                    expected,
-                                    if_span: span,
-                                    depth,
-                                });
-                            }
-                            Err(error) => completed_value = Some(Err(error)),
+                        if otherwise.is_none() {
+                            let primary = Span {
+                                file: span.file.clone(),
+                                start: span.start,
+                                end: span.start + 2,
+                            };
+                            completed_value = Some(Err(CompileError::Rejected(vec![
+                                crate::check::names::diagnostic(
+                                    "NX-E1302",
+                                    Some("missing_else"),
+                                    diagnostic::Stage::Parse,
+                                    diagnostic::Operation::SyntaxParse,
+                                    primary,
+                                ),
+                            ])));
+                        } else {
+                            tasks.push(Task::IfExprAfterCondition {
+                                then_block,
+                                otherwise,
+                                span,
+                                depth,
+                                expected,
+                            });
+                            tasks.push(Task::Expr {
+                                value: condition,
+                                expected: Some(Ty::Bool),
+                                depth: depth + 1,
+                                borrow: true,
+                            });
                         }
                     }
                     Task::IfExprElse(mut state) => {
@@ -5482,6 +7081,7 @@ impl Lower<'_> {
                                 value: expr,
                                 expected,
                                 depth: depth + 1,
+                                borrow: false,
                             }),
                         }
                     }
@@ -5492,6 +7092,74 @@ impl Lower<'_> {
                     } => {
                         if self.emission != EmissionMode::Live {
                             tasks.push(Task::MatchRestore(Box::new(self.capture_match_snapshot())));
+                        }
+                        let rooted = if matches!(selection.mode, None | Some(Mode::Inout)) {
+                            parse::place_parts(&selection.scrutinee)
+                                .and_then(|(root, indexes)| {
+                                    place_name(root).map(|name| (root, indexes, name))
+                                })
+                                .filter(|(_, _, name)| {
+                                    *name != "None"
+                                        || self
+                                            .visible
+                                            .get(*name)
+                                            .and_then(|ids| ids.last())
+                                            .is_some()
+                                })
+                        } else {
+                            None
+                        };
+                        if let Some((_, indexes, name)) = rooted {
+                            let prepared = (|| -> Result<MatchIndexState<'_>, CompileError> {
+                                let prelude = self.match_selection_prelude(selection)?;
+                                let local = self.get(name)?;
+                                let origin = selection.scrutinee.span().clone();
+                                if selection.mode == Some(Mode::Inout) {
+                                    self.check_available(local, origin.clone())?;
+                                    if self.locals[local.0].parameter_mode
+                                        == Some(ParameterMode::Read)
+                                    {
+                                        return Err(self.permission_error(
+                                            local,
+                                            origin.clone(),
+                                            "borrow_inout",
+                                        ));
+                                    }
+                                    if !self.locals[local.0].mutable {
+                                        return Err(
+                                            self.immutable_write(&selection.scrutinee, local)
+                                        );
+                                    }
+                                    self.conflict(local, origin, "borrow_inout")?;
+                                } else {
+                                    self.check_available(local, origin.clone())?;
+                                    self.conflict(local, origin, "read")?;
+                                }
+                                let selected = Flow::Value {
+                                    temp: None,
+                                    ty: prelude.selected_ty.clone(),
+                                };
+                                Ok(MatchIndexState {
+                                    selection,
+                                    depth,
+                                    expected: expected.clone(),
+                                    prelude,
+                                    selected,
+                                    selectors: indexes,
+                                    ids: Vec::new(),
+                                })
+                            })();
+                            match prepared {
+                                Ok(state) => tasks.push(Task::MatchIndexNext(Box::new(state))),
+                                Err(error) => {
+                                    if expected.is_some() {
+                                        completed_value = Some(Err(error));
+                                    } else {
+                                        completed = Some(Err(error));
+                                    }
+                                }
+                            }
+                            continue;
                         }
                         if self.match_needs_scrutinee_expr(selection) {
                             match self.match_selection_prelude(selection) {
@@ -5507,6 +7175,7 @@ impl Lower<'_> {
                                         value: &selection.scrutinee,
                                         expected: Some(selected_ty),
                                         depth: depth + 1,
+                                        borrow: false,
                                     });
                                 }
                                 Err(error) => {
@@ -5544,46 +7213,65 @@ impl Lower<'_> {
                             }
                         }
                     }
+                    Task::MatchIndexNext(mut state) => {
+                        if !state.selectors.is_empty() {
+                            let selector = state.selectors.remove(0);
+                            let depth = state.depth;
+                            tasks.push(Task::MatchIndexAfterSelector(state));
+                            tasks.push(Task::Expr {
+                                value: selector,
+                                expected: Some(Ty::I64),
+                                depth: depth + 1,
+                                borrow: true,
+                            });
+                            continue;
+                        }
+                        let expression = state.expected.is_some();
+                        match self.begin_match_selection_after_selected(
+                            state.selection,
+                            expression,
+                            state.depth,
+                            state.expected.as_ref(),
+                            state.prelude,
+                            state.selected,
+                            state.ids,
+                            true,
+                        ) {
+                            Ok(lower_match::MatchStart::Completed(flow)) => {
+                                if expression {
+                                    completed_value = Some(Ok(Some(flow)));
+                                } else {
+                                    completed = Some(Ok(()));
+                                }
+                            }
+                            Ok(lower_match::MatchStart::Active(next)) => {
+                                tasks.push(Task::MatchNext(next));
+                            }
+                            Err(error) => {
+                                if expression {
+                                    completed_value = Some(Err(error));
+                                } else {
+                                    completed = Some(Err(error));
+                                }
+                            }
+                        }
+                    }
                     Task::MatchNext(mut state) => {
                         match self.begin_match_arm(&mut state, diagnostics) {
-                            Ok(Some(arm)) => {
-                                let block = arm.body();
-                                let depth = state.depth();
-                                let expression = state.is_expression();
-                                let expected = state.expected();
-                                let if_span = &state.selection().keyword_span;
-                                if expression {
-                                    tasks.push(Task::MatchAfterArm { state, arm });
-                                    tasks.push(Task::ValueBlockEnter {
-                                        block,
-                                        expected,
-                                        if_span,
-                                        depth: depth + 1,
-                                    });
-                                    continue;
-                                }
-                                let surviving = self.live_temps.clone();
-                                let saved = self.scope;
-                                self.scope = ScopeId(self.next_scope);
-                                self.next_scope += 1;
-                                self.scope_parents.push(Some(saved));
-                                self.scopes.push(Vec::new());
-                                tasks.push(Task::MatchAfterArm { state, arm });
-                                tasks.push(Task::Block(Box::new(Frame {
-                                    statements: &block.statements,
-                                    depth: depth + 1,
-                                    index: 0,
-                                    unreachable: None,
-                                    scoped: Some(Scoped {
-                                        block,
-                                        surviving,
-                                        saved,
-                                    }),
-                                    pending: None,
-                                    value_tail: None,
-                                })));
+                            Ok(lower_match::MatchArmStart::Done(Some(arm))) => {
+                                tasks.push(Task::MatchArmReady { state, arm });
                             }
-                            Ok(None) => {
+                            Ok(lower_match::MatchArmStart::Guard { arm, guard, saved }) => {
+                                let depth = state.depth();
+                                tasks.push(Task::MatchGuardAfter { state, arm, saved });
+                                tasks.push(Task::Expr {
+                                    value: guard,
+                                    expected: Some(Ty::Bool),
+                                    depth: depth + 1,
+                                    borrow: false,
+                                });
+                            }
+                            Ok(lower_match::MatchArmStart::Done(None)) => {
                                 let expression = state.is_expression();
                                 let result = self.finish_match_selection(state);
                                 if expression {
@@ -5599,6 +7287,338 @@ impl Lower<'_> {
                                     completed = Some(Err(error));
                                 }
                             }
+                        }
+                    }
+                    Task::MatchArmReady { state, arm } => {
+                        let block = arm.body();
+                        let depth = state.depth();
+                        let expression = state.is_expression();
+                        let expected = state.expected();
+                        let if_span = &state.selection().keyword_span;
+                        if expression {
+                            tasks.push(Task::MatchAfterArm { state, arm });
+                            tasks.push(Task::ValueBlockEnter {
+                                block,
+                                expected,
+                                if_span,
+                                depth: depth + 1,
+                            });
+                            continue;
+                        }
+                        let surviving = self.live_temps.clone();
+                        let saved = self.scope;
+                        self.scope = ScopeId(self.next_scope);
+                        self.next_scope += 1;
+                        self.scope_parents.push(Some(saved));
+                        self.scopes.push(Vec::new());
+                        tasks.push(Task::MatchAfterArm { state, arm });
+                        tasks.push(Task::Block(Box::new(Frame {
+                            statements: &block.statements,
+                            depth: depth + 1,
+                            index: 0,
+                            unreachable: None,
+                            scoped: Some(Scoped {
+                                block,
+                                surviving,
+                                saved,
+                            }),
+                            pending: None,
+                            value_tail: None,
+                        })));
+                    }
+                    Task::ArrayNext(state) => {
+                        if state.next == state.items.len() {
+                            completed_value = Some(if !state.item_errors.is_empty() {
+                                Err(CompileError::Rejected(
+                                    state.item_errors.into_iter().map(Box::new).collect(),
+                                ))
+                            } else if state.dependent {
+                                Err(CompileError::Dependent)
+                            } else if state.diverged {
+                                self.terminated = Some(Termination::Diverged);
+                                Ok(Some(Flow::Diverged {
+                                    ty: (state.inferred != Ty::Never).then_some(state.inferred),
+                                }))
+                            } else if state.inferred == Ty::Never {
+                                if self.emission == EmissionMode::Live {
+                                    Err(CompileError::InvalidIr("unresolved checker array type"))
+                                } else {
+                                    Ok(Some(Flow::Value {
+                                        temp: None,
+                                        ty: state.inferred,
+                                    }))
+                                }
+                            } else {
+                                Ok(Some(self.emitted(
+                                    Op::BuildArray(state.ids),
+                                    state.inferred,
+                                    state.span.clone(),
+                                    Access::Own,
+                                    false,
+                                )))
+                            });
+                        } else {
+                            if state.diverged {
+                                self.terminated = None;
+                            }
+                            let item = &state.items[state.next];
+                            let depth = state.depth;
+                            tasks.push(Task::ArrayAfterItem(state));
+                            tasks.push(Task::Expr {
+                                value: item,
+                                expected: None,
+                                depth: depth + 1,
+                                borrow: false,
+                            });
+                        }
+                    }
+                    Task::IndexNext(mut state) => {
+                        let IndexKind::Place {
+                            root,
+                            local,
+                            selectors,
+                            ids,
+                            diverged,
+                        } = &mut state.kind
+                        else {
+                            return Err(CompileError::InvalidIr("index place state"));
+                        };
+                        if !selectors.is_empty() {
+                            if *diverged {
+                                self.terminated = None;
+                                self.emission = EmissionMode::Analyze;
+                            }
+                            let next = selectors.remove(0);
+                            let depth = state.depth;
+                            tasks.push(Task::IndexAfterSelector(state));
+                            tasks.push(Task::Expr {
+                                value: next,
+                                expected: Some(Ty::I64),
+                                depth: depth + 1,
+                                borrow: true,
+                            });
+                            continue;
+                        }
+                        if *diverged {
+                            self.terminated = Some(Termination::Diverged);
+                            completed_value = Some(Ok(Some(Flow::Diverged {
+                                ty: (state.inferred != Ty::Never).then_some(state.inferred),
+                            })));
+                        } else if state.inferred == Ty::Never {
+                            completed_value = Some(Ok(Some(Flow::Value {
+                                temp: None,
+                                ty: state.inferred,
+                            })));
+                        } else {
+                            let operation = if state.borrow {
+                                Op::BorrowIndex {
+                                    local: *local,
+                                    indexes: std::mem::take(ids),
+                                    site: index_site(state.expr, state.span.clone()),
+                                }
+                            } else {
+                                Op::ReadIndex {
+                                    local: *local,
+                                    indexes: std::mem::take(ids),
+                                    site: index_site(state.expr, state.span.clone()),
+                                }
+                            };
+                            let _ = root;
+                            completed_value = Some(Ok(Some(self.emitted(
+                                operation,
+                                state.inferred,
+                                state.span.clone(),
+                                Access::Read,
+                                false,
+                            ))));
+                        }
+                    }
+                    Task::OtherCallEnter {
+                        target,
+                        args,
+                        span,
+                        depth,
+                        inferred,
+                    } => {
+                        let (receiver_mode, receiver_span) = self
+                            .requested_receiver
+                            .take()
+                            .unwrap_or((ParameterMode::Read, target.span().clone()));
+                        let target_ty = if let Some(name) = place_name(target) {
+                            if self.visible.get(name).and_then(|ids| ids.last()).is_some() {
+                                self.resolved_expr(target).map(Some)
+                            } else {
+                                Ok(None)
+                            }
+                        } else {
+                            self.resolved_expr(target).map(Some)
+                        };
+                        let target_ty = match target_ty {
+                            Ok(value) => value,
+                            Err(error) => {
+                                completed_value = Some(Err(error));
+                                continue;
+                            }
+                        };
+                        if let Some(Ty::Closure { site, .. }) = target_ty {
+                            let required = match self.inferred_bindings.closures.get(&site) {
+                                Some(info) => match info.required_mode {
+                                    Mode::Read => ParameterMode::Read,
+                                    Mode::Inout => ParameterMode::Inout,
+                                    Mode::Consume => ParameterMode::Consume,
+                                },
+                                None => {
+                                    completed_value = Some(Err(CompileError::InvalidIr(
+                                        "closure call signature",
+                                    )));
+                                    continue;
+                                }
+                            };
+                            let mode_rank = |mode| match mode {
+                                ParameterMode::Read => 0,
+                                ParameterMode::Inout => 1,
+                                ParameterMode::Consume => 2,
+                            };
+                            let mode_name = |mode| match mode {
+                                ParameterMode::Read => "read",
+                                ParameterMode::Inout => "inout",
+                                ParameterMode::Consume => "consume",
+                            };
+                            if mode_rank(receiver_mode) < mode_rank(required) {
+                                let mut error = crate::check::names::diagnostic(
+                                    "NX-E1107",
+                                    None,
+                                    diagnostic::Stage::Ownership,
+                                    diagnostic::Operation::OwnershipCheck,
+                                    target.span().clone(),
+                                );
+                                if let Some(name) = place_name(target)
+                                    && let Ok(local) = self.get(name)
+                                {
+                                    error.related_spans.push(diagnostic::RelatedSpan {
+                                        role: diagnostic::RelatedRole::Declaration,
+                                        span: self.name_spans[local.0].clone(),
+                                    });
+                                }
+                                error.data.insert(
+                                    "required_mode".into(),
+                                    diagnostic::DataValue::String(mode_name(required).into()),
+                                );
+                                error.data.insert(
+                                    "requested_mode".into(),
+                                    diagnostic::DataValue::String(mode_name(receiver_mode).into()),
+                                );
+                                completed_value = Some(Err(CompileError::Rejected(vec![error])));
+                                continue;
+                            }
+                            let state = ClosureCallState {
+                                args,
+                                span,
+                                depth,
+                                inferred,
+                                site,
+                                receiver_mode,
+                            };
+                            if place_name(target).is_some() {
+                                match named_closure_receiver(
+                                    self,
+                                    target,
+                                    receiver_mode,
+                                    &receiver_span,
+                                ) {
+                                    Err(error) => completed_value = Some(Err(error)),
+                                    Ok((receiver, receiver_loan)) if receiver.diverged() => {
+                                        let _ = receiver_loan;
+                                        completed_value = Some(Ok(Some(Flow::Diverged {
+                                            ty: Some(state.inferred),
+                                        })));
+                                    }
+                                    Ok((receiver, receiver_loan)) => {
+                                        match closure_call_state(
+                                            self,
+                                            state,
+                                            receiver,
+                                            receiver_loan,
+                                        ) {
+                                            Ok(call) => {
+                                                tasks.push(Task::UserCallNext(Box::new(call)))
+                                            }
+                                            Err(error) => completed_value = Some(Err(error)),
+                                        }
+                                    }
+                                }
+                            } else if receiver_mode != ParameterMode::Read {
+                                completed_value = Some(Err(CompileError::InvalidIr(
+                                    "non-place closure receiver",
+                                )));
+                            } else {
+                                tasks.push(Task::ClosureAfterReceiver(Box::new(state)));
+                                tasks.push(Task::Expr {
+                                    value: target,
+                                    expected: None,
+                                    depth: depth + 1,
+                                    borrow: false,
+                                });
+                            }
+                            continue;
+                        }
+                        let Some(name) = place_name(target) else {
+                            completed_value = Some(Err(CompileError::InvalidIr("call target")));
+                            continue;
+                        };
+                        if self.visible.get(name).and_then(|ids| ids.last()).is_some() {
+                            completed_value = Some(match self.get(name) {
+                                Err(error) => Err(error),
+                                Ok(_) => Err(CompileError::InvalidIr(
+                                    "non-callable target passed checker",
+                                )),
+                            });
+                            continue;
+                        }
+                        if name == "Drop"
+                            && args.len() == 1
+                            && let Some(binding) = place_name(&args[0].value)
+                        {
+                            let dropped = (|| -> Result<Flow, CompileError> {
+                                let local = self.get(binding)?;
+                                self.check_available(local, args[0].value.span().clone())?;
+                                if self.locals[local.0]
+                                    .parameter_mode
+                                    .is_some_and(|mode| mode != ParameterMode::Consume)
+                                {
+                                    return Err(self.permission_error(
+                                        local,
+                                        args[0].value.span().clone(),
+                                        "drop",
+                                    ));
+                                }
+                                self.conflict(local, args[0].value.span().clone(), "drop")?;
+                                self.mark_consumed(local, Some((span.clone(), true)));
+                                let value = self.emitted(
+                                    Op::TransferValue(local),
+                                    self.locals[local.0].ty.clone(),
+                                    span.clone(),
+                                    Access::Own,
+                                    false,
+                                );
+                                let Some(value) = value.temp() else {
+                                    return Ok(Flow::Diverged { ty: Some(inferred) });
+                                };
+                                Ok(self.emitted(
+                                    Op::CallIntrinsic {
+                                        intrinsic: Intrinsic::DropData,
+                                        args: vec![value],
+                                    },
+                                    inferred,
+                                    span.clone(),
+                                    Access::Own,
+                                    false,
+                                ))
+                            })();
+                            completed_value = Some(dropped.map(Some));
+                        } else {
+                            completed_value =
+                                Some(Err(CompileError::InvalidIr("user or deferred call")));
                         }
                     }
                     Task::UserCallEnter {
@@ -5678,6 +7698,56 @@ impl Lower<'_> {
                             diverged: false,
                         })));
                     }
+                    Task::GeneratorNextEnter {
+                        args,
+                        span,
+                        depth,
+                        inferred,
+                    } => {
+                        self.requested_receiver.take();
+                        let prepared = (|| -> Result<(Ty, CallParameters), CompileError> {
+                            let argument = args
+                                .first()
+                                .ok_or(CompileError::InvalidIr("next argument"))?;
+                            let generator = self.resolved_expr(&argument.value)?;
+                            let Ty::Generator { item, .. } = &generator else {
+                                return Err(CompileError::InvalidIr("next receiver type"));
+                            };
+                            Ok((
+                                item.as_ref().clone(),
+                                vec![("g".into(), ParameterMode::Inout, generator)],
+                            ))
+                        })();
+                        match prepared {
+                            Err(error) => completed_value = Some(Err(error)),
+                            Ok((item, params)) => {
+                                let slot_by_name = params
+                                    .iter()
+                                    .enumerate()
+                                    .map(|(index, (label, _, _))| (label.clone(), index))
+                                    .collect();
+                                tasks.push(Task::UserCallNext(Box::new(UserCallState {
+                                    args,
+                                    kind: CallKind::GeneratorNext { item },
+                                    span,
+                                    depth,
+                                    inferred,
+                                    used: vec![false; params.len()],
+                                    slot_by_name,
+                                    params,
+                                    check_types: true,
+                                    retain_place_loans: true,
+                                    next_positional: 0,
+                                    index: 0,
+                                    prepared: Vec::with_capacity(args.len()),
+                                    acquired: Vec::new(),
+                                    argument_errors: Vec::new(),
+                                    dependent: false,
+                                    diverged: false,
+                                })));
+                            }
+                        }
+                    }
                     Task::VariantEnter {
                         value,
                         tag,
@@ -5694,6 +7764,7 @@ impl Lower<'_> {
                             value,
                             expected: None,
                             depth: depth + 1,
+                            borrow: false,
                         });
                     }
                     Task::UnaryReadEnter {
@@ -5707,6 +7778,7 @@ impl Lower<'_> {
                             value,
                             expected: None,
                             depth: depth + 1,
+                            borrow: false,
                         });
                     }
                     Task::UserCallNext(mut state) => {
@@ -5722,7 +7794,9 @@ impl Lower<'_> {
                                 self.terminated = Some(Termination::Diverged);
                                 completed_value = Some(Ok(Some(Flow::Diverged {
                                     ty: match state.kind {
-                                        CallKind::User(_) => Some(state.inferred),
+                                        CallKind::User(_)
+                                        | CallKind::GeneratorNext { .. }
+                                        | CallKind::Closure { .. } => Some(state.inferred),
                                         CallKind::Intrinsic(_) => None,
                                     },
                                 })));
@@ -5786,6 +7860,79 @@ impl Lower<'_> {
                                         );
                                         completed_value = Some(Ok(Some(flow)));
                                     }
+                                    CallKind::GeneratorNext { item } => {
+                                        if self.emission == EmissionMode::Analyze {
+                                            completed_value = Some(Ok(Some(Flow::Value {
+                                                temp: None,
+                                                ty: state.inferred,
+                                            })));
+                                            continue;
+                                        }
+                                        let Some((_, receiver)) = state.prepared.first() else {
+                                            completed_value = Some(Err(CompileError::InvalidIr(
+                                                "next receiver flow",
+                                            )));
+                                            continue;
+                                        };
+                                        let flow = self.emitted(
+                                            Op::ResumeGenerator {
+                                                receiver: *receiver,
+                                                item,
+                                            },
+                                            state.inferred,
+                                            state.span.clone(),
+                                            Access::Own,
+                                            false,
+                                        );
+                                        self.end_call_loans(state.acquired);
+                                        completed_value = Some(Ok(Some(flow)));
+                                    }
+                                    CallKind::Closure {
+                                        site,
+                                        receiver,
+                                        receiver_mode,
+                                        capture_count,
+                                        signature,
+                                        receiver_loan,
+                                    } => {
+                                        if self.emission == EmissionMode::Analyze {
+                                            completed_value = Some(Ok(Some(Flow::Value {
+                                                temp: None,
+                                                ty: state.inferred,
+                                            })));
+                                            continue;
+                                        }
+                                        let Some(receiver) = receiver.temp() else {
+                                            completed_value = Some(Err(CompileError::InvalidIr(
+                                                "closure receiver flow",
+                                            )));
+                                            continue;
+                                        };
+                                        let flow = self.emitted(
+                                            Op::CallClosure {
+                                                site,
+                                                receiver,
+                                                mode: receiver_mode,
+                                                capture_count,
+                                                args: state.prepared,
+                                                signature,
+                                            },
+                                            state.inferred,
+                                            state.span.clone(),
+                                            Access::Own,
+                                            false,
+                                        );
+                                        self.end_call_loans(state.acquired);
+                                        if let Some((root, loan, origin)) = receiver_loan {
+                                            self.release_call_loans(&[(
+                                                root,
+                                                loan,
+                                                origin.clone(),
+                                            )]);
+                                            self.end_call_loans(vec![(root, loan, origin)]);
+                                        }
+                                        completed_value = Some(Ok(Some(flow)));
+                                    }
                                 }
                             }
                             continue;
@@ -5828,51 +7975,20 @@ impl Lower<'_> {
                         let mode = *mode;
                         let expected = expected.clone();
                         state.index += 1;
-                        let mut inner = &arg.value;
-                        while let Expr::Group(next, _) = inner {
-                            inner = next;
-                        }
-                        if mode != ParameterMode::Inout
-                            && matches!(
-                                inner,
-                                Expr::Call { .. }
-                                    | Expr::If { .. }
-                                    | Expr::Match(_)
-                                    | Expr::Unary {
-                                        mode: Mode::Read,
-                                        ..
-                                    }
-                            )
-                        {
-                            count_loan_work();
-                            let depth = state.depth;
-                            tasks.push(Task::UserCallAfterArgument { state, slot });
-                            tasks.push(Task::Expr {
-                                value: &arg.value,
-                                expected: (expected != Ty::Never).then_some(expected),
-                                depth: depth + 1,
-                            });
-                        } else {
-                            let result = self.call_argument(
-                                arg,
-                                mode,
-                                &expected,
-                                state.depth,
-                                state.retain_place_loans,
-                            );
-                            match finish_user_argument(&mut state, slot, arg, result) {
-                                Ok(()) => {
-                                    if state.diverged {
-                                        self.emission = EmissionMode::Analyze;
-                                    }
-                                    tasks.push(Task::UserCallNext(state));
-                                }
-                                Err(error) => {
-                                    self.release_call_loans(&state.acquired);
-                                    completed_value = Some(Err(error));
-                                }
-                            }
-                        }
+                        let depth = state.depth;
+                        let retain_place_loan = state.retain_place_loans;
+                        tasks.push(Task::UserCallAfterArgument {
+                            state,
+                            slot,
+                            loan_root: None,
+                        });
+                        tasks.push(Task::ArgumentEnter {
+                            arg,
+                            mode,
+                            expected,
+                            depth,
+                            retain_place_loan,
+                        });
                     }
                     Task::WhileEnter {
                         condition,
@@ -5898,92 +8014,24 @@ impl Lower<'_> {
                                 condition.span().clone(),
                             ));
                         }
-                        let test_flow = match self.expr_mode(condition, 0, Some(&Ty::Bool), true) {
-                            Ok(flow) => flow,
-                            Err(error) => {
-                                completed = Some(Err(error));
-                                continue;
-                            }
-                        };
-                        let condition_diverges = test_flow.diverged();
-                        let state = if condition_diverges || entry_emission == EmissionMode::Analyze
-                        {
-                            self.terminated = None;
-                            self.emission = EmissionMode::Analyze;
-                            WhileState::Analyze {
-                                condition,
-                                body,
-                                depth,
-                                checkpoint,
-                                temp_checkpoint,
-                                prior_locals,
-                                condition_diverges,
-                                before_errors: diagnostics.len(),
-                            }
-                        } else {
-                            if test_flow.ty() != Some(&Ty::Bool) {
-                                completed =
-                                    Some(Err(CompileError::InvalidIr("while condition type")));
-                                continue;
-                            }
-                            let condition_state = self.restore_availability(checkpoint);
-                            let test = test_flow
-                                .temp()
-                                .ok_or(CompileError::InvalidIr("while condition flow"))?;
-                            let branch = self.finish_block(Terminator::BranchBool {
-                                condition: test,
-                                yes: BlockId(self.blocks.len() + 1),
-                                no: BlockId(usize::MAX),
-                                span: condition.span().clone(),
-                                charges: vec![],
-                            });
-                            self.restore_temps(temp_checkpoint);
-                            for (id, value) in &condition_state {
-                                self.set_availability(*id, value.clone());
-                            }
-                            self.loop_stack.push(LoopContext {
-                                continue_target: condition_header,
-                                scope_depth: self.scopes.len(),
-                                cleanup_span: body.close_span.clone(),
-                                breaks: Vec::new(),
-                                continues: Vec::new(),
-                                match_depth: self.match_boundaries.len(),
-                                surviving_temps,
-                            });
-                            WhileState::Live {
-                                entry_emission,
-                                condition_header,
-                                checkpoint,
-                                temp_checkpoint,
-                                prior_locals,
-                                condition_state,
-                                branch,
-                                preheader,
-                                body,
-                            }
-                        };
-                        let surviving = self.live_temps.clone();
-                        let saved = self.scope;
-                        self.scope = ScopeId(self.next_scope);
-                        self.next_scope += 1;
-                        self.scope_parents.push(Some(saved));
-                        self.scopes.push(Vec::new());
-                        tasks.push(Task::WhileAfterBody {
-                            state: Box::new(state),
-                        });
-                        tasks.push(Task::Block(Box::new(Frame {
-                            statements: &body.statements,
-                            depth: depth + 1,
-                            index: 0,
-                            unreachable: None,
-                            scoped: Some(Scoped {
-                                block: body,
-                                surviving,
-                                saved,
-                            }),
-                            pending: None,
-                            value_tail: None,
+                        tasks.push(Task::WhileAfterCondition(Box::new(WhileConditionState {
+                            condition,
+                            body,
+                            depth,
+                            entry_emission,
+                            prior_locals,
+                            preheader,
+                            condition_header,
+                            checkpoint,
+                            temp_checkpoint,
+                            surviving_temps,
                         })));
+                        tasks.push(Task::Expr {
+                            value: condition,
+                            expected: Some(Ty::Bool),
+                            depth: 0,
+                            borrow: true,
+                        });
                     }
                     Task::IfEnter {
                         condition,
@@ -5991,36 +8039,20 @@ impl Lower<'_> {
                         otherwise,
                         span,
                         depth,
-                    } => match self.begin_if_statement(condition, span) {
-                        Ok(started) => {
-                            let surviving = self.live_temps.clone();
-                            let saved = self.scope;
-                            self.scope = ScopeId(self.next_scope);
-                            self.next_scope += 1;
-                            self.scope_parents.push(Some(saved));
-                            self.scopes.push(Vec::new());
-                            tasks.push(Task::IfAfterThen {
-                                started,
-                                then_block,
-                                otherwise,
-                                depth,
-                            });
-                            tasks.push(Task::Block(Box::new(Frame {
-                                statements: &then_block.statements,
-                                depth: depth + 1,
-                                index: 0,
-                                unreachable: None,
-                                scoped: Some(Scoped {
-                                    block: then_block,
-                                    surviving,
-                                    saved,
-                                }),
-                                pending: None,
-                                value_tail: None,
-                            })));
-                        }
-                        Err(error) => completed = Some(Err(error)),
-                    },
+                    } => {
+                        tasks.push(Task::IfAfterCondition {
+                            then_block,
+                            otherwise,
+                            span,
+                            depth,
+                        });
+                        tasks.push(Task::Expr {
+                            value: condition,
+                            expected: Some(Ty::Bool),
+                            depth: 0,
+                            borrow: true,
+                        });
+                    }
                     Task::IfElse {
                         state,
                         otherwise,
@@ -6115,11 +8147,34 @@ impl Lower<'_> {
                                 })));
                             }
                             StatementElse::Statement(stmt) => {
-                                completed = Some(self.statement(stmt, depth + 1, diagnostics));
+                                tasks.push(Task::StatementEnter {
+                                    statement: stmt,
+                                    depth: depth + 1,
+                                });
                             }
                         }
                     }
                     Task::Block(_)
+                    | Task::StatementExprAfter(_)
+                    | Task::ForAfterIterable { .. }
+                    | Task::ForAfterBody { .. }
+                    | Task::YieldAfterValue { .. }
+                    | Task::AssignAfterSelector(_)
+                    | Task::AssignAfterValue(_)
+                    | Task::ArgumentPlaceAfterIndex(_)
+                    | Task::ClosureAfterReceiver(_)
+                    | Task::IfExprAfterCondition { .. }
+                    | Task::IfAfterCondition { .. }
+                    | Task::WhileAfterCondition(_)
+                    | Task::WhileAfterSecondCondition(_)
+                    | Task::MatchIndexAfterSelector(_)
+                    | Task::MatchGuardAfter { .. }
+                    | Task::BinaryLeft(_)
+                    | Task::BinaryRight(_)
+                    | Task::ArrayAfterItem(_)
+                    | Task::IndexAfterSelector(_)
+                    | Task::IndexAfterBase(_)
+                    | Task::IndexAfterValueSelector(_)
                     | Task::ValueBlockAfter(_)
                     | Task::IfExprAfterThen(..)
                     | Task::IfExprAfterElse(..)
@@ -6168,6 +8223,7 @@ impl Lower<'_> {
                             value,
                             expected,
                             depth: 0,
+                            borrow: false,
                         });
                         continue;
                     }
@@ -6292,93 +8348,9 @@ impl Lower<'_> {
                 before_statement_errors: diagnostics.len(),
             };
             let statement = &frame.statements[frame.index];
-            if let Statement::Block(block) = statement {
-                if self.emission == EmissionMode::Live {
-                    self.charge_block_statement(block);
-                }
-                let surviving = self.live_temps.clone();
-                let saved = self.scope;
-                self.scope = ScopeId(self.next_scope);
-                self.next_scope += 1;
-                self.scope_parents.push(Some(saved));
-                self.scopes.push(Vec::new());
-                frame.pending = Some(pending);
-                let child_depth = frame.depth;
-                tasks.push(Task::Block(Box::new(Frame {
-                    statements: &block.statements,
-                    depth: child_depth + 1,
-                    index: 0,
-                    unreachable: None,
-                    scoped: Some(Scoped {
-                        block,
-                        surviving,
-                        saved,
-                    }),
-                    pending: None,
-                    value_tail: None,
-                })));
-            } else if let Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                span,
-            } = statement
-            {
-                if self.emission == EmissionMode::Live {
-                    self.charge_control_statement(span);
-                }
-                let depth = frame.depth;
-                frame.pending = Some(pending);
-                tasks.push(Task::IfEnter {
-                    condition,
-                    then_block,
-                    otherwise: otherwise.as_deref().map(StatementElse::Statement),
-                    span,
-                    depth,
-                });
-            } else if let Statement::While {
-                condition,
-                body,
-                span,
-            } = statement
-            {
-                if self.emission == EmissionMode::Live {
-                    self.charge_control_statement(span);
-                }
-                let depth = frame.depth;
-                frame.pending = Some(pending);
-                tasks.push(Task::WhileEnter {
-                    condition,
-                    body,
-                    span,
-                    depth,
-                });
-            } else if let Statement::Match(selection) = statement {
-                let depth = frame.depth;
-                frame.pending = Some(pending);
-                tasks.push(Task::MatchEnter {
-                    selection,
-                    depth,
-                    expected: None,
-                });
-            } else {
-                let result = self.statement(statement, frame.depth, diagnostics);
-                match finish_statement(self, pending, result, diagnostics) {
-                    Ok(()) => frame.index += 1,
-                    Err(error) => {
-                        let Some(Task::Block(frame)) = tasks.pop() else {
-                            return Err(CompileError::InvalidIr("block continuation"));
-                        };
-                        if let Some(scoped) = frame.scoped {
-                            self.leave_scope(scoped.saved)?;
-                        }
-                        if tasks.is_empty() {
-                            return Err(error);
-                        }
-                        completed = Some(Err(error));
-                    }
-                }
-            }
+            let depth = frame.depth;
+            frame.pending = Some(pending);
+            tasks.push(Task::StatementEnter { statement, depth });
         }
     }
     fn charge_control_statement(&mut self, span: &Span) {
@@ -6400,281 +8372,23 @@ impl Lower<'_> {
             },
         ));
     }
-    fn statement(
-        &mut self,
-        statement: &Statement,
-        depth: usize,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<(), CompileError> {
-        if self.emission == EmissionMode::Live {
-            match statement {
-                Statement::Return { span, .. } => {
-                    let origin = Span {
-                        file: span.file.clone(),
-                        start: span.start,
-                        end: span
-                            .end
-                            .min(span.start.saturating_add("return".len() as u64)),
-                    };
-                    self.pending_charges
-                        .push(WorkPlanner::charge(WorkEvent::ReturnStatement, origin));
-                }
-                Statement::Value {
-                    value: Some(value),
-                    marker,
-                    ..
-                } => self.pending_charges.push(WorkPlanner::charge(
-                    WorkEvent::ValueStatement,
-                    marker.clone().unwrap_or_else(|| value.span().clone()),
-                )),
-                Statement::Expr { value, .. } => self.pending_charges.push(WorkPlanner::charge(
-                    WorkEvent::ExpressionStatement,
-                    value.span().clone(),
-                )),
-                Statement::Value {
-                    value: None, span, ..
-                } => self
-                    .pending_charges
-                    .push(WorkPlanner::charge(WorkEvent::EmptyValue, span.clone())),
-                Statement::If { span, .. }
-                | Statement::While { span, .. }
-                | Statement::For { span, .. } => self.charge_control_statement(span),
-                Statement::Block(block) => self.charge_block_statement(block),
-                Statement::Let { .. } => {}
-                Statement::Match(_) => {}
-                Statement::GuardControl { .. } => {}
-                Statement::Assign { span, .. } => {
-                    let Statement::Assign { place, .. } = statement else {
-                        unreachable!();
-                    };
-                    let _ = span;
+    fn statement_leaf(&mut self, statement: &Statement) -> Result<(), CompileError> {
+        match statement {
+            Statement::Return { value: None, span } => {
+                let origin = Span {
+                    file: span.file.clone(),
+                    start: span.start,
+                    end: span
+                        .end
+                        .min(span.start.saturating_add("return".len() as u64)),
+                };
+                if self.emission == EmissionMode::Live {
                     self.pending_charges.push(WorkPlanner::charge(
-                        WorkEvent::Assignment,
-                        place.span().clone(),
+                        WorkEvent::ReturnStatement,
+                        origin.clone(),
                     ));
                 }
-            }
-        }
-        match statement {
-            Statement::Let {
-                mutable,
-                name,
-                annotation: _,
-                value,
-                ..
-            } => {
-                let binding_span = self.name_span(statement, name, value.span().start)?;
-                let statement_start = statement_span(statement).start;
-                if self.emission == EmissionMode::Live
-                    && let Some(token) = self
-                        .tokens
-                        .iter()
-                        .find(|token| token.span.start == statement_start)
-                {
-                    self.pending_charges
-                        .push(WorkPlanner::charge(WorkEvent::Binding, token.span.clone()));
-                }
-                let expected = self.resolved_type(
-                    self.inferred_bindings
-                        .bindings
-                        .get(&binding_span.start)
-                        .ok_or(CompileError::InvalidIr("missing checker binding type"))?,
-                )?;
-                let flow = match self.expr(value, 0, Some(&expected)) {
-                    Ok(value) => value,
-                    Err(error @ (CompileError::Rejected(_) | CompileError::Dependent)) => {
-                        let id = LocalId(self.locals.len());
-                        self.name_spans.push(binding_span.clone());
-                        self.locals.push(Local {
-                            id,
-                            name: name.clone(),
-                            name_span: binding_span.clone(),
-                            ty: expected,
-                            mutable: *mutable,
-                            scope: self.scope,
-                            parameter_mode: None,
-                        });
-                        self.visible.entry(name.clone()).or_default().push(id);
-                        self.scopes
-                            .last_mut()
-                            .ok_or(CompileError::InvalidIr("scope stack"))?
-                            .push(name.clone());
-                        self.poisoned.insert(id);
-                        return Err(error);
-                    }
-                    Err(error) => return Err(error),
-                };
-                let id = LocalId(self.locals.len());
-                self.name_spans.push(binding_span.clone());
-                self.locals.push(Local {
-                    id,
-                    name: name.clone(),
-                    name_span: binding_span.clone(),
-                    ty: expected,
-                    mutable: *mutable,
-                    scope: self.scope,
-                    parameter_mode: None,
-                });
-                self.visible.entry(name.clone()).or_default().push(id);
-                self.scopes
-                    .last_mut()
-                    .ok_or(CompileError::InvalidIr("scope stack"))?
-                    .push(name.clone());
-                if flow.diverged() || self.emission == EmissionMode::Analyze {
-                    return Ok(());
-                }
-                let temp = flow
-                    .temp()
-                    .ok_or(CompileError::InvalidIr("binding value flow"))?;
-                self.statement_op(
-                    Op::WritePlace {
-                        local: id,
-                        value: temp,
-                    },
-                    statement_span(statement),
-                    Access::Write,
-                    false,
-                );
-            }
-            Statement::Assign { place, value, .. } => {
-                let (root, index_exprs) = place_parts(place)?;
-                let selector_spans = index_selectors(place);
-                let indexed_place = !index_exprs.is_empty();
-                let name = place_name(root).ok_or(CompileError::InvalidIr("assignment root"))?;
-                let id = self.get(name)?;
-                if self.locals[id.0].parameter_mode == Some(ParameterMode::Read) {
-                    return Err(self.permission_error(id, root.span().clone(), "write"));
-                }
-                if !indexed_place && !self.locals[id.0].mutable {
-                    return Err(self.immutable_write(root, id));
-                }
-                let mut indexes = Vec::with_capacity(index_exprs.len());
-                let target_ty = self.resolved_expr(place)?;
-                // §4.1.2.3: an index on an unresolved hypothetical base
-                // retains a conditional I64 selector obligation. When no
-                // Array constructor is established, the checker leaves that
-                // obligation inactive and lowering must do the same.
-                let base_unresolved = matches!(
-                    self.inferred_bindings
-                        .expressions
-                        .get(&(root.span().start, root.span().end)),
-                    Some(ResolvedType::Unresolved)
-                );
-                let selector_expected = (!base_unresolved).then_some(&Ty::I64);
-                let mut diverged = false;
-                for (selector_index, e) in index_exprs.into_iter().enumerate() {
-                    if diverged {
-                        self.terminated = None;
-                    }
-                    if self.emission == EmissionMode::Live {
-                        self.pending_charges.push(WorkPlanner::charge(
-                            WorkEvent::PlaceSelector,
-                            selector_spans[selector_index].clone(),
-                        ));
-                    }
-                    let index_flow = self.expr(e, 0, selector_expected)?;
-                    if index_flow.diverged() {
-                        diverged = true;
-                        self.emission = EmissionMode::Analyze;
-                    }
-                    if selector_expected.is_some()
-                        && index_flow
-                            .ty()
-                            .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
-                    {
-                        return Err(CompileError::InvalidIr("index type"));
-                    }
-                    if let Some(index) = index_flow.temp() {
-                        indexes.push(index);
-                    }
-                }
-                if diverged {
-                    self.terminated = None;
-                }
-                let value_flow =
-                    self.expr(value, 0, (target_ty != Ty::Never).then_some(&target_ty))?;
-                if indexed_place {
-                    // The indexed destination reads its root even when a
-                    // selector or RHS diverges. Its write permission is an
-                    // independent obligation of the assignment site.
-                    self.check_available(id, root.span().clone())?;
-                    if !self.locals[id.0].mutable
-                        && !(self.defer_ownership && self.emission == EmissionMode::Live)
-                    {
-                        return Err(self.immutable_write(root, id));
-                    }
-                }
-                if diverged {
-                    self.terminated = Some(Termination::Diverged);
-                    return Ok(());
-                }
-                if value_flow.diverged() {
-                    return Ok(());
-                }
-                self.check_place_access(id, root, root, "write", indexed_place)?;
-                if !indexed_place {
-                    self.mark_consumed(id, None);
-                }
-                if self.emission == EmissionMode::Analyze {
-                    return Ok(());
-                }
-                let temp = value_flow
-                    .temp()
-                    .ok_or(CompileError::InvalidIr("assignment value flow"))?;
-                if value_flow.ty().is_some_and(|ty| {
-                    *ty != target_ty && *ty != Ty::Never && target_ty != Ty::Never
-                }) {
-                    return Err(CompileError::InvalidIr("assignment type passed checker"));
-                }
-                self.statement_op(
-                    if !indexed_place {
-                        Op::WritePlace {
-                            local: id,
-                            value: temp,
-                        }
-                    } else {
-                        Op::WriteIndex {
-                            local: id,
-                            indexes,
-                            site: index_site(place, place.span().clone()),
-                            value: temp,
-                        }
-                    },
-                    statement_span(statement),
-                    Access::Write,
-                    false,
-                );
-            }
-            Statement::Expr { value, .. } => {
-                let flow = self.expr(value, 0, None)?;
-                if flow.diverged() || self.emission == EmissionMode::Analyze {
-                    return Ok(());
-                }
-                let temp = flow
-                    .temp()
-                    .ok_or(CompileError::InvalidIr("expression value flow"))?;
-                self.statement_op(
-                    Op::DropValue(temp),
-                    statement_span(statement),
-                    Access::Own,
-                    false,
-                );
-            }
-            Statement::Return { value, .. } => {
-                let flow = match value {
-                    Some(e) => self.expr(e, 0, Some(&self.result.clone()))?,
-                    None => {
-                        let statement = statement_span(statement);
-                        let span = Span {
-                            file: statement.file.clone(),
-                            start: statement.start,
-                            end: statement
-                                .end
-                                .min(statement.start.saturating_add("return".len() as u64)),
-                        };
-                        self.emitted(Op::ConstUnit, Ty::Unit, span, Access::Own, false)
-                    }
-                };
+                let flow = self.emitted(Op::ConstUnit, Ty::Unit, origin, Access::Own, false);
                 if flow.diverged() || self.emission == EmissionMode::Analyze {
                     self.terminated = Some(Termination::Diverged);
                     return Ok(());
@@ -6686,166 +8400,25 @@ impl Lower<'_> {
                     return Err(CompileError::InvalidIr("return type passed checker"));
                 }
                 self.terminated = Some(Termination::Return(temp));
+                Ok(())
             }
-            Statement::Block(block) => self.scoped_block(block, depth, diagnostics)?,
-            Statement::If {
-                condition,
-                then_block,
-                otherwise,
-                span,
-            } => self.if_statement(
-                condition,
-                then_block,
-                otherwise.as_deref(),
-                span,
-                depth,
-                diagnostics,
-            )?,
-            Statement::While {
-                condition,
-                body,
-                span,
-            } => self.while_statement(condition, body, span, depth, diagnostics)?,
-            Statement::For { .. } => self.for_statement(statement, depth, diagnostics)?,
-            Statement::Value { .. } => {
-                return Err(CompileError::InvalidIr("control flow"));
-            }
-            Statement::Match(selection) => {
-                self.match_selection(selection, false, depth, None, diagnostics)?;
-            }
-            Statement::GuardControl {
-                token,
+            Statement::Value {
                 value,
-                token_span,
-                guarded,
+                marker,
                 span,
-            } if token == "yield" && !guarded => {
+            } => {
                 if self.emission == EmissionMode::Live {
-                    self.pending_charges.push(WorkCharge {
-                        ticks: 1,
-                        origin: token_span.clone(),
-                    });
+                    if let Some(value) = value {
+                        self.pending_charges.push(WorkPlanner::charge(
+                            WorkEvent::ValueStatement,
+                            marker.clone().unwrap_or_else(|| value.span().clone()),
+                        ));
+                    } else {
+                        self.pending_charges
+                            .push(WorkPlanner::charge(WorkEvent::EmptyValue, span.clone()));
+                    }
                 }
-                let flow = if let Some(value) = value {
-                    self.expr(value, depth, None)?
-                } else {
-                    self.emitted(
-                        Op::ConstUnit,
-                        Ty::Unit,
-                        token_span.clone(),
-                        Access::Own,
-                        false,
-                    )
-                };
-                if flow.diverged() || self.emission == EmissionMode::Analyze {
-                    return Ok(());
-                }
-                let incompatible = self
-                    .retained_locals
-                    .iter()
-                    .flat_map(|(holder, loans)| loans.iter().map(move |loan| (*holder, loan)))
-                    .filter(|(_, loan)| loan.active.permission == LoanPermission::Inout)
-                    .min_by_key(|(holder, loan)| (holder.0, loan.active.loan.0));
-                if let Some((holder, loan)) = incompatible {
-                    let mut error = crate::check::names::diagnostic(
-                        "NX-E1204",
-                        None,
-                        diagnostic::Stage::Ownership,
-                        diagnostic::Operation::OwnershipCheck,
-                        token_span.clone(),
-                    );
-                    error.data.insert(
-                        "property_evidence".into(),
-                        diagnostic::DataValue::String("incompatible".into()),
-                    );
-                    error.data.insert(
-                        "suspension_kind".into(),
-                        diagnostic::DataValue::String("yield".into()),
-                    );
-                    error.related_spans.push(diagnostic::RelatedSpan {
-                        role: diagnostic::RelatedRole::Declaration,
-                        span: self.locals[holder.0].name_span.clone(),
-                    });
-                    error.related_spans.push(diagnostic::RelatedSpan {
-                        role: diagnostic::RelatedRole::Origin,
-                        span: loan.active.span.clone(),
-                    });
-                    error.cause_chain.push(diagnostic::Cause {
-                        kind: diagnostic::CauseKind::Effect,
-                        operation: diagnostic::CauseOperation::SuspendSafe,
-                        span: Some(token_span.clone()),
-                        entity: Some(self.local_entity(holder)),
-                        evidence: diagnostic::Evidence::Verified,
-                    });
-                    error.cause_chain.push(diagnostic::Cause {
-                        kind: diagnostic::CauseKind::Borrow,
-                        operation: diagnostic::CauseOperation::BorrowInout,
-                        span: Some(loan.active.span.clone()),
-                        entity: Some(diagnostic::Entity {
-                            kind: diagnostic::EntityKind::Loan,
-                            id: format!("loan:{}:0", loan.active.loan.0),
-                        }),
-                        evidence: diagnostic::Evidence::Verified,
-                    });
-                    return Err(CompileError::Rejected(vec![error]));
-                }
-                if let Some((root, loan)) = self
-                    .active_loans
-                    .iter()
-                    .flat_map(|(root, loans)| loans.iter().map(move |loan| (*root, loan)))
-                    .filter(|(_, loan)| loan.permission == LoanPermission::Inout)
-                    .min_by_key(|(root, loan)| (root.0, loan.loan.0))
-                {
-                    let mut error = crate::check::names::diagnostic(
-                        "NX-E1204",
-                        None,
-                        diagnostic::Stage::Ownership,
-                        diagnostic::Operation::OwnershipCheck,
-                        token_span.clone(),
-                    );
-                    error.data.insert(
-                        "property_evidence".into(),
-                        diagnostic::DataValue::String("incompatible".into()),
-                    );
-                    error.data.insert(
-                        "suspension_kind".into(),
-                        diagnostic::DataValue::String("yield".into()),
-                    );
-                    error.related_spans.push(diagnostic::RelatedSpan {
-                        role: diagnostic::RelatedRole::Declaration,
-                        span: self.locals[root.0].name_span.clone(),
-                    });
-                    error.related_spans.push(diagnostic::RelatedSpan {
-                        role: diagnostic::RelatedRole::Origin,
-                        span: loan.span.clone(),
-                    });
-                    error.cause_chain.push(diagnostic::Cause::for_operation(
-                        diagnostic::CauseOperation::SuspendSafe,
-                        Some(token_span.clone()),
-                        Some(self.local_entity(root)),
-                        diagnostic::Evidence::Verified,
-                    ));
-                    error.cause_chain.push(diagnostic::Cause::for_operation(
-                        diagnostic::CauseOperation::BorrowInout,
-                        Some(loan.span.clone()),
-                        Some(diagnostic::Entity {
-                            kind: diagnostic::EntityKind::Loan,
-                            id: format!("loan:{}:0", loan.loan.0),
-                        }),
-                        diagnostic::Evidence::Verified,
-                    ));
-                    return Err(CompileError::Rejected(vec![error]));
-                }
-                let item = flow
-                    .temp()
-                    .ok_or(CompileError::InvalidIr("yield item flow"))?;
-                let resume = BlockId(self.blocks.len() + 1);
-                self.finish_block(Terminator::Yield {
-                    value: item,
-                    resume,
-                    span: span.clone(),
-                    charges: vec![],
-                });
+                Err(CompileError::InvalidIr("control flow"))
             }
             Statement::GuardControl {
                 token,
@@ -6859,366 +8432,184 @@ impl Lower<'_> {
                         origin: token_span.clone(),
                     });
                 }
-                self.loop_control(token, token_span)?;
+                self.loop_control(token, token_span)
             }
-            Statement::GuardControl { token_span, .. } => {
-                return Err(CompileError::Rejected(vec![
-                    crate::check::names::diagnostic(
-                        "NX-E1305",
-                        Some("guard_control"),
-                        diagnostic::Stage::Ownership,
-                        diagnostic::Operation::OwnershipCheck,
-                        token_span.clone(),
-                    ),
-                ]));
-            }
+            Statement::GuardControl { token_span, .. } => Err(CompileError::Rejected(vec![
+                crate::check::names::diagnostic(
+                    "NX-E1305",
+                    Some("guard_control"),
+                    diagnostic::Stage::Ownership,
+                    diagnostic::Operation::OwnershipCheck,
+                    token_span.clone(),
+                ),
+            ])),
+            _ => Err(CompileError::InvalidIr("statement task")),
         }
+    }
+    fn finish_yield(
+        &mut self,
+        flow: Flow,
+        token_span: &Span,
+        span: &Span,
+    ) -> Result<(), CompileError> {
+        if flow.diverged() || self.emission == EmissionMode::Analyze {
+            return Ok(());
+        }
+        let incompatible = self
+            .retained_locals
+            .iter()
+            .flat_map(|(holder, loans)| loans.iter().map(move |loan| (*holder, loan)))
+            .filter(|(_, loan)| loan.active.permission == LoanPermission::Inout)
+            .min_by_key(|(holder, loan)| (holder.0, loan.active.loan.0));
+        if let Some((holder, loan)) = incompatible {
+            let mut error = crate::check::names::diagnostic(
+                "NX-E1204",
+                None,
+                diagnostic::Stage::Ownership,
+                diagnostic::Operation::OwnershipCheck,
+                token_span.clone(),
+            );
+            error.data.insert(
+                "property_evidence".into(),
+                diagnostic::DataValue::String("incompatible".into()),
+            );
+            error.data.insert(
+                "suspension_kind".into(),
+                diagnostic::DataValue::String("yield".into()),
+            );
+            error.related_spans.push(diagnostic::RelatedSpan {
+                role: diagnostic::RelatedRole::Declaration,
+                span: self.locals[holder.0].name_span.clone(),
+            });
+            error.related_spans.push(diagnostic::RelatedSpan {
+                role: diagnostic::RelatedRole::Origin,
+                span: loan.active.span.clone(),
+            });
+            error.cause_chain.push(diagnostic::Cause {
+                kind: diagnostic::CauseKind::Effect,
+                operation: diagnostic::CauseOperation::SuspendSafe,
+                span: Some(token_span.clone()),
+                entity: Some(self.local_entity(holder)),
+                evidence: diagnostic::Evidence::Verified,
+            });
+            error.cause_chain.push(diagnostic::Cause {
+                kind: diagnostic::CauseKind::Borrow,
+                operation: diagnostic::CauseOperation::BorrowInout,
+                span: Some(loan.active.span.clone()),
+                entity: Some(diagnostic::Entity {
+                    kind: diagnostic::EntityKind::Loan,
+                    id: format!("loan:{}:0", loan.active.loan.0),
+                }),
+                evidence: diagnostic::Evidence::Verified,
+            });
+            return Err(CompileError::Rejected(vec![error]));
+        }
+        if let Some((root, loan)) = self
+            .active_loans
+            .iter()
+            .flat_map(|(root, loans)| loans.iter().map(move |loan| (*root, loan)))
+            .filter(|(_, loan)| loan.permission == LoanPermission::Inout)
+            .min_by_key(|(root, loan)| (root.0, loan.loan.0))
+        {
+            let mut error = crate::check::names::diagnostic(
+                "NX-E1204",
+                None,
+                diagnostic::Stage::Ownership,
+                diagnostic::Operation::OwnershipCheck,
+                token_span.clone(),
+            );
+            error.data.insert(
+                "property_evidence".into(),
+                diagnostic::DataValue::String("incompatible".into()),
+            );
+            error.data.insert(
+                "suspension_kind".into(),
+                diagnostic::DataValue::String("yield".into()),
+            );
+            error.related_spans.push(diagnostic::RelatedSpan {
+                role: diagnostic::RelatedRole::Declaration,
+                span: self.locals[root.0].name_span.clone(),
+            });
+            error.related_spans.push(diagnostic::RelatedSpan {
+                role: diagnostic::RelatedRole::Origin,
+                span: loan.span.clone(),
+            });
+            error.cause_chain.push(diagnostic::Cause::for_operation(
+                diagnostic::CauseOperation::SuspendSafe,
+                Some(token_span.clone()),
+                Some(self.local_entity(root)),
+                diagnostic::Evidence::Verified,
+            ));
+            error.cause_chain.push(diagnostic::Cause::for_operation(
+                diagnostic::CauseOperation::BorrowInout,
+                Some(loan.span.clone()),
+                Some(diagnostic::Entity {
+                    kind: diagnostic::EntityKind::Loan,
+                    id: format!("loan:{}:0", loan.loan.0),
+                }),
+                diagnostic::Evidence::Verified,
+            ));
+            return Err(CompileError::Rejected(vec![error]));
+        }
+        let item = flow
+            .temp()
+            .ok_or(CompileError::InvalidIr("yield item flow"))?;
+        let resume = BlockId(self.blocks.len() + 1);
+        self.finish_block(Terminator::Yield {
+            value: item,
+            resume,
+            span: span.clone(),
+            charges: vec![],
+        });
         Ok(())
     }
+    #[cfg(test)]
+    fn statement(
+        &mut self,
+        statement: &Statement,
+        depth: usize,
+        diagnostics: &mut Vec<Diagnostic>,
+    ) -> Result<(), CompileError> {
+        self.run_lower_tasks(
+            LowerRoot::Statement(statement, depth),
+            diagnostics,
+            |_, _, _| Ok(()),
+        )
+    }
+    #[cfg(test)]
     fn expr(
         &mut self,
-        e: &Expr,
+        value: &Expr,
         depth: usize,
         expected: Option<&Ty>,
     ) -> Result<Flow, CompileError> {
-        self.expr_mode(e, depth, expected, false)
+        self.run_lower_tasks(
+            LowerRoot::Expr(value, depth, expected.cloned()),
+            &mut Vec::new(),
+            |_, _, flow| flow.ok_or(CompileError::InvalidIr("expression flow")),
+        )
     }
-    fn expr_mode(
+    #[cfg(test)]
+    fn call_argument(
         &mut self,
-        e: &Expr,
+        arg: &parse::Argument,
+        mode: ParameterMode,
+        expected: &Ty,
         depth: usize,
-        expected: Option<&Ty>,
-        borrow: bool,
-    ) -> Result<Flow, CompileError> {
-        // Parentheses have no lowering operation of their own. Peel the whole
-        // chain here so accepted syntax depth does not repeat this large frame.
-        let mut inner = e;
-        let mut inner_depth = depth;
-        while let Expr::Group(next, _) = inner {
-            inner = next;
-            inner_depth += 1;
-        }
-        self.expr_mode_non_group(inner, inner_depth, expected, borrow)
-    }
-    fn binary_expr(
-        &mut self,
-        op: &str,
-        left: &Expr,
-        right: &Expr,
-        span: &Span,
-        inferred: Ty,
-        depth: usize,
-    ) -> Result<Flow, CompileError> {
-        enum Stage {
-            Left,
-            Right {
-                left_flow: Flow,
-                left_root: Option<LocalId>,
-            },
-        }
-        struct Frame<'a> {
-            op: &'a str,
-            left: &'a Expr,
-            right: &'a Expr,
-            span: &'a Span,
-            inferred: Ty,
-            depth: usize,
-            stage: Stage,
-        }
-        let mut frames = vec![Frame {
-            op,
-            left,
-            right,
-            span,
-            inferred,
-            depth,
-            stage: Stage::Left,
-        }];
-        let mut completed: Option<Result<Flow, CompileError>> = None;
-        loop {
-            if let Some(result) = completed.take() {
-                let frame = frames
-                    .last_mut()
-                    .ok_or(CompileError::InvalidIr("binary continuation"))?;
-                match std::mem::replace(&mut frame.stage, Stage::Left) {
-                    Stage::Left => match result {
-                        Ok(left_flow) => {
-                            if left_flow.diverged() {
-                                self.emission = EmissionMode::Analyze;
-                                self.terminated = None;
-                            }
-                            let left_type = if frame.op == "==" {
-                                Some(self.resolved_expr(frame.left))
-                            } else {
-                                None
-                            };
-                            let array_left = match left_type {
-                                Some(Err(error)) => {
-                                    frames.pop();
-                                    if frames.is_empty() {
-                                        return Err(error);
-                                    }
-                                    completed = Some(Err(error));
-                                    continue;
-                                }
-                                Some(Ok(Ty::Array(_))) => true,
-                                _ => false,
-                            };
-                            let left_root = if array_left {
-                                place_parts(frame.left)
-                                    .ok()
-                                    .and_then(|(root, _)| place_name(root))
-                                    .and_then(|name| {
-                                        self.visible.get(name).and_then(|ids| ids.last()).copied()
-                                    })
-                            } else {
-                                None
-                            };
-                            if let Some(root) = left_root {
-                                self.active_loans.entry(root).or_default().push(ActiveLoan {
-                                    permission: LoanPermission::Read,
-                                    span: frame.left.span().clone(),
-                                    loan: LoanId(frame.left.span().start as usize),
-                                    parent: None,
-                                });
-                            }
-                            frame.stage = Stage::Right {
-                                left_flow,
-                                left_root,
-                            };
-                        }
-                        Err(error) => {
-                            frames.pop();
-                            if frames.is_empty() {
-                                return Err(error);
-                            }
-                            completed = Some(Err(error));
-                        }
-                    },
-                    Stage::Right {
-                        left_flow,
-                        left_root,
-                    } => {
-                        if let Some(root) = left_root {
-                            self.active_loans
-                                .get_mut(&root)
-                                .and_then(|loans| loans.pop());
-                        }
-                        let result = match result {
-                            Err(error) => Err(error),
-                            Ok(right_flow) => {
-                                let operator = match frame.op {
-                                    "+" => Some(Binary::Add),
-                                    "-" => Some(Binary::Sub),
-                                    "<" => Some(Binary::Less),
-                                    "==" => Some(Binary::Equal),
-                                    _ => None,
-                                };
-                                if let Some(operator) = operator {
-                                    let ty = frame.inferred.clone();
-                                    if left_flow.diverged() || right_flow.diverged() {
-                                        self.terminated = Some(Termination::Diverged);
-                                        self.emission = EmissionMode::Analyze;
-                                        Ok(Flow::Diverged { ty: Some(ty) })
-                                    } else if self.emission == EmissionMode::Analyze {
-                                        Ok(Flow::Value { temp: None, ty })
-                                    } else if let (Some(l), Some(r)) =
-                                        (left_flow.temp(), right_flow.temp())
-                                    {
-                                        Ok(self.emitted(
-                                            Op::Binary {
-                                                op: operator,
-                                                left: l,
-                                                right: r,
-                                            },
-                                            ty,
-                                            frame.span.clone(),
-                                            Access::Own,
-                                            false,
-                                        ))
-                                    } else {
-                                        Err(CompileError::InvalidIr("binary operand flow"))
-                                    }
-                                } else {
-                                    Err(CompileError::InvalidIr("binary operation"))
-                                }
-                            }
-                        };
-                        frames.pop();
-                        if frames.is_empty() {
-                            return result;
-                        }
-                        completed = Some(result);
-                    }
-                }
-                continue;
-            }
-            let frame = frames
-                .last()
-                .ok_or(CompileError::InvalidIr("binary frame"))?;
-            let operand = match frame.stage {
-                Stage::Left => frame.left,
-                Stage::Right { .. } => frame.right,
-            };
-            let mut inner = operand;
-            let mut inner_depth = frame.depth + 1;
-            while let Expr::Group(next, _) = inner {
-                inner = next;
-                inner_depth += 1;
-            }
-            if let Expr::Binary {
-                op,
-                left,
-                right,
-                span,
-            } = inner
-            {
-                match self.prepare_expr(inner) {
-                    Ok(child_ty) => frames.push(Frame {
-                        op,
-                        left,
-                        right,
-                        span,
-                        inferred: child_ty,
-                        depth: inner_depth,
-                        stage: Stage::Left,
-                    }),
-                    Err(error) => completed = Some(Err(error)),
-                }
-            } else {
-                completed = Some(self.expr_mode(operand, frame.depth + 1, None, true));
-            }
-        }
-    }
-    fn array_expr(
-        &mut self,
-        items: &[Expr],
-        span: &Span,
-        inferred: Ty,
-        depth: usize,
-    ) -> Result<Flow, CompileError> {
-        struct Frame<'a> {
-            items: &'a [Expr],
-            span: &'a Span,
-            inferred: Ty,
-            depth: usize,
-            next: usize,
-            ids: Vec<TempId>,
-            diverged: bool,
-            item_errors: Vec<Diagnostic>,
-            dependent: bool,
-        }
-        let mut frames = vec![Frame {
-            items,
-            span,
-            inferred,
-            depth,
-            next: 0,
-            ids: Vec::with_capacity(items.len()),
-            diverged: false,
-            item_errors: Vec::new(),
-            dependent: false,
-        }];
-        let mut completed: Option<Result<Flow, CompileError>> = None;
-        loop {
-            if let Some(result) = completed.take() {
-                let parent = frames
-                    .last_mut()
-                    .ok_or(CompileError::InvalidIr("array continuation"))?;
-                parent.next += 1;
-                let item_flow = match result {
-                    Ok(value) => value,
-                    Err(CompileError::Rejected(errors)) => {
-                        parent
-                            .item_errors
-                            .extend(errors.into_iter().map(|error| *error));
-                        continue;
-                    }
-                    Err(CompileError::Dependent) => {
-                        parent.dependent = true;
-                        continue;
-                    }
-                    Err(error) => return Err(error),
-                };
-                if item_flow.diverged() {
-                    parent.diverged = true;
-                    self.emission = EmissionMode::Analyze;
-                    continue;
-                }
-                if let Some(id) = item_flow.temp() {
-                    parent.ids.push(id);
-                }
-                continue;
-            }
-            let frame = frames
-                .last_mut()
-                .ok_or(CompileError::InvalidIr("array frame"))?;
-            if frame.next == frame.items.len() {
-                let frame = frames.pop().expect("array frame");
-                let result = if !frame.item_errors.is_empty() {
-                    Err(CompileError::Rejected(
-                        frame.item_errors.into_iter().map(Box::new).collect(),
-                    ))
-                } else if frame.dependent {
-                    Err(CompileError::Dependent)
-                } else if frame.diverged {
-                    self.terminated = Some(Termination::Diverged);
-                    Ok(Flow::Diverged {
-                        ty: (frame.inferred != Ty::Never).then_some(frame.inferred),
-                    })
-                } else if frame.inferred == Ty::Never {
-                    if self.emission == EmissionMode::Live {
-                        Err(CompileError::InvalidIr("unresolved checker array type"))
-                    } else {
-                        Ok(Flow::Value {
-                            temp: None,
-                            ty: frame.inferred,
-                        })
-                    }
-                } else {
-                    Ok(self.emitted(
-                        Op::BuildArray(frame.ids),
-                        frame.inferred,
-                        frame.span.clone(),
-                        Access::Own,
-                        false,
-                    ))
-                };
-                if frames.is_empty() {
-                    return result;
-                }
-                completed = Some(result);
-                continue;
-            }
-            if frame.diverged {
-                self.terminated = None;
-            }
-            let item = &frame.items[frame.next];
-            let mut inner = item;
-            let mut inner_depth = frame.depth + 1;
-            while let Expr::Group(next, _) = inner {
-                inner = next;
-                inner_depth += 1;
-            }
-            if let Expr::Array(child_items, child_span) = inner {
-                match self.prepare_expr(inner) {
-                    Ok(child_ty) => frames.push(Frame {
-                        items: child_items,
-                        span: child_span,
-                        inferred: child_ty,
-                        depth: inner_depth,
-                        next: 0,
-                        ids: Vec::with_capacity(child_items.len()),
-                        diverged: false,
-                        item_errors: Vec::new(),
-                        dependent: false,
-                    }),
-                    Err(error) => completed = Some(Err(error)),
-                }
-            } else {
-                completed = Some(self.expr(item, frame.depth + 1, None));
-            }
-        }
+        retain_place_loan: bool,
+    ) -> Result<(Flow, Option<LocalId>), CompileError> {
+        let flow = self.run_lower_tasks(
+            LowerRoot::Argument(arg, mode, expected.clone(), depth, retain_place_loan),
+            &mut Vec::new(),
+            |_, _, flow| flow.ok_or(CompileError::InvalidIr("argument flow")),
+        )?;
+        let root = self.active_loans.iter().find_map(|(root, loans)| {
+            loans
+                .iter()
+                .any(|loan| loan.loan == LoanId(arg.span.start as usize))
+                .then_some(*root)
+        });
+        Ok((flow, root))
     }
     fn prepare_expr(&mut self, e: &Expr) -> Result<Ty, CompileError> {
         if self.emission == EmissionMode::Live {
@@ -7277,12 +8668,11 @@ impl Lower<'_> {
     fn expr_mode_non_group(
         &mut self,
         e: &Expr,
-        depth: usize,
+        _depth: usize,
         _expected: Option<&Ty>,
         borrow: bool,
     ) -> Result<Flow, CompileError> {
         let inferred = self.prepare_expr(e)?;
-        let expected = Some(&inferred);
         match e {
             Expr::Closure(closure) => {
                 let info = self
@@ -7492,542 +8882,6 @@ impl Lower<'_> {
                 };
                 Ok(self.emitted(op, ty, s.clone(), Access::Read, false))
             }
-            Expr::Group(inner, _) => self.expr_mode(inner, depth + 1, expected, borrow),
-            Expr::Binary {
-                op,
-                left,
-                right,
-                span,
-            } => self.binary_expr(op, left, right, span, inferred, depth),
-            Expr::Call { target, args, span } => {
-                let (receiver_mode, receiver_span) = self
-                    .requested_receiver
-                    .take()
-                    .unwrap_or((ParameterMode::Read, target.span().clone()));
-                let target_ty = if let Some(name) = place_name(target) {
-                    if self.visible.get(name).and_then(|ids| ids.last()).is_some() {
-                        Some(self.resolved_expr(target)?)
-                    } else {
-                        None
-                    }
-                } else {
-                    Some(self.resolved_expr(target)?)
-                };
-                if let Some(Ty::Closure { site, .. }) = target_ty {
-                    let required = self
-                        .inferred_bindings
-                        .closures
-                        .get(&site)
-                        .ok_or(CompileError::InvalidIr("closure call signature"))?
-                        .required_mode;
-                    let required = match required {
-                        Mode::Read => ParameterMode::Read,
-                        Mode::Inout => ParameterMode::Inout,
-                        Mode::Consume => ParameterMode::Consume,
-                    };
-                    let mode_rank = |mode: ParameterMode| match mode {
-                        ParameterMode::Read => 0,
-                        ParameterMode::Inout => 1,
-                        ParameterMode::Consume => 2,
-                    };
-                    let mode_name = |mode: ParameterMode| match mode {
-                        ParameterMode::Read => "read",
-                        ParameterMode::Inout => "inout",
-                        ParameterMode::Consume => "consume",
-                    };
-                    if mode_rank(receiver_mode) < mode_rank(required) {
-                        let mut error = crate::check::names::diagnostic(
-                            "NX-E1107",
-                            None,
-                            diagnostic::Stage::Ownership,
-                            diagnostic::Operation::OwnershipCheck,
-                            target.span().clone(),
-                        );
-                        if let Some(name) = place_name(target)
-                            && let Ok(local) = self.get(name)
-                        {
-                            error.related_spans.push(diagnostic::RelatedSpan {
-                                role: diagnostic::RelatedRole::Declaration,
-                                span: self.name_spans[local.0].clone(),
-                            });
-                        }
-                        error.data.insert(
-                            "required_mode".into(),
-                            diagnostic::DataValue::String(mode_name(required).into()),
-                        );
-                        error.data.insert(
-                            "requested_mode".into(),
-                            diagnostic::DataValue::String(mode_name(receiver_mode).into()),
-                        );
-                        return Err(CompileError::Rejected(vec![error]));
-                    }
-                    let mut receiver_loan = None;
-                    let receiver = if let Some(name) = place_name(target) {
-                        let local = self.get(name)?;
-                        self.check_available(local, target.span().clone())?;
-                        if receiver_mode == ParameterMode::Consume
-                            && self.locals[local.0]
-                                .parameter_mode
-                                .is_some_and(|mode| mode != ParameterMode::Consume)
-                        {
-                            return Err(self.permission_error(
-                                local,
-                                target.span().clone(),
-                                "consume",
-                            ));
-                        }
-                        if receiver_mode == ParameterMode::Inout
-                            && self.locals[local.0].parameter_mode == Some(ParameterMode::Read)
-                        {
-                            return Err(self.permission_error(
-                                local,
-                                target.span().clone(),
-                                "borrow_inout",
-                            ));
-                        }
-                        if receiver_mode == ParameterMode::Inout && !self.locals[local.0].mutable {
-                            return Err(self.immutable_write(target, local));
-                        }
-                        if receiver_mode == ParameterMode::Consume {
-                            self.conflict(local, target.span().clone(), "consume")?;
-                            self.mark_consumed(local, Some((receiver_span.clone(), false)));
-                            self.emitted(
-                                Op::TransferValue(local),
-                                self.locals[local.0].ty.clone(),
-                                receiver_span.clone(),
-                                Access::Own,
-                                false,
-                            )
-                        } else {
-                            let permission = if receiver_mode == ParameterMode::Inout {
-                                LoanPermission::Inout
-                            } else {
-                                LoanPermission::Read
-                            };
-                            self.conflict(
-                                local,
-                                target.span().clone(),
-                                if permission == LoanPermission::Inout {
-                                    "borrow_inout"
-                                } else {
-                                    "read"
-                                },
-                            )?;
-                            let loan = LoanId(target.span().start as usize);
-                            let active = ActiveLoan {
-                                permission,
-                                span: target.span().clone(),
-                                loan,
-                                parent: (self.locals[local.0].parameter_mode
-                                    == Some(ParameterMode::Inout))
-                                .then_some(local),
-                            };
-                            let flow = self.emitted(
-                                Op::BeginLoan {
-                                    root: local,
-                                    indexes: Vec::new(),
-                                    site: IndexSite {
-                                        context: target.span().clone(),
-                                        selectors: Vec::new(),
-                                    },
-                                    loan,
-                                    origin_span: target.span().clone(),
-                                    permission,
-                                    parent: (self.locals[local.0].parameter_mode
-                                        == Some(ParameterMode::Inout))
-                                    .then_some(local),
-                                },
-                                self.locals[local.0].ty.clone(),
-                                target.span().clone(),
-                                Access::Read,
-                                false,
-                            );
-                            self.active_loans.entry(local).or_default().push(active);
-                            receiver_loan = Some((local, loan, target.span().clone()));
-                            flow
-                        }
-                    } else {
-                        if receiver_mode != ParameterMode::Read {
-                            return Err(CompileError::InvalidIr("non-place closure receiver"));
-                        }
-                        self.expr(target, depth + 1, None)?
-                    };
-                    if receiver.diverged() {
-                        return Ok(Flow::Diverged { ty: Some(inferred) });
-                    }
-                    let info = self
-                        .inferred_bindings
-                        .closures
-                        .get(&site)
-                        .ok_or(CompileError::InvalidIr("closure call signature"))?;
-                    let parameters = info
-                        .params
-                        .iter()
-                        .map(|(name, mode, ty)| {
-                            Ok((
-                                name.clone(),
-                                match mode {
-                                    Mode::Read => ParameterMode::Read,
-                                    Mode::Inout => ParameterMode::Inout,
-                                    Mode::Consume => ParameterMode::Consume,
-                                },
-                                lower_type(ty)?,
-                            ))
-                        })
-                        .collect::<Result<Vec<_>, CompileError>>()?;
-                    let capture_count = info.captures.len();
-                    let signature = self
-                        .user_functions
-                        .get(&format!("$closure:{site}"))
-                        .ok_or(CompileError::InvalidIr("closure body signature"))?
-                        .0
-                        .clone();
-                    let (prepared, acquired, diverged) =
-                        self.prepare_call_arguments(args, &parameters, depth, true, true)?;
-                    self.release_call_loans(&acquired);
-                    if diverged {
-                        return Ok(Flow::Diverged { ty: Some(inferred) });
-                    }
-                    if self.emission == EmissionMode::Analyze {
-                        return Ok(Flow::Value {
-                            temp: None,
-                            ty: inferred,
-                        });
-                    }
-                    let receiver = receiver
-                        .temp()
-                        .ok_or(CompileError::InvalidIr("closure receiver flow"))?;
-                    let result_flow = self.emitted(
-                        Op::CallClosure {
-                            site,
-                            receiver,
-                            mode: receiver_mode,
-                            capture_count,
-                            args: prepared,
-                            signature,
-                        },
-                        inferred,
-                        span.clone(),
-                        Access::Own,
-                        false,
-                    );
-                    self.end_call_loans(acquired);
-                    if let Some((root, loan, origin)) = receiver_loan {
-                        self.release_call_loans(&[(root, loan, origin.clone())]);
-                        self.end_call_loans(vec![(root, loan, origin)]);
-                    }
-                    return Ok(result_flow);
-                }
-                let name = place_name(target).ok_or(CompileError::InvalidIr("call target"))?;
-                if name == "Iterator.Next" {
-                    let argument = args
-                        .first()
-                        .ok_or(CompileError::InvalidIr("next argument"))?;
-                    let generator = self.resolved_expr(&argument.value)?;
-                    let Ty::Generator { item, .. } = &generator else {
-                        return Err(CompileError::InvalidIr("next receiver type"));
-                    };
-                    let item = item.as_ref().clone();
-                    let params = vec![("g".into(), ParameterMode::Inout, generator)];
-                    let (prepared, acquired, diverged) =
-                        self.prepare_call_arguments(args, &params, depth, true, true)?;
-                    self.release_call_loans(&acquired);
-                    if diverged {
-                        return Ok(Flow::Diverged { ty: Some(inferred) });
-                    }
-                    if self.emission == EmissionMode::Analyze {
-                        return Ok(Flow::Value {
-                            temp: None,
-                            ty: inferred,
-                        });
-                    }
-                    let receiver = prepared
-                        .first()
-                        .ok_or(CompileError::InvalidIr("next receiver flow"))?
-                        .1;
-                    let result_flow = self.emitted(
-                        Op::ResumeGenerator { receiver, item },
-                        inferred,
-                        span.clone(),
-                        Access::Own,
-                        false,
-                    );
-                    self.end_call_loans(acquired);
-                    return Ok(result_flow);
-                }
-                if self.visible.get(name).and_then(|v| v.last()).is_some() {
-                    self.get(name)?;
-                    return Err(CompileError::InvalidIr(
-                        "non-callable target passed checker",
-                    ));
-                }
-                if self.user_functions.contains_key(name) {
-                    return self.run_lower_tasks(
-                        LowerRoot::UserCall {
-                            args,
-                            name: name.to_owned(),
-                            span,
-                            depth,
-                            inferred,
-                        },
-                        &mut Vec::new(),
-                        |_, _, value| value.ok_or(CompileError::InvalidIr("user call flow")),
-                    );
-                }
-                if let Some(tag) = inferred
-                    .union_descriptor()
-                    .and_then(|union| union.kind.variant_tag(name))
-                {
-                    if args.len() != 1 {
-                        return Err(CompileError::InvalidIr("variant constructor arity"));
-                    }
-                    return self.run_lower_tasks(
-                        LowerRoot::Variant {
-                            value: &args[0].value,
-                            tag,
-                            span,
-                            depth,
-                            inferred,
-                        },
-                        &mut Vec::new(),
-                        |_, _, value| value.ok_or(CompileError::InvalidIr("variant flow")),
-                    );
-                }
-                let intrinsic = intrinsic_for_name(name)
-                    .ok_or(CompileError::InvalidIr("user or deferred call"))?;
-                if intrinsic == Intrinsic::DropData
-                    && args.len() == 1
-                    && let Some(binding) = place_name(&args[0].value)
-                {
-                    let local = self.get(binding)?;
-                    self.check_available(local, args[0].value.span().clone())?;
-                    if self.locals[local.0]
-                        .parameter_mode
-                        .is_some_and(|mode| mode != ParameterMode::Consume)
-                    {
-                        return Err(self.permission_error(
-                            local,
-                            args[0].value.span().clone(),
-                            "drop",
-                        ));
-                    }
-                    self.conflict(local, args[0].value.span().clone(), "drop")?;
-                    self.mark_consumed(local, Some((span.clone(), true)));
-                    let value = self.emitted(
-                        Op::TransferValue(local),
-                        self.locals[local.0].ty.clone(),
-                        span.clone(),
-                        Access::Own,
-                        false,
-                    );
-                    let Some(value) = value.temp() else {
-                        return Ok(Flow::Diverged { ty: Some(inferred) });
-                    };
-                    return Ok(self.emitted(
-                        Op::CallIntrinsic {
-                            intrinsic: Intrinsic::DropData,
-                            args: vec![value],
-                        },
-                        inferred,
-                        span.clone(),
-                        Access::Own,
-                        false,
-                    ));
-                }
-                self.run_lower_tasks(
-                    LowerRoot::IntrinsicCall {
-                        args,
-                        intrinsic,
-                        span,
-                        depth,
-                        inferred,
-                    },
-                    &mut Vec::new(),
-                    |_, _, value| value.ok_or(CompileError::InvalidIr("intrinsic flow")),
-                )
-            }
-            Expr::Array(items, span) => self.array_expr(items, span, inferred, depth),
-            Expr::Index {
-                target,
-                index,
-                selector,
-                span,
-            } => {
-                // F0-0002 §4.1.2.3, RD121: a projection of a base whose
-                // Array constructor was never established has no executable
-                // value. Its selector is still checked independently, but
-                // the conditional I64 context is not activated.
-                if matches!(
-                    self.inferred_bindings
-                        .expressions
-                        .get(&(target.span().start, target.span().end)),
-                    Some(ResolvedType::Unresolved)
-                ) {
-                    if self.emission == EmissionMode::Live {
-                        return Err(CompileError::InvalidIr("live unresolved index base"));
-                    }
-                    self.expr(target, depth + 1, None)?;
-                    self.expr_mode(index, depth + 1, None, true)?;
-                    return Ok(Flow::Value {
-                        temp: None,
-                        ty: inferred,
-                    });
-                }
-                if let Ok((root, index_exprs)) = place_parts(e)
-                    && let Some(name) = place_name(root)
-                {
-                    let local = self.get(name)?;
-                    if self.emission == EmissionMode::Live {
-                        self.pending_charges.extend(
-                            index_access_spans(e).into_iter().skip(1).map(|origin| {
-                                WorkPlanner::charge(WorkEvent::IndexExpression, origin)
-                            }),
-                        );
-                        self.pending_charges.push(WorkPlanner::charge(
-                            WorkEvent::ReadName,
-                            root.span().clone(),
-                        ));
-                    }
-                    let mut ids = Vec::with_capacity(index_exprs.len());
-                    let mut diverged = false;
-                    for index_expr in index_exprs {
-                        if diverged {
-                            self.terminated = None;
-                            self.emission = EmissionMode::Analyze;
-                        }
-                        let index_flow =
-                            self.expr_mode(index_expr, depth + 1, Some(&Ty::I64), true)?;
-                        if index_flow.diverged() {
-                            diverged = true;
-                            self.emission = EmissionMode::Analyze;
-                        }
-                        if index_flow
-                            .ty()
-                            .is_some_and(|it| *it != Ty::I64 && *it != Ty::Never)
-                        {
-                            return Err(CompileError::InvalidIr("index type"));
-                        }
-                        if let Some(id) = index_flow.temp() {
-                            ids.push(id);
-                        }
-                        // The root is acquired after each index expression. An
-                        // index may consume it, including on one branch only.
-                        self.check_place_access(local, root, e, "read", true)?;
-                        self.statement_op(
-                            Op::CheckIndex {
-                                local,
-                                indexes: ids.clone(),
-                                site: IndexSite {
-                                    context: e.span().clone(),
-                                    selectors: index_selectors(e)
-                                        .into_iter()
-                                        .take(ids.len())
-                                        .collect(),
-                                },
-                            },
-                            span.clone(),
-                            Access::Read,
-                            false,
-                        );
-                    }
-                    if diverged {
-                        self.terminated = Some(Termination::Diverged);
-                        return Ok(Flow::Diverged {
-                            ty: (inferred != Ty::Never).then_some(inferred),
-                        });
-                    }
-                    if inferred == Ty::Never {
-                        return Ok(Flow::Value {
-                            temp: None,
-                            ty: inferred,
-                        });
-                    }
-                    return Ok(self.emitted(
-                        if borrow {
-                            Op::BorrowIndex {
-                                local,
-                                indexes: ids,
-                                site: index_site(e, span.clone()),
-                            }
-                        } else {
-                            Op::ReadIndex {
-                                local,
-                                indexes: ids,
-                                site: index_site(e, span.clone()),
-                            }
-                        },
-                        inferred,
-                        span.clone(),
-                        Access::Read,
-                        false,
-                    ));
-                }
-                let base_flow = self.expr(target, depth + 1, None)?;
-                if base_flow.diverged() {
-                    self.terminated = None;
-                    self.emission = EmissionMode::Analyze;
-                    self.expr_mode(index, depth + 1, Some(&Ty::I64), true)?;
-                    self.terminated = Some(Termination::Diverged);
-                    return Ok(Flow::Diverged {
-                        ty: (inferred != Ty::Never).then_some(inferred),
-                    });
-                }
-                let index_flow = self.expr_mode(index, depth + 1, Some(&Ty::I64), true)?;
-                if index_flow.diverged() {
-                    return Ok(Flow::Diverged {
-                        ty: (inferred != Ty::Never).then_some(inferred),
-                    });
-                }
-                // The checker has already required I64 at this index. Never
-                // exits through diverged() above, and a tainted value blocks
-                // lowering. This guard protects only a forged internal flow.
-                if index_flow
-                    .ty()
-                    .is_some_and(|ty| *ty != Ty::I64 && *ty != Ty::Never)
-                {
-                    return Err(CompileError::InvalidIr("index type"));
-                }
-                let ty = inferred;
-                if self.emission == EmissionMode::Analyze {
-                    return Ok(Flow::Value { temp: None, ty });
-                }
-                let (Some(base), Some(idx)) = (base_flow.temp(), index_flow.temp()) else {
-                    return Err(CompileError::InvalidIr("index operand flow"));
-                };
-                Ok(self.emitted(
-                    Op::IndexValue {
-                        base,
-                        index: idx,
-                        site: IndexSite {
-                            context: span.clone(),
-                            selectors: vec![selector.clone()],
-                        },
-                    },
-                    ty,
-                    span.clone(),
-                    Access::Own,
-                    false,
-                ))
-            }
-            Expr::Unary {
-                mode: Mode::Inout | Mode::Consume,
-                value,
-                span,
-            } if matches!(&**value, Expr::Call { .. }) => {
-                let mode = if matches!(
-                    e,
-                    Expr::Unary {
-                        mode: Mode::Inout,
-                        ..
-                    }
-                ) {
-                    ParameterMode::Inout
-                } else {
-                    ParameterMode::Consume
-                };
-                self.requested_receiver = Some((mode, span.clone()));
-                self.expr(value, depth + 1, expected)
-            }
             Expr::Unary {
                 mode: Mode::Consume,
                 value,
@@ -8052,53 +8906,8 @@ impl Lower<'_> {
                 }
                 Ok(self.emitted(Op::TransferValue(id), ty, span.clone(), Access::Own, false))
             }
-            Expr::Unary {
-                mode: Mode::Read,
-                value,
-                span,
-            } => self.run_lower_tasks(
-                LowerRoot::UnaryRead {
-                    value,
-                    span,
-                    depth,
-                    inferred,
-                },
-                &mut Vec::new(),
-                |_, _, value| value.ok_or(CompileError::InvalidIr("propagation flow")),
-            ),
-            // parse::unadmitted_edit_in_expr rejects an exclusive prefix except
-            // as an immediate call argument; lower_call handles that argument.
-            // The source-level witnesses live in isolated_edit_never_reaches_lowering
-            // and access_prefix_contexts_never_escape_as_invalid_ir.
             Expr::Unary { .. } => Err(CompileError::InvalidIr("exclusive loan expression")),
-            Expr::If {
-                condition,
-                then_block,
-                otherwise,
-                span,
-            } => self.if_expression(
-                condition,
-                then_block,
-                otherwise.as_deref(),
-                span,
-                depth,
-                expected,
-            ),
-            Expr::Match(selection) => {
-                let mut diagnostics = Vec::new();
-                let result =
-                    self.match_selection(selection, true, depth, Some(&inferred), &mut diagnostics);
-                if diagnostics.is_empty() {
-                    result
-                } else {
-                    match result {
-                        Ok(_) | Err(CompileError::Dependent) => Err(CompileError::Rejected(
-                            diagnostics.into_iter().map(Box::new).collect(),
-                        )),
-                        Err(error) => Err(branch_error(error, diagnostics)),
-                    }
-                }
-            }
+            _ => Err(CompileError::InvalidIr("expression task dispatch")),
         }
     }
 }

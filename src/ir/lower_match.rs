@@ -46,6 +46,14 @@ pub(super) struct MatchArmState<'a> {
     saved: ScopeId,
     surviving: HashSet<TempId>,
 }
+pub(super) enum MatchArmStart<'a> {
+    Done(Option<MatchArmState<'a>>),
+    Guard {
+        arm: &'a parse::Arm,
+        guard: &'a Expr,
+        saved: ScopeId,
+    },
+}
 pub(super) struct MatchSnapshot {
     locals: usize,
     next_scope: usize,
@@ -268,33 +276,6 @@ fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
 }
 
 impl Lower<'_> {
-    pub(super) fn match_selection(
-        &mut self,
-        selection: &parse::Match,
-        expression: bool,
-        depth: usize,
-        expected: Option<&Ty>,
-        diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<Flow, CompileError> {
-        self.run_lower_tasks(
-            LowerRoot::Match {
-                selection,
-                depth,
-                expected: expression.then(|| expected.cloned().unwrap_or(Ty::Unit)),
-            },
-            diagnostics,
-            |_, _, value| {
-                if expression {
-                    value.ok_or(CompileError::InvalidIr("match expression flow"))
-                } else {
-                    Ok(Flow::Value {
-                        temp: None,
-                        ty: Ty::Unit,
-                    })
-                }
-            },
-        )
-    }
     pub(super) fn capture_match_snapshot(&self) -> MatchSnapshot {
         MatchSnapshot {
             locals: self.locals.len(),
@@ -410,10 +391,17 @@ impl Lower<'_> {
                     ty: selected_ty.clone(),
                 }
             }
-            _ => self.expr(&selection.scrutinee, depth + 1, Some(&selected_ty))?,
+            _ => return Err(CompileError::InvalidIr("match scrutinee task")),
         };
         self.begin_match_selection_after_selected(
-            selection, expression, depth, expected, prelude, selected,
+            selection,
+            expression,
+            depth,
+            expected,
+            prelude,
+            selected,
+            Vec::new(),
+            false,
         )
     }
     pub(super) fn match_selection_prelude(
@@ -434,15 +422,17 @@ impl Lower<'_> {
         })
     }
     pub(super) fn match_needs_scrutinee_expr(&self, selection: &parse::Match) -> bool {
-        selection.mode.is_none()
-            && (parse::place_parts(&selection.scrutinee).is_none()
-                || (place_name(&selection.scrutinee) == Some("None")
-                    && self
-                        .visible
-                        .get("None")
-                        .and_then(|ids| ids.last())
-                        .is_none()))
+        selection.mode == Some(Mode::Read)
+            || (selection.mode.is_none()
+                && (parse::place_parts(&selection.scrutinee).is_none()
+                    || (place_name(&selection.scrutinee) == Some("None")
+                        && self
+                            .visible
+                            .get("None")
+                            .and_then(|ids| ids.last())
+                            .is_none())))
     }
+    #[allow(clippy::too_many_arguments)] // The continuation carries the already evaluated selector state.
     pub(super) fn begin_match_selection_after_selected<'a>(
         &mut self,
         selection: &'a parse::Match,
@@ -451,6 +441,8 @@ impl Lower<'_> {
         expected: Option<&Ty>,
         prelude: MatchSelectionPrelude,
         selected: Flow,
+        indexes: Vec<TempId>,
+        loan_prepared: bool,
     ) -> Result<MatchStart<'a>, CompileError> {
         let MatchSelectionPrelude {
             outer_temps,
@@ -481,25 +473,9 @@ impl Lower<'_> {
         let loan_temp = if let Some(id) = loan_root {
             let origin = selection.scrutinee.span().clone();
             let loan = LoanId(origin.start as usize);
-            if selection.mode.is_none() {
+            if selection.mode.is_none() && !loan_prepared {
                 self.check_available(id, origin.clone())?;
                 self.conflict(id, origin.clone(), "read")?;
-            }
-            let (_, index_exprs) = parse::place_parts(&selection.scrutinee)
-                .ok_or(CompileError::InvalidIr("match loan place"))?;
-            let mut indexes = Vec::with_capacity(index_exprs.len());
-            for index_expr in index_exprs {
-                let flow = self.expr_mode(index_expr, depth + 1, Some(&Ty::I64), true)?;
-                if flow.diverged() {
-                    return Ok(MatchStart::Completed(Flow::Diverged {
-                        ty: expected.cloned(),
-                    }));
-                }
-                if let Some(temp) = flow.temp() {
-                    indexes.push(temp);
-                } else if self.emission == EmissionMode::Live {
-                    return Err(CompileError::InvalidIr("match index"));
-                }
             }
             let held = self.emit(
                 Op::BeginLoan {
@@ -624,13 +600,12 @@ impl Lower<'_> {
         &mut self,
         state: &mut MatchInnerState<'a>,
         diagnostics: &mut Vec<Diagnostic>,
-    ) -> Result<Option<MatchArmState<'a>>, CompileError> {
+    ) -> Result<MatchArmStart<'a>, CompileError> {
         let Some(arm) = state.selection.arms.get(state.arm_index) else {
-            return Ok(None);
+            return Ok(MatchArmStart::Done(None));
         };
         state.arm_index += 1;
         let selection = state.selection;
-        let depth = state.depth;
         let selected_ty = &state.selected_ty;
         let loan_root = state.loan_root;
         let loan_temp = state.loan_temp;
@@ -690,52 +665,80 @@ impl Lower<'_> {
                     provisional: true,
                 },
             )?;
+            if violations.is_empty() {
+                return Ok(MatchArmStart::Guard { arm, guard, saved });
+            }
             // A forbidden guard has no committed effects. Use a Bool
             // condition so the same arm and fallthrough analysis can
             // continue and report independent ownership sites.
-            let checked = if violations.is_empty() {
-                self.expr(guard, depth + 1, Some(&Ty::Bool))?
-            } else {
-                self.emitted(
-                    Op::ConstBool(true),
-                    Ty::Bool,
-                    guard.span().clone(),
-                    Access::Own,
-                    false,
-                )
-            };
-            let guard_names = self
-                .scopes
-                .last()
-                .cloned()
-                .ok_or(CompileError::InvalidIr("guard scope"))?;
-            let guard_locals = guard_names
-                .iter()
-                .rev()
-                .map(|name| self.get(name).map(|id| (id, arm.body.close_span.clone())))
-                .collect::<Result<Vec<_>, _>>()?;
-            self.plan_exit(
-                ExitPlan {
-                    surviving: self.live_temps.clone(),
-                    locals: guard_locals,
-                    reserved: None,
-                },
-                &arm.body.close_span,
+            let checked = self.emitted(
+                Op::ConstBool(true),
+                Ty::Bool,
+                guard.span().clone(),
+                Access::Own,
+                false,
             );
-            self.leave_scope(saved)?;
-            if branch_mode == EmissionMode::Live {
-                let guard_branch = self.finish_block(Terminator::BranchBool {
-                    condition: checked
-                        .temp()
-                        .ok_or(CompileError::InvalidIr("match guard condition"))?,
-                    yes: BlockId(self.blocks.len() + 1),
-                    no: BlockId(usize::MAX),
-                    span: guard.span().clone(),
-                    charges: Vec::new(),
-                });
-                state.previous_branches.push(guard_branch);
-            }
+            return self
+                .finish_match_guard(state, arm, saved, checked)
+                .map(|arm| MatchArmStart::Done(Some(arm)));
         }
+        self.bind_match_arm_body(state, arm)
+            .map(|arm| MatchArmStart::Done(Some(arm)))
+    }
+    pub(super) fn finish_match_guard<'a>(
+        &mut self,
+        state: &mut MatchInnerState<'a>,
+        arm: &'a parse::Arm,
+        saved: ScopeId,
+        checked: Flow,
+    ) -> Result<MatchArmState<'a>, CompileError> {
+        let guard = arm
+            .guard
+            .as_ref()
+            .ok_or(CompileError::InvalidIr("match guard"))?;
+        let guard_names = self
+            .scopes
+            .last()
+            .cloned()
+            .ok_or(CompileError::InvalidIr("guard scope"))?;
+        let guard_locals = guard_names
+            .iter()
+            .rev()
+            .map(|name| self.get(name).map(|id| (id, arm.body.close_span.clone())))
+            .collect::<Result<Vec<_>, _>>()?;
+        self.plan_exit(
+            ExitPlan {
+                surviving: self.live_temps.clone(),
+                locals: guard_locals,
+                reserved: None,
+            },
+            &arm.body.close_span,
+        );
+        self.leave_scope(saved)?;
+        if state.branch_mode == EmissionMode::Live {
+            let guard_branch = self.finish_block(Terminator::BranchBool {
+                condition: checked
+                    .temp()
+                    .ok_or(CompileError::InvalidIr("match guard condition"))?,
+                yes: BlockId(self.blocks.len() + 1),
+                no: BlockId(usize::MAX),
+                span: guard.span().clone(),
+                charges: Vec::new(),
+            });
+            state.previous_branches.push(guard_branch);
+        }
+        self.bind_match_arm_body(state, arm)
+    }
+    fn bind_match_arm_body<'a>(
+        &mut self,
+        state: &mut MatchInnerState<'a>,
+        arm: &'a parse::Arm,
+    ) -> Result<MatchArmState<'a>, CompileError> {
+        let selection = state.selection;
+        let selected_ty = &state.selected_ty;
+        let root = state.root;
+        let loan_root = state.loan_root;
+        let loan_temp = state.loan_temp;
         let saved = self.scope;
         self.scope = ScopeId(self.next_scope);
         self.next_scope += 1;
@@ -754,11 +757,11 @@ impl Lower<'_> {
                 provisional: false,
             },
         )?;
-        Ok(Some(MatchArmState {
+        Ok(MatchArmState {
             arm,
             saved,
             surviving: arm_surviving,
-        }))
+        })
     }
     pub(super) fn finish_match_arm(
         &mut self,
