@@ -33,3 +33,21 @@ Por tanto, registrar la forma en el grafo, como ordena la propuesta validada, **
 ## Retorno solicitado a A/B
 
 Revisar la representación entre inferencia e IR y el tratamiento de un match cuyo scrutinee no tiene valor ejecutable, conservando el componente hipotético y los oráculos de F0-0003 §3.2/§8.2. Decidir el mecanismo único y el alcance exacto de `src/ir/lower.rs` y, si corresponde, `src/ir/lower_match.rs`; después revalidar la propuesta antes de que C retome código. La migración de `tainted`/`numeric_domain_owner` tampoco se ha iniciado: la orden de parada del brief impide entregar una mitad del bloque.
+
+## Nueva detención en S1 (17 de noviembre de 2026, HEAD `6e853ff`)
+
+Tras el PASS documental de r10, C ensayó en el mismo árbol una migración de S1: retiró los dos campos globales de `InferenceGraph`, trasladó contaminación y procedencia numérica a ocurrencias, y sustituyó booleanos transportados por consultas de sitio. La sonda compiló con Cargo offline; se descartó íntegra al observar el diferencial. `src/check/types.rs` volvió al blob de HEAD, SHA-256 `4fe96534c6f25cc84d77d0be96d9c08c33867f9d49dd68f4790cfd207e99056a`, comprobado con `git show HEAD:src/check/types.rs | sha256sum`. No quedaron cambios de código ni tests, no se empezó S2 y no se reclama puerta mecánica ni PASS.
+
+**Salida RD71 protegida que detuvo el ensayo.** Fuente exacta de F0-0002 §4.1.2.5, RD71:
+
+```nexo
+fn Main(){let x=1;let p=true;var ar=[1];var br=[true];var aar=[[1]];AssertEq([p,p],(if p then ar[ar[x]] else {value:aar[x-(if true then ar else 279)];}));}
+```
+
+Con `check` y `run` debug, la base `9b8e03e` devolvió `rejected`, solo `NX-E0102/type_mismatch`, primario `[136,138)` (`ar`), `data={"expected_type":"I64","found_type":"Array<I64>"}`, relación `found_type` en el primario y `cause_chain=[]`. La sonda de S1 devolvió además `NX-E1303` sin subcausa, primario `[116,149)` (rama `else`), el mismo Data, relaciones `expected_type` `[94,103)` y `found_type` `[116,149)`, `cause_chain=[]`. RD71 fija C1; su omisión V anotada es la comparación **exterior** de `AssertEq`, no este C de unión de ramas. La aceptación siguió `rejected`, pero cambió la secuencia de diagnósticos, prohibido por la propuesta §3/§5.
+
+En el diferencial debug de 369 fuentes contra `9b8e03e` cambiaron exactamente tres fuentes (ambos comandos en cada una): RD71 y su fixture duplicada `tests/fixtures/i07c_repros/forms/branch-assert-equality-array-index-mutable-5db331ae6f-sample1.n` ganaron el C descrito; `tests/fixtures/i07c/independent_unresolved_constructor_in_branch.n` sustituyó `NX-E0103` en `[115,117)` por `NX-E0102/type_mismatch` en `[111,113)` sobre `q3`. Ninguna es un patrón de raíz abierta B3. Los tests de biblioteca de la sonda pasaron 1129 y fallaron 2 en la última pasada completa; ambos fallos se reprodujeron verdes de forma dirigida tras una última corrección, pero no se repitió la pasada completa porque RD71 obligó a detener el código. Release, fuzz, RD 152/152 y `validate.sh` quedaron sin ejecutar para la sonda descartada.
+
+La diferencia de RD71 apareció en la propagación por ocurrencia del resultado inválido de un selector hacia la unión de ramas y su consumidor `AssertEq`; la traza externa no demuestra aún cuál arista o obligación concreta quedó sin contaminar. Para continuar 4.3, A/B deben revisar un mecanismo verificable de dependencia causal para ese camino y la supresión del C derivado, manteniendo el C independiente del selector, y decidir cómo preservar también el cierre de `q3` sin una autoridad booleana entre visitas. C no fijará un esperado nuevo ni añadirá una excepción por fuente.
+
+Generador de D congelado sin modificar: `D:\nexo-work\val-D1\h\fuzz.py`, SHA-256 `328ba0488cc11f0fbc39184b4d9b571559b8a627bb3cb3985ca0a3faa3d57ef2`.
