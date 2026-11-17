@@ -1,0 +1,17 @@
+# D1 - validacion de la propuesta I07c-Bloque-I-r1 (HEAD 085c702) - paso 4.2
+
+Veredicto: FAIL (correcciones de redaccion/alcance, sin rediseno).
+
+## Comprobado (PASA)
+- Causa raiz del motivo 1 coherente con mi repro: l0 queda Deferred sin forma, pattern_type sale por "unresolved constructor", exportacion Unresolved, lowering Ty::Never, InvalidIr("pattern union"). Mecanismo: obligacion de patron en el grafo S1/S2, sin segundo solver ni rama por patron/DV. Lowering fuera salvo nueva traza + A/B. Correcto.
+- Oraculos: recalcule todos los offsets de la tabla sobre la fuente con DV expandido ([57,62), [78,83), [66,73), [90,94), [95,97), [90,105), [106,108), [89,94)) y coinciden con F0-0003 3.2 y 8.2. Datos, relaciones y orden transcritos del ADR, no del binario. Limite Len(l0) solo N(f): correcto.
+- Ninguna salida fijada por el ADR cambia: las fuentes del motivo 1 hoy dan internal_error; mi diferencial de 369 fuentes no contiene scrutinee con raiz abierta. Motivo 2 se declara migracion sin cambio de salida.
+- Subcausas nuevas: NO veo cambio de promesa publica de la base. Baseline (rev 0.2) y F0_ACUERDOS no fijan subcausas; es una extension aditiva del namespace Nexo-proposed-v1, ya decidida en ADR F0-0003 8.2 (precedente constructor_type/arity). Si el coordinador quiere trazabilidad, anotarlo en F0_ACUERDOS; no exige parar.
+
+## Motivos accionables
+1. Alcance de archivos: la propuesta nombra diagnostic.rs y F0-CODIGOS.md, pero no es plan 6 y falta el resto. Hay catalogos enumerados en tests/i01_diagnostic.rs (lineas ~646, ~874, ~999) y tests/j01_profile.rs (~281), mas src/diagnostic.rs en TRES sitios (mensaje ~2165, explain ~2510, Data/subcausas ~3714) y F0-CODIGOS.md (fila NX-E1325, tambien NX-E0102). Requiere enmienda de plan por A/B listando exactamente esos archivos; la propuesta debe enumerarlos antes de 4.3.
+2. Motivo 2, escapatoria: "o quedan solo como resultado efimero antes de registrar la obligacion" permite conservar prior_taint/left_tainted como booleanos de marco que decidan. Fijar criterio comprobable: cero campos tainted/numeric_domain_owner en Checker e InferenceGraph; ninguna lectura decisoria (unify, omision de asignacion, binding, dominio, exportacion) de un booleano que cruce sentencias u ocurrencias; cualquier booleano de marco solo dentro de la misma llamada de recorrido y escrito a la ocurrencia antes de que otro sitio lo consulte. D lo verificara por grep y lectura de las ~182 referencias actuales.
+3. Oraculos faltantes en la propuesta: las variantes de D1 (let k:Bool=x, let k:I64=x, let k=x, Ok(x)+_, Some/None, var l0=DV) se mandan "reproducir" sin esperado. Escribir el esperado derivado de 3.2 (aceptan, check=checked/run=unit, diagnostics=[]; x fija alpha cuando hay anotacion; k=x sin anotacion deja componente hipotetico sin valor ejecutable) y anadir el caso "None primero" (match l0{None=>{},Some(x)=>{}} acepta; match l0{None=>{},_=>{}} conserva NX-E1304).
+4. Diferencial del motivo 2: ademas de las 369 fuentes, exigir comparar contra 9b8e03e el corpus de fuzz propio (semillas 1-5, ~4800 programas, generador en D:\nexo-work\val-D1\h\fuzz.py) en check/run debug/release, con diferencias admitidas solo en programas con match sobre raiz abierta. Es una migracion de representacion; sin esta comparacion no hay evidencia suficiente. Mutaciones inversas: una por regla nueva (enlace de forma, anidado, origen del conflicto, owner/contaminacion), SHA-256 de restauracion, como ya propone.
+
+Tras 1-4 y PASS de A/B sobre el alcance, la propuesta es validable.
