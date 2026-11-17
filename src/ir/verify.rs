@@ -1391,6 +1391,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     {
         return Err("unreleased loan");
     }
+    verify_propagation_exits(function, &[&function.block], &[Vec::new()])?;
     Ok(())
 }
 
@@ -3138,6 +3139,124 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
             }
         }
     }
+    verify_propagation_exits(function, &blocks, &successors)?;
+    Ok(())
+}
+
+// BranchVariant has an implicit Err successor: the interpreter retains the
+// consumed error, closes remaining temporaries, then follows Function.cleanup.
+// Reconstruct the possible owned locals at that successor from IR operations,
+// independently of the exit_info emitted by lowering. A missing owner in the
+// exit record would otherwise make an incomplete cleanup look verified.
+fn verify_propagation_exits(
+    function: &Function,
+    blocks: &[&BasicBlock],
+    successors: &[Vec<usize>],
+) -> Result<(), &'static str> {
+    use std::collections::{HashMap, VecDeque};
+    if !blocks.iter().any(|block| {
+        block
+            .instructions
+            .iter()
+            .any(|ins| matches!(ins.op, Op::BranchVariant { .. }))
+    }) {
+        return Ok(());
+    }
+    let words = function.locals.len().div_ceil(64);
+    let tracked: Vec<_> = function
+        .locals
+        .iter()
+        .map(|local| local.ty.has_resource_destructor())
+        .collect();
+    let mut incoming = vec![vec![0_u64; words]; blocks.len()];
+    for parameter in &function.parameters {
+        if parameter.mode == ParameterMode::Consume && tracked[parameter.local.0] {
+            incoming[0][parameter.local.0 / 64] |= 1 << (parameter.local.0 % 64);
+        }
+    }
+    let mut queue = VecDeque::from_iter(0..blocks.len());
+    let mut queued = vec![true; blocks.len()];
+    while let Some(block) = queue.pop_front() {
+        queued[block] = false;
+        let mut state = incoming[block].clone();
+        for ins in &blocks[block].instructions {
+            match ins.op {
+                Op::WritePlace { local, .. } | Op::WriteIndex { local, .. }
+                    if tracked.get(local.0) == Some(&true) =>
+                {
+                    state[local.0 / 64] |= 1 << (local.0 % 64);
+                }
+                Op::TransferValue(local) | Op::DropBinding(local) | Op::DropLocal(local)
+                    if tracked.get(local.0) == Some(&true) =>
+                {
+                    state[local.0 / 64] &= !(1 << (local.0 % 64));
+                }
+                _ => {}
+            }
+        }
+        for &next in &successors[block] {
+            let mut changed = false;
+            for (target, source) in incoming[next].iter_mut().zip(&state) {
+                let joined = *target | *source;
+                changed |= joined != *target;
+                *target = joined;
+            }
+            if changed && !queued[next] {
+                queue.push_back(next);
+                queued[next] = true;
+            }
+        }
+    }
+    let exits: HashMap<_, _> = function
+        .exit_info
+        .iter()
+        .filter(|exit| exit.class == super::model::ExitClass::Try)
+        .map(|exit| ((exit.block.0, exit.index), exit))
+        .collect();
+    for (block_index, block) in blocks.iter().enumerate() {
+        let mut state = incoming[block_index].clone();
+        for (position, ins) in block.instructions.iter().enumerate() {
+            if matches!(ins.op, Op::BranchVariant { .. }) {
+                let exit = exits
+                    .get(&(block_index, position))
+                    .ok_or("propagation cleanup state")?;
+                let live = |id: &LocalId| {
+                    state
+                        .get(id.0 / 64)
+                        .is_some_and(|word| word & (1 << (id.0 % 64)) != 0)
+                };
+                let scheduled: Vec<_> = function
+                    .cleanup
+                    .iter()
+                    .copied()
+                    .filter(|id| live(id))
+                    .collect();
+                let recorded: Vec<_> = exit
+                    .live_locals
+                    .iter()
+                    .rev()
+                    .copied()
+                    .filter(|id| live(id))
+                    .collect();
+                if recorded != scheduled {
+                    return Err("propagation cleanup state");
+                }
+            }
+            match ins.op {
+                Op::WritePlace { local, .. } | Op::WriteIndex { local, .. }
+                    if tracked.get(local.0) == Some(&true) =>
+                {
+                    state[local.0 / 64] |= 1 << (local.0 % 64);
+                }
+                Op::TransferValue(local) | Op::DropBinding(local) | Op::DropLocal(local)
+                    if tracked.get(local.0) == Some(&true) =>
+                {
+                    state[local.0 / 64] &= !(1 << (local.0 % 64));
+                }
+                _ => {}
+            }
+        }
+    }
     Ok(())
 }
 
@@ -3845,6 +3964,78 @@ mod tests {
             }),
             Err("propagation error type")
         );
+    }
+
+    #[test]
+    fn propagation_err_edge_rederives_owned_cleanup_and_keeps_error() {
+        for source in [
+            "fn F()->Result<I64,I64>{let r=MockOpen(1);let e:Result<I64,I64>=Err(9);let x=e?;return Ok(0);}fn Main(){let x=F();}",
+            "fn Use(a:move MockResource,b:view I64)->I64{Inspect(a);return b;}fn F()->Result<I64,I64>{let r=MockOpen(1);let x=Use(MockOpen(7),(match true{true=>{let q=MockOpen(2);let e:Result<I64,I64>=Err(9);let z=e?;value:3;},false=>{value:2;}}));return Ok(0);}fn Main(){let x=F();AssertEq(x,Err(9));}",
+        ] {
+            let program =
+                compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+            let original = program.functions.function("F").unwrap().clone();
+            assert_eq!(verify_function(&original), Ok(()));
+            let owner = original
+                .locals
+                .iter()
+                .find(|local| local.name == "r")
+                .unwrap()
+                .id;
+            let mut missing = original.clone();
+            let err_edge = missing
+                .exit_info
+                .iter_mut()
+                .find(|exit| exit.class == super::super::model::ExitClass::Try)
+                .unwrap();
+            assert!(err_edge.live_locals.contains(&owner));
+            err_edge.live_locals.retain(|id| *id != owner);
+            missing.content_hash = super::super::model::content_hash(&missing);
+            assert_eq!(verify_function(&missing), Err("propagation cleanup state"));
+
+            let mut reordered = original.clone();
+            let err_edge = reordered
+                .exit_info
+                .iter_mut()
+                .find(|exit| exit.class == super::super::model::ExitClass::Try)
+                .unwrap();
+            let owned: Vec<_> = err_edge
+                .live_locals
+                .iter()
+                .enumerate()
+                .filter_map(|(index, id)| {
+                    reordered.locals[id.0]
+                        .ty
+                        .has_resource_destructor()
+                        .then_some(index)
+                })
+                .collect();
+            if owned.len() >= 2 {
+                err_edge.live_locals.swap(owned[0], owned[1]);
+                reordered.content_hash = super::super::model::content_hash(&reordered);
+                assert_eq!(
+                    verify_function(&reordered),
+                    Err("propagation cleanup state")
+                );
+            }
+
+            let mut no_closer = original.clone();
+            no_closer.cleanup.retain(|id| *id != owner);
+            no_closer.content_hash = super::super::model::content_hash(&no_closer);
+            assert_eq!(verify_function(&no_closer), Err("cleanup plan"));
+
+            let mut wrong_error = original;
+            let branch = std::iter::once(&mut wrong_error.block)
+                .chain(&mut wrong_error.blocks)
+                .flat_map(|block| &mut block.instructions)
+                .find(|ins| matches!(ins.op, Op::BranchVariant { .. }))
+                .unwrap();
+            if let Op::BranchVariant { result, .. } = &mut branch.op {
+                *result = Ty::Unit;
+            }
+            wrong_error.content_hash = super::super::model::content_hash(&wrong_error);
+            assert_eq!(verify_function(&wrong_error), Err("propagation error type"));
+        }
     }
     #[test]
     fn verifier_rejects_array_element_type_mismatch() {
