@@ -227,6 +227,16 @@ en `1` [29,30) y NX-E1304/non_exhaustive en `match` [10,15), con
 `fn Main(){match true{true=>{},false=>{}}}` no emite diagnósticos.
 Solo un error de tipos del patrón impide la cobertura derivada del mismo match.
 
+Si un payload de patrón no puede determinarse y la cobertura ya prueba un
+residuo por el constructor conocido, se publican ambos diagnósticos causales;
+NX-E0113 no borra NX-E1304 independiente. Ejemplo válido:
+`fn Main(){let o:Option<Result<I64,I64>>=if true then{value:None;}else{value:Some(Err(1));};match o{None if true=>{},Some(Ok(p))=>{},_=>{}}}`
+produce cero diagnósticos. Ejemplo inválido:
+`fn Main(){match if true then{value:None;}else{value:Some(Err(1));}{None if true=>{},Some(Ok(p))=>{}}}`
+produce NX-E1304/non_exhaustive con `missing_pattern=None` y primario match
+`[10,15)`, y tres NX-E0113 en `[35,39)`, `[52,64)` y `[57,63)`, con
+componentes `$.some.ok`, `$.some.ok` y `$.ok` respectivamente.
+
 Las restricciones de la guarda participan en la inferencia del payload de un
 patrón aunque el scrutinee sea `None`:
 `fn Main(){match None{Some(x) if x==1=>{},_=>{}}}` determina `Option<I64>` y es válido. En cambio,

@@ -85,6 +85,30 @@ fn option_bindings(levels: usize) -> String {
     source
 }
 
+fn generator_with_deep_temporary(retained_slot: bool) -> String {
+    let make = format!(
+        "fn Make()->{}{{{}return a127;}}",
+        options(127),
+        option_bindings(127)
+    );
+    let (binding, first) = if retained_slot {
+        ("let x=Some(Make());", "move x")
+    } else {
+        ("", "Some(Make())")
+    };
+    format!(
+        "{make}gen fn G()->I64{{{binding}AssertEq({first},(if true then{{yield 1;value:Some(Make());}}else{{value:Some(Make());}}));}}fn Main(){{var g=G();let a=Iterator.Next(edit g);}}"
+    )
+}
+
+#[test]
+fn dynamic_temporary_does_not_extend_generator_layout_but_owned_slot_does() {
+    accepted_both(&generator_with_deep_temporary(false));
+    let invalid = generator_with_deep_temporary(true);
+    let start = invalid.rfind("G()").unwrap() as u64;
+    rejected_both(&invalid, "value_type_depth", 129, (start, start + 3));
+}
+
 fn parameter_state(levels: usize, outer: bool, late: bool) -> String {
     let generator = format!(
         "gen fn G(x:move {})->I64{{yield 1;Drop(x);}}",
