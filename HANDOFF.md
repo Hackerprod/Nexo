@@ -442,3 +442,8 @@ El J14 previo falló la validación independiente con diez defectos (D1–D10). 
 ## F0-0003 — J15 cerrado (2026-11-15)
 
 J15 acredita EX04 por la CLI real con `--mock-env`, errores, abandono y la regresión EX01–EX03 (`tests/j15_cli.rs`, commit `d698142`, plan `docs/correcciones/J15-r1.md`; B, D y D' con PASS). Sin cambios en `src/`; objetivo público 15/29. Filas NB-J15-01..03 en `Pending.md`. I07c sigue pendiente: `docs/I07c-PENDIENTE.md` (carril paralelo `i07c-estructural`). Siguiente: J16.
+
+
+## F0-0003 — J16, Bloque 1 integrado (2026-11-17)
+
+Se integra a main el Bloque 1 de J16 (pilas explícitas en parser, names, tipos, lowering, efectos, printer y patrones, y destrucción iterativa del AST parcial), hasta `0e6c683` en `i07c-robustez`. Plan `docs/correcciones/J16-r1.md`, propuestas `J16-b1-t0-r1.md` y `J16-b1-l-r1.md`, informes en `.scratch/val-j16/`; D' dio PASS (diferencial 7.272 fuentes, 64 familias a 204/256 KiB sin empeorar mínimos, `validate.sh` exit 0, objetivo 15/29). Las familias de tipos profundos (`Some(`×126, helpers de Array, `selection_type`) quedan como S1c con sus filas en `Pending.md`. J16 sigue abierto: faltan el ciclo 0 de S1b/S1c, el Bloque 2 y el Bloque 3. I07c lo lleva otra sesión (`docs/I07c-PENDIENTE.md`).

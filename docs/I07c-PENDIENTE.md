@@ -69,3 +69,7 @@ con un contrato acotado y deuda registrada. Este documento fija qué falta, qué
 `docs/validation/F0-0002-I07c-contrato-de-cierre.md`, `docs/validation/F0-0002-I07c-estado.md`, `Pending.md`
 (secciones I07c y NB-I11a-08), `docs/correcciones/` (estilo de planes), `Nexo-robustez\.scratch\bucle-estado.md` e
 `insumos\` (val19-common.md, val19-tipos-informe.md, val19-docs-informe.md, val19-cuota-informe.md).
+
+## 6. Hallazgo añadido el 2026-11-16 (descubierto en J16, no pertenece a J16)
+
+`fn Main(){match Some([]){Some(v) if false=>{let a:Array<I64>=v;},Some(w)=>{let b:Array<I64>=w;},None=>{}}}` da `driver_error`/`internal_error` en `check` tanto en main `99c8491` como tras J16 T0 (no es regresión de J16). Es del dominio de I07c (array pendiente `Some([])` fijado por dos ramas de `match`, una con guarda): un error interno ante un programa que el ADR manda decidir. Incluirlo como repro B3 en el ciclo 0 de I07c.

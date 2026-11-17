@@ -498,3 +498,21 @@ J15 acredita EX04 por la interfaz CLI real con entradas variables (`--mock-env`;
 | NB-J15-03 | Las mutaciones por línea de `checked_add` y `close:` dependen de números de línea de `machine.rs`; citar por contexto si el archivo cambia. | Informe de B. | Informativo |
 
 **I07c.** Su cierre real sigue pendiente: ver `docs/I07c-PENDIENTE.md`. Lo lleva una sesión paralela en la rama `i07c-estructural`; el orquestador principal solo integra a main tras el D' de ese carril.
+
+
+## F0-0003 — J16, Bloque 1 (escala y pila del front-end) integrado (2026-11-17)
+
+El Bloque 1 de J16 (plan `docs/correcciones/J16-r1.md`, validado por B en cinco versiones; propuestas `J16-b1-t0-r1.md` y `J16-b1-l-r1.md` validadas por D) lleva a pilas explícitas de tareas los recorridos recursivos del parser, names, tipos, lowering, efectos, printer y patrones, y la destrucción del AST parcial al rechazar profundidad. Commits en `i07c-robustez` hasta `0e6c683` (T0 `082bc6d`+`5ca8dd9`, P `823c769`+`df3d3f9`, N `17c11d3`, L `c6282c1`+`891a988`, F `9e432be`, T1 `7df6a81`+`ea51597`, cierre `91b3a68`, margen `eb7a72d`, alcance de `for` `0e6c683`). D' dio PASS: 64 familias de 126 niveles y los objetivos 01–15 a 204 y 256 KiB, sin que ningún mínimo de pila empeore frente a la base, diferencial de 7.272 fuentes con 0 diferencias semánticas, `validate.sh` exit 0, objetivo 15/29. Informes en `.scratch/val-j16/`. Decisiones revertibles del coordinador en el plan: puertas por fase; criterio de margen operativo (≤ 204 KiB, contrato 256 KiB); T1 con puerta directa; las familias con un TIPO `Option`/`Result` de 126 niveles pasan por `selection_type` y son S1c.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| J16-S1C-SOME-TYPES | `Some(` ×84 y ×126 desbordan TYPES aislado a 204 KiB en debug (solo debug; `Checker::bind` y solver). La CLI ordinaria acepta. | `.scratch/c-j16b1-desvios4.md`. | J16 (S1c, tras ciclo 0 y PASS de B) |
+| J16-S1C-ARRAY-HELPER-MARGEN | No es una cota. La forma válida `[`×126 + `1` necesita 193 KiB en CHECKER debug; el Array inválido de 126 niveles (error de tipo) 257 KiB; `None[`+`[`×125+`1`+`]`×126 449 KiB. | `.scratch/c-j16b1-cierre-integral.md`. | J16 (S1c) |
+| J16-S1C-MATCH-TYPE-DEPTH | `selection_type` sigue recursivo (reservado a S1c). Con T0 corregido, `Option<…×126…>` + `match _` necesita 193 KiB en CHECKER debug, igual que la base; `Result`×126 baja de 257 a 193; patrón `Some`×126 sobre `Option`×126 baja de 257 a 193 (base 321). | `.scratch/c-j16b1-desvios8.md`. | J16 (S1c) |
+| J16-B1-SUELO-DEBUG | Todo programa consume 129 KiB de pila en debug por el marco de `parse_construct` y el suelo del CHECKER para `match` (base 65). Informativo, dentro de 204 KiB. | Informes D/D'. | Informativo |
+| J16-B1-MUT-SUPERVIVIENTES | Supervivientes de mutación sin programa ni argumento: N4, N6, N9 (L) y T0 M4/M6/M9/M12/M14/N2; J y L de D' equivalentes por argumento. | `.scratch/val-j16/l-mutantes.md`, informes D. | Endurecimiento |
+| J16-B1-FUZZ-DEBUG | Un crash intermitente en debug en el fuzz de P (índice 7261, 1 de 8 repeticiones a 204 KiB, 0 a 256) y timeouts esporádicos por saturación de la máquina que no se repiten. | `.scratch/val-j16/pfLF-informe.md`. | Informativo |
+| J16-B1-PRINT-TY | `print.rs::ty` sigue autorrecursiva (como en la base); rama no ejercida. | Informe D. | J16 (cierre del bloque de formateador) |
+| J16-B1-INTERNAL-ERROR-MATCH-SOME | `fn Main(){match Some([]){Some(v) if false=>{let a:Array<I64>=v;},Some(w)=>{let b:Array<I64>=w;},None=>{}}}` da `internal_error` en `check` en base y en HEAD (no regresión). Pertenece a I07c: ver `docs/I07c-PENDIENTE.md` §6. | CLI. | I07c |
+
+Pendiente de J16: Bloque 1b (S1b/S1c con ciclo 0 y PASS de B), Bloque 2 (diagnósticos y residuales de J14, decisión de `?` por `BranchVariant`) y Bloque 3 (batería integrada, mutaciones y matriz). El corte J16 NO está cerrado.
