@@ -1,5 +1,12 @@
 use nexo::diagnostic::{DataValue, Operation, Span, Stage};
 use nexo::ir::{CompileError, ReducedProfile, compile_scalar_with_profile};
+use std::{
+    fs,
+    process::Command,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
+static NEXT: AtomicUsize = AtomicUsize::new(0);
 
 const FILE: &str = "j16-diagnostics.n";
 
@@ -16,6 +23,33 @@ fn rejected(source: &str) -> Vec<nexo::diagnostic::Diagnostic> {
         error.validate(FILE, source).unwrap();
     }
     errors.into_iter().map(|error| *error).collect()
+}
+
+#[test]
+fn self_prefixed_identifier_is_accepted_by_check_and_run() {
+    let source = "fn Main(){let selfless=1;let y=selfless;}";
+    compile(source).unwrap();
+    let id = NEXT.fetch_add(1, Ordering::Relaxed);
+    let file =
+        std::env::temp_dir().join(format!("nexo-j16-selfless-{}-{id}.n", std::process::id()));
+    fs::write(&file, source).unwrap();
+    for command in ["check", "run"] {
+        let output = Command::new(env!("CARGO_BIN_EXE_nexo"))
+            .args([
+                command,
+                file.to_str().unwrap(),
+                "--profile",
+                "f0-0003-b-v1",
+                "--format",
+                "json",
+            ])
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8(output.stdout).unwrap();
+        assert_eq!(output.status.code(), Some(0), "{command}: {stdout}");
+        assert!(stdout.contains("\"diagnostics\":[]"), "{command}: {stdout}");
+    }
+    fs::remove_file(file).unwrap();
 }
 
 #[test]
