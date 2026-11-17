@@ -93,6 +93,100 @@ fn self_expression_is_deferred_at_name_resolution() {
 }
 
 #[test]
+fn self_in_expression_positions_is_deferred_at_name_resolution() {
+    let cases = [
+        ("call_target", "fn Main(){let o=Some(1);let x=self(o);}", 30),
+        ("index_target", "fn Main(){let x=self[0];}", 16),
+        ("argument", "fn Main(){Print(self);}", 16),
+        ("operand", "fn Main(){let x=1+self;}", 18),
+        ("closure", "fn Main(){let f=fn [](){let x=self;};}", 30),
+    ];
+    for (context, source, start) in cases {
+        let errors = rejected(source);
+        assert_eq!(errors.len(), 1, "{context}: {errors:?}");
+        let error = &errors[0];
+        assert_eq!(error.code, "NX-E0006", "{context}");
+        assert_eq!(error.subcause, None, "{context}");
+        assert_eq!(error.stage, Stage::Names, "{context}");
+        assert_eq!(error.operation, Operation::NamesResolve, "{context}");
+        assert_eq!(error.feature_id.as_deref(), Some("methods"), "{context}");
+        assert_eq!(
+            error
+                .primary_span
+                .as_ref()
+                .map(|span| (span.start, span.end)),
+            Some((start, start + 4)),
+            "{context}"
+        );
+        assert_eq!(error.data.len(), 1, "{context}");
+        assert_eq!(
+            error.data.get("pending_scope"),
+            Some(&DataValue::String("later_adr".into())),
+            "{context}"
+        );
+        assert!(error.related_spans.is_empty(), "{context}");
+        assert!(error.cause_chain.is_empty(), "{context}");
+        assert!(error.repair.is_empty(), "{context}");
+        assert_eq!(error.unexpected_token, None, "{context}");
+        assert!(error.expected_tokens.is_empty(), "{context}");
+        assert_eq!(error.expected_tokens_kind, None, "{context}");
+        assert_eq!(error.parser_context, None, "{context}");
+        assert_eq!(error.recognized_prefix, None, "{context}");
+
+        let id = NEXT.fetch_add(1, Ordering::Relaxed);
+        let file = std::env::temp_dir().join(format!(
+            "nexo-j16-self-{context}-{}-{id}.n",
+            std::process::id()
+        ));
+        fs::write(&file, source).unwrap();
+        for command in ["check", "run"] {
+            let output = Command::new(env!("CARGO_BIN_EXE_nexo"))
+                .args([
+                    command,
+                    file.to_str().unwrap(),
+                    "--profile",
+                    "f0-0003-b-v1",
+                    "--format",
+                    "json",
+                ])
+                .output()
+                .unwrap();
+            let stdout = String::from_utf8(output.stdout).unwrap();
+            assert_eq!(
+                output.status.code(),
+                Some(1),
+                "{context}/{command}: {stdout}"
+            );
+            assert!(
+                stdout.contains("\"code\":\"NX-E0006\""),
+                "{context}/{command}: {stdout}"
+            );
+            assert!(
+                stdout.contains("\"stage\":\"names\""),
+                "{context}/{command}: {stdout}"
+            );
+            assert!(
+                stdout.contains("\"operation\":\"names.resolve\""),
+                "{context}/{command}: {stdout}"
+            );
+            assert!(
+                stdout.contains("\"feature_id\":\"methods\""),
+                "{context}/{command}: {stdout}"
+            );
+            assert!(
+                stdout.contains(&format!("\"start\":{start},\"end\":{}", start + 4)),
+                "{context}/{command}: {stdout}"
+            );
+            assert!(
+                stdout.contains("\"pending_scope\":\"later_adr\""),
+                "{context}/{command}: {stdout}"
+            );
+        }
+        fs::remove_file(file).unwrap();
+    }
+}
+
+#[test]
 fn match_scrutinee_read_ends_at_the_last_reachable_edge() {
     compile("fn Main(){var i=0;match i{0=>{},_=>{}}i=1;}").unwrap();
 
