@@ -91,6 +91,69 @@ fn adr_section_seven_ticks_and_check_run() {
     }
 }
 
+#[test]
+fn consumed_call_once_receiver_precedes_mode_error() {
+    const PREFIX: &str = "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};";
+    let sources = [
+        (format!("{PREFIX}move f();f();}}"), vec![("NX-E0202", Some("definitely_consumed"), 67, 68)]),
+        (format!("{PREFIX}move f();f();var i=0;while i<1{{i=i+1;}}}}"), vec![("NX-E0202", Some("definitely_consumed"), 67, 68)]),
+        ("fn Main(){var i=0;while i<1{i=i+1;}let r=MockOpen(1);let f=fn [move r](){Drop(r);};move f();f();}".into(), vec![("NX-E0202", Some("definitely_consumed"), 92, 93)]),
+        (format!("{PREFIX}if true{{move f();}}f();}}"), vec![("NX-E0202", Some("maybe_consumed"), 76, 77)]),
+        (format!("{PREFIX}move f();return;f();}}"), vec![("NX-E0202", Some("definitely_consumed"), 74, 75)]),
+        (format!("{PREFIX}var i=0;while i<2{{move f();f();i=i+1;}}}}"), vec![("NX-E0202", Some("maybe_consumed"), 76, 84), ("NX-E0202", Some("definitely_consumed"), 85, 86)]),
+        (format!("{PREFIX}var i=0;while i<1{{move f();i=i+1;}}f();}}"), vec![("NX-E0202", Some("maybe_consumed"), 76, 84), ("NX-E0202", Some("maybe_consumed"), 92, 93)]),
+        (format!("{PREFIX}move f();f();f();}}"), vec![("NX-E0202", Some("definitely_consumed"), 67, 68), ("NX-E0202", Some("definitely_consumed"), 71, 72)]),
+        (format!("{PREFIX}let g=move f;f();}}"), vec![("NX-E0202", Some("definitely_consumed"), 71, 72)]),
+        ("fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};move f();edit f();}".into(), vec![("NX-E0202", Some("definitely_consumed"), 72, 73)]),
+        ("fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};edit f();}".into(), vec![("NX-E1107", None, 63, 64)]),
+        (format!("{PREFIX}let g=f;g();f();}}"), vec![("NX-E0201", None, 64, 65), ("NX-E1107", None, 66, 67), ("NX-E1107", None, 70, 71)]),
+        (format!("{PREFIX}f();move f();f();}}"), vec![("NX-E1107", None, 58, 59), ("NX-E0202", Some("definitely_consumed"), 71, 72)]),
+        (format!("{PREFIX}f();move f();f();var i=0;while i<1{{i=i+1;}}}}"), vec![("NX-E1107", None, 58, 59), ("NX-E0202", Some("definitely_consumed"), 71, 72)]),
+        (format!("{PREFIX}f();f();}}"), vec![("NX-E1107", None, 58, 59), ("NX-E1107", None, 62, 63)]),
+        (format!("{PREFIX}f();}}"), vec![("NX-E1107", None, 58, 59)]),
+    ];
+    let profile = ReducedProfile::from_id(PROFILE).unwrap();
+    for (source, expected) in sources {
+        let Err(CompileError::Rejected(errors)) =
+            compile_scalar_with_profile(FILE, &source, profile, true)
+        else {
+            panic!("expected rejection: {source}");
+        };
+        let actual: Vec<_> = errors
+            .iter()
+            .map(|d| {
+                d.validate(FILE, &source).unwrap();
+                let span = d.primary_span.as_ref().unwrap();
+                (d.code.as_str(), d.subcause.as_deref(), span.start, span.end)
+            })
+            .collect();
+        assert_eq!(actual, expected, "{source}");
+        if source == format!("{PREFIX}move f();f();}}") {
+            let d = &errors[0];
+            let full = d.to_json(FILE, &source).unwrap();
+            assert!(full.contains("\"stage\":\"ownership\",\"message\":"));
+            assert!(full.contains("\"operation\":\"ownership.use\""));
+            assert!(full.contains(
+                "\"primary_span\":{\"file\":\"j16-integrated.n\",\"start\":67,\"end\":68}"
+            ));
+            assert!(full.contains("\"role\":\"declaration\",\"span\":{\"file\":\"j16-integrated.n\",\"start\":32,\"end\":33}"));
+            assert!(full.contains("\"role\":\"consumption\",\"span\":{\"file\":\"j16-integrated.n\",\"start\":58,\"end\":66}"));
+            assert!(full.contains("\"operation\":\"value.consume\""));
+            assert!(full.contains("\"entity\":{\"kind\":\"binding\",\"id\":\"binding:32\"}"));
+            assert!(full.contains("\"evidence\":\"verified\""));
+            assert!(full.ends_with("\"data\":{}}"));
+        }
+        for action in ["check", "run"] {
+            let (status, output) = report(action, &source);
+            assert_eq!(status, 1, "{source}: {output}");
+            assert!(output.contains("\"events\":[]"), "{source}: {output}");
+            assert!(output.contains("\"observations\":[]"), "{source}: {output}");
+        }
+    }
+    let accepted = format!("{PREFIX}move f();}}");
+    assert!(compile_scalar_with_profile(FILE, &accepted, profile, true).is_ok());
+}
+
 const PAIRS: &[Pair] = &[
     Pair {
         id: "C01",

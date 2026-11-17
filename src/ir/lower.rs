@@ -886,6 +886,20 @@ pub(super) fn collect_closures(ast: &Ast) -> Vec<&parse::Closure> {
     out
 }
 
+fn mode_candidate_consumed(
+    diagnostic: &Diagnostic,
+    local: LocalId,
+    use_span: &Span,
+    name_spans: &[Span],
+) -> bool {
+    diagnostic.code == "NX-E0202"
+        && diagnostic.primary_span.as_ref() == Some(use_span)
+        && diagnostic.related_spans.iter().any(|related| {
+            related.role == diagnostic::RelatedRole::Declaration
+                && related.span == name_spans[local.0]
+        })
+}
+
 fn compile_ast_with_flow_limit<'a>(
     ast: &'a Ast,
     source_text: &str,
@@ -1042,6 +1056,7 @@ fn compile_ast_with_flow_limit<'a>(
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut parameters = Vec::new();
         for (index, (p, (_, mode, ty))) in source
@@ -1180,6 +1195,9 @@ fn compile_ast_with_flow_limit<'a>(
             });
         }
         if diagnostics.len() > before_body {
+            diagnostics.extend(lower.mode_candidates.drain(..).map(|candidate| candidate.2));
+        }
+        if diagnostics.len() > before_body {
             ir_items = ir_items.saturating_add(count_partial_ir_items(&lower));
             if ir_items > limits.ir_items && ir_limit_span.is_none() {
                 ir_limit_span = Some(source.name_span.clone());
@@ -1266,7 +1284,13 @@ fn compile_ast_with_flow_limit<'a>(
         if ir_items > limits.ir_items && ir_limit_span.is_none() {
             ir_limit_span = Some(source.name_span.clone());
         }
-        entries.push((function, lower.name_spans, source.name_span.start, source));
+        entries.push((
+            function,
+            lower.name_spans,
+            source.name_span.start,
+            source,
+            lower.mode_candidates,
+        ));
     }
     // The complete constructible IR is collected before sparse ownership
     // analysis starts; its traversal follows source order and includes
@@ -1274,7 +1298,7 @@ fn compile_ast_with_flow_limit<'a>(
     let mut ownership_global_steps = 0_u64;
     let mut ownership_global_limited = false;
     let mut owned_entries = Vec::with_capacity(entries.len());
-    for (mut function, name_spans, function_start, source_function) in entries {
+    for (mut function, name_spans, function_start, source_function, mode_candidates) in entries {
         if ownership_global_limited {
             continue;
         }
@@ -1297,11 +1321,27 @@ fn compile_ast_with_flow_limit<'a>(
                         == Some(&diagnostic::DataValue::String("compilation".into()))
                 });
                 diagnostics.extend(errors.into_iter().map(|d| *d));
+                let retained: Vec<_> = mode_candidates
+                    .into_iter()
+                    .filter_map(|(id, span, error)| {
+                        (!diagnostics
+                            .iter()
+                            .any(|d| mode_candidate_consumed(d, id, &span, &name_spans)))
+                        .then_some(error)
+                    })
+                    .collect();
+                diagnostics.extend(retained);
                 continue;
             }
             Err(other) => return Err(other),
         };
-        if !flow_errors.is_empty() {
+        if !flow_errors.is_empty() || !mode_candidates.is_empty() {
+            diagnostics.extend(mode_candidates.into_iter().filter_map(|(id, span, error)| {
+                (!flow_errors
+                    .iter()
+                    .any(|d| mode_candidate_consumed(d, id, &span, &name_spans)))
+                .then_some(error)
+            }));
             diagnostics.extend(flow_errors);
             continue;
         }
@@ -1546,6 +1586,7 @@ struct Lower<'a> {
     temp_block_entry: EdgeState,
     temp_blocks: Vec<TempBlockState>,
     deferred_return_locals: Vec<(LocalId, Span)>,
+    mode_candidates: Vec<(LocalId, Span, Diagnostic)>,
 }
 
 impl Lower<'_> {
@@ -7440,7 +7481,7 @@ impl Lower<'_> {
                         depth,
                         inferred,
                     } => {
-                        let (receiver_mode, receiver_span) = self
+                        let (mut receiver_mode, receiver_span) = self
                             .requested_receiver
                             .take()
                             .unwrap_or((ParameterMode::Read, target.span().clone()));
@@ -7508,8 +7549,20 @@ impl Lower<'_> {
                                     "requested_mode".into(),
                                     diagnostic::DataValue::String(mode_name(receiver_mode).into()),
                                 );
-                                completed_value = Some(Err(CompileError::Rejected(vec![error])));
-                                continue;
+                                if let Some(local) =
+                                    place_name(target).and_then(|name| self.get(name).ok())
+                                {
+                                    self.mode_candidates.push((
+                                        local,
+                                        target.span().clone(),
+                                        *error,
+                                    ));
+                                    receiver_mode = ParameterMode::Read;
+                                } else {
+                                    completed_value =
+                                        Some(Err(CompileError::Rejected(vec![error])));
+                                    continue;
+                                }
                             }
                             let state = ClosureCallState {
                                 args,
@@ -7526,7 +7579,18 @@ impl Lower<'_> {
                                     receiver_mode,
                                     &receiver_span,
                                 ) {
-                                    Err(error) => completed_value = Some(Err(error)),
+                                    Err(error) => {
+                                        if let CompileError::Rejected(errors) = &error
+                                            && errors.iter().any(|d| d.code == "NX-E0202")
+                                            && let Some(local) = place_name(target)
+                                                .and_then(|name| self.get(name).ok())
+                                        {
+                                            self.mode_candidates.retain(|(id, span, _)| {
+                                                *id != local || span != target.span()
+                                            });
+                                        }
+                                        completed_value = Some(Err(error));
+                                    }
                                     Ok((receiver, receiver_loan)) if receiver.diverged() => {
                                         let _ = receiver_loan;
                                         completed_value = Some(Ok(Some(Flow::Diverged {
@@ -9396,6 +9460,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         }
     }
 
@@ -9587,6 +9652,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let Statement::Let {
             value: expression, ..
@@ -9663,6 +9729,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let main = ast.functions.iter().find(|f| f.name == "Main").unwrap();
         lower
@@ -9744,6 +9811,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -9799,6 +9867,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -9919,6 +9988,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -9973,6 +10043,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let statements = &ast.functions[0].body.statements;
         lower.statement(&statements[0], 0, &mut Vec::new()).unwrap();
@@ -10052,6 +10123,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -10138,6 +10210,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -10237,6 +10310,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
