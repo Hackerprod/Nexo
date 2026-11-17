@@ -96,9 +96,7 @@ semántico; no puede conservar ese rechazo como sustituto de la comprobación.
 `implementation_limit` solo identifica una capacidad que un paso posterior de
 F0 implementa realmente; nunca una limitación permanente. No se permite usarla
 para otra capacidad. El orden es F0-0003 → F0-0005 → F0-0004. Los ámbitos I,
-J, F5 y K pertenecen a sus respectivos perfiles; aquí los únicos pending_scope
-emitibles son `later_adr`, `J02`, `J03`, `J04`, `J05`, `J06`, `J07`, `J08`,
-`J09`, `J10`, `J11`, `J12`, `J13`, `J14`. I08–I11 son prerrequisitos; no se
+J, F5 y K pertenecen a sus respectivos perfiles. En el estado transitorio anterior a cerrar J14, `implementation_limit` podía llevar `pending_scope=J02` a `J14`, según la tabla siguiente. En el perfil completo tras J14, ninguno de esos ámbitos es emitible: solo permanece `later_adr` para las exclusiones estables de esta sección. Ejemplo válido: `fn Main(){let o:Option<I64>=Some(1);match o{Some(_)=>{},None=>{}}}` da `check` exit 0 y `diagnostics=[]`. Ejemplo inválido: `fn Main(){let f=fn [](){};let a=[f];}` da un NX-E0006/closure con `pending_scope=later_adr` en `[32,35)`, nunca `J14`. I08–I11 son prerrequisitos; no se
 emiten ni esos ámbitos ni F0-0003 como barrera de este perfil. Las capacidades
 fuera del perfil mantienen su feature_id con later_adr; al entrar en un corte
 posterior solo su obligación concreta puede usar implementation_limit.

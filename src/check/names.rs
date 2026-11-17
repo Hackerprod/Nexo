@@ -896,6 +896,21 @@ impl Resolver {
         if self.phase == Stage::Arguments {
             return Ok(());
         }
+        if name == "self" {
+            let mut error = diagnostic(
+                "NX-E0006",
+                None,
+                Stage::Names,
+                Operation::NamesResolve,
+                span.clone(),
+            );
+            error.feature_id = Some("methods".into());
+            error.data.insert(
+                "pending_scope".into(),
+                DataValue::String("later_adr".into()),
+            );
+            return Err(error);
+        }
         let kind = if call_target { "call_target" } else { "value" };
         let found = if let Some(local) = self.local_for_closure_use(name, span)? {
             ResolvedUse::Local(local)

@@ -935,6 +935,12 @@ mod tests {
                 let start = source.rfind(word).unwrap();
                 let result = parse_new_profile("matrix.n", &source);
                 match expected {
+                    Entry::Deferred("methods") if word == "self" && index == 2 => {
+                        assert!(
+                            result.is_ok(),
+                            "self expression must reach names: {result:?}"
+                        );
+                    }
                     Entry::Deferred(id) => {
                         let d = result.unwrap_err();
                         assert_eq!(d.code, "NX-E0006", "{word}/{index}");
@@ -4354,6 +4360,10 @@ impl Parser<'_> {
             ));
         }
         if choice == PrimaryChoice::SelfPath {
+            if self.new_profile {
+                self.take();
+                return Ok(PrefixValue::Expr(Expr::Name(t.text, t.span)));
+            }
             return Err(self.feature("methods", t.span));
         }
         if t.text == "-" {
