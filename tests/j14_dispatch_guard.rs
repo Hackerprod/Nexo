@@ -327,6 +327,29 @@ fn glyphs(fs: &HashMap<String, Function>) -> Result<HashSet<Vec<u8>>, String> {
     Ok(result)
 }
 
+fn terminal_aliases(tokens: &[Token], spellings: &HashSet<Vec<u8>>) -> HashSet<String> {
+    let mut aliases = HashSet::new();
+    for (start, item) in tokens.iter().enumerate() {
+        if !matches!(item.text.as_str(), "const" | "let") {
+            continue;
+        }
+        let Some(name) = tokens.get(start + 1) else {
+            continue;
+        };
+        let end = (start + 2..tokens.len()).find(|&at| tokens[at].text == ";");
+        let Some(end) = end else { continue };
+        let equal = (start + 2..end).find(|&at| tokens[at].text == "=");
+        if equal
+            .and_then(|at| tokens.get(at + 1))
+            .and_then(|token| token.value.as_ref())
+            .is_some_and(|value| spellings.contains(value))
+        {
+            aliases.insert(name.text.clone());
+        }
+    }
+    aliases
+}
+
 fn legacy_branch(body: &[Token], call: usize) -> bool {
     for i in 0..call.saturating_sub(6) {
         if body[i].text == "if"
@@ -357,6 +380,7 @@ fn guard(src: &str) -> Vec<String> {
         Ok(s) => s,
         Err(e) => return vec![e],
     };
+    let aliases = terminal_aliases(&t, &spellings);
     let roots = [
         "production_entry",
         "deferred_in_state",
@@ -420,6 +444,22 @@ fn guard(src: &str) -> Vec<String> {
     ]
     .into();
     for (name, f) in &fs {
+        if f.marked || matches!(name.as_str(), "program" | "statement_inner" | "prefix") {
+            for x in &f.body {
+                if aliases.contains(&x.text) {
+                    errors.push(format!("{name}:{}: terminal alias", x.at));
+                }
+            }
+            for window in f.body.windows(4) {
+                if window[0].text == "text"
+                    && window[1].text == "."
+                    && window[2].text == "len"
+                    && window[3].text == "("
+                {
+                    errors.push(format!("{name}:{}: terminal length", window[0].at));
+                }
+            }
+        }
         if !f.marked && !projections.contains(&name.as_str()) {
             continue;
         }
@@ -646,6 +686,31 @@ fn guard(src: &str) -> Vec<String> {
                 continue;
             }
         };
+        if f.body[end + 1..].windows(3).any(|window| {
+            window[0].text == "choice" && window[1].text == "=" && window[2].text != "="
+        }) {
+            errors.push(format!("{name}: reclassification after commitment"));
+        }
+        if matches!(name, "program" | "statement_inner") {
+            for at in end + 1..f.body.len() {
+                if f.body[at].text != "if" {
+                    continue;
+                }
+                let Some(open) = (at + 1..f.body.len()).find(|&i| f.body[i].text == "{") else {
+                    continue;
+                };
+                let condition = &f.body[at + 1..open];
+                if condition
+                    .windows(2)
+                    .any(|window| window[0].text == "." && window[1].text == "text")
+                    && condition
+                        .iter()
+                        .any(|token| token.value.as_ref().is_some_and(|v| spellings.contains(v)))
+                {
+                    errors.push(format!("{name}:{}: post-commit terminal", f.body[at].at));
+                }
+            }
+        }
         if name == "program" {
             let loop_open = f
                 .body
@@ -843,7 +908,7 @@ fn dispatch_mutations_are_rejected() {
 }
 
 #[test]
-fn commitment_and_declared_residuals() {
+fn commitment_and_indirect_reclassification_mutations_are_rejected() {
     let before = inserted(
         SOURCE,
         "while !self.eof() {",
@@ -866,9 +931,11 @@ fn commitment_and_declared_residuals() {
         " if self.peek().text == \"for\" { return Err(self.feature(\"methods\", self.peek().span.clone())); }",
     );
     assert!(
-        guard(&after).is_empty(),
-        "post-commitment residual changed: {:?}",
         guard(&after)
+            .iter()
+            .any(|error| error.contains("post-commit terminal")),
+        "post-commit terminal mutation escaped: {:?}",
+        guard(&after),
     );
     let alias = inserted(
         &format!("{SOURCE}\nconst FOR_ALIAS: &str = \"for\";"),
@@ -876,8 +943,40 @@ fn commitment_and_declared_residuals() {
         " if token.text == FOR_ALIAS { return None; }",
     );
     assert!(
-        guard(&alias).is_empty(),
-        "constant alias residual changed: {:?}",
         guard(&alias)
+            .iter()
+            .any(|error| error.contains("terminal alias")),
+        "constant alias mutation escaped: {:?}",
+        guard(&alias),
     );
+    let kind_length = inserted(
+        SOURCE,
+        "let token = self.peek();",
+        " if token.kind == Kind::Name && token.text.len() == 3 { return None; }",
+    );
+    assert!(
+        guard(&kind_length)
+            .iter()
+            .any(|error| error.contains("terminal length")),
+        "kind plus length mutation escaped: {:?}",
+        guard(&kind_length),
+    );
+    let reclassified = inserted(
+        SOURCE,
+        "let choice = self.select_module_entry();",
+        " let choice = if self.peek().kind == Kind::Name { ModuleChoice::Fn } else { choice };",
+    );
+    assert!(
+        guard(&reclassified)
+            .iter()
+            .any(|error| error.contains("reclassification after commitment")),
+        "post-commitment reclassification escaped: {:?}",
+        guard(&reclassified),
+    );
+    let consumer = inserted(
+        SOURCE,
+        "let choice = self.select_module_entry();",
+        " let _token_span = self.peek().span.clone();",
+    );
+    assert!(guard(&consumer).is_empty(), "{:?}", guard(&consumer));
 }

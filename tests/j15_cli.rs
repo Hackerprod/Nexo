@@ -589,14 +589,23 @@ fn ex04_transport_errors_and_text_output() {
     let fixture = Fixture::new(EX04);
     fixture.check(PROFILE);
     let bad = fixture.env("{bad");
-    let (exit, doc) = fixture.report("run", PROFILE, Some(&bad));
-    assert_eq!(exit, 2);
-    assert_eq!(doc.at("outcome").at("kind"), &J::Str("driver_error".into()));
-    assert_eq!(
-        doc.at("outcome").at("reason"),
-        &J::Str("invalid_mock_json".into())
-    );
-    empty_report(&doc);
+    let schema = fixture.dir.join("schema.json");
+    fs::write(&schema, "{}").unwrap();
+    let unreadable = fixture.dir.join("missing.json");
+    let excessive = fixture.dir.join("excessive.json");
+    fs::write(&excessive, vec![b' '; 2_000_000]).unwrap();
+    for (path, reason) in [
+        (&bad, "invalid_mock_json"),
+        (&schema, "invalid_mock_schema"),
+        (&unreadable, "mock_env_unreadable"),
+        (&excessive, "mock_env_too_large"),
+    ] {
+        let (exit, doc) = fixture.report("run", PROFILE, Some(path));
+        assert_eq!(exit, 2, "{reason}");
+        assert_eq!(doc.at("outcome").at("kind"), &J::Str("driver_error".into()));
+        assert_eq!(doc.at("outcome").at("reason"), &J::Str(reason.into()));
+        empty_report(&doc);
+    }
     let check_with_env = fixture.invoke("check", PROFILE, "json", Some(&bad));
     assert_eq!(check_with_env.status.code(), Some(2));
     assert_eq!(check_with_env.stderr, b"nexo-driver:invalid_arguments\n");
