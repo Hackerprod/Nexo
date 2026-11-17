@@ -73,3 +73,7 @@ con un contrato acotado y deuda registrada. Este documento fija qué falta, qué
 ## 6. Hallazgo añadido el 2026-11-16 (descubierto en J16, no pertenece a J16)
 
 `fn Main(){match Some([]){Some(v) if false=>{let a:Array<I64>=v;},Some(w)=>{let b:Array<I64>=w;},None=>{}}}` da `driver_error`/`internal_error` en `check` tanto en main `99c8491` como tras J16 T0 (no es regresión de J16). Es del dominio de I07c (array pendiente `Some([])` fijado por dos ramas de `match`, una con guarda): un error interno ante un programa que el ADR manda decidir. Incluirlo como repro B3 en el ciclo 0 de I07c.
+
+## 7. Requisito añadido el 2026-11-17 (viene de J16 Bloque 1)
+
+El solver de inferencia rediseñado NO debe recurrir por profundidad de tipo: `Checker::bind`, `unify`, `selection_type`, `resolved_syntax_type` y `concrete_with_depth` son recursivos hoy y desbordan a 204 KiB en debug con `Some(`×84..126, `Option<…>`×126 con `match`, y Array inválido/`None[[…]]` (193/257/449 KiB). Las filas `J16-S1C-SOME-TYPES`, `J16-S1C-ARRAY-HELPER-MARGEN` y `J16-S1C-MATCH-TYPE-DEPTH` de `Pending.md` son el criterio de aceptación (pila ≤ 204 KiB en debug, contrato F0-0003 §13.2 de 256 KiB), con los repros de `.scratch/c-j16b1-desvios4.md`, `c-j16b1-desvios8.md` y `c-j16b1-cierre-integral.md`. Mientras tanto J16 aplaza S1b y S1c.
