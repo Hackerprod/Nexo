@@ -159,7 +159,9 @@ def extra_cases() -> list[dict]:
             expected["outcome_detail"] = {"kind": outcome, "error": str(error)}
         if observation_bytes is not None:
             expected["observation_bytes"] = observation_bytes
-        item = case(id, source, "run", expected, section)
+        item = case(id, source, "run", expected, section,
+                    kind="andamiaje" if mock_env is not None or observation_bytes is not None
+                    else "núcleo")
         if mock_env is not None:
             item["mock_env"] = mock_env
         rows.append(item)
@@ -356,7 +358,8 @@ def ticks_cases() -> list[dict]:
         id = cells[0].split()[0]
         rows.append(case(id, cells[1][1:-1], "run", {"exit": 0, "diagnostics": [],
                          "outcome": "unit", "events": [], "stdout": [],
-                         "work_ticks": int(cells[-1])}, "F0-0003 §7.2"))
+                         "work_ticks": int(cells[-1])}, "F0-0003 §7.2",
+                         kind="andamiaje"))
     assert len(rows) == 14
     return rows
 
@@ -469,7 +472,8 @@ def boundary_cases() -> list[dict]:
             "primary": [780, 783], "data": {"budget_kind": "syntax_nesting",
             "limit": 128, "observed": 129, "budget_scope": "compilation",
             "incomplete_analysis": "parse"}}]}
-        rows.append(case(f"type-depth-{depth}", source, "check", expected, "F0-0003 §§10.3,13.2"))
+        rows.append(case(f"type-depth-{depth}", source, "check", expected,
+                         "F0-0003 §§10.3,13.2", kind="andamiaje"))
     for n in (63, 64, 65):
         source = "gen fn G()->I64{}fn Main(){" + "".join(f"let g{i}=G();" for i in range(n))
         source += "".join(f"Drop(g{i});" for i in range(n)) + "}"
@@ -480,7 +484,8 @@ def boundary_cases() -> list[dict]:
                         "primary": [anchor, anchor + 3], "data": {
                         "runtime_budget_kind": "live_value_cells", "limit": 64,
                         "observed": 65}}], "outcome": "simulator_fault", "events": [], "stdout": []}
-        row = case(f"state-cells-{n}", source, "run", expected, "F0-0003 §7.2")
+        row = case(f"state-cells-{n}", source, "run", expected,
+                   "F0-0003 §7.2", kind="andamiaje")
         row["profile"] = "f0-0003-b-test-cells-64-v1"
         rows.append(row)
     for n in (63, 64):
@@ -494,7 +499,7 @@ def boundary_cases() -> list[dict]:
                                  "observed": 65}}], "events": [], "stdout": [],
                         "reserved_observation_bytes": 0}
         row = case(f"shared-next-cells-{n}", source, "run", expected,
-                   "F0-0003 §§7.2,13.2")
+                   "F0-0003 §§7.2,13.2", kind="andamiaje")
         row["profile"] = "f0-0003-b-test-cells-64-v1"
         rows.append(row)
     frame_lines = ADR.read_text(encoding="utf-8").splitlines()[797:800]
@@ -505,7 +510,8 @@ def boundary_cases() -> list[dict]:
             expected = {"exit": 1, "diagnostics": [{"code": "R0002", "subcause": None,
                         "primary": [64, 68], "data": {"runtime_budget_kind": "call_frames",
                         "limit": 8, "observed": 9}}], "events": [], "stdout": []}
-        row = case(f"active-frames-{depth}", source, "run", expected, "F0-0003 §7.2")
+        row = case(f"active-frames-{depth}", source, "run", expected,
+                   "F0-0003 §7.2", kind="andamiaje")
         row["profile"] = "f0-0003-b-test-frames-8-v1"
         rows.append(row)
     for n in SIZES:
@@ -517,7 +523,7 @@ def boundary_cases() -> list[dict]:
     row = case("reservation-retained-close", retained, "run", {"exit": 0,
                "diagnostics": [], "outcome": "unit", "events": ["open:0:4", "close:0:4"],
                "stdout": [], "observation_bytes": 47, "reserved_observation_bytes": 0},
-               "F0-0003 §7.2")
+                "F0-0003 §7.2", kind="andamiaje")
     row["profile"] = "f0-0003-b-test-observations-64-v1"
     rows.append(row)
     overflow = "gen fn G(r:move MockResource)->I64{}fn Main(){let a=G(MockOpen(4));let b=G(MockOpen(5));Drop(a);Drop(b);}"
@@ -527,7 +533,7 @@ def boundary_cases() -> list[dict]:
                             "observed": 94}}],
                "events": ["open:0:4", "close:0:4"], "stdout": [],
                "observation_bytes": 47, "reserved_observation_bytes": 0},
-               "F0-0003 §7.2")
+                "F0-0003 §7.2", kind="andamiaje")
     row["profile"] = "f0-0003-b-test-observations-64-v1"
     rows.append(row)
     return rows
@@ -552,7 +558,7 @@ def fuzz_cases() -> list[dict]:
                          "F0-0003 §13.2"))
     invalid = base.encode("utf-8")[:40] + b"\xff" + base.encode("utf-8")[40:]
     row = case("fuzz-invalid-utf8", base, "check", {"robustness": True},
-               "F0-0003 §13.2")
+               "F0-0003 §13.2", kind="andamiaje")
     row["source_bytes_hex"] = invalid.hex()
     row["source_sha256"] = hashlib.sha256(invalid).hexdigest()
     rows.append(row)

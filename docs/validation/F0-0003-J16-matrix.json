@@ -10730,7 +10730,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -10785,7 +10785,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -10840,7 +10840,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -10895,7 +10895,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -10950,7 +10950,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11005,7 +11005,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11060,7 +11060,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11115,7 +11115,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11170,7 +11170,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11225,7 +11225,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11280,7 +11280,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11335,7 +11335,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11390,7 +11390,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -11445,7 +11445,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28124,7 +28124,7 @@
     },
     {
       "action": "check",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28175,7 +28175,7 @@
     },
     {
       "action": "check",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28226,7 +28226,7 @@
     },
     {
       "action": "check",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28397,7 +28397,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28451,7 +28451,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28505,7 +28505,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28669,7 +28669,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28724,7 +28724,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28884,7 +28884,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28938,7 +28938,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -28992,7 +28992,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -29533,7 +29533,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -29616,7 +29616,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -33447,7 +33447,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -33590,7 +33590,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -33723,7 +33723,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -33837,7 +33837,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -33961,7 +33961,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34082,7 +34082,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34211,7 +34211,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34308,7 +34308,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34525,7 +34525,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34630,7 +34630,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34719,7 +34719,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34808,7 +34808,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -34897,7 +34897,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -35076,7 +35076,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -35209,7 +35209,7 @@
     },
     {
       "action": "run",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
@@ -46410,7 +46410,7 @@
     },
     {
       "action": "check",
-      "class": "núcleo",
+      "class": "andamiaje",
       "debug": {
         "mismatches": [],
         "observed": {
