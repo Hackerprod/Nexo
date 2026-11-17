@@ -42,6 +42,24 @@ fn source(family: &str) -> String {
             ")".repeat(126)
         ),
         "else_if" => format!("fn Main(){{{}{}}}", "if true{}else ".repeat(126), "{}"),
+        "alternating_match_guard" => {
+            let prelude = "fn F(p:view I64)->I64{return p;}fn G(p:edit I64)->I64{return 1;}fn Id(p:move I64)->I64{return p;}";
+            let mut openings = String::new();
+            let mut closings = Vec::new();
+            for index in 0..126 {
+                if index % 2 == 0 {
+                    openings.push_str("if false{}else if true{");
+                    closings.push("}");
+                } else {
+                    openings.push_str("match 1{_ if true=>{");
+                    closings.push("},_=>{}}");
+                }
+            }
+            format!(
+                "{prelude}fn Main(){{var a=[1];let x=1;{openings}let z=1+1;{}}}",
+                closings.into_iter().rev().collect::<String>()
+            )
+        }
         "if_expr" => {
             let mut expr = String::from("1");
             for _ in 0..126 {
@@ -168,12 +186,13 @@ fn parser_child() {
         true,
     );
     let expected_span = match family.as_str() {
-        "block129" => Some((137, 138)),
-        "type129" => Some((780, 783)),
-        "pattern129" => Some((145, 146)),
+        "block129" => Some(((137, 138), "syntax_nesting")),
+        "type129" => Some(((780, 783), "syntax_nesting")),
+        "pattern129" => Some(((145, 146), "syntax_nesting")),
+        "alternating_match_guard" => Some(((125, 3411), "expression_tree_depth")),
         _ => None,
     };
-    if let Some((start, end)) = expected_span {
+    if let Some(((start, end), kind)) = expected_span {
         let error = match result {
             Err(nexo::ir::CompileError::Rejected(mut diagnostics)) => {
                 assert_eq!(diagnostics.len(), 1);
@@ -191,9 +210,7 @@ fn parser_child() {
         );
         assert_eq!(
             error.data.get("budget_kind"),
-            Some(&nexo::diagnostic::DataValue::String(
-                "syntax_nesting".into()
-            ))
+            Some(&nexo::diagnostic::DataValue::String(kind.into()))
         );
         assert_eq!(
             error.data.get("limit"),
@@ -215,6 +232,26 @@ fn parser_child() {
             }
             _ => panic!("{family}: compile failed outside a source diagnostic"),
         }
+    }
+}
+
+#[test]
+fn alternating_if_match_guard_rejection_releases_partial_ast_in_256_kib_worker() {
+    let binary = std::env::current_exe().unwrap();
+    for repeat in 0..10 {
+        let output = Command::new(&binary)
+            .args(["--exact", "parser_child"])
+            .env("J16_PARSER_CASE", "alternating_match_guard")
+            .env("NEXO_STACK_MINIMUM_CASE", "PARSER:alternating_match_guard")
+            .env("NEXO_PROBE_PARSER_KIB", "256")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "repeat {repeat}: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 }
 

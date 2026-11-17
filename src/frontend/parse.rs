@@ -2224,7 +2224,7 @@ impl Parser<'_> {
                     otherwise: otherwise.map(Box::new),
                     span: parser.span(start, end),
                 };
-                parser.check_expression_height(&candidate)?;
+                let candidate = parser.checked_expression(candidate)?;
                 if branches.is_empty()
                     && let Expr::If {
                         condition,
@@ -3026,8 +3026,7 @@ impl Parser<'_> {
                         value: Box::new(val),
                         span,
                     };
-                    self.check_expression_height(&expression)?;
-                    result = Some(expression);
+                    result = Some(self.checked_expression(expression)?);
                 }
                 Task::Group { start } => {
                     let inner = result.take().expect("group expression has a result");
@@ -3052,16 +3051,17 @@ impl Parser<'_> {
                             let end = self.peek().span.end as usize;
                             self.expect("]", "grammar.Primary", &[",", "]"], start)?;
                             let span = self.span(start, end);
-                            let height =
-                                1 + elements.iter().map(expression_height).max().unwrap_or(0);
-                            self.check_candidate_height(height, span.clone())?;
-                            if elements.iter().any(is_resource_constructor) {
+                            let array =
+                                self.checked_expression(Expr::Array(elements, span.clone()))?;
+                            if matches!(&array, Expr::Array(elements, _) if elements.iter().any(is_resource_constructor))
+                            {
                                 let mut d = self.feature("resource_array", span);
                                 d.stage = Stage::Types;
                                 d.operation = Operation::TypesCheck;
+                                drop_partial_expression(array);
                                 return Err(d);
                             }
-                            result = Some(Expr::Array(elements, span));
+                            result = Some(array);
                             continue;
                         }
                     }
@@ -3078,15 +3078,16 @@ impl Parser<'_> {
                             start,
                         )?;
                         let span = self.span(start, end);
-                        let height = 1 + elements.iter().map(expression_height).max().unwrap_or(0);
-                        self.check_candidate_height(height, span.clone())?;
-                        if elements.iter().any(is_resource_constructor) {
+                        let array = self.checked_expression(Expr::Array(elements, span.clone()))?;
+                        if matches!(&array, Expr::Array(elements, _) if elements.iter().any(is_resource_constructor))
+                        {
                             let mut d = self.feature("resource_array", span);
                             d.stage = Stage::Types;
                             d.operation = Operation::TypesCheck;
+                            drop_partial_expression(array);
                             return Err(d);
                         }
-                        result = Some(Expr::Array(elements, span));
+                        result = Some(array);
                     } else {
                         if !self.starts_expr() {
                             return Err(self.err(
@@ -3150,8 +3151,7 @@ impl Parser<'_> {
                                 args,
                                 span: self.span(start, end),
                             };
-                            self.check_expression_height(&call)?;
-                            result = Some(call);
+                            result = Some(self.checked_expression(call)?);
                             continue;
                         }
                     }
@@ -3172,8 +3172,7 @@ impl Parser<'_> {
                             args,
                             span: self.span(start, end),
                         };
-                        self.check_expression_height(&call)?;
-                        result = Some(call);
+                        result = Some(self.checked_expression(call)?);
                     } else {
                         if !self.starts_expr() {
                             return Err(self.err(
@@ -3232,8 +3231,7 @@ impl Parser<'_> {
                         selector,
                         span: self.span(start, end),
                     };
-                    self.check_expression_height(&indexed)?;
-                    result = Some(indexed);
+                    result = Some(self.checked_expression(indexed)?);
                 }
                 Task::Binary { left, op } => {
                     let right = result.take().expect("binary right side has a result");
@@ -3244,8 +3242,7 @@ impl Parser<'_> {
                         right: Box::new(right),
                         span: self.span(start, self.prev_end()),
                     };
-                    self.check_expression_height(&binary)?;
-                    result = Some(binary);
+                    result = Some(self.checked_expression(binary)?);
                 }
                 Task::IfCondition { start } => {
                     let condition = result.take().expect("if condition has a result");
@@ -3339,8 +3336,7 @@ impl Parser<'_> {
                         otherwise: Some(Box::new(otherwise)),
                         span: self.span(start, self.prev_end()),
                     };
-                    self.check_expression_height(&expression)?;
-                    result = Some(expression);
+                    result = Some(self.checked_expression(expression)?);
                 }
                 Task::IfElseBlock {
                     start,
@@ -3355,8 +3351,7 @@ impl Parser<'_> {
                         otherwise: Some(Box::new(otherwise)),
                         span: self.span(start, self.prev_end()),
                     };
-                    self.check_expression_height(&expression)?;
-                    result = Some(expression);
+                    result = Some(self.checked_expression(expression)?);
                 }
                 Task::Continue {
                     min,
@@ -3439,7 +3434,7 @@ impl Parser<'_> {
                                 value: Box::new(lhs),
                                 span: self.span(start, self.prev_end()),
                             };
-                            self.check_expression_height(&lhs)?;
+                            lhs = self.checked_expression(lhs)?;
                             try_seen = true;
                             continue;
                         }
@@ -4593,6 +4588,14 @@ impl Parser<'_> {
     fn check_expression_height(&self, expr: &Expr) -> Result<(), Box<Diagnostic>> {
         self.check_candidate_height(expression_height(expr), expr.span().clone())
     }
+    fn checked_expression(&self, expr: Expr) -> Result<Expr, Box<Diagnostic>> {
+        if let Err(error) = self.check_expression_height(&expr) {
+            drop_partial_expression(expr);
+            Err(error)
+        } else {
+            Ok(expr)
+        }
+    }
     fn check_candidate_height(&self, height: usize, span: Span) -> Result<(), Box<Diagnostic>> {
         if height > 128 {
             return Err(self.budget_error(
@@ -5090,6 +5093,140 @@ fn is_resource_constructor(expr: &Expr) -> bool {
 
 fn expression_height(expr: &Expr) -> usize {
     height_walk(HeightNode::Expr(expr))
+}
+
+// A rejected expression may already own a deep chain of blocks, matches and
+// else branches. Dropping that partial AST through Rust's derived destructors
+// would consume the parser worker's stack after the diagnostic is ready.
+fn drop_partial_expression(expr: Expr) {
+    enum Node {
+        Expr(Expr),
+        Statement(Statement),
+        Block(Block),
+        Else(Else),
+        Match(Match),
+        Arm(Arm),
+        Pattern(Pattern),
+        Type(Type),
+    }
+    let mut pending = vec![Node::Expr(expr)];
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Expr(expr) => match expr {
+                Expr::Closure(closure) => {
+                    let closure = *closure;
+                    pending.push(Node::Block(closure.body));
+                    pending.extend(closure.result.into_iter().map(Node::Type));
+                    pending.extend(
+                        closure
+                            .params
+                            .into_iter()
+                            .filter_map(|p| p.ty)
+                            .map(Node::Type),
+                    );
+                }
+                Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+                Expr::Array(elements, _) => pending.extend(elements.into_iter().map(Node::Expr)),
+                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    pending.push(Node::Expr(*inner));
+                }
+                Expr::Binary { left, right, .. } => {
+                    pending.push(Node::Expr(*left));
+                    pending.push(Node::Expr(*right));
+                }
+                Expr::Call { target, args, .. } => {
+                    pending.push(Node::Expr(*target));
+                    pending.extend(args.into_iter().map(|arg| Node::Expr(arg.value)));
+                }
+                Expr::Index { target, index, .. } => {
+                    pending.push(Node::Expr(*target));
+                    pending.push(Node::Expr(*index));
+                }
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    pending.push(Node::Expr(*condition));
+                    pending.push(Node::Block(then_block));
+                    pending.extend(otherwise.map(|branch| Node::Else(*branch)));
+                }
+                Expr::Match(selection) => pending.push(Node::Match(*selection)),
+            },
+            Node::Statement(statement) => match statement {
+                Statement::Let {
+                    annotation, value, ..
+                } => {
+                    pending.push(Node::Expr(value));
+                    pending.extend(annotation.map(Node::Type));
+                }
+                Statement::Assign { place, value, .. } => {
+                    pending.push(Node::Expr(place));
+                    pending.push(Node::Expr(value));
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    pending.extend(value.map(Node::Expr));
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(then_block));
+                    pending.extend(otherwise.map(|branch| Node::Statement(*branch)));
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(body));
+                }
+                Statement::For { iterable, body, .. } => {
+                    pending.push(Node::Expr(iterable));
+                    pending.push(Node::Block(body));
+                }
+                Statement::Match(selection) => pending.push(Node::Match(selection)),
+                Statement::Block(block) => pending.push(Node::Block(block)),
+                Statement::Expr { value, .. } => pending.push(Node::Expr(value)),
+            },
+            Node::Block(block) => {
+                pending.extend(block.statements.into_iter().map(Node::Statement));
+            }
+            Node::Else(branch) => match branch {
+                Else::Block(block) => pending.push(Node::Block(block)),
+                Else::If(expr) => pending.push(Node::Expr(*expr)),
+            },
+            Node::Match(selection) => {
+                pending.push(Node::Expr(*selection.scrutinee));
+                pending.extend(selection.arms.into_iter().map(Node::Arm));
+            }
+            Node::Arm(arm) => {
+                pending.push(Node::Pattern(arm.pattern));
+                pending.extend(arm.guard.map(Node::Expr));
+                pending.push(Node::Block(arm.body));
+            }
+            Node::Pattern(pattern) => {
+                if let Pattern::Constructor { args, .. } = pattern {
+                    pending.extend(args.into_iter().map(Node::Pattern));
+                }
+            }
+            Node::Type(ty) => match ty {
+                Type::Array(inner) | Type::Option(inner) | Type::Generator { item: inner, .. } => {
+                    pending.push(Node::Type(*inner));
+                }
+                Type::Result(ok, err) => {
+                    pending.push(Node::Type(*ok));
+                    pending.push(Node::Type(*err));
+                }
+                _ => {}
+            },
+        }
+    }
 }
 
 #[derive(Clone, Copy)]

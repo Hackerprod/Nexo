@@ -4,9 +4,11 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 
 
@@ -15,6 +17,26 @@ TEST = "frontend::parse::j16_parser_stack_probe::direct_204_kib_file_child"
 
 
 def source(family: str, depth: int) -> str:
+    if family.startswith("alternating_"):
+        second = {
+            "alternating_match_guard": ("match 1{_ if true=>{", "},_=>{}}"),
+            "alternating_for": ("for i in [1]{", "}"),
+            "alternating_while": ("while true{", "}"),
+            "alternating_block": ("{", "}"),
+            "alternating_if": ("if true{", "}"),
+            "alternating_closure": ("let f=fn(){", "};"),
+        }[family]
+        openings = []
+        closings = []
+        for index in range(depth):
+            opening, closing = ("if false{}else if true{", "}") if index % 2 == 0 else second
+            openings.append(opening)
+            closings.append(closing)
+        prelude = ("fn F(p:view I64)->I64{return p;}"
+                   "fn G(p:edit I64)->I64{return 1;}"
+                   "fn Id(p:move I64)->I64{return p;}")
+        return (prelude + "fn Main(){var a=[1];let x=1;" + "".join(openings)
+                + "let z=1+1;" + "".join(reversed(closings)) + "}")
     if family.startswith("objective_"):
         return (ROOT / "corpus" / "objetivo" / family.removeprefix("objective_")).read_text(encoding="utf-8")
     if family == "block":
@@ -126,6 +148,70 @@ CASES.extend((f"objective_{path.name}", 0, "ok") for path in sorted(
     and 1 <= int(path.name[:2]) <= 15)
 
 
+# Literal expectations from the D15 / F0-0003 parse budgets, with spans measured
+# in the generated ASCII sources. The 126-level match case rejects by tree
+# height; additional openings reject by syntax nesting before tree construction.
+CLOSEFIX_SPANS = {
+    "alternating_match_guard": [(125, 3411), (2863, 2864), (2863, 2864), (2863, 2864)],
+    "alternating_for": [None, (2422, 2423), (2425, 2426), (2425, 2426)],
+    "alternating_while": [None, (2296, 2297), (2296, 2300), (2296, 2300)],
+    "alternating_block": [None, (1666, 1667), (1660, 1661), (1660, 1661)],
+    "alternating_if": [None, (2107, 2108), (2104, 2108), (2104, 2108)],
+    "alternating_closure": [(1582, 1584)] * 4,
+}
+
+
+def closefix_test_binary(profile: str) -> str:
+    command = ["cargo", "test", "--locked", "--offline", "--lib", TEST,
+               "--no-run", "--message-format=json"]
+    if profile == "release":
+        command.insert(2, "--release")
+    result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
+                            encoding="utf-8", errors="replace", timeout=300)
+    if result.returncode:
+        raise RuntimeError(result.stderr)
+    artifacts = [json.loads(line) for line in result.stdout.splitlines() if line.startswith("{")]
+    binaries = [artifact["executable"] for artifact in artifacts
+                if artifact.get("reason") == "compiler-artifact"
+                and artifact.get("profile", {}).get("test")
+                and artifact.get("executable")]
+    if len(binaries) != 1:
+        raise RuntimeError(f"expected one library test binary, got {binaries}")
+    return binaries[0]
+
+
+def closefix_main() -> int:
+    with tempfile.TemporaryDirectory(prefix="j16-closefix-", dir=ROOT / ".scratch") as tmp:
+        directory = Path(tmp)
+        cases = []
+        for family, spans in CLOSEFIX_SPANS.items():
+            for index, depth in enumerate(range(126, 130)):
+                program = source(family, depth)
+                path = directory / f"{family}-{depth}.n"
+                path.write_text(program, encoding="utf-8")
+                span = spans[index]
+                kind = "expression_tree_depth" if family == "alternating_match_guard" and depth == 126 else "syntax_nesting"
+                expected = "ok" if span is None else f"NX-E0003:{kind}:{span[0]}:{span[1]}"
+                cases.append((family, depth, path, expected))
+        for profile in ("debug", "release"):
+            binary = closefix_test_binary(profile)
+            for kib in (204, 256):
+                for family, depth, path, expected in cases:
+                    env = os.environ.copy()
+                    env.update(J16_PARSER_CASE_FILE=str(path), J16_PARSER_STACK_KIB=str(kib),
+                               J16_PARSER_EXPECT=expected)
+                    for repeat in range(10):
+                        result = subprocess.run([binary, "--exact", TEST], env=env,
+                                                capture_output=True, text=True, encoding="utf-8",
+                                                errors="replace", timeout=30)
+                        if result.returncode:
+                            print(f"{profile} {kib} {family} {depth} repeat={repeat} exit={result.returncode}")
+                            print(result.stdout, result.stderr)
+                            return 1
+                print(f"{profile} {kib}: {len(cases)} cases × 10 repetitions", flush=True)
+    return 0
+
+
 def main() -> int:
     scratch = ROOT / ".scratch"
     scratch.mkdir(exist_ok=True)
@@ -161,4 +247,4 @@ def main() -> int:
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    raise SystemExit(closefix_main() if "--closefix" in sys.argv else main())
