@@ -3086,13 +3086,37 @@ impl Checker<'_> {
     }
 
     fn pending_nominal_available(&mut self, operand: &Expr) -> bool {
-        let Some((variable, _)) = self.pending_operation_guard(operand) else {
+        let Some((variable, domain)) = self.pending_operation_guard(operand) else {
             return false;
         };
         let root = self.root(variable);
-        let child = self.graph.type_nodes[&root].array_child;
-        child.is_none_or(|child| self.concrete(child).is_some())
+        if self.pending_domain_state(root, domain) == Some(false) {
+            return false;
+        }
+        let node = &self.graph.type_nodes[&root];
+        if domain == "I64" && (node.array_child.is_some() || node.variant_children.is_some()) {
+            return false;
+        }
+        if node.failed_constructor {
+            return false;
+        }
+        let child = node.array_child;
+        if child.is_none_or(|child| self.concrete(child).is_some())
             || self.graph.type_nodes[&root].bottom_only
+        {
+            return true;
+        }
+        // A binding can receive constraints after this occurrence, including
+        // through a value constructor that contains this operation's result.
+        // A bare unresolved constructor instead owns its own NX-E0103 and
+        // cannot provide such a witness to an enclosing expression.
+        let bindings: Vec<_> = self
+            .graph
+            .locals
+            .values()
+            .filter_map(|known| known.variable)
+            .collect();
+        bindings.into_iter().any(|id| self.root(id) == root)
     }
 
     fn capture_expression_dependencies(&mut self, expression: &Expr) {
@@ -12514,11 +12538,16 @@ pub(crate) fn check_with_partial_limit(
                     ),
                 );
             } else {
-                let resolved = match internal_state(&known.ty) {
-                    Some(_) => ResolvedType::Unresolved,
-                    None => syntax_type(&known.ty)
-                        .map_or(ResolvedType::Unresolved, ResolvedType::Concrete),
-                };
+                let resolved = checker.resolved_syntax_type(&known.ty).map_or_else(
+                    || {
+                        if matches!(internal_state(&known.ty), Some(Type::Never)) {
+                            ResolvedType::Never
+                        } else {
+                            ResolvedType::Unresolved
+                        }
+                    },
+                    ResolvedType::Concrete,
+                );
                 inferred.bindings.insert(at, resolved);
             }
         }
