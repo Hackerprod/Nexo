@@ -433,6 +433,8 @@ struct Known {
     origin: Span,
     /// Stable traversal-order identity of an unresolved monomorphic binding.
     variable: Option<u64>,
+    invalid: bool,
+    nominal_sources: HashSet<(u64, u64)>,
 }
 
 #[derive(Clone)]
@@ -455,6 +457,10 @@ struct TypeNode {
     variant_origin: Option<Span>,
     variant_constructed: bool,
     bottom_only: bool,
+    failed_constructor: bool,
+    deferred_join: bool,
+    recursive_join: bool,
+    branch_join_scopes: Vec<(u64, u64)>,
     // Only presence is tested by bind/union. The earliest span is retained
     // for deterministic propagation, but changing one Some(span) to another
     // Some(span) cannot alter acceptance or a diagnostic: neither site emits
@@ -499,6 +505,7 @@ struct PendingNominalDomain {
     expected: Option<Type>,
     expected_span: Option<Span>,
     depends_on: Option<Span>,
+    conditional_bindings: Vec<(u64, Type)>,
 }
 
 #[derive(Clone)]
@@ -508,6 +515,7 @@ struct PendingBinaryDomain {
     found: Span,
     domain: &'static str,
     result: Span,
+    conditional_bindings: Vec<(u64, Type)>,
 }
 
 #[derive(Clone)]
@@ -526,6 +534,7 @@ struct PendingGuardedComparison {
     projections: Vec<(u64, u64)>,
     dependent_results: Vec<Span>,
     require_resolved: bool,
+    conditional_bindings: Vec<(u64, Type)>,
 }
 
 #[derive(Default)]
@@ -565,7 +574,7 @@ enum ShapeHint {
 }
 
 #[derive(Clone)]
-enum PendingConstraint {
+enum ObligationKind {
     Constructor { child: u64, array: u64, span: Span },
     VariantConstructor { union: u64, span: Span },
     Join(Box<PendingDeferredJoin>),
@@ -574,6 +583,49 @@ enum PendingConstraint {
     BinaryDomain(Box<PendingBinaryDomain>),
     GuardedComparison(Box<PendingGuardedComparison>),
     Projection(Box<PendingProjection>),
+}
+
+#[derive(Clone, Copy)]
+enum ObligationClass {
+    Constructor = 0,
+    VariantConstructor = 1,
+    Join = 2,
+    Domain = 3,
+    DomainNominal = 4,
+    BinaryDomain = 5,
+    GuardedComparison = 6,
+    Projection = 7,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ObligationStatus {
+    Pending,
+    Satisfied,
+    Refuted,
+    Contaminated,
+}
+
+impl ObligationKind {
+    fn occurrence(&self) -> (ObligationClass, (u64, u64)) {
+        match self {
+            Self::Constructor { span, .. } => (ObligationClass::Constructor, span_key(span)),
+            Self::VariantConstructor { span, .. } => {
+                (ObligationClass::VariantConstructor, span_key(span))
+            }
+            Self::Join(join) => (ObligationClass::Join, span_key(&join.found)),
+            Self::Domain(domain) => (ObligationClass::Domain, span_key(&domain.operand)),
+            Self::DomainNominal(domain) => (ObligationClass::DomainNominal, span_key(&domain.call)),
+            Self::BinaryDomain(domain) => (ObligationClass::BinaryDomain, span_key(&domain.result)),
+            Self::GuardedComparison(comparison) => (
+                ObligationClass::GuardedComparison,
+                span_key(&comparison.result),
+            ),
+            Self::Projection(projection) => (
+                ObligationClass::Projection,
+                span_key(&projection.result_span),
+            ),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -718,8 +770,6 @@ struct AssertEqFrameState<'a> {
     next: usize,
     prior_taint: bool,
     prior_errors: usize,
-    pending_start: usize,
-    pending_generation: u64,
     values: [Option<Type>; 2],
     evidence: [Option<PendingOperandEvidence>; 2],
     invalid: bool,
@@ -1417,12 +1467,28 @@ enum BindingReadNode<'a> {
     Match(&'a parse::Match),
 }
 
-#[allow(clippy::vec_box)] // Public semantic result keeps boxed diagnostics.
+#[derive(Clone, Copy)]
+enum OccurrenceFlag {
+    PendingDomain = 1,
+    Deferred = 2,
+    Divergent = 4,
+    FailedJoin = 8,
+    FailedProjection = 16,
+    ContextRejected = 32,
+    PartialNormal = 64,
+    Tainted = 128,
+}
+
+#[derive(Clone, Default)]
+struct OccurrenceState {
+    flags: u8,
+    conditional_result: Option<Type>,
+    nominal_sources: HashSet<(u64, u64)>,
+    obligations: [Option<ObligationStatus>; 8],
+}
+
 #[derive(Clone)]
-struct Checker<'a> {
-    file: &'a str,
-    tokens: Vec<Token>,
-    resolved: &'a Resolved,
+struct InferenceGraph {
     locals: HashMap<u64, Known>,
     type_nodes: HashMap<u64, TypeNode>,
     // Entries own both immutable operands, so their pointer keys cannot be
@@ -1430,41 +1496,18 @@ struct Checker<'a> {
     array_unify_cache: HashMap<(usize, usize), (Type, Type, Type, u64)>,
     expr_vars: HashMap<(u64, u64), u64>,
     expression_types: HashMap<(u64, u64), Type>,
-    closures: HashMap<u64, ClosureDraft>,
-    saved_closures: HashMap<u64, ClosureDraft>,
-    generator_slots: HashMap<u64, Vec<Type>>,
-    hidden_for: Vec<Type>,
-    closure_local_sites: HashSet<u64>,
-    pending_depth: std::cell::RefCell<Vec<(Type, Span)>>,
-    defer_depth: bool,
     nominal_depth_memo: std::cell::RefCell<HashMap<(u8, u64), (usize, usize)>>,
-    depth_memo_ready: bool,
-    conditional_result_types: HashMap<(u64, u64), Type>,
-    conditional_result_vars: Vec<(u64, Span, Type)>,
     next_variable: u64,
-    failed_constructors: HashSet<u64>,
     // Root, scalar constraint, expected source, incompatible operand,
     // array-on-left, and branch join (NX-E1303 instead of NX-E0102).
-    pending: Vec<PendingConstraint>,
-    // A nested block can drain pending constraints while checking an operand.
-    // This distinguishes an append-only suffix from a repartitioned queue.
-    pending_generation: u64,
-    // Avoid repartitioning the full collection after statements that did not
-    // create a conditional projection.
-    has_pending_projection: bool,
+    obligations: Vec<ObligationKind>,
     // The + or - whose I64 context is currently distributed to this site.
     // Nested binary expressions own their internal constraints separately.
     numeric_domain_owner: Option<(u64, u64)>,
-    pending_domain_calls: HashSet<(u64, u64)>,
+    occurrences: HashMap<(u64, u64), OccurrenceState>,
     // §13.9: an operand/constraint site owns one diagnostic, regardless of
     // whether it is discovered immediately or by a deferred join.
     emitted_sites: HashSet<(u64, u64)>,
-    solver_steps: u64,
-    solver_limit: u64,
-    // The first traversal discovers compatible constructor shapes without
-    // spending the normative solver budget or emitting diagnostics. The
-    // checking traversal owns both charges and diagnostic occurrences.
-    planning: bool,
     eligible_shapes: HashSet<u64>,
     shape_plan: HashMap<u64, Vec<Span>>,
     concrete_plan: HashMap<u64, ConcreteEvidence>,
@@ -1478,30 +1521,174 @@ struct Checker<'a> {
     assignment_starts: HashMap<u64, u64>,
     first_assignment_rhs_starts: HashMap<u64, u64>,
     prefix_concrete: HashMap<u64, ConcreteEvidence>,
-    deferred_join_roots: HashSet<u64>,
-    branch_join_sites: HashMap<u64, Vec<(u64, u64)>>,
-    recursive_join_roots: HashSet<u64>,
+    preseeded_children: HashSet<u64>,
+    tainted: bool,
+    result: Type,
+    result_span: Option<Span>,
+}
+
+impl InferenceGraph {
+    fn register(&mut self, obligation: ObligationKind) {
+        let (class, site) = obligation.occurrence();
+        let state = self.occurrences.entry(site).or_default();
+        state.obligations[class as usize].get_or_insert(ObligationStatus::Pending);
+        self.obligations.push(obligation);
+    }
+
+    fn transition(&mut self, site: (u64, u64), class: ObligationClass, status: ObligationStatus) {
+        let slot = &mut self.occurrences.entry(site).or_default().obligations[class as usize];
+        let rank = |state| match state {
+            ObligationStatus::Satisfied => 0,
+            ObligationStatus::Pending => 1,
+            ObligationStatus::Contaminated => 2,
+            ObligationStatus::Refuted => 3,
+        };
+        if slot.is_none_or(|previous| rank(status) >= rank(previous)) {
+            *slot = Some(status);
+        }
+    }
+
+    fn refuted_result_sites(&self) -> HashSet<(u64, u64)> {
+        self.occurrences
+            .iter()
+            .filter_map(|(&site, state)| {
+                (matches!(
+                    state.obligations[ObligationClass::DomainNominal as usize],
+                    Some(ObligationStatus::Refuted | ObligationStatus::Contaminated)
+                ) || matches!(
+                    state.obligations[ObligationClass::BinaryDomain as usize],
+                    Some(ObligationStatus::Refuted)
+                ) || matches!(
+                    state.obligations[ObligationClass::GuardedComparison as usize],
+                    Some(ObligationStatus::Refuted)
+                ))
+                .then_some(site)
+            })
+            .collect()
+    }
+
+    fn attach_conditional_binding(&mut self, result: &Span, id: u64, nominal: Type) {
+        let target = self.obligations.iter_mut().find_map(|entry| match entry {
+            ObligationKind::DomainNominal(obligation) if obligation.call == *result => {
+                Some(&mut obligation.conditional_bindings)
+            }
+            ObligationKind::BinaryDomain(obligation) if obligation.result == *result => {
+                Some(&mut obligation.conditional_bindings)
+            }
+            ObligationKind::GuardedComparison(obligation) if obligation.result == *result => {
+                Some(&mut obligation.conditional_bindings)
+            }
+            _ => None,
+        });
+        if let Some(target) = target {
+            target.push((id, nominal));
+        }
+    }
+
+    fn conditional_bindings(&self) -> Vec<(u64, Span, Type)> {
+        self.obligations
+            .iter()
+            .flat_map(|entry| match entry {
+                ObligationKind::DomainNominal(obligation) => obligation
+                    .conditional_bindings
+                    .iter()
+                    .map(|(id, nominal)| (*id, obligation.call.clone(), nominal.clone()))
+                    .collect::<Vec<_>>(),
+                ObligationKind::BinaryDomain(obligation) => obligation
+                    .conditional_bindings
+                    .iter()
+                    .map(|(id, nominal)| (*id, obligation.result.clone(), nominal.clone()))
+                    .collect::<Vec<_>>(),
+                ObligationKind::GuardedComparison(obligation) => obligation
+                    .conditional_bindings
+                    .iter()
+                    .map(|(id, nominal)| (*id, obligation.result.clone(), nominal.clone()))
+                    .collect::<Vec<_>>(),
+                _ => Vec::new(),
+            })
+            .collect()
+    }
+
+    fn mark_failed_constructor(&mut self, id: u64) -> bool {
+        let node = self.type_nodes.get_mut(&id).expect("known inference node");
+        let was_new = !node.failed_constructor;
+        node.failed_constructor = true;
+        was_new
+    }
+
+    fn take_failed_constructor(&mut self, id: u64) -> bool {
+        let node = self.type_nodes.get_mut(&id).expect("known inference node");
+        std::mem::take(&mut node.failed_constructor)
+    }
+
+    fn failed_constructor(&self, id: u64) -> bool {
+        self.type_nodes
+            .get(&id)
+            .is_some_and(|node| node.failed_constructor)
+    }
+
+    fn clear_failed_constructors(&mut self) {
+        for node in self.type_nodes.values_mut() {
+            node.failed_constructor = false;
+        }
+    }
+
+    fn conditional_result(&self, site: &(u64, u64)) -> Option<&Type> {
+        self.occurrences.get(site)?.conditional_result.as_ref()
+    }
+
+    fn set_conditional_result(&mut self, site: (u64, u64), ty: Type) {
+        self.occurrences.entry(site).or_default().conditional_result = Some(ty);
+    }
+
+    fn mark(&mut self, site: (u64, u64), flag: OccurrenceFlag) -> bool {
+        let state = self.occurrences.entry(site).or_default();
+        let bit = flag as u8;
+        let was_new = state.flags & bit == 0;
+        state.flags |= bit;
+        was_new
+    }
+
+    fn has(&self, site: &(u64, u64), flag: OccurrenceFlag) -> bool {
+        self.occurrences
+            .get(site)
+            .is_some_and(|state| state.flags & flag as u8 != 0)
+    }
+
+    fn marked(&self, flag: OccurrenceFlag) -> impl Iterator<Item = (u64, u64)> + '_ {
+        self.occurrences
+            .iter()
+            .filter_map(move |(&site, state)| (state.flags & flag as u8 != 0).then_some(site))
+    }
+}
+
+#[allow(clippy::vec_box)] // Public semantic result keeps boxed diagnostics.
+#[derive(Clone)]
+struct Checker<'a> {
+    file: &'a str,
+    tokens: Vec<Token>,
+    resolved: &'a Resolved,
+    graph: InferenceGraph,
+    closures: HashMap<u64, ClosureDraft>,
+    saved_closures: HashMap<u64, ClosureDraft>,
+    generator_slots: HashMap<u64, Vec<Type>>,
+    hidden_for: Vec<Type>,
+    closure_local_sites: HashSet<u64>,
+    pending_depth: std::cell::RefCell<Vec<(Type, Span)>>,
+    defer_depth: bool,
+    depth_memo_ready: bool,
+    solver_steps: u64,
+    solver_limit: u64,
+    // The first traversal discovers compatible constructor shapes without
+    // spending the normative solver budget or emitting diagnostics. The
+    // checking traversal owns both charges and diagnostic occurrences.
+    planning: bool,
     block_depth: usize,
     top_statement_start: u64,
     top_statement_end: u64,
     active_if_span: Option<Span>,
-    preseeded_children: HashSet<u64>,
     analysis_exhausted: bool,
     quota_error: Option<Box<Diagnostic>>,
-    invalid: HashSet<u64>,
-    deferred_exprs: HashSet<(u64, u64)>,
-    divergent_exprs: HashSet<(u64, u64)>,
-    failed_join_exprs: HashSet<(u64, u64)>,
-    failed_projection_results: HashSet<(u64, u64)>,
-    // A concrete context was rejected at this expression's own value
-    // site (or one of its distributed normal continuations).
-    context_rejections: HashSet<(u64, u64)>,
-    // A tainted expression can still contribute a valid normal branch type
-    // when that type came from a separate, checked continuation (§13.9).
-    partial_normal_exprs: HashSet<(u64, u64)>,
-    tainted: bool,
-    result: Type,
-    result_span: Option<Span>,
     generator_item: Option<Type>,
     loop_depth: usize,
     errors: Vec<Box<Diagnostic>>,
@@ -1569,11 +1756,11 @@ impl Checker<'_> {
         closure: &'b parse::Closure,
         context: OwnedCheckContext,
     ) -> Result<ClosureProgress<'b>, Box<Diagnostic>> {
-        let prior_sites: HashSet<u64> = self.locals.keys().copied().collect();
+        let prior_sites: HashSet<u64> = self.graph.locals.keys().copied().collect();
         let sites = self.closure_capture_sites(closure);
         let mut captures = Vec::new();
         for (name, mode, source, capture_span, mutable) in sites {
-            if let Some(known) = self.locals.get(&source.start).cloned() {
+            if let Some(known) = self.graph.locals.get(&source.start).cloned() {
                 let ty = self
                     .resolved_syntax_type(&known.ty)
                     .map(|ty| Type::from(&ty))
@@ -1626,18 +1813,20 @@ impl Checker<'_> {
             } else {
                 Type::Deferred(self.new_variable(&name_span)?)
             };
-            self.locals.insert(
+            self.graph.locals.insert(
                 name_span.start,
                 Known {
                     ty: ty.clone(),
                     origin: name_span.clone(),
                     variable: None,
+                    invalid: false,
+                    nominal_sources: HashSet::new(),
                 },
             );
             params.push((param.name.clone(), param.mode, name_span, ty));
         }
-        let previous_result = self.result.clone();
-        let previous_result_span = self.result_span.clone();
+        let previous_result = self.graph.result.clone();
+        let previous_result_span = self.graph.result_span.clone();
         let previous_generator_item = self.generator_item.take();
         let previous_loop_depth = std::mem::replace(&mut self.loop_depth, 0);
         let result = if let Some(written) = &closure.result {
@@ -1647,8 +1836,8 @@ impl Checker<'_> {
         } else {
             Type::Deferred(self.new_variable(&closure.fn_span)?)
         };
-        self.result = result.clone();
-        self.result_span = closure.result.as_ref().and_then(|_| {
+        self.graph.result = result.clone();
+        self.graph.result_span = closure.result.as_ref().and_then(|_| {
             self.type_annotation_span(closure.fn_span.end, closure.body.span.start, "->")
         });
         Ok(ClosureProgress {
@@ -1677,13 +1866,14 @@ impl Checker<'_> {
         progress: ClosureProgress<'_>,
         checked: Result<(), Box<Diagnostic>>,
     ) -> Result<Type, Box<Diagnostic>> {
-        self.result = progress.previous_result;
-        self.result_span = progress.previous_result_span;
+        self.graph.result = progress.previous_result;
+        self.graph.result_span = progress.previous_result_span;
         self.generator_item = progress.previous_generator_item;
         self.loop_depth = progress.previous_loop_depth;
         checked?;
         self.closure_local_sites.extend(
-            self.locals
+            self.graph
+                .locals
                 .keys()
                 .copied()
                 .filter(|site| !progress.prior_sites.contains(site)),
@@ -1729,7 +1919,7 @@ impl Checker<'_> {
                     prior_taint,
                 } => {
                     let outcome = returned.and_then(|actual| {
-                        if matches!(expected, Type::Deferred(_)) && !self.tainted {
+                        if matches!(expected, Type::Deferred(_)) && !self.graph.tainted {
                             let Statement::Return {
                                 value: Some(value), ..
                             } = statement
@@ -1767,7 +1957,7 @@ impl Checker<'_> {
                     ..
                 } = statement
             {
-                let prior_taint = std::mem::take(&mut self.tainted);
+                let prior_taint = std::mem::take(&mut self.graph.tainted);
                 match self.prepare_let(annotation.as_ref(), value, span) {
                     Ok(prepared) => {
                         let context = OwnedCheckContext::new(CheckContext {
@@ -1796,9 +1986,9 @@ impl Checker<'_> {
                     value: Some(value), ..
                 } = statement
             {
-                let prior_taint = std::mem::take(&mut self.tainted);
-                let expected = self.result.clone();
-                let origin = self.result_span.clone();
+                let prior_taint = std::mem::take(&mut self.graph.tainted);
+                let expected = self.graph.result.clone();
+                let origin = self.graph.result_span.clone();
                 progress.pending_statement = Some(ClosurePending::Return {
                     statement,
                     expected: expected.clone(),
@@ -1867,6 +2057,7 @@ impl Checker<'_> {
                     Expr::Name(_, span) => {
                         result = match self.resolved.uses.get(&span.start) {
                             Some(ResolvedUse::Local(local)) => self
+                                .graph
                                 .locals
                                 .get(&local.name_span.start)
                                 .filter(|known| {
@@ -1911,7 +2102,7 @@ impl Checker<'_> {
 
     fn collect_planned_shapes(&mut self) -> bool {
         let mut changed = false;
-        let eligible: Vec<_> = self.eligible_shapes.iter().copied().collect();
+        let eligible: Vec<_> = self.graph.eligible_shapes.iter().copied().collect();
         // Count unresolved assigned peers once per component. Scanning every
         // eligible binding from every other binding makes independent arrays
         // quadratic under the same fixed-point plan.
@@ -1919,9 +2110,12 @@ impl Checker<'_> {
         let mut first_assigned_type: HashMap<u64, (u64, Type)> = HashMap::new();
         for other in &eligible {
             if let (Some(id), Some((ty, _)), Some(start)) = (
-                self.locals.get(other).and_then(|known| known.variable),
-                self.assignment_type_plan.get(other).cloned(),
-                self.assignment_starts.get(other).copied(),
+                self.graph
+                    .locals
+                    .get(other)
+                    .and_then(|known| known.variable),
+                self.graph.assignment_type_plan.get(other).cloned(),
+                self.graph.assignment_starts.get(other).copied(),
             ) {
                 let root = self.root(id);
                 let entry = first_assigned_type
@@ -1931,9 +2125,13 @@ impl Checker<'_> {
                     *entry = (start, ty);
                 }
             }
-            if self.assigned_bases.contains(other)
-                && !self.assignment_type_plan.contains_key(other)
-                && let Some(id) = self.locals.get(other).and_then(|known| known.variable)
+            if self.graph.assigned_bases.contains(other)
+                && !self.graph.assignment_type_plan.contains_key(other)
+                && let Some(id) = self
+                    .graph
+                    .locals
+                    .get(other)
+                    .and_then(|known| known.variable)
             {
                 let root = self.root(id);
                 unresolved_peers
@@ -1943,7 +2141,7 @@ impl Checker<'_> {
             }
         }
         for site in eligible {
-            let Some(known) = self.locals.get(&site).cloned() else {
+            let Some(known) = self.graph.locals.get(&site).cloned() else {
                 continue;
             };
             let Some(mut current) = known.variable else {
@@ -1954,7 +2152,7 @@ impl Checker<'_> {
             for _ in 0..=128 {
                 current = self.root(current);
                 chain.push(current);
-                let node = &self.type_nodes[&current];
+                let node = &self.graph.type_nodes[&current];
                 let Some(child) = node.array_child else {
                     break;
                 };
@@ -1965,20 +2163,18 @@ impl Checker<'_> {
                 );
                 current = child;
             }
-            self.concrete_plan.remove(&site);
-            self.read_plan.remove(&site);
-            let projected: Vec<_> = self.projected_bases.iter().copied().collect();
+            self.graph.concrete_plan.remove(&site);
+            self.graph.read_plan.remove(&site);
+            let projected: Vec<_> = self.graph.projected_bases.iter().copied().collect();
             let has_conditional_projection = projected
                 .into_iter()
                 .any(|base| chain.contains(&self.root(base)));
-            let deferred_joins: Vec<_> = self.deferred_join_roots.iter().copied().collect();
-            let has_deferred_join = deferred_joins
-                .into_iter()
-                .any(|root| chain.contains(&self.root(root)));
-            let recursive_joins: Vec<_> = self.recursive_join_roots.iter().copied().collect();
-            let has_recursive_join = recursive_joins
-                .into_iter()
-                .any(|root| chain.contains(&self.root(root)));
+            let has_deferred_join = chain
+                .iter()
+                .any(|root| self.graph.type_nodes[root].deferred_join);
+            let has_recursive_join = chain
+                .iter()
+                .any(|root| self.graph.type_nodes[root].recursive_join);
             let nonbranch_join_roots: Vec<_> = self
                 .pending_joins()
                 .filter(|join| !join.branch)
@@ -1988,52 +2184,53 @@ impl Checker<'_> {
                 && nonbranch_join_roots
                     .into_iter()
                     .any(|root| chain.contains(&self.root(root)));
-            if has_recursive_join && !self.assigned_bases.contains(&site) {
+            if has_recursive_join && !self.graph.assigned_bases.contains(&site) {
                 // Reject the recursive equality at its own occurrence. A
                 // later constructor cannot change that earlier occurs check.
-                changed |= self.shape_plan.remove(&site).is_some();
+                changed |= self.graph.shape_plan.remove(&site).is_some();
                 continue;
             }
             let resolved = self
+                .graph
                 .prefix_concrete
                 .get(&site)
                 .cloned()
                 .or_else(|| self.concrete_evidence(known.variable.unwrap()));
             let read_type = self
+                .graph
                 .assignment_type_plan
                 .get(&site)
                 .map(|(ty, _)| ty.clone())
                 .or_else(|| resolved.as_ref().map(|evidence| evidence.ty.clone()));
-            let prefix = match self.pre_assignment_snapshot.get(&site) {
+            let prefix = match self.graph.pre_assignment_snapshot.get(&site) {
                 Some(snapshot) => snapshot.clone(),
-                None => self.prefix_concrete.get(&site).cloned(),
+                None => self.graph.prefix_concrete.get(&site).cloned(),
             };
             let conflicts_prefix = self
+                .graph
                 .assignment_type_plan
                 .get(&site)
                 .is_some_and(|(ty, _)| prefix.as_ref().is_some_and(|prior| &prior.ty != ty));
-            if self.assigned_bases.contains(&site)
+            if self.graph.assigned_bases.contains(&site)
                 && !has_conditional_projection
                 && has_deferred_join
                 && !conflicts_prefix
                 && let Some(ty) = read_type
-                && let Some(&assignment_start) = self.assignment_starts.get(&site)
+                && let Some(&assignment_start) = self.graph.assignment_starts.get(&site)
             {
-                let joins: Vec<_> = self
-                    .branch_join_sites
+                let mut blocked: Vec<_> = chain
                     .iter()
-                    .map(|(id, ranges)| (*id, ranges.clone()))
+                    .flat_map(|root| {
+                        self.graph.type_nodes[root]
+                            .branch_join_scopes
+                            .iter()
+                            .copied()
+                    })
                     .collect();
-                let mut blocked = Vec::new();
-                for (root, ranges) in joins {
-                    if chain.contains(&self.root(root)) {
-                        blocked.extend(ranges);
-                    }
-                }
                 if !blocked.is_empty() {
                     blocked.sort_unstable();
                     blocked.dedup();
-                    self.read_plan.insert(
+                    self.graph.read_plan.insert(
                         site,
                         ReadPlan {
                             ty,
@@ -2043,10 +2240,10 @@ impl Checker<'_> {
                     );
                 }
             }
-            if self.assigned_bases.contains(&site) {
-                if let Some(source_type) = self.assignment_type_plan.get(&site).cloned() {
-                    let first_assignment =
-                        self.first_assignment_rhs_starts.get(&site) == Some(&source_type.1.start);
+            if self.graph.assigned_bases.contains(&site) {
+                if let Some(source_type) = self.graph.assignment_type_plan.get(&site).cloned() {
+                    let first_assignment = self.graph.first_assignment_rhs_starts.get(&site)
+                        == Some(&source_type.1.start);
                     let mut source_depth = 0;
                     let mut layer = &source_type.0;
                     while let Type::Array(child) = layer {
@@ -2058,14 +2255,18 @@ impl Checker<'_> {
                     // erase that prefix shape with the assignment (§4.1.2.2).
                     let conflicts_shape = source_depth < origins.len();
                     let conflicts_earlier_assignment = !has_deferred_join
-                        && self.assignment_starts.get(&site).is_some_and(|start| {
-                            chain
-                                .first()
-                                .and_then(|root| first_assigned_type.get(root))
-                                .is_some_and(|(first, prior)| {
-                                    first < start && prior != &source_type.0
-                                })
-                        });
+                        && self
+                            .graph
+                            .assignment_starts
+                            .get(&site)
+                            .is_some_and(|start| {
+                                chain
+                                    .first()
+                                    .and_then(|root| first_assigned_type.get(root))
+                                    .is_some_and(|(first, prior)| {
+                                        first < start && prior != &source_type.0
+                                    })
+                            });
                     let unresolved_peer = chain.iter().any(|root| {
                         unresolved_peers
                             .get(root)
@@ -2079,7 +2280,7 @@ impl Checker<'_> {
                         // The earlier compatible prefix type is the one
                         // available to uses before this rejected assignment.
                         // Seed it, not the incompatible later RHS (§4.1.2.7).
-                        self.concrete_plan.insert(site, prior);
+                        self.graph.concrete_plan.insert(site, prior);
                     } else if first_assignment
                         && !has_recursive_nonbranch_join
                         && (!has_conditional_projection || !origins.is_empty())
@@ -2087,7 +2288,7 @@ impl Checker<'_> {
                         && !conflicts_shape
                         && !conflicts_earlier_assignment
                         && !unresolved_peer
-                        && !self.nested_assignment_sites.contains(&site)
+                        && !self.graph.nested_assignment_sites.contains(&site)
                     {
                         // The whole-Array RHS may be the first root
                         // assignment while an earlier indexed write has
@@ -2112,32 +2313,32 @@ impl Checker<'_> {
                             origins.push(planned_source.origin.clone());
                             layer = child;
                         }
-                        self.concrete_plan.insert(site, planned_source);
+                        self.graph.concrete_plan.insert(site, planned_source);
                     }
                 } else if !has_deferred_join && let Some(concrete) = resolved {
-                    self.concrete_plan.insert(site, concrete);
+                    self.graph.concrete_plan.insert(site, concrete);
                 }
             }
-            changed |= self.shape_plan.get(&site) != Some(&origins);
-            self.shape_plan.insert(site, origins);
+            changed |= self.graph.shape_plan.get(&site) != Some(&origins);
+            self.graph.shape_plan.insert(site, origins);
         }
         changed
     }
 
     fn seed_planned_shape(&mut self, site: u64, id: u64) {
-        let Some(origins) = self.shape_plan.get(&site).cloned() else {
+        let Some(origins) = self.graph.shape_plan.get(&site).cloned() else {
             return;
         };
         let mut current = id;
         for origin in origins {
             current = self.root(current);
-            if let Some(child) = self.type_nodes[&current].array_child {
+            if let Some(child) = self.graph.type_nodes[&current].array_child {
                 current = child;
                 continue;
             }
-            let child = self.next_variable;
-            self.next_variable += 1;
-            self.type_nodes.insert(
+            let child = self.graph.next_variable;
+            self.graph.next_variable += 1;
+            self.graph.type_nodes.insert(
                 child,
                 TypeNode {
                     parent: child,
@@ -2151,16 +2352,24 @@ impl Checker<'_> {
                     variant_origin: None,
                     variant_constructed: false,
                     bottom_only: false,
+                    failed_constructor: false,
+                    deferred_join: false,
+                    recursive_join: false,
+                    branch_join_scopes: Vec::new(),
                     copyable_origin: Some(origin.clone()),
                 },
             );
-            self.type_nodes.get_mut(&current).unwrap().array_child = Some(child);
-            self.type_nodes.get_mut(&current).unwrap().array_origin = Some(origin);
-            self.preseeded_children.insert(child);
+            self.graph.type_nodes.get_mut(&current).unwrap().array_child = Some(child);
+            self.graph
+                .type_nodes
+                .get_mut(&current)
+                .unwrap()
+                .array_origin = Some(origin);
+            self.graph.preseeded_children.insert(child);
             current = child;
         }
         if !self.planning
-            && let Some(evidence) = self.concrete_plan.get(&site).cloned()
+            && let Some(evidence) = self.graph.concrete_plan.get(&site).cloned()
         {
             let mut ty = evidence.ty;
             for _ in 0..=128 {
@@ -2170,8 +2379,8 @@ impl Checker<'_> {
                 ty = child.as_ref().clone();
             }
             current = self.root(current);
-            if self.type_nodes[&current].concrete.is_none() && internal_state(&ty).is_none() {
-                let node = self.type_nodes.get_mut(&current).unwrap();
+            if self.graph.type_nodes[&current].concrete.is_none() && internal_state(&ty).is_none() {
+                let node = self.graph.type_nodes.get_mut(&current).unwrap();
                 node.concrete = Some((ty, evidence.origin));
                 node.concrete_intrinsic = evidence.intrinsic;
             }
@@ -2179,10 +2388,11 @@ impl Checker<'_> {
     }
 
     fn pending_constructors(&self) -> Vec<(u64, u64, Span)> {
-        self.pending
+        self.graph
+            .obligations
             .iter()
             .filter_map(|entry| match entry {
-                PendingConstraint::Constructor { child, array, span } => {
+                ObligationKind::Constructor { child, array, span } => {
                     Some((*child, *array, span.clone()))
                 }
                 _ => None,
@@ -2191,12 +2401,11 @@ impl Checker<'_> {
     }
 
     fn pending_variant_constructors(&self) -> Vec<(u64, Span)> {
-        self.pending
+        self.graph
+            .obligations
             .iter()
             .filter_map(|entry| match entry {
-                PendingConstraint::VariantConstructor { union, span } => {
-                    Some((*union, span.clone()))
-                }
+                ObligationKind::VariantConstructor { union, span } => Some((*union, span.clone())),
                 _ => None,
             })
             .collect()
@@ -2213,9 +2422,9 @@ impl Checker<'_> {
             return;
         }
         let root = self.root(id);
-        if let Some(child) = self.type_nodes[&root].array_child {
+        if let Some(child) = self.graph.type_nodes[&root].array_child {
             self.unresolved_union_paths(child, format!("{path}.element"), depth + 1, paths);
-        } else if let Some(union) = self.type_nodes[&root].variant_children {
+        } else if let Some(union) = self.graph.type_nodes[&root].variant_children {
             for variant in union.variants {
                 if let Some(child) = variant.payload {
                     self.unresolved_union_paths(
@@ -2231,17 +2440,23 @@ impl Checker<'_> {
         }
     }
     fn pending_joins(&self) -> impl Iterator<Item = &PendingDeferredJoin> {
-        self.pending.iter().filter_map(|entry| match entry {
-            PendingConstraint::Join(join) => Some(join.as_ref()),
-            _ => None,
-        })
+        self.graph
+            .obligations
+            .iter()
+            .filter_map(|entry| match entry {
+                ObligationKind::Join(join) => Some(join.as_ref()),
+                _ => None,
+            })
     }
 
     fn pending_joins_mut(&mut self) -> impl Iterator<Item = &mut PendingDeferredJoin> {
-        self.pending.iter_mut().filter_map(|entry| match entry {
-            PendingConstraint::Join(join) => Some(join.as_mut()),
-            _ => None,
-        })
+        self.graph
+            .obligations
+            .iter_mut()
+            .filter_map(|entry| match entry {
+                ObligationKind::Join(join) => Some(join.as_mut()),
+                _ => None,
+            })
     }
 
     fn pending_join_count(&self) -> usize {
@@ -2250,67 +2465,68 @@ impl Checker<'_> {
 
     fn truncate_pending_joins(&mut self, length: usize) {
         let mut seen = 0;
-        let before = self.pending.len();
-        self.pending.retain(|entry| match entry {
-            PendingConstraint::Join(_) => {
+        self.graph.obligations.retain(|entry| match entry {
+            ObligationKind::Join(_) => {
                 seen += 1;
                 seen <= length
             }
             _ => true,
         });
-        if self.pending.len() != before {
-            self.pending_generation = self.pending_generation.wrapping_add(1);
-        }
     }
 
     fn pending_domain_count(&self) -> usize {
-        self.pending
+        self.graph
+            .obligations
             .iter()
-            .filter(|entry| matches!(entry, PendingConstraint::Domain(_)))
+            .filter(|entry| matches!(entry, ObligationKind::Domain(_)))
             .count()
     }
 
     fn pending_domains(&self) -> impl Iterator<Item = &PendingDomain> {
-        self.pending.iter().filter_map(|entry| match entry {
-            PendingConstraint::Domain(domain) => Some(domain),
-            _ => None,
-        })
+        self.graph
+            .obligations
+            .iter()
+            .filter_map(|entry| match entry {
+                ObligationKind::Domain(domain) => Some(domain),
+                _ => None,
+            })
     }
 
-    fn take_pending_projections(&mut self) -> Vec<PendingConstraint> {
-        if !self.has_pending_projection {
+    fn take_pending_projections(&mut self) -> Vec<ObligationKind> {
+        if !self
+            .graph
+            .obligations
+            .iter()
+            .any(|entry| matches!(entry, ObligationKind::Projection(_)))
+        {
             return Vec::new();
         }
-        self.has_pending_projection = false;
         self.take_pending_kind(|entry| match entry {
-            entry @ PendingConstraint::Projection(_) => Ok(entry),
+            entry @ ObligationKind::Projection(_) => Ok(entry),
             other => Err(other),
         })
     }
 
     fn take_pending_kind<T>(
         &mut self,
-        mut select: impl FnMut(PendingConstraint) -> Result<T, PendingConstraint>,
+        mut select: impl FnMut(ObligationKind) -> Result<T, ObligationKind>,
     ) -> Vec<T> {
         let mut chosen = Vec::new();
         let mut retained = Vec::new();
-        for entry in std::mem::take(&mut self.pending) {
+        for entry in std::mem::take(&mut self.graph.obligations) {
             match select(entry) {
                 Ok(value) => chosen.push(value),
                 Err(entry) => retained.push(entry),
             }
         }
-        self.pending = retained;
-        if !chosen.is_empty() {
-            self.pending_generation = self.pending_generation.wrapping_add(1);
-        }
+        self.graph.obligations = retained;
         chosen
     }
 
     fn representative(&self, id: u64) -> u64 {
         let mut current = id;
-        while self.type_nodes[&current].parent != current {
-            current = self.type_nodes[&current].parent;
+        while self.graph.type_nodes[&current].parent != current {
+            current = self.graph.type_nodes[&current].parent;
         }
         current
     }
@@ -2319,14 +2535,18 @@ impl Checker<'_> {
         let mut current = self.root(base);
         let mut depth = 0;
         loop {
-            let next = self.pending.iter().find_map(|entry| match entry {
-                PendingConstraint::Projection(projection)
-                    if self.representative(projection.base) == current =>
-                {
-                    Some(projection.item)
-                }
-                _ => None,
-            })?;
+            let next = self
+                .graph
+                .obligations
+                .iter()
+                .find_map(|entry| match entry {
+                    ObligationKind::Projection(projection)
+                        if self.representative(projection.base) == current =>
+                    {
+                        Some(projection.item)
+                    }
+                    _ => None,
+                })?;
             depth += 1;
             if depth > 128 {
                 return None;
@@ -2350,7 +2570,7 @@ impl Checker<'_> {
             Expr::Array(..) => true,
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => {
-                    let known = self.locals.get(&local.name_span.start).cloned();
+                    let known = self.graph.locals.get(&local.name_span.start).cloned();
                     known.is_some_and(|known| {
                         let ty = known
                             .variable
@@ -2383,7 +2603,7 @@ impl Checker<'_> {
         let mut current = self.root(id);
         let mut depth = 0;
         let leaf = loop {
-            let node = &self.type_nodes[&current];
+            let node = &self.graph.type_nodes[&current];
             if let Some((ty, _)) = &node.concrete {
                 break Self::type_shape_hint(ty);
             }
@@ -2430,7 +2650,7 @@ impl Checker<'_> {
                     Expr::Name(_, span) => {
                         result = match self.resolved.uses.get(&span.start) {
                             Some(ResolvedUse::Local(local)) => {
-                                let known = self.locals.get(&local.name_span.start).cloned();
+                                let known = self.graph.locals.get(&local.name_span.start).cloned();
                                 match known {
                                     Some(Known {
                                         variable: Some(id), ..
@@ -2504,11 +2724,11 @@ impl Checker<'_> {
             let mut next = Vec::new();
             let mut advanced = false;
             for entry in pending {
-                let PendingConstraint::Projection(mut projection) = entry else {
+                let ObligationKind::Projection(mut projection) = entry else {
                     unreachable!("projection partition")
                 };
                 let root = self.root(projection.base);
-                let element = self.type_nodes[&root].array_child;
+                let element = self.graph.type_nodes[&root].array_child;
                 let base = self.concrete(projection.base);
                 let indexable = element.is_some();
                 if !finalize && !indexable && base.is_none() {
@@ -2518,11 +2738,11 @@ impl Checker<'_> {
                         // The selector has independent constraints of its own.
                         // Synthesize them in source order even though its I64
                         // context depends on the still-unknown base shape.
-                        let prior_taint = self.tainted;
-                        self.tainted = false;
+                        let prior_taint = self.graph.tainted;
+                        self.graph.tainted = false;
                         let selector = self.expr(&projection.selector, None, None);
-                        projection.selector_invalid |= self.tainted || selector.is_err();
-                        self.tainted = prior_taint;
+                        projection.selector_invalid |= self.graph.tainted || selector.is_err();
+                        self.graph.tainted = prior_taint;
                         if let Err(error) = selector {
                             if error.operation == Operation::AnalysisLimit {
                                 return Err(error);
@@ -2530,19 +2750,19 @@ impl Checker<'_> {
                             self.record_error(error);
                         }
                         projection.checked_without_context = true;
-                        next.push(PendingConstraint::Projection(projection));
+                        next.push(ObligationKind::Projection(projection));
                         advanced = true;
                         continue;
                     }
-                    next.push(PendingConstraint::Projection(projection));
+                    next.push(ObligationKind::Projection(projection));
                     continue;
                 }
                 if !indexable && base.is_none() && projection.checked_without_context {
-                    next.push(PendingConstraint::Projection(projection));
+                    next.push(ObligationKind::Projection(projection));
                     continue;
                 }
-                let prior_taint = self.tainted;
-                self.tainted = false;
+                let prior_taint = self.graph.tainted;
+                self.graph.tainted = false;
                 // The selector occurrence predates a later binding that may
                 // have fixed its variable. Once Array activates the earlier
                 // I64 requirement, the later incompatible binding is the
@@ -2553,7 +2773,7 @@ impl Checker<'_> {
                         // selector. I64 conflicts at the selector occurrence;
                         // a later assignment only completes its element.
                         let selector_root = self.root(id);
-                        if self.type_nodes[&selector_root].array_child.is_some() {
+                        if self.graph.type_nodes[&selector_root].array_child.is_some() {
                             return None;
                         }
                         self.concrete(id).and_then(|(ty, origin)| {
@@ -2574,13 +2794,14 @@ impl Checker<'_> {
                 }
                 let selector_invalid = projection.selector_invalid
                     || later_conflict.is_some()
-                    || self.tainted
+                    || self.graph.tainted
                     || selector.is_err();
                 let result_site = span_key(&projection.result_span);
                 if selector_invalid {
-                    self.failed_projection_results.insert(result_site);
+                    self.graph
+                        .mark(result_site, OccurrenceFlag::FailedProjection);
                 }
-                self.tainted = prior_taint;
+                self.graph.tainted = prior_taint;
                 if let Err(error) = selector {
                     if error.operation == Operation::AnalysisLimit {
                         return Err(error);
@@ -2601,7 +2822,8 @@ impl Checker<'_> {
                             if error.operation == Operation::AnalysisLimit {
                                 return Err(error);
                             }
-                            self.failed_projection_results.insert(result_site);
+                            self.graph
+                                .mark(result_site, OccurrenceFlag::FailedProjection);
                             self.record_error(error);
                         }
                         if let Some(expected) = projection.expected {
@@ -2621,13 +2843,15 @@ impl Checker<'_> {
                                 if error.operation == Operation::AnalysisLimit {
                                     return Err(error);
                                 }
-                                self.failed_projection_results.insert(result_site);
+                                self.graph
+                                    .mark(result_site, OccurrenceFlag::FailedProjection);
                                 self.record_error(error);
                             }
                         }
                     }
                 } else if let Some((ty, _)) = base {
-                    self.failed_projection_results.insert(result_site);
+                    self.graph
+                        .mark(result_site, OccurrenceFlag::FailedProjection);
                     self.record_error(self.domain_diagnostic(
                         projection.base_span,
                         &ty,
@@ -2636,14 +2860,13 @@ impl Checker<'_> {
                 } else {
                     projection.checked_without_context = true;
                     projection.selector_invalid = selector_invalid;
-                    next.push(PendingConstraint::Projection(projection));
+                    next.push(ObligationKind::Projection(projection));
                 }
                 advanced = true;
             }
             next.append(&mut self.take_pending_projections());
             if !advanced {
-                self.has_pending_projection = !next.is_empty();
-                self.pending.extend(next);
+                self.graph.obligations.extend(next);
                 break;
             }
             pending = next;
@@ -2664,7 +2887,7 @@ impl Checker<'_> {
         }
         let array_constructor = self.expression_variable(operand).is_some_and(|id| {
             let root = self.root(id);
-            self.type_nodes[&root].array_child.is_some()
+            self.graph.type_nodes[&root].array_child.is_some()
         });
         if domain == "domain:array" && array_constructor {
             // `[]` has already fixed the Array constructor. Its element may
@@ -2673,7 +2896,7 @@ impl Checker<'_> {
         }
         if internal_state(got).is_some() {
             if let Some(id) = self.expression_variable(operand) {
-                self.pending.push(PendingConstraint::Domain(PendingDomain {
+                self.graph.register(ObligationKind::Domain(PendingDomain {
                     variable: id,
                     operand: span,
                     domain,
@@ -2733,16 +2956,17 @@ impl Checker<'_> {
     ) {
         // ADR §4.1.2.5: a nominal result cannot satisfy a consumer
         // until the argument or operand domain is known to hold.
-        self.pending_domain_calls.insert(span_key(call));
+        self.graph
+            .mark(span_key(call), OccurrenceFlag::PendingDomain);
         // An established Array constructor can never satisfy the scalar
         // I64 domain, even while its element is unresolved. Delay the
         // serializable diagnostic, but stop offering the nominal result as
         // a witness to siblings now (§§4.1.2.2, 4.1.2.4–5).
         let root = self.root(variable);
-        if domain == "I64" && self.type_nodes[&root].array_child.is_some() {
-            self.failed_join_exprs.insert(span_key(call));
+        if domain == "I64" && self.graph.type_nodes[&root].array_child.is_some() {
+            self.graph.mark(span_key(call), OccurrenceFlag::FailedJoin);
         }
-        self.pending.push(PendingConstraint::DomainNominal(Box::new(
+        self.graph.register(ObligationKind::DomainNominal(Box::new(
             PendingNominalDomain {
                 variable,
                 domain,
@@ -2751,56 +2975,50 @@ impl Checker<'_> {
                 expected: expected.cloned(),
                 expected_span: expected_span.cloned(),
                 depends_on: depends_on.cloned(),
+                conditional_bindings: Vec::new(),
             },
         )));
     }
 
     fn pending_operation_guard(&self, operand: &Expr) -> Option<(u64, &'static str)> {
         let site = span_key(&Self::primary_span(operand));
-        self.pending.iter().find_map(|pending| match pending {
-            PendingConstraint::DomainNominal(result) if span_key(&result.call) == site => {
-                Some((result.variable, result.domain))
-            }
-            PendingConstraint::BinaryDomain(result) if span_key(&result.result) == site => {
-                Some((result.variable, result.domain))
-            }
-            PendingConstraint::GuardedComparison(result) if span_key(&result.result) == site => {
-                Some((result.variable, result.domain))
-            }
-            _ => None,
-        })
+        self.graph
+            .obligations
+            .iter()
+            .find_map(|pending| match pending {
+                ObligationKind::DomainNominal(result) if span_key(&result.call) == site => {
+                    Some((result.variable, result.domain))
+                }
+                ObligationKind::BinaryDomain(result) if span_key(&result.result) == site => {
+                    Some((result.variable, result.domain))
+                }
+                ObligationKind::GuardedComparison(result) if span_key(&result.result) == site => {
+                    Some((result.variable, result.domain))
+                }
+                _ => None,
+            })
     }
 
-    fn pending_operand_evidence(
-        &self,
-        operand: &Expr,
-        pending_start: usize,
-        pending_generation: u64,
-    ) -> Option<PendingOperandEvidence> {
+    fn pending_operand_evidence(&self, operand: &Expr) -> Option<PendingOperandEvidence> {
         let span = Self::primary_span(operand);
         let inside = |site: &Span| span.start <= site.start && site.end <= span.end;
         let mut evidence = PendingOperandEvidence::default();
-        // Source containment remains authoritative if a nested block has
-        // repartitioned the queue since this operand began.
-        let entries = if self.pending_generation == pending_generation {
-            self.pending.get(pending_start..).unwrap_or(&self.pending)
-        } else {
-            &self.pending
-        };
-        for pending in entries {
+        // The occurrence span, rather than a mutable queue offset, owns its
+        // obligations even when a nested block repartitions the work list.
+        for pending in &self.graph.obligations {
             match pending {
-                PendingConstraint::Domain(domain) if inside(&domain.operand) => {
+                ObligationKind::Domain(domain) if inside(&domain.operand) => {
                     evidence.domains.push((domain.variable, domain.domain));
                 }
-                PendingConstraint::DomainNominal(result) if inside(&result.call) => {
+                ObligationKind::DomainNominal(result) if inside(&result.call) => {
                     evidence.domains.push((result.variable, result.domain));
                     evidence.results.push(result.call.clone());
                 }
-                PendingConstraint::BinaryDomain(result) if inside(&result.result) => {
+                ObligationKind::BinaryDomain(result) if inside(&result.result) => {
                     evidence.domains.push((result.variable, result.domain));
                     evidence.results.push(result.result.clone());
                 }
-                PendingConstraint::GuardedComparison(result) if inside(&result.result) => {
+                ObligationKind::GuardedComparison(result) if inside(&result.result) => {
                     evidence.domains.push((result.variable, result.domain));
                     evidence
                         .domains
@@ -2813,7 +3031,7 @@ impl Checker<'_> {
                         .results
                         .extend(result.dependent_results.iter().cloned());
                 }
-                PendingConstraint::Projection(result) if inside(&result.result_span) => {
+                ObligationKind::Projection(result) if inside(&result.result_span) => {
                     evidence.projections.push((result.base, result.item));
                     evidence.results.push(result.result_span.clone());
                 }
@@ -2844,22 +3062,26 @@ impl Checker<'_> {
 
     fn pending_operation_type(&self, operand: &Expr) -> Option<Type> {
         let site = span_key(&Self::primary_span(operand));
-        self.expression_types
+        self.graph
+            .expression_types
             .get(&site)
             .filter(|ty| **ty != Type::Tainted)
             .cloned()
             .or_else(|| {
-                self.pending.iter().find_map(|pending| match pending {
-                    PendingConstraint::DomainNominal(result) if span_key(&result.call) == site => {
-                        Some(result.nominal.clone())
-                    }
-                    PendingConstraint::GuardedComparison(result)
-                        if span_key(&result.result) == site =>
-                    {
-                        Some(Type::Bool)
-                    }
-                    _ => None,
-                })
+                self.graph
+                    .obligations
+                    .iter()
+                    .find_map(|pending| match pending {
+                        ObligationKind::DomainNominal(result) if span_key(&result.call) == site => {
+                            Some(result.nominal.clone())
+                        }
+                        ObligationKind::GuardedComparison(result)
+                            if span_key(&result.result) == site =>
+                        {
+                            Some(Type::Bool)
+                        }
+                        _ => None,
+                    })
             })
     }
 
@@ -2868,8 +3090,80 @@ impl Checker<'_> {
             return false;
         };
         let root = self.root(variable);
-        let child = self.type_nodes[&root].array_child;
+        let child = self.graph.type_nodes[&root].array_child;
         child.is_none_or(|child| self.concrete(child).is_some())
+            || self.graph.type_nodes[&root].bottom_only
+    }
+
+    fn capture_expression_dependencies(&mut self, expression: &Expr) {
+        let site = span_key(expression.span());
+        let mut children: Vec<&Expr> = Vec::new();
+        let mut sources = HashSet::new();
+        match expression {
+            Expr::Name(_, span) => {
+                if let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&span.start)
+                    && let Some(binding) = self.graph.locals.get(&local.name_span.start)
+                {
+                    sources.extend(binding.nominal_sources.iter().copied());
+                }
+            }
+            Expr::Array(items, _) => children.extend(items),
+            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => children.push(inner),
+            Expr::Binary { left, right, .. } => children.extend([left.as_ref(), right.as_ref()]),
+            Expr::Call { target, args, .. } => {
+                children.push(target);
+                children.extend(args.iter().map(|arg| &arg.value));
+            }
+            Expr::Index { target, index, .. } => {
+                children.extend([target.as_ref(), index.as_ref()]);
+            }
+            Expr::If {
+                condition,
+                then_block,
+                otherwise,
+                ..
+            } => {
+                children.push(condition);
+                if let Some(value) = branch_value_expr(then_block) {
+                    children.push(value);
+                }
+                match otherwise.as_deref() {
+                    Some(Else::Block(block)) => {
+                        if let Some(value) = branch_value_expr(block) {
+                            children.push(value);
+                        }
+                    }
+                    Some(Else::If(value)) => children.push(value),
+                    None => {}
+                }
+            }
+            Expr::Match(selection) => {
+                children.push(&selection.scrutinee);
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        children.push(guard);
+                    }
+                    if let Some(value) = branch_value_expr(&arm.body) {
+                        children.push(value);
+                    }
+                }
+            }
+            Expr::Closure(_) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+        }
+        for child in children {
+            if let Some(state) = self.graph.occurrences.get(&span_key(child.span())) {
+                sources.extend(state.nominal_sources.iter().copied());
+            }
+        }
+        if self.pending_operation_guard(expression).is_some() {
+            sources.insert(site);
+        }
+        self.graph
+            .occurrences
+            .entry(site)
+            .or_default()
+            .nominal_sources
+            .extend(sources);
     }
 
     fn record_error(&mut self, error: Box<Diagnostic>) {
@@ -2901,7 +3195,7 @@ impl Checker<'_> {
             // §4.7 excludes a second join diagnosis at an operand that
             // already failed its contextual check. §4.1.1 suppresses
             // derived errors, while other spans remain independent.
-            if !self.emitted_sites.insert((span.start, span.end)) {
+            if !self.graph.emitted_sites.insert((span.start, span.end)) {
                 return;
             }
         }
@@ -2912,6 +3206,7 @@ impl Checker<'_> {
         // A nominal result with an unresolved or failed domain is not a
         // witness for its consumers (§4.1.2.5). The same site rule applies
         // at ordinary closure and at a denied solver charge (§11.1).
+        let occurrences = &self.graph.occurrences;
         self.errors.retain(|error| {
             let result_site = error.primary_span.as_ref().map(span_key);
             let expected_witness = error
@@ -2921,6 +3216,14 @@ impl Checker<'_> {
                 .map(|relation| span_key(&relation.span));
             !result_site.is_some_and(|site| results.contains(&site))
                 && !expected_witness.is_some_and(|site| results.contains(&site))
+                && !result_site.is_some_and(|site| {
+                    occurrences.get(&site).is_some_and(|state| {
+                        state
+                            .nominal_sources
+                            .iter()
+                            .any(|source| results.contains(source))
+                    })
+                })
         });
     }
 
@@ -2973,9 +3276,9 @@ impl Checker<'_> {
 
     fn new_variable(&mut self, span: &Span) -> Result<u64, Box<Diagnostic>> {
         self.charge_solver(span)?;
-        let id = self.next_variable;
-        self.next_variable += 1;
-        self.type_nodes.insert(
+        let id = self.graph.next_variable;
+        self.graph.next_variable += 1;
+        self.graph.type_nodes.insert(
             id,
             TypeNode {
                 parent: id,
@@ -2989,6 +3292,10 @@ impl Checker<'_> {
                 variant_origin: None,
                 variant_constructed: false,
                 bottom_only: false,
+                failed_constructor: false,
+                deferred_join: false,
+                recursive_join: false,
+                branch_join_scopes: Vec::new(),
                 copyable_origin: None,
             },
         );
@@ -2998,14 +3305,14 @@ impl Checker<'_> {
     fn require_array(&mut self, id: u64, origin: &Span) -> Result<u64, Box<Diagnostic>> {
         self.charge_solver(origin)?;
         let root = self.root(id);
-        if let Some(child) = self.type_nodes[&root].array_child {
-            if self.preseeded_children.remove(&child) {
+        if let Some(child) = self.graph.type_nodes[&root].array_child {
+            if self.graph.preseeded_children.remove(&child) {
                 self.charge_solver(origin)?;
             }
             return Ok(child);
         }
-        if self.type_nodes[&root].variant_children.is_some()
-            || self.type_nodes[&root]
+        if self.graph.type_nodes[&root].variant_children.is_some()
+            || self.graph.type_nodes[&root]
                 .concrete
                 .as_ref()
                 .is_some_and(|(ty, _)| !matches!(ty, Type::Array(..)))
@@ -3013,13 +3320,17 @@ impl Checker<'_> {
             return Err(unresolved_type(origin.clone()));
         }
         let child = self.new_variable(origin)?;
-        self.type_nodes.get_mut(&root).unwrap().array_child = Some(child);
-        self.type_nodes.get_mut(&root).unwrap().array_origin = Some(origin.clone());
+        self.graph.type_nodes.get_mut(&root).unwrap().array_child = Some(child);
+        self.graph.type_nodes.get_mut(&root).unwrap().array_origin = Some(origin.clone());
         // Every newly required element inherits the array's copyable-data
         // domain. Explicit array constructors call require_copyable on their
         // element instead (§4.1.1); removing only the stored origin cannot
         // matter once that child already has a copyability origin.
-        self.type_nodes.get_mut(&child).unwrap().copyable_origin = Some(origin.clone());
+        self.graph
+            .type_nodes
+            .get_mut(&child)
+            .unwrap()
+            .copyable_origin = Some(origin.clone());
         self.check_one_inferred_depth(root, origin)?;
         Ok(child)
     }
@@ -3032,15 +3343,15 @@ impl Checker<'_> {
     ) -> Result<UnionDescriptor<u64>, Box<Diagnostic>> {
         self.charge_solver(origin)?;
         let root = self.root(id);
-        if let Some(children) = self.type_nodes[&root].variant_children {
+        if let Some(children) = self.graph.type_nodes[&root].variant_children {
             return if children.kind == kind {
                 Ok(children)
             } else {
                 Err(unresolved_type(origin.clone()))
             };
         }
-        if self.type_nodes[&root].array_child.is_some()
-            || self.type_nodes[&root]
+        if self.graph.type_nodes[&root].array_child.is_some()
+            || self.graph.type_nodes[&root]
                 .concrete
                 .as_ref()
                 .is_some_and(|(ty, _)| concrete_union(ty).is_none_or(|union| union.kind != kind))
@@ -3058,11 +3369,11 @@ impl Checker<'_> {
         } else {
             UnionDescriptor::option(first)
         };
-        if let Some((concrete, previous_origin)) = self.type_nodes[&root].concrete.clone()
+        if let Some((concrete, previous_origin)) = self.graph.type_nodes[&root].concrete.clone()
             && let Some(wanted) = concrete_union(&concrete)
         {
-            self.type_nodes.get_mut(&root).unwrap().concrete = None;
-            let intrinsic = self.type_nodes[&root].concrete_intrinsic;
+            self.graph.type_nodes.get_mut(&root).unwrap().concrete = None;
+            let intrinsic = self.graph.type_nodes[&root].concrete_intrinsic;
             for (actual, target) in children.variants.iter().zip(wanted.variants) {
                 if let (Some(actual), Some(target)) = (actual.payload, target.payload) {
                     self.bind(
@@ -3075,8 +3386,12 @@ impl Checker<'_> {
                 }
             }
         }
-        self.type_nodes.get_mut(&root).unwrap().variant_children = Some(children);
-        self.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin.clone());
+        self.graph
+            .type_nodes
+            .get_mut(&root)
+            .unwrap()
+            .variant_children = Some(children);
+        self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin.clone());
         Ok(children)
     }
 
@@ -3103,8 +3418,9 @@ impl Checker<'_> {
                 &ty,
             ));
         }
-        if self.type_nodes[&root].variant_children.is_some() && self.concrete(root).is_none() {
-            self.pending.push(PendingConstraint::Domain(PendingDomain {
+        if self.graph.type_nodes[&root].variant_children.is_some() && self.concrete(root).is_none()
+        {
+            self.graph.register(ObligationKind::Domain(PendingDomain {
                 variable: root,
                 operand: origin.clone(),
                 domain: "domain:copyable_data",
@@ -3113,17 +3429,21 @@ impl Checker<'_> {
         // Only presence of this domain is consulted by unification. A later
         // failure uses its current operand as primary, so choosing the first
         // recorded origin span cannot change a source-level diagnostic.
-        let previous = self.type_nodes[&root].copyable_origin.clone();
+        let previous = self.graph.type_nodes[&root].copyable_origin.clone();
         if previous
             .as_ref()
             .is_none_or(|span| origin.start < span.start)
         {
-            self.type_nodes.get_mut(&root).unwrap().copyable_origin = Some(origin.clone());
+            self.graph
+                .type_nodes
+                .get_mut(&root)
+                .unwrap()
+                .copyable_origin = Some(origin.clone());
         }
         // require_array and explicit constructors already gave this child
         // the copyable domain. Requiring it again preserves that invariant
         // for manually built solver states, with no new source-level result.
-        if let Some(child) = self.type_nodes[&root].array_child {
+        if let Some(child) = self.graph.type_nodes[&root].array_child {
             self.require_copyable(child, origin, data_only)?;
         }
         Ok(())
@@ -3131,13 +3451,13 @@ impl Checker<'_> {
 
     fn root(&mut self, id: u64) -> u64 {
         let mut root = id;
-        while self.type_nodes[&root].parent != root {
-            root = self.type_nodes[&root].parent;
+        while self.graph.type_nodes[&root].parent != root {
+            root = self.graph.type_nodes[&root].parent;
         }
         let mut current = id;
         while current != root {
-            let next = self.type_nodes[&current].parent;
-            self.type_nodes.get_mut(&current).unwrap().parent = root;
+            let next = self.graph.type_nodes[&current].parent;
+            self.graph.type_nodes.get_mut(&current).unwrap().parent = root;
             current = next;
         }
         root
@@ -3152,7 +3472,7 @@ impl Checker<'_> {
             return None;
         }
         let root = self.root(id);
-        let node = self.type_nodes[&root].clone();
+        let node = self.graph.type_nodes[&root].clone();
         if let Some(concrete) = node.concrete {
             if node.array_child.is_some() && !matches!(concrete.0, Type::Array(..))
                 || node.variant_children.is_some_and(|children| {
@@ -3205,7 +3525,7 @@ impl Checker<'_> {
     fn origin_intrinsic(&mut self, id: u64) -> bool {
         let mut current = self.root(id);
         for _ in 0..=128 {
-            let node = &self.type_nodes[&current];
+            let node = &self.graph.type_nodes[&current];
             if node.concrete.is_some() {
                 return node.concrete_intrinsic;
             }
@@ -3221,15 +3541,17 @@ impl Checker<'_> {
     fn retain_assignment_origin(&mut self, id: u64, origin: &Span) {
         let mut current = self.root(id);
         for _ in 0..=128 {
-            if let Some((ty, _)) = self.type_nodes[&current].concrete.clone() {
-                self.type_nodes.get_mut(&current).unwrap().concrete = Some((ty, origin.clone()));
-                self.type_nodes
+            if let Some((ty, _)) = self.graph.type_nodes[&current].concrete.clone() {
+                self.graph.type_nodes.get_mut(&current).unwrap().concrete =
+                    Some((ty, origin.clone()));
+                self.graph
+                    .type_nodes
                     .get_mut(&current)
                     .unwrap()
                     .concrete_intrinsic = false;
                 return;
             }
-            let Some(child) = self.type_nodes[&current].array_child else {
+            let Some(child) = self.graph.type_nodes[&current].array_child else {
                 return;
             };
             current = self.root(child);
@@ -3240,7 +3562,7 @@ impl Checker<'_> {
         match ty {
             Type::Deferred(id) => {
                 let root = self.root(*id);
-                let node = &self.type_nodes[&root];
+                let node = &self.graph.type_nodes[&root];
                 node.concrete.is_some()
                     || node.array_child.is_some()
                     || node.variant_children.is_some()
@@ -3283,7 +3605,7 @@ impl Checker<'_> {
                     return concrete;
                 }
                 let root = self.root(*id);
-                let node = self.type_nodes[&root].clone();
+                let node = self.graph.type_nodes[&root].clone();
                 if let Some(child) = node.array_child {
                     return Type::Array(Arc::new(
                         self.selection_type(&Type::Deferred(child), depth + 1),
@@ -3338,13 +3660,15 @@ impl Checker<'_> {
         }
         if let Some(wanted) = concrete_union(&ty) {
             let root = self.root(id);
-            if internal_state(&ty).is_some() || self.type_nodes[&root].variant_children.is_some() {
+            if internal_state(&ty).is_some()
+                || self.graph.type_nodes[&root].variant_children.is_some()
+            {
                 let kind = wanted.kind;
                 return self.atomic(|checker| {
                     let root = checker.root(id);
                     let was_concrete = checker.concrete(root).is_some();
                     if let Some((previous, previous_origin)) =
-                        checker.type_nodes[&root].concrete.clone()
+                        checker.graph.type_nodes[&root].concrete.clone()
                         && concrete_union(&previous).is_none_or(|union| union.kind != kind)
                     {
                         let expected =
@@ -3370,15 +3694,19 @@ impl Checker<'_> {
                         }
                     }
                     if !was_concrete && checker.concrete(root).is_some() {
-                        checker.type_nodes.get_mut(&root).unwrap().variant_origin =
-                            Some(origin.clone());
+                        checker
+                            .graph
+                            .type_nodes
+                            .get_mut(&root)
+                            .unwrap()
+                            .variant_origin = Some(origin.clone());
                     }
                     Ok(())
                 });
             }
         }
         let root = self.root(id);
-        if self.type_nodes[&root].variant_children.is_some() {
+        if self.graph.type_nodes[&root].variant_children.is_some() {
             // A union shape cannot be replaced by a scalar while one of its
             // children is still open. The source equality owns the conflict;
             // its caller can defer it until both whole types are printable.
@@ -3392,10 +3720,11 @@ impl Checker<'_> {
             // hold. Reject the later equality at its source occurrence
             // before changing the representative (§4.1.2.1–3).
             let conditional_selectors: Vec<_> = self
-                .pending
+                .graph
+                .obligations
                 .iter()
                 .filter_map(|entry| match entry {
-                    PendingConstraint::Projection(projection) => projection
+                    ObligationKind::Projection(projection) => projection
                         .selector_variable
                         .map(|selector| (projection.base, selector)),
                     _ => None,
@@ -3413,7 +3742,8 @@ impl Checker<'_> {
                     &Type::Array(element),
                 ));
             }
-            if let Some((previous, previous_origin)) = self.type_nodes[&root].concrete.clone() {
+            if let Some((previous, previous_origin)) = self.graph.type_nodes[&root].concrete.clone()
+            {
                 let expected_label =
                     pretty(&previous).ok_or_else(|| unresolved_type(found.clone()))?;
                 return Err(mismatch(
@@ -3439,7 +3769,7 @@ impl Checker<'_> {
         }
         self.charge_solver(&found)?;
         let root = self.root(id);
-        if self.type_nodes[&root].copyable_origin.is_some() && !copyable(&ty) {
+        if self.graph.type_nodes[&root].copyable_origin.is_some() && !copyable(&ty) {
             self.fail_constructed_dependents(root);
             return Err(mismatch(
                 found.clone(),
@@ -3449,12 +3779,12 @@ impl Checker<'_> {
                 &ty,
             ));
         }
-        if let Some(child) = self.type_nodes[&root].array_child {
+        if let Some(child) = self.graph.type_nodes[&root].array_child {
             let Type::Array(element) = &ty else {
-                if (self.type_nodes[&root].array_constructed
-                    || self.type_nodes[&root]
+                if (self.graph.type_nodes[&root].array_constructed
+                    || self.graph.type_nodes[&root]
                         .array_child
-                        .is_some_and(|child| self.preseeded_children.contains(&child)))
+                        .is_some_and(|child| self.graph.preseeded_children.contains(&child)))
                     && self.concrete(root).is_none()
                 {
                     // §4.1.1 considers all local constraints, irrespective
@@ -3473,7 +3803,7 @@ impl Checker<'_> {
                     );
                     return Ok(());
                 }
-                self.failed_constructors.insert(root);
+                self.graph.mark_failed_constructor(root);
                 return Err(self.array_domain_conflict(root, &ty, found));
             };
             self.bind(
@@ -3497,8 +3827,12 @@ impl Checker<'_> {
                 ));
             }
         } else {
-            self.type_nodes.get_mut(&root).unwrap().concrete = Some((ty, origin));
-            self.type_nodes.get_mut(&root).unwrap().concrete_intrinsic = intrinsic;
+            self.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((ty, origin));
+            self.graph
+                .type_nodes
+                .get_mut(&root)
+                .unwrap()
+                .concrete_intrinsic = intrinsic;
         }
         Ok(())
     }
@@ -3528,9 +3862,9 @@ impl Checker<'_> {
         // must not add an unresolved-constructor consequence at function end.
         for (child, array, _) in self.pending_constructors() {
             let child_root = self.root(child);
-            if child_root == element && self.type_nodes[&child_root].bottom_only {
+            if child_root == element && self.graph.type_nodes[&child_root].bottom_only {
                 let array_root = self.root(array);
-                self.failed_constructors.insert(array_root);
+                self.graph.mark_failed_constructor(array_root);
             }
         }
     }
@@ -3545,7 +3879,7 @@ impl Checker<'_> {
             let related = (!self.origin_intrinsic(root)).then_some(array_origin);
             return mismatch(found.clone(), found, related, &label, other);
         }
-        if self.type_nodes[&root].array_constructed {
+        if self.graph.type_nodes[&root].array_constructed {
             return self.unresolved_constructor_diagnostic(root, found);
         }
         domain_error(
@@ -3561,7 +3895,10 @@ impl Checker<'_> {
     fn unresolved_constructor_diagnostic(&self, root: u64, found: Span) -> Box<Diagnostic> {
         // S10 and §4.1.1 locate an unresolved constructor at its source,
         // even when a later operand exposes the incompatible constraint.
-        let origin = self.type_nodes[&root].array_origin.clone().unwrap_or(found);
+        let origin = self.graph.type_nodes[&root]
+            .array_origin
+            .clone()
+            .unwrap_or(found);
         names::diagnostic(
             "NX-E0103",
             None,
@@ -3583,7 +3920,7 @@ impl Checker<'_> {
         // source types deeper than 128 are rejected by the array-depth
         // limit before this shape walk; iteration 129 has no reachable node.
         for _ in 0..=128 {
-            let node = self.type_nodes[&current].clone();
+            let node = self.graph.type_nodes[&current].clone();
             if node.variant_children.is_some() && self.result_shape_conflict(current, part, 0) {
                 return Ok(Some(current));
             }
@@ -3615,7 +3952,7 @@ impl Checker<'_> {
             return false;
         }
         let root = self.root(id);
-        let Some(union) = self.type_nodes[&root].variant_children else {
+        let Some(union) = self.graph.type_nodes[&root].variant_children else {
             return false;
         };
         let Some(wanted) = concrete_union(against) else {
@@ -3649,23 +3986,29 @@ impl Checker<'_> {
         // (§4.1.2.5). Other shape failures can suppress a consequent
         // unresolved-constructor diagnostic at finalization.
         if !policy.branch {
-            self.failed_constructors.insert(constructor);
+            self.graph.mark_failed_constructor(constructor);
         }
         if policy.branch {
-            self.deferred_join_roots.insert(constructor);
+            self.graph
+                .type_nodes
+                .get_mut(&constructor)
+                .unwrap()
+                .deferred_join = true;
             let scope = self
                 .active_if_span
                 .as_ref()
                 .map_or((self.top_statement_start, self.top_statement_end), |span| {
                     (span.start, span.end)
                 });
-            self.branch_join_sites
-                .entry(constructor)
-                .or_default()
+            self.graph
+                .type_nodes
+                .get_mut(&constructor)
+                .unwrap()
+                .branch_join_scopes
                 .push(scope);
         }
-        self.pending
-            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+        self.graph
+            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
                 left,
                 right,
                 constructor,
@@ -3673,7 +4016,7 @@ impl Checker<'_> {
                 found,
                 branch: policy.branch,
                 related_expected: policy.related_expected,
-                numeric_domain_owner: self.numeric_domain_owner,
+                numeric_domain_owner: self.graph.numeric_domain_owner,
                 comparison_domain_if_unresolved: None,
             })));
     }
@@ -3766,12 +4109,12 @@ impl Checker<'_> {
                 let r = self.concrete(b);
                 let a_root = self.root(a);
                 let b_root = self.root(b);
-                let incompatible_shapes = self.type_nodes[&a_root].array_child.is_some()
-                    && self.type_nodes[&b_root].variant_children.is_some()
-                    || self.type_nodes[&a_root].variant_children.is_some()
-                        && self.type_nodes[&b_root].array_child.is_some();
+                let incompatible_shapes = self.graph.type_nodes[&a_root].array_child.is_some()
+                    && self.graph.type_nodes[&b_root].variant_children.is_some()
+                    || self.graph.type_nodes[&a_root].variant_children.is_some()
+                        && self.graph.type_nodes[&b_root].array_child.is_some();
                 if incompatible_shapes {
-                    let constructor = if self.type_nodes[&a_root].variant_children.is_some() {
+                    let constructor = if self.graph.type_nodes[&a_root].variant_children.is_some() {
                         a_root
                     } else {
                         b_root
@@ -3812,13 +4155,13 @@ impl Checker<'_> {
                     Ok(()) => {}
                     Err(error)
                         if error.code == "NX-E0102"
-                            && (self.type_nodes[&a_root].variant_children.is_some()
-                                || self.type_nodes[&b_root].variant_children.is_some())
+                            && (self.graph.type_nodes[&a_root].variant_children.is_some()
+                                || self.graph.type_nodes[&b_root].variant_children.is_some())
                             && (self.concrete(a).is_none() || self.concrete(b).is_none()) =>
                     {
                         let constructor = self.root(a);
-                        self.pending
-                            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+                        self.graph
+                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
                                 left: Type::Deferred(a),
                                 right: Type::Deferred(b),
                                 constructor,
@@ -3826,7 +4169,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.numeric_domain_owner,
+                                numeric_domain_owner: self.graph.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(constructor));
@@ -3836,10 +4179,11 @@ impl Checker<'_> {
                         // this occurrence, but later compatible constraints
                         // can complete both sides for a serializable M/J.
                         let constructor = self.root(a);
-                        self.deferred_join_roots.insert(constructor);
-                        self.recursive_join_roots.insert(constructor);
-                        self.pending
-                            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+                        let node = self.graph.type_nodes.get_mut(&constructor).unwrap();
+                        node.deferred_join = true;
+                        node.recursive_join = true;
+                        self.graph
+                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
                                 left: Type::Deferred(a),
                                 right: Type::Deferred(b),
                                 constructor,
@@ -3847,7 +4191,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.numeric_domain_owner,
+                                numeric_domain_owner: self.graph.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(constructor));
@@ -3904,11 +4248,11 @@ impl Checker<'_> {
                     let root = self.root(id);
                     if error.code == "NX-E0102"
                         && concrete_union(&other).is_some()
-                        && self.type_nodes[&root].variant_children.is_some()
+                        && self.graph.type_nodes[&root].variant_children.is_some()
                         && self.concrete(id).is_none()
                     {
-                        self.pending
-                            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+                        self.graph
+                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
                                 left: Type::Deferred(id),
                                 right: other,
                                 constructor: root,
@@ -3916,7 +4260,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.numeric_domain_owner,
+                                numeric_domain_owner: self.graph.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(root));
@@ -3974,11 +4318,11 @@ impl Checker<'_> {
                     let root = self.root(id);
                     if error.code == "NX-E0102"
                         && concrete_union(&other).is_some()
-                        && self.type_nodes[&root].variant_children.is_some()
+                        && self.graph.type_nodes[&root].variant_children.is_some()
                         && self.concrete(id).is_none()
                     {
-                        self.pending
-                            .push(PendingConstraint::Join(Box::new(PendingDeferredJoin {
+                        self.graph
+                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
                                 left: other,
                                 right: Type::Deferred(id),
                                 constructor: root,
@@ -3986,7 +4330,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.numeric_domain_owner,
+                                numeric_domain_owner: self.graph.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(root));
@@ -4007,7 +4351,7 @@ impl Checker<'_> {
             (Type::Array(a), Type::Array(b)) => {
                 let key = (Arc::as_ptr(&a) as usize, Arc::as_ptr(&b) as usize);
                 if let Some((_, _, resolved, inner_pairs)) =
-                    self.array_unify_cache.get(&key).cloned()
+                    self.graph.array_unify_cache.get(&key).cloned()
                 {
                     // §11.8, point 1 counts every logical pair even when a cache
                     // avoids revisiting the same immutable concrete trees.
@@ -4045,7 +4389,7 @@ impl Checker<'_> {
                 // inner_pairs. The concrete-only cache policy keeps entries
                 // directly printable and avoids retaining transient nodes.
                 if internal_state(&expected).is_none() && internal_state(&found_type).is_none() {
-                    self.array_unify_cache.insert(
+                    self.graph.array_unify_cache.insert(
                         key,
                         (
                             expected,
@@ -4115,8 +4459,8 @@ impl Checker<'_> {
     fn union(&mut self, left: u64, right: u64, found: Span) -> Result<(), Box<Diagnostic>> {
         let l = self.root(left);
         let r = self.root(right);
-        if self.type_nodes[&l].variant_children.is_some()
-            || self.type_nodes[&r].variant_children.is_some()
+        if self.graph.type_nodes[&l].variant_children.is_some()
+            || self.graph.type_nodes[&r].variant_children.is_some()
         {
             return self.atomic(|checker| checker.union_inner(left, right, found));
         }
@@ -4130,21 +4474,21 @@ impl Checker<'_> {
         if l == r {
             return Ok(());
         }
-        if self.type_nodes[&l].array_child.is_some()
-            && self.type_nodes[&r].variant_children.is_some()
-            || self.type_nodes[&l].variant_children.is_some()
-                && self.type_nodes[&r].array_child.is_some()
+        if self.graph.type_nodes[&l].array_child.is_some()
+            && self.graph.type_nodes[&r].variant_children.is_some()
+            || self.graph.type_nodes[&l].variant_children.is_some()
+                && self.graph.type_nodes[&r].array_child.is_some()
         {
             return Err(unresolved_type(found));
         }
-        if (self.type_nodes[&l].array_child.is_some()
-            || self.type_nodes[&l].variant_children.is_some()
-            || self.type_nodes[&r].array_child.is_some()
-            || self.type_nodes[&r].variant_children.is_some())
+        if (self.graph.type_nodes[&l].array_child.is_some()
+            || self.graph.type_nodes[&l].variant_children.is_some()
+            || self.graph.type_nodes[&r].array_child.is_some()
+            || self.graph.type_nodes[&r].variant_children.is_some())
             && (self.type_reaches(l, r, &found)? || self.type_reaches(r, l, &found)?)
         {
-            if self.type_nodes[&l].array_child.is_some()
-                || self.type_nodes[&r].array_child.is_some()
+            if self.graph.type_nodes[&l].array_child.is_some()
+                || self.graph.type_nodes[&r].array_child.is_some()
             {
                 self.fail_constructed_dependents(l);
                 self.fail_constructed_dependents(r);
@@ -4164,21 +4508,21 @@ impl Checker<'_> {
         // Choosing the other root, even when sizes differ, still attaches a
         // tree with summed size and merges every constraint below. Public
         // origins are selected by source spans, never by representative ID.
-        let (a, b) = if self.type_nodes[&l].size > self.type_nodes[&r].size
-            || (self.type_nodes[&l].size == self.type_nodes[&r].size && l < r)
+        let (a, b) = if self.graph.type_nodes[&l].size > self.graph.type_nodes[&r].size
+            || (self.graph.type_nodes[&l].size == self.graph.type_nodes[&r].size && l < r)
         {
             (l, r)
         } else {
             (r, l)
         };
-        let a_concrete = self.type_nodes[&a].concrete.clone();
-        let b_concrete = self.type_nodes[&b].concrete.clone();
-        let a_intrinsic = self.type_nodes[&a].concrete_intrinsic;
-        let b_intrinsic = self.type_nodes[&b].concrete_intrinsic;
-        let a_child = self.type_nodes[&a].array_child;
-        let b_child = self.type_nodes[&b].array_child;
-        let a_result = self.type_nodes[&a].variant_children;
-        let b_result = self.type_nodes[&b].variant_children;
+        let a_concrete = self.graph.type_nodes[&a].concrete.clone();
+        let b_concrete = self.graph.type_nodes[&b].concrete.clone();
+        let a_intrinsic = self.graph.type_nodes[&a].concrete_intrinsic;
+        let b_intrinsic = self.graph.type_nodes[&b].concrete_intrinsic;
+        let a_child = self.graph.type_nodes[&a].array_child;
+        let b_child = self.graph.type_nodes[&b].array_child;
+        let a_result = self.graph.type_nodes[&a].variant_children;
+        let b_result = self.graph.type_nodes[&b].variant_children;
         if let (Some(left), Some(right)) = (a_result, b_result)
             && left.kind != right.kind
         {
@@ -4203,13 +4547,14 @@ impl Checker<'_> {
         } else {
             (None, None)
         };
-        let variant_constructed =
-            self.type_nodes[&a].variant_constructed || self.type_nodes[&b].variant_constructed;
-        let array_constructed =
-            self.type_nodes[&a].array_constructed || self.type_nodes[&b].array_constructed;
-        let bottom_only = self.type_nodes[&a].bottom_only || self.type_nodes[&b].bottom_only;
-        let a_copyable = self.type_nodes[&a].copyable_origin.clone();
-        let b_copyable = self.type_nodes[&b].copyable_origin.clone();
+        let variant_constructed = self.graph.type_nodes[&a].variant_constructed
+            || self.graph.type_nodes[&b].variant_constructed;
+        let array_constructed = self.graph.type_nodes[&a].array_constructed
+            || self.graph.type_nodes[&b].array_constructed;
+        let bottom_only =
+            self.graph.type_nodes[&a].bottom_only || self.graph.type_nodes[&b].bottom_only;
+        let a_copyable = self.graph.type_nodes[&a].copyable_origin.clone();
+        let b_copyable = self.graph.type_nodes[&b].copyable_origin.clone();
         if let (Some(_), Some((ty, _))) = (&a_copyable, &b_concrete)
             && !copyable(ty)
         {
@@ -4320,43 +4665,54 @@ impl Checker<'_> {
                 }
             }
         }
-        self.type_nodes.get_mut(&b).unwrap().parent = a;
-        self.type_nodes.get_mut(&a).unwrap().size += self.type_nodes[&b].size;
-        self.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);
-        self.type_nodes.get_mut(&a).unwrap().variant_children = a_result.or(b_result);
-        self.type_nodes.get_mut(&a).unwrap().variant_constructed = variant_constructed;
-        self.type_nodes.get_mut(&a).unwrap().variant_origin = self.type_nodes[&a]
+        self.graph.type_nodes.get_mut(&b).unwrap().parent = a;
+        let b_join = self.graph.type_nodes[&b].clone();
+        let a_join = self.graph.type_nodes.get_mut(&a).unwrap();
+        a_join.deferred_join |= b_join.deferred_join;
+        a_join.recursive_join |= b_join.recursive_join;
+        a_join.branch_join_scopes.extend(b_join.branch_join_scopes);
+        self.graph.type_nodes.get_mut(&a).unwrap().size += self.graph.type_nodes[&b].size;
+        self.graph.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);
+        self.graph.type_nodes.get_mut(&a).unwrap().variant_children = a_result.or(b_result);
+        self.graph
+            .type_nodes
+            .get_mut(&a)
+            .unwrap()
+            .variant_constructed = variant_constructed;
+        self.graph.type_nodes.get_mut(&a).unwrap().variant_origin = self.graph.type_nodes[&a]
             .variant_origin
             .clone()
-            .or_else(|| self.type_nodes[&b].variant_origin.clone());
-        if self.type_nodes[&a].variant_children.is_some() {
+            .or_else(|| self.graph.type_nodes[&b].variant_origin.clone());
+        if self.graph.type_nodes[&a].variant_children.is_some() {
             if let Some(origin) = a_full.or(b_full).map(|(_, origin)| origin) {
-                self.type_nodes.get_mut(&a).unwrap().variant_origin = Some(origin);
+                self.graph.type_nodes.get_mut(&a).unwrap().variant_origin = Some(origin);
             } else if self.concrete(a).is_some() {
-                self.type_nodes.get_mut(&a).unwrap().variant_origin = Some(found.clone());
+                self.graph.type_nodes.get_mut(&a).unwrap().variant_origin = Some(found.clone());
             }
         }
-        self.type_nodes.get_mut(&a).unwrap().array_constructed = array_constructed;
-        self.type_nodes.get_mut(&a).unwrap().bottom_only = bottom_only;
+        self.graph.type_nodes.get_mut(&a).unwrap().array_constructed = array_constructed;
+        self.graph.type_nodes.get_mut(&a).unwrap().bottom_only = bottom_only;
         // only presence of copyable_origin participates in constraints.
         // Its saved span is not emitted as a related diagnostic location;
         // choosing either present span leaves the public result unchanged.
-        self.type_nodes.get_mut(&a).unwrap().copyable_origin = match (a_copyable, b_copyable) {
+        self.graph.type_nodes.get_mut(&a).unwrap().copyable_origin = match (a_copyable, b_copyable)
+        {
             (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
             (Some(a), None) | (None, Some(a)) => Some(a),
             (None, None) => None,
         };
-        let a_array_origin = self.type_nodes[&a].array_origin.clone();
-        let b_array_origin = self.type_nodes[&b].array_origin.clone();
+        let a_array_origin = self.graph.type_nodes[&a].array_origin.clone();
+        let b_array_origin = self.graph.type_nodes[&b].array_origin.clone();
         // two independent array-constructor origins joined at this
         // type level are disjoint source spans. Their start order and the
         // comparison of one end with the other start choose the same origin;
         // a containing constructor would have failed the occurs check.
-        self.type_nodes.get_mut(&a).unwrap().array_origin = match (a_array_origin, b_array_origin) {
-            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
-            (Some(a), None) | (None, Some(a)) => Some(a),
-            (None, None) => None,
-        };
+        self.graph.type_nodes.get_mut(&a).unwrap().array_origin =
+            match (a_array_origin, b_array_origin) {
+                (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
+                (Some(a), None) | (None, Some(a)) => Some(a),
+                (None, None) => None,
+            };
         let (chosen, intrinsic) = match (a_concrete, b_concrete) {
             (Some(a), Some(b)) if a.1.start <= b.1.start => (Some(a), a_intrinsic),
             (Some(_), Some(b)) => (Some(b), b_intrinsic),
@@ -4364,13 +4720,17 @@ impl Checker<'_> {
             (None, Some(b)) => (Some(b), b_intrinsic),
             (None, None) => (None, false),
         };
-        self.type_nodes.get_mut(&a).unwrap().concrete = chosen;
-        self.type_nodes.get_mut(&a).unwrap().concrete_intrinsic = intrinsic;
+        self.graph.type_nodes.get_mut(&a).unwrap().concrete = chosen;
+        self.graph
+            .type_nodes
+            .get_mut(&a)
+            .unwrap()
+            .concrete_intrinsic = intrinsic;
         // Failure belongs to the equivalence class, not to whichever node
         // happened to win the rank comparison.
-        let failed = self.failed_constructors.remove(&a) | self.failed_constructors.remove(&b);
+        let failed = self.graph.take_failed_constructor(a) | self.graph.take_failed_constructor(b);
         if failed {
-            self.failed_constructors.insert(a);
+            self.graph.mark_failed_constructor(a);
         }
         Ok(())
     }
@@ -4395,8 +4755,8 @@ impl Checker<'_> {
             if current == target {
                 return Ok(true);
             }
-            let array_child = self.type_nodes[&current].array_child;
-            let variant_children = self.type_nodes[&current].variant_children;
+            let array_child = self.graph.type_nodes[&current].array_child;
+            let variant_children = self.graph.type_nodes[&current].variant_children;
             if let Some(child) = array_child {
                 work.push((child, true));
             }
@@ -4415,7 +4775,7 @@ impl Checker<'_> {
         let mut current = id;
         let mut depth = 0;
         loop {
-            if let Some((ty, _)) = &self.type_nodes[&current].concrete {
+            if let Some((ty, _)) = &self.graph.type_nodes[&current].concrete {
                 let mut work = vec![(ty, 0_usize)];
                 let mut inner_max = 0;
                 while let Some((part, arrays)) = work.pop() {
@@ -4433,7 +4793,7 @@ impl Checker<'_> {
                 }
                 return depth + inner_max;
             }
-            let Some(child) = self.type_nodes[&current].array_child else {
+            let Some(child) = self.graph.type_nodes[&current].array_child else {
                 return depth;
             };
             depth += 1;
@@ -4446,11 +4806,11 @@ impl Checker<'_> {
 
     fn check_inferred_depth(&mut self) -> Result<(), Box<Diagnostic>> {
         let mut constructed = Vec::new();
-        for id in 0..self.next_variable {
-            if self.type_nodes[&id].parent != id {
+        for id in 0..self.graph.next_variable {
+            if self.graph.type_nodes[&id].parent != id {
                 continue;
             }
-            let origin = self.type_nodes[&id].array_origin.clone();
+            let origin = self.graph.type_nodes[&id].array_origin.clone();
             if let Some(origin) = origin {
                 self.check_one_inferred_depth(id, &origin)?;
                 if let Some((ty, _)) = self.concrete(id) {
@@ -4510,7 +4870,7 @@ impl Checker<'_> {
         match e {
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => {
-                    if let Some(known) = self.locals.get(&local.name_span.start).cloned() {
+                    if let Some(known) = self.graph.locals.get(&local.name_span.start).cloned() {
                         known
                             .variable
                             .and_then(|id| self.concrete(id).map(|(_, origin)| origin))
@@ -4526,7 +4886,7 @@ impl Checker<'_> {
     }
 
     fn expression_variable(&self, e: &Expr) -> Option<u64> {
-        self.expr_vars.get(&span_key(e.span())).copied()
+        self.graph.expr_vars.get(&span_key(e.span())).copied()
     }
 
     fn place_root_binding_site(&self, place: &Expr) -> Option<u64> {
@@ -4658,6 +5018,7 @@ impl Checker<'_> {
         match e {
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => self
+                    .graph
                     .locals
                     .get(&local.name_span.start)
                     .and_then(|known| known.variable),
@@ -4675,6 +5036,7 @@ impl Checker<'_> {
         match e {
             Expr::Name(_, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Local(local)) => self
+                    .graph
                     .locals
                     .get(&local.name_span.start)
                     .and_then(|known| known.variable),
@@ -4713,10 +5075,14 @@ impl Checker<'_> {
                     Some(Else::If(other)) => Some(other.as_ref()),
                     None => None,
                 };
-                let first_diverges =
-                    first.is_some_and(|e| self.divergent_exprs.contains(&span_key(e.span())));
-                let second_diverges =
-                    second.is_some_and(|e| self.divergent_exprs.contains(&span_key(e.span())));
+                let first_diverges = first.is_some_and(|e| {
+                    self.graph
+                        .has(&span_key(e.span()), OccurrenceFlag::Divergent)
+                });
+                let second_diverges = second.is_some_and(|e| {
+                    self.graph
+                        .has(&span_key(e.span()), OccurrenceFlag::Divergent)
+                });
                 if first_diverges
                     && !second_diverges
                     && let Some(second) = second
@@ -4910,7 +5276,8 @@ impl Checker<'_> {
                 let frame = nominal_path.pop().unwrap();
                 debug_assert_eq!(frame.key, key);
                 if self.depth_memo_ready && frame.cacheable {
-                    self.nominal_depth_memo
+                    self.graph
+                        .nominal_depth_memo
                         .borrow_mut()
                         .insert(key, (frame.max_arrays, frame.max_values));
                 }
@@ -4941,7 +5308,7 @@ impl Checker<'_> {
                         }
                     } else if let Some((cached_arrays, cached_values)) = self
                         .depth_memo_ready
-                        .then(|| self.nominal_depth_memo.borrow().get(&key).copied())
+                        .then(|| self.graph.nominal_depth_memo.borrow().get(&key).copied())
                         .flatten()
                     {
                         let total_arrays = array_depth + cached_arrays;
@@ -4972,7 +5339,7 @@ impl Checker<'_> {
                         }
                     } else if let Some((cached_arrays, cached_values)) = self
                         .depth_memo_ready
-                        .then(|| self.nominal_depth_memo.borrow().get(&key).copied())
+                        .then(|| self.graph.nominal_depth_memo.borrow().get(&key).copied())
                         .flatten()
                     {
                         let total_arrays = array_depth + cached_arrays;
@@ -5004,13 +5371,13 @@ impl Checker<'_> {
                 }
                 Part::Var(id) => {
                     let mut root = id;
-                    while let Some(node) = self.type_nodes.get(&root) {
+                    while let Some(node) = self.graph.type_nodes.get(&root) {
                         if node.parent == root {
                             break;
                         }
                         root = node.parent;
                     }
-                    let Some(node) = self.type_nodes.get(&root) else {
+                    let Some(node) = self.graph.type_nodes.get(&root) else {
                         continue;
                     };
                     // Occurs checks reject cycles while solving. Guard this
@@ -5112,21 +5479,18 @@ impl Checker<'_> {
         // expr_vars and expression_types must be cleared because the report
         // harvests their entire maps after every function; stale variable
         // IDs would be looked up in this function's fresh type-node table.
-        self.locals.clear();
-        self.eligible_shapes.clear();
-        self.preseeded_children.clear();
-        self.projected_bases.clear();
-        self.projection_items.clear();
-        self.assigned_bases.clear();
-        self.nested_assignment_sites.clear();
-        self.pre_assignment_snapshot.clear();
-        self.assignment_starts.clear();
-        self.first_assignment_rhs_starts.clear();
-        self.assignment_type_plan.clear();
-        self.prefix_concrete.clear();
-        self.deferred_join_roots.clear();
-        self.branch_join_sites.clear();
-        self.recursive_join_roots.clear();
+        self.graph.locals.clear();
+        self.graph.eligible_shapes.clear();
+        self.graph.preseeded_children.clear();
+        self.graph.projected_bases.clear();
+        self.graph.projection_items.clear();
+        self.graph.assigned_bases.clear();
+        self.graph.nested_assignment_sites.clear();
+        self.graph.pre_assignment_snapshot.clear();
+        self.graph.assignment_starts.clear();
+        self.graph.first_assignment_rhs_starts.clear();
+        self.graph.assignment_type_plan.clear();
+        self.graph.prefix_concrete.clear();
         self.block_depth = 0;
         self.top_statement_start = 0;
         self.top_statement_end = 0;
@@ -5134,47 +5498,36 @@ impl Checker<'_> {
         // Node IDs restart at zero below. If this map were retained, newly
         // allocated IDs would overwrite the reachable prefix; stale higher
         // IDs are unreachable. Clearing avoids retaining that stale suffix.
-        self.type_nodes.clear();
+        self.graph.type_nodes.clear();
         // Retaining entries across functions would be semantically equivalent:
         // each entry owns both Arc operands, so no pointer key can be reused.
         // Clear here to release each function's cached trees promptly instead
         // of retaining their sum until the compilation ends.
-        self.array_unify_cache.clear();
-        self.expr_vars.clear();
-        self.expression_types.clear();
+        self.graph.array_unify_cache.clear();
+        self.graph.expr_vars.clear();
+        self.graph.expression_types.clear();
         self.closures.clear();
         self.hidden_for.clear();
         self.closure_local_sites.clear();
-        self.conditional_result_types.clear();
-        self.conditional_result_vars.clear();
-        self.next_variable = 0;
+        self.graph.occurrences.clear();
+        self.graph.next_variable = 0;
         // Empty constructors are finalized at this function boundary; unlike
         // the span-keyed maps above, retaining this vector would diagnose a
         // prior function again. §13.9 requires separate function sites.
 
         // Failed constructor IDs restart at zero. Retaining this set would
         // suppress the next function's independent NX-E0103 (§13.9).
-        self.failed_constructors.clear();
+        self.graph.clear_failed_constructors();
         // Normal exits drain this vector with mem::take; a quota exit stops
         // the compilation before another function. Clearing is defensive.
-        self.pending.clear();
-        self.pending_generation = 0;
-        self.has_pending_projection = false;
-        self.pending_domain_calls.clear();
-        self.emitted_sites.clear();
+        self.graph.obligations.clear();
+        self.graph.emitted_sites.clear();
         // These sets use source offsets, which are unique across function
         // bodies in one file. A later function cannot read an earlier span;
         // their clears bound memory but do not change a reachable result.
-        self.deferred_exprs.clear();
-        self.divergent_exprs.clear();
-        self.failed_join_exprs.clear();
-        self.failed_projection_results.clear();
-        self.context_rejections.clear();
-        self.partial_normal_exprs.clear();
         // Binding name offsets have the same per-file uniqueness property.
-        self.invalid.clear();
-        self.tainted = false;
-        self.result = if f.is_generator {
+        self.graph.tainted = false;
+        self.graph.result = if f.is_generator {
             Type::Unit
         } else {
             f.result.as_ref().map(Type::from).unwrap_or(Type::Unit)
@@ -5183,7 +5536,7 @@ impl Checker<'_> {
             .is_generator
             .then(|| f.result.as_ref().map(Type::from).unwrap_or(Type::Unit));
         self.loop_depth = 0;
-        self.result_span = f
+        self.graph.result_span = f
             .result
             .as_ref()
             .and_then(|_| self.type_annotation_span(f.name_span.end, f.body.span.start, "->"))
@@ -5193,19 +5546,21 @@ impl Checker<'_> {
                 }
                 span
             });
-        if let Some(span) = &self.result_span {
-            self.check_depth(&self.result, span)?;
+        if let Some(span) = &self.graph.result_span {
+            self.check_depth(&self.graph.result, span)?;
         }
         let sig = &self.resolved.signatures[&f.name];
         for p in &sig.params {
             let ty = Type::from(&p.ty);
             self.check_depth(&ty, &p.type_span)?;
-            self.locals.insert(
+            self.graph.locals.insert(
                 p.name_span.start,
                 Known {
                     ty,
                     origin: p.type_span.clone(),
                     variable: None,
+                    invalid: false,
+                    nominal_sources: HashSet::new(),
                 },
             );
         }
@@ -5222,12 +5577,13 @@ impl Checker<'_> {
                 self.concrete(child).is_none().then(|| self.root(array))
             })
             .collect();
-        for (id, result, nominal) in std::mem::take(&mut self.conditional_result_vars) {
+        for (id, result, nominal) in self.graph.conditional_bindings() {
             let guards: Vec<_> = self
-                .pending
+                .graph
+                .obligations
                 .iter()
                 .filter_map(|entry| match entry {
-                    PendingConstraint::GuardedComparison(guard) if guard.result == result => {
+                    ObligationKind::GuardedComparison(guard) if guard.result == result => {
                         Some((**guard).clone())
                     }
                     _ => None,
@@ -5275,8 +5631,8 @@ impl Checker<'_> {
                 let mut usable = false;
                 while seen.insert(span_key(&site)) {
                     let Some((variable, domain, dependency)) =
-                        self.pending.iter().find_map(|entry| match entry {
-                            PendingConstraint::DomainNominal(pending) if pending.call == site => {
+                        self.graph.obligations.iter().find_map(|entry| match entry {
+                            ObligationKind::DomainNominal(pending) if pending.call == site => {
                                 Some((pending.variable, pending.domain, pending.depends_on.clone()))
                             }
                             _ => None,
@@ -5319,7 +5675,7 @@ impl Checker<'_> {
             }
         }
         let mut joins = self.take_pending_kind(|entry| match entry {
-            PendingConstraint::Join(join) => Ok(join),
+            ObligationKind::Join(join) => Ok(join),
             other => Err(other),
         });
         // Source order makes dedup deterministic. Reversing this private
@@ -5379,7 +5735,7 @@ impl Checker<'_> {
                 // An enclosing constructor has only a consequent inference
                 // obligation when its element is itself an unresolved
                 // constructor with its own source site (§4.1.2.2).
-                let child = self.type_nodes[&constructor].array_child;
+                let child = self.graph.type_nodes[&constructor].array_child;
                 if let Some(child) = child {
                     let child_root = self.root(child);
                     let own_unresolved_child =
@@ -5392,7 +5748,10 @@ impl Checker<'_> {
                         continue;
                     }
                 }
-                if self.type_nodes[&constructor].variant_children.is_some() {
+                if self.graph.type_nodes[&constructor]
+                    .variant_children
+                    .is_some()
+                {
                     continue;
                 }
                 self.unresolved_constructor_diagnostic(constructor, join.found)
@@ -5419,8 +5778,8 @@ impl Checker<'_> {
             .into_iter()
             .filter_map(|(child, array, _)| {
                 let root = self.root(array);
-                let has_cause = !self.failed_constructors.contains(&root)
-                    || self.type_nodes[&root]
+                let has_cause = !self.graph.failed_constructor(root)
+                    || self.graph.type_nodes[&root]
                         .array_origin
                         .as_ref()
                         .is_some_and(|span| causal_inference_sites.contains(&span_key(span)));
@@ -5439,18 +5798,19 @@ impl Checker<'_> {
         for (child, array, span) in self.pending_constructors() {
             let root = self.root(array);
             let child_root = self.root(child);
-            let result_child_owns_inference =
-                self.type_nodes[&child_root].variant_children.is_some()
-                    && self
-                        .pending_variant_constructors()
-                        .into_iter()
-                        .any(|(result, _)| self.root(result) == child_root);
+            let result_child_owns_inference = self.graph.type_nodes[&child_root]
+                .variant_children
+                .is_some()
+                && self
+                    .pending_variant_constructors()
+                    .into_iter()
+                    .any(|(result, _)| self.root(result) == child_root);
             let own_inference_cause = causal_inference_sites.iter().any(|&(start, end)| {
                 start <= span.start && span.end <= end && (start, end) != span_key(&span)
             });
             // A failed constructor can be caused at a different source site.
             // Its unresolved literal must not add a dependent inference error.
-            if (!self.failed_constructors.contains(&root)
+            if (!self.graph.failed_constructor(root)
                 || own_inference_cause
                 || shared_inference_roots.contains(&root))
                 && self.concrete(child).is_none()
@@ -5489,7 +5849,7 @@ impl Checker<'_> {
             }
         }
         for domain in self.take_pending_kind(|entry| match entry {
-            PendingConstraint::Domain(domain) => Ok(domain),
+            ObligationKind::Domain(domain) => Ok(domain),
             other => Err(other),
         }) {
             if let Some((ty, _)) = self.concrete(domain.variable)
@@ -5500,49 +5860,91 @@ impl Checker<'_> {
         }
         let mut failed_results = HashSet::new();
         let mut failed_dependencies = HashSet::new();
-        for pending in self.take_pending_kind(|entry| match entry {
-            PendingConstraint::DomainNominal(result) => Ok(result),
+        let nominal_obligations = self.take_pending_kind(|entry| match entry {
+            ObligationKind::DomainNominal(result) => Ok(result),
             other => Err(other),
-        }) {
-            let domain_invalid = self.concrete(pending.variable).is_some_and(|(ty, _)| {
-                if pending.domain == "I64" {
-                    ty != Type::I64
-                } else {
-                    !domain_accepts(pending.domain, &ty)
+        });
+        let mut nominal_states = Vec::with_capacity(nominal_obligations.len());
+        for pending in &nominal_obligations {
+            let domain_state = self.pending_domain_state(pending.variable, pending.domain);
+            let error = if domain_state != Some(false) {
+                pending
+                    .expected
+                    .clone()
+                    .and_then(|ty| self.resolved_join_side(ty))
+                    .and_then(|expected| {
+                        compare_source_site(
+                            &expected,
+                            &pending.nominal,
+                            pending
+                                .expected_span
+                                .clone()
+                                .unwrap_or_else(|| pending.call.clone()),
+                            pending.call.clone(),
+                            UnifyPolicy {
+                                branch: false,
+                                related_expected: pending.expected_span.is_some(),
+                            },
+                        )
+                    })
+            } else {
+                None
+            };
+            if domain_state == Some(false) || error.is_some() {
+                failed_dependencies.insert(span_key(&pending.call));
+            }
+            nominal_states.push((domain_state, error));
+        }
+        // Dependencies can be discovered in any work-list order. Propagate
+        // invalidity to a fixed point before deciding any consumer result.
+        loop {
+            let mut changed = false;
+            for pending in &nominal_obligations {
+                if pending
+                    .depends_on
+                    .as_ref()
+                    .is_some_and(|site| failed_dependencies.contains(&span_key(site)))
+                {
+                    changed |= failed_dependencies.insert(span_key(&pending.call));
                 }
-            });
+            }
+            if !changed {
+                break;
+            }
+        }
+        for (pending, (domain_state, error)) in nominal_obligations.into_iter().zip(nominal_states)
+        {
+            let domain_invalid = domain_state == Some(false);
             let dependency_failed = pending
                 .depends_on
                 .as_ref()
                 .is_some_and(|site| failed_dependencies.contains(&span_key(site)));
             if domain_invalid || dependency_failed {
                 failed_results.insert(span_key(&pending.call));
-                failed_dependencies.insert(span_key(&pending.call));
             }
+            self.graph.transition(
+                span_key(&pending.call),
+                ObligationClass::DomainNominal,
+                if domain_invalid {
+                    ObligationStatus::Refuted
+                } else if dependency_failed {
+                    ObligationStatus::Contaminated
+                } else if domain_state == Some(true) {
+                    ObligationStatus::Satisfied
+                } else {
+                    ObligationStatus::Pending
+                },
+            );
             if !domain_invalid
                 && !dependency_failed
-                && let Some(expected) = pending.expected.and_then(|ty| self.resolved_join_side(ty))
-                && let Some(error) = compare_source_site(
-                    &expected,
-                    &pending.nominal,
-                    pending
-                        .expected_span
-                        .clone()
-                        .unwrap_or_else(|| pending.call.clone()),
-                    pending.call.clone(),
-                    UnifyPolicy {
-                        branch: false,
-                        related_expected: pending.expected_span.is_some(),
-                    },
-                )
+                && let Some(error) = error
             {
-                failed_dependencies.insert(span_key(&pending.call));
                 self.record_error(error);
             }
         }
         let mut failed_binary_operations = HashSet::new();
         for pending in self.take_pending_kind(|entry| match entry {
-            PendingConstraint::BinaryDomain(domain) => Ok(domain),
+            ObligationKind::BinaryDomain(domain) => Ok(domain),
             other => Err(other),
         }) {
             if let Some((ty, _)) = self.concrete(pending.variable) {
@@ -5554,6 +5956,11 @@ impl Checker<'_> {
                 if !valid {
                     failed_results.insert(span_key(&pending.result));
                     failed_dependencies.insert(span_key(&pending.result));
+                    self.graph.transition(
+                        span_key(&pending.result),
+                        ObligationClass::BinaryDomain,
+                        ObligationStatus::Refuted,
+                    );
                     // A numeric or comparison operation owns one domain
                     // failure: the first incompatible operand in source
                     // order (§§4.1.2 N(d), 4.6). Resolving both operands
@@ -5567,11 +5974,17 @@ impl Checker<'_> {
                             &ty,
                         ));
                     }
+                } else {
+                    self.graph.transition(
+                        span_key(&pending.result),
+                        ObligationClass::BinaryDomain,
+                        ObligationStatus::Satisfied,
+                    );
                 }
             }
         }
         let guarded = self.take_pending_kind(|entry| match entry {
-            PendingConstraint::GuardedComparison(comparison) => Ok(comparison),
+            ObligationKind::GuardedComparison(comparison) => Ok(comparison),
             other => Err(other),
         });
         let mut failed_source_sites: Vec<(u64, u64)> = if guarded.is_empty() {
@@ -5616,7 +6029,9 @@ impl Checker<'_> {
                     })
                     || pending.dependent_results.iter().any(|site| {
                         failed_results.contains(&span_key(site))
-                            || self.failed_projection_results.contains(&span_key(site))
+                            || self
+                                .graph
+                                .has(&span_key(site), OccurrenceFlag::FailedProjection)
                     })
                     || source_site_failed(&pending.expected_origin)
                     || source_site_failed(&pending.found_site));
@@ -5624,6 +6039,11 @@ impl Checker<'_> {
                 || unresolved_guard
                 || unresolved_arrays.contains(&self.root(pending.variable))
             {
+                self.graph.transition(
+                    span_key(&pending.result),
+                    ObligationClass::GuardedComparison,
+                    ObligationStatus::Contaminated,
+                );
                 if let Some(error) = pending.domain_error_if_equal {
                     self.record_error(error);
                 }
@@ -5651,35 +6071,55 @@ impl Checker<'_> {
                     },
                 ) {
                     failed_results.insert(span_key(&pending.result));
+                    self.graph.transition(
+                        span_key(&pending.result),
+                        ObligationClass::GuardedComparison,
+                        ObligationStatus::Refuted,
+                    );
                     self.record_error(error);
                 } else if let Some(error) = pending.domain_error_if_equal {
                     failed_results.insert(span_key(&pending.result));
-                    self.record_error(error);
-                } else if let Some(consumer_expected) = pending
-                    .consumer_expected
-                    .and_then(|ty| self.resolved_join_side(ty))
-                    && let Some(error) = compare_source_site(
-                        &consumer_expected,
-                        &Type::Bool,
-                        pending
-                            .consumer_origin
-                            .clone()
-                            .unwrap_or_else(|| pending.result.clone()),
-                        pending.result.clone(),
-                        UnifyPolicy {
-                            branch: false,
-                            related_expected: pending.consumer_origin.is_some(),
-                        },
-                    )
-                {
+                    self.graph.transition(
+                        span_key(&pending.result),
+                        ObligationClass::GuardedComparison,
+                        ObligationStatus::Refuted,
+                    );
                     self.record_error(error);
                 }
+            }
+            if !failed_results.contains(&span_key(&pending.result)) {
+                self.graph.transition(
+                    span_key(&pending.result),
+                    ObligationClass::GuardedComparison,
+                    ObligationStatus::Satisfied,
+                );
+            }
+            if !failed_results.contains(&span_key(&pending.result))
+                && let Some(consumer_expected) = pending
+                    .consumer_expected
+                    .and_then(|ty| self.resolved_join_side(ty))
+                && let Some(error) = compare_source_site(
+                    &consumer_expected,
+                    &Type::Bool,
+                    pending
+                        .consumer_origin
+                        .clone()
+                        .unwrap_or_else(|| pending.result.clone()),
+                    pending.result.clone(),
+                    UnifyPolicy {
+                        branch: false,
+                        related_expected: pending.consumer_origin.is_some(),
+                    },
+                )
+            {
+                self.record_error(error);
             }
         }
         // ADR §4.1.2.5: a failed domain invalidates the nominal result of
         // its operation. A consumer whose expected witness is that result,
         // or which checks the result itself, has no independent evidence.
-        self.suppress_result_dependents(&failed_results);
+        let refuted_results = self.graph.refuted_result_sites();
+        self.suppress_result_dependents(&refuted_results);
         Ok(())
     }
 
@@ -5698,8 +6138,10 @@ impl Checker<'_> {
         previous_taint: bool,
         outcome: Result<(), Box<Diagnostic>>,
     ) {
-        let tainted = self.tainted;
-        self.tainted = previous_taint || tainted;
+        let tainted = self.graph.tainted
+            || matches!(statement, Statement::Let { value, .. }
+                if self.graph.has(&span_key(value.span()), OccurrenceFlag::Tainted));
+        self.graph.tainted = previous_taint || tainted;
         if let Statement::Let {
             name,
             annotation: None,
@@ -5710,8 +6152,8 @@ impl Checker<'_> {
             && tainted
             && outcome.is_ok()
             && let Some(nominal) = self
-                .conditional_result_types
-                .get(&span_key(value.span()))
+                .graph
+                .conditional_result(&span_key(value.span()))
                 .cloned()
             && self.pending_operation_guard(value).is_some()
         {
@@ -5721,16 +6163,23 @@ impl Checker<'_> {
                     let name_span =
                         names::token_span(&self.tokens, span.start, value.span().start, name)
                             .unwrap_or_else(|| span.clone());
-                    self.locals.insert(
+                    self.graph.locals.insert(
                         name_span.start,
                         Known {
                             ty: Type::Deferred(id),
                             origin: site.clone(),
                             variable: Some(id),
+                            invalid: false,
+                            nominal_sources: self
+                                .graph
+                                .occurrences
+                                .get(&span_key(value.span()))
+                                .map(|state| state.nominal_sources.clone())
+                                .unwrap_or_default(),
                         },
                     );
-                    self.conditional_result_vars.push((id, site, nominal));
-                    self.tainted = previous_taint;
+                    self.graph.attach_conditional_binding(&site, id, nominal);
+                    self.graph.tainted = previous_taint;
                     return;
                 }
                 Err(error) => self.record_error(error),
@@ -5748,22 +6197,23 @@ impl Checker<'_> {
             let name_span = names::token_span(&self.tokens, span.start, value.span().start, name)
                 .unwrap_or_else(|| span.clone());
             // this origin is retained for the invalid binding's internal
-            // record only. Name uses test self.invalid before reading Known,
+            // record only. Name uses the binding's invalid state before reading its type,
             // and the inferred table reads its type but never its origin.
             // Thus changing this fallback span is unobservable once the
             // binding is marked invalid below.
             let origin = self
                 .type_annotation_span(span.start, value.span().start, ":")
                 .unwrap_or_else(|| Self::primary_span(value));
-            self.locals.insert(
+            self.graph.locals.insert(
                 name_span.start,
                 Known {
                     ty: annotation.as_ref().map(Type::from).unwrap_or(Type::Tainted),
                     origin,
                     variable: None,
+                    invalid: true,
+                    nominal_sources: HashSet::new(),
                 },
             );
-            self.invalid.insert(name_span.start);
         }
         if let Err(error) = outcome {
             self.record_error(error);
@@ -5811,12 +6261,14 @@ impl Checker<'_> {
                 ));
             }
         };
-        self.locals.insert(
+        self.graph.locals.insert(
             name_span.start,
             Known {
                 ty: item,
                 origin: name_span.clone(),
                 variable: None,
+                invalid: false,
+                nominal_sources: HashSet::new(),
             },
         );
         Ok(())
@@ -5827,48 +6279,60 @@ impl Checker<'_> {
             && let Expr::Name(_, span) = place
             && let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&span.start)
         {
-            if self.eligible_shapes.contains(&local.name_span.start)
+            if self.graph.eligible_shapes.contains(&local.name_span.start)
                 && !self
+                    .graph
                     .pre_assignment_snapshot
                     .contains_key(&local.name_span.start)
                 && let Some(id) = self
+                    .graph
                     .locals
                     .get(&local.name_span.start)
                     .and_then(|known| known.variable)
             {
                 let concrete = self.concrete_evidence(id);
-                self.pre_assignment_snapshot
+                self.graph
+                    .pre_assignment_snapshot
                     .insert(local.name_span.start, concrete);
             }
-            self.assigned_bases.insert(local.name_span.start);
-            self.assignment_starts
+            self.graph.assigned_bases.insert(local.name_span.start);
+            self.graph
+                .assignment_starts
                 .entry(local.name_span.start)
                 .or_insert(span.start);
-            self.first_assignment_rhs_starts
+            self.graph
+                .first_assignment_rhs_starts
                 .entry(local.name_span.start)
                 .or_insert(Self::primary_span(value).start);
             if let Some(ty @ Type::Array(_)) = self.intrinsic_assignment_type(value) {
-                self.assignment_type_plan
+                self.graph
+                    .assignment_type_plan
                     .entry(local.name_span.start)
                     .or_insert((ty, Self::primary_span(value)));
             }
-            if !self.prefix_concrete.contains_key(&local.name_span.start)
+            if !self
+                .graph
+                .prefix_concrete
+                .contains_key(&local.name_span.start)
                 && let Some(id) = self
+                    .graph
                     .locals
                     .get(&local.name_span.start)
                     .and_then(|known| known.variable)
                 && let Some(concrete) = self.concrete_evidence(id)
             {
-                self.prefix_concrete.insert(local.name_span.start, concrete);
+                self.graph
+                    .prefix_concrete
+                    .insert(local.name_span.start, concrete);
             }
         }
         if self.planning
             && matches!(place, Expr::Index { .. })
             && let Some(site) = self.place_root_binding_site(place)
-            && self.eligible_shapes.contains(&site)
+            && self.graph.eligible_shapes.contains(&site)
             && self.expression_reads_binding(value, site)
         {
-            self.nested_assignment_sites.insert(site);
+            self.graph.nested_assignment_sites.insert(site);
         }
     }
 
@@ -5878,11 +6342,12 @@ impl Checker<'_> {
         value: &'a Expr,
         lhs: Type,
     ) -> (OwnedCheckContext, AssignmentProgress<'a>) {
-        let lhs_tainted = std::mem::take(&mut self.tainted);
+        let lhs_tainted = std::mem::take(&mut self.graph.tainted);
         let local = self.expression_variable(place).or_else(|| {
             if let Expr::Name(_, span) = place {
                 match self.resolved.uses.get(&span.start) {
                     Some(ResolvedUse::Local(local)) => self
+                        .graph
                         .locals
                         .get(&local.name_span.start)
                         .and_then(|known| known.variable),
@@ -5902,10 +6367,10 @@ impl Checker<'_> {
             };
             let expected = concrete.clone().or(projected.clone());
             let root = self.root(local);
-            let nested_shape = self.type_nodes[&root]
+            let nested_shape = self.graph.type_nodes[&root]
                 .array_child
                 .map(|child| self.root(child))
-                .is_some_and(|child| self.type_nodes[&child].array_child.is_some());
+                .is_some_and(|child| self.graph.type_nodes[&child].array_child.is_some());
             let shape_context = if expected.is_none()
                 && matches!(place, Expr::Name(..))
                 && self.expression_has_array_root(value)
@@ -5980,14 +6445,14 @@ impl Checker<'_> {
                 Err(error) => {
                     if error.feature_id.as_deref() == Some("resource_array") {
                         let root = self.root(local);
-                        if self.type_nodes[&root].array_constructed {
-                            self.failed_constructors.insert(root);
+                        if self.graph.type_nodes[&root].array_constructed {
+                            self.graph.mark_failed_constructor(root);
                         }
                     }
                     return Err(error);
                 }
             };
-            if self.tainted {
+            if self.graph.tainted {
                 return Ok(());
             }
             let place = progress.place;
@@ -6025,7 +6490,7 @@ impl Checker<'_> {
             }
             Ok(())
         })();
-        self.tainted |= progress.lhs_tainted;
+        self.graph.tainted |= progress.lhs_tainted;
         outcome
     }
 
@@ -6074,13 +6539,16 @@ impl Checker<'_> {
             .unwrap_or_else(|| self.expression_origin(value));
         self.check_depth(&got, &origin)?;
         let deferred = annotation.is_none()
-            && self.deferred_exprs.contains(&span_key(value.span()))
+            && self
+                .graph
+                .has(&span_key(value.span()), OccurrenceFlag::Deferred)
             && internal_state(&got).is_some()
-            && !self.tainted;
+            && !self.graph.tainted;
         let variable = if deferred {
             let id = self.new_variable(&Self::primary_span(value))?;
-            self.type_nodes.get_mut(&id).unwrap().bottom_only =
-                self.divergent_exprs.contains(&span_key(value.span()));
+            self.graph.type_nodes.get_mut(&id).unwrap().bottom_only = self
+                .graph
+                .has(&span_key(value.span()), OccurrenceFlag::Divergent);
             if let Some(from) = self.expression_variable(value) {
                 self.unify(
                     Type::Deferred(id),
@@ -6095,7 +6563,13 @@ impl Checker<'_> {
         } else {
             None
         };
-        self.locals.insert(
+        let nominal_sources = self
+            .graph
+            .occurrences
+            .get(&span_key(value.span()))
+            .map(|state| state.nominal_sources.clone())
+            .unwrap_or_default();
+        self.graph.locals.insert(
             ns.start,
             Known {
                 ty: if let Some(id) = variable {
@@ -6105,15 +6579,17 @@ impl Checker<'_> {
                 },
                 origin,
                 variable,
+                invalid: false,
+                nominal_sources,
             },
         );
         if let Some(id) = variable {
             if self.planning {
                 let root = self.root(id);
-                if self.type_nodes[&root].array_child.is_some()
-                    && !self.type_nodes[&root].bottom_only
+                if self.graph.type_nodes[&root].array_child.is_some()
+                    && !self.graph.type_nodes[&root].bottom_only
                 {
-                    self.eligible_shapes.insert(ns.start);
+                    self.graph.eligible_shapes.insert(ns.start);
                 }
             }
             self.seed_planned_shape(ns.start, id);
@@ -6140,7 +6616,7 @@ impl Checker<'_> {
                         Operation::TypesCheck,
                         primary,
                     );
-                    if let Some(expected) = &self.result_span {
+                    if let Some(expected) = &self.graph.result_span {
                         error.related_spans.push(RelatedSpan {
                             role: RelatedRole::ExpectedType,
                             span: expected.clone(),
@@ -6149,21 +6625,21 @@ impl Checker<'_> {
                     return Err(error);
                 }
                 debug_assert!(value.is_none());
-                if matches!(self.result, Type::Deferred(_)) {
+                if matches!(self.graph.result, Type::Deferred(_)) {
                     let site = Span {
                         file: self.file.into(),
                         start: span.start,
                         end: span.start + 6,
                     };
                     self.unify(
-                        self.result.clone(),
+                        self.graph.result.clone(),
                         Type::Unit,
                         site.clone(),
                         site.clone(),
                         site,
                         false,
                     )?;
-                } else if self.result != Type::Unit {
+                } else if self.graph.result != Type::Unit {
                     let primary = self
                         .tokens
                         .iter()
@@ -6174,8 +6650,8 @@ impl Checker<'_> {
                             start: span.start,
                             end: span.start + 6,
                         });
-                    let result_label =
-                        pretty(&self.result).ok_or_else(|| unresolved_type(primary.clone()))?;
+                    let result_label = pretty(&self.graph.result)
+                        .ok_or_else(|| unresolved_type(primary.clone()))?;
                     let mut diagnostic = mismatch(
                         primary.clone(),
                         Span {
@@ -6183,7 +6659,7 @@ impl Checker<'_> {
                             start: span.start,
                             end: span.start + 6,
                         },
-                        self.result_span.clone(),
+                        self.graph.result_span.clone(),
                         &result_label,
                         &Type::Unit,
                     );
@@ -6234,7 +6710,7 @@ impl Checker<'_> {
                             return Err(mismatch(
                                 token_span.clone(),
                                 token_span.clone(),
-                                self.result_span.clone(),
+                                self.graph.result_span.clone(),
                                 &pretty(&item).unwrap_or_default(),
                                 &Type::Unit,
                             ));
@@ -6384,7 +6860,7 @@ impl Checker<'_> {
                 }
                 Frame::StatementReturn(value, expected) => {
                     result = result.and_then(|actual| {
-                        if matches!(expected, Type::Deferred(_)) && !checker.tainted {
+                        if matches!(expected, Type::Deferred(_)) && !checker.graph.tainted {
                             let site = Checker::primary_span(value);
                             checker.unify(
                                 expected,
@@ -6429,7 +6905,7 @@ impl Checker<'_> {
                             }
                             Err(error) => {
                                 checker.record_error(error);
-                                checker.tainted = true;
+                                checker.graph.tainted = true;
                             }
                             Ok(_) => {}
                         }
@@ -6461,7 +6937,7 @@ impl Checker<'_> {
                             }
                             Err(error) => {
                                 checker.record_error(error);
-                                checker.tainted = true;
+                                checker.graph.tainted = true;
                             }
                             Ok(_) => {}
                         }
@@ -6562,7 +7038,7 @@ impl Checker<'_> {
                             return Resume::Evaluate;
                         }
                     }
-                    checker.numeric_domain_owner = state.previous_owner;
+                    checker.graph.numeric_domain_owner = state.previous_owner;
                     let expr = state.expr;
                     let context = state.context.clone();
                     let constructor_pair = state.element_expected.is_some();
@@ -6578,14 +7054,15 @@ impl Checker<'_> {
                 }
                 Frame::Index(progress) => {
                     let (expr, context, previous_owner) = *progress;
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                     match result {
                         Ok(base) => {
                             let Expr::Index { target, index, .. } = expr else {
                                 unreachable!("index frame owns an index")
                             };
-                            let deferred_target =
-                                checker.deferred_exprs.contains(&span_key(target.span()));
+                            let deferred_target = checker
+                                .graph
+                                .has(&span_key(target.span()), OccurrenceFlag::Deferred);
                             let mut deferred_child = None;
                             let mut pending_projection = false;
                             if deferred_target
@@ -6593,7 +7070,7 @@ impl Checker<'_> {
                                 && let Some(id) = checker.expression_variable(target)
                             {
                                 let root = checker.root(id);
-                                if checker.type_nodes[&root].array_child.is_some() {
+                                if checker.graph.type_nodes[&root].array_child.is_some() {
                                     match checker.require_array(id, &Checker::primary_span(target))
                                     {
                                         Ok(child) => deferred_child = Some(child),
@@ -6623,7 +7100,9 @@ impl Checker<'_> {
                                 return Resume::Next(result);
                             }
                             let divergent_target = deferred_target
-                                && checker.divergent_exprs.contains(&span_key(target.span()));
+                                && checker
+                                    .graph
+                                    .has(&span_key(target.span()), OccurrenceFlag::Divergent);
                             let expected =
                                 matches!(base, Type::Array(_) | Type::Tainted | Type::Never)
                                     || deferred_child.is_some()
@@ -6631,7 +7110,7 @@ impl Checker<'_> {
                             let prior_taint = (!matches!(base, Type::Array(_) | Type::Never)
                                 && deferred_child.is_none()
                                 && !divergent_target)
-                                .then(|| std::mem::take(&mut checker.tainted));
+                                .then(|| std::mem::take(&mut checker.graph.tainted));
                             frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
                                 expr,
                                 context,
@@ -6673,7 +7152,7 @@ impl Checker<'_> {
                         deferred_child,
                     } = *progress;
                     if let Some(prior_taint) = prior_taint {
-                        checker.tainted |= prior_taint;
+                        checker.graph.tainted |= prior_taint;
                     }
                     result = checker.check_against_context_one(
                         expr,
@@ -6687,7 +7166,7 @@ impl Checker<'_> {
                 }
                 Frame::Binary(progress) => {
                     let (expr, context, pending_before, previous_owner) = *progress;
-                    checker.numeric_domain_owner = None;
+                    checker.graph.numeric_domain_owner = None;
                     if matches!(&result, Err(error) if error.operation != Operation::AnalysisLimit)
                     {
                         let Err(error) = result else { unreachable!() };
@@ -6702,9 +7181,9 @@ impl Checker<'_> {
                             && error.primary_span.as_ref() == Some(&Checker::primary_span(left))
                             && error.data.get("expected_type")
                                 == Some(&DataValue::String("I64".into()));
-                        let left_tainted = std::mem::take(&mut checker.tainted);
+                        let left_tainted = std::mem::take(&mut checker.graph.tainted);
                         if numeric {
-                            checker.numeric_domain_owner =
+                            checker.graph.numeric_domain_owner =
                                 Some((left.span().start, right.span().end));
                         }
                         frames.push(Frame::BinaryIndependentLeftError(Box::new(
@@ -6737,12 +7216,14 @@ impl Checker<'_> {
                     ) = (expr, &result)
                     {
                         let numeric = matches!(op.as_str(), "+" | "-");
-                        let pending_domain = checker
-                            .pending_domain_calls
-                            .contains(&span_key(&Checker::primary_span(left)));
+                        let pending_domain = checker.graph.has(
+                            &span_key(&Checker::primary_span(left)),
+                            OccurrenceFlag::PendingDomain,
+                        );
                         let joined = checker.pending_join_count() > pending_before;
-                        let failed_join =
-                            checker.failed_join_exprs.contains(&span_key(left.span()));
+                        let failed_join = checker
+                            .graph
+                            .has(&span_key(left.span()), OccurrenceFlag::FailedJoin);
                         let left_domain_failed = if pending_domain {
                             Some(
                                 numeric
@@ -6752,15 +7233,21 @@ impl Checker<'_> {
                             )
                         } else if numeric && joined {
                             Some(checker.type_determined(left_type) && *left_type != Type::I64)
-                        } else if failed_join || checker.tainted {
-                            Some(checker.context_rejections.contains(&span_key(left.span())))
+                        } else if failed_join || checker.graph.tainted {
+                            Some(
+                                checker
+                                    .graph
+                                    .has(&span_key(left.span()), OccurrenceFlag::ContextRejected),
+                            )
                         } else if numeric
                             && *left_type != Type::I64
-                            && !checker.deferred_exprs.contains(&span_key(left.span()))
+                            && !checker
+                                .graph
+                                .has(&span_key(left.span()), OccurrenceFlag::Deferred)
                         {
                             let pending_left_result =
-                                checker.pending.iter().any(|entry| match entry {
-                                    PendingConstraint::BinaryDomain(domain) => {
+                                checker.graph.obligations.iter().any(|entry| match entry {
+                                    ObligationKind::BinaryDomain(domain) => {
                                         domain.result == Checker::primary_span(left)
                                     }
                                     _ => false,
@@ -6770,9 +7257,9 @@ impl Checker<'_> {
                             None
                         };
                         if let Some(left_domain_failed) = left_domain_failed {
-                            let left_tainted = std::mem::take(&mut checker.tainted);
+                            let left_tainted = std::mem::take(&mut checker.graph.tainted);
                             if numeric {
-                                checker.numeric_domain_owner =
+                                checker.graph.numeric_domain_owner =
                                     Some((left.span().start, right.span().end));
                             }
                             frames.push(Frame::BinaryIndependentRight(Box::new(
@@ -6805,7 +7292,9 @@ impl Checker<'_> {
                         },
                         Ok(left_type),
                     ) = (expr, &result)
-                        && checker.deferred_exprs.contains(&span_key(left.span()))
+                        && checker
+                            .graph
+                            .has(&span_key(left.span()), OccurrenceFlag::Deferred)
                     {
                         let numeric = matches!(op.as_str(), "+" | "-");
                         let pending_before_operator = checker.pending_join_count();
@@ -6839,13 +7328,17 @@ impl Checker<'_> {
                     ) = (expr, &result)
                     {
                         let numeric = matches!(op.as_str(), "+" | "-");
-                        if !checker
-                            .pending_domain_calls
-                            .contains(&span_key(&Checker::primary_span(left)))
-                            && !(numeric && checker.pending_join_count() > pending_before)
-                            && !checker.failed_join_exprs.contains(&span_key(left.span()))
-                            && !checker.tainted
-                            && !checker.deferred_exprs.contains(&span_key(left.span()))
+                        if !checker.graph.has(
+                            &span_key(&Checker::primary_span(left)),
+                            OccurrenceFlag::PendingDomain,
+                        ) && !(numeric && checker.pending_join_count() > pending_before)
+                            && !checker
+                                .graph
+                                .has(&span_key(left.span()), OccurrenceFlag::FailedJoin)
+                            && !checker.graph.tainted
+                            && !checker
+                                .graph
+                                .has(&span_key(left.span()), OccurrenceFlag::Deferred)
                             && (!numeric || *left_type == Type::I64)
                         {
                             let left_type = left_type.clone();
@@ -6884,7 +7377,7 @@ impl Checker<'_> {
                             independent_right: None,
                         }),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryRight(progress) => {
                     let BinaryRightProgress {
@@ -6894,7 +7387,7 @@ impl Checker<'_> {
                         pending_before,
                         previous_owner,
                     } = *progress;
-                    checker.numeric_domain_owner = None;
+                    checker.graph.numeric_domain_owner = None;
                     result = checker.check_against_context_one(
                         expr,
                         context.borrowed(),
@@ -6904,7 +7397,7 @@ impl Checker<'_> {
                             pending_before,
                         }),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryDeferredRight(progress) => {
                     let BinaryDeferredProgress {
@@ -6915,7 +7408,7 @@ impl Checker<'_> {
                         pending_before_operator,
                         previous_owner,
                     } = *progress;
-                    checker.numeric_domain_owner = None;
+                    checker.graph.numeric_domain_owner = None;
                     result = checker.check_against_context_one(
                         expr,
                         context.borrowed(),
@@ -6926,7 +7419,7 @@ impl Checker<'_> {
                             pending_before_operator,
                         }),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryIndependentLeftError(progress) => {
                     let BinaryLeftErrorProgress {
@@ -6943,8 +7436,8 @@ impl Checker<'_> {
                     else {
                         unreachable!("independent frame owns a binary")
                     };
-                    checker.numeric_domain_owner = None;
-                    let right_tainted = checker.tainted;
+                    checker.graph.numeric_domain_owner = None;
+                    let right_tainted = checker.graph.tainted;
                     let outcome = checker.finish_independent_binary_rhs(
                         op,
                         left,
@@ -6955,11 +7448,13 @@ impl Checker<'_> {
                     );
                     let binary_result = match outcome {
                         Ok(right_failed) => {
-                            checker.tainted |= left_tainted;
+                            checker.graph.tainted |= left_tainted;
                             if right_failed {
                                 checker.record_error(error);
-                                checker.deferred_exprs.insert(span_key(expr.span()));
-                                checker.tainted = true;
+                                checker
+                                    .graph
+                                    .mark(span_key(expr.span()), OccurrenceFlag::Deferred);
+                                checker.graph.tainted = true;
                                 Ok(Type::Tainted)
                             } else {
                                 Err(error)
@@ -6972,7 +7467,7 @@ impl Checker<'_> {
                         context.borrowed(),
                         Some(PrecomputedType::Whole(binary_result)),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryIndependentRight(progress) => {
                     let BinaryIndependentProgress {
@@ -6993,8 +7488,8 @@ impl Checker<'_> {
                     else {
                         unreachable!("independent frame owns a binary")
                     };
-                    checker.numeric_domain_owner = None;
-                    let right_tainted = checker.tainted;
+                    checker.graph.numeric_domain_owner = None;
+                    let right_tainted = checker.graph.tainted;
                     let outcome = checker.finish_independent_binary_rhs(
                         op,
                         left_expr,
@@ -7003,7 +7498,7 @@ impl Checker<'_> {
                         result,
                         right_tainted,
                     );
-                    checker.tainted |= left_tainted;
+                    checker.graph.tainted |= left_tainted;
                     result = match outcome {
                         Ok(right_failed) => checker.check_against_context_one(
                             expr,
@@ -7016,7 +7511,7 @@ impl Checker<'_> {
                         ),
                         Err(error) => Err(error),
                     };
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::Call(progress) => {
                     let CallProgress {
@@ -7029,16 +7524,16 @@ impl Checker<'_> {
                     let Expr::Call { args, span, .. } = expr else {
                         unreachable!("call frame owns a call")
                     };
-                    let child_taint = checker.tainted;
-                    checker.tainted = prior_taint || child_taint;
+                    let child_taint = checker.graph.tainted;
+                    checker.graph.tainted = prior_taint || child_taint;
                     if let Err(error) = result {
                         if error.operation == Operation::AnalysisLimit {
-                            checker.numeric_domain_owner = previous_owner;
+                            checker.graph.numeric_domain_owner = previous_owner;
                             result = Err(error);
                             return Resume::Next(result);
                         }
                         checker.record_error(error);
-                        checker.tainted = true;
+                        checker.graph.tainted = true;
                     }
                     let next = arg_index + 1;
                     let binding = &checker.resolved.calls[&(span.start, span.end)];
@@ -7055,8 +7550,8 @@ impl Checker<'_> {
                             related_expected: true,
                             deferred_element: false,
                         });
-                        let prior_taint = checker.tainted;
-                        checker.tainted = false;
+                        let prior_taint = checker.graph.tainted;
+                        checker.graph.tainted = false;
                         frames.push(Frame::Call(Box::new(CallProgress {
                             expr,
                             context,
@@ -7075,11 +7570,11 @@ impl Checker<'_> {
                             &signature.result,
                         )))),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::CallTarget(progress) => {
                     let (expr, context, previous_owner) = *progress;
-                    checker.numeric_domain_owner = None;
+                    checker.graph.numeric_domain_owner = None;
                     if let Ok(Type::Closure { site, .. }) = &result {
                         let Expr::Call { target, args, .. } = expr else {
                             unreachable!("call target frame owns a call")
@@ -7097,7 +7592,7 @@ impl Checker<'_> {
                                     related_expected: true,
                                     deferred_element: false,
                                 });
-                                let prior_taint = std::mem::take(&mut checker.tainted);
+                                let prior_taint = std::mem::take(&mut checker.graph.tainted);
                                 frames.push(Frame::ClosureCall(Box::new(ClosureCallFrameState {
                                     expr,
                                     context,
@@ -7131,7 +7626,7 @@ impl Checker<'_> {
                             Some(PrecomputedType::CallTarget(result)),
                         );
                     }
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::ClosureCall(progress) => {
                     let mut state = *progress;
@@ -7149,16 +7644,16 @@ impl Checker<'_> {
                             false,
                         )
                     });
-                    let tainted = checker.tainted;
-                    checker.tainted = state.prior_taint || tainted;
+                    let tainted = checker.graph.tainted;
+                    checker.graph.tainted = state.prior_taint || tainted;
                     if let Err(error) = outcome {
                         if error.operation == Operation::AnalysisLimit {
-                            checker.numeric_domain_owner = state.previous_owner;
+                            checker.graph.numeric_domain_owner = state.previous_owner;
                             result = Err(error);
                             return Resume::Next(result);
                         }
                         checker.record_error(error);
-                        checker.tainted = true;
+                        checker.graph.tainted = true;
                     }
                     state.next += 1;
                     if state.next < args.len() {
@@ -7173,7 +7668,7 @@ impl Checker<'_> {
                             related_expected: true,
                             deferred_element: false,
                         });
-                        state.prior_taint = std::mem::take(&mut checker.tainted);
+                        state.prior_taint = std::mem::take(&mut checker.graph.tainted);
                         frames.push(Frame::ClosureCall(Box::new(state)));
                         return Resume::Evaluate;
                     }
@@ -7182,7 +7677,7 @@ impl Checker<'_> {
                         state.context.borrowed(),
                         Some(PrecomputedType::CallComplete(Ok(state.draft.result))),
                     );
-                    checker.numeric_domain_owner = state.previous_owner;
+                    checker.graph.numeric_domain_owner = state.previous_owner;
                 }
                 Frame::UnionCall(progress) => {
                     let UnionCallProgress {
@@ -7204,9 +7699,9 @@ impl Checker<'_> {
                         .position(|slot| *slot == 0)
                         .expect("complete union binding")]
                     .value;
-                    let payload_tainted = checker.tainted;
-                    checker.tainted = prior_taint || payload_tainted;
-                    checker.numeric_domain_owner = None;
+                    let payload_tainted = checker.graph.tainted;
+                    checker.graph.tainted = prior_taint || payload_tainted;
+                    checker.graph.numeric_domain_owner = None;
                     let outcome = checker.finish_union_call(
                         name,
                         argument,
@@ -7220,7 +7715,7 @@ impl Checker<'_> {
                         context.borrowed(),
                         Some(PrecomputedType::CallComplete(outcome)),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::IntrinsicOne(progress) => {
                     let (expr, context, previous_owner) = *progress;
@@ -7231,7 +7726,7 @@ impl Checker<'_> {
                     let ResolvedUse::Intrinsic(name) = &binding.target else {
                         unreachable!("intrinsic frame has an intrinsic binding")
                     };
-                    checker.numeric_domain_owner = None;
+                    checker.graph.numeric_domain_owner = None;
                     let outcome = checker.check_intrinsic(
                         name,
                         args,
@@ -7246,7 +7741,7 @@ impl Checker<'_> {
                         context.borrowed(),
                         Some(PrecomputedType::CallComplete(outcome)),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::TryAdd(progress) => {
                     let mut state = *progress;
@@ -7255,7 +7750,7 @@ impl Checker<'_> {
                     };
                     match result {
                         Err(error) if error.operation == Operation::AnalysisLimit => {
-                            checker.numeric_domain_owner = state.previous_owner;
+                            checker.graph.numeric_domain_owner = state.previous_owner;
                             result = Err(error);
                             return Resume::Next(result);
                         }
@@ -7280,7 +7775,7 @@ impl Checker<'_> {
                         });
                         return Resume::Evaluate;
                     }
-                    checker.numeric_domain_owner = None;
+                    checker.graph.numeric_domain_owner = None;
                     let result_type = if state.failed {
                         Type::Tainted
                     } else {
@@ -7291,12 +7786,12 @@ impl Checker<'_> {
                         state.context.borrowed(),
                         Some(PrecomputedType::CallComplete(Ok(result_type))),
                     );
-                    checker.numeric_domain_owner = state.previous_owner;
+                    checker.graph.numeric_domain_owner = state.previous_owner;
                 }
                 Frame::AssertEq(progress) => {
                     let mut state = *progress;
                     if let Err(error) = checker.assert_eq_accept(&mut state, result) {
-                        checker.numeric_domain_owner = state.previous_owner;
+                        checker.graph.numeric_domain_owner = state.previous_owner;
                         result = Err(error);
                         return Resume::Next(result);
                     }
@@ -7319,7 +7814,7 @@ impl Checker<'_> {
                         });
                         return Resume::Evaluate;
                     }
-                    checker.numeric_domain_owner = None;
+                    checker.graph.numeric_domain_owner = None;
                     let expr = state.expr;
                     let context = state.context.clone();
                     let previous_owner = state.previous_owner;
@@ -7329,7 +7824,7 @@ impl Checker<'_> {
                         context.borrowed(),
                         Some(PrecomputedType::CallComplete(outcome)),
                     );
-                    checker.numeric_domain_owner = previous_owner;
+                    checker.graph.numeric_domain_owner = previous_owner;
                 }
                 Frame::If(mut progress) => match checker.if_advance(&mut progress, Some(result)) {
                     IfAction::Statement(statement) => {
@@ -7427,7 +7922,7 @@ impl Checker<'_> {
                         if self.analysis_exhausted {
                             ready_result = Some(Ok(Type::Unit));
                         } else {
-                            let prior_taint = std::mem::take(&mut self.tainted);
+                            let prior_taint = std::mem::take(&mut self.graph.tainted);
                             frames.push(Frame::StatementSite(statement, prior_taint));
                             pending_task = Some(Task::Statement(statement));
                             continue 'evaluate;
@@ -7504,16 +7999,16 @@ impl Checker<'_> {
                         Statement::Return {
                             value: Some(value), ..
                         } if self.generator_item.is_none() => {
-                            let expected = self.result.clone();
+                            let expected = self.graph.result.clone();
                             frames.push(Frame::StatementReturn(value, expected.clone()));
                             inner = value;
                             inner_context = OwnedCheckContext {
                                 expected: Some(expected),
-                                expected_span: self.result_span.clone(),
+                                expected_span: self.graph.result_span.clone(),
                                 check_here: true,
                                 anchor: None,
                                 outer_compare: false,
-                                related_expected: self.result_span.is_some(),
+                                related_expected: self.graph.result_span.is_some(),
                                 deferred_element: false,
                             };
                             continue 'evaluate;
@@ -7538,14 +8033,14 @@ impl Checker<'_> {
                                 inner_context = OwnedCheckContext {
                                     expected: item,
                                     expected_span: (token == "yield" && !guarded)
-                                        .then(|| self.result_span.clone())
+                                        .then(|| self.graph.result_span.clone())
                                         .flatten(),
                                     check_here: true,
                                     anchor: None,
                                     outer_compare: false,
                                     related_expected: token == "yield"
                                         && !guarded
-                                        && self.result_span.is_some(),
+                                        && self.graph.result_span.is_some(),
                                     deferred_element: false,
                                 };
                                 continue 'evaluate;
@@ -7701,12 +8196,12 @@ impl Checker<'_> {
                                 Some(Type::Array(element)) => Some(element.as_ref().clone()),
                                 Some(Type::Deferred(id)) => {
                                     let root = self.root(*id);
-                                    self.type_nodes[&root].array_child.map(Type::Deferred)
+                                    self.graph.type_nodes[&root].array_child.map(Type::Deferred)
                                 }
                                 _ => None,
                             };
-                            let previous_owner = self.numeric_domain_owner;
-                            self.numeric_domain_owner = None;
+                            let previous_owner = self.graph.numeric_domain_owner;
+                            self.graph.numeric_domain_owner = None;
                             let mut state = ArrayFrameState {
                                 expr: inner,
                                 items,
@@ -7728,8 +8223,8 @@ impl Checker<'_> {
                             frames.push(Frame::Array(Box::new(state)));
                         }
                         Expr::Index { target, .. } => {
-                            let previous_owner = self.numeric_domain_owner;
-                            self.numeric_domain_owner = None;
+                            let previous_owner = self.graph.numeric_domain_owner;
+                            self.graph.numeric_domain_owner = None;
                             frames.push(Frame::Index(Box::new((
                                 inner,
                                 inner_context,
@@ -7783,12 +8278,12 @@ impl Checker<'_> {
                             inner_context = child_context;
                         }
                         Expr::Binary { op, left, .. } => {
-                            let previous_owner = self.numeric_domain_owner;
-                            self.numeric_domain_owner = None;
+                            let previous_owner = self.graph.numeric_domain_owner;
+                            self.graph.numeric_domain_owner = None;
                             let pending_before = self.pending_join_count();
                             let numeric = matches!(op.as_str(), "+" | "-");
                             if numeric {
-                                self.numeric_domain_owner = Some(span_key(inner.span()));
+                                self.graph.numeric_domain_owner = Some(span_key(inner.span()));
                             }
                             frames.push(Frame::Binary(Box::new((
                                 inner,
@@ -7821,9 +8316,9 @@ impl Checker<'_> {
                             let signature = names::signature(self.resolved, &binding.target)
                                 .expect("callable binding");
                             let formal = &signature.params[binding.slots[0]];
-                            let prior_taint = self.tainted;
-                            self.tainted = false;
-                            let previous_owner = self.numeric_domain_owner.take();
+                            let prior_taint = self.graph.tainted;
+                            self.graph.tainted = false;
+                            let previous_owner = self.graph.numeric_domain_owner.take();
                             frames.push(Frame::Call(Box::new(CallProgress {
                                 expr: inner,
                                 context: inner_context,
@@ -7877,9 +8372,9 @@ impl Checker<'_> {
                                     union.variant(tag).and_then(|variant| variant.payload)
                                 })
                                 .cloned();
-                            let prior_taint = self.tainted;
-                            self.tainted = false;
-                            let previous_owner = self.numeric_domain_owner.take();
+                            let prior_taint = self.graph.tainted;
+                            self.graph.tainted = false;
+                            let previous_owner = self.graph.numeric_domain_owner.take();
                             let child_context = OwnedCheckContext {
                                 expected: payload_expected,
                                 expected_span: inner_context.expected_span.clone(),
@@ -7903,15 +8398,13 @@ impl Checker<'_> {
                                 matches!(&binding.target, ResolvedUse::Intrinsic(name) if name == "AssertEq")
                             }) =>
                         {
-                            let previous_owner = self.numeric_domain_owner.take();
+                            let previous_owner = self.graph.numeric_domain_owner.take();
                             let mut state = AssertEqFrameState {
                                 expr: inner,
                                 context: inner_context,
                                 next: 0,
                                 prior_taint: false,
                                 prior_errors: 0,
-                                pending_start: 0,
-                                pending_generation: 0,
                                 values: [None, None],
                                 evidence: [None, None],
                                 invalid: false,
@@ -7935,7 +8428,7 @@ impl Checker<'_> {
                                 matches!(&binding.target, ResolvedUse::Intrinsic(name) if name == "TryAdd")
                             }) =>
                         {
-                            let previous_owner = self.numeric_domain_owner.take();
+                            let previous_owner = self.graph.numeric_domain_owner.take();
                             frames.push(Frame::TryAdd(Box::new(TryAddFrameState {
                                 expr: inner,
                                 context: inner_context,
@@ -7964,7 +8457,7 @@ impl Checker<'_> {
                             let ResolvedUse::Intrinsic(name) = &binding.target else { unreachable!() };
                             let argument = &args[binding.slots.iter().position(|slot| *slot == 0).expect("complete intrinsic binding")].value;
                             let numeric = matches!(name.as_str(), "MockOpen" | "MockBlockingOpen" | "MockWriteI64" | "MockReply");
-                            let previous_owner = self.numeric_domain_owner.take();
+                            let previous_owner = self.graph.numeric_domain_owner.take();
                             frames.push(Frame::IntrinsicOne(Box::new((inner, inner_context, previous_owner))));
                             inner = argument;
                             inner_context = OwnedCheckContext {
@@ -7980,7 +8473,7 @@ impl Checker<'_> {
                         Expr::Call { target, span, .. }
                             if !self.resolved.calls.contains_key(&(span.start, span.end)) =>
                         {
-                            let previous_owner = self.numeric_domain_owner.take();
+                            let previous_owner = self.graph.numeric_domain_owner.take();
                             frames.push(Frame::CallTarget(Box::new((
                                 inner,
                                 inner_context,
@@ -8005,9 +8498,9 @@ impl Checker<'_> {
                         } => {
                             let pending_before_if = self.pending_join_count();
                             let previous_if = self.active_if_span.replace(inner.span().clone());
-                            let prior_taint = self.tainted;
-                            self.tainted = false;
-                            let pending_before_condition = self.pending.len();
+                            let prior_taint = self.graph.tainted;
+                            self.graph.tainted = false;
+                            let pending_before_condition = self.graph.obligations.len();
                             let branch_context = OwnedCheckContext {
                                 expected: inner_context
                                     .expected
@@ -8264,37 +8757,62 @@ impl Checker<'_> {
     fn propagate_group(&mut self, inner: &Expr, span: &Span) {
         // A group has no independent type or diagnostic site, even when its
         // child failed after leaving partial inference evidence.
-        if let Some(partial) = self.expression_types.get(&span_key(inner.span())).cloned() {
-            self.expression_types.insert(span_key(span), partial);
-        }
-        if let Some(nominal) = self
-            .conditional_result_types
+        if let Some(partial) = self
+            .graph
+            .expression_types
             .get(&span_key(inner.span()))
             .cloned()
         {
-            self.conditional_result_types
-                .insert(span_key(span), nominal);
+            self.graph.expression_types.insert(span_key(span), partial);
         }
-        if self.deferred_exprs.contains(&span_key(inner.span())) {
-            self.deferred_exprs.insert(span_key(span));
+        if let Some(nominal) = self
+            .graph
+            .conditional_result(&span_key(inner.span()))
+            .cloned()
+        {
+            self.graph.set_conditional_result(span_key(span), nominal);
+        }
+        if self
+            .graph
+            .has(&span_key(inner.span()), OccurrenceFlag::Deferred)
+        {
+            self.graph.mark(span_key(span), OccurrenceFlag::Deferred);
         }
         if let Some(id) = self.expression_variable(inner) {
-            self.expr_vars.insert(span_key(span), id);
+            self.graph.expr_vars.insert(span_key(span), id);
         }
-        if self.divergent_exprs.contains(&span_key(inner.span())) {
-            self.divergent_exprs.insert(span_key(span));
+        if self
+            .graph
+            .has(&span_key(inner.span()), OccurrenceFlag::Divergent)
+        {
+            self.graph.mark(span_key(span), OccurrenceFlag::Divergent);
         }
-        if self.partial_normal_exprs.contains(&span_key(inner.span())) {
-            self.partial_normal_exprs.insert(span_key(span));
+        if self
+            .graph
+            .has(&span_key(inner.span()), OccurrenceFlag::PartialNormal)
+        {
+            self.graph
+                .mark(span_key(span), OccurrenceFlag::PartialNormal);
         }
-        if self.context_rejections.contains(&span_key(inner.span())) {
-            self.context_rejections.insert(span_key(span));
+        if self
+            .graph
+            .has(&span_key(inner.span()), OccurrenceFlag::ContextRejected)
+        {
+            self.graph
+                .mark(span_key(span), OccurrenceFlag::ContextRejected);
         }
-        if self.failed_join_exprs.contains(&span_key(inner.span())) {
-            self.failed_join_exprs.insert(span_key(span));
+        if self
+            .graph
+            .has(&span_key(inner.span()), OccurrenceFlag::FailedJoin)
+        {
+            self.graph.mark(span_key(span), OccurrenceFlag::FailedJoin);
         }
-        if self.pending_domain_calls.contains(&span_key(inner.span())) {
-            self.pending_domain_calls.insert(span_key(span));
+        if self
+            .graph
+            .has(&span_key(inner.span()), OccurrenceFlag::PendingDomain)
+        {
+            self.graph
+                .mark(span_key(span), OccurrenceFlag::PendingDomain);
         }
     }
 
@@ -8332,12 +8850,12 @@ impl Checker<'_> {
         } else {
             ContextUse::Compare
         };
-        let inherited_numeric_owner = self.numeric_domain_owner;
+        let inherited_numeric_owner = self.graph.numeric_domain_owner;
         if matches!(
             e,
             Expr::Binary { .. } | Expr::Index { .. } | Expr::Call { .. } | Expr::Array(..)
         ) {
-            self.numeric_domain_owner = None;
+            self.graph.numeric_domain_owner = None;
         }
         let (whole, binary_left, binary_right, index_target, if_result, call_target) =
             match computed {
@@ -8429,16 +8947,19 @@ impl Checker<'_> {
                 call_target,
             ),
         };
-        self.numeric_domain_owner = inherited_numeric_owner;
+        self.graph.numeric_domain_owner = inherited_numeric_owner;
         let got = result?;
+        self.capture_expression_dependencies(e);
         if got == Type::Tainted
-            && self.pending_domain_calls.contains(&span_key(e.span()))
+            && self
+                .graph
+                .has(&span_key(e.span()), OccurrenceFlag::PendingDomain)
             && let Expr::Binary { op, .. } = e
         {
             // Keep the executable result separate from the causal type used
             // while the operand domain is still hypothetical. It is exported
             // only after this function's pending obligations have closed.
-            self.conditional_result_types.insert(
+            self.graph.set_conditional_result(
                 span_key(e.span()),
                 if matches!(op.as_str(), "<" | "==") {
                     Type::Bool
@@ -8448,31 +8969,42 @@ impl Checker<'_> {
             );
         }
         match internal_state(&got) {
-            Some(Type::Tainted) => self.tainted = true,
+            Some(Type::Tainted) => {
+                self.graph.mark(span_key(e.span()), OccurrenceFlag::Tainted);
+                self.graph.tainted = true;
+            }
             Some(Type::Never) => {
-                self.deferred_exprs.insert(span_key(e.span()));
+                self.graph
+                    .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                 // A divergent if records its own span. Len can record
                 // divergence while returning its declared I64; Unary can
                 // forward a Never child without a local mark, but that
                 // wrapper mark has no observable consumer. No reachable
                 // expression needs this insertion to diagnose divergence.
-                self.divergent_exprs.insert(span_key(e.span()));
+                self.graph
+                    .mark(span_key(e.span()), OccurrenceFlag::Divergent);
             }
             Some(Type::Deferred(_)) => {
-                self.deferred_exprs.insert(span_key(e.span()));
+                self.graph
+                    .mark(span_key(e.span()), OccurrenceFlag::Deferred);
             }
             _ => {}
         }
         // Keep the synthesized type even when its contextual comparison
         // fails: a sibling may still constrain an unresolved constructor.
-        self.expression_types
+        self.graph
+            .expression_types
             .insert(span_key(e.span()), got.clone());
         if check_here
             && let Some(expected) = expected
             && (internal_state(expected).is_none() || context.deferred_element)
-            && !self.tainted
-            && !self.pending_domain_calls.contains(&span_key(e.span()))
-            && !self.failed_join_exprs.contains(&span_key(e.span()))
+            && !self.graph.tainted
+            && !self
+                .graph
+                .has(&span_key(e.span()), OccurrenceFlag::PendingDomain)
+            && !self
+                .graph
+                .has(&span_key(e.span()), OccurrenceFlag::FailedJoin)
         {
             let result: Result<(), Box<Diagnostic>> = match context_use {
                 ContextUse::ConstructorPair => {
@@ -8488,14 +9020,17 @@ impl Checker<'_> {
                     // item before the base shape is known.
                     if context.outer_compare
                         && let Some(projection) =
-                            self.pending.iter_mut().find_map(|entry| match entry {
-                                PendingConstraint::Projection(projection)
-                                    if projection.result_span == Self::primary_span(e) =>
-                                {
-                                    Some(projection)
-                                }
-                                _ => None,
-                            })
+                            self.graph
+                                .obligations
+                                .iter_mut()
+                                .find_map(|entry| match entry {
+                                    ObligationKind::Projection(projection)
+                                        if projection.result_span == Self::primary_span(e) =>
+                                    {
+                                        Some(projection)
+                                    }
+                                    _ => None,
+                                })
                     {
                         projection.expected = Some(expected.clone());
                         projection.expected_span = expected_span.cloned();
@@ -8539,7 +9074,8 @@ impl Checker<'_> {
                         // The conflict is already causal evidence that this
                         // occurrence cannot supply a valid result to its
                         // consumer, even before its types can be printed.
-                        self.failed_join_exprs.insert(span_key(e.span()));
+                        self.graph
+                            .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
                     }
                     outcome.map(|_| ())
                 }
@@ -8548,7 +9084,8 @@ impl Checker<'_> {
                 if matches!(context_use, ContextUse::Compare)
                     && error.operation != Operation::AnalysisLimit
                 {
-                    self.context_rejections.insert(span_key(e.span()));
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::ContextRejected);
                 }
                 // A constructor conflict is also tracked when it is queued
                 // or finalized. This mark is defensive: changing the code
@@ -8558,7 +9095,7 @@ impl Checker<'_> {
                     && let Some(id) = self.expression_variable(e)
                 {
                     let root = self.root(id);
-                    self.failed_constructors.insert(root);
+                    self.graph.mark_failed_constructor(root);
                 }
                 return Err(error);
             }
@@ -8606,20 +9143,25 @@ impl Checker<'_> {
                     self.option_none(span, expected)
                 }
                 Some(ResolvedUse::Local(local)) => {
-                    if name == "None" && !self.locals.contains_key(&local.name_span.start) {
+                    if name == "None" && !self.graph.locals.contains_key(&local.name_span.start) {
                         return self.option_none(span, expected);
                     }
-                    if self.invalid.contains(&local.name_span.start) {
-                        self.tainted = true;
+                    if self
+                        .graph
+                        .locals
+                        .get(&local.name_span.start)
+                        .is_some_and(|known| known.invalid)
+                    {
+                        self.graph.tainted = true;
                         return Ok(Type::Tainted);
                     }
-                    if let Some(known) = self.locals.get(&local.name_span.start).cloned() {
+                    if let Some(known) = self.graph.locals.get(&local.name_span.start).cloned() {
                         if let Some(id) = known.variable {
                             if let Some((ty, _)) = self.concrete(id) {
                                 return Ok(ty);
                             }
                             if !self.planning
-                                && let Some(plan) = self.read_plan.get(&local.name_span.start)
+                                && let Some(plan) = self.graph.read_plan.get(&local.name_span.start)
                                 && span.start < plan.assignment_start
                                 && plan
                                     .blocked
@@ -8628,8 +9170,8 @@ impl Checker<'_> {
                             {
                                 return Ok(plan.ty.clone());
                             }
-                            self.deferred_exprs.insert(span_key(span));
-                            self.expr_vars.insert(span_key(span), id);
+                            self.graph.mark(span_key(span), OccurrenceFlag::Deferred);
+                            self.graph.expr_vars.insert(span_key(span), id);
                             return Ok(Type::Deferred(id));
                         }
                         Ok(known.ty)
@@ -8662,7 +9204,7 @@ impl Checker<'_> {
                     ));
                 }
                 let operand = unary_operand.expect("unary operand is prepared by driver")?;
-                if self.tainted || operand == Type::Tainted {
+                if self.graph.tainted || operand == Type::Tainted {
                     return Ok(Type::Tainted);
                 }
                 if operand == Type::Never {
@@ -8678,7 +9220,7 @@ impl Checker<'_> {
                             ty
                         } else {
                             let root = self.root(id);
-                            if self.type_nodes[&root].variant_children.is_none() {
+                            if self.graph.type_nodes[&root].variant_children.is_none() {
                                 Type::Deferred(id)
                             } else {
                                 let (ok, err) = self
@@ -8711,17 +9253,21 @@ impl Checker<'_> {
                         &operand,
                     ));
                 };
-                let Type::Union(UnionKind::Result, _, Some(function_err)) = &self.result else {
+                let Type::Union(UnionKind::Result, _, Some(function_err)) = &self.graph.result
+                else {
                     return Err(mismatch(
                         Span {
                             file: span.file.clone(),
                             start: span.end - 1,
                             end: span.end,
                         },
-                        self.result_span.clone().unwrap_or_else(|| span.clone()),
+                        self.graph
+                            .result_span
+                            .clone()
+                            .unwrap_or_else(|| span.clone()),
                         None,
                         "domain:result",
-                        &self.result,
+                        &self.graph.result,
                     ));
                 };
                 let function_err = function_err.as_ref().clone();
@@ -8736,7 +9282,7 @@ impl Checker<'_> {
                     return Err(mismatch(
                         try_site,
                         Self::primary_span(value),
-                        self.result_span.clone(),
+                        self.graph.result_span.clone(),
                         &pretty(&function_err).unwrap_or_default(),
                         &err_type,
                     ));
@@ -8744,13 +9290,16 @@ impl Checker<'_> {
                 self.unify(
                     function_err,
                     err.as_ref().clone(),
-                    self.result_span.clone().unwrap_or_else(|| try_site.clone()),
+                    self.graph
+                        .result_span
+                        .clone()
+                        .unwrap_or_else(|| try_site.clone()),
                     Self::primary_span(value),
                     try_site,
                     false,
                 )?;
                 if let Type::Deferred(id) = ok.as_ref() {
-                    self.expr_vars.insert(span_key(e.span()), *id);
+                    self.graph.expr_vars.insert(span_key(e.span()), *id);
                 }
                 Ok(ok.as_ref().clone())
             }
@@ -8760,7 +9309,7 @@ impl Checker<'_> {
                     Some(Type::Array(t)) => Some(t.as_ref().clone()),
                     Some(Type::Deferred(id)) => {
                         let root = self.root(*id);
-                        self.type_nodes[&root].array_child.map(Type::Deferred)
+                        self.graph.type_nodes[&root].array_child.map(Type::Deferred)
                     }
                     _ => None,
                 };
@@ -8774,13 +9323,19 @@ impl Checker<'_> {
                     }
                     let child = self.new_variable(span)?;
                     let array = self.new_variable(span)?;
-                    self.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
-                    self.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
-                    self.type_nodes.get_mut(&array).unwrap().array_constructed = true;
+                    self.graph.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
+                    self.graph.type_nodes.get_mut(&array).unwrap().array_origin =
+                        Some(span.clone());
+                    self.graph
+                        .type_nodes
+                        .get_mut(&array)
+                        .unwrap()
+                        .array_constructed = true;
                     self.require_copyable(child, span, false)?;
-                    self.expr_vars.insert(span_key(e.span()), array);
-                    self.deferred_exprs.insert(span_key(e.span()));
-                    self.pending.push(PendingConstraint::Constructor {
+                    self.graph.expr_vars.insert(span_key(e.span()), array);
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::Deferred);
+                    self.graph.register(ObligationKind::Constructor {
                         child,
                         array,
                         span: span.clone(),
@@ -8825,10 +9380,10 @@ impl Checker<'_> {
                 let (left_result, pending_before_left, independent_right) =
                     binary_left.expect("binary left operand is prepared by check_against_context");
                 let l = left_result?;
-                if self
-                    .pending_domain_calls
-                    .contains(&span_key(&Self::primary_span(left)))
-                {
+                if self.graph.has(
+                    &span_key(&Self::primary_span(left)),
+                    OccurrenceFlag::PendingDomain,
+                ) {
                     // A pending operand domain does not yet authorize the
                     // operation's nominal result as a cross-operand witness.
                     // The other operand still has its own domain site.
@@ -8838,7 +9393,7 @@ impl Checker<'_> {
                         // The sibling owns a real failure. Its containing
                         // operation has no nominal value for a selector or
                         // another consumer (§4.1.2.5).
-                        self.tainted = true;
+                        self.graph.tainted = true;
                         return Ok(Type::Tainted);
                     }
                     if matches!(op.as_str(), "<" | "==")
@@ -8849,8 +9404,8 @@ impl Checker<'_> {
                         // The cross equality is conditional on the left
                         // operation's still unresolved domain. Keep its
                         // source site until that domain is decided.
-                        self.pending
-                            .push(PendingConstraint::GuardedComparison(Box::new(
+                        self.graph
+                            .register(ObligationKind::GuardedComparison(Box::new(
                                 PendingGuardedComparison {
                                     variable,
                                     domain,
@@ -8868,6 +9423,7 @@ impl Checker<'_> {
                                     projections: Vec::new(),
                                     dependent_results: Vec::new(),
                                     require_resolved: false,
+                                    conditional_bindings: Vec::new(),
                                 },
                             )));
                     }
@@ -8884,7 +9440,8 @@ impl Checker<'_> {
                             Some(&Self::primary_span(left)),
                         );
                     } else {
-                        self.pending_domain_calls.insert(span_key(e.span()));
+                        self.graph
+                            .mark(span_key(e.span()), OccurrenceFlag::PendingDomain);
                     }
                     if !self.pending_nominal_available(left) {
                         // An unresolved Array constructor can still refute
@@ -8905,27 +9462,33 @@ impl Checker<'_> {
                     // this operand but has not consumed this operator's
                     // domain site. A direct left-domain conflict has.
                     independent_right.expect("independent binary right operand");
-                    self.failed_join_exprs.insert(span_key(e.span()));
-                    self.tainted = true;
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
+                    self.graph.tainted = true;
                     return Ok(Type::I64);
                 }
-                if self.failed_join_exprs.contains(&span_key(left.span())) {
+                if self
+                    .graph
+                    .has(&span_key(left.span()), OccurrenceFlag::FailedJoin)
+                {
                     independent_right.expect("independent binary right operand");
-                    self.failed_join_exprs.insert(span_key(e.span()));
-                    self.tainted = true;
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
+                    self.graph.tainted = true;
                     return Ok(if matches!(op.as_str(), "<" | "==") {
                         Type::Bool
                     } else {
                         Type::I64
                     });
                 }
-                if self.tainted {
+                if self.graph.tainted {
                     // A child already recorded its own error. Visit the
                     // independent sibling, but suppress the operator error
                     // that would depend on the invalid left value.
                     independent_right.expect("independent binary right operand");
-                    self.tainted = true;
-                    self.deferred_exprs.insert(span_key(e.span()));
+                    self.graph.tainted = true;
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                     return Ok(if matches!(op.as_str(), "<" | "==") {
                         Type::Bool
                     } else {
@@ -8963,20 +9526,28 @@ impl Checker<'_> {
                 }
                 if base == Type::Never {
                     precomputed_selector.take().expect("never index selector")?;
-                    self.deferred_exprs.insert(span_key(e.span()));
-                    self.divergent_exprs.insert(span_key(e.span()));
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::Deferred);
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::Divergent);
                     return Ok(Type::Never);
                 }
-                if self.deferred_exprs.contains(&span_key(target.span())) {
+                if self
+                    .graph
+                    .has(&span_key(target.span()), OccurrenceFlag::Deferred)
+                {
                     if let Some(id) = self.expression_variable(target) {
                         let root = self.root(id);
-                        let child = if self.type_nodes[&root].array_child.is_some() {
+                        let child = if self.graph.type_nodes[&root].array_child.is_some() {
                             let child =
                                 deferred_child.expect("deferred array prepared by index frame");
                             precomputed_selector
                                 .take()
                                 .expect("deferred array selector")?;
-                            if self.failed_join_exprs.contains(&span_key(index.span())) {
+                            if self
+                                .graph
+                                .has(&span_key(index.span()), OccurrenceFlag::FailedJoin)
+                            {
                                 // The selector's deferred domain is already
                                 // incompatible with its established Array
                                 // operand. It cannot prove a projection type.
@@ -8991,7 +9562,7 @@ impl Checker<'_> {
                             let selector_variable = self
                                 .binding_variable_at_source(index)
                                 .filter(|id| self.concrete(*id).is_none());
-                            self.pending.push(PendingConstraint::Projection(Box::new(
+                            self.graph.register(ObligationKind::Projection(Box::new(
                                 PendingProjection {
                                     base: id,
                                     item: child,
@@ -9006,21 +9577,26 @@ impl Checker<'_> {
                                     related_expected: false,
                                 },
                             )));
-                            self.projected_bases.insert(id);
-                            self.has_pending_projection = true;
+                            self.graph.projected_bases.insert(id);
                             child
                         };
-                        self.expr_vars.insert(span_key(e.span()), child);
-                        self.projection_items.insert(child);
-                        self.deferred_exprs.insert(span_key(e.span()));
+                        self.graph.expr_vars.insert(span_key(e.span()), child);
+                        self.graph.projection_items.insert(child);
+                        self.graph
+                            .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                         return Ok(Type::Deferred(child));
                     }
-                    if self.divergent_exprs.contains(&span_key(target.span())) {
+                    if self
+                        .graph
+                        .has(&span_key(target.span()), OccurrenceFlag::Divergent)
+                    {
                         precomputed_selector
                             .take()
                             .expect("divergent index selector")?;
-                        self.deferred_exprs.insert(span_key(e.span()));
-                        self.divergent_exprs.insert(span_key(e.span()));
+                        self.graph
+                            .mark(span_key(e.span()), OccurrenceFlag::Deferred);
+                        self.graph
+                            .mark(span_key(e.span()), OccurrenceFlag::Divergent);
                         return Ok(Type::Never);
                     }
                 }
@@ -9061,7 +9637,10 @@ impl Checker<'_> {
                     ));
                 };
                 precomputed_selector.take().expect("array index selector")?;
-                if self.failed_join_exprs.contains(&span_key(index.span())) {
+                if self
+                    .graph
+                    .has(&span_key(index.span()), OccurrenceFlag::FailedJoin)
+                {
                     return Ok(Type::Tainted);
                 }
                 Ok(item.as_ref().clone())
@@ -9071,7 +9650,7 @@ impl Checker<'_> {
                     let target_ty =
                         call_target.expect("call target is prepared by check_against_context")?;
                     if target_ty == Type::Tainted {
-                        self.tainted = true;
+                        self.graph.tainted = true;
                         return Ok(Type::Tainted);
                     }
                     let mut unwrapped = target.as_ref();
@@ -9131,37 +9710,43 @@ impl Checker<'_> {
                 if join_failed
                     || expected.is_some() && self.pending_join_count() > pending_before_if
                 {
-                    self.failed_join_exprs.insert(span_key(e.span()));
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
                 }
                 // ADR §4.1.2.5: an inferred union with a failed join has
                 // no value type for ordinary consumers, but its first
                 // valid continuation remains a partial witness for an
                 // enclosing union.
                 if join_failed && expected.is_none() && normal.is_some() {
-                    self.partial_normal_exprs.insert(span_key(e.span()));
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::PartialNormal);
                 }
                 if expected.is_some()
                     && (branch_value_expr(then_block).is_some_and(|value| {
-                        self.context_rejections.contains(&span_key(value.span()))
+                        self.graph
+                            .has(&span_key(value.span()), OccurrenceFlag::ContextRejected)
                     }) || match otherwise.as_deref() {
                         Some(Else::Block(block)) => branch_value_expr(block).is_some_and(|value| {
-                            self.context_rejections.contains(&span_key(value.span()))
+                            self.graph
+                                .has(&span_key(value.span()), OccurrenceFlag::ContextRejected)
                         }),
-                        Some(Else::If(value)) => {
-                            self.context_rejections.contains(&span_key(value.span()))
-                        }
+                        Some(Else::If(value)) => self
+                            .graph
+                            .has(&span_key(value.span()), OccurrenceFlag::ContextRejected),
                         None => false,
                     })
                 {
-                    self.context_rejections.insert(span_key(e.span()));
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::ContextRejected);
                 }
                 if value_failed {
-                    self.tainted = true;
+                    self.graph.tainted = true;
                 }
-                if self.tainted && normal.is_some() {
+                if self.graph.tainted && normal.is_some() {
                     // §13.9: a clean continuation contributes a constraint
                     // even when another reachable child taints this if.
-                    self.partial_normal_exprs.insert(span_key(e.span()));
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::PartialNormal);
                 }
                 let first_var =
                     branch_value_expr(then_block).and_then(|e| self.expression_variable(e));
@@ -9175,15 +9760,18 @@ impl Checker<'_> {
                 if let Some(id) = first_var.or(second_var)
                     && normal.is_none()
                 {
-                    self.expr_vars.insert(span_key(e.span()), id);
-                    self.deferred_exprs.insert(span_key(e.span()));
+                    self.graph.expr_vars.insert(span_key(e.span()), id);
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                     return Ok(Type::Deferred(id));
                 }
                 // A missing branch value is resolved by ownership flow. Until
                 // then it cannot supply a concrete type to an outer operator.
                 if normal.is_none() {
-                    self.deferred_exprs.insert(span_key(e.span()));
-                    self.divergent_exprs.insert(span_key(e.span()));
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::Deferred);
+                    self.graph
+                        .mark(span_key(e.span()), OccurrenceFlag::Divergent);
                 }
                 Ok(normal.or_else(|| expected.cloned()).unwrap_or(Type::Never))
             }
@@ -9203,7 +9791,7 @@ impl Checker<'_> {
         };
         let pending_shape = state.pending.first().and_then(|(id, _)| {
             let root = self.root(*id);
-            self.type_nodes[&root]
+            self.graph.type_nodes[&root]
                 .array_child
                 .map(|_| Type::Deferred(*id))
         });
@@ -9220,7 +9808,7 @@ impl Checker<'_> {
             .cloned();
         state.current_expected = expected.clone();
         state.current_origin = origin.clone();
-        state.prior_taint = std::mem::take(&mut self.tainted);
+        state.prior_taint = std::mem::take(&mut self.graph.tainted);
         (
             item,
             OwnedCheckContext {
@@ -9259,8 +9847,11 @@ impl Checker<'_> {
         let item_expected = current_expected.as_ref();
         let origin = current_origin.as_ref();
         let prior_taint = *prior_taint;
-        let item_tainted = self.tainted || self.failed_join_exprs.contains(&span_key(item.span()));
-        self.tainted = prior_taint || item_tainted;
+        let item_tainted = self.graph.tainted
+            || self
+                .graph
+                .has(&span_key(item.span()), OccurrenceFlag::FailedJoin);
+        self.graph.tainted = prior_taint || item_tainted;
         let got = match outcome {
             Ok(got) => got,
             Err(error) => {
@@ -9292,7 +9883,9 @@ impl Checker<'_> {
             *invalid = true;
             return Ok(());
         }
-        if self.pending_domain_calls.contains(&span_key(item.span()))
+        if self
+            .graph
+            .has(&span_key(item.span()), OccurrenceFlag::PendingDomain)
             && let Some(wanted) = item_expected
             && internal_state(wanted).is_none()
             && internal_state(&got).is_none()
@@ -9314,7 +9907,9 @@ impl Checker<'_> {
             *invalid = true;
             return Ok(());
         }
-        *diverges |= self.divergent_exprs.contains(&span_key(item.span()));
+        *diverges |= self
+            .graph
+            .has(&span_key(item.span()), OccurrenceFlag::Divergent);
         if item_expected.is_some() {
             // The first concrete element fixes the element type.
             // Each later element is checked in its own subtree;
@@ -9322,16 +9917,21 @@ impl Checker<'_> {
             // A result whose domain is still pending cannot be
             // the sole witness for an independent later site.
             // Prefer the next valid element of the same type.
-            if item_origin
-                .as_ref()
-                .is_some_and(|origin| self.pending_domain_calls.contains(&span_key(origin)))
-                && !self.pending_domain_calls.contains(&span_key(item.span()))
+            if item_origin.as_ref().is_some_and(|origin| {
+                self.graph
+                    .has(&span_key(origin), OccurrenceFlag::PendingDomain)
+            }) && !self
+                .graph
+                .has(&span_key(item.span()), OccurrenceFlag::PendingDomain)
             {
                 *item_origin = Some(Self::primary_span(item));
             }
             return Ok(());
         }
-        if self.deferred_exprs.contains(&span_key(item.span())) {
+        if self
+            .graph
+            .has(&span_key(item.span()), OccurrenceFlag::Deferred)
+        {
             if let Some(id) = self.expression_variable(item) {
                 self.require_copyable(id, &Self::primary_span(item), false)?;
                 if let Some(expected_item) = item_type.as_ref() {
@@ -9367,7 +9967,8 @@ impl Checker<'_> {
                             false,
                         )?;
                         if self.pending_join_count() > before {
-                            self.failed_join_exprs.insert(span_key(e.span()));
+                            self.graph
+                                .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
                             // The rejected sibling cannot join
                             // the pending witness set. A later
                             // element is compared with the first
@@ -9388,7 +9989,7 @@ impl Checker<'_> {
             let mut first_conflict = false;
             for (id, source_origin) in pending.iter() {
                 let before_conflict = self.pending_join_count();
-                let projected_reference = self.projection_items.contains(id);
+                let projected_reference = self.graph.projection_items.contains(id);
                 let source_type = projected_reference
                     .then(|| self.concrete(*id).map(|(ty, _)| ty))
                     .flatten();
@@ -9467,7 +10068,7 @@ impl Checker<'_> {
                     // boundary, which sets the same parent taint.
                     // Siblings reset their own taint bit.
                     self.record_error(error);
-                    self.tainted = true;
+                    self.graph.tainted = true;
                     *invalid = true;
                 }
             }
@@ -9498,26 +10099,33 @@ impl Checker<'_> {
                 .unwrap_or_else(|| item.clone());
             self.check_depth(&Type::Array(Arc::new(resolved_item)), span)?;
             if diverges {
-                self.divergent_exprs.insert(span_key(e.span()));
+                self.graph
+                    .mark(span_key(e.span()), OccurrenceFlag::Divergent);
             }
             Ok(Type::Array(Arc::new(item)))
         } else {
-            self.deferred_exprs.insert(span_key(e.span()));
+            self.graph
+                .mark(span_key(e.span()), OccurrenceFlag::Deferred);
             if diverges {
-                self.divergent_exprs.insert(span_key(e.span()));
+                self.graph
+                    .mark(span_key(e.span()), OccurrenceFlag::Divergent);
             }
             if let Some((child, _)) = pending.first() {
                 let id = self.new_variable(span)?;
-                self.type_nodes.get_mut(&id).unwrap().array_child = Some(*child);
-                self.type_nodes.get_mut(&id).unwrap().array_origin = Some(span.clone());
-                self.type_nodes.get_mut(&id).unwrap().array_constructed = true;
+                self.graph.type_nodes.get_mut(&id).unwrap().array_child = Some(*child);
+                self.graph.type_nodes.get_mut(&id).unwrap().array_origin = Some(span.clone());
+                self.graph
+                    .type_nodes
+                    .get_mut(&id)
+                    .unwrap()
+                    .array_constructed = true;
                 self.check_one_inferred_depth(id, span)?;
-                self.expr_vars.insert(span_key(e.span()), id);
+                self.graph.expr_vars.insert(span_key(e.span()), id);
                 // Every constructor owns an element-resolution
                 // obligation, even when the pending element came
                 // from another constructor or a projection (ADR
                 // §4.1.2.2, RD122/RD127).
-                self.pending.push(PendingConstraint::Constructor {
+                self.graph.register(ObligationKind::Constructor {
                     child: *child,
                     array: id,
                     span: span.clone(),
@@ -9526,12 +10134,16 @@ impl Checker<'_> {
             } else if diverges {
                 let child = self.new_variable(span)?;
                 let array = self.new_variable(span)?;
-                self.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
-                self.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
-                self.type_nodes.get_mut(&array).unwrap().array_constructed = true;
+                self.graph.type_nodes.get_mut(&array).unwrap().array_child = Some(child);
+                self.graph.type_nodes.get_mut(&array).unwrap().array_origin = Some(span.clone());
+                self.graph
+                    .type_nodes
+                    .get_mut(&array)
+                    .unwrap()
+                    .array_constructed = true;
                 self.require_copyable(child, span, false)?;
-                self.expr_vars.insert(span_key(e.span()), array);
-                self.pending.push(PendingConstraint::Constructor {
+                self.graph.expr_vars.insert(span_key(e.span()), array);
+                self.graph.register(ObligationKind::Constructor {
                     child,
                     array,
                     span: span.clone(),
@@ -9567,15 +10179,15 @@ impl Checker<'_> {
                 if let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)? {
                     self.record_error(domain_error);
                 }
-                self.tainted = true;
+                self.graph.tainted = true;
                 return Ok(Type::Tainted);
             }
             Err(error) => return Err(error),
         };
-        if self
-            .pending_domain_calls
-            .contains(&span_key(&Self::primary_span(right)))
-        {
+        if self.graph.has(
+            &span_key(&Self::primary_span(right)),
+            OccurrenceFlag::PendingDomain,
+        ) {
             if matches!(op.as_str(), "<" | "==") {
                 if let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)? {
                     self.record_error(domain_error);
@@ -9584,8 +10196,8 @@ impl Checker<'_> {
                     self.pending_operation_guard(right),
                     self.pending_operation_type(right),
                 ) {
-                    self.pending
-                        .push(PendingConstraint::GuardedComparison(Box::new(
+                    self.graph
+                        .register(ObligationKind::GuardedComparison(Box::new(
                             PendingGuardedComparison {
                                 variable,
                                 domain,
@@ -9601,12 +10213,27 @@ impl Checker<'_> {
                                 projections: Vec::new(),
                                 dependent_results: Vec::new(),
                                 require_resolved: false,
+                                conditional_bindings: Vec::new(),
                             },
                         )));
                 }
             }
-            self.pending_domain_calls.insert(span_key(e.span()));
-            if !self.tainted && self.pending_nominal_available(right) {
+            if matches!(op.as_str(), "+" | "-")
+                && let Some((variable, domain)) = self.pending_operation_guard(right)
+            {
+                self.defer_nominal_domain(
+                    variable,
+                    domain,
+                    e.span(),
+                    &Type::I64,
+                    expected,
+                    expected_span,
+                    Some(&Self::primary_span(right)),
+                );
+            }
+            self.graph
+                .mark(span_key(e.span()), OccurrenceFlag::PendingDomain);
+            if !self.graph.tainted && self.pending_nominal_available(right) {
                 return Ok(if matches!(op.as_str(), "<" | "==") {
                     Type::Bool
                 } else {
@@ -9615,7 +10242,11 @@ impl Checker<'_> {
             }
             return Ok(Type::Tainted);
         }
-        if self.tainted || self.failed_join_exprs.contains(&span_key(right.span())) {
+        if self.graph.tainted
+            || self
+                .graph
+                .has(&span_key(right.span()), OccurrenceFlag::FailedJoin)
+        {
             if matches!(op.as_str(), "<" | "==")
                 && let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)?
             {
@@ -9648,7 +10279,8 @@ impl Checker<'_> {
                 false,
             )?;
             if self.pending_join_count() > pending_before_operator {
-                self.failed_join_exprs.insert(span_key(e.span()));
+                self.graph
+                    .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
                 return Ok(Type::Bool);
             }
             let variable = left_variable.or(right_variable);
@@ -9671,7 +10303,7 @@ impl Checker<'_> {
                 }
             } else if let Some(id) = variable {
                 let root = self.root(id);
-                if op == "<" && self.type_nodes[&root].array_child.is_none() {
+                if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
                     self.unify_with_expected_origin(
                         Type::I64,
                         Type::Deferred(id),
@@ -9684,13 +10316,14 @@ impl Checker<'_> {
                         },
                     )?;
                 } else {
-                    self.pending.push(PendingConstraint::BinaryDomain(Box::new(
+                    self.graph.register(ObligationKind::BinaryDomain(Box::new(
                         PendingBinaryDomain {
                             variable: id,
                             operator,
                             found: found_site,
                             domain,
                             result: e.span().clone(),
+                            conditional_bindings: Vec::new(),
                         },
                     )));
                     self.defer_nominal_domain(
@@ -9718,7 +10351,8 @@ impl Checker<'_> {
             )?;
         }
         if self.pending_join_count() > pending_before_operator {
-            self.failed_join_exprs.insert(span_key(e.span()));
+            self.graph
+                .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
         }
         Ok(Type::I64)
     }
@@ -9738,18 +10372,24 @@ impl Checker<'_> {
     ) -> Result<Type, Box<Diagnostic>> {
         if matches!(op, "+" | "-") {
             right_result?;
-            if self.tainted {
+            if self.graph.tainted {
                 return Ok(Type::Tainted);
             }
-            if self.failed_join_exprs.contains(&span_key(right.span())) {
-                self.failed_join_exprs.insert(span_key(e.span()));
+            if self
+                .graph
+                .has(&span_key(right.span()), OccurrenceFlag::FailedJoin)
+            {
+                self.graph
+                    .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
                 return Ok(Type::I64);
             }
             return Ok(Type::I64);
         }
         if let Err(error) = right_result {
             if error.operation == Operation::AnalysisLimit
-                || self.context_rejections.contains(&span_key(right.span()))
+                || self
+                    .graph
+                    .has(&span_key(right.span()), OccurrenceFlag::ContextRejected)
             {
                 return Err(error);
             }
@@ -9757,18 +10397,18 @@ impl Checker<'_> {
             if let Some(domain_error) = self.comparison_domain_error(op, left, right, left_type)? {
                 self.record_error(domain_error);
             }
-            self.tainted = true;
+            self.graph.tainted = true;
             return Ok(Type::Tainted);
         }
-        if self
-            .pending_domain_calls
-            .contains(&span_key(&Self::primary_span(right)))
-            && let Some((variable, domain)) = self.pending_operation_guard(right)
+        if self.graph.has(
+            &span_key(&Self::primary_span(right)),
+            OccurrenceFlag::PendingDomain,
+        ) && let Some((variable, domain)) = self.pending_operation_guard(right)
         {
             let domain_error_if_equal = self.comparison_domain_error(op, left, right, left_type)?;
             if let Some(found) = self.pending_operation_type(right) {
-                self.pending
-                    .push(PendingConstraint::GuardedComparison(Box::new(
+                self.graph
+                    .register(ObligationKind::GuardedComparison(Box::new(
                         PendingGuardedComparison {
                             variable,
                             domain,
@@ -9784,16 +10424,18 @@ impl Checker<'_> {
                             projections: Vec::new(),
                             dependent_results: Vec::new(),
                             require_resolved: false,
+                            conditional_bindings: Vec::new(),
                         },
                     )));
             }
-            self.pending_domain_calls.insert(span_key(e.span()));
-            if !self.tainted && self.pending_nominal_available(right) {
+            self.graph
+                .mark(span_key(e.span()), OccurrenceFlag::PendingDomain);
+            if !self.graph.tainted && self.pending_nominal_available(right) {
                 return Ok(Type::Bool);
             }
             return Ok(Type::Tainted);
         }
-        if self.tainted {
+        if self.graph.tainted {
             if let Some(domain_error) = self.comparison_domain_error(op, left, right, left_type)? {
                 self.record_error(domain_error);
             }
@@ -9828,10 +10470,14 @@ impl Checker<'_> {
                     join.comparison_domain_if_unresolved = Some(domain);
                 }
             }
-            self.failed_join_exprs.insert(span_key(e.span()));
+            self.graph
+                .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
             return Ok(Type::Bool);
         }
-        if self.deferred_exprs.contains(&span_key(right.span())) {
+        if self
+            .graph
+            .has(&span_key(right.span()), OccurrenceFlag::Deferred)
+        {
             if let Some(error) = self.comparison_domain_error(op, left, right, left_type)? {
                 return Err(error);
             }
@@ -9856,13 +10502,14 @@ impl Checker<'_> {
         let some = children.variants[1]
             .payload
             .ok_or_else(|| unresolved_type(span.clone()))?;
-        self.type_nodes
+        self.graph
+            .type_nodes
             .get_mut(&result)
             .unwrap()
             .variant_constructed = true;
-        self.expr_vars.insert(span_key(span), result);
-        self.deferred_exprs.insert(span_key(span));
-        self.pending.push(PendingConstraint::VariantConstructor {
+        self.graph.expr_vars.insert(span_key(span), result);
+        self.graph.mark(span_key(span), OccurrenceFlag::Deferred);
+        self.graph.register(ObligationKind::VariantConstructor {
             union: result,
             span: span.clone(),
         });
@@ -9971,7 +10618,7 @@ impl Checker<'_> {
                     return Ok(());
                 }
                 Pattern::Name { span, .. } => {
-                    self.locals.insert(
+                    self.graph.locals.insert(
                         span.start,
                         Known {
                             ty: selected.clone(),
@@ -9981,6 +10628,8 @@ impl Checker<'_> {
                             } else {
                                 None
                             },
+                            invalid: false,
+                            nominal_sources: HashSet::new(),
                         },
                     );
                     return Ok(());
@@ -10092,7 +10741,7 @@ impl Checker<'_> {
         // valid sibling for a constraint already rejected at the other site.
         let first_root = first_var.map(|id| self.root(id));
         let first_has_failed_constructor =
-            first_root.is_some_and(|id| self.failed_constructors.contains(&id));
+            first_root.is_some_and(|id| self.graph.failed_constructor(id));
         let first_unresolved = first_var
             .map(|id| self.concrete(id).is_none())
             .unwrap_or_else(|| {
@@ -10239,17 +10888,18 @@ impl Checker<'_> {
                 IfStage::Condition => {
                     let condition_result = returned.take().expect("if condition has a result");
                     let condition_site = Self::primary_span(progress.condition);
-                    let pending_shape_failure = self.pending[progress.pending_before_condition..]
+                    let pending_shape_failure = self.graph.obligations
+                        [progress.pending_before_condition..]
                         .iter()
                         .any(|entry| match entry {
-                            PendingConstraint::Join(join) => {
+                            ObligationKind::Join(join) => {
                                 join.found == condition_site
-                                    && self.failed_constructors.contains(&join.constructor)
+                                    && self.graph.failed_constructor(join.constructor)
                             }
                             _ => false,
                         });
-                    let condition_tainted = self.tainted || pending_shape_failure;
-                    self.tainted =
+                    let condition_tainted = self.graph.tainted || pending_shape_failure;
+                    self.graph.tainted =
                         progress.prior_taint || condition_tainted || condition_result.is_err();
                     if let Err(error) = condition_result {
                         if error.operation == Operation::AnalysisLimit {
@@ -10413,7 +11063,9 @@ impl Checker<'_> {
                             let Some(Else::If(other)) = progress.otherwise else {
                                 unreachable!("else if stage owns an else if")
                             };
-                            let failed = self.failed_join_exprs.contains(&span_key(other.span()));
+                            let failed = self
+                                .graph
+                                .has(&span_key(other.span()), OccurrenceFlag::FailedJoin);
                             self.if_finish_join(
                                 progress,
                                 internal_state(&ty).is_none().then_some(ty),
@@ -10431,11 +11083,16 @@ impl Checker<'_> {
     fn if_after_first(&mut self, progress: &mut IfProgress<'_>) -> Result<(), Box<Diagnostic>> {
         let then_block = progress.then_block;
         progress.first_anchored |= branch_value_expr(then_block).is_some_and(|expr| {
-            self.failed_join_exprs.contains(&span_key(expr.span()))
-                && !self.partial_normal_exprs.contains(&span_key(expr.span()))
+            self.graph
+                .has(&span_key(expr.span()), OccurrenceFlag::FailedJoin)
+                && !self
+                    .graph
+                    .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)
         });
-        progress.first_partial = branch_value_expr(then_block)
-            .is_some_and(|expr| self.partial_normal_exprs.contains(&span_key(expr.span())));
+        progress.first_partial = branch_value_expr(then_block).is_some_and(|expr| {
+            self.graph
+                .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)
+        });
         progress.first_span = branch_value_span(then_block);
         progress.first_for_anchor = progress.first.clone().or_else(|| {
             branch_value_expr(then_block)
@@ -10579,8 +11236,8 @@ impl Checker<'_> {
                 let nested_anchor = progress.context.expected.is_none()
                     && progress.context.anchor.is_some()
                     && Self::is_value_if(expr);
-                let prior_taint = self.tainted;
-                self.tainted = false;
+                let prior_taint = self.graph.tainted;
+                self.graph.tainted = false;
                 let context = OwnedCheckContext {
                     expected: progress.context.expected.clone(),
                     expected_span: progress.context.expected_span.clone(),
@@ -10620,32 +11277,45 @@ impl Checker<'_> {
         nested_anchor: bool,
         outcome: Result<Type, Box<Diagnostic>>,
     ) -> Result<(), Box<Diagnostic>> {
-        let tainted = self.tainted;
-        self.tainted = prior_taint || tainted;
+        let tainted = self.graph.tainted;
+        self.graph.tainted = prior_taint || tainted;
         progress.anchor_consumed = nested_anchor;
         match outcome {
             Ok(ty) => {
-                let deferred = self.deferred_exprs.contains(&span_key(expr.span()));
-                let divergent = self.divergent_exprs.contains(&span_key(expr.span()));
-                let pending_context_conflict =
-                    self.pending_domain_calls.contains(&span_key(expr.span()))
-                        && progress.context.expected.as_ref().is_some_and(|wanted| {
-                            internal_state(wanted).is_none()
-                                && internal_state(&ty).is_none()
-                                && *wanted != ty
-                        });
+                let deferred = self
+                    .graph
+                    .has(&span_key(expr.span()), OccurrenceFlag::Deferred);
+                let divergent = self
+                    .graph
+                    .has(&span_key(expr.span()), OccurrenceFlag::Divergent);
+                let pending_context_conflict = self
+                    .graph
+                    .has(&span_key(expr.span()), OccurrenceFlag::PendingDomain)
+                    && progress.context.expected.as_ref().is_some_and(|wanted| {
+                        internal_state(wanted).is_none()
+                            && internal_state(&ty).is_none()
+                            && *wanted != ty
+                    });
                 let usable = (!tainted
                     && !pending_context_conflict
                     && !(self.planning
-                        && self.pending_domain_calls.contains(&span_key(expr.span()))))
-                    || self.partial_normal_exprs.contains(&span_key(expr.span()));
-                let partial = self.partial_normal_exprs.contains(&span_key(expr.span()));
+                        && self
+                            .graph
+                            .has(&span_key(expr.span()), OccurrenceFlag::PendingDomain)))
+                    || self
+                        .graph
+                        .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal);
+                let partial = self
+                    .graph
+                    .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal);
                 progress.result = (usable
                     && (!deferred || progress.context.expected.is_some() && !divergent || partial))
                     .then_some(ty);
-                progress.value_failed |= self.failed_join_exprs.contains(&span_key(expr.span()));
+                progress.value_failed |= self
+                    .graph
+                    .has(&span_key(expr.span()), OccurrenceFlag::FailedJoin);
                 progress.value_failed |= pending_context_conflict;
-                self.tainted |= pending_context_conflict;
+                self.graph.tainted |= pending_context_conflict;
             }
             Err(error) => {
                 if error.operation == Operation::AnalysisLimit {
@@ -10653,6 +11323,7 @@ impl Checker<'_> {
                 }
                 self.record_error(error);
                 progress.result = self
+                    .graph
                     .expression_types
                     .get(&span_key(expr.span()))
                     .cloned()
@@ -10836,22 +11507,24 @@ impl Checker<'_> {
         // domain when both operand shapes already prove them different.
         // A planned Array root is such evidence even before its leaf is
         // concrete; a failed inner expression supplies no such evidence.
-        if !self.tainted
+        if !self.graph.tainted
             && internal_state(ty).is_none()
             && !matches!(ty, Type::Array(_))
             && let Some(id) = self.expression_variable(right)
         {
             let root = self.root(id);
-            if self.type_nodes[&root].array_child.is_some() {
+            if self.graph.type_nodes[&root].array_child.is_some() {
                 return Ok(None);
             }
         }
-        if !self.tainted
-            && !self.failed_join_exprs.contains(&span_key(right.span()))
+        if !self.graph.tainted
+            && !self
+                .graph
+                .has(&span_key(right.span()), OccurrenceFlag::FailedJoin)
             && let Some(id) = self.expression_variable(left)
         {
             let root = self.root(id);
-            if self.type_nodes[&root].array_child.is_some()
+            if self.graph.type_nodes[&root].array_child.is_some()
                 && self.pending_operation_type(right).is_some_and(|right_ty| {
                     internal_state(&right_ty).is_none() && !matches!(right_ty, Type::Array(_))
                 })
@@ -10888,7 +11561,7 @@ impl Checker<'_> {
             // §4.1.2.4–5, RD95: the independent valid operand retains its
             // domain site while its deferred type is completed later.
             let root = self.root(id);
-            if op == "<" && self.type_nodes[&root].array_child.is_none() {
+            if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
                 let operator = self.operator_span(left.span(), right.span(), op);
                 self.unify_with_expected_origin(
                     Type::I64,
@@ -10903,7 +11576,7 @@ impl Checker<'_> {
                 )?;
                 return Ok(None);
             }
-            self.pending.push(PendingConstraint::BinaryDomain(Box::new(
+            self.graph.register(ObligationKind::BinaryDomain(Box::new(
                 PendingBinaryDomain {
                     variable: id,
                     operator: self.operator_span(left.span(), right.span(), op),
@@ -10914,6 +11587,7 @@ impl Checker<'_> {
                         start: left.span().start,
                         end: right.span().end,
                     },
+                    conditional_bindings: Vec::new(),
                 },
             )));
         }
@@ -10980,7 +11654,7 @@ impl Checker<'_> {
                     // intrinsic domain when its sibling is contaminated.
                     // A later type completes the same operator site.
                     let root = self.root(id);
-                    if op == "<" && self.type_nodes[&root].array_child.is_none() {
+                    if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
                         let operator = self.operator_span(left.span(), right.span(), op);
                         self.unify_with_expected_origin(
                             Type::I64,
@@ -10994,7 +11668,7 @@ impl Checker<'_> {
                             },
                         )?;
                     } else {
-                        self.pending.push(PendingConstraint::BinaryDomain(Box::new(
+                        self.graph.register(ObligationKind::BinaryDomain(Box::new(
                             PendingBinaryDomain {
                                 variable: id,
                                 operator: self.operator_span(left.span(), right.span(), op),
@@ -11005,6 +11679,7 @@ impl Checker<'_> {
                                     start: left.span().start,
                                     end: right.span().end,
                                 },
+                                conditional_bindings: Vec::new(),
                             },
                         )));
                     }
@@ -11069,13 +11744,15 @@ impl Checker<'_> {
             Self::primary_span(argument),
             true,
         )?;
-        self.type_nodes
+        self.graph
+            .type_nodes
             .get_mut(&result)
             .unwrap()
             .variant_constructed = true;
-        self.expr_vars.insert(span_key(call_span), result);
-        self.deferred_exprs.insert(span_key(call_span));
-        self.pending.push(PendingConstraint::VariantConstructor {
+        self.graph.expr_vars.insert(span_key(call_span), result);
+        self.graph
+            .mark(span_key(call_span), OccurrenceFlag::Deferred);
+        self.graph.register(ObligationKind::VariantConstructor {
             union: result,
             span: call_span.clone(),
         });
@@ -11124,11 +11801,9 @@ impl Checker<'_> {
     }
 
     fn assert_eq_prepare(&mut self, state: &mut AssertEqFrameState<'_>) {
-        state.prior_taint = self.tainted;
-        self.tainted = false;
+        state.prior_taint = self.graph.tainted;
+        self.graph.tainted = false;
         state.prior_errors = self.errors.len();
-        state.pending_start = self.pending.len();
-        state.pending_generation = self.pending_generation;
     }
 
     fn assert_eq_accept(
@@ -11141,34 +11816,34 @@ impl Checker<'_> {
         };
         let arg = &args[state.next];
         let slot = self.resolved.calls[&(span.start, span.end)].slots[state.next];
-        let tainted = self.tainted;
+        let tainted = self.graph.tainted;
         let site = Self::primary_span(&arg.value);
-        let recover = (tainted || matches!(result, Ok(Type::Tainted)))
-            .then(|| {
-                self.conditional_result_types
-                    .get(&span_key(&site))
-                    .cloned()
-                    .zip(self.pending_operand_evidence(
-                        &arg.value,
-                        state.pending_start,
-                        state.pending_generation,
-                    ))
+        let recover = self
+            .pending_operand_evidence(&arg.value)
+            .and_then(|guards| {
+                self.pending_operation_type(&arg.value)
+                    .or_else(|| self.graph.conditional_result(&span_key(&site)).cloned())
+                    .map(|nominal| (nominal, guards))
             })
-            .flatten()
             .filter(|_| {
                 self.errors.len() == state.prior_errors
                     && !self
-                        .failed_join_exprs
-                        .iter()
-                        .any(|&(start, end)| site.start <= start && end <= site.end)
+                        .graph
+                        .marked(OccurrenceFlag::FailedJoin)
+                        .any(|(start, end)| site.start <= start && end <= site.end)
             });
-        self.tainted = state.prior_taint || (tainted && recover.is_none());
+        self.graph.tainted = state.prior_taint || (tainted && recover.is_none());
         state.values[slot] = Some(match result {
             Ok(_) if let Some((nominal, guards)) = recover => {
                 state.evidence[slot] = Some(guards);
                 nominal
             }
-            Ok(ty) if !tainted && !self.failed_join_exprs.contains(&span_key(arg.value.span())) => {
+            Ok(ty)
+                if !tainted
+                    && !self
+                        .graph
+                        .has(&span_key(arg.value.span()), OccurrenceFlag::FailedJoin) =>
+            {
                 ty
             }
             Ok(_) => {
@@ -11233,8 +11908,7 @@ impl Checker<'_> {
             let guard = self
                 .pending_operation_guard(ordered(0))
                 .or_else(|| self.pending_operation_guard(ordered(1)));
-            let composite =
-                !composite_guard.domains.is_empty() || !composite_guard.projections.is_empty();
+            let composite = !composite_guard.projections.is_empty();
             if let Some((variable, domain)) = guard
                 .or_else(|| {
                     composite_guard.domains.first().copied().or_else(|| {
@@ -11256,8 +11930,8 @@ impl Checker<'_> {
                     .into_iter()
                     .filter(|&entry| entry != (variable, domain))
                     .collect();
-                self.pending
-                    .push(PendingConstraint::GuardedComparison(Box::new(
+                self.graph
+                    .register(ObligationKind::GuardedComparison(Box::new(
                         PendingGuardedComparison {
                             variable,
                             domain,
@@ -11273,6 +11947,7 @@ impl Checker<'_> {
                             projections: composite_guard.projections,
                             dependent_results: composite_guard.results,
                             require_resolved: composite,
+                            conditional_bindings: Vec::new(),
                         },
                     )));
             } else {
@@ -11312,7 +11987,7 @@ impl Checker<'_> {
                 invalid = true;
             }
         }
-        self.tainted |= invalid;
+        self.graph.tainted |= invalid;
         Ok(declared_result.clone())
     }
 
@@ -11400,9 +12075,14 @@ impl Checker<'_> {
                     expected,
                     expected_span,
                 );
-                if self.divergent_exprs.contains(&span_key(ordered(0).span())) {
-                    self.deferred_exprs.insert(span_key(call_span));
-                    self.divergent_exprs.insert(span_key(call_span));
+                if self
+                    .graph
+                    .has(&span_key(ordered(0).span()), OccurrenceFlag::Divergent)
+                {
+                    self.graph
+                        .mark(span_key(call_span), OccurrenceFlag::Deferred);
+                    self.graph
+                        .mark(span_key(call_span), OccurrenceFlag::Divergent);
                 }
                 Ok(declared_result.clone())
             }
@@ -11637,11 +12317,6 @@ pub(crate) fn check_with_partial_limit(
         file,
         tokens,
         resolved,
-        locals: HashMap::new(),
-        type_nodes: HashMap::new(),
-        array_unify_cache: HashMap::new(),
-        expr_vars: HashMap::new(),
-        expression_types: HashMap::new(),
         closures: HashMap::new(),
         saved_closures: HashMap::new(),
         generator_slots: HashMap::new(),
@@ -11649,57 +12324,49 @@ pub(crate) fn check_with_partial_limit(
         closure_local_sites: HashSet::new(),
         pending_depth: std::cell::RefCell::new(Vec::new()),
         defer_depth: true,
-        nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
         depth_memo_ready: false,
-        conditional_result_types: HashMap::new(),
-        conditional_result_vars: Vec::new(),
-        next_variable: 0,
-        failed_constructors: HashSet::new(),
-        pending: Vec::new(),
-        pending_generation: 0,
-        has_pending_projection: false,
-        numeric_domain_owner: None,
-        pending_domain_calls: HashSet::new(),
-        emitted_sites: HashSet::new(),
         solver_steps: 0,
         solver_limit,
         planning: false,
-        eligible_shapes: HashSet::new(),
-        shape_plan: HashMap::new(),
-        concrete_plan: HashMap::new(),
-        read_plan: HashMap::new(),
-        assignment_type_plan: HashMap::new(),
-        nested_assignment_sites: HashSet::new(),
-        pre_assignment_snapshot: HashMap::new(),
-        projected_bases: HashSet::new(),
-        projection_items: HashSet::new(),
-        assigned_bases: HashSet::new(),
-        assignment_starts: HashMap::new(),
-        first_assignment_rhs_starts: HashMap::new(),
-        prefix_concrete: HashMap::new(),
-        deferred_join_roots: HashSet::new(),
-        branch_join_sites: HashMap::new(),
-        recursive_join_roots: HashSet::new(),
         block_depth: 0,
         top_statement_start: 0,
         top_statement_end: 0,
         active_if_span: None,
-        preseeded_children: HashSet::new(),
         analysis_exhausted: false,
         quota_error: None,
-        invalid: HashSet::new(),
-        deferred_exprs: HashSet::new(),
-        divergent_exprs: HashSet::new(),
-        failed_join_exprs: HashSet::new(),
-        failed_projection_results: HashSet::new(),
-        context_rejections: HashSet::new(),
-        partial_normal_exprs: HashSet::new(),
-        tainted: false,
-        result: Type::Unit,
-        result_span: None,
         generator_item: None,
         loop_depth: 0,
         errors: Vec::new(),
+        graph: InferenceGraph {
+            locals: HashMap::new(),
+            type_nodes: HashMap::new(),
+            array_unify_cache: HashMap::new(),
+            expr_vars: HashMap::new(),
+            expression_types: HashMap::new(),
+            nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
+            next_variable: 0,
+            obligations: Vec::new(),
+            numeric_domain_owner: None,
+            occurrences: HashMap::new(),
+            emitted_sites: HashSet::new(),
+            eligible_shapes: HashSet::new(),
+            shape_plan: HashMap::new(),
+            concrete_plan: HashMap::new(),
+            read_plan: HashMap::new(),
+            assignment_type_plan: HashMap::new(),
+            nested_assignment_sites: HashSet::new(),
+            pre_assignment_snapshot: HashMap::new(),
+            projected_bases: HashSet::new(),
+            projection_items: HashSet::new(),
+            assigned_bases: HashSet::new(),
+            assignment_starts: HashMap::new(),
+            first_assignment_rhs_starts: HashMap::new(),
+            prefix_concrete: HashMap::new(),
+            preseeded_children: HashSet::new(),
+            tainted: false,
+            result: Type::Unit,
+            result_span: None,
+        },
     };
     let mut inferred = InferredTypes::default();
     let mut late_depth: HashMap<(u64, u64), (Type, Span)> = HashMap::new();
@@ -11751,7 +12418,7 @@ pub(crate) fn check_with_partial_limit(
         }
         if function.is_generator {
             let mut slots = Vec::new();
-            let mut bindings: Vec<_> = checker.locals.clone().into_iter().collect();
+            let mut bindings: Vec<_> = checker.graph.locals.clone().into_iter().collect();
             bindings.sort_by_key(|(site, _)| *site);
             for (site, known) in bindings {
                 if checker.closure_local_sites.contains(&site) {
@@ -11830,7 +12497,7 @@ pub(crate) fn check_with_partial_limit(
                 },
             );
         }
-        for (&at, known) in checker.locals.clone().iter() {
+        for (&at, known) in checker.graph.locals.clone().iter() {
             if let Some(id) = known.variable {
                 let resolved = checker.concrete(id).and_then(|(ty, _)| syntax_type(&ty));
                 inferred.bindings.insert(
@@ -11855,12 +12522,12 @@ pub(crate) fn check_with_partial_limit(
                 inferred.bindings.insert(at, resolved);
             }
         }
-        for (span, ty) in checker.expression_types.clone() {
+        for (span, ty) in checker.graph.expression_types.clone() {
             let resolved = match internal_state(&ty) {
                 Some(Type::Never) => ResolvedType::Never,
                 Some(Type::Tainted) => checker
-                    .conditional_result_types
-                    .get(&span)
+                    .graph
+                    .conditional_result(&span)
                     .cloned()
                     .and_then(|nominal| checker.resolved_syntax_type(&nominal))
                     .filter(|_| checker.errors.is_empty())
@@ -11871,7 +12538,7 @@ pub(crate) fn check_with_partial_limit(
             };
             inferred.expressions.insert(span, resolved);
         }
-        for (span, id) in checker.expr_vars.clone() {
+        for (span, id) in checker.graph.expr_vars.clone() {
             let resolved = checker.concrete(id).and_then(|(ty, _)| syntax_type(&ty));
             if let Some(ty) = resolved {
                 inferred
@@ -11895,14 +12562,15 @@ pub(crate) fn check_with_partial_limit(
         // are not converged diagnostics. Prior completed functions have no
         // pending entries and keep their established diagnostics.
         let tentative_results: HashSet<_> = checker
-            .pending
+            .graph
+            .obligations
             .iter()
             .filter_map(|entry| match entry {
-                PendingConstraint::BinaryDomain(domain) => Some(span_key(&domain.result)),
-                PendingConstraint::DomainNominal(result) => Some(span_key(&result.call)),
+                ObligationKind::BinaryDomain(domain) => Some(span_key(&domain.result)),
+                ObligationKind::DomainNominal(result) => Some(span_key(&result.call)),
                 _ => None,
             })
-            .chain(checker.failed_join_exprs.iter().copied())
+            .chain(checker.graph.marked(OccurrenceFlag::FailedJoin))
             .collect();
         checker.suppress_result_dependents(&tentative_results);
         checker
@@ -12353,7 +13021,7 @@ mod quota_tests {
             ));
         }
         assert_eq!(
-            checker.emitted_sites,
+            checker.graph.emitted_sites,
             HashSet::from([(4, 5), (4, 6), (9, 10)])
         );
         assert_eq!(checker.errors.len(), 3);
@@ -12381,29 +13049,27 @@ mod quota_tests {
         let outside = checker.new_variable(&site(0)).unwrap();
         let inside = checker.new_variable(&site(15)).unwrap();
         checker
-            .pending
-            .push(PendingConstraint::Domain(PendingDomain {
+            .graph
+            .register(ObligationKind::Domain(PendingDomain {
                 variable: outside,
                 operand: site(0),
                 domain: "I64",
             }));
-        let pending_start = checker.pending.len();
-        let generation = checker.pending_generation;
         checker
-            .pending
-            .push(PendingConstraint::Domain(PendingDomain {
+            .graph
+            .register(ObligationKind::Domain(PendingDomain {
                 variable: inside,
                 operand: site(15),
                 domain: "I64",
             }));
         let removed = checker.take_pending_kind(|entry| match entry {
-            PendingConstraint::Domain(domain) if domain.variable == outside => Ok(domain),
+            ObligationKind::Domain(domain) if domain.variable == outside => Ok(domain),
             other => Err(other),
         });
         assert_eq!(removed.len(), 1);
         checker
-            .pending
-            .push(PendingConstraint::Domain(PendingDomain {
+            .graph
+            .register(ObligationKind::Domain(PendingDomain {
                 variable: outside,
                 operand: site(40),
                 domain: "I64",
@@ -12416,9 +13082,7 @@ mod quota_tests {
                 end: 30,
             },
         );
-        let evidence = checker
-            .pending_operand_evidence(&operand, pending_start, generation)
-            .unwrap();
+        let evidence = checker.pending_operand_evidence(&operand).unwrap();
         assert_eq!(evidence.domains, vec![(inside, "I64")]);
     }
 
@@ -12775,8 +13439,16 @@ mod quota_tests {
             checker.expr(value, Some(&Type::I64), None).unwrap(),
             Type::I64
         );
-        assert!(checker.deferred_exprs.contains(&span_key(value.span())));
-        assert!(checker.divergent_exprs.contains(&span_key(value.span())));
+        assert!(
+            checker
+                .graph
+                .has(&span_key(value.span()), OccurrenceFlag::Deferred)
+        );
+        assert!(
+            checker
+                .graph
+                .has(&span_key(value.span()), OccurrenceFlag::Divergent)
+        );
     }
 
     #[test]
@@ -12848,24 +13520,29 @@ mod quota_tests {
         for _ in 0..127 {
             ty = Type::Array(Arc::new(ty));
         }
-        checker.type_nodes.get_mut(&root).unwrap().concrete = Some((ty.clone(), site(0)));
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((ty.clone(), site(0)));
         assert!(checker.check_one_inferred_depth(root, &site(0)).is_ok());
         ty = Type::Array(Arc::new(ty));
-        checker.type_nodes.get_mut(&root).unwrap().concrete = Some((ty, site(0)));
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((ty, site(0)));
         assert!(checker.check_one_inferred_depth(root, &site(0)).is_ok());
 
         let mut chain = root;
-        checker.type_nodes.get_mut(&root).unwrap().concrete = None;
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete = None;
         for _ in 0..64 {
             let next = checker.new_variable(&site(1)).unwrap();
-            checker.type_nodes.get_mut(&chain).unwrap().array_child = Some(next);
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&chain)
+                .unwrap()
+                .array_child = Some(next);
             chain = next;
         }
         let mut inner = Type::I64;
         for _ in 0..65 {
             inner = Type::Array(Arc::new(inner));
         }
-        checker.type_nodes.get_mut(&chain).unwrap().concrete = Some((inner, site(2)));
+        checker.graph.type_nodes.get_mut(&chain).unwrap().concrete = Some((inner, site(2)));
         let error = checker
             .check_one_inferred_depth(root, &site(0))
             .unwrap_err();
@@ -12886,7 +13563,7 @@ mod quota_tests {
         for _ in 0..128 {
             ty = Type::Array(Arc::new(ty));
         }
-        checker.type_nodes.get_mut(&child).unwrap().concrete = Some((ty, site(1)));
+        checker.graph.type_nodes.get_mut(&child).unwrap().concrete = Some((ty, site(1)));
         let error = checker.check_inferred_depth().unwrap_err();
         assert_eq!(error.data.get("observed"), Some(&DataValue::UInt(129)));
     }
@@ -12912,10 +13589,15 @@ mod quota_tests {
         let mut current = root;
         for _ in 0..129 {
             let child = checker.new_variable(&site(3)).unwrap();
-            checker.type_nodes.get_mut(&current).unwrap().array_child = Some(child);
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&current)
+                .unwrap()
+                .array_child = Some(child);
             current = child;
         }
-        checker.type_nodes.get_mut(&current).unwrap().concrete = Some((Type::I64, site(4)));
+        checker.graph.type_nodes.get_mut(&current).unwrap().concrete = Some((Type::I64, site(4)));
         assert!(checker.concrete(root).is_none());
     }
 
@@ -12932,10 +13614,16 @@ mod quota_tests {
             let mut current = root;
             for _ in 0..length {
                 let next = checker.new_variable(&site(1)).unwrap();
-                checker.type_nodes.get_mut(&current).unwrap().array_child = Some(next);
+                checker
+                    .graph
+                    .type_nodes
+                    .get_mut(&current)
+                    .unwrap()
+                    .array_child = Some(next);
                 current = next;
             }
-            checker.type_nodes.get_mut(&current).unwrap().concrete = Some((Type::I64, site(2)));
+            checker.graph.type_nodes.get_mut(&current).unwrap().concrete =
+                Some((Type::I64, site(2)));
             assert_eq!(checker.concrete(root).is_some(), length <= 128);
         }
     }
@@ -13074,7 +13762,9 @@ mod quota_tests {
                 Type::Array(Arc::new(Type::I64))
             );
             assert_eq!(
-                checker.divergent_exprs.contains(&span_key(value.span())),
+                checker
+                    .graph
+                    .has(&span_key(value.span()), OccurrenceFlag::Divergent),
                 divergent,
                 "{source}"
             );
@@ -13086,57 +13776,15 @@ mod quota_tests {
             file: "quota.n",
             tokens: Vec::new(),
             resolved,
-            locals: HashMap::new(),
-            type_nodes: HashMap::new(),
-            array_unify_cache: HashMap::new(),
-            expr_vars: HashMap::new(),
-            expression_types: HashMap::new(),
-            conditional_result_types: HashMap::new(),
-            conditional_result_vars: Vec::new(),
-            next_variable: 0,
-            failed_constructors: HashSet::new(),
-            pending: Vec::new(),
-            pending_generation: 0,
-            has_pending_projection: false,
-            numeric_domain_owner: None,
-            pending_domain_calls: HashSet::new(),
-            emitted_sites: HashSet::new(),
             solver_steps: 0,
             solver_limit: 1_000_000,
             planning: false,
-            eligible_shapes: HashSet::new(),
-            shape_plan: HashMap::new(),
-            concrete_plan: HashMap::new(),
-            read_plan: HashMap::new(),
-            assignment_type_plan: HashMap::new(),
-            nested_assignment_sites: HashSet::new(),
-            pre_assignment_snapshot: HashMap::new(),
-            projected_bases: HashSet::new(),
-            projection_items: HashSet::new(),
-            assigned_bases: HashSet::new(),
-            assignment_starts: HashMap::new(),
-            first_assignment_rhs_starts: HashMap::new(),
-            prefix_concrete: HashMap::new(),
-            deferred_join_roots: HashSet::new(),
-            branch_join_sites: HashMap::new(),
-            recursive_join_roots: HashSet::new(),
             block_depth: 0,
             top_statement_start: 0,
             top_statement_end: 0,
             active_if_span: None,
-            preseeded_children: HashSet::new(),
             analysis_exhausted: false,
             quota_error: None,
-            invalid: HashSet::new(),
-            deferred_exprs: HashSet::new(),
-            divergent_exprs: HashSet::new(),
-            failed_join_exprs: HashSet::new(),
-            failed_projection_results: HashSet::new(),
-            context_rejections: HashSet::new(),
-            partial_normal_exprs: HashSet::new(),
-            tainted: false,
-            result: Type::Unit,
-            result_span: None,
             generator_item: None,
             loop_depth: 0,
             errors: Vec::new(),
@@ -13147,8 +13795,37 @@ mod quota_tests {
             closure_local_sites: HashSet::new(),
             pending_depth: std::cell::RefCell::new(Vec::new()),
             defer_depth: false,
-            nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
             depth_memo_ready: false,
+            graph: InferenceGraph {
+                locals: HashMap::new(),
+                type_nodes: HashMap::new(),
+                array_unify_cache: HashMap::new(),
+                expr_vars: HashMap::new(),
+                expression_types: HashMap::new(),
+                next_variable: 0,
+                obligations: Vec::new(),
+                numeric_domain_owner: None,
+                occurrences: HashMap::new(),
+                emitted_sites: HashSet::new(),
+                eligible_shapes: HashSet::new(),
+                shape_plan: HashMap::new(),
+                concrete_plan: HashMap::new(),
+                read_plan: HashMap::new(),
+                assignment_type_plan: HashMap::new(),
+                nested_assignment_sites: HashSet::new(),
+                pre_assignment_snapshot: HashMap::new(),
+                projected_bases: HashSet::new(),
+                projection_items: HashSet::new(),
+                assigned_bases: HashSet::new(),
+                assignment_starts: HashMap::new(),
+                first_assignment_rhs_starts: HashMap::new(),
+                prefix_concrete: HashMap::new(),
+                preseeded_children: HashSet::new(),
+                tainted: false,
+                result: Type::Unit,
+                result_span: None,
+                nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
+            },
         }
     }
 
@@ -13181,7 +13858,12 @@ mod quota_tests {
             roots.push(checker.new_variable(&site(0)).unwrap());
         }
         for pair in roots.windows(2) {
-            checker.type_nodes.get_mut(&pair[0]).unwrap().array_child = Some(pair[1]);
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&pair[0])
+                .unwrap()
+                .array_child = Some(pair[1]);
         }
         let error = checker
             .check_depth(&Type::Deferred(roots[0]), &site(7))
@@ -13319,6 +14001,7 @@ mod quota_tests {
             };
             let child = checker.require_array(array, &site(2)).unwrap();
             checker
+                .graph
                 .type_nodes
                 .get_mut(&array)
                 .unwrap()
@@ -13495,6 +14178,7 @@ mod quota_tests {
         let constructor = checker.new_variable(&site(1)).unwrap();
         let child = checker.require_array(constructor, &site(2)).unwrap();
         checker
+            .graph
             .type_nodes
             .get_mut(&constructor)
             .unwrap()
@@ -13638,10 +14322,15 @@ mod quota_tests {
             let first = checker.new_variable(&site(0)).unwrap();
             let second = checker.new_variable(&site(1)).unwrap();
             let marked = if marked_first { first } else { second };
-            checker.type_nodes.get_mut(&marked).unwrap().bottom_only = true;
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&marked)
+                .unwrap()
+                .bottom_only = true;
             checker.union(first, second, site(2)).unwrap();
             let root = checker.root(first);
-            assert!(checker.type_nodes[&root].bottom_only);
+            assert!(checker.graph.type_nodes[&root].bottom_only);
         }
     }
 
