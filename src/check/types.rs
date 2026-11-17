@@ -6353,6 +6353,1036 @@ impl Checker<'_> {
                 progress: Box<ClosureProgress<'a>>,
             },
         }
+        // Keep non-selection continuations in a separate frame. The live
+        // selection_type walk must not inherit their debug stack slots.
+        enum Resume {
+            Next(Result<Type, Box<Diagnostic>>),
+            Evaluate,
+        }
+        #[inline(never)]
+        fn resume_non_match<'a>(
+            checker: &mut Checker<'_>,
+            frame: Frame<'a>,
+            mut result: Result<Type, Box<Diagnostic>>,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+            pending_task: &mut Option<Task<'a>>,
+        ) -> Resume {
+            match frame {
+                Frame::StatementSite(statement, prior_taint) => {
+                    checker.finish_statement_at_site(statement, prior_taint, result.map(|_| ()));
+                    result = Ok(Type::Unit);
+                }
+                Frame::StatementExpr => {
+                    result = result.map(|_| Type::Unit);
+                }
+                Frame::StatementLet(statement, prepared) => {
+                    result = checker
+                        .finish_let(statement, *prepared, result)
+                        .map(|_| Type::Unit);
+                }
+                Frame::StatementReturn(value, expected) => {
+                    result = result.and_then(|actual| {
+                        if matches!(expected, Type::Deferred(_)) && !checker.tainted {
+                            let site = Checker::primary_span(value);
+                            checker.unify(
+                                expected,
+                                actual,
+                                site.clone(),
+                                site.clone(),
+                                site,
+                                false,
+                            )?;
+                        }
+                        Ok(Type::Unit)
+                    });
+                }
+                Frame::AssignmentPlace(statement) => {
+                    let lhs = match result {
+                        Ok(lhs) => lhs,
+                        Err(error) => {
+                            result = Err(error);
+                            return Resume::Next(result);
+                        }
+                    };
+                    let Statement::Assign { place, value, .. } = statement else {
+                        unreachable!("assignment frame owns an assignment")
+                    };
+                    let (context, progress) = checker.prepare_assignment_rhs(place, value, lhs);
+                    frames.push(Frame::AssignmentValue(Box::new(progress)));
+                    *inner = value;
+                    *inner_context = context;
+                    return Resume::Evaluate;
+                }
+                Frame::AssignmentValue(progress) => {
+                    result = checker
+                        .finish_assignment_rhs(*progress, result)
+                        .map(|_| Type::Unit);
+                }
+                Frame::StatementIf(statement, stage) => {
+                    if stage == 0 {
+                        match result {
+                            Err(error) if error.operation == Operation::AnalysisLimit => {
+                                result = Err(error);
+                                return Resume::Next(result);
+                            }
+                            Err(error) => {
+                                checker.record_error(error);
+                                checker.tainted = true;
+                            }
+                            Ok(_) => {}
+                        }
+                        let Statement::If { then_block, .. } = statement else {
+                            unreachable!("if frame owns an if statement")
+                        };
+                        frames.push(Frame::StatementIf(statement, 1));
+                        *pending_task = Some(Task::Block(then_block));
+                        return Resume::Evaluate;
+                    }
+                    if stage == 1
+                        && result.is_ok()
+                        && let Statement::If {
+                            otherwise: Some(other),
+                            ..
+                        } = statement
+                    {
+                        frames.push(Frame::StatementIf(statement, 2));
+                        *pending_task = Some(Task::Statement(other));
+                        return Resume::Evaluate;
+                    }
+                }
+                Frame::StatementWhile(statement, stage) => {
+                    if stage == 0 {
+                        match result {
+                            Err(error) if error.operation == Operation::AnalysisLimit => {
+                                result = Err(error);
+                                return Resume::Next(result);
+                            }
+                            Err(error) => {
+                                checker.record_error(error);
+                                checker.tainted = true;
+                            }
+                            Ok(_) => {}
+                        }
+                        let Statement::While { body, .. } = statement else {
+                            unreachable!("while frame owns a while statement")
+                        };
+                        checker.loop_depth += 1;
+                        frames.push(Frame::StatementWhile(statement, 1));
+                        *pending_task = Some(Task::Block(body));
+                        return Resume::Evaluate;
+                    }
+                    checker.loop_depth -= 1;
+                }
+                Frame::StatementFor(statement, stage) => {
+                    if stage == 0 {
+                        let Statement::For {
+                            name_span,
+                            iterable,
+                            body,
+                            ..
+                        } = statement
+                        else {
+                            unreachable!("for frame owns a for statement")
+                        };
+                        result = result.and_then(|got| {
+                            checker
+                                .prepare_for_type(name_span, iterable, got)
+                                .map(|_| Type::Unit)
+                        });
+                        if result.is_err() {
+                            return Resume::Next(result);
+                        }
+                        checker.loop_depth += 1;
+                        frames.push(Frame::StatementFor(statement, 1));
+                        *pending_task = Some(Task::Block(body));
+                        return Resume::Evaluate;
+                    }
+                    checker.loop_depth -= 1;
+                }
+                Frame::Block(block, next) => {
+                    if result.is_err() {
+                        checker.block_depth -= 1;
+                        return Resume::Next(result);
+                    }
+                    if !checker.analysis_exhausted
+                        && let Err(error) = checker.resolve_pending_projections(false)
+                    {
+                        checker.block_depth -= 1;
+                        result = Err(error);
+                        return Resume::Next(result);
+                    }
+                    if let Some(statement) = block.statements.get(next) {
+                        if checker.block_depth == 1 {
+                            let span = parse::statement_span(statement);
+                            checker.top_statement_start = span.start;
+                            checker.top_statement_end = span.end;
+                        }
+                        frames.push(Frame::Block(block, next + 1));
+                        *pending_task = Some(Task::StatementSite(statement));
+                        return Resume::Evaluate;
+                    }
+                    checker.block_depth -= 1;
+                    result = Ok(Type::Unit);
+                }
+                Frame::Group(progress) => {
+                    let (group, child, span, context) = *progress;
+                    checker.propagate_group(child, span);
+                    result = checker.check_against_context_one(
+                        group,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(result)),
+                    );
+                }
+                Frame::Unary(progress) => {
+                    let (expr, context) = *progress;
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::UnaryOperand(result)),
+                    );
+                }
+                Frame::UnaryPropagated(progress) => {
+                    let (expr, context) = *progress;
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(result)),
+                    );
+                }
+                Frame::Array(progress) => {
+                    let mut state = *progress;
+                    let accepted = checker.array_accept(&mut state, result);
+                    if accepted.is_ok() {
+                        state.next += 1;
+                        if state.next < state.items.len() {
+                            (*inner, *inner_context) = checker.array_next(&mut state);
+                            frames.push(Frame::Array(Box::new(state)));
+                            return Resume::Evaluate;
+                        }
+                    }
+                    checker.numeric_domain_owner = state.previous_owner;
+                    let expr = state.expr;
+                    let context = state.context.clone();
+                    let constructor_pair = state.element_expected.is_some();
+                    let outcome = accepted.and_then(|_| checker.array_finish(state));
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::ArrayComplete {
+                            result: outcome,
+                            constructor_pair,
+                        }),
+                    );
+                }
+                Frame::Index(progress) => {
+                    let (expr, context, previous_owner) = *progress;
+                    checker.numeric_domain_owner = previous_owner;
+                    match result {
+                        Ok(base) => {
+                            let Expr::Index { target, index, .. } = expr else {
+                                unreachable!("index frame owns an index")
+                            };
+                            let deferred_target =
+                                checker.deferred_exprs.contains(&span_key(target.span()));
+                            let mut deferred_child = None;
+                            let mut pending_projection = false;
+                            if deferred_target
+                                && !matches!(base, Type::Tainted | Type::Never)
+                                && let Some(id) = checker.expression_variable(target)
+                            {
+                                let root = checker.root(id);
+                                if checker.type_nodes[&root].array_child.is_some() {
+                                    match checker.require_array(id, &Checker::primary_span(target))
+                                    {
+                                        Ok(child) => deferred_child = Some(child),
+                                        Err(error) => {
+                                            result = checker.check_against_context_one(
+                                                expr,
+                                                context.borrowed(),
+                                                Some(PrecomputedType::Whole(Err(error))),
+                                            );
+                                            return Resume::Next(result);
+                                        }
+                                    }
+                                } else {
+                                    pending_projection = true;
+                                }
+                            }
+                            if pending_projection {
+                                result = checker.check_against_context_one(
+                                    expr,
+                                    context.borrowed(),
+                                    Some(PrecomputedType::IndexTarget {
+                                        target: Ok(base),
+                                        selector: None,
+                                        deferred_child: None,
+                                    }),
+                                );
+                                return Resume::Next(result);
+                            }
+                            let divergent_target = deferred_target
+                                && checker.divergent_exprs.contains(&span_key(target.span()));
+                            let expected =
+                                matches!(base, Type::Array(_) | Type::Tainted | Type::Never)
+                                    || deferred_child.is_some()
+                                    || divergent_target;
+                            let prior_taint = (!matches!(base, Type::Array(_) | Type::Never)
+                                && deferred_child.is_none()
+                                && !divergent_target)
+                                .then(|| std::mem::take(&mut checker.tainted));
+                            frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
+                                expr,
+                                context,
+                                base,
+                                prior_taint,
+                                deferred_child,
+                            })));
+                            *inner = index;
+                            *inner_context = OwnedCheckContext {
+                                expected: expected.then_some(Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            return Resume::Evaluate;
+                        }
+                        other => {
+                            result = checker.check_against_context_one(
+                                expr,
+                                context.borrowed(),
+                                Some(PrecomputedType::IndexTarget {
+                                    target: other,
+                                    selector: None,
+                                    deferred_child: None,
+                                }),
+                            );
+                        }
+                    }
+                }
+                Frame::IndexSelector(progress) => {
+                    let IndexSelectorProgress {
+                        expr,
+                        context,
+                        base,
+                        prior_taint,
+                        deferred_child,
+                    } = *progress;
+                    if let Some(prior_taint) = prior_taint {
+                        checker.tainted |= prior_taint;
+                    }
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::IndexTarget {
+                            target: Ok(base),
+                            selector: Some(result),
+                            deferred_child,
+                        }),
+                    );
+                }
+                Frame::Binary(progress) => {
+                    let (expr, context, pending_before, previous_owner) = *progress;
+                    checker.numeric_domain_owner = None;
+                    if matches!(&result, Err(error) if error.operation != Operation::AnalysisLimit)
+                    {
+                        let Err(error) = result else { unreachable!() };
+                        let Expr::Binary {
+                            op, left, right, ..
+                        } = expr
+                        else {
+                            unreachable!("binary frame owns a binary")
+                        };
+                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let left_domain_failed = numeric
+                            && error.primary_span.as_ref() == Some(&Checker::primary_span(left))
+                            && error.data.get("expected_type")
+                                == Some(&DataValue::String("I64".into()));
+                        let left_tainted = std::mem::take(&mut checker.tainted);
+                        if numeric {
+                            checker.numeric_domain_owner =
+                                Some((left.span().start, right.span().end));
+                        }
+                        frames.push(Frame::BinaryIndependentLeftError(Box::new(
+                            BinaryLeftErrorProgress {
+                                expr,
+                                context,
+                                error,
+                                left_tainted,
+                                left_domain_failed,
+                                previous_owner,
+                            },
+                        )));
+                        *inner = right;
+                        *inner_context = OwnedCheckContext {
+                            expected: (numeric && !left_domain_failed).then_some(Type::I64),
+                            expected_span: None,
+                            check_here: true,
+                            anchor: None,
+                            outer_compare: false,
+                            related_expected: false,
+                            deferred_element: false,
+                        };
+                        return Resume::Evaluate;
+                    }
+                    if let (
+                        Expr::Binary {
+                            op, left, right, ..
+                        },
+                        Ok(left_type),
+                    ) = (expr, &result)
+                    {
+                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let pending_domain = checker
+                            .pending_domain_calls
+                            .contains(&span_key(&Checker::primary_span(left)));
+                        let joined = checker.pending_join_count() > pending_before;
+                        let failed_join =
+                            checker.failed_join_exprs.contains(&span_key(left.span()));
+                        let left_domain_failed = if pending_domain {
+                            Some(
+                                numeric
+                                    && checker.type_determined(left_type)
+                                    && *left_type != Type::I64
+                                    && !failed_join,
+                            )
+                        } else if numeric && joined {
+                            Some(checker.type_determined(left_type) && *left_type != Type::I64)
+                        } else if failed_join || checker.tainted {
+                            Some(checker.context_rejections.contains(&span_key(left.span())))
+                        } else if numeric
+                            && *left_type != Type::I64
+                            && !checker.deferred_exprs.contains(&span_key(left.span()))
+                        {
+                            let pending_left_result =
+                                checker.pending.iter().any(|entry| match entry {
+                                    PendingConstraint::BinaryDomain(domain) => {
+                                        domain.result == Checker::primary_span(left)
+                                    }
+                                    _ => false,
+                                });
+                            Some(!pending_left_result)
+                        } else {
+                            None
+                        };
+                        if let Some(left_domain_failed) = left_domain_failed {
+                            let left_tainted = std::mem::take(&mut checker.tainted);
+                            if numeric {
+                                checker.numeric_domain_owner =
+                                    Some((left.span().start, right.span().end));
+                            }
+                            frames.push(Frame::BinaryIndependentRight(Box::new(
+                                BinaryIndependentProgress {
+                                    expr,
+                                    context,
+                                    left: left_type.clone(),
+                                    pending_before,
+                                    left_domain_failed,
+                                    left_tainted,
+                                    previous_owner,
+                                },
+                            )));
+                            *inner = right;
+                            *inner_context = OwnedCheckContext {
+                                expected: (numeric && !left_domain_failed).then_some(Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            };
+                            return Resume::Evaluate;
+                        }
+                    }
+                    if let (
+                        Expr::Binary {
+                            op, left, right, ..
+                        },
+                        Ok(left_type),
+                    ) = (expr, &result)
+                        && checker.deferred_exprs.contains(&span_key(left.span()))
+                    {
+                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let pending_before_operator = checker.pending_join_count();
+                        frames.push(Frame::BinaryDeferredRight(Box::new(
+                            BinaryDeferredProgress {
+                                expr,
+                                context,
+                                left: left_type.clone(),
+                                pending_before_left: pending_before,
+                                pending_before_operator,
+                                previous_owner,
+                            },
+                        )));
+                        *inner = right;
+                        *inner_context = OwnedCheckContext {
+                            expected: numeric.then_some(Type::I64),
+                            expected_span: None,
+                            check_here: true,
+                            anchor: None,
+                            outer_compare: false,
+                            related_expected: false,
+                            deferred_element: false,
+                        };
+                        return Resume::Evaluate;
+                    }
+                    if let (
+                        Expr::Binary {
+                            op, left, right, ..
+                        },
+                        Ok(left_type),
+                    ) = (expr, &result)
+                    {
+                        let numeric = matches!(op.as_str(), "+" | "-");
+                        if !checker
+                            .pending_domain_calls
+                            .contains(&span_key(&Checker::primary_span(left)))
+                            && !(numeric && checker.pending_join_count() > pending_before)
+                            && !checker.failed_join_exprs.contains(&span_key(left.span()))
+                            && !checker.tainted
+                            && !checker.deferred_exprs.contains(&span_key(left.span()))
+                            && (!numeric || *left_type == Type::I64)
+                        {
+                            let left_type = left_type.clone();
+                            let right_context = OwnedCheckContext {
+                                expected: Some(if numeric {
+                                    Type::I64
+                                } else {
+                                    left_type.clone()
+                                }),
+                                expected_span: Some(Checker::primary_span(left)),
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: !numeric,
+                                related_expected: !numeric,
+                                deferred_element: false,
+                            };
+                            let pending_before = checker.pending_join_count();
+                            frames.push(Frame::BinaryRight(Box::new(BinaryRightProgress {
+                                expr,
+                                context,
+                                left: left_type,
+                                pending_before,
+                                previous_owner,
+                            })));
+                            *inner = right;
+                            *inner_context = right_context;
+                            return Resume::Evaluate;
+                        }
+                    }
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::BinaryLeft {
+                            result,
+                            pending_before,
+                            independent_right: None,
+                        }),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::BinaryRight(progress) => {
+                    let BinaryRightProgress {
+                        expr,
+                        context,
+                        left,
+                        pending_before,
+                        previous_owner,
+                    } = *progress;
+                    checker.numeric_domain_owner = None;
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::BinaryRight {
+                            left,
+                            result,
+                            pending_before,
+                        }),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::BinaryDeferredRight(progress) => {
+                    let BinaryDeferredProgress {
+                        expr,
+                        context,
+                        left,
+                        pending_before_left,
+                        pending_before_operator,
+                        previous_owner,
+                    } = *progress;
+                    checker.numeric_domain_owner = None;
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::BinaryDeferredRight {
+                            left,
+                            result,
+                            pending_before_left,
+                            pending_before_operator,
+                        }),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::BinaryIndependentLeftError(progress) => {
+                    let BinaryLeftErrorProgress {
+                        expr,
+                        context,
+                        error,
+                        left_tainted,
+                        left_domain_failed,
+                        previous_owner,
+                    } = *progress;
+                    let Expr::Binary {
+                        op, left, right, ..
+                    } = expr
+                    else {
+                        unreachable!("independent frame owns a binary")
+                    };
+                    checker.numeric_domain_owner = None;
+                    let right_tainted = checker.tainted;
+                    let outcome = checker.finish_independent_binary_rhs(
+                        op,
+                        left,
+                        right,
+                        left_domain_failed,
+                        result,
+                        right_tainted,
+                    );
+                    let binary_result = match outcome {
+                        Ok(right_failed) => {
+                            checker.tainted |= left_tainted;
+                            if right_failed {
+                                checker.record_error(error);
+                                checker.deferred_exprs.insert(span_key(expr.span()));
+                                checker.tainted = true;
+                                Ok(Type::Tainted)
+                            } else {
+                                Err(error)
+                            }
+                        }
+                        Err(error) => Err(error),
+                    };
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(binary_result)),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::BinaryIndependentRight(progress) => {
+                    let BinaryIndependentProgress {
+                        expr,
+                        context,
+                        left,
+                        pending_before,
+                        left_domain_failed,
+                        left_tainted,
+                        previous_owner,
+                    } = *progress;
+                    let Expr::Binary {
+                        op,
+                        left: left_expr,
+                        right,
+                        ..
+                    } = expr
+                    else {
+                        unreachable!("independent frame owns a binary")
+                    };
+                    checker.numeric_domain_owner = None;
+                    let right_tainted = checker.tainted;
+                    let outcome = checker.finish_independent_binary_rhs(
+                        op,
+                        left_expr,
+                        right,
+                        left_domain_failed,
+                        result,
+                        right_tainted,
+                    );
+                    checker.tainted |= left_tainted;
+                    result = match outcome {
+                        Ok(right_failed) => checker.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::BinaryLeft {
+                                result: Ok(left),
+                                pending_before,
+                                independent_right: Some(right_failed),
+                            }),
+                        ),
+                        Err(error) => Err(error),
+                    };
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::Call(progress) => {
+                    let CallProgress {
+                        expr,
+                        context,
+                        arg_index,
+                        prior_taint,
+                        previous_owner,
+                    } = *progress;
+                    let Expr::Call { args, span, .. } = expr else {
+                        unreachable!("call frame owns a call")
+                    };
+                    let child_taint = checker.tainted;
+                    checker.tainted = prior_taint || child_taint;
+                    if let Err(error) = result {
+                        if error.operation == Operation::AnalysisLimit {
+                            checker.numeric_domain_owner = previous_owner;
+                            result = Err(error);
+                            return Resume::Next(result);
+                        }
+                        checker.record_error(error);
+                        checker.tainted = true;
+                    }
+                    let next = arg_index + 1;
+                    let binding = &checker.resolved.calls[&(span.start, span.end)];
+                    let signature = names::signature(checker.resolved, &binding.target)
+                        .expect("callable binding");
+                    if next < args.len() {
+                        let formal = &signature.params[binding.slots[next]];
+                        let next_context = OwnedCheckContext::new(CheckContext {
+                            expected: Some(&Type::from(&formal.ty)),
+                            expected_span: Some(&formal.type_span),
+                            check_here: true,
+                            anchor: None,
+                            outer_compare: false,
+                            related_expected: true,
+                            deferred_element: false,
+                        });
+                        let prior_taint = checker.tainted;
+                        checker.tainted = false;
+                        frames.push(Frame::Call(Box::new(CallProgress {
+                            expr,
+                            context,
+                            arg_index: next,
+                            prior_taint,
+                            previous_owner,
+                        })));
+                        *inner = &args[next].value;
+                        *inner_context = next_context;
+                        return Resume::Evaluate;
+                    }
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::CallComplete(Ok(Type::from(
+                            &signature.result,
+                        )))),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::CallTarget(progress) => {
+                    let (expr, context, previous_owner) = *progress;
+                    checker.numeric_domain_owner = None;
+                    if let Ok(Type::Closure { site, .. }) = &result {
+                        let Expr::Call { target, args, .. } = expr else {
+                            unreachable!("call target frame owns a call")
+                        };
+                        match checker.prepare_closure_call(*site, target, args) {
+                            Ok((draft, slots)) if !args.is_empty() => {
+                                let formal = &draft.params[slots[0]];
+                                *inner = &args[0].value;
+                                *inner_context = OwnedCheckContext::new(CheckContext {
+                                    expected: Some(&formal.3),
+                                    expected_span: Some(&formal.2),
+                                    check_here: true,
+                                    anchor: None,
+                                    outer_compare: false,
+                                    related_expected: true,
+                                    deferred_element: false,
+                                });
+                                let prior_taint = std::mem::take(&mut checker.tainted);
+                                frames.push(Frame::ClosureCall(Box::new(ClosureCallFrameState {
+                                    expr,
+                                    context,
+                                    draft,
+                                    slots,
+                                    next: 0,
+                                    prior_taint,
+                                    previous_owner,
+                                })));
+                                return Resume::Evaluate;
+                            }
+                            Ok((draft, _)) => {
+                                result = checker.check_against_context_one(
+                                    expr,
+                                    context.borrowed(),
+                                    Some(PrecomputedType::CallComplete(Ok(draft.result))),
+                                );
+                            }
+                            Err(error) => {
+                                result = checker.check_against_context_one(
+                                    expr,
+                                    context.borrowed(),
+                                    Some(PrecomputedType::CallComplete(Err(error))),
+                                );
+                            }
+                        }
+                    } else {
+                        result = checker.check_against_context_one(
+                            expr,
+                            context.borrowed(),
+                            Some(PrecomputedType::CallTarget(result)),
+                        );
+                    }
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::ClosureCall(progress) => {
+                    let mut state = *progress;
+                    let Expr::Call { args, .. } = state.expr else {
+                        unreachable!("closure call frame owns a call")
+                    };
+                    let formal = &state.draft.params[state.slots[state.next]];
+                    let outcome = result.and_then(|got| {
+                        checker.unify(
+                            formal.3.clone(),
+                            got,
+                            formal.2.clone(),
+                            Checker::primary_span(&args[state.next].value),
+                            Checker::primary_span(&args[state.next].value),
+                            false,
+                        )
+                    });
+                    let tainted = checker.tainted;
+                    checker.tainted = state.prior_taint || tainted;
+                    if let Err(error) = outcome {
+                        if error.operation == Operation::AnalysisLimit {
+                            checker.numeric_domain_owner = state.previous_owner;
+                            result = Err(error);
+                            return Resume::Next(result);
+                        }
+                        checker.record_error(error);
+                        checker.tainted = true;
+                    }
+                    state.next += 1;
+                    if state.next < args.len() {
+                        let formal = &state.draft.params[state.slots[state.next]];
+                        *inner = &args[state.next].value;
+                        *inner_context = OwnedCheckContext::new(CheckContext {
+                            expected: Some(&formal.3),
+                            expected_span: Some(&formal.2),
+                            check_here: true,
+                            anchor: None,
+                            outer_compare: false,
+                            related_expected: true,
+                            deferred_element: false,
+                        });
+                        state.prior_taint = std::mem::take(&mut checker.tainted);
+                        frames.push(Frame::ClosureCall(Box::new(state)));
+                        return Resume::Evaluate;
+                    }
+                    result = checker.check_against_context_one(
+                        state.expr,
+                        state.context.borrowed(),
+                        Some(PrecomputedType::CallComplete(Ok(state.draft.result))),
+                    );
+                    checker.numeric_domain_owner = state.previous_owner;
+                }
+                Frame::UnionCall(progress) => {
+                    let UnionCallProgress {
+                        expr,
+                        context,
+                        prior_taint,
+                        previous_owner,
+                    } = *progress;
+                    let Expr::Call { args, span, .. } = expr else {
+                        unreachable!("union call frame owns a call")
+                    };
+                    let binding = &checker.resolved.calls[&(span.start, span.end)];
+                    let ResolvedUse::Intrinsic(name) = &binding.target else {
+                        unreachable!("union call has an intrinsic binding")
+                    };
+                    let argument = &args[binding
+                        .slots
+                        .iter()
+                        .position(|slot| *slot == 0)
+                        .expect("complete union binding")]
+                    .value;
+                    let payload_tainted = checker.tainted;
+                    checker.tainted = prior_taint || payload_tainted;
+                    checker.numeric_domain_owner = None;
+                    let outcome = checker.finish_union_call(
+                        name,
+                        argument,
+                        span,
+                        context.expected.as_ref(),
+                        result,
+                        payload_tainted,
+                    );
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::CallComplete(outcome)),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::IntrinsicOne(progress) => {
+                    let (expr, context, previous_owner) = *progress;
+                    let Expr::Call { args, span, .. } = expr else {
+                        unreachable!("intrinsic frame owns a call")
+                    };
+                    let binding = &checker.resolved.calls[&(span.start, span.end)];
+                    let ResolvedUse::Intrinsic(name) = &binding.target else {
+                        unreachable!("intrinsic frame has an intrinsic binding")
+                    };
+                    checker.numeric_domain_owner = None;
+                    let outcome = checker.check_intrinsic(
+                        name,
+                        args,
+                        &binding.slots,
+                        span,
+                        context.expected.as_ref(),
+                        context.expected_span.as_ref(),
+                        Some(result),
+                    );
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::CallComplete(outcome)),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::TryAdd(progress) => {
+                    let mut state = *progress;
+                    let Expr::Call { args, .. } = state.expr else {
+                        unreachable!("TryAdd frame owns a call")
+                    };
+                    match result {
+                        Err(error) if error.operation == Operation::AnalysisLimit => {
+                            checker.numeric_domain_owner = state.previous_owner;
+                            result = Err(error);
+                            return Resume::Next(result);
+                        }
+                        Err(error) => {
+                            checker.record_error(error);
+                            state.failed = true;
+                        }
+                        Ok(_) => {}
+                    }
+                    if state.next < args.len() {
+                        *inner = &args[state.next].value;
+                        state.next += 1;
+                        frames.push(Frame::TryAdd(Box::new(state)));
+                        *inner_context = OwnedCheckContext::new(CheckContext {
+                            expected: Some(&Type::I64),
+                            expected_span: None,
+                            check_here: true,
+                            anchor: None,
+                            outer_compare: false,
+                            related_expected: false,
+                            deferred_element: false,
+                        });
+                        return Resume::Evaluate;
+                    }
+                    checker.numeric_domain_owner = None;
+                    let result_type = if state.failed {
+                        Type::Tainted
+                    } else {
+                        Type::from(&names::intrinsic("TryAdd").expect("closed intrinsic").result)
+                    };
+                    result = checker.check_against_context_one(
+                        state.expr,
+                        state.context.borrowed(),
+                        Some(PrecomputedType::CallComplete(Ok(result_type))),
+                    );
+                    checker.numeric_domain_owner = state.previous_owner;
+                }
+                Frame::AssertEq(progress) => {
+                    let mut state = *progress;
+                    if let Err(error) = checker.assert_eq_accept(&mut state, result) {
+                        checker.numeric_domain_owner = state.previous_owner;
+                        result = Err(error);
+                        return Resume::Next(result);
+                    }
+                    let Expr::Call { args, .. } = state.expr else {
+                        unreachable!("AssertEq frame owns a call")
+                    };
+                    state.next += 1;
+                    if state.next < args.len() {
+                        checker.assert_eq_prepare(&mut state);
+                        *inner = &args[state.next].value;
+                        frames.push(Frame::AssertEq(Box::new(state)));
+                        *inner_context = OwnedCheckContext::new(CheckContext {
+                            expected: None,
+                            expected_span: None,
+                            check_here: true,
+                            anchor: None,
+                            outer_compare: false,
+                            related_expected: false,
+                            deferred_element: false,
+                        });
+                        return Resume::Evaluate;
+                    }
+                    checker.numeric_domain_owner = None;
+                    let expr = state.expr;
+                    let context = state.context.clone();
+                    let previous_owner = state.previous_owner;
+                    let outcome = checker.finish_assert_eq(state);
+                    result = checker.check_against_context_one(
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::CallComplete(outcome)),
+                    );
+                    checker.numeric_domain_owner = previous_owner;
+                }
+                Frame::If(mut progress) => match checker.if_advance(&mut progress, Some(result)) {
+                    IfAction::Statement(statement) => {
+                        frames.push(Frame::If(progress));
+                        *pending_task = Some(Task::StatementSite(statement));
+                        return Resume::Evaluate;
+                    }
+                    IfAction::Value(value, context) => {
+                        frames.push(Frame::If(progress));
+                        *inner = value;
+                        *inner_context = context;
+                        return Resume::Evaluate;
+                    }
+                    IfAction::Done(outcome) => {
+                        checker.active_if_span = progress.previous_if;
+                        result = checker.check_against_context_one(
+                            progress.expr,
+                            progress.context.borrowed(),
+                            Some(PrecomputedType::IfComplete {
+                                result: outcome,
+                                pending_before: progress.pending_before_if,
+                            }),
+                        );
+                    }
+                },
+                Frame::Closure { expr, mut progress } => {
+                    match checker.closure_body_advance(&mut progress, Some(result)) {
+                        ClosureAction::Statement(statement) => {
+                            frames.push(Frame::Closure { expr, progress });
+                            *pending_task = Some(Task::StatementSite(statement));
+                            return Resume::Evaluate;
+                        }
+                        ClosureAction::Value(value, context) => {
+                            frames.push(Frame::Closure { expr, progress });
+                            *inner = value;
+                            *inner_context = context;
+                            return Resume::Evaluate;
+                        }
+                        ClosureAction::Done(checked) => {
+                            let context = progress.context.clone();
+                            let outcome = checker.closure_finish(*progress, checked);
+                            result = checker.check_against_context_one(
+                                expr,
+                                context.borrowed(),
+                                Some(PrecomputedType::ClosureComplete(outcome)),
+                            );
+                        }
+                    }
+                }
+                _ => unreachable!("match frame handled by drive"),
+            }
+            Resume::Next(result)
+        }
         let mut frames = Vec::new();
         let sentinel = Expr::Unit(Span {
             file: self.file.into(),
@@ -7045,136 +8075,6 @@ impl Checker<'_> {
             };
             while let Some(frame) = frames.pop() {
                 match frame {
-                    Frame::StatementSite(statement, prior_taint) => {
-                        self.finish_statement_at_site(statement, prior_taint, result.map(|_| ()));
-                        result = Ok(Type::Unit);
-                    }
-                    Frame::StatementExpr => {
-                        result = result.map(|_| Type::Unit);
-                    }
-                    Frame::StatementLet(statement, prepared) => {
-                        result = self
-                            .finish_let(statement, *prepared, result)
-                            .map(|_| Type::Unit);
-                    }
-                    Frame::StatementReturn(value, expected) => {
-                        result = result.and_then(|actual| {
-                            if matches!(expected, Type::Deferred(_)) && !self.tainted {
-                                let site = Self::primary_span(value);
-                                self.unify(
-                                    expected,
-                                    actual,
-                                    site.clone(),
-                                    site.clone(),
-                                    site,
-                                    false,
-                                )?;
-                            }
-                            Ok(Type::Unit)
-                        });
-                    }
-                    Frame::AssignmentPlace(statement) => {
-                        let lhs = match result {
-                            Ok(lhs) => lhs,
-                            Err(error) => {
-                                result = Err(error);
-                                continue;
-                            }
-                        };
-                        let Statement::Assign { place, value, .. } = statement else {
-                            unreachable!("assignment frame owns an assignment")
-                        };
-                        let (context, progress) = self.prepare_assignment_rhs(place, value, lhs);
-                        frames.push(Frame::AssignmentValue(Box::new(progress)));
-                        inner = value;
-                        inner_context = context;
-                        continue 'evaluate;
-                    }
-                    Frame::AssignmentValue(progress) => {
-                        result = self
-                            .finish_assignment_rhs(*progress, result)
-                            .map(|_| Type::Unit);
-                    }
-                    Frame::StatementIf(statement, stage) => {
-                        if stage == 0 {
-                            match result {
-                                Err(error) if error.operation == Operation::AnalysisLimit => {
-                                    result = Err(error);
-                                    continue;
-                                }
-                                Err(error) => {
-                                    self.record_error(error);
-                                    self.tainted = true;
-                                }
-                                Ok(_) => {}
-                            }
-                            let Statement::If { then_block, .. } = statement else {
-                                unreachable!("if frame owns an if statement")
-                            };
-                            frames.push(Frame::StatementIf(statement, 1));
-                            pending_task = Some(Task::Block(then_block));
-                            continue 'evaluate;
-                        }
-                        if stage == 1
-                            && result.is_ok()
-                            && let Statement::If {
-                                otherwise: Some(other),
-                                ..
-                            } = statement
-                        {
-                            frames.push(Frame::StatementIf(statement, 2));
-                            pending_task = Some(Task::Statement(other));
-                            continue 'evaluate;
-                        }
-                    }
-                    Frame::StatementWhile(statement, stage) => {
-                        if stage == 0 {
-                            match result {
-                                Err(error) if error.operation == Operation::AnalysisLimit => {
-                                    result = Err(error);
-                                    continue;
-                                }
-                                Err(error) => {
-                                    self.record_error(error);
-                                    self.tainted = true;
-                                }
-                                Ok(_) => {}
-                            }
-                            let Statement::While { body, .. } = statement else {
-                                unreachable!("while frame owns a while statement")
-                            };
-                            self.loop_depth += 1;
-                            frames.push(Frame::StatementWhile(statement, 1));
-                            pending_task = Some(Task::Block(body));
-                            continue 'evaluate;
-                        }
-                        self.loop_depth -= 1;
-                    }
-                    Frame::StatementFor(statement, stage) => {
-                        if stage == 0 {
-                            let Statement::For {
-                                name_span,
-                                iterable,
-                                body,
-                                ..
-                            } = statement
-                            else {
-                                unreachable!("for frame owns a for statement")
-                            };
-                            result = result.and_then(|got| {
-                                self.prepare_for_type(name_span, iterable, got)
-                                    .map(|_| Type::Unit)
-                            });
-                            if result.is_err() {
-                                continue;
-                            }
-                            self.loop_depth += 1;
-                            frames.push(Frame::StatementFor(statement, 1));
-                            pending_task = Some(Task::Block(body));
-                            continue 'evaluate;
-                        }
-                        self.loop_depth -= 1;
-                    }
                     Frame::StatementMatchScrutinee(selection) => {
                         let inferred = match result {
                             Ok(inferred) => inferred,
@@ -7268,841 +8168,6 @@ impl Checker<'_> {
                         });
                         continue 'evaluate;
                     }
-                    Frame::Block(block, next) => {
-                        if result.is_err() {
-                            self.block_depth -= 1;
-                            continue;
-                        }
-                        if !self.analysis_exhausted
-                            && let Err(error) = self.resolve_pending_projections(false)
-                        {
-                            self.block_depth -= 1;
-                            result = Err(error);
-                            continue;
-                        }
-                        if let Some(statement) = block.statements.get(next) {
-                            if self.block_depth == 1 {
-                                let span = parse::statement_span(statement);
-                                self.top_statement_start = span.start;
-                                self.top_statement_end = span.end;
-                            }
-                            frames.push(Frame::Block(block, next + 1));
-                            pending_task = Some(Task::StatementSite(statement));
-                            continue 'evaluate;
-                        }
-                        self.block_depth -= 1;
-                        result = Ok(Type::Unit);
-                    }
-                    Frame::Group(progress) => {
-                        let (group, child, span, context) = *progress;
-                        self.propagate_group(child, span);
-                        result = self.check_against_context_one(
-                            group,
-                            context.borrowed(),
-                            Some(PrecomputedType::Whole(result)),
-                        );
-                    }
-                    Frame::Unary(progress) => {
-                        let (expr, context) = *progress;
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::UnaryOperand(result)),
-                        );
-                    }
-                    Frame::UnaryPropagated(progress) => {
-                        let (expr, context) = *progress;
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::Whole(result)),
-                        );
-                    }
-                    Frame::Array(progress) => {
-                        let mut state = *progress;
-                        let accepted = self.array_accept(&mut state, result);
-                        if accepted.is_ok() {
-                            state.next += 1;
-                            if state.next < state.items.len() {
-                                (inner, inner_context) = self.array_next(&mut state);
-                                frames.push(Frame::Array(Box::new(state)));
-                                continue 'evaluate;
-                            }
-                        }
-                        self.numeric_domain_owner = state.previous_owner;
-                        let expr = state.expr;
-                        let context = state.context.clone();
-                        let constructor_pair = state.element_expected.is_some();
-                        let outcome = accepted.and_then(|_| self.array_finish(state));
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::ArrayComplete {
-                                result: outcome,
-                                constructor_pair,
-                            }),
-                        );
-                    }
-                    Frame::Index(progress) => {
-                        let (expr, context, previous_owner) = *progress;
-                        self.numeric_domain_owner = previous_owner;
-                        match result {
-                            Ok(base) => {
-                                let Expr::Index { target, index, .. } = expr else {
-                                    unreachable!("index frame owns an index")
-                                };
-                                let deferred_target =
-                                    self.deferred_exprs.contains(&span_key(target.span()));
-                                let mut deferred_child = None;
-                                let mut pending_projection = false;
-                                if deferred_target
-                                    && !matches!(base, Type::Tainted | Type::Never)
-                                    && let Some(id) = self.expression_variable(target)
-                                {
-                                    let root = self.root(id);
-                                    if self.type_nodes[&root].array_child.is_some() {
-                                        match self.require_array(id, &Self::primary_span(target)) {
-                                            Ok(child) => deferred_child = Some(child),
-                                            Err(error) => {
-                                                result = self.check_against_context_one(
-                                                    expr,
-                                                    context.borrowed(),
-                                                    Some(PrecomputedType::Whole(Err(error))),
-                                                );
-                                                continue;
-                                            }
-                                        }
-                                    } else {
-                                        pending_projection = true;
-                                    }
-                                }
-                                if pending_projection {
-                                    result = self.check_against_context_one(
-                                        expr,
-                                        context.borrowed(),
-                                        Some(PrecomputedType::IndexTarget {
-                                            target: Ok(base),
-                                            selector: None,
-                                            deferred_child: None,
-                                        }),
-                                    );
-                                    continue;
-                                }
-                                let divergent_target = deferred_target
-                                    && self.divergent_exprs.contains(&span_key(target.span()));
-                                let expected =
-                                    matches!(base, Type::Array(_) | Type::Tainted | Type::Never)
-                                        || deferred_child.is_some()
-                                        || divergent_target;
-                                let prior_taint = (!matches!(base, Type::Array(_) | Type::Never)
-                                    && deferred_child.is_none()
-                                    && !divergent_target)
-                                    .then(|| std::mem::take(&mut self.tainted));
-                                frames.push(Frame::IndexSelector(Box::new(
-                                    IndexSelectorProgress {
-                                        expr,
-                                        context,
-                                        base,
-                                        prior_taint,
-                                        deferred_child,
-                                    },
-                                )));
-                                inner = index;
-                                inner_context = OwnedCheckContext {
-                                    expected: expected.then_some(Type::I64),
-                                    expected_span: None,
-                                    check_here: true,
-                                    anchor: None,
-                                    outer_compare: false,
-                                    related_expected: false,
-                                    deferred_element: false,
-                                };
-                                continue 'evaluate;
-                            }
-                            other => {
-                                result = self.check_against_context_one(
-                                    expr,
-                                    context.borrowed(),
-                                    Some(PrecomputedType::IndexTarget {
-                                        target: other,
-                                        selector: None,
-                                        deferred_child: None,
-                                    }),
-                                );
-                            }
-                        }
-                    }
-                    Frame::IndexSelector(progress) => {
-                        let IndexSelectorProgress {
-                            expr,
-                            context,
-                            base,
-                            prior_taint,
-                            deferred_child,
-                        } = *progress;
-                        if let Some(prior_taint) = prior_taint {
-                            self.tainted |= prior_taint;
-                        }
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::IndexTarget {
-                                target: Ok(base),
-                                selector: Some(result),
-                                deferred_child,
-                            }),
-                        );
-                    }
-                    Frame::Binary(progress) => {
-                        let (expr, context, pending_before, previous_owner) = *progress;
-                        self.numeric_domain_owner = None;
-                        if matches!(&result, Err(error) if error.operation != Operation::AnalysisLimit)
-                        {
-                            let Err(error) = result else { unreachable!() };
-                            let Expr::Binary {
-                                op, left, right, ..
-                            } = expr
-                            else {
-                                unreachable!("binary frame owns a binary")
-                            };
-                            let numeric = matches!(op.as_str(), "+" | "-");
-                            let left_domain_failed = numeric
-                                && error.primary_span.as_ref() == Some(&Self::primary_span(left))
-                                && error.data.get("expected_type")
-                                    == Some(&DataValue::String("I64".into()));
-                            let left_tainted = std::mem::take(&mut self.tainted);
-                            if numeric {
-                                self.numeric_domain_owner =
-                                    Some((left.span().start, right.span().end));
-                            }
-                            frames.push(Frame::BinaryIndependentLeftError(Box::new(
-                                BinaryLeftErrorProgress {
-                                    expr,
-                                    context,
-                                    error,
-                                    left_tainted,
-                                    left_domain_failed,
-                                    previous_owner,
-                                },
-                            )));
-                            inner = right;
-                            inner_context = OwnedCheckContext {
-                                expected: (numeric && !left_domain_failed).then_some(Type::I64),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            };
-                            continue 'evaluate;
-                        }
-                        if let (
-                            Expr::Binary {
-                                op, left, right, ..
-                            },
-                            Ok(left_type),
-                        ) = (expr, &result)
-                        {
-                            let numeric = matches!(op.as_str(), "+" | "-");
-                            let pending_domain = self
-                                .pending_domain_calls
-                                .contains(&span_key(&Self::primary_span(left)));
-                            let joined = self.pending_join_count() > pending_before;
-                            let failed_join =
-                                self.failed_join_exprs.contains(&span_key(left.span()));
-                            let left_domain_failed = if pending_domain {
-                                Some(
-                                    numeric
-                                        && self.type_determined(left_type)
-                                        && *left_type != Type::I64
-                                        && !failed_join,
-                                )
-                            } else if numeric && joined {
-                                Some(self.type_determined(left_type) && *left_type != Type::I64)
-                            } else if failed_join || self.tainted {
-                                Some(self.context_rejections.contains(&span_key(left.span())))
-                            } else if numeric
-                                && *left_type != Type::I64
-                                && !self.deferred_exprs.contains(&span_key(left.span()))
-                            {
-                                let pending_left_result =
-                                    self.pending.iter().any(|entry| match entry {
-                                        PendingConstraint::BinaryDomain(domain) => {
-                                            domain.result == Self::primary_span(left)
-                                        }
-                                        _ => false,
-                                    });
-                                Some(!pending_left_result)
-                            } else {
-                                None
-                            };
-                            if let Some(left_domain_failed) = left_domain_failed {
-                                let left_tainted = std::mem::take(&mut self.tainted);
-                                if numeric {
-                                    self.numeric_domain_owner =
-                                        Some((left.span().start, right.span().end));
-                                }
-                                frames.push(Frame::BinaryIndependentRight(Box::new(
-                                    BinaryIndependentProgress {
-                                        expr,
-                                        context,
-                                        left: left_type.clone(),
-                                        pending_before,
-                                        left_domain_failed,
-                                        left_tainted,
-                                        previous_owner,
-                                    },
-                                )));
-                                inner = right;
-                                inner_context = OwnedCheckContext {
-                                    expected: (numeric && !left_domain_failed).then_some(Type::I64),
-                                    expected_span: None,
-                                    check_here: true,
-                                    anchor: None,
-                                    outer_compare: false,
-                                    related_expected: false,
-                                    deferred_element: false,
-                                };
-                                continue 'evaluate;
-                            }
-                        }
-                        if let (
-                            Expr::Binary {
-                                op, left, right, ..
-                            },
-                            Ok(left_type),
-                        ) = (expr, &result)
-                            && self.deferred_exprs.contains(&span_key(left.span()))
-                        {
-                            let numeric = matches!(op.as_str(), "+" | "-");
-                            let pending_before_operator = self.pending_join_count();
-                            frames.push(Frame::BinaryDeferredRight(Box::new(
-                                BinaryDeferredProgress {
-                                    expr,
-                                    context,
-                                    left: left_type.clone(),
-                                    pending_before_left: pending_before,
-                                    pending_before_operator,
-                                    previous_owner,
-                                },
-                            )));
-                            inner = right;
-                            inner_context = OwnedCheckContext {
-                                expected: numeric.then_some(Type::I64),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            };
-                            continue 'evaluate;
-                        }
-                        if let (
-                            Expr::Binary {
-                                op, left, right, ..
-                            },
-                            Ok(left_type),
-                        ) = (expr, &result)
-                        {
-                            let numeric = matches!(op.as_str(), "+" | "-");
-                            if !self
-                                .pending_domain_calls
-                                .contains(&span_key(&Self::primary_span(left)))
-                                && !(numeric && self.pending_join_count() > pending_before)
-                                && !self.failed_join_exprs.contains(&span_key(left.span()))
-                                && !self.tainted
-                                && !self.deferred_exprs.contains(&span_key(left.span()))
-                                && (!numeric || *left_type == Type::I64)
-                            {
-                                let left_type = left_type.clone();
-                                let right_context = OwnedCheckContext {
-                                    expected: Some(if numeric {
-                                        Type::I64
-                                    } else {
-                                        left_type.clone()
-                                    }),
-                                    expected_span: Some(Self::primary_span(left)),
-                                    check_here: true,
-                                    anchor: None,
-                                    outer_compare: !numeric,
-                                    related_expected: !numeric,
-                                    deferred_element: false,
-                                };
-                                let pending_before = self.pending_join_count();
-                                frames.push(Frame::BinaryRight(Box::new(BinaryRightProgress {
-                                    expr,
-                                    context,
-                                    left: left_type,
-                                    pending_before,
-                                    previous_owner,
-                                })));
-                                inner = right;
-                                inner_context = right_context;
-                                continue 'evaluate;
-                            }
-                        }
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::BinaryLeft {
-                                result,
-                                pending_before,
-                                independent_right: None,
-                            }),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::BinaryRight(progress) => {
-                        let BinaryRightProgress {
-                            expr,
-                            context,
-                            left,
-                            pending_before,
-                            previous_owner,
-                        } = *progress;
-                        self.numeric_domain_owner = None;
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::BinaryRight {
-                                left,
-                                result,
-                                pending_before,
-                            }),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::BinaryDeferredRight(progress) => {
-                        let BinaryDeferredProgress {
-                            expr,
-                            context,
-                            left,
-                            pending_before_left,
-                            pending_before_operator,
-                            previous_owner,
-                        } = *progress;
-                        self.numeric_domain_owner = None;
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::BinaryDeferredRight {
-                                left,
-                                result,
-                                pending_before_left,
-                                pending_before_operator,
-                            }),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::BinaryIndependentLeftError(progress) => {
-                        let BinaryLeftErrorProgress {
-                            expr,
-                            context,
-                            error,
-                            left_tainted,
-                            left_domain_failed,
-                            previous_owner,
-                        } = *progress;
-                        let Expr::Binary {
-                            op, left, right, ..
-                        } = expr
-                        else {
-                            unreachable!("independent frame owns a binary")
-                        };
-                        self.numeric_domain_owner = None;
-                        let right_tainted = self.tainted;
-                        let outcome = self.finish_independent_binary_rhs(
-                            op,
-                            left,
-                            right,
-                            left_domain_failed,
-                            result,
-                            right_tainted,
-                        );
-                        let binary_result = match outcome {
-                            Ok(right_failed) => {
-                                self.tainted |= left_tainted;
-                                if right_failed {
-                                    self.record_error(error);
-                                    self.deferred_exprs.insert(span_key(expr.span()));
-                                    self.tainted = true;
-                                    Ok(Type::Tainted)
-                                } else {
-                                    Err(error)
-                                }
-                            }
-                            Err(error) => Err(error),
-                        };
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::Whole(binary_result)),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::BinaryIndependentRight(progress) => {
-                        let BinaryIndependentProgress {
-                            expr,
-                            context,
-                            left,
-                            pending_before,
-                            left_domain_failed,
-                            left_tainted,
-                            previous_owner,
-                        } = *progress;
-                        let Expr::Binary {
-                            op,
-                            left: left_expr,
-                            right,
-                            ..
-                        } = expr
-                        else {
-                            unreachable!("independent frame owns a binary")
-                        };
-                        self.numeric_domain_owner = None;
-                        let right_tainted = self.tainted;
-                        let outcome = self.finish_independent_binary_rhs(
-                            op,
-                            left_expr,
-                            right,
-                            left_domain_failed,
-                            result,
-                            right_tainted,
-                        );
-                        self.tainted |= left_tainted;
-                        result = match outcome {
-                            Ok(right_failed) => self.check_against_context_one(
-                                expr,
-                                context.borrowed(),
-                                Some(PrecomputedType::BinaryLeft {
-                                    result: Ok(left),
-                                    pending_before,
-                                    independent_right: Some(right_failed),
-                                }),
-                            ),
-                            Err(error) => Err(error),
-                        };
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::Call(progress) => {
-                        let CallProgress {
-                            expr,
-                            context,
-                            arg_index,
-                            prior_taint,
-                            previous_owner,
-                        } = *progress;
-                        let Expr::Call { args, span, .. } = expr else {
-                            unreachable!("call frame owns a call")
-                        };
-                        let child_taint = self.tainted;
-                        self.tainted = prior_taint || child_taint;
-                        if let Err(error) = result {
-                            if error.operation == Operation::AnalysisLimit {
-                                self.numeric_domain_owner = previous_owner;
-                                result = Err(error);
-                                continue;
-                            }
-                            self.record_error(error);
-                            self.tainted = true;
-                        }
-                        let next = arg_index + 1;
-                        let binding = &self.resolved.calls[&(span.start, span.end)];
-                        let signature = names::signature(self.resolved, &binding.target)
-                            .expect("callable binding");
-                        if next < args.len() {
-                            let formal = &signature.params[binding.slots[next]];
-                            let next_context = OwnedCheckContext::new(CheckContext {
-                                expected: Some(&Type::from(&formal.ty)),
-                                expected_span: Some(&formal.type_span),
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: true,
-                                deferred_element: false,
-                            });
-                            let prior_taint = self.tainted;
-                            self.tainted = false;
-                            frames.push(Frame::Call(Box::new(CallProgress {
-                                expr,
-                                context,
-                                arg_index: next,
-                                prior_taint,
-                                previous_owner,
-                            })));
-                            inner = &args[next].value;
-                            inner_context = next_context;
-                            continue 'evaluate;
-                        }
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::CallComplete(Ok(Type::from(
-                                &signature.result,
-                            )))),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::CallTarget(progress) => {
-                        let (expr, context, previous_owner) = *progress;
-                        self.numeric_domain_owner = None;
-                        if let Ok(Type::Closure { site, .. }) = &result {
-                            let Expr::Call { target, args, .. } = expr else {
-                                unreachable!("call target frame owns a call")
-                            };
-                            match self.prepare_closure_call(*site, target, args) {
-                                Ok((draft, slots)) if !args.is_empty() => {
-                                    let formal = &draft.params[slots[0]];
-                                    inner = &args[0].value;
-                                    inner_context = OwnedCheckContext::new(CheckContext {
-                                        expected: Some(&formal.3),
-                                        expected_span: Some(&formal.2),
-                                        check_here: true,
-                                        anchor: None,
-                                        outer_compare: false,
-                                        related_expected: true,
-                                        deferred_element: false,
-                                    });
-                                    let prior_taint = std::mem::take(&mut self.tainted);
-                                    frames.push(Frame::ClosureCall(Box::new(
-                                        ClosureCallFrameState {
-                                            expr,
-                                            context,
-                                            draft,
-                                            slots,
-                                            next: 0,
-                                            prior_taint,
-                                            previous_owner,
-                                        },
-                                    )));
-                                    continue 'evaluate;
-                                }
-                                Ok((draft, _)) => {
-                                    result = self.check_against_context_one(
-                                        expr,
-                                        context.borrowed(),
-                                        Some(PrecomputedType::CallComplete(Ok(draft.result))),
-                                    );
-                                }
-                                Err(error) => {
-                                    result = self.check_against_context_one(
-                                        expr,
-                                        context.borrowed(),
-                                        Some(PrecomputedType::CallComplete(Err(error))),
-                                    );
-                                }
-                            }
-                        } else {
-                            result = self.check_against_context_one(
-                                expr,
-                                context.borrowed(),
-                                Some(PrecomputedType::CallTarget(result)),
-                            );
-                        }
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::ClosureCall(progress) => {
-                        let mut state = *progress;
-                        let Expr::Call { args, .. } = state.expr else {
-                            unreachable!("closure call frame owns a call")
-                        };
-                        let formal = &state.draft.params[state.slots[state.next]];
-                        let outcome = result.and_then(|got| {
-                            self.unify(
-                                formal.3.clone(),
-                                got,
-                                formal.2.clone(),
-                                Self::primary_span(&args[state.next].value),
-                                Self::primary_span(&args[state.next].value),
-                                false,
-                            )
-                        });
-                        let tainted = self.tainted;
-                        self.tainted = state.prior_taint || tainted;
-                        if let Err(error) = outcome {
-                            if error.operation == Operation::AnalysisLimit {
-                                self.numeric_domain_owner = state.previous_owner;
-                                result = Err(error);
-                                continue;
-                            }
-                            self.record_error(error);
-                            self.tainted = true;
-                        }
-                        state.next += 1;
-                        if state.next < args.len() {
-                            let formal = &state.draft.params[state.slots[state.next]];
-                            inner = &args[state.next].value;
-                            inner_context = OwnedCheckContext::new(CheckContext {
-                                expected: Some(&formal.3),
-                                expected_span: Some(&formal.2),
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: true,
-                                deferred_element: false,
-                            });
-                            state.prior_taint = std::mem::take(&mut self.tainted);
-                            frames.push(Frame::ClosureCall(Box::new(state)));
-                            continue 'evaluate;
-                        }
-                        result = self.check_against_context_one(
-                            state.expr,
-                            state.context.borrowed(),
-                            Some(PrecomputedType::CallComplete(Ok(state.draft.result))),
-                        );
-                        self.numeric_domain_owner = state.previous_owner;
-                    }
-                    Frame::UnionCall(progress) => {
-                        let UnionCallProgress {
-                            expr,
-                            context,
-                            prior_taint,
-                            previous_owner,
-                        } = *progress;
-                        let Expr::Call { args, span, .. } = expr else {
-                            unreachable!("union call frame owns a call")
-                        };
-                        let binding = &self.resolved.calls[&(span.start, span.end)];
-                        let ResolvedUse::Intrinsic(name) = &binding.target else {
-                            unreachable!("union call has an intrinsic binding")
-                        };
-                        let argument = &args[binding
-                            .slots
-                            .iter()
-                            .position(|slot| *slot == 0)
-                            .expect("complete union binding")]
-                        .value;
-                        let payload_tainted = self.tainted;
-                        self.tainted = prior_taint || payload_tainted;
-                        self.numeric_domain_owner = None;
-                        let outcome = self.finish_union_call(
-                            name,
-                            argument,
-                            span,
-                            context.expected.as_ref(),
-                            result,
-                            payload_tainted,
-                        );
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::CallComplete(outcome)),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::IntrinsicOne(progress) => {
-                        let (expr, context, previous_owner) = *progress;
-                        let Expr::Call { args, span, .. } = expr else {
-                            unreachable!("intrinsic frame owns a call")
-                        };
-                        let binding = &self.resolved.calls[&(span.start, span.end)];
-                        let ResolvedUse::Intrinsic(name) = &binding.target else {
-                            unreachable!("intrinsic frame has an intrinsic binding")
-                        };
-                        self.numeric_domain_owner = None;
-                        let outcome = self.check_intrinsic(
-                            name,
-                            args,
-                            &binding.slots,
-                            span,
-                            context.expected.as_ref(),
-                            context.expected_span.as_ref(),
-                            Some(result),
-                        );
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::CallComplete(outcome)),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
-                    Frame::TryAdd(progress) => {
-                        let mut state = *progress;
-                        let Expr::Call { args, .. } = state.expr else {
-                            unreachable!("TryAdd frame owns a call")
-                        };
-                        match result {
-                            Err(error) if error.operation == Operation::AnalysisLimit => {
-                                self.numeric_domain_owner = state.previous_owner;
-                                result = Err(error);
-                                continue;
-                            }
-                            Err(error) => {
-                                self.record_error(error);
-                                state.failed = true;
-                            }
-                            Ok(_) => {}
-                        }
-                        if state.next < args.len() {
-                            inner = &args[state.next].value;
-                            state.next += 1;
-                            frames.push(Frame::TryAdd(Box::new(state)));
-                            inner_context = OwnedCheckContext::new(CheckContext {
-                                expected: Some(&Type::I64),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            });
-                            continue 'evaluate;
-                        }
-                        self.numeric_domain_owner = None;
-                        let result_type = if state.failed {
-                            Type::Tainted
-                        } else {
-                            Type::from(
-                                &names::intrinsic("TryAdd").expect("closed intrinsic").result,
-                            )
-                        };
-                        result = self.check_against_context_one(
-                            state.expr,
-                            state.context.borrowed(),
-                            Some(PrecomputedType::CallComplete(Ok(result_type))),
-                        );
-                        self.numeric_domain_owner = state.previous_owner;
-                    }
-                    Frame::AssertEq(progress) => {
-                        let mut state = *progress;
-                        if let Err(error) = self.assert_eq_accept(&mut state, result) {
-                            self.numeric_domain_owner = state.previous_owner;
-                            result = Err(error);
-                            continue;
-                        }
-                        let Expr::Call { args, .. } = state.expr else {
-                            unreachable!("AssertEq frame owns a call")
-                        };
-                        state.next += 1;
-                        if state.next < args.len() {
-                            self.assert_eq_prepare(&mut state);
-                            inner = &args[state.next].value;
-                            frames.push(Frame::AssertEq(Box::new(state)));
-                            inner_context = OwnedCheckContext::new(CheckContext {
-                                expected: None,
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            });
-                            continue 'evaluate;
-                        }
-                        self.numeric_domain_owner = None;
-                        let expr = state.expr;
-                        let context = state.context.clone();
-                        let previous_owner = state.previous_owner;
-                        let outcome = self.finish_assert_eq(state);
-                        result = self.check_against_context_one(
-                            expr,
-                            context.borrowed(),
-                            Some(PrecomputedType::CallComplete(outcome)),
-                        );
-                        self.numeric_domain_owner = previous_owner;
-                    }
                     Frame::MatchScrutinee(progress) => {
                         let (expr, context) = *progress;
                         let Expr::Match(selection) = expr else {
@@ -8178,54 +8243,18 @@ impl Checker<'_> {
                             }
                         }
                     }
-                    Frame::If(mut progress) => match self.if_advance(&mut progress, Some(result)) {
-                        IfAction::Statement(statement) => {
-                            frames.push(Frame::If(progress));
-                            pending_task = Some(Task::StatementSite(statement));
-                            continue 'evaluate;
-                        }
-                        IfAction::Value(value, context) => {
-                            frames.push(Frame::If(progress));
-                            inner = value;
-                            inner_context = context;
-                            continue 'evaluate;
-                        }
-                        IfAction::Done(outcome) => {
-                            self.active_if_span = progress.previous_if;
-                            result = self.check_against_context_one(
-                                progress.expr,
-                                progress.context.borrowed(),
-                                Some(PrecomputedType::IfComplete {
-                                    result: outcome,
-                                    pending_before: progress.pending_before_if,
-                                }),
-                            );
-                        }
+                    frame => match resume_non_match(
+                        self,
+                        frame,
+                        result,
+                        &mut frames,
+                        &mut inner,
+                        &mut inner_context,
+                        &mut pending_task,
+                    ) {
+                        Resume::Next(next) => result = next,
+                        Resume::Evaluate => continue 'evaluate,
                     },
-                    Frame::Closure { expr, mut progress } => {
-                        match self.closure_body_advance(&mut progress, Some(result)) {
-                            ClosureAction::Statement(statement) => {
-                                frames.push(Frame::Closure { expr, progress });
-                                pending_task = Some(Task::StatementSite(statement));
-                                continue 'evaluate;
-                            }
-                            ClosureAction::Value(value, context) => {
-                                frames.push(Frame::Closure { expr, progress });
-                                inner = value;
-                                inner_context = context;
-                                continue 'evaluate;
-                            }
-                            ClosureAction::Done(checked) => {
-                                let context = progress.context.clone();
-                                let outcome = self.closure_finish(*progress, checked);
-                                result = self.check_against_context_one(
-                                    expr,
-                                    context.borrowed(),
-                                    Some(PrecomputedType::ClosureComplete(outcome)),
-                                );
-                            }
-                        }
-                    }
                 }
             }
             return result;

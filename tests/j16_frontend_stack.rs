@@ -360,3 +360,62 @@ fn mode_operands_and_objectives_finish_in_256_kib_parser_workers() {
         }
     }
 }
+
+fn deep_match_type_source(case: &str) -> String {
+    let (ty, pattern) = match case {
+        "option_wildcard" => (
+            format!("{}I64{}", "Option<".repeat(126), ">".repeat(126)),
+            "_".to_owned(),
+        ),
+        "result_wildcard" => (
+            format!("{}I64{}", "Result<".repeat(126), ",I64>".repeat(126)),
+            "_".to_owned(),
+        ),
+        "option_constructor" => (
+            format!("{}I64{}", "Option<".repeat(126), ">".repeat(126)),
+            format!("{}_{})", "Some(".repeat(126), ")".repeat(125)),
+        ),
+        _ => unreachable!("unknown deep match case"),
+    };
+    let arms = if case == "option_constructor" {
+        format!("{pattern}=>{{}},_=>{{}}")
+    } else {
+        format!("{pattern}=>{{}}")
+    };
+    format!("fn F(x:view {ty}){{match x{{{arms}}}}}fn Main(){{}}")
+}
+
+#[test]
+fn deep_match_type_stack_child() {
+    let Ok(case) = std::env::var("J16_DEEP_MATCH_CASE") else {
+        return;
+    };
+    let source = deep_match_type_source(&case);
+    nexo::ir::compile_scalar_with_profile(
+        "deep-match-stack.n",
+        &source,
+        nexo::ir::ReducedProfile::from_id("f0-0003-b-v1").unwrap(),
+        true,
+    )
+    .unwrap();
+}
+
+#[test]
+fn deep_option_and_result_matches_fit_checker_stack() {
+    let binary = std::env::current_exe().unwrap();
+    for case in ["option_wildcard", "result_wildcard", "option_constructor"] {
+        let output = Command::new(&binary)
+            .args(["--exact", "deep_match_type_stack_child"])
+            .env("J16_DEEP_MATCH_CASE", case)
+            .env("NEXO_STACK_MINIMUM_CASE", format!("CHECKER:{case}"))
+            .env("NEXO_PROBE_CHECKER_KIB", "256")
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{case}: {} {}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
