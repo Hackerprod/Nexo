@@ -53,3 +53,13 @@ Veredicto: **FAIL** (tres puntos de definición/verificación; sin defecto repro
 3. **Falta la fila I07C- en `Pending.md` (condición c).** `Pending.md` de `fb93424` no contiene ninguna entrada I07C-, y r11 no la lista entre sus archivos ni compromete su alta. Debe incluirla, con la reclasificación D→Q de los dos campos, su criterio y la razón (salidas protegidas RD71/`q3`), de modo que el cambio de la tabla §4 quede visible y no sea «renombrar una bandera».
 
 Pasa: la enmienda es explícita sobre las dos filas de §4 y deja las otras 64 intactas; mantiene la lógica local (menor riesgo que el ensayo de C que cambió RD71/`q3`); la lista cerrada de lecturas y las 140 referencias están acotadas; no cambia ADR ni salidas fijadas.
+
+## Ronda 5 — plan r12 (HEAD publicado `7daaba3`)
+
+Veredicto: **PASS**.
+
+1. `previous_taint || tainted`: r12 lo reconoce como agregado transitorio del padre `Block` (tomar y limpiar antes del hijo, recomponer al salir) y prohíbe leerlo para el hermano siguiente. Está en la lista cerrada y es coherente con el código de `finish_statement_at_site`.
+2. Programas CLI: fuentes y offsets verificados sobre `9b8e03e`: `let x=true+1;let y=x;let z=false+1;` da `[16,20)` y `[37,42)`; `let a=true+1;let b:Bool=1;` da `[34,35)`; `let b=[];` da NX-E0103 `[29,31)`; el fixture da `[56,58)`, `[81,83)`, `[115,117)`, `[132,134)`, `[179,181)`, `[194,195)`. Mutación de fuga con salida obligatoria; si no discrimina, no cuenta y C aporta otro programa o vuelve a A/B.
+3. Fila I07C-Q-CURSORS de `Pending.md`: texto exacto, con criterio de cierre y condición de reapertura.
+
+Condiciones (a), (b) y (c) cumplidas en el plan.
