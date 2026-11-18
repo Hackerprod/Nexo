@@ -1,4 +1,4 @@
-# J16, bloque 3 — propuesta r1, versión 3: préstamo de prueba de CallOnce
+# J16, bloque 3 — propuesta r1, versión 3.1: préstamo del receptor de CallOnce
 
 Fecha: 2026-11-17. Propuesta de C, paso 4.1 del Flujo B, sobre `50b78cf` en `i07c-robustez`. Requisito de núcleo: disponibilidad del receptor y diagnóstico de propiedad de F0-0003. Este documento no autoriza cambios de código ni afirma un veredicto.
 
@@ -7,6 +7,7 @@ Fecha: 2026-11-17. Propuesta de C, paso 4.1 del Flujo B, sobre `50b78cf` en `i07
 1. D' encontró B1 en la implementación de la v2 (`9cb2da1`): tras `return`, `break` o `continue`, una llamada CallOnce inválida deja un préstamo de lectura de prueba y añade NX-E1105 falso al uso posterior. La v2 no cubría este cierre.
 2. La traza localiza el cierre ausente en `Task::UserCallNext`, no en la rama `receiver.diverged()` de `OtherCallEnter`: el receptor devuelve `Flow::Value { temp: None }` en `Analyze` y llega al final de los argumentos, donde se omite la liberación normal. Se añade un único cierre de ese préstamo al final de la misma ruta de llamada cuando no se emite `CallClosure`.
 3. Se sustituye la matriz por medición de 29 fuentes en `check`/`run`, debug/release, se incorporan los tres testigos principales de B1 y `Drop(f)`, y se documenta el NX-E1105 legítimo de la captura `edit f` que faltaba en la tabla v2.
+4. D midió que el mismo préstamo queda activo en `Analyze` después de llamadas válidas: 56 de 107 fuentes cambiadas pasan de rechazo por E1105 falso a aceptación. Se incorpora un caso aceptado, se limita el cierre a `Analyze` y se retira una inversión cuyo testigo no discrimina.
 
 ## 1. Contrato, reproducción y causa raíz medida
 
@@ -18,7 +19,7 @@ fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};return;f();move f();}
 
 Con `--profile f0-0003-b-v1 --format json`, `50b78cf` rechaza con NX-E1107 [65,66) y NX-E1105/active_borrow_conflict [74,75); el segundo lleva `loan:65:0`, causa `borrow.read` y `requested_access=consume`. El esperado es **solo NX-E1107 [65,66)**, `ownership/ownership.check`, `related_spans=[declaration [32,33)]`, `data={"requested_mode":"read","required_mode":"consume"}`, sin causa. El archivo histórico `ccf6df1`, compilado desde `git archive` en la copia, da solo ese E1107 tanto para la fuente anterior como para `f();move f();` sin `return`. Por tanto, B1 fue introducido por la continuación de bajada inválida de la v2; no es un cambio de la regla de disponibilidad.
 
-F0-0003 §4.2 fija que `f()` solicita read y una closure consumidora exige consume: E1107 no consume ni adquiere un permiso persistente. §9.2 exige analizar los flujos hipotéticos tras `return` y que una llamada consumidora previa desarme el receptor; §3.3 une propiedad de caminos que continúan. La lectura de prueba de la v2 sirve para consultar disponibilidad antes de decidir E1107 o E0202, no para dejar una deuda de préstamo de una llamada que no se emitió. Un E1105 real por otro portador de permiso sigue siendo obligatorio.
+F0-0003 §4.2 fija que `f()` solicita read y una closure consumidora exige consume: E1107 no consume ni adquiere un permiso persistente. §9.2 exige analizar los flujos hipotéticos tras `return` y que una llamada consumidora previa desarme el receptor; §3.3 une propiedad de caminos que continúan. La lectura de prueba de la v2 sirve para consultar disponibilidad antes de decidir E1107 o E0202, no para dejar una deuda de préstamo de una llamada que no se emitió. La misma omisión de cierre afecta a llamadas válidas en `Analyze`: el préstamo del receptor tampoco debe sobrevivir al fin de la llamada hipotética. Un E1105 real por otro portador de permiso sigue siendo obligatorio.
 
 Traza de la copia de `50b78cf`:
 
@@ -34,7 +35,7 @@ La función de liberación existente es `Lower::release_call_loans` (línea 3720
 
 ## 2. Corrección mínima y efectos previstos
 
-En **una sola ruta de `src/ir/lower.rs`**, al llegar al punto terminal de `Task::UserCallNext` (después de todos los argumentos), cerrar el `receiver_loan` de `CallKind::Closure` cuando `self.emission == Analyze` o `state.diverged`: retirarlo de `active_loans` con `release_call_loans` y finalizarlo con `end_call_loans`. Esto usa el mismo `ReceiverLoan=(LocalId,LoanId,Span)` y los mismos métodos que el cierre normal de la llamada; no introduce otra bajada de receptor, pasada de propiedad, emisor de diagnóstico, adaptador, patrón de fuente, constante especial ni cambio de visibilidad. En Live, el préstamo sigue vivo durante argumentos y llamada y conserva su cierre actual. El prototipo coloca una sola condición en el punto terminal y no cambia ninguna otra función.
+En **una sola ruta de `src/ir/lower.rs`**, al llegar al punto terminal de `Task::UserCallNext` (después de todos los argumentos), cerrar el `receiver_loan` de `CallKind::Closure` en la rama `self.emission == Analyze`: retirarlo de `active_loans` con `release_call_loans` y finalizarlo con `end_call_loans` antes de devolver `Flow::Value { temp: None }`. Esto usa el mismo `ReceiverLoan=(LocalId,LoanId,Span)` y los mismos métodos que el cierre normal de la llamada; no introduce otra bajada de receptor, pasada de propiedad, emisor de diagnóstico, adaptador, patrón de fuente, constante especial ni cambio de visibilidad. En Live, el préstamo sigue vivo durante argumentos y llamada y conserva su cierre actual. El prototipo cambia solo esa rama y ninguna otra función.
 
 El candidato E1107 se conserva hasta el selector de modo de la v2: se publica si no hay E0202 del mismo `LocalId` y span, y no se borra por un E1105 ajeno. Si `f` ya se consumió, el `check_available` local o `ownership_flow` prevalecen con E0202, incluso tras `return` o en `while`. Si un portador `h` retiene `edit f`, su préstamo propio queda activo y E1105 sigue siendo legítimo; la corrección solo retira `LoanId` creado para el receptor de la llamada que termina. Las cascadas E0201/E0105 previas y los candidatos independientes conservan la política de la v2. Una cascada con error de bajada previo puede dejar E1107 en vez de E0202: está fuera de B1 y no se redecide aquí.
 
@@ -42,7 +43,7 @@ Alternativas descartadas: borrar todos los préstamos antes del siguiente uso oc
 
 ## 3. Matriz de efectos laterales medida
 
-Medición offline en `D:\nexo-work\tmp\`: `git archive 50b78cf`, `CARGO_TARGET_DIR` en D:, `cargo -j 2`; prueba de concepto **solo en la copia**. Son 29 fuentes completas ASCII sin LF. En todas las filas, `check` y `run` dieron los mismos diagnósticos y salida 1 salvo el positivo (salida 0); debug y release coincidieron. La notación `E7`, `E5`, `E2!`, `E2?`, `E1` abrevia respectivamente NX-E1107, NX-E1105/active_borrow_conflict, NX-E0202/definitely_consumed, NX-E0202/maybe_consumed y NX-E0201; cada número entre corchetes es el span primario [inicio,fin). Los negativos de `run` no producen observaciones. `P` es `fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};` y cada sufijo se cierra con `}`; cuando se usa `i`, se declara en el sufijo.
+Medición offline en `D:\nexo-work\tmp\`: `git archive 50b78cf`, `CARGO_TARGET_DIR` en D:, `cargo -j 2`; prueba de concepto **solo en la copia**. La matriz inicial contiene 29 fuentes completas ASCII sin LF; la regresión aceptada añadida eleva el total a 30. En las 29 filas medidas, `check` y `run` dieron los mismos diagnósticos y salida 1 salvo el positivo (salida 0); debug y release coincidieron. La notación `E7`, `E5`, `E2!`, `E2?`, `E1` abrevia respectivamente NX-E1107, NX-E1105/active_borrow_conflict, NX-E0202/definitely_consumed, NX-E0202/maybe_consumed y NX-E0201; cada número entre corchetes es el span primario [inicio,fin). Los negativos de `run` no producen observaciones. `P` es `fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};` y cada sufijo se cierra con `}`; cuando se usa `i`, se declara en el sufijo.
 
 | Sufijo de P o fuente indicada | `50b78cf` → prototipo | Justificación F0-0003 |
 |---|---|---|
@@ -75,12 +76,13 @@ Medición offline en `D:\nexo-work\tmp\`: `git archive 50b78cf`, `CARGO_TARGET_D
 | `var i=0;while i<1{move f();f();move f();i=i+1;}` | E2? [76,84), E2! [85,86), E2! [89,97) → igual | Backedge y usos posteriores. |
 | Fuente completa: `fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}` | E5 [80,81), E7 [80,81) → igual | **E1105 legítimo**: `h` retiene `edit f` (§4.3); E1107 por modo (§4.2). Cambio de base a v2 que faltaba en tabla anterior. |
 | `move f();` | []/salida 0 → igual | Positivo consumidor C09/§9.2. |
+| Fuente completa añadida: `fn Main(){let r=MockOpen(1);let f=fn [move r](){Inspect(r);};return;f();move f();}` | E5 falso en la base → []/salida 0 con el cierre | Llamada válida de lectura en flujo hipotético: §4.2 y §9.2; su préstamo termina al acabar la llamada. |
 
-**Solo cambian los seis miembros de la familia B1**: los cuatro testigos `return`/`break`/`continue`/`Drop` y sus dos ubicaciones hipotéticas adicionales en rama y bucle. No cambia ningún programa aceptado de la matriz; las otras 23 fuentes conservan código, subcausa, primario y cardinalidad. El diferencial amplio de D' de 6.643 fuentes contra `ccf6df1` permanece como evidencia de la v2, no se atribuye al prototipo de esta propuesta.
+En la matriz inicial cambian los seis miembros de la familia B1: los cuatro testigos `return`/`break`/`continue`/`Drop` y sus dos ubicaciones hipotéticas adicionales en rama y bucle. La nueva fila aceptada también cambia. Las otras 23 fuentes conservan código, subcausa, primario y cardinalidad. En el diferencial independiente de D sobre 4.792 fuentes, **107 fuentes cambian** (214 celdas `check`/`run`, idénticas en debug/release): 51 conservan E1107 y pierden E1105 falso; 56 fuentes con llamada válida pierden su único E1105 falso y pasan de rechazo a aceptación. Todas tienen `return`, `break` o `continue` antes de la llamada; ninguna fuente sin flujo divergente cambia y ninguna añade diagnósticos. El diferencial amplio de D' de 6.643 fuentes contra `ccf6df1` permanece como evidencia de la v2, no se atribuye al prototipo de esta propuesta.
 
 ## 4. Regresiones públicas y oráculo
 
-Después de que D valide esta propuesta, C añadirá en `tests/j16_integrated.rs` y en `scripts/j16_oracle.py` esperados literales independientes del compilador para estas fuentes completas. Cada negativo exige salida 1, cardinalidad exacta, `code`, `subcause`, span primario, `stage`, `operation`, relación de declaración, datos y ausencia de causa para E1107, en `check`/`run` debug/release; el oráculo confirma que `run` rechazado no tiene observaciones. Sin la corrección, los tres B1 fallan por un segundo diagnóstico; con la corrección de prueba, pasan.
+Después de que D valide esta propuesta, C añadirá en `tests/j16_integrated.rs` y en `scripts/j16_oracle.py` esperados literales independientes del compilador para estas fuentes completas. Cada negativo exige salida 1, cardinalidad exacta, `code`, `subcause`, span primario, `stage`, `operation`, relación de declaración, datos y ausencia de causa para E1107, en `check`/`run` debug/release; el oráculo confirma que `run` rechazado no tiene observaciones. El positivo exige salida 0 y ausencia de diagnósticos. Sin la corrección, los B1 fallan por un segundo diagnóstico y el positivo por E1105; con la corrección de prueba, pasan.
 
 | Regresión nueva (P + sufijo + `}`) | Esperado exacto de diagnósticos | Testigo positivo o control |
 |---|---|---|
@@ -88,6 +90,7 @@ Después de que D valide esta propuesta, C añadirá en `tests/j16_integrated.rs
 | `var i=0;while i<1{break;f();move f();}` | solo NX-E1107/null [82,83) | `var i=0;while i<1{break;move f();}` sin E1105. |
 | `var i=0;while i<1{continue;f();move f();}` | solo NX-E1107/null [85,86) | `var i=0;while i<1{continue;move f();}` sin E1105. |
 | `return;f();Drop(f);` | solo NX-E1107/null [65,66) | Control de operación `drop` [74,75), sin E1105 espurio. |
+| Fuente completa `fn Main(){let r=MockOpen(1);let f=fn [move r](){Inspect(r);};return;f();move f();}` | []/salida 0 | El gemelo `f();move f();` sin divergencia también se acepta; §4.2 y §9.2. |
 
 Conservar y ejecutar las regresiones v2 para `move f();f();` (E0202), `f();f();` (dos E1107), `f();move f();f();` (E1107 y E0202), `let g=f;g();f();` (E0201 y dos E1107) y `let h=fn [edit f](){};f();Drop(h);` con `var f` (E1105 y E1107 legítimos). El oráculo publica fuente, esperado y spans antes de invocar Nexo; nunca calcula esperados desde la salida. Se mantienen fuzz acotado sin pánico, `internal_error`, `InvalidIr` ni cuelgue, y diferencial `check`/`run` y debug/release.
 
@@ -98,10 +101,11 @@ Una sola pasada al final sobre archivos de núcleo, una mutación por vez, resta
 | Inversión | Testigo que debe matarla |
 |---|---|
 | Quitar el nuevo cierre en `UserCallNext` para `Analyze` | Los tres B1 públicos: reaparece E1105/active_borrow_conflict [74,75), [91,92) o [94,95) además de E1107. |
-| Cerrar el préstamo de un portador retenido ajeno en vez del `ReceiverLoan` de esa llamada | `var f; let h=fn [edit f](){};f();Drop(h);`: desaparece indebidamente E1105 [80,81). |
 | Suprimir o publicar anticipadamente el candidato E1107 | C09/`f();` pierde E1107 o `move f();f();` vuelve a E1107 en lugar de E0202. |
 | Omitir disponibilidad local hipotética | `move f();return;f();` cambia E0202/definitely [74,75) por E1107. |
 | Usar `consumed_at` local en Live diferido o cancelar todos los candidatos ante cualquier E0202 | `while{move f();}f()` pierde `maybe_consumed`; `f();move f();f();` pierde el E1107 independiente. |
+
+Se descarta la inversión «cerrar el préstamo de un portador ajeno»: D comprobó que sustituir el cierre del `ReceiverLoan` por `active_loans.remove(&root)` conserva E1105 en `let h=fn [edit f](){};f();Drop(h);`, porque ese diagnóstico procede de la retención de `h`. El testigo previsto no distingue la inversión y no se atribuye una muerte de mutante inexistente.
 
 ## 6. Archivos permitidos, orden y puerta
 
