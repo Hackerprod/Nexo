@@ -1,90 +1,110 @@
-# J16, bloque 3 — propuesta r1, versión 2: segunda llamada de CallOnce
+# J16, bloque 3 — propuesta r1, versión 3: préstamo de prueba de CallOnce
 
-Fecha: 2026-11-17. Propuesta de C para D, paso 4.1 del Flujo B. Base de código: `181c6d9` (su `src/ir/lower.rs` coincide con `6d2f3db`), perfil `f0-0003-b-v1`. Requisito de núcleo: disponibilidad del receptor y diagnóstico de propiedad. No autoriza cambios de producción ni afirma veredicto. La tanda verde sin commit, su respaldo y el diff ajeno de `docs/adr/F0-0002-second-slice.md` quedan fuera.
+Fecha: 2026-11-17. Propuesta de C, paso 4.1 del Flujo B, sobre `50b78cf` en `i07c-robustez`. Requisito de núcleo: disponibilidad del receptor y diagnóstico de propiedad de F0-0003. Este documento no autoriza cambios de código ni afirma un veredicto.
 
 ## Cambios respecto a la versión anterior
 
-1. Se incorpora la causa del modo diferido: cualquier `while` de la función activa `defer_ownership`; en emisión Live `check_available` devuelve `Ok` sin consultar disponibilidad y NX-E1107 se emite antes de que la pasada dispersa pueda ver el uso.
-2. Se sustituye el adelanto local de `check_available` por una sola decisión de modo posterior a la prueba de propiedad. Se reutilizan la comprobación local y la pasada de propiedad existentes, sin otro emisor de E0202 ni otra pasada.
-3. Se miden bucles, ramas, traslado, retorno hipotético, copia inválida y diagnósticos múltiples. M2 usa ahora un testigo que discrimina.
+1. D' encontró B1 en la implementación de la v2 (`9cb2da1`): tras `return`, `break` o `continue`, una llamada CallOnce inválida deja un préstamo de lectura de prueba y añade NX-E1105 falso al uso posterior. La v2 no cubría este cierre.
+2. La traza localiza el cierre ausente en `Task::UserCallNext`, no en la rama `receiver.diverged()` de `OtherCallEnter`: el receptor devuelve `Flow::Value { temp: None }` en `Analyze` y llega al final de los argumentos, donde se omite la liberación normal. Se añade un único cierre de ese préstamo al final de la misma ruta de llamada cuando no se emite `CallClosure`.
+3. Se sustituye la matriz por medición de 29 fuentes en `check`/`run`, debug/release, se incorporan los tres testigos principales de B1 y `Drop(f)`, y se documenta el NX-E1105 legítimo de la captura `edit f` que faltaba en la tabla v2.
 
-## 1. Contrato y causa raíz completa
+## 1. Contrato, reproducción y causa raíz medida
 
-Fuente negativa completa, ASCII sin LF:
+Fuente ASCII sin LF del testigo principal:
 
 ```nexo
-fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};move f();f();}
+fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};return;f();move f();}
 ```
 
-F0-0003 §4.2: `move f(args)` consume el entorno, la llamada consumidora desarma `f`, y un modo insuficiente usa NX-E1107. F0-0003 §9.2, fila «Consumidor», exige **NX-E0202** si la llamada consumidora va seguida de `f()`. §9.1 C08 fija E0202/definitely_consumed sobre el receptor ya consumido; C09 fija E1107 sobre la primera llamada `f()` de CallOnce todavía disponible. §8.2 fija para E1107 `ownership/ownership.check`, `required_mode`, `requested_mode`, declaración y primario en el nombre receptor. §3.3 define unión de propiedad para caminos que continúan y una prioridad especial para operaciones prohibidas de guardas, sin dar a E1107 prioridad general sobre E0202.
+Con `--profile f0-0003-b-v1 --format json`, `50b78cf` rechaza con NX-E1107 [65,66) y NX-E1105/active_borrow_conflict [74,75); el segundo lleva `loan:65:0`, causa `borrow.read` y `requested_access=consume`. El esperado es **solo NX-E1107 [65,66)**, `ownership/ownership.check`, `related_spans=[declaration [32,33)]`, `data={"requested_mode":"read","required_mode":"consume"}`, sin causa. El archivo histórico `ccf6df1`, compilado desde `git archive` en la copia, da solo ese E1107 tanto para la fuente anterior como para `f();move f();` sin `return`. Por tanto, B1 fue introducido por la continuación de bajada inválida de la v2; no es un cambio de la regla de disponibilidad.
 
-En `src/ir/lower.rs::Task::OtherCallEnter`, `resolved_expr` obtiene el tipo de closure sin comprobar disponibilidad. La comparación de `mode_rank(receiver_mode)` con `mode_rank(required)` emite E1107 y hace `continue` antes de `named_closure_receiver`. Allí `check_available` detectaría `consumed_at` o `maybe_consumed_at` y produciría E0202. Sin `while`, adelantar el control local da el diagnóstico esperado.
+F0-0003 §4.2 fija que `f()` solicita read y una closure consumidora exige consume: E1107 no consume ni adquiere un permiso persistente. §9.2 exige analizar los flujos hipotéticos tras `return` y que una llamada consumidora previa desarme el receptor; §3.3 une propiedad de caminos que continúan. La lectura de prueba de la v2 sirve para consultar disponibilidad antes de decidir E1107 o E0202, no para dejar una deuda de préstamo de una llamada que no se emitió. Un E1105 real por otro portador de permiso sigue siendo obligatorio.
 
-Con cualquier `while` de la función, `Lower::defer_ownership` queda activo. En emisión Live, `check_available` devuelve `Ok` antes de mirar los mapas locales: estos no son autoridad para la unión del bucle. El E1107 temprano corta la bajada de la llamada; al quedar diagnóstico en `lower.block`, `compile_ast_with_flow_limit` descarta la función antes de `ownership_flow::analyze`. Esa pasada dispersa sí podría observar `TransferValue(f)` seguido del uso `BeginLoan(f)` y determinar E0202 y el backedge, pero nunca recibe el uso. El prototipo que quitó la deferencia de `check_available` resolvió `while` posterior y previo, pero dio E1107 tras `while{move f();}f()`, donde §3.3 exige `maybe_consumed`. **La causa son el orden de modo frente a disponibilidad y, en el modo diferido, el momento prematuro de esa decisión respecto de la CFG.**
+Traza de la copia de `50b78cf`:
 
-En la base, `check`/`run`, debug/release: salida 1, E1107 [67,68), subcausa nula, `ownership/ownership.check`, declaración [32,33), `data={"requested_mode":"read","required_mode":"consume"}`, sin causa ni observaciones. El esperado de §§4.2/9.2 es E0202/definitely_consumed [67,68), `ownership/ownership.use`, declaración [32,33), consumo [58,66), `data={}`, causa `consume/value.consume` [58,66) de `binding:32`, evidencia `verified`, sin observaciones. Para bucles, spans y subcausa se derivan por bytes de cada fuente y la unión de §3.3.
-
-## 2. Un mecanismo en la raíz y archivos
-
-Para una closure con receptor **nombrado** y modo solicitado inferior al requerido, `OtherCallEnter` construye el objeto E1107 actual como **candidato de modo** asociado a `LocalId` y span del uso; no lo publica ni detiene la bajada. Continúa la llamada inválida solo para analizar propiedad, con lectura como modo de prueba: no consume el binding ni adquiere `edit` por una solicitud ya inválida. Esta IR queda contaminada por el candidato y no se verifica ni se entrega como ejecutable. No se atribuyen resultado ni efectos de ejecución a la llamada inválida. Los receptores no nombrados conservan su tratamiento actual.
-
-`named_closure_receiver` mantiene su **única** llamada a `check_available` en la posición actual. En emisión no diferida o flujo hipotético `Analyze`, si el binding ya se consumió, devuelve E0202 y cancela solo el candidato de ese uso. En Live diferido, el control local se aplaza como hoy, pero la IR conserva el uso del `LocalId`; `ownership_flow::analyze` aplica la unión de la CFG y emite E0202 si procede. Después de esa pasada, un único punto de selección publica los candidatos sin E0202 del **mismo uso** (identidad de binding y span, no texto de fuente ni solo coincidencia de span). Un E0202 de otra llamada no cancela E1107. Se conserva la ordenación final existente.
-
-Si otro error detiene la bajada antes de que haya función completa, se conservan los candidatos anteriores, salvo el del uso que acaba de recibir E0202 local. Esto preserva dos diagnósticos independientes. Tras `return`, `EmissionMode::Analyze` conserva la disponibilidad local aun sin instrucción ejecutable en la CFG, conforme a los flujos hipotéticos de F0-0003 §9.2. No se fuerza `defer_ownership=false`, no se añade pasada de propiedad y no se duplica `check_available`. La corrección es una sola: **decidir E1107 únicamente después de la prueba de disponibilidad correspondiente al estado del uso**.
-
-Producción: **solo** `src/ir/lower.rs` (estado efímero de candidatos, continuación de la bajada inválida con lectura de prueba y selección posterior al análisis o error local). Se reutilizan `named_closure_receiver`, `check_available`, la instrucción de uso y `ownership_flow::analyze`; no se cambia `src/ir/ownership_flow.rs`, `src/ir/model.rs` ni `src/ir/verify.rs`. Si C descubre que no puede preservar el uso y los diagnósticos con este mecanismo, vuelve a propuesta antes de editar producción. El plan J16 r5 S6 permite `tests/j16_integrated.rs`, `scripts/j16_oracle.py` y `docs/validation/F0-0003-J16-matrix.json`; la ampliación de producción queda sujeta a D y al coordinador. No se tocan ADR, baseline ni scripts de puerta.
-
-Alternativas descartadas por medición: quitar la deferencia de `check_available` pierde la unión tras bucle; adelantar solo el control local falla con cualquier `while`; suprimir E1107 acepta C09; detectar texto `while` o añadir un emisor paralelo de E0202 duplica reglas.
-
-## 3. Matriz medida y justificación normativa
-
-Medición offline en copia limpia de `181c6d9` bajo D:, `CARGO_TARGET_DIR` en D: y dos workers. El primer prototipo (control adelantado y deferencia desactivada) falló tras bucle. El segundo guardó candidatos, continuó la bajada con lectura de prueba y los filtró después de propiedad. El prototipo asoció candidatos por span; §2 exige además `LocalId` en la implementación para distinguir usos que coincidan en span. La tabla da `check` debug, fuentes ASCII sin LF, códigos/subcausas y spans primarios; §6 exige repetir en `check`/`run` debug/release y fijar el objeto completo. El caso principal de la v1 ya coincidía en esas cuatro combinaciones. Los negativos de `run` no deben tener observaciones.
-
-Sea `P = fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};`; cada sufijo de la tabla se cierra con `}`, salvo fuente completa indicada.
-
-| Caso: sufijo tras P o fuente completa | Base | Prototipo v2 | Regla del ADR |
-|---|---|---|---|
-| `move f();f();` | E1107 [67,68) | E0202/definitely [67,68) | §4.2 desarma `f`; §9.2 «Consumidor» exige E0202. |
-| `move f();edit f();` con `var f` | E1107 [72,73) | E0202/definitely [72,73) | §4.2: `edit` no revive entorno desarmado; §9.2 «Consumidor». |
-| `move f();move f();` | E0202/definitely [72,73) | Igual | §4.2 y C08: ya cruza disponibilidad. |
-| `f();` | E1107 [58,59) | Igual | §4.2 y C09: `read` insuficiente sin consumo. |
-| `f();f();` | E1107 [58,59), E1107 [62,63) | Igual | §4.2: llamada inválida no consume; §8.1 permite varios errores. |
-| `move f();` | [] | Igual | Positivo C09 y «Consumidor». |
-| `move f();f();var i=0;while i<1{i=i+1;}` | E1107 [67,68) | E0202/definitely [67,68) | El bucle posterior no revive `f`; §§4.2/9.2. |
-| `fn Main(){var i=0;while i<1{i=i+1;}let r=MockOpen(1);let f=fn [move r](){Drop(r);};move f();f();}` | E1107 [92,93) | E0202/definitely [92,93) | El bucle previo no revive `f`; §§4.2/9.2. |
-| `var i=0;while i<2{move f();f();i=i+1;}` | E1107 [85,86) | E0202/maybe [76,84) y E0202/definitely [85,86) | El cuerpo puede repetirse: unión de §3.3; la primera llamada puede encontrar `f` consumido en iteración anterior. La segunda sigue al consumo de esta iteración (§4.2). La base ocultaba el primer defecto. |
-| `var i=0;while i<1{move f();i=i+1;}f();` | E1107 [92,93) | E0202/maybe [76,84) y E0202/maybe [92,93) | El cuerpo puede no ejecutarse o repetirse: §3.3 y §9.2 «Movimiento por brazo». El límite literal no fija el número de iteraciones en el análisis. |
-| `if true{move f();}f();` | E1107 [76,77) | E0202/maybe [76,77) | §3.3 une caminos incluso con rama constante; §9.2 «Movimiento por brazo». |
-| `if true{move f();}f();var i=0;while i<1{i=i+1;}` | E1107 [76,77) | E0202/maybe [76,77) | Misma unión de §3.3 en Live diferido. |
-| `let g=move f;f();` | E1107 [71,72) | E0202/definitely [71,72) | §4.3: mover portador conserva dueño en destino y desarma origen; §§4.2/9.2. |
-| `move f();return;f();` | E1107 [74,75) | E0202/definitely [74,75) | §9.2 «Flujos hipotéticos» conserva errores tras `return`; §4.2: `f` sigue desarmado. |
-| `move f();f();f();` | E1107 [67,68), E1107 [71,72) | E0202/definitely en ambos | Dos usos independientes tras un consumo: §§4.2/9.2 y cardinalidad de §8.1. |
-| `f();move f();f();` | E1107 [58,59), E1107 [71,72) | E1107 [58,59), E0202/definitely [71,72) | El primero conserva §4.2/C09; el segundo cae bajo §9.2 «Consumidor». No se pierde el primero. |
-| `let g=f;g();f();` | E0201 [64,65), E1107 [66,67), E1107 [70,71) | Igual | §4.1 rechaza copia de closure con recurso; §8.1 no limita a un error por archivo. La v1 perdía E1107 en `g()`; v2 evita ese cambio y no decide aquí una política nueva de cascadas. |
-| `f();var i=0;while i<1{i=i+1;}` | E1107 [58,59) | Igual | C09 también rige en Live diferido sin consumo previo. |
-| `edit f();` con `let f` o `var f` | E1107 [63,64) | Igual | §4.2: `inout` insuficiente para CallOnce; la lectura de prueba no debe añadir E0105 por inmutabilidad. |
-
-Controles sin cambio de la v1: C08 conserva E0202/definitely [35,36); closure Read con `Inspect(r)` permite dos llamadas y eventos `open, inspect, inspect, close` (§§4.2/9.2); closure mutable admite dos `edit f()`, mientras dos `f()` sobre la misma closure mutable conservan E1107 en ambos. El diferencial amplio de D sobre v1 no acredita v2; §6 exige repetirlo. La matriz identifica también cambios de **cardinalidad** en backedges, no solo sustituciones de código.
-
-## 4. Regresiones y pruebas
-
-1. En `tests/j16_integrated.rs`, añadir negativo literal `move f();f();` y positivo que quita solo el segundo uso. Fijar salida 1/0, cardinalidad 1/0 y el objeto completo de §1 (código, subcausa, etapa, operación, primario, relaciones, causa y datos). Ejecutar `check`/`run` debug/release. C09 y `f();f();` fijan E1107 con `required_mode`/`requested_mode` sin consumo; C08 y `move f();move f();` fijan E0202.
-2. Añadir parejas para `while` previo/posterior, consumo y uso dentro de `while`, consumo en `while` y uso después, rama, `let g=move f;f()`, retorno hipotético y `edit f()` sin consumo previo. Calcular spans por bytes de fuentes literales antes de ejecutar. Fijar cardinalidad y objeto completo, incluidas subcausas `maybe_consumed`, relaciones de consumo/backedge y orden final. Probar también propiedad dispersa forzada con el gancho interno existente.
-3. Añadir los dos casos con diagnósticos múltiples y la copia inválida de §3 como diferencial exacto. Fuzz acotado de secuencias read/edit/move y ubicación de `while`/rama/return: ningún pánico, `internal_error`, `InvalidIr` ni cuelgue; ninguna divergencia debug/release o `check`/`run`.
-4. En `scripts/j16_oracle.py`, declarar fuentes y esperados literales antes de invocar Nexo, transcritos de F0-0003 §§3.3, 4.2, 8.1–8.2, 9.1–9.2 y A2 para causas; actualizar la fila CallOnce de `docs/validation/F0-0003-J16-matrix.json`. No generar esperados desde el código bajo prueba. Los positivos comprueban resultado y eventos; los negativos carecen de ejecución. Los nombres de pruebas describen regla y fuente.
-
-## 5. Inversiones discriminantes
-
-Una mutación por vez en copia offline, construir, correr el testigo y restaurar byte a byte con SHA-256 antes de la siguiente. Registrar SHA del blob inicial, mutado y restaurado; los hashes de v1 no valen para este mecanismo. Una sola pasada final de mutación de núcleo.
-
-| Inversión | Testigo y fallo observable |
+| Punto en `src/ir/lower.rs` | Medición de B1 |
 |---|---|
-| M1: volver a publicar E1107 antes de disponibilidad/CFG | `move f();f();` y variante con `while` posterior: E1107 reaparece donde §9.2 exige E0202. |
-| M2: omitir `check_available` del receptor nombrado en flujo local/hipotético | `move f();return;f();`: v2 da E0202/definitely [74,75); mutación aislada medida da E1107 [74,75). C08 y `move f();move f();` **no** discriminan: la pasada dispersa aún da E0202. |
-| M3: decidir con `consumed_at` local o dejar cortar E1107 en Live diferido | `while{move f();}f()` y `move f();f();while...`: E1107 sustituye E0202/maybe o definitely. |
-| M4: omitir modo tras aplazarlo | C09 y `f();f();` sin `move`: aceptación indebida o falta de E1107. |
-| M5: cancelar todos los candidatos de la función ante un E0202 | `f();move f();f();`: se pierde E1107 previo e independiente, contrario a §8.1/C09. |
+| `Task::OtherCallEnter`, líneas 7477 y 7555 | Guarda E1107 como candidato de `LocalId(1)` [65,66) y degrada solo la prueba a `Read`. |
+| `named_closure_receiver`, líneas 4556 y 4633 | `check_available` acepta `f` disponible; crea `LoanId(65)` en `active_loans[f]`, longitud 0→1, con `emission=Analyze`. |
+| `Task::UserCallNext`, líneas 7848 y 7962 | Terminan los argumentos. La rama `Analyze` devuelve valor sin temp y hace `continue` antes del cierre del `receiver_loan` de la línea 7990; longitud sigue 1. No se entra en `receiver.diverged()` de la línea 7594. |
+| `Lower::conflict`, línea 3270 | `move f()` [74,75) ve `active_loans[f]=1` y fabrica E1105 con origen [65,66). Sin `return`, el cierre normal de la línea 7990 deja longitud 0 antes del `move`. |
+| Prototipo en el punto terminal de `UserCallNext` | Libera el `receiver_loan` no emitido al terminar argumentos: longitud 1→0; persiste E1107 [65,66) y desaparece únicamente E1105 [74,75). |
 
-## 6. Orden, puerta y revisión
+La función de liberación existente es `Lower::release_call_loans` (línea 3720); `end_call_loans` (línea 3728) registra el fin en Live y no emite IR en Analyze. No se toca `check_available`, ni su deferencia en bucles, ni `ownership_flow`.
 
-Tras veredicto de D sobre esta propuesta y decisión del coordinador sobre ampliar `src/ir/lower.rs`, C implementa §2, añade §4 y hace un commit por solución en `i07c-robustez`. Antes de entregar a D: `sh scripts/validate.sh` en clon limpio del commit (fmt, clippy `-D warnings`, tests debug/release y RD); diferencial contra `181c6d9` de §3 y corpus J16 declarado sin cambio; `check`/`run` debug/release con objeto diagnóstico completo; oráculo independiente; fuzz; medidor de programas objetivo ejecutables/total. Ejecutar §5 una vez al final. Un hallazgo fuera de §2 vuelve a propuesta, sin improvisar segunda ruta. D revisa diff, fidelidad, oráculos y repros y emite su propio veredicto. Esta versión 2 no afirma que la puerta se haya ejecutado.
+## 2. Corrección mínima y efectos previstos
+
+En **una sola ruta de `src/ir/lower.rs`**, al llegar al punto terminal de `Task::UserCallNext` (después de todos los argumentos), cerrar el `receiver_loan` de `CallKind::Closure` cuando `self.emission == Analyze` o `state.diverged`: retirarlo de `active_loans` con `release_call_loans` y finalizarlo con `end_call_loans`. Esto usa el mismo `ReceiverLoan=(LocalId,LoanId,Span)` y los mismos métodos que el cierre normal de la llamada; no introduce otra bajada de receptor, pasada de propiedad, emisor de diagnóstico, adaptador, patrón de fuente, constante especial ni cambio de visibilidad. En Live, el préstamo sigue vivo durante argumentos y llamada y conserva su cierre actual. El prototipo coloca una sola condición en el punto terminal y no cambia ninguna otra función.
+
+El candidato E1107 se conserva hasta el selector de modo de la v2: se publica si no hay E0202 del mismo `LocalId` y span, y no se borra por un E1105 ajeno. Si `f` ya se consumió, el `check_available` local o `ownership_flow` prevalecen con E0202, incluso tras `return` o en `while`. Si un portador `h` retiene `edit f`, su préstamo propio queda activo y E1105 sigue siendo legítimo; la corrección solo retira `LoanId` creado para el receptor de la llamada que termina. Las cascadas E0201/E0105 previas y los candidatos independientes conservan la política de la v2. Una cascada con error de bajada previo puede dejar E1107 en vez de E0202: está fuera de B1 y no se redecide aquí.
+
+Alternativas descartadas: borrar todos los préstamos antes del siguiente uso ocultaría conflictos reales de §4.3; filtrar E1105 por código/span de fuente sería un parche diagnóstico; hacer que el receptor inválido consuma `f` violaría §4.2; quitar `defer_ownership` rompería uniones de §3.3; otro camino especial para `return`, `break` o `continue` duplicaría la misma regla de fin de llamada.
+
+## 3. Matriz de efectos laterales medida
+
+Medición offline en `D:\nexo-work\tmp\`: `git archive 50b78cf`, `CARGO_TARGET_DIR` en D:, `cargo -j 2`; prueba de concepto **solo en la copia**. Son 29 fuentes completas ASCII sin LF. En todas las filas, `check` y `run` dieron los mismos diagnósticos y salida 1 salvo el positivo (salida 0); debug y release coincidieron. La notación `E7`, `E5`, `E2!`, `E2?`, `E1` abrevia respectivamente NX-E1107, NX-E1105/active_borrow_conflict, NX-E0202/definitely_consumed, NX-E0202/maybe_consumed y NX-E0201; cada número entre corchetes es el span primario [inicio,fin). Los negativos de `run` no producen observaciones. `P` es `fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};` y cada sufijo se cierra con `}`; cuando se usa `i`, se declara en el sufijo.
+
+| Sufijo de P o fuente indicada | `50b78cf` → prototipo | Justificación F0-0003 |
+|---|---|---|
+| `return;f();move f();` | E7 [65,66), E5 [74,75) → E7 [65,66) | B1: §4.2, §9.2; prueba read no retiene. |
+| `return;f();Drop(f);` | E7 [65,66), E5 [74,75) → E7 [65,66) | B1 con Drop; misma disponibilidad. |
+| `var i=0;while i<1{break;f();move f();}` | E7 [82,83), E5 [91,92) → E7 [82,83) | B1 tras `break` hipotético. |
+| `var i=0;while i<1{continue;f();move f();}` | E7 [85,86), E5 [94,95) → E7 [85,86) | B1 tras `continue` hipotético. |
+| `return;f();` | E7 [65,66) → igual | El cierre no suprime E1107. |
+| `f();return;move f();` | E7 [58,59) → igual | La llamada inválida previa en Live ya se cerraba. |
+| `f();move f();return;` | E7 [58,59) → igual | El movimiento posterior no retroactúa. |
+| `move f();return;f();` | E2! [74,75) → igual | §9.2: estado consumido en flujo hipotético. |
+| `move f();return;f();move f();` | E2! [74,75), E2! [83,84) → igual | Disponibilidad tiene prioridad local. |
+| `return;move f();f();` | E2! [74,75) → igual | Consumo hipotético antes de uso. |
+| `if true{return;f();move f();}` | E7 [73,74), E5 [82,83) → E7 [73,74) | B1 dentro de rama; §3.3/§9.2. |
+| `if true{f();return;move f();}` | E7 [66,67) → igual | `return` después de llamada inválida. |
+| `if true{return;}else{f();move f();}` | E7 [79,80) → igual | Solo el otro brazo continúa; §3.3. |
+| `var i=0;while i<1{break;f();Drop(f);}` | E7 [82,83), E5 [91,92) → E7 [82,83) | B1, variante con Drop en bucle. |
+| `var i=0;while i<1{f();break;move f();}` | E7 [76,77) → igual | `break` después de llamada inválida. |
+| `var i=0;while i<1{f();continue;move f();}` | E7 [76,77) → igual | `continue` después de llamada inválida. |
+| `var i=0;while i<1{break;}f();move f();` | E7 [83,84) → igual | El uso exterior está en Live. |
+| `var i=0;while i<1{i=i+1;continue;}f();move f();` | E7 [92,93) → igual | El uso exterior está en Live. |
+| `let g=f;g();f();` | E1 [64,65), E7 [66,67), E7 [70,71) → igual | Copia prohibida y dos candidatos independientes; §§4.1/8.1. |
+| `return;let g=f;g();f();` | E1 [71,72), E7 [73,74), E7 [77,78) → igual | Misma cascada en Analyze. |
+| `move f();f();` | E2! [67,68) → igual | Consumidor de §9.2. |
+| `var i=0;while i<1{i=i+1;}move f();f();` | E2! [92,93) → igual | Bucle previo no revive `f`. |
+| `var i=0;while i<1{move f();f();i=i+1;}` | E2? [76,84), E2! [85,86) → igual | Backedge y consumo en el cuerpo; §3.3. |
+| `f();move f();` | E7 [58,59) → igual | Sin consumo previo, la llamada inválida no consume. |
+| `var i=0;while i<1{f();move f();i=i+1;}` | E2? [76,77), E2? [80,88) → igual | Reiteración del bucle y unión de §3.3; preexistente. |
+| `move f();f();move f();` | E2! [67,68), E2! [76,77) → igual | Dos usos tras consumo. |
+| `var i=0;while i<1{move f();f();move f();i=i+1;}` | E2? [76,84), E2! [85,86), E2! [89,97) → igual | Backedge y usos posteriores. |
+| Fuente completa: `fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}` | E5 [80,81), E7 [80,81) → igual | **E1105 legítimo**: `h` retiene `edit f` (§4.3); E1107 por modo (§4.2). Cambio de base a v2 que faltaba en tabla anterior. |
+| `move f();` | []/salida 0 → igual | Positivo consumidor C09/§9.2. |
+
+**Solo cambian los seis miembros de la familia B1**: los cuatro testigos `return`/`break`/`continue`/`Drop` y sus dos ubicaciones hipotéticas adicionales en rama y bucle. No cambia ningún programa aceptado de la matriz; las otras 23 fuentes conservan código, subcausa, primario y cardinalidad. El diferencial amplio de D' de 6.643 fuentes contra `ccf6df1` permanece como evidencia de la v2, no se atribuye al prototipo de esta propuesta.
+
+## 4. Regresiones públicas y oráculo
+
+Después de que D valide esta propuesta, C añadirá en `tests/j16_integrated.rs` y en `scripts/j16_oracle.py` esperados literales independientes del compilador para estas fuentes completas. Cada negativo exige salida 1, cardinalidad exacta, `code`, `subcause`, span primario, `stage`, `operation`, relación de declaración, datos y ausencia de causa para E1107, en `check`/`run` debug/release; el oráculo confirma que `run` rechazado no tiene observaciones. Sin la corrección, los tres B1 fallan por un segundo diagnóstico; con la corrección de prueba, pasan.
+
+| Regresión nueva (P + sufijo + `}`) | Esperado exacto de diagnósticos | Testigo positivo o control |
+|---|---|---|
+| `return;f();move f();` | solo NX-E1107/null [65,66) | `return;move f();` sin E1107; y `move f();` ejecuta. |
+| `var i=0;while i<1{break;f();move f();}` | solo NX-E1107/null [82,83) | `var i=0;while i<1{break;move f();}` sin E1105. |
+| `var i=0;while i<1{continue;f();move f();}` | solo NX-E1107/null [85,86) | `var i=0;while i<1{continue;move f();}` sin E1105. |
+| `return;f();Drop(f);` | solo NX-E1107/null [65,66) | Control de operación `drop` [74,75), sin E1105 espurio. |
+
+Conservar y ejecutar las regresiones v2 para `move f();f();` (E0202), `f();f();` (dos E1107), `f();move f();f();` (E1107 y E0202), `let g=f;g();f();` (E0201 y dos E1107) y `let h=fn [edit f](){};f();Drop(h);` con `var f` (E1105 y E1107 legítimos). El oráculo publica fuente, esperado y spans antes de invocar Nexo; nunca calcula esperados desde la salida. Se mantienen fuzz acotado sin pánico, `internal_error`, `InvalidIr` ni cuelgue, y diferencial `check`/`run` y debug/release.
+
+## 5. Inversiones discriminantes previstas
+
+Una sola pasada al final sobre archivos de núcleo, una mutación por vez, restauración byte a byte y SHA-256 de blob inicial, mutado y restaurado. Las filas son testigos **previstos para la implementación**, no resultados de una campaña de esta propuesta.
+
+| Inversión | Testigo que debe matarla |
+|---|---|
+| Quitar el nuevo cierre en `UserCallNext` para `Analyze` | Los tres B1 públicos: reaparece E1105/active_borrow_conflict [74,75), [91,92) o [94,95) además de E1107. |
+| Cerrar el préstamo de un portador retenido ajeno en vez del `ReceiverLoan` de esa llamada | `var f; let h=fn [edit f](){};f();Drop(h);`: desaparece indebidamente E1105 [80,81). |
+| Suprimir o publicar anticipadamente el candidato E1107 | C09/`f();` pierde E1107 o `move f();f();` vuelve a E1107 en lugar de E0202. |
+| Omitir disponibilidad local hipotética | `move f();return;f();` cambia E0202/definitely [74,75) por E1107. |
+| Usar `consumed_at` local en Live diferido o cancelar todos los candidatos ante cualquier E0202 | `while{move f();}f()` pierde `maybe_consumed`; `f();move f();f();` pierde el E1107 independiente. |
+
+## 6. Archivos permitidos, orden y puerta
+
+Producción: únicamente `src/ir/lower.rs`. Evidencia: `tests/j16_integrated.rs`, `scripts/j16_oracle.py`, `docs/validation/F0-0003-J16-matrix.json` y `docs/validation/F0-0003-J16-mutations.json` regenerados. Este documento es la propuesta. Ningún otro `src/`, test, script o ADR se edita por B1; en particular queda intacto el diff ajeno de `docs/adr/F0-0002-second-slice.md`. Si el cierre de la ruta terminal no basta, C vuelve a propuesta antes de modificar otro mecanismo.
+
+Orden tras validación: aplicar §2; añadir §4; ejecutar la matriz §3 y las inversiones §5; pasar `sh scripts/validate.sh` en clon limpio (fmt, clippy `-D warnings`, tests debug/release, RD), diferencial contra `50b78cf` en programas declarados sin cambio, `check`/`run` debug/release con diagnósticos completos, fuzz y medidor de programas objetivo. Registrar las métricas reales y entregar a D sin declarar aprobación de fase ni de corte por anticipado.
