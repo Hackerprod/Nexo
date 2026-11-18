@@ -3,6 +3,144 @@ use nexo::diagnostic::{DataValue, Operation, RelatedRole, Stage};
 use nexo::ir::{CompileError, check_scalar};
 
 #[test]
+fn tainted_statement_does_not_hide_independent_sibling_errors() {
+    let cases = [
+        (
+            "fn Main(){let x=true+1;let y=x;let z=false+1;}",
+            [
+                ("NX-E0102", Some("type_mismatch"), 16, 20),
+                ("NX-E0102", Some("type_mismatch"), 37, 42),
+            ],
+        ),
+        (
+            "fn Main(){let a=true+1;let b:Bool=1;}",
+            [
+                ("NX-E0102", Some("type_mismatch"), 16, 20),
+                ("NX-E0102", Some("type_mismatch"), 34, 35),
+            ],
+        ),
+        (
+            "fn Main(){let a=true+1;let b=[];}",
+            [
+                ("NX-E0102", Some("type_mismatch"), 16, 20),
+                ("NX-E0103", None, 29, 31),
+            ],
+        ),
+    ];
+    for (source, expected) in cases {
+        let errors = check_proposed("cursor_siblings.n", source, false).unwrap_err();
+        let actual: Vec<_> = errors
+            .iter()
+            .map(|error| {
+                error.validate("cursor_siblings.n", source).unwrap();
+                let span = error.primary_span.as_ref().unwrap();
+                (
+                    error.code.as_str(),
+                    error.subcause.as_deref(),
+                    span.start,
+                    span.end,
+                )
+            })
+            .collect();
+        assert_eq!(actual, expected, "{source}");
+        assert!(matches!(
+            check_scalar("cursor_siblings.n", source),
+            Err(CompileError::Rejected(_))
+        ));
+    }
+    for source in [
+        "fn Main(){let x=0+1;let y=x;let z=false+1;}",
+        "fn Main(){let x=true+1;let y=x;let z=0+1;}",
+    ] {
+        let errors = check_proposed("cursor_one_repaired.n", source, false).unwrap_err();
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+    }
+    let repaired = "fn Main(){let x=0+1;let y=x;let z=0+1;}";
+    assert!(check_proposed("cursor_both_repaired.n", repaired, false).is_ok());
+    assert!(check_scalar("cursor_both_repaired.n", repaired).is_ok());
+}
+
+#[test]
+fn selector_failure_keeps_only_its_independent_diagnostic() {
+    let source = "fn Main(){let x=1;let p=true;var ar=[1];var br=[true];var aar=[[1]];AssertEq([p,p],(if p then ar[ar[x]] else {value:aar[x-(if true then ar else 279)];}));}";
+    let errors = check_proposed("cursor_selector.n", source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let error = &errors[0];
+    error.validate("cursor_selector.n", source).unwrap();
+    assert_eq!(
+        (error.code.as_str(), error.subcause.as_deref()),
+        ("NX-E0102", Some("type_mismatch"))
+    );
+    let span = error.primary_span.as_ref().unwrap();
+    assert_eq!((span.start, span.end), (136, 138));
+    assert_eq!(
+        error.data.get("expected_type"),
+        Some(&DataValue::String("I64".into()))
+    );
+    assert_eq!(
+        error.data.get("found_type"),
+        Some(&DataValue::String("Array<I64>".into()))
+    );
+}
+
+#[test]
+fn unresolved_constructors_close_from_their_own_obligations() {
+    let source = include_str!("fixtures/i07c/independent_unresolved_constructor_in_branch.n");
+    let errors = check_proposed("cursor_constructors.n", source, false).unwrap_err();
+    let actual: Vec<_> = errors
+        .iter()
+        .map(|error| {
+            error.validate("cursor_constructors.n", source).unwrap();
+            let span = error.primary_span.as_ref().unwrap();
+            (
+                error.code.as_str(),
+                error.subcause.as_deref(),
+                span.start,
+                span.end,
+            )
+        })
+        .collect();
+    assert_eq!(
+        actual,
+        [
+            ("NX-E0103", None, 56, 58),
+            ("NX-E0102", Some("type_mismatch"), 81, 83),
+            ("NX-E0103", None, 115, 117),
+            ("NX-E0102", Some("type_mismatch"), 132, 134),
+            ("NX-E0102", Some("type_mismatch"), 179, 181),
+            ("NX-E0102", Some("not_indexable"), 194, 195),
+        ]
+    );
+}
+
+#[test]
+fn numeric_visit_owner_limits_deferred_joins_to_one_domain_error() {
+    let source = "fn Main(){var r=[(if true then {return;} else {return;})];var q=[(if true then {return;} else {return;})];let z=r+(q[q]);r=[1];q=[true];}";
+    let errors = check_proposed("cursor_numeric_owner.n", source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let error = &errors[0];
+    error.validate("cursor_numeric_owner.n", source).unwrap();
+    assert_eq!(
+        (error.code.as_str(), error.subcause.as_deref()),
+        ("NX-E0102", Some("type_mismatch"))
+    );
+    let span = error.primary_span.as_ref().unwrap();
+    assert_eq!((span.start, span.end), (112, 113));
+    assert_eq!(
+        error.data.get("expected_type"),
+        Some(&DataValue::String("I64".into()))
+    );
+    assert_eq!(
+        error.data.get("found_type"),
+        Some(&DataValue::String("Array<I64>".into()))
+    );
+    assert!(matches!(
+        check_scalar("cursor_numeric_owner.n", source),
+        Err(CompileError::Rejected(_))
+    ));
+}
+
+#[test]
 fn indexed_write_preserves_expected_and_found_orientation() {
     // F0-0002 §§4.1.2.2, 13.15: the RHS equality supplies Bool before
     // the unresolved indexed destination supplies its I64 element.

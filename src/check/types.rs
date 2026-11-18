@@ -1492,6 +1492,18 @@ struct OccurrenceState {
     obligations: [Option<ObligationStatus>; 9],
 }
 
+// Scratch state for one active drive. Frames may save a parent's value while
+// visiting a child, but no cursor survives the drive that created it.
+#[derive(Default)]
+struct VisitCursor {
+    tainted: bool,
+    numeric_domain_owner: Option<(u64, u64)>,
+    #[cfg(test)]
+    statement_entries: Vec<(bool, bool)>,
+    #[cfg(test)]
+    owner_activations: usize,
+}
+
 #[derive(Clone)]
 struct InferenceGraph {
     locals: HashMap<u64, Known>,
@@ -1506,9 +1518,6 @@ struct InferenceGraph {
     // Root, scalar constraint, expected source, incompatible operand,
     // array-on-left, and branch join (NX-E1303 instead of NX-E0102).
     obligations: Vec<ObligationKind>,
-    // The + or - whose I64 context is currently distributed to this site.
-    // Nested binary expressions own their internal constraints separately.
-    numeric_domain_owner: Option<(u64, u64)>,
     occurrences: HashMap<(u64, u64), OccurrenceState>,
     // §13.9: an operand/constraint site owns one diagnostic, regardless of
     // whether it is discovered immediately or by a deferred join.
@@ -1527,7 +1536,6 @@ struct InferenceGraph {
     first_assignment_rhs_starts: HashMap<u64, u64>,
     prefix_concrete: HashMap<u64, ConcreteEvidence>,
     preseeded_children: HashSet<u64>,
-    tainted: bool,
     result: Type,
     result_span: Option<Span>,
 }
@@ -1898,6 +1906,7 @@ impl Checker<'_> {
 
     fn closure_body_advance<'b>(
         &mut self,
+        visit: &mut VisitCursor,
         progress: &mut ClosureProgress<'b>,
         returned: Option<Result<Type, Box<Diagnostic>>>,
     ) -> ClosureAction<'b> {
@@ -1916,7 +1925,7 @@ impl Checker<'_> {
                 ClosurePending::Let(pending) => (
                     pending.statement,
                     pending.prior_taint,
-                    self.finish_let(pending.statement, pending.prepared, returned),
+                    self.finish_let(visit, pending.statement, pending.prepared, returned),
                 ),
                 ClosurePending::Return {
                     statement,
@@ -1924,7 +1933,7 @@ impl Checker<'_> {
                     prior_taint,
                 } => {
                     let outcome = returned.and_then(|actual| {
-                        if matches!(expected, Type::Deferred(_)) && !self.graph.tainted {
+                        if matches!(expected, Type::Deferred(_)) && !visit.tainted {
                             let Statement::Return {
                                 value: Some(value), ..
                             } = statement
@@ -1932,14 +1941,22 @@ impl Checker<'_> {
                                 unreachable!("return continuation owns a value")
                             };
                             let site = Self::primary_span(value);
-                            self.unify(expected, actual, site.clone(), site.clone(), site, false)?;
+                            self.unify(
+                                visit,
+                                expected,
+                                actual,
+                                site.clone(),
+                                site.clone(),
+                                site,
+                                false,
+                            )?;
                         }
                         Ok(())
                     });
                     (statement, prior_taint, outcome)
                 }
             };
-            self.finish_statement_at_site(statement, prior_taint, outcome);
+            self.finish_statement_at_site(visit, statement, prior_taint, outcome);
             if !self.analysis_exhausted
                 && let Err(error) = self.resolve_pending_projections(false)
             {
@@ -1962,7 +1979,7 @@ impl Checker<'_> {
                     ..
                 } = statement
             {
-                let prior_taint = std::mem::take(&mut self.graph.tainted);
+                let prior_taint = std::mem::take(&mut visit.tainted);
                 match self.prepare_let(annotation.as_ref(), value, span) {
                     Ok(prepared) => {
                         let context = OwnedCheckContext::new(CheckContext {
@@ -1982,7 +1999,7 @@ impl Checker<'_> {
                         return ClosureAction::Value(value, context);
                     }
                     Err(error) => {
-                        self.finish_statement_at_site(statement, prior_taint, Err(error));
+                        self.finish_statement_at_site(visit, statement, prior_taint, Err(error));
                     }
                 }
             } else if !self.analysis_exhausted
@@ -1991,7 +2008,7 @@ impl Checker<'_> {
                     value: Some(value), ..
                 } = statement
             {
-                let prior_taint = std::mem::take(&mut self.graph.tainted);
+                let prior_taint = std::mem::take(&mut visit.tainted);
                 let expected = self.graph.result.clone();
                 let origin = self.graph.result_span.clone();
                 progress.pending_statement = Some(ClosurePending::Return {
@@ -2743,11 +2760,9 @@ impl Checker<'_> {
                         // The selector has independent constraints of its own.
                         // Synthesize them in source order even though its I64
                         // context depends on the still-unknown base shape.
-                        let prior_taint = self.graph.tainted;
-                        self.graph.tainted = false;
-                        let selector = self.expr(&projection.selector, None, None);
-                        projection.selector_invalid |= self.graph.tainted || selector.is_err();
-                        self.graph.tainted = prior_taint;
+                        let (selector, cursor) =
+                            self.expr_with_cursor(&projection.selector, None, None);
+                        projection.selector_invalid |= cursor.tainted || selector.is_err();
                         if let Err(error) = selector {
                             if error.operation == Operation::AnalysisLimit {
                                 return Err(error);
@@ -2766,8 +2781,6 @@ impl Checker<'_> {
                     next.push(ObligationKind::Projection(projection));
                     continue;
                 }
-                let prior_taint = self.graph.tainted;
-                self.graph.tainted = false;
                 // The selector occurrence predates a later binding that may
                 // have fixed its variable. Once Array activates the earlier
                 // I64 requirement, the later incompatible binding is the
@@ -2789,7 +2802,7 @@ impl Checker<'_> {
                 } else {
                     None
                 };
-                let selector = self.expr(
+                let (selector, cursor) = self.expr_with_cursor(
                     &projection.selector,
                     (indexable && later_conflict.is_none()).then_some(&Type::I64),
                     None,
@@ -2799,14 +2812,13 @@ impl Checker<'_> {
                 }
                 let selector_invalid = projection.selector_invalid
                     || later_conflict.is_some()
-                    || self.graph.tainted
+                    || cursor.tainted
                     || selector.is_err();
                 let result_site = span_key(&projection.result_span);
                 if selector_invalid {
                     self.graph
                         .mark(result_site, OccurrenceFlag::FailedProjection);
                 }
-                self.graph.tainted = prior_taint;
                 if let Err(error) = selector {
                     if error.operation == Operation::AnalysisLimit {
                         return Err(error);
@@ -2816,6 +2828,7 @@ impl Checker<'_> {
                 if let Some(child) = element {
                     if !selector_invalid {
                         let result = self.unify(
+                            &VisitCursor::default(),
                             Type::Deferred(projection.item),
                             Type::Deferred(child),
                             projection.base_span.clone(),
@@ -2834,6 +2847,7 @@ impl Checker<'_> {
                         if let Some(expected) = projection.expected {
                             let found = projection.result_span;
                             let result = self.unify_with_expected_origin(
+                                &VisitCursor::default(),
                                 expected,
                                 Type::Deferred(projection.item),
                                 projection.expected_span.unwrap_or_else(|| found.clone()),
@@ -3406,6 +3420,7 @@ impl Checker<'_> {
             for (actual, target) in children.variants.iter().zip(wanted.variants) {
                 if let (Some(actual), Some(target)) = (actual.payload, target.payload) {
                     self.bind(
+                        &VisitCursor::default(),
                         actual,
                         (*target).clone(),
                         previous_origin.clone(),
@@ -3671,6 +3686,7 @@ impl Checker<'_> {
 
     fn bind(
         &mut self,
+        visit: &VisitCursor,
         id: u64,
         ty: Type,
         origin: Span,
@@ -3714,6 +3730,7 @@ impl Checker<'_> {
                     for (actual, target) in actual.variants.iter().zip(wanted.variants) {
                         if let (Some(actual), Some(target)) = (actual.payload, target.payload) {
                             checker.bind(
+                                visit,
                                 actual,
                                 target.clone(),
                                 origin.clone(),
@@ -3787,7 +3804,14 @@ impl Checker<'_> {
             let whole_found = Type::Array(element.clone());
             let child = self.require_array(id, &found)?;
             return self
-                .bind(child, element.as_ref().clone(), origin, found, intrinsic)
+                .bind(
+                    visit,
+                    child,
+                    element.as_ref().clone(),
+                    origin,
+                    found,
+                    intrinsic,
+                )
                 .map_err(|error| {
                     if let Some(expected) = &whole_expected {
                         array_mismatch(error, expected, &whole_found)
@@ -3820,6 +3844,7 @@ impl Checker<'_> {
                     // of solver order. A later constraint may determine the
                     // element and turn this into a concrete §13.15 mismatch.
                     self.defer_shape_conflict(
+                        visit,
                         Type::Deferred(root),
                         ty,
                         root,
@@ -3836,6 +3861,7 @@ impl Checker<'_> {
                 return Err(self.array_domain_conflict(root, &ty, found));
             };
             self.bind(
+                visit,
                 child,
                 element.as_ref().clone(),
                 origin.clone(),
@@ -4090,8 +4116,10 @@ impl Checker<'_> {
                 })
     }
 
+    #[allow(clippy::too_many_arguments)] // The visit is threaded through the existing solver call.
     fn defer_shape_conflict(
         &mut self,
+        visit: &VisitCursor,
         left: Type,
         right: Type,
         constructor: u64,
@@ -4134,7 +4162,7 @@ impl Checker<'_> {
                 found,
                 branch: policy.branch,
                 related_expected: policy.related_expected,
-                numeric_domain_owner: self.graph.numeric_domain_owner,
+                numeric_domain_owner: visit.numeric_domain_owner,
                 comparison_domain_if_unresolved: None,
             })));
     }
@@ -4160,8 +4188,10 @@ impl Checker<'_> {
 
     /// The single structural unification operation used by source joins.
     /// Never contributes no constraint and taint contributes no new error.
+    #[allow(clippy::too_many_arguments)] // The visit is threaded through the existing solver call.
     fn unify(
         &mut self,
+        visit: &VisitCursor,
         left: Type,
         right: Type,
         left_origin: Span,
@@ -4170,6 +4200,7 @@ impl Checker<'_> {
         branch: bool,
     ) -> Result<Type, Box<Diagnostic>> {
         self.unify_with_expected_origin(
+            visit,
             left,
             right,
             left_origin,
@@ -4182,8 +4213,10 @@ impl Checker<'_> {
         )
     }
 
+    #[allow(clippy::too_many_arguments)] // The visit is threaded through the existing solver call.
     fn unify_with_expected_origin(
         &mut self,
+        visit: &VisitCursor,
         left: Type,
         right: Type,
         left_origin: Span,
@@ -4238,6 +4271,7 @@ impl Checker<'_> {
                         b_root
                     };
                     self.defer_shape_conflict(
+                        visit,
                         Type::Deferred(a),
                         Type::Deferred(b),
                         constructor,
@@ -4259,6 +4293,7 @@ impl Checker<'_> {
                 if let Some(constructor) = constructor {
                     self.charge_solver(&found)?;
                     self.defer_shape_conflict(
+                        visit,
                         Type::Deferred(a),
                         Type::Deferred(b),
                         constructor,
@@ -4287,7 +4322,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.graph.numeric_domain_owner,
+                                numeric_domain_owner: visit.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(constructor));
@@ -4309,7 +4344,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.graph.numeric_domain_owner,
+                                numeric_domain_owner: visit.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(constructor));
@@ -4350,6 +4385,7 @@ impl Checker<'_> {
                 {
                     self.charge_solver(&found)?;
                     self.defer_shape_conflict(
+                        visit,
                         Type::Deferred(id),
                         other,
                         constructor,
@@ -4361,6 +4397,7 @@ impl Checker<'_> {
                 }
                 let previous = self.pending_join_count();
                 if let Err(error) = self.bind(
+                    visit,
                     id,
                     other.clone(),
                     right_origin,
@@ -4382,7 +4419,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.graph.numeric_domain_owner,
+                                numeric_domain_owner: visit.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(root));
@@ -4423,6 +4460,7 @@ impl Checker<'_> {
                 {
                     self.charge_solver(&found)?;
                     self.defer_shape_conflict(
+                        visit,
                         other,
                         Type::Deferred(id),
                         constructor,
@@ -4434,6 +4472,7 @@ impl Checker<'_> {
                 }
                 let previous = self.pending_join_count();
                 if let Err(error) = self.bind(
+                    visit,
                     id,
                     other.clone(),
                     left_origin.clone(),
@@ -4455,7 +4494,7 @@ impl Checker<'_> {
                                 found,
                                 branch,
                                 related_expected,
-                                numeric_domain_owner: self.graph.numeric_domain_owner,
+                                numeric_domain_owner: visit.numeric_domain_owner,
                                 comparison_domain_if_unresolved: None,
                             })));
                         return Ok(Type::Deferred(root));
@@ -4491,6 +4530,7 @@ impl Checker<'_> {
                 let pending_before = self.pending_join_count();
                 let element = self
                     .unify(
+                        visit,
                         a.as_ref().clone(),
                         b.as_ref().clone(),
                         left_origin,
@@ -4548,6 +4588,7 @@ impl Checker<'_> {
                     for (left, right) in left_union.variants.iter().zip(right_union.variants) {
                         if let (Some(left), Some(right)) = (left.payload, right.payload) {
                             payloads.push(checker.unify(
+                                visit,
                                 left.clone(),
                                 right.clone(),
                                 left_origin.clone(),
@@ -4704,6 +4745,7 @@ impl Checker<'_> {
         }
         if let (Some(child), Some((Type::Array(element), origin))) = (a_child, &b_concrete) {
             self.bind(
+                &VisitCursor::default(),
                 child,
                 element.as_ref().clone(),
                 origin.clone(),
@@ -4713,6 +4755,7 @@ impl Checker<'_> {
         }
         if let (Some(child), Some((Type::Array(element), origin))) = (b_child, &a_concrete) {
             self.bind(
+                &VisitCursor::default(),
                 child,
                 element.as_ref().clone(),
                 origin.clone(),
@@ -4726,6 +4769,7 @@ impl Checker<'_> {
             for (child, target) in children.variants.iter().zip(concrete.variants) {
                 if let (Some(child), Some(target)) = (child.payload, target.payload) {
                     self.bind(
+                        &VisitCursor::default(),
                         child,
                         (*target).clone(),
                         origin.clone(),
@@ -4741,6 +4785,7 @@ impl Checker<'_> {
             for (child, target) in children.variants.iter().zip(concrete.variants) {
                 if let (Some(child), Some(target)) = (child.payload, target.payload) {
                     self.bind(
+                        &VisitCursor::default(),
                         child,
                         (*target).clone(),
                         origin.clone(),
@@ -5651,7 +5696,6 @@ impl Checker<'_> {
         // bodies in one file. A later function cannot read an earlier span;
         // their clears bound memory but do not change a reachable result.
         // Binding name offsets have the same per-file uniqueness property.
-        self.graph.tainted = false;
         self.graph.result = if f.is_generator {
             Type::Unit
         } else {
@@ -5795,7 +5839,14 @@ impl Checker<'_> {
                 .concrete(id)
                 .map(|(_, origin)| origin)
                 .unwrap_or_else(|| result.clone());
-            if let Err(error) = self.bind(id, nominal, result, found_site, true) {
+            if let Err(error) = self.bind(
+                &VisitCursor::default(),
+                id,
+                nominal,
+                result,
+                found_site,
+                true,
+            ) {
                 self.record_error(error);
             }
         }
@@ -6249,7 +6300,7 @@ impl Checker<'_> {
     }
 
     fn block(&mut self, b: &Block) -> Result<(), Box<Diagnostic>> {
-        self.drive(DriveStart::Block(b)).map(|_| ())
+        self.drive(DriveStart::Block(b)).0.map(|_| ())
     }
 
     #[cfg(test)]
@@ -6259,14 +6310,15 @@ impl Checker<'_> {
 
     fn finish_statement_at_site(
         &mut self,
+        visit: &mut VisitCursor,
         statement: &Statement,
         previous_taint: bool,
         outcome: Result<(), Box<Diagnostic>>,
     ) {
-        let tainted = self.graph.tainted
+        let tainted = visit.tainted
             || matches!(statement, Statement::Let { value, .. }
                 if self.graph.has(&span_key(value.span()), OccurrenceFlag::Tainted));
-        self.graph.tainted = previous_taint || tainted;
+        visit.tainted = previous_taint || tainted;
         if let Statement::Let {
             name,
             annotation: None,
@@ -6304,7 +6356,7 @@ impl Checker<'_> {
                         },
                     );
                     self.graph.attach_conditional_binding(&site, id, nominal);
-                    self.graph.tainted = previous_taint;
+                    visit.tainted = previous_taint;
                     return;
                 }
                 Err(error) => self.record_error(error),
@@ -6463,11 +6515,12 @@ impl Checker<'_> {
 
     fn prepare_assignment_rhs<'a>(
         &mut self,
+        visit: &mut VisitCursor,
         place: &'a Expr,
         value: &'a Expr,
         lhs: Type,
     ) -> (OwnedCheckContext, AssignmentProgress<'a>) {
-        let lhs_tainted = std::mem::take(&mut self.graph.tainted);
+        let lhs_tainted = std::mem::take(&mut visit.tainted);
         let local = self.expression_variable(place).or_else(|| {
             if let Expr::Name(_, span) = place {
                 match self.resolved.uses.get(&span.start) {
@@ -6557,6 +6610,7 @@ impl Checker<'_> {
 
     fn finish_assignment_rhs(
         &mut self,
+        visit: &mut VisitCursor,
         progress: AssignmentProgress<'_>,
         result: Result<Type, Box<Diagnostic>>,
     ) -> Result<(), Box<Diagnostic>> {
@@ -6577,7 +6631,7 @@ impl Checker<'_> {
                     return Err(error);
                 }
             };
-            if self.graph.tainted {
+            if visit.tainted {
                 return Ok(());
             }
             let place = progress.place;
@@ -6600,6 +6654,7 @@ impl Checker<'_> {
                 .unwrap_or(rhs);
             let right_origin = self.expression_origin(value);
             self.unify(
+                visit,
                 Type::Deferred(local),
                 right,
                 left_origin,
@@ -6615,7 +6670,7 @@ impl Checker<'_> {
             }
             Ok(())
         })();
-        self.graph.tainted |= progress.lhs_tainted;
+        visit.tainted |= progress.lhs_tainted;
         outcome
     }
 
@@ -6642,6 +6697,7 @@ impl Checker<'_> {
 
     fn finish_let(
         &mut self,
+        visit: &mut VisitCursor,
         statement: &Statement,
         prepared: PreparedLet,
         got: Result<Type, Box<Diagnostic>>,
@@ -6668,7 +6724,7 @@ impl Checker<'_> {
                 .graph
                 .has(&span_key(value.span()), OccurrenceFlag::Deferred)
             && internal_state(&got).is_some()
-            && !self.graph.tainted;
+            && !visit.tainted;
         let variable = if deferred {
             let id = self.new_variable(&Self::primary_span(value))?;
             self.graph.type_nodes.get_mut(&id).unwrap().bottom_only = self
@@ -6676,6 +6732,7 @@ impl Checker<'_> {
                 .has(&span_key(value.span()), OccurrenceFlag::Divergent);
             if let Some(from) = self.expression_variable(value) {
                 self.unify(
+                    visit,
                     Type::Deferred(id),
                     Type::Deferred(from),
                     Self::primary_span(value),
@@ -6757,6 +6814,7 @@ impl Checker<'_> {
                         end: span.start + 6,
                     };
                     self.unify(
+                        &VisitCursor::default(),
                         self.graph.result.clone(),
                         Type::Unit,
                         site.clone(),
@@ -6858,6 +6916,7 @@ impl Checker<'_> {
         }
     }
 
+    #[cfg(test)]
     fn expr(
         &mut self,
         e: &Expr,
@@ -6867,10 +6926,31 @@ impl Checker<'_> {
         self.check_against(e, expected, expected_span, true)
     }
 
+    fn expr_with_cursor(
+        &mut self,
+        e: &Expr,
+        expected: Option<&Type>,
+        expected_span: Option<&Span>,
+    ) -> (Result<Type, Box<Diagnostic>>, VisitCursor) {
+        self.drive(DriveStart::Expression(
+            e,
+            OwnedCheckContext::new(CheckContext {
+                expected,
+                expected_span,
+                check_here: true,
+                anchor: None,
+                outer_compare: false,
+                related_expected: expected_span.is_some(),
+                deferred_element: false,
+            }),
+        ))
+    }
+
     // A concrete context is checked at every value position. Transparent
     // syntax and constructors pass that context to their children; only a
     // leaf (or a constructor with an incompatible outer shape) compares its
     // own type. This keeps each §13.9 diagnostic at its §13.15 operand.
+    #[cfg(test)]
     fn check_against(
         &mut self,
         e: &Expr,
@@ -6892,15 +6972,17 @@ impl Checker<'_> {
         )
     }
 
+    #[cfg(test)]
     fn check_against_context(
         &mut self,
         e: &Expr,
         context: CheckContext<'_>,
     ) -> Result<Type, Box<Diagnostic>> {
         self.drive(DriveStart::Expression(e, OwnedCheckContext::new(context)))
+            .0
     }
 
-    fn drive(&mut self, start: DriveStart<'_>) -> Result<Type, Box<Diagnostic>> {
+    fn drive(&mut self, start: DriveStart<'_>) -> (Result<Type, Box<Diagnostic>>, VisitCursor) {
         enum Task<'a> {
             StatementSite(&'a Statement),
             Statement(&'a Statement),
@@ -6961,8 +7043,10 @@ impl Checker<'_> {
             Evaluate,
         }
         #[inline(never)]
+        #[allow(clippy::too_many_arguments)] // Continuation carries one drive's cursor.
         fn resume_non_match<'a>(
             checker: &mut Checker<'_>,
+            visit: &mut VisitCursor,
             frame: Frame<'a>,
             mut result: Result<Type, Box<Diagnostic>>,
             frames: &mut Vec<Frame<'a>>,
@@ -6972,7 +7056,12 @@ impl Checker<'_> {
         ) -> Resume {
             match frame {
                 Frame::StatementSite(statement, prior_taint) => {
-                    checker.finish_statement_at_site(statement, prior_taint, result.map(|_| ()));
+                    checker.finish_statement_at_site(
+                        visit,
+                        statement,
+                        prior_taint,
+                        result.map(|_| ()),
+                    );
                     result = Ok(Type::Unit);
                 }
                 Frame::StatementExpr => {
@@ -6980,14 +7069,15 @@ impl Checker<'_> {
                 }
                 Frame::StatementLet(statement, prepared) => {
                     result = checker
-                        .finish_let(statement, *prepared, result)
+                        .finish_let(visit, statement, *prepared, result)
                         .map(|_| Type::Unit);
                 }
                 Frame::StatementReturn(value, expected) => {
                     result = result.and_then(|actual| {
-                        if matches!(expected, Type::Deferred(_)) && !checker.graph.tainted {
+                        if matches!(expected, Type::Deferred(_)) && !visit.tainted {
                             let site = Checker::primary_span(value);
                             checker.unify(
+                                visit,
                                 expected,
                                 actual,
                                 site.clone(),
@@ -7010,7 +7100,8 @@ impl Checker<'_> {
                     let Statement::Assign { place, value, .. } = statement else {
                         unreachable!("assignment frame owns an assignment")
                     };
-                    let (context, progress) = checker.prepare_assignment_rhs(place, value, lhs);
+                    let (context, progress) =
+                        checker.prepare_assignment_rhs(visit, place, value, lhs);
                     frames.push(Frame::AssignmentValue(Box::new(progress)));
                     *inner = value;
                     *inner_context = context;
@@ -7018,7 +7109,7 @@ impl Checker<'_> {
                 }
                 Frame::AssignmentValue(progress) => {
                     result = checker
-                        .finish_assignment_rhs(*progress, result)
+                        .finish_assignment_rhs(visit, *progress, result)
                         .map(|_| Type::Unit);
                 }
                 Frame::StatementIf(statement, stage) => {
@@ -7030,7 +7121,7 @@ impl Checker<'_> {
                             }
                             Err(error) => {
                                 checker.record_error(error);
-                                checker.graph.tainted = true;
+                                visit.tainted = true;
                             }
                             Ok(_) => {}
                         }
@@ -7062,7 +7153,7 @@ impl Checker<'_> {
                             }
                             Err(error) => {
                                 checker.record_error(error);
-                                checker.graph.tainted = true;
+                                visit.tainted = true;
                             }
                             Ok(_) => {}
                         }
@@ -7131,6 +7222,7 @@ impl Checker<'_> {
                     let (group, child, span, context) = *progress;
                     checker.propagate_group(child, span);
                     result = checker.check_against_context_one(
+                        visit,
                         group,
                         context.borrowed(),
                         Some(PrecomputedType::Whole(result)),
@@ -7139,6 +7231,7 @@ impl Checker<'_> {
                 Frame::Unary(progress) => {
                     let (expr, context) = *progress;
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::UnaryOperand(result)),
@@ -7147,6 +7240,7 @@ impl Checker<'_> {
                 Frame::UnaryPropagated(progress) => {
                     let (expr, context) = *progress;
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::Whole(result)),
@@ -7154,21 +7248,22 @@ impl Checker<'_> {
                 }
                 Frame::Array(progress) => {
                     let mut state = *progress;
-                    let accepted = checker.array_accept(&mut state, result);
+                    let accepted = checker.array_accept(visit, &mut state, result);
                     if accepted.is_ok() {
                         state.next += 1;
                         if state.next < state.items.len() {
-                            (*inner, *inner_context) = checker.array_next(&mut state);
+                            (*inner, *inner_context) = checker.array_next(visit, &mut state);
                             frames.push(Frame::Array(Box::new(state)));
                             return Resume::Evaluate;
                         }
                     }
-                    checker.graph.numeric_domain_owner = state.previous_owner;
+                    visit.numeric_domain_owner = state.previous_owner;
                     let expr = state.expr;
                     let context = state.context.clone();
                     let constructor_pair = state.element_expected.is_some();
                     let outcome = accepted.and_then(|_| checker.array_finish(state));
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::ArrayComplete {
@@ -7179,7 +7274,7 @@ impl Checker<'_> {
                 }
                 Frame::Index(progress) => {
                     let (expr, context, previous_owner) = *progress;
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                     match result {
                         Ok(base) => {
                             let Expr::Index { target, index, .. } = expr else {
@@ -7201,6 +7296,7 @@ impl Checker<'_> {
                                         Ok(child) => deferred_child = Some(child),
                                         Err(error) => {
                                             result = checker.check_against_context_one(
+                                                visit,
                                                 expr,
                                                 context.borrowed(),
                                                 Some(PrecomputedType::Whole(Err(error))),
@@ -7214,6 +7310,7 @@ impl Checker<'_> {
                             }
                             if pending_projection {
                                 result = checker.check_against_context_one(
+                                    visit,
                                     expr,
                                     context.borrowed(),
                                     Some(PrecomputedType::IndexTarget {
@@ -7235,7 +7332,7 @@ impl Checker<'_> {
                             let prior_taint = (!matches!(base, Type::Array(_) | Type::Never)
                                 && deferred_child.is_none()
                                 && !divergent_target)
-                                .then(|| std::mem::take(&mut checker.graph.tainted));
+                                .then(|| std::mem::take(&mut visit.tainted));
                             frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
                                 expr,
                                 context,
@@ -7257,6 +7354,7 @@ impl Checker<'_> {
                         }
                         other => {
                             result = checker.check_against_context_one(
+                                visit,
                                 expr,
                                 context.borrowed(),
                                 Some(PrecomputedType::IndexTarget {
@@ -7277,9 +7375,10 @@ impl Checker<'_> {
                         deferred_child,
                     } = *progress;
                     if let Some(prior_taint) = prior_taint {
-                        checker.graph.tainted |= prior_taint;
+                        visit.tainted |= prior_taint;
                     }
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::IndexTarget {
@@ -7291,7 +7390,7 @@ impl Checker<'_> {
                 }
                 Frame::Binary(progress) => {
                     let (expr, context, pending_before, previous_owner) = *progress;
-                    checker.graph.numeric_domain_owner = None;
+                    visit.numeric_domain_owner = None;
                     if matches!(&result, Err(error) if error.operation != Operation::AnalysisLimit)
                     {
                         let Err(error) = result else { unreachable!() };
@@ -7306,9 +7405,9 @@ impl Checker<'_> {
                             && error.primary_span.as_ref() == Some(&Checker::primary_span(left))
                             && error.data.get("expected_type")
                                 == Some(&DataValue::String("I64".into()));
-                        let left_tainted = std::mem::take(&mut checker.graph.tainted);
+                        let left_tainted = std::mem::take(&mut visit.tainted);
                         if numeric {
-                            checker.graph.numeric_domain_owner =
+                            visit.numeric_domain_owner =
                                 Some((left.span().start, right.span().end));
                         }
                         frames.push(Frame::BinaryIndependentLeftError(Box::new(
@@ -7358,7 +7457,7 @@ impl Checker<'_> {
                             )
                         } else if numeric && joined {
                             Some(checker.type_determined(left_type) && *left_type != Type::I64)
-                        } else if failed_join || checker.graph.tainted {
+                        } else if failed_join || visit.tainted {
                             Some(
                                 checker
                                     .graph
@@ -7382,9 +7481,9 @@ impl Checker<'_> {
                             None
                         };
                         if let Some(left_domain_failed) = left_domain_failed {
-                            let left_tainted = std::mem::take(&mut checker.graph.tainted);
+                            let left_tainted = std::mem::take(&mut visit.tainted);
                             if numeric {
-                                checker.graph.numeric_domain_owner =
+                                visit.numeric_domain_owner =
                                     Some((left.span().start, right.span().end));
                             }
                             frames.push(Frame::BinaryIndependentRight(Box::new(
@@ -7460,7 +7559,7 @@ impl Checker<'_> {
                             && !checker
                                 .graph
                                 .has(&span_key(left.span()), OccurrenceFlag::FailedJoin)
-                            && !checker.graph.tainted
+                            && !visit.tainted
                             && !checker
                                 .graph
                                 .has(&span_key(left.span()), OccurrenceFlag::Deferred)
@@ -7494,6 +7593,7 @@ impl Checker<'_> {
                         }
                     }
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::BinaryLeft {
@@ -7502,7 +7602,7 @@ impl Checker<'_> {
                             independent_right: None,
                         }),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryRight(progress) => {
                     let BinaryRightProgress {
@@ -7512,8 +7612,9 @@ impl Checker<'_> {
                         pending_before,
                         previous_owner,
                     } = *progress;
-                    checker.graph.numeric_domain_owner = None;
+                    visit.numeric_domain_owner = None;
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::BinaryRight {
@@ -7522,7 +7623,7 @@ impl Checker<'_> {
                             pending_before,
                         }),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryDeferredRight(progress) => {
                     let BinaryDeferredProgress {
@@ -7533,8 +7634,9 @@ impl Checker<'_> {
                         pending_before_operator,
                         previous_owner,
                     } = *progress;
-                    checker.graph.numeric_domain_owner = None;
+                    visit.numeric_domain_owner = None;
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::BinaryDeferredRight {
@@ -7544,7 +7646,7 @@ impl Checker<'_> {
                             pending_before_operator,
                         }),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryIndependentLeftError(progress) => {
                     let BinaryLeftErrorProgress {
@@ -7561,8 +7663,8 @@ impl Checker<'_> {
                     else {
                         unreachable!("independent frame owns a binary")
                     };
-                    checker.graph.numeric_domain_owner = None;
-                    let right_tainted = checker.graph.tainted;
+                    visit.numeric_domain_owner = None;
+                    let right_tainted = visit.tainted;
                     let outcome = checker.finish_independent_binary_rhs(
                         op,
                         left,
@@ -7573,13 +7675,13 @@ impl Checker<'_> {
                     );
                     let binary_result = match outcome {
                         Ok(right_failed) => {
-                            checker.graph.tainted |= left_tainted;
+                            visit.tainted |= left_tainted;
                             if right_failed {
                                 checker.record_error(error);
                                 checker
                                     .graph
                                     .mark(span_key(expr.span()), OccurrenceFlag::Deferred);
-                                checker.graph.tainted = true;
+                                visit.tainted = true;
                                 Ok(Type::Tainted)
                             } else {
                                 Err(error)
@@ -7588,11 +7690,12 @@ impl Checker<'_> {
                         Err(error) => Err(error),
                     };
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::Whole(binary_result)),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::BinaryIndependentRight(progress) => {
                     let BinaryIndependentProgress {
@@ -7613,8 +7716,8 @@ impl Checker<'_> {
                     else {
                         unreachable!("independent frame owns a binary")
                     };
-                    checker.graph.numeric_domain_owner = None;
-                    let right_tainted = checker.graph.tainted;
+                    visit.numeric_domain_owner = None;
+                    let right_tainted = visit.tainted;
                     let outcome = checker.finish_independent_binary_rhs(
                         op,
                         left_expr,
@@ -7623,9 +7726,10 @@ impl Checker<'_> {
                         result,
                         right_tainted,
                     );
-                    checker.graph.tainted |= left_tainted;
+                    visit.tainted |= left_tainted;
                     result = match outcome {
                         Ok(right_failed) => checker.check_against_context_one(
+                            visit,
                             expr,
                             context.borrowed(),
                             Some(PrecomputedType::BinaryLeft {
@@ -7636,7 +7740,7 @@ impl Checker<'_> {
                         ),
                         Err(error) => Err(error),
                     };
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::Call(progress) => {
                     let CallProgress {
@@ -7649,16 +7753,16 @@ impl Checker<'_> {
                     let Expr::Call { args, span, .. } = expr else {
                         unreachable!("call frame owns a call")
                     };
-                    let child_taint = checker.graph.tainted;
-                    checker.graph.tainted = prior_taint || child_taint;
+                    let child_taint = visit.tainted;
+                    visit.tainted = prior_taint || child_taint;
                     if let Err(error) = result {
                         if error.operation == Operation::AnalysisLimit {
-                            checker.graph.numeric_domain_owner = previous_owner;
+                            visit.numeric_domain_owner = previous_owner;
                             result = Err(error);
                             return Resume::Next(result);
                         }
                         checker.record_error(error);
-                        checker.graph.tainted = true;
+                        visit.tainted = true;
                     }
                     let next = arg_index + 1;
                     let binding = &checker.resolved.calls[&(span.start, span.end)];
@@ -7675,8 +7779,8 @@ impl Checker<'_> {
                             related_expected: true,
                             deferred_element: false,
                         });
-                        let prior_taint = checker.graph.tainted;
-                        checker.graph.tainted = false;
+                        let prior_taint = visit.tainted;
+                        visit.tainted = false;
                         frames.push(Frame::Call(Box::new(CallProgress {
                             expr,
                             context,
@@ -7689,17 +7793,18 @@ impl Checker<'_> {
                         return Resume::Evaluate;
                     }
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::CallComplete(Ok(Type::from(
                             &signature.result,
                         )))),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::CallTarget(progress) => {
                     let (expr, context, previous_owner) = *progress;
-                    checker.graph.numeric_domain_owner = None;
+                    visit.numeric_domain_owner = None;
                     if let Ok(Type::Closure { site, .. }) = &result {
                         let Expr::Call { target, args, .. } = expr else {
                             unreachable!("call target frame owns a call")
@@ -7717,7 +7822,7 @@ impl Checker<'_> {
                                     related_expected: true,
                                     deferred_element: false,
                                 });
-                                let prior_taint = std::mem::take(&mut checker.graph.tainted);
+                                let prior_taint = std::mem::take(&mut visit.tainted);
                                 frames.push(Frame::ClosureCall(Box::new(ClosureCallFrameState {
                                     expr,
                                     context,
@@ -7731,6 +7836,7 @@ impl Checker<'_> {
                             }
                             Ok((draft, _)) => {
                                 result = checker.check_against_context_one(
+                                    visit,
                                     expr,
                                     context.borrowed(),
                                     Some(PrecomputedType::CallComplete(Ok(draft.result))),
@@ -7738,6 +7844,7 @@ impl Checker<'_> {
                             }
                             Err(error) => {
                                 result = checker.check_against_context_one(
+                                    visit,
                                     expr,
                                     context.borrowed(),
                                     Some(PrecomputedType::CallComplete(Err(error))),
@@ -7746,12 +7853,13 @@ impl Checker<'_> {
                         }
                     } else {
                         result = checker.check_against_context_one(
+                            visit,
                             expr,
                             context.borrowed(),
                             Some(PrecomputedType::CallTarget(result)),
                         );
                     }
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::ClosureCall(progress) => {
                     let mut state = *progress;
@@ -7761,6 +7869,7 @@ impl Checker<'_> {
                     let formal = &state.draft.params[state.slots[state.next]];
                     let outcome = result.and_then(|got| {
                         checker.unify(
+                            visit,
                             formal.3.clone(),
                             got,
                             formal.2.clone(),
@@ -7769,16 +7878,16 @@ impl Checker<'_> {
                             false,
                         )
                     });
-                    let tainted = checker.graph.tainted;
-                    checker.graph.tainted = state.prior_taint || tainted;
+                    let tainted = visit.tainted;
+                    visit.tainted = state.prior_taint || tainted;
                     if let Err(error) = outcome {
                         if error.operation == Operation::AnalysisLimit {
-                            checker.graph.numeric_domain_owner = state.previous_owner;
+                            visit.numeric_domain_owner = state.previous_owner;
                             result = Err(error);
                             return Resume::Next(result);
                         }
                         checker.record_error(error);
-                        checker.graph.tainted = true;
+                        visit.tainted = true;
                     }
                     state.next += 1;
                     if state.next < args.len() {
@@ -7793,16 +7902,17 @@ impl Checker<'_> {
                             related_expected: true,
                             deferred_element: false,
                         });
-                        state.prior_taint = std::mem::take(&mut checker.graph.tainted);
+                        state.prior_taint = std::mem::take(&mut visit.tainted);
                         frames.push(Frame::ClosureCall(Box::new(state)));
                         return Resume::Evaluate;
                     }
                     result = checker.check_against_context_one(
+                        visit,
                         state.expr,
                         state.context.borrowed(),
                         Some(PrecomputedType::CallComplete(Ok(state.draft.result))),
                     );
-                    checker.graph.numeric_domain_owner = state.previous_owner;
+                    visit.numeric_domain_owner = state.previous_owner;
                 }
                 Frame::UnionCall(progress) => {
                     let UnionCallProgress {
@@ -7824,9 +7934,9 @@ impl Checker<'_> {
                         .position(|slot| *slot == 0)
                         .expect("complete union binding")]
                     .value;
-                    let payload_tainted = checker.graph.tainted;
-                    checker.graph.tainted = prior_taint || payload_tainted;
-                    checker.graph.numeric_domain_owner = None;
+                    let payload_tainted = visit.tainted;
+                    visit.tainted = prior_taint || payload_tainted;
+                    visit.numeric_domain_owner = None;
                     let outcome = checker.finish_union_call(
                         name,
                         argument,
@@ -7836,11 +7946,12 @@ impl Checker<'_> {
                         payload_tainted,
                     );
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::CallComplete(outcome)),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::IntrinsicOne(progress) => {
                     let (expr, context, previous_owner) = *progress;
@@ -7851,7 +7962,7 @@ impl Checker<'_> {
                     let ResolvedUse::Intrinsic(name) = &binding.target else {
                         unreachable!("intrinsic frame has an intrinsic binding")
                     };
-                    checker.graph.numeric_domain_owner = None;
+                    visit.numeric_domain_owner = None;
                     let outcome = checker.check_intrinsic(
                         name,
                         args,
@@ -7862,11 +7973,12 @@ impl Checker<'_> {
                         Some(result),
                     );
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::CallComplete(outcome)),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
                 Frame::TryAdd(progress) => {
                     let mut state = *progress;
@@ -7875,7 +7987,7 @@ impl Checker<'_> {
                     };
                     match result {
                         Err(error) if error.operation == Operation::AnalysisLimit => {
-                            checker.graph.numeric_domain_owner = state.previous_owner;
+                            visit.numeric_domain_owner = state.previous_owner;
                             result = Err(error);
                             return Resume::Next(result);
                         }
@@ -7900,23 +8012,24 @@ impl Checker<'_> {
                         });
                         return Resume::Evaluate;
                     }
-                    checker.graph.numeric_domain_owner = None;
+                    visit.numeric_domain_owner = None;
                     let result_type = if state.failed {
                         Type::Tainted
                     } else {
                         Type::from(&names::intrinsic("TryAdd").expect("closed intrinsic").result)
                     };
                     result = checker.check_against_context_one(
+                        visit,
                         state.expr,
                         state.context.borrowed(),
                         Some(PrecomputedType::CallComplete(Ok(result_type))),
                     );
-                    checker.graph.numeric_domain_owner = state.previous_owner;
+                    visit.numeric_domain_owner = state.previous_owner;
                 }
                 Frame::AssertEq(progress) => {
                     let mut state = *progress;
-                    if let Err(error) = checker.assert_eq_accept(&mut state, result) {
-                        checker.graph.numeric_domain_owner = state.previous_owner;
+                    if let Err(error) = checker.assert_eq_accept(visit, &mut state, result) {
+                        visit.numeric_domain_owner = state.previous_owner;
                         result = Err(error);
                         return Resume::Next(result);
                     }
@@ -7925,7 +8038,7 @@ impl Checker<'_> {
                     };
                     state.next += 1;
                     if state.next < args.len() {
-                        checker.assert_eq_prepare(&mut state);
+                        checker.assert_eq_prepare(visit, &mut state);
                         *inner = &args[state.next].value;
                         frames.push(Frame::AssertEq(Box::new(state)));
                         *inner_context = OwnedCheckContext::new(CheckContext {
@@ -7939,44 +8052,48 @@ impl Checker<'_> {
                         });
                         return Resume::Evaluate;
                     }
-                    checker.graph.numeric_domain_owner = None;
+                    visit.numeric_domain_owner = None;
                     let expr = state.expr;
                     let context = state.context.clone();
                     let previous_owner = state.previous_owner;
-                    let outcome = checker.finish_assert_eq(state);
+                    let outcome = checker.finish_assert_eq(visit, state);
                     result = checker.check_against_context_one(
+                        visit,
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::CallComplete(outcome)),
                     );
-                    checker.graph.numeric_domain_owner = previous_owner;
+                    visit.numeric_domain_owner = previous_owner;
                 }
-                Frame::If(mut progress) => match checker.if_advance(&mut progress, Some(result)) {
-                    IfAction::Statement(statement) => {
-                        frames.push(Frame::If(progress));
-                        *pending_task = Some(Task::StatementSite(statement));
-                        return Resume::Evaluate;
+                Frame::If(mut progress) => {
+                    match checker.if_advance(visit, &mut progress, Some(result)) {
+                        IfAction::Statement(statement) => {
+                            frames.push(Frame::If(progress));
+                            *pending_task = Some(Task::StatementSite(statement));
+                            return Resume::Evaluate;
+                        }
+                        IfAction::Value(value, context) => {
+                            frames.push(Frame::If(progress));
+                            *inner = value;
+                            *inner_context = context;
+                            return Resume::Evaluate;
+                        }
+                        IfAction::Done(outcome) => {
+                            checker.active_if_span = progress.previous_if;
+                            result = checker.check_against_context_one(
+                                visit,
+                                progress.expr,
+                                progress.context.borrowed(),
+                                Some(PrecomputedType::IfComplete {
+                                    result: outcome,
+                                    pending_before: progress.pending_before_if,
+                                }),
+                            );
+                        }
                     }
-                    IfAction::Value(value, context) => {
-                        frames.push(Frame::If(progress));
-                        *inner = value;
-                        *inner_context = context;
-                        return Resume::Evaluate;
-                    }
-                    IfAction::Done(outcome) => {
-                        checker.active_if_span = progress.previous_if;
-                        result = checker.check_against_context_one(
-                            progress.expr,
-                            progress.context.borrowed(),
-                            Some(PrecomputedType::IfComplete {
-                                result: outcome,
-                                pending_before: progress.pending_before_if,
-                            }),
-                        );
-                    }
-                },
+                }
                 Frame::Closure { expr, mut progress } => {
-                    match checker.closure_body_advance(&mut progress, Some(result)) {
+                    match checker.closure_body_advance(visit, &mut progress, Some(result)) {
                         ClosureAction::Statement(statement) => {
                             frames.push(Frame::Closure { expr, progress });
                             *pending_task = Some(Task::StatementSite(statement));
@@ -7992,6 +8109,7 @@ impl Checker<'_> {
                             let context = progress.context.clone();
                             let outcome = checker.closure_finish(*progress, checked);
                             result = checker.check_against_context_one(
+                                visit,
                                 expr,
                                 context.borrowed(),
                                 Some(PrecomputedType::ClosureComplete(outcome)),
@@ -8003,6 +8121,7 @@ impl Checker<'_> {
             }
             Resume::Next(result)
         }
+        let mut visit = VisitCursor::default();
         let mut frames = Vec::new();
         let sentinel = Expr::Unit(Span {
             file: self.file.into(),
@@ -8047,7 +8166,9 @@ impl Checker<'_> {
                         if self.analysis_exhausted {
                             ready_result = Some(Ok(Type::Unit));
                         } else {
-                            let prior_taint = std::mem::take(&mut self.graph.tainted);
+                            let prior_taint = std::mem::take(&mut visit.tainted);
+                            #[cfg(test)]
+                            visit.statement_entries.push((prior_taint, visit.tainted));
                             frames.push(Frame::StatementSite(statement, prior_taint));
                             pending_task = Some(Task::Statement(statement));
                             continue 'evaluate;
@@ -8272,7 +8393,7 @@ impl Checker<'_> {
                                 }
                                 Ok(mut progress) => {
                                     self.block_depth += 1;
-                                    match self.closure_body_advance(&mut progress, None) {
+                                    match self.closure_body_advance(&mut visit, &mut progress, None) {
                                         ClosureAction::Statement(statement) => {
                                             frames.push(Frame::Closure {
                                                 expr: inner,
@@ -8325,8 +8446,8 @@ impl Checker<'_> {
                                 }
                                 _ => None,
                             };
-                            let previous_owner = self.graph.numeric_domain_owner;
-                            self.graph.numeric_domain_owner = None;
+                            let previous_owner = visit.numeric_domain_owner;
+                            visit.numeric_domain_owner = None;
                             let mut state = ArrayFrameState {
                                 expr: inner,
                                 items,
@@ -8344,12 +8465,12 @@ impl Checker<'_> {
                                 diverges: false,
                                 invalid: false,
                             };
-                            (inner, inner_context) = self.array_next(&mut state);
+                            (inner, inner_context) = self.array_next(&mut visit, &mut state);
                             frames.push(Frame::Array(Box::new(state)));
                         }
                         Expr::Index { target, .. } => {
-                            let previous_owner = self.graph.numeric_domain_owner;
-                            self.graph.numeric_domain_owner = None;
+                            let previous_owner = visit.numeric_domain_owner;
+                            visit.numeric_domain_owner = None;
                             frames.push(Frame::Index(Box::new((
                                 inner,
                                 inner_context,
@@ -8403,12 +8524,16 @@ impl Checker<'_> {
                             inner_context = child_context;
                         }
                         Expr::Binary { op, left, .. } => {
-                            let previous_owner = self.graph.numeric_domain_owner;
-                            self.graph.numeric_domain_owner = None;
+                            let previous_owner = visit.numeric_domain_owner;
+                            visit.numeric_domain_owner = None;
                             let pending_before = self.pending_join_count();
                             let numeric = matches!(op.as_str(), "+" | "-");
                             if numeric {
-                                self.graph.numeric_domain_owner = Some(span_key(inner.span()));
+                                visit.numeric_domain_owner = Some(span_key(inner.span()));
+                                #[cfg(test)]
+                                {
+                                    visit.owner_activations += 1;
+                                }
                             }
                             frames.push(Frame::Binary(Box::new((
                                 inner,
@@ -8441,9 +8566,9 @@ impl Checker<'_> {
                             let signature = names::signature(self.resolved, &binding.target)
                                 .expect("callable binding");
                             let formal = &signature.params[binding.slots[0]];
-                            let prior_taint = self.graph.tainted;
-                            self.graph.tainted = false;
-                            let previous_owner = self.graph.numeric_domain_owner.take();
+                            let prior_taint = visit.tainted;
+                            visit.tainted = false;
+                            let previous_owner = visit.numeric_domain_owner.take();
                             frames.push(Frame::Call(Box::new(CallProgress {
                                 expr: inner,
                                 context: inner_context,
@@ -8497,9 +8622,9 @@ impl Checker<'_> {
                                     union.variant(tag).and_then(|variant| variant.payload)
                                 })
                                 .cloned();
-                            let prior_taint = self.graph.tainted;
-                            self.graph.tainted = false;
-                            let previous_owner = self.graph.numeric_domain_owner.take();
+                            let prior_taint = visit.tainted;
+                            visit.tainted = false;
+                            let previous_owner = visit.numeric_domain_owner.take();
                             let child_context = OwnedCheckContext {
                                 expected: payload_expected,
                                 expected_span: inner_context.expected_span.clone(),
@@ -8523,7 +8648,7 @@ impl Checker<'_> {
                                 matches!(&binding.target, ResolvedUse::Intrinsic(name) if name == "AssertEq")
                             }) =>
                         {
-                            let previous_owner = self.graph.numeric_domain_owner.take();
+                            let previous_owner = visit.numeric_domain_owner.take();
                             let mut state = AssertEqFrameState {
                                 expr: inner,
                                 context: inner_context,
@@ -8535,7 +8660,7 @@ impl Checker<'_> {
                                 invalid: false,
                                 previous_owner,
                             };
-                            self.assert_eq_prepare(&mut state);
+                            self.assert_eq_prepare(&mut visit, &mut state);
                             frames.push(Frame::AssertEq(Box::new(state)));
                             inner = &args[0].value;
                             inner_context = OwnedCheckContext::new(CheckContext {
@@ -8553,7 +8678,7 @@ impl Checker<'_> {
                                 matches!(&binding.target, ResolvedUse::Intrinsic(name) if name == "TryAdd")
                             }) =>
                         {
-                            let previous_owner = self.graph.numeric_domain_owner.take();
+                            let previous_owner = visit.numeric_domain_owner.take();
                             frames.push(Frame::TryAdd(Box::new(TryAddFrameState {
                                 expr: inner,
                                 context: inner_context,
@@ -8582,7 +8707,7 @@ impl Checker<'_> {
                             let ResolvedUse::Intrinsic(name) = &binding.target else { unreachable!() };
                             let argument = &args[binding.slots.iter().position(|slot| *slot == 0).expect("complete intrinsic binding")].value;
                             let numeric = matches!(name.as_str(), "MockOpen" | "MockBlockingOpen" | "MockWriteI64" | "MockReply");
-                            let previous_owner = self.graph.numeric_domain_owner.take();
+                            let previous_owner = visit.numeric_domain_owner.take();
                             frames.push(Frame::IntrinsicOne(Box::new((inner, inner_context, previous_owner))));
                             inner = argument;
                             inner_context = OwnedCheckContext {
@@ -8598,7 +8723,7 @@ impl Checker<'_> {
                         Expr::Call { target, span, .. }
                             if !self.resolved.calls.contains_key(&(span.start, span.end)) =>
                         {
-                            let previous_owner = self.graph.numeric_domain_owner.take();
+                            let previous_owner = visit.numeric_domain_owner.take();
                             frames.push(Frame::CallTarget(Box::new((
                                 inner,
                                 inner_context,
@@ -8623,8 +8748,8 @@ impl Checker<'_> {
                         } => {
                             let pending_before_if = self.pending_join_count();
                             let previous_if = self.active_if_span.replace(inner.span().clone());
-                            let prior_taint = self.graph.tainted;
-                            self.graph.tainted = false;
+                            let prior_taint = visit.tainted;
+                            visit.tainted = false;
                             let pending_before_condition = self.graph.obligations.len();
                             let branch_context = OwnedCheckContext {
                                 expected: inner_context
@@ -8689,7 +8814,12 @@ impl Checker<'_> {
                         _ => break,
                     }
                 }
-                self.check_against_context_one(inner, inner_context.borrowed(), computed_leaf)
+                self.check_against_context_one(
+                    &mut visit,
+                    inner,
+                    inner_context.borrowed(),
+                    computed_leaf,
+                )
             };
             while let Some(frame) = frames.pop() {
                 match frame {
@@ -8799,6 +8929,7 @@ impl Checker<'_> {
                         match result {
                             Err(error) => {
                                 result = self.check_against_context_one(
+                                    &mut visit,
                                     expr,
                                     context.borrowed(),
                                     Some(PrecomputedType::MatchComplete(Err(error))),
@@ -8809,6 +8940,7 @@ impl Checker<'_> {
                                     self.require_match_pattern_shapes(selection, &inferred)
                                 {
                                     result = self.check_against_context_one(
+                                        &mut visit,
                                         expr,
                                         context.borrowed(),
                                         Some(PrecomputedType::MatchComplete(Err(error))),
@@ -8825,7 +8957,7 @@ impl Checker<'_> {
                                     branch: None,
                                     stage: MatchStage::Arm,
                                 };
-                                match self.match_advance(&mut progress, None) {
+                                match self.match_advance(&mut visit, &mut progress, None) {
                                     MatchAction::Statement(statement) => {
                                         frames.push(Frame::Match {
                                             expr,
@@ -8845,6 +8977,7 @@ impl Checker<'_> {
                                     }
                                     MatchAction::Done(outcome) => {
                                         result = self.check_against_context_one(
+                                            &mut visit,
                                             expr,
                                             progress.context.borrowed(),
                                             Some(PrecomputedType::MatchComplete(outcome)),
@@ -8855,7 +8988,7 @@ impl Checker<'_> {
                         }
                     }
                     Frame::Match { expr, mut progress } => {
-                        match self.match_advance(&mut progress, Some(result)) {
+                        match self.match_advance(&mut visit, &mut progress, Some(result)) {
                             MatchAction::Statement(statement) => {
                                 frames.push(Frame::Match { expr, progress });
                                 pending_task = Some(Task::StatementSite(statement));
@@ -8869,6 +9002,7 @@ impl Checker<'_> {
                             }
                             MatchAction::Done(outcome) => {
                                 result = self.check_against_context_one(
+                                    &mut visit,
                                     expr,
                                     progress.context.borrowed(),
                                     Some(PrecomputedType::MatchComplete(outcome)),
@@ -8878,6 +9012,7 @@ impl Checker<'_> {
                     }
                     frame => match resume_non_match(
                         self,
+                        &mut visit,
                         frame,
                         result,
                         &mut frames,
@@ -8890,7 +9025,7 @@ impl Checker<'_> {
                     },
                 }
             }
-            return result;
+            return (result, visit);
         }
     }
 
@@ -8958,6 +9093,7 @@ impl Checker<'_> {
 
     fn check_against_context_one(
         &mut self,
+        visit: &mut VisitCursor,
         e: &Expr,
         context: CheckContext<'_>,
         computed: Option<PrecomputedType>,
@@ -8990,12 +9126,12 @@ impl Checker<'_> {
         } else {
             ContextUse::Compare
         };
-        let inherited_numeric_owner = self.graph.numeric_domain_owner;
+        let inherited_numeric_owner = visit.numeric_domain_owner;
         if matches!(
             e,
             Expr::Binary { .. } | Expr::Index { .. } | Expr::Call { .. } | Expr::Array(..)
         ) {
-            self.graph.numeric_domain_owner = None;
+            visit.numeric_domain_owner = None;
         }
         let (whole, binary_left, binary_right, index_target, if_result, call_target) =
             match computed {
@@ -9076,6 +9212,7 @@ impl Checker<'_> {
         let result = match whole {
             Some(result) => result,
             None => self.expr_inner(
+                visit,
                 e,
                 context,
                 &mut context_use,
@@ -9087,7 +9224,7 @@ impl Checker<'_> {
                 call_target,
             ),
         };
-        self.graph.numeric_domain_owner = inherited_numeric_owner;
+        visit.numeric_domain_owner = inherited_numeric_owner;
         let got = result?;
         self.capture_expression_dependencies(e);
         if got == Type::Tainted
@@ -9111,7 +9248,7 @@ impl Checker<'_> {
         match internal_state(&got) {
             Some(Type::Tainted) => {
                 self.graph.mark(span_key(e.span()), OccurrenceFlag::Tainted);
-                self.graph.tainted = true;
+                visit.tainted = true;
             }
             Some(Type::Never) => {
                 self.graph
@@ -9138,7 +9275,7 @@ impl Checker<'_> {
         if check_here
             && let Some(expected) = expected
             && (internal_state(expected).is_none() || context.deferred_element)
-            && !self.graph.tainted
+            && !visit.tainted
             && !self
                 .graph
                 .has(&span_key(e.span()), OccurrenceFlag::PendingDomain)
@@ -9198,6 +9335,7 @@ impl Checker<'_> {
                     };
                     let pending_before_comparison = self.pending_join_count();
                     let outcome = self.unify_with_expected_origin(
+                        visit,
                         expected.clone(),
                         compared,
                         expected_span
@@ -9246,6 +9384,7 @@ impl Checker<'_> {
     #[allow(clippy::too_many_arguments)] // Each prepared child belongs to one frame stage.
     fn expr_inner(
         &mut self,
+        visit: &mut VisitCursor,
         e: &Expr,
         context: CheckContext<'_>,
         context_use: &mut ContextUse,
@@ -9292,7 +9431,7 @@ impl Checker<'_> {
                         .get(&local.name_span.start)
                         .is_some_and(|known| known.invalid)
                     {
-                        self.graph.tainted = true;
+                        visit.tainted = true;
                         return Ok(Type::Tainted);
                     }
                     if let Some(known) = self.graph.locals.get(&local.name_span.start).cloned() {
@@ -9344,7 +9483,7 @@ impl Checker<'_> {
                     ));
                 }
                 let operand = unary_operand.expect("unary operand is prepared by driver")?;
-                if self.graph.tainted || operand == Type::Tainted {
+                if visit.tainted || operand == Type::Tainted {
                     return Ok(Type::Tainted);
                 }
                 if operand == Type::Never {
@@ -9428,6 +9567,7 @@ impl Checker<'_> {
                     ));
                 }
                 self.unify(
+                    visit,
                     function_err,
                     err.as_ref().clone(),
                     self.graph
@@ -9491,6 +9631,7 @@ impl Checker<'_> {
                     && let Some((left_type, right_result, pending_before_operator)) = binary_right
                 {
                     return self.finish_deferred_binary_right(
+                        visit,
                         e,
                         op,
                         left,
@@ -9506,6 +9647,7 @@ impl Checker<'_> {
                     && let Some((left_type, right_result, pending_before_right)) = binary_right
                 {
                     return self.finish_binary_right(
+                        visit,
                         e,
                         op,
                         left,
@@ -9533,7 +9675,7 @@ impl Checker<'_> {
                         // The sibling owns a real failure. Its containing
                         // operation has no nominal value for a selector or
                         // another consumer (§4.1.2.5).
-                        self.graph.tainted = true;
+                        visit.tainted = true;
                         return Ok(Type::Tainted);
                     }
                     if matches!(op.as_str(), "<" | "==")
@@ -9604,7 +9746,7 @@ impl Checker<'_> {
                     independent_right.expect("independent binary right operand");
                     self.graph
                         .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
-                    self.graph.tainted = true;
+                    visit.tainted = true;
                     return Ok(Type::I64);
                 }
                 if self
@@ -9614,19 +9756,19 @@ impl Checker<'_> {
                     independent_right.expect("independent binary right operand");
                     self.graph
                         .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
-                    self.graph.tainted = true;
+                    visit.tainted = true;
                     return Ok(if matches!(op.as_str(), "<" | "==") {
                         Type::Bool
                     } else {
                         Type::I64
                     });
                 }
-                if self.graph.tainted {
+                if visit.tainted {
                     // A child already recorded its own error. Visit the
                     // independent sibling, but suppress the operator error
                     // that would depend on the invalid left value.
                     independent_right.expect("independent binary right operand");
-                    self.graph.tainted = true;
+                    visit.tainted = true;
                     self.graph
                         .mark(span_key(e.span()), OccurrenceFlag::Deferred);
                     return Ok(if matches!(op.as_str(), "<" | "==") {
@@ -9790,7 +9932,7 @@ impl Checker<'_> {
                     let target_ty =
                         call_target.expect("call target is prepared by check_against_context")?;
                     if target_ty == Type::Tainted {
-                        self.graph.tainted = true;
+                        visit.tainted = true;
                         return Ok(Type::Tainted);
                     }
                     let mut unwrapped = target.as_ref();
@@ -9880,9 +10022,9 @@ impl Checker<'_> {
                         .mark(span_key(e.span()), OccurrenceFlag::ContextRejected);
                 }
                 if value_failed {
-                    self.graph.tainted = true;
+                    visit.tainted = true;
                 }
-                if self.graph.tainted && normal.is_some() {
+                if visit.tainted && normal.is_some() {
                     // §13.9: a clean continuation contributes a constraint
                     // even when another reachable child taints this if.
                     self.graph
@@ -9921,7 +10063,11 @@ impl Checker<'_> {
 
     #[allow(clippy::too_many_arguments)] // The continuation preserves the parent's sites.
     #[allow(clippy::too_many_arguments)]
-    fn array_next<'a>(&mut self, state: &mut ArrayFrameState<'a>) -> (&'a Expr, OwnedCheckContext) {
+    fn array_next<'a>(
+        &mut self,
+        visit: &mut VisitCursor,
+        state: &mut ArrayFrameState<'a>,
+    ) -> (&'a Expr, OwnedCheckContext) {
         let index = state.next;
         let item = &state.items[index];
         let origin = if index == 0 {
@@ -9948,7 +10094,7 @@ impl Checker<'_> {
             .cloned();
         state.current_expected = expected.clone();
         state.current_origin = origin.clone();
-        state.prior_taint = std::mem::take(&mut self.graph.tainted);
+        state.prior_taint = std::mem::take(&mut visit.tainted);
         (
             item,
             OwnedCheckContext {
@@ -9965,6 +10111,7 @@ impl Checker<'_> {
 
     fn array_accept(
         &mut self,
+        visit: &mut VisitCursor,
         state: &mut ArrayFrameState<'_>,
         outcome: Result<Type, Box<Diagnostic>>,
     ) -> Result<(), Box<Diagnostic>> {
@@ -9987,11 +10134,11 @@ impl Checker<'_> {
         let item_expected = current_expected.as_ref();
         let origin = current_origin.as_ref();
         let prior_taint = *prior_taint;
-        let item_tainted = self.graph.tainted
+        let item_tainted = visit.tainted
             || self
                 .graph
                 .has(&span_key(item.span()), OccurrenceFlag::FailedJoin);
-        self.graph.tainted = prior_taint || item_tainted;
+        visit.tainted = prior_taint || item_tainted;
         let got = match outcome {
             Ok(got) => got,
             Err(error) => {
@@ -10083,6 +10230,7 @@ impl Checker<'_> {
                     // incompatible here; branch-mode's special
                     // mismatch arm is unreachable.
                     self.unify(
+                        visit,
                         expected_item.clone(),
                         Type::Deferred(id),
                         origin.cloned().unwrap_or_else(|| span.clone()),
@@ -10099,6 +10247,7 @@ impl Checker<'_> {
                         // constructor (§4.1.2.6).
                         let before = self.pending_join_count();
                         self.unify(
+                            visit,
                             Type::Deferred(*first),
                             Type::Deferred(id),
                             first_origin.clone(),
@@ -10134,6 +10283,7 @@ impl Checker<'_> {
                     .then(|| self.concrete(*id).map(|(ty, _)| ty))
                     .flatten();
                 let equality = self.unify(
+                    visit,
                     Type::Deferred(*id),
                     got.clone(),
                     source_origin.clone(),
@@ -10187,6 +10337,7 @@ impl Checker<'_> {
             let prior_origin = origin.cloned().unwrap_or_else(|| span.clone());
             let concrete_origin = Self::primary_span(item);
             match self.unify(
+                visit,
                 prior,
                 got,
                 prior_origin,
@@ -10208,7 +10359,7 @@ impl Checker<'_> {
                     // boundary, which sets the same parent taint.
                     // Siblings reset their own taint bit.
                     self.record_error(error);
-                    self.graph.tainted = true;
+                    visit.tainted = true;
                     *invalid = true;
                 }
             }
@@ -10298,6 +10449,7 @@ impl Checker<'_> {
     #[allow(clippy::too_many_arguments)] // The deferred operator retains both source sites.
     fn finish_deferred_binary_right(
         &mut self,
+        visit: &mut VisitCursor,
         e: &Expr,
         op: &String,
         left: &Expr,
@@ -10316,10 +10468,12 @@ impl Checker<'_> {
             }
             Err(error) if matches!(op.as_str(), "<" | "==") => {
                 self.record_error(error);
-                if let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)? {
+                if let Some(domain_error) =
+                    self.comparison_domain_error(visit, op, left, right, &l)?
+                {
                     self.record_error(domain_error);
                 }
-                self.graph.tainted = true;
+                visit.tainted = true;
                 return Ok(Type::Tainted);
             }
             Err(error) => return Err(error),
@@ -10329,7 +10483,9 @@ impl Checker<'_> {
             OccurrenceFlag::PendingDomain,
         ) {
             if matches!(op.as_str(), "<" | "==") {
-                if let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)? {
+                if let Some(domain_error) =
+                    self.comparison_domain_error(visit, op, left, right, &l)?
+                {
                     self.record_error(domain_error);
                 }
                 if let (Some((variable, domain)), Some(found)) = (
@@ -10373,7 +10529,7 @@ impl Checker<'_> {
             }
             self.graph
                 .mark(span_key(e.span()), OccurrenceFlag::PendingDomain);
-            if !self.graph.tainted && self.pending_nominal_available(right) {
+            if !visit.tainted && self.pending_nominal_available(right) {
                 return Ok(if matches!(op.as_str(), "<" | "==") {
                     Type::Bool
                 } else {
@@ -10382,13 +10538,14 @@ impl Checker<'_> {
             }
             return Ok(Type::Tainted);
         }
-        if self.graph.tainted
+        if visit.tainted
             || self
                 .graph
                 .has(&span_key(right.span()), OccurrenceFlag::FailedJoin)
         {
             if matches!(op.as_str(), "<" | "==")
-                && let Some(domain_error) = self.comparison_domain_error(op, left, right, &l)?
+                && let Some(domain_error) =
+                    self.comparison_domain_error(visit, op, left, right, &l)?
             {
                 self.record_error(domain_error);
             }
@@ -10411,6 +10568,7 @@ impl Checker<'_> {
             };
             let operator = self.operator_span(left.span(), right.span(), op);
             let common = self.unify(
+                visit,
                 left_type,
                 right_type,
                 Self::primary_span(left),
@@ -10445,6 +10603,7 @@ impl Checker<'_> {
                 let root = self.root(id);
                 if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
                     self.unify_with_expected_origin(
+                        visit,
                         Type::I64,
                         Type::Deferred(id),
                         operator.clone(),
@@ -10482,6 +10641,7 @@ impl Checker<'_> {
         if let Some(id) = left_variable {
             // < and == returned above; only + and - reach here.
             self.unify(
+                visit,
                 Type::Deferred(id),
                 Type::I64,
                 Self::primary_span(left),
@@ -10500,6 +10660,7 @@ impl Checker<'_> {
     #[allow(clippy::too_many_arguments)] // The continuation preserves the parent's sites.
     fn finish_binary_right(
         &mut self,
+        visit: &mut VisitCursor,
         e: &Expr,
         op: &str,
         left: &Expr,
@@ -10512,7 +10673,7 @@ impl Checker<'_> {
     ) -> Result<Type, Box<Diagnostic>> {
         if matches!(op, "+" | "-") {
             right_result?;
-            if self.graph.tainted {
+            if visit.tainted {
                 return Ok(Type::Tainted);
             }
             if self
@@ -10534,10 +10695,12 @@ impl Checker<'_> {
                 return Err(error);
             }
             self.record_error(error);
-            if let Some(domain_error) = self.comparison_domain_error(op, left, right, left_type)? {
+            if let Some(domain_error) =
+                self.comparison_domain_error(visit, op, left, right, left_type)?
+            {
                 self.record_error(domain_error);
             }
-            self.graph.tainted = true;
+            visit.tainted = true;
             return Ok(Type::Tainted);
         }
         if self.graph.has(
@@ -10545,7 +10708,8 @@ impl Checker<'_> {
             OccurrenceFlag::PendingDomain,
         ) && let Some((variable, domain)) = self.pending_operation_guard(right)
         {
-            let domain_error_if_equal = self.comparison_domain_error(op, left, right, left_type)?;
+            let domain_error_if_equal =
+                self.comparison_domain_error(visit, op, left, right, left_type)?;
             if let Some(found) = self.pending_operation_type(right) {
                 self.graph
                     .register(ObligationKind::GuardedComparison(Box::new(
@@ -10570,13 +10734,15 @@ impl Checker<'_> {
             }
             self.graph
                 .mark(span_key(e.span()), OccurrenceFlag::PendingDomain);
-            if !self.graph.tainted && self.pending_nominal_available(right) {
+            if !visit.tainted && self.pending_nominal_available(right) {
                 return Ok(Type::Bool);
             }
             return Ok(Type::Tainted);
         }
-        if self.graph.tainted {
-            if let Some(domain_error) = self.comparison_domain_error(op, left, right, left_type)? {
+        if visit.tainted {
+            if let Some(domain_error) =
+                self.comparison_domain_error(visit, op, left, right, left_type)?
+            {
                 self.record_error(domain_error);
             }
             return Ok(Type::Tainted);
@@ -10588,7 +10754,7 @@ impl Checker<'_> {
             });
             if internal_right_join {
                 if let Some(domain_error) =
-                    self.comparison_domain_error(op, left, right, left_type)?
+                    self.comparison_domain_error(visit, op, left, right, left_type)?
                 {
                     self.record_error(domain_error);
                 }
@@ -10618,12 +10784,12 @@ impl Checker<'_> {
             .graph
             .has(&span_key(right.span()), OccurrenceFlag::Deferred)
         {
-            if let Some(error) = self.comparison_domain_error(op, left, right, left_type)? {
+            if let Some(error) = self.comparison_domain_error(visit, op, left, right, left_type)? {
                 return Err(error);
             }
             return Ok(Type::Bool);
         }
-        if let Some(error) = self.comparison_domain_error(op, left, right, left_type)? {
+        if let Some(error) = self.comparison_domain_error(visit, op, left, right, left_type)? {
             return Err(error);
         }
         Ok(Type::Bool)
@@ -11059,6 +11225,7 @@ impl Checker<'_> {
                 .map(|value| self.normal_witness_span(value))
                 .unwrap_or_else(|| Self::primary_span(condition));
             let outcome = self.unify(
+                &VisitCursor::default(),
                 left,
                 right,
                 left_origin,
@@ -11154,6 +11321,7 @@ impl Checker<'_> {
 
     fn if_advance<'b>(
         &mut self,
+        visit: &mut VisitCursor,
         progress: &mut IfProgress<'b>,
         returned: Option<Result<Type, Box<Diagnostic>>>,
     ) -> IfAction<'b> {
@@ -11173,8 +11341,8 @@ impl Checker<'_> {
                             }
                             _ => false,
                         });
-                    let condition_tainted = self.graph.tainted || pending_shape_failure;
-                    self.graph.tainted =
+                    let condition_tainted = visit.tainted || pending_shape_failure;
+                    visit.tainted =
                         progress.prior_taint || condition_tainted || condition_result.is_err();
                     if let Err(error) = condition_result {
                         if error.operation == Operation::AnalysisLimit {
@@ -11208,6 +11376,7 @@ impl Checker<'_> {
                         unreachable!("if value stage follows a value statement")
                     };
                     if let Err(error) = self.branch_accept(
+                        visit,
                         branch,
                         expr,
                         prior_taint,
@@ -11224,7 +11393,7 @@ impl Checker<'_> {
                 }
                 IfStage::FirstBranch => {
                     let branch = progress.branch.as_mut().expect("first branch exists");
-                    match self.branch_next(branch) {
+                    match self.branch_next(visit, branch) {
                         BranchAction::Statement(statement) => {
                             return IfAction::Statement(statement);
                         }
@@ -11283,7 +11452,7 @@ impl Checker<'_> {
                 }
                 IfStage::SecondBranch => {
                     let branch = progress.branch.as_mut().expect("second branch exists");
-                    match self.branch_next(branch) {
+                    match self.branch_next(visit, branch) {
                         BranchAction::Statement(statement) => {
                             return IfAction::Statement(statement);
                         }
@@ -11311,6 +11480,7 @@ impl Checker<'_> {
                                 let found_span =
                                     branch_value_span(block).unwrap_or_else(|| block.span.clone());
                                 match self.unify(
+                                    visit,
                                     base.clone(),
                                     found.clone(),
                                     base_span.clone(),
@@ -11388,6 +11558,7 @@ impl Checker<'_> {
                 .clone()
                 .unwrap_or_else(|| then_block.span.clone());
             match self.unify(
+                &VisitCursor::default(),
                 base.clone(),
                 found.clone(),
                 base_span.clone(),
@@ -11457,8 +11628,10 @@ impl Checker<'_> {
     }
 
     #[cfg(test)]
+    #[allow(clippy::too_many_arguments)] // Test helper forwards the drive cursor.
     fn branch(
         &mut self,
+        visit: &mut VisitCursor,
         block: &Block,
         expected: Option<&Type>,
         expected_span: Option<&Span>,
@@ -11483,7 +11656,7 @@ impl Checker<'_> {
             anchor_consumed: false,
         };
         loop {
-            match self.branch_next(&mut progress) {
+            match self.branch_next(visit, &mut progress) {
                 BranchAction::Statement(statement) => self.statement_at_site(statement),
                 BranchAction::Value {
                     expr,
@@ -11492,7 +11665,14 @@ impl Checker<'_> {
                     nested_anchor,
                 } => {
                     let outcome = self.check_against_context(expr, context.borrowed());
-                    self.branch_accept(&mut progress, expr, prior_taint, nested_anchor, outcome)?;
+                    self.branch_accept(
+                        visit,
+                        &mut progress,
+                        expr,
+                        prior_taint,
+                        nested_anchor,
+                        outcome,
+                    )?;
                 }
                 BranchAction::Done(result, failed, anchored) => {
                     return Ok((result, failed, anchored));
@@ -11501,7 +11681,11 @@ impl Checker<'_> {
         }
     }
 
-    fn branch_next<'b>(&mut self, progress: &mut BranchProgress<'b>) -> BranchAction<'b> {
+    fn branch_next<'b>(
+        &mut self,
+        visit: &mut VisitCursor,
+        progress: &mut BranchProgress<'b>,
+    ) -> BranchAction<'b> {
         if let Some(statement) = progress.block.statements.get(progress.next) {
             progress.next += 1;
             if let Statement::Value {
@@ -11511,8 +11695,8 @@ impl Checker<'_> {
                 let nested_anchor = progress.context.expected.is_none()
                     && progress.context.anchor.is_some()
                     && Self::is_value_if(expr);
-                let prior_taint = self.graph.tainted;
-                self.graph.tainted = false;
+                let prior_taint = visit.tainted;
+                visit.tainted = false;
                 let context = OwnedCheckContext {
                     expected: progress.context.expected.clone(),
                     expected_span: progress.context.expected_span.clone(),
@@ -11546,14 +11730,15 @@ impl Checker<'_> {
 
     fn branch_accept(
         &mut self,
+        visit: &mut VisitCursor,
         progress: &mut BranchProgress<'_>,
         expr: &Expr,
         prior_taint: bool,
         nested_anchor: bool,
         outcome: Result<Type, Box<Diagnostic>>,
     ) -> Result<(), Box<Diagnostic>> {
-        let tainted = self.graph.tainted;
-        self.graph.tainted = prior_taint || tainted;
+        let tainted = visit.tainted;
+        visit.tainted = prior_taint || tainted;
         progress.anchor_consumed = nested_anchor;
         match outcome {
             Ok(ty) => {
@@ -11590,7 +11775,7 @@ impl Checker<'_> {
                     .graph
                     .has(&span_key(expr.span()), OccurrenceFlag::FailedJoin);
                 progress.value_failed |= pending_context_conflict;
-                self.graph.tainted |= pending_context_conflict;
+                visit.tainted |= pending_context_conflict;
             }
             Err(error) => {
                 if error.operation == Operation::AnalysisLimit {
@@ -11611,6 +11796,7 @@ impl Checker<'_> {
 
     fn match_advance<'b>(
         &mut self,
+        visit: &mut VisitCursor,
         progress: &mut MatchProgress<'b>,
         returned: Option<Result<Type, Box<Diagnostic>>>,
     ) -> MatchAction<'b> {
@@ -11675,7 +11861,7 @@ impl Checker<'_> {
                         unreachable!("match value stage follows a value statement")
                     };
                     if let Err(error) =
-                        self.branch_accept(branch, expr, prior_taint, nested_anchor, result)
+                        self.branch_accept(visit, branch, expr, prior_taint, nested_anchor, result)
                     {
                         return MatchAction::Done(Err(error));
                     }
@@ -11702,7 +11888,7 @@ impl Checker<'_> {
                 });
             }
             let branch = progress.branch.as_mut().unwrap();
-            match self.branch_next(branch) {
+            match self.branch_next(visit, branch) {
                 BranchAction::Statement(statement) => {
                     return MatchAction::Statement(statement);
                 }
@@ -11729,6 +11915,7 @@ impl Checker<'_> {
                             branch_value_span(&arm.body).unwrap_or_else(|| arm.body.span.clone());
                         if let Some((first, first_origin)) = &progress.joined {
                             let unified = self.unify(
+                                visit,
                                 first.clone(),
                                 value.clone(),
                                 first_origin.clone(),
@@ -11771,6 +11958,7 @@ impl Checker<'_> {
 
     fn comparison_domain_error(
         &mut self,
+        visit: &mut VisitCursor,
         op: &str,
         left: &Expr,
         right: &Expr,
@@ -11782,7 +11970,7 @@ impl Checker<'_> {
         // domain when both operand shapes already prove them different.
         // A planned Array root is such evidence even before its leaf is
         // concrete; a failed inner expression supplies no such evidence.
-        if !self.graph.tainted
+        if !visit.tainted
             && internal_state(ty).is_none()
             && !matches!(ty, Type::Array(_))
             && let Some(id) = self.expression_variable(right)
@@ -11792,7 +11980,7 @@ impl Checker<'_> {
                 return Ok(None);
             }
         }
-        if !self.graph.tainted
+        if !visit.tainted
             && !self
                 .graph
                 .has(&span_key(right.span()), OccurrenceFlag::FailedJoin)
@@ -11839,6 +12027,7 @@ impl Checker<'_> {
             if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
                 let operator = self.operator_span(left.span(), right.span(), op);
                 self.unify_with_expected_origin(
+                    visit,
                     Type::I64,
                     Type::Deferred(id),
                     operator.clone(),
@@ -11887,6 +12076,7 @@ impl Checker<'_> {
                 {
                     let operand = Self::primary_span(right);
                     self.unify_with_expected_origin(
+                        &VisitCursor::default(),
                         Type::I64,
                         Type::Deferred(id),
                         operand.clone(),
@@ -11932,6 +12122,7 @@ impl Checker<'_> {
                     if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
                         let operator = self.operator_span(left.span(), right.span(), op);
                         self.unify_with_expected_origin(
+                            &VisitCursor::default(),
                             Type::I64,
                             Type::Deferred(id),
                             operator.clone(),
@@ -12013,6 +12204,7 @@ impl Checker<'_> {
             .and_then(|variant| variant.payload)
             .ok_or_else(|| unresolved_type(call_span.clone()))?;
         self.bind(
+            &VisitCursor::default(),
             payload_child,
             payload,
             Self::primary_span(argument),
@@ -12075,14 +12267,15 @@ impl Checker<'_> {
         Ok((draft, slots))
     }
 
-    fn assert_eq_prepare(&mut self, state: &mut AssertEqFrameState<'_>) {
-        state.prior_taint = self.graph.tainted;
-        self.graph.tainted = false;
+    fn assert_eq_prepare(&mut self, visit: &mut VisitCursor, state: &mut AssertEqFrameState<'_>) {
+        state.prior_taint = visit.tainted;
+        visit.tainted = false;
         state.prior_errors = self.errors.len();
     }
 
     fn assert_eq_accept(
         &mut self,
+        visit: &mut VisitCursor,
         state: &mut AssertEqFrameState<'_>,
         result: Result<Type, Box<Diagnostic>>,
     ) -> Result<(), Box<Diagnostic>> {
@@ -12091,7 +12284,7 @@ impl Checker<'_> {
         };
         let arg = &args[state.next];
         let slot = self.resolved.calls[&(span.start, span.end)].slots[state.next];
-        let tainted = self.graph.tainted;
+        let tainted = visit.tainted;
         let site = Self::primary_span(&arg.value);
         let recover = self
             .pending_operand_evidence(&arg.value)
@@ -12107,7 +12300,7 @@ impl Checker<'_> {
                         .marked(OccurrenceFlag::FailedJoin)
                         .any(|(start, end)| site.start <= start && end <= site.end)
             });
-        self.graph.tainted = state.prior_taint || (tainted && recover.is_none());
+        visit.tainted = state.prior_taint || (tainted && recover.is_none());
         state.values[slot] = Some(match result {
             Ok(_) if let Some((nominal, guards)) = recover => {
                 state.evidence[slot] = Some(guards);
@@ -12135,7 +12328,11 @@ impl Checker<'_> {
         Ok(())
     }
 
-    fn finish_assert_eq(&mut self, state: AssertEqFrameState<'_>) -> Result<Type, Box<Diagnostic>> {
+    fn finish_assert_eq(
+        &mut self,
+        visit: &mut VisitCursor,
+        state: AssertEqFrameState<'_>,
+    ) -> Result<Type, Box<Diagnostic>> {
         let Expr::Call {
             args,
             span: call_span,
@@ -12227,6 +12424,7 @@ impl Checker<'_> {
                     )));
             } else {
                 self.unify(
+                    visit,
                     left,
                     right,
                     left_origin,
@@ -12262,7 +12460,7 @@ impl Checker<'_> {
                 invalid = true;
             }
         }
-        self.graph.tainted |= invalid;
+        visit.tainted |= invalid;
         Ok(declared_result.clone())
     }
 
@@ -12621,7 +12819,6 @@ pub(crate) fn check_with_partial_limit(
             nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
             next_variable: 0,
             obligations: Vec::new(),
-            numeric_domain_owner: None,
             occurrences: HashMap::new(),
             emitted_sites: HashSet::new(),
             eligible_shapes: HashSet::new(),
@@ -12638,7 +12835,6 @@ pub(crate) fn check_with_partial_limit(
             first_assignment_rhs_starts: HashMap::new(),
             prefix_concrete: HashMap::new(),
             preseeded_children: HashSet::new(),
-            tainted: false,
             result: Type::Unit,
             result_span: None,
         },
@@ -13376,13 +13572,29 @@ mod quota_tests {
         let mut checker = empty_checker(&resolved);
         assert_eq!(
             checker
-                .unify(Type::Never, Type::I64, site(0), site(1), site(1), false)
+                .unify(
+                    &VisitCursor::default(),
+                    Type::Never,
+                    Type::I64,
+                    site(0),
+                    site(1),
+                    site(1),
+                    false
+                )
                 .unwrap(),
             Type::I64
         );
         assert_eq!(
             checker
-                .unify(Type::Tainted, Type::I64, site(0), site(1), site(1), false)
+                .unify(
+                    &VisitCursor::default(),
+                    Type::Tainted,
+                    Type::I64,
+                    site(0),
+                    site(1),
+                    site(1),
+                    false
+                )
                 .unwrap(),
             Type::Tainted
         );
@@ -13429,13 +13641,29 @@ mod quota_tests {
         let mut checker = empty_checker(&resolved);
         assert_eq!(
             checker
-                .unify(Type::I64, Type::Never, site(1), site(2), site(3), false)
+                .unify(
+                    &VisitCursor::default(),
+                    Type::I64,
+                    Type::Never,
+                    site(1),
+                    site(2),
+                    site(3),
+                    false
+                )
                 .unwrap(),
             Type::I64
         );
         assert_eq!(
             checker
-                .unify(Type::I64, Type::Tainted, site(4), site(5), site(6), false)
+                .unify(
+                    &VisitCursor::default(),
+                    Type::I64,
+                    Type::Tainted,
+                    site(4),
+                    site(5),
+                    site(6),
+                    false
+                )
                 .unwrap(),
             Type::Tainted
         );
@@ -13454,13 +13682,28 @@ mod quota_tests {
         let left = checker.new_variable(&site(1)).unwrap();
         let right = checker.new_variable(&site(2)).unwrap();
         checker
-            .bind(left, Type::I64, site(3), site(4), false)
+            .bind(
+                &VisitCursor::default(),
+                left,
+                Type::I64,
+                site(3),
+                site(4),
+                false,
+            )
             .unwrap();
         checker
-            .bind(right, Type::Bool, site(5), site(6), false)
+            .bind(
+                &VisitCursor::default(),
+                right,
+                Type::Bool,
+                site(5),
+                site(6),
+                false,
+            )
             .unwrap();
         let error = checker
             .unify(
+                &VisitCursor::default(),
                 Type::Deferred(left),
                 Type::Deferred(right),
                 site(3),
@@ -13492,14 +13735,35 @@ mod quota_tests {
         let left = checker.new_variable(&site(1)).unwrap();
         let right = checker.new_variable(&site(2)).unwrap();
         checker
-            .bind(left, Type::I64, site(10), site(11), false)
+            .bind(
+                &VisitCursor::default(),
+                left,
+                Type::I64,
+                site(10),
+                site(11),
+                false,
+            )
             .unwrap();
         checker
-            .bind(right, Type::I64, site(20), site(21), false)
+            .bind(
+                &VisitCursor::default(),
+                right,
+                Type::I64,
+                site(20),
+                site(21),
+                false,
+            )
             .unwrap();
         checker.union(left, right, site(22)).unwrap();
         let error = checker
-            .bind(left, Type::Bool, site(30), site(31), false)
+            .bind(
+                &VisitCursor::default(),
+                left,
+                Type::Bool,
+                site(30),
+                site(31),
+                false,
+            )
             .unwrap_err();
         assert_eq!(error.code, "NX-E0102");
         assert!(
@@ -13514,7 +13778,14 @@ mod quota_tests {
         let right = checker.new_variable(&site(2)).unwrap();
         checker.require_copyable(left, &site(3), false).unwrap();
         checker
-            .bind(right, Type::MockResource, site(4), site(5), false)
+            .bind(
+                &VisitCursor::default(),
+                right,
+                Type::MockResource,
+                site(4),
+                site(5),
+                false,
+            )
             .unwrap();
         let error = checker.union(left, right, site(6)).unwrap_err();
         assert_eq!(error.code, "NX-E0102");
@@ -13540,6 +13811,7 @@ mod quota_tests {
         checker.solver_limit = checker.solver_steps + 1;
         let error = checker
             .unify(
+                &VisitCursor::default(),
                 Type::Deferred(left),
                 Type::Deferred(right),
                 site(3),
@@ -13565,7 +13837,14 @@ mod quota_tests {
         let right = checker.new_variable(&site(2)).unwrap();
         checker.solver_limit = checker.solver_steps;
         let error = checker
-            .bind(left, Type::Deferred(right), site(3), site(7), false)
+            .bind(
+                &VisitCursor::default(),
+                left,
+                Type::Deferred(right),
+                site(3),
+                site(7),
+                false,
+            )
             .unwrap_err();
         assert_eq!(error.code, "NX-E0003");
         assert_eq!(
@@ -13596,10 +13875,24 @@ mod quota_tests {
             end: 12,
         };
         checker
-            .bind(later, Type::I64, site(6), site(6), false)
+            .bind(
+                &VisitCursor::default(),
+                later,
+                Type::I64,
+                site(6),
+                site(6),
+                false,
+            )
             .unwrap();
         checker
-            .bind(earlier, Type::Bool, wide.clone(), site(2), false)
+            .bind(
+                &VisitCursor::default(),
+                earlier,
+                Type::Bool,
+                wide.clone(),
+                site(2),
+                false,
+            )
             .unwrap();
         let error = checker.union(later, earlier, site(13)).unwrap_err();
         assert_eq!(
@@ -13669,7 +13962,14 @@ mod quota_tests {
         let mut checker = empty_checker(&resolved);
         let child = checker.new_variable(&site(1)).unwrap();
         checker
-            .bind(child, Type::Bool, site(1), site(1), false)
+            .bind(
+                &VisitCursor::default(),
+                child,
+                Type::Bool,
+                site(1),
+                site(1),
+                false,
+            )
             .unwrap();
         let expected = Type::Array(Arc::new(Type::Deferred(child)));
         let array = Expr::Array(
@@ -13750,7 +14050,15 @@ mod quota_tests {
         };
         let mut checker = empty_checker(&resolved);
         let (normal, failed, _) = checker
-            .branch(then_block, Some(&Type::I64), None, false, None, false)
+            .branch(
+                &mut VisitCursor::default(),
+                then_block,
+                Some(&Type::I64),
+                None,
+                false,
+                None,
+                false,
+            )
             .unwrap();
         assert_eq!(normal, None);
         assert!(!failed);
@@ -13766,9 +14074,25 @@ mod quota_tests {
         let mut checker = empty_checker(&resolved);
         let a = checker.new_variable(&site(0)).unwrap();
         let b = checker.new_variable(&site(1)).unwrap();
-        checker.bind(a, Type::I64, site(5), site(5), false).unwrap();
         checker
-            .bind(b, Type::Bool, site(9), site(9), false)
+            .bind(
+                &VisitCursor::default(),
+                a,
+                Type::I64,
+                site(5),
+                site(5),
+                false,
+            )
+            .unwrap();
+        checker
+            .bind(
+                &VisitCursor::default(),
+                b,
+                Type::Bool,
+                site(9),
+                site(9),
+                false,
+            )
             .unwrap();
         let error = checker.union(a, b, site(11)).unwrap_err();
         assert_eq!(
@@ -13858,7 +14182,14 @@ mod quota_tests {
         let mut checker = empty_checker(&resolved);
         let scalar = checker.new_variable(&site(0)).unwrap();
         checker
-            .bind(scalar, Type::I64, site(1), site(1), false)
+            .bind(
+                &VisitCursor::default(),
+                scalar,
+                Type::I64,
+                site(1),
+                site(1),
+                false,
+            )
             .unwrap();
         assert_eq!(
             checker.resolved_syntax_type(&Type::Deferred(scalar)),
@@ -13946,7 +14277,14 @@ mod quota_tests {
         let array = Type::Array(Arc::new(Type::Deferred(element)));
         assert_eq!(checker.resolved_syntax_type(&array), None);
         checker
-            .bind(element, Type::Bool, site(2), site(2), false)
+            .bind(
+                &VisitCursor::default(),
+                element,
+                Type::Bool,
+                site(2),
+                site(2),
+                false,
+            )
             .unwrap();
         assert_eq!(
             checker.resolved_syntax_type(&array),
@@ -13954,13 +14292,29 @@ mod quota_tests {
         );
         assert_eq!(
             checker
-                .unify(Type::Never, array.clone(), site(3), site(4), site(4), false)
+                .unify(
+                    &VisitCursor::default(),
+                    Type::Never,
+                    array.clone(),
+                    site(3),
+                    site(4),
+                    site(4),
+                    false
+                )
                 .unwrap(),
             array
         );
         assert_eq!(
             checker
-                .unify(Type::Tainted, Type::I64, site(5), site(6), site(6), false)
+                .unify(
+                    &VisitCursor::default(),
+                    Type::Tainted,
+                    Type::I64,
+                    site(5),
+                    site(6),
+                    site(6),
+                    false
+                )
                 .unwrap(),
             Type::Tainted
         );
@@ -13979,10 +14333,24 @@ mod quota_tests {
         let result = Type::result(Arc::new(Type::Deferred(ok)), Arc::new(Type::Deferred(err)));
         assert_eq!(checker.resolved_syntax_type(&result), None);
         checker
-            .bind(ok, Type::I64, site(2), site(2), false)
+            .bind(
+                &VisitCursor::default(),
+                ok,
+                Type::I64,
+                site(2),
+                site(2),
+                false,
+            )
             .unwrap();
         checker
-            .bind(err, Type::Bool, site(3), site(3), false)
+            .bind(
+                &VisitCursor::default(),
+                err,
+                Type::Bool,
+                site(3),
+                site(3),
+                false,
+            )
             .unwrap();
         assert_eq!(
             checker.resolved_syntax_type(&result),
@@ -13995,6 +14363,7 @@ mod quota_tests {
         let array = checker.new_variable(&site(4)).unwrap();
         checker
             .bind(
+                &VisitCursor::default(),
                 array,
                 Type::Array(Arc::new(Type::I64)),
                 site(5),
@@ -14004,6 +14373,7 @@ mod quota_tests {
             .unwrap();
         let mismatch = checker
             .bind(
+                &VisitCursor::default(),
                 array,
                 Type::Array(Arc::new(Type::Bool)),
                 site(6),
@@ -14084,7 +14454,6 @@ mod quota_tests {
                 expression_types: HashMap::new(),
                 next_variable: 0,
                 obligations: Vec::new(),
-                numeric_domain_owner: None,
                 occurrences: HashMap::new(),
                 emitted_sites: HashSet::new(),
                 eligible_shapes: HashSet::new(),
@@ -14101,11 +14470,40 @@ mod quota_tests {
                 first_assignment_rhs_starts: HashMap::new(),
                 prefix_concrete: HashMap::new(),
                 preseeded_children: HashSet::new(),
-                tainted: false,
                 result: Type::Unit,
                 result_span: None,
                 nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
             },
+        }
+    }
+
+    #[test]
+    fn drive_cursors_end_with_their_visit_and_statement_children_start_clean() {
+        let source = "fn F(){let a=[1,true]+1;let b:Bool=1;} fn G(){let c=1+2;}";
+        let ast = crate::frontend::parse::parse("visits.n", source).unwrap();
+        let resolved = names::resolve("visits.n", source, &ast).unwrap();
+        let mut checker = empty_checker(&resolved);
+
+        let (_, first) = checker.drive(DriveStart::Block(&ast.functions[0].body));
+        assert_eq!(first.statement_entries, [(false, false), (true, false)]);
+        assert!(first.tainted); // The enclosing block retains the aggregate.
+        assert_eq!(first.numeric_domain_owner, None);
+        assert!(first.owner_activations > 0);
+
+        let (_, second) = checker.drive(DriveStart::Block(&ast.functions[1].body));
+        assert_eq!(second.statement_entries, [(false, false)]);
+        assert!(!second.tainted);
+        assert_eq!(second.numeric_domain_owner, None);
+        assert!(second.owner_activations > 0);
+
+        let Statement::Let { value, .. } = &ast.functions[1].body.statements[0] else {
+            unreachable!()
+        };
+        for _ in 0..2 {
+            let (result, selector) = checker.expr_with_cursor(value, None, None);
+            assert!(result.is_ok());
+            assert!(!selector.tainted);
+            assert_eq!(selector.numeric_domain_owner, None);
         }
     }
 
@@ -14287,10 +14685,24 @@ mod quota_tests {
                 .unwrap()
                 .array_constructed = true;
             checker
-                .bind(child, Type::I64, site(3), site(3), false)
+                .bind(
+                    &VisitCursor::default(),
+                    child,
+                    Type::I64,
+                    site(3),
+                    site(3),
+                    false,
+                )
                 .unwrap();
             checker
-                .bind(scalar, Type::I64, site(4), site(4), false)
+                .bind(
+                    &VisitCursor::default(),
+                    scalar,
+                    Type::I64,
+                    site(4),
+                    site(4),
+                    false,
+                )
                 .unwrap();
             let error = checker.union(first, second, site(9)).unwrap_err();
             assert_eq!(
@@ -14347,10 +14759,24 @@ mod quota_tests {
             end: 15,
         };
         checker
-            .bind(later, Type::I64, later_origin, site(30), false)
+            .bind(
+                &VisitCursor::default(),
+                later,
+                Type::I64,
+                later_origin,
+                site(30),
+                false,
+            )
             .unwrap();
         checker
-            .bind(earlier, Type::Bool, earlier_origin.clone(), site(31), false)
+            .bind(
+                &VisitCursor::default(),
+                earlier,
+                Type::Bool,
+                earlier_origin.clone(),
+                site(31),
+                false,
+            )
             .unwrap();
         let error = checker.union(later, earlier, site(32)).unwrap_err();
         assert_eq!(
@@ -14379,6 +14805,7 @@ mod quota_tests {
             let mut checker = empty_checker(&resolved);
             checker
                 .unify(
+                    &VisitCursor::default(),
                     i64_array.clone(),
                     i64_array.clone(),
                     site(0),
@@ -14403,7 +14830,15 @@ mod quota_tests {
                 )
             };
             let error = checker
-                .unify(left, right, site(3), site(4), site(5), false)
+                .unify(
+                    &VisitCursor::default(),
+                    left,
+                    right,
+                    site(3),
+                    site(4),
+                    site(5),
+                    false,
+                )
                 .unwrap_err();
             assert_eq!(
                 (error.code.as_str(), error.subcause.as_deref()),
@@ -14430,6 +14865,7 @@ mod quota_tests {
         let right = nested(Type::I64);
         checker
             .unify(
+                &VisitCursor::default(),
                 left.clone(),
                 right.clone(),
                 site(0),
@@ -14440,7 +14876,15 @@ mod quota_tests {
             .unwrap();
         assert_eq!(checker.solver_steps, 33);
         checker
-            .unify(left, right, site(3), site(4), site(5), false)
+            .unify(
+                &VisitCursor::default(),
+                left,
+                right,
+                site(3),
+                site(4),
+                site(5),
+                false,
+            )
             .unwrap();
         assert_eq!(checker.solver_steps, 66);
     }
@@ -14466,6 +14910,7 @@ mod quota_tests {
         let left = Type::Array(Arc::new(Type::Deferred(constructor)));
         let right = Type::Array(Arc::new(Type::I64));
         let first = checker.unify(
+            &VisitCursor::default(),
             left.clone(),
             right.clone(),
             site(3),
@@ -14475,9 +14920,24 @@ mod quota_tests {
         );
         assert!(first.is_ok(), "{first:?}");
         checker
-            .bind(child, Type::I64, site(6), site(6), false)
+            .bind(
+                &VisitCursor::default(),
+                child,
+                Type::I64,
+                site(6),
+                site(6),
+                false,
+            )
             .unwrap();
-        let second = checker.unify(left, right, site(3), site(4), site(7), false);
+        let second = checker.unify(
+            &VisitCursor::default(),
+            left,
+            right,
+            site(3),
+            site(4),
+            site(7),
+            false,
+        );
         assert!(second.is_ok(), "{second:?}");
         assert_eq!(
             checker
@@ -14507,6 +14967,7 @@ mod quota_tests {
         }
         checker
             .unify(
+                &VisitCursor::default(),
                 left.clone(),
                 right.clone(),
                 site(0),
@@ -14518,7 +14979,15 @@ mod quota_tests {
         assert_eq!(checker.solver_steps, 33);
         checker.solver_limit = 65;
         let error = checker
-            .unify(left, right, site(1), site(1), site(1), false)
+            .unify(
+                &VisitCursor::default(),
+                left,
+                right,
+                site(1),
+                site(1),
+                site(1),
+                false,
+            )
             .unwrap_err();
         assert_eq!(checker.solver_steps, 65);
         assert_eq!(error.code, "NX-E0003");
@@ -14817,6 +15286,7 @@ mod quota_tests {
         granted.solver_limit = 32;
         granted
             .unify(
+                &VisitCursor::default(),
                 nested(31),
                 nested(31),
                 span.clone(),
@@ -14830,6 +15300,7 @@ mod quota_tests {
         denied.solver_limit = 32;
         let mut error = denied
             .unify(
+                &VisitCursor::default(),
                 nested(32),
                 nested(32),
                 span.clone(),
@@ -15274,9 +15745,17 @@ mod quota_tests {
                 let mut rejected = false;
                 for step in permutation {
                     let result = match step {
-                        0 => checker.bind(a, Type::I64, origin(0), origin(0), false),
+                        0 => checker.bind(
+                            &VisitCursor::default(),
+                            a,
+                            Type::I64,
+                            origin(0),
+                            origin(0),
+                            false,
+                        ),
                         1 => checker.union(a, b, origin(1)),
                         _ => checker.bind(
+                            &VisitCursor::default(),
                             b,
                             if contradictory { Type::Bool } else { Type::I64 },
                             origin(2),
@@ -15368,9 +15847,24 @@ mod quota_tests {
                     let at = span((event_index + 4) as u64);
                     let result = match kind {
                         0 => checker.union(ids[left], ids[right], at),
-                        1 => checker.bind(ids[left], Type::I64, at.clone(), at, false),
-                        2 => checker.bind(ids[left], Type::Bool, at.clone(), at, false),
+                        1 => checker.bind(
+                            &VisitCursor::default(),
+                            ids[left],
+                            Type::I64,
+                            at.clone(),
+                            at,
+                            false,
+                        ),
+                        2 => checker.bind(
+                            &VisitCursor::default(),
+                            ids[left],
+                            Type::Bool,
+                            at.clone(),
+                            at,
+                            false,
+                        ),
                         3 => checker.bind(
+                            &VisitCursor::default(),
                             ids[left],
                             Type::Array(Arc::new(Type::I64)),
                             at.clone(),
@@ -15378,6 +15872,7 @@ mod quota_tests {
                             false,
                         ),
                         _ => checker.bind(
+                            &VisitCursor::default(),
                             ids[left],
                             Type::Array(Arc::new(Type::Bool)),
                             at.clone(),
