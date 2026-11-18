@@ -1463,7 +1463,11 @@ fn ir_operand_count(op: &Op) -> u64 {
         Op::ReadIndex { indexes, .. }
         | Op::BorrowIndex { indexes, .. }
         | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
-        Op::IndexValue { .. } | Op::Binary { .. } | Op::WritePlace { .. } => 2,
+        Op::IndexValue { .. }
+        | Op::Binary { .. }
+        | Op::RangeTest { .. }
+        | Op::RangeAdvance { .. }
+        | Op::WritePlace { .. } => 2,
         Op::CompoundStore { .. } => 3,
         Op::WriteIndex { indexes, .. } => 2 + indexes.len() as u64,
         Op::CallDirect { args, .. } | Op::BuildGenerator { args, .. } => 1 + args.len() as u64,
@@ -1938,6 +1942,16 @@ struct IfBeginState {
 enum ForState {
     Analyze {
         saved: ScopeId,
+    },
+    RangeLive {
+        header: BlockId,
+        branch: BlockId,
+        saved: ScopeId,
+        availability_checkpoint: usize,
+        binding: LocalId,
+        cursor: LocalId,
+        limit: LocalId,
+        inclusive: bool,
     },
     Live {
         header: BlockId,
@@ -2593,6 +2607,219 @@ impl Lower<'_> {
             false,
         ))
     }
+    fn hidden_range_slot(&mut self, span: &Span, mutable: bool) -> LocalId {
+        let id = LocalId(self.locals.len());
+        self.locals.push(Local {
+            id,
+            name: String::new(),
+            name_span: span.clone(),
+            ty: Ty::I64,
+            mutable,
+            scope: self.scope,
+            parameter_mode: None,
+        });
+        self.name_spans.push(span.clone());
+        id
+    }
+
+    fn begin_for_range(
+        &mut self,
+        statement: &Statement,
+        lower: Flow,
+        upper: Flow,
+        inclusive: bool,
+        surviving_temps: HashSet<TempId>,
+    ) -> Result<ForState, CompileError> {
+        let Statement::For {
+            name,
+            name_span,
+            iterable,
+            body,
+            span,
+        } = statement
+        else {
+            return Err(CompileError::InvalidIr("range for statement"));
+        };
+        if lower.ty().is_some_and(|ty| *ty != Ty::I64)
+            || upper.ty().is_some_and(|ty| *ty != Ty::I64)
+        {
+            return Err(CompileError::InvalidIr("range endpoint type"));
+        }
+        if lower.diverged() || upper.diverged() || self.emission == EmissionMode::Analyze {
+            let saved = self.scope;
+            self.scope = ScopeId(self.next_scope);
+            self.next_scope += 1;
+            self.scope_parents.push(Some(saved));
+            self.scopes.push(vec![name.into()]);
+            let binding = LocalId(self.locals.len());
+            self.locals.push(Local {
+                id: binding,
+                name: name.into(),
+                name_span: name_span.clone(),
+                ty: Ty::I64,
+                mutable: false,
+                scope: self.scope,
+                parameter_mode: None,
+            });
+            self.name_spans.push(name_span.clone());
+            self.visible.entry(name.into()).or_default().push(binding);
+            self.emission = EmissionMode::Analyze;
+            return Ok(ForState::Analyze { saved });
+        }
+        let (lower_temp, upper_temp) = (
+            lower
+                .temp()
+                .ok_or(CompileError::InvalidIr("range lower flow"))?,
+            upper
+                .temp()
+                .ok_or(CompileError::InvalidIr("range upper flow"))?,
+        );
+        let origin_lower = self.hidden_range_slot(iterable.span(), false);
+        let origin_upper = self.hidden_range_slot(iterable.span(), false);
+        let cursor = self.hidden_range_slot(iterable.span(), true);
+        let limit = self.hidden_range_slot(iterable.span(), false);
+        for (local, value) in [(origin_lower, lower_temp), (origin_upper, upper_temp)] {
+            self.statement_op(
+                Op::WritePlace { local, value },
+                iterable.span().clone(),
+                Access::Write,
+                false,
+            );
+        }
+        for (source, target) in [(origin_lower, cursor), (origin_upper, limit)] {
+            let copy = self
+                .emitted(
+                    Op::CopyValue(source),
+                    Ty::I64,
+                    iterable.span().clone(),
+                    Access::Read,
+                    false,
+                )
+                .temp()
+                .ok_or(CompileError::InvalidIr("range slot copy"))?;
+            self.statement_op(
+                Op::WritePlace {
+                    local: target,
+                    value: copy,
+                },
+                iterable.span().clone(),
+                Access::Write,
+                false,
+            );
+        }
+        for local in [origin_upper, origin_lower] {
+            let value = self
+                .emitted(
+                    Op::TransferValue(local),
+                    Ty::I64,
+                    iterable.span().clone(),
+                    Access::Own,
+                    false,
+                )
+                .temp()
+                .ok_or(CompileError::InvalidIr("range scratch transfer"))?;
+            self.statement_op(
+                Op::DropValue(value),
+                iterable.span().clone(),
+                Access::Own,
+                false,
+            );
+        }
+        self.finish_block(Terminator::Jump {
+            target: BlockId(self.blocks.len() + 1),
+            span: span.clone(),
+            charges: vec![],
+        });
+        let header = BlockId(self.blocks.len());
+        let for_token = Span {
+            file: span.file.clone(),
+            start: span.start,
+            end: span.start + 3,
+        };
+        self.pending_charges
+            .push(WorkPlanner::charge(WorkEvent::RangeTest, for_token.clone()));
+        let test = self
+            .emitted(
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive,
+                    final_test: false,
+                },
+                Ty::Bool,
+                for_token.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("range entry test"))?;
+        let branch = self.finish_block(Terminator::BranchBool {
+            condition: test,
+            yes: BlockId(self.blocks.len() + 1),
+            no: BlockId(usize::MAX),
+            span: for_token.clone(),
+            charges: vec![],
+        });
+        let saved = self.scope;
+        let scope_depth = self.scopes.len();
+        self.scope = ScopeId(self.next_scope);
+        self.next_scope += 1;
+        self.scope_parents.push(Some(saved));
+        self.scopes.push(vec![name.into()]);
+        let binding = LocalId(self.locals.len());
+        self.locals.push(Local {
+            id: binding,
+            name: name.into(),
+            name_span: name_span.clone(),
+            ty: Ty::I64,
+            mutable: false,
+            scope: self.scope,
+            parameter_mode: None,
+        });
+        self.name_spans.push(name_span.clone());
+        self.visible.entry(name.into()).or_default().push(binding);
+        let index = self
+            .emitted(
+                Op::CopyValue(cursor),
+                Ty::I64,
+                name_span.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("range binding"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: binding,
+                value: index,
+            },
+            name_span.clone(),
+            Access::Write,
+            false,
+        );
+        self.loop_stack.push(LoopContext {
+            continue_target: BlockId(usize::MAX),
+            scope_depth,
+            cleanup_span: body.close_span.clone(),
+            breaks: Vec::new(),
+            continues: Vec::new(),
+            match_depth: self.match_boundaries.len(),
+            surviving_temps,
+        });
+        let availability_checkpoint = self.consumed_undo.len();
+        self.dead_depth += 1;
+        Ok(ForState::RangeLive {
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            cursor,
+            limit,
+            inclusive,
+        })
+    }
+
     fn begin_for_after_iterable(
         &mut self,
         statement: &Statement,
@@ -2815,12 +3042,165 @@ impl Lower<'_> {
             iterator,
         })
     }
+    fn finish_for_range_after_body(
+        &mut self,
+        state: ForState,
+        body: &parse::Block,
+        body_result: Result<(), CompileError>,
+    ) -> Result<(), CompileError> {
+        let ForState::RangeLive {
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            cursor,
+            limit,
+            inclusive,
+        } = state
+        else {
+            return Err(CompileError::InvalidIr("range for state"));
+        };
+        let loop_context = self
+            .loop_stack
+            .pop()
+            .ok_or(CompileError::InvalidIr("range loop stack"))?;
+        body_result?;
+        self.emission = EmissionMode::Live;
+        let body_return = self.terminated.take();
+        let normal_backedge = body_return.is_none();
+        if body_return != Some(Termination::Diverged) {
+            let local = (binding, body.close_span.clone());
+            if matches!(body_return, Some(Termination::Return(_))) {
+                self.deferred_return_locals.push(local);
+            } else {
+                self.plan_exit(
+                    ExitPlan {
+                        surviving: loop_context.surviving_temps.clone(),
+                        locals: vec![local],
+                        reserved: None,
+                    },
+                    &body.close_span,
+                );
+            }
+            self.finish_block(match body_return {
+                Some(Termination::Return(value)) => Terminator::Return {
+                    value: Some(value),
+                    span: body.span.clone(),
+                    charges: vec![],
+                },
+                _ => Terminator::Jump {
+                    target: BlockId(self.blocks.len() + 1),
+                    span: body.span.clone(),
+                    charges: vec![],
+                },
+            });
+        }
+        self.leave_scope(saved)?;
+        self.restore_availability(availability_checkpoint);
+        self.dead_depth -= 1;
+        let mut final_branch = None;
+        if normal_backedge || !loop_context.continues.is_empty() {
+            let advance = BlockId(self.blocks.len());
+            if !normal_backedge {
+                self.enter_edge(loop_context.continues[0], 0)?;
+            }
+            let Terminator::BranchBool {
+                span: for_token, ..
+            } = &self.blocks[branch.0].terminator
+            else {
+                return Err(CompileError::InvalidIr("range header branch"));
+            };
+            let for_token = for_token.clone();
+            if inclusive {
+                self.pending_charges.push(WorkPlanner::charge(
+                    WorkEvent::RangeFinalTest,
+                    for_token.clone(),
+                ));
+                let last = self
+                    .emitted(
+                        Op::RangeTest {
+                            cursor,
+                            limit,
+                            inclusive: true,
+                            final_test: true,
+                        },
+                        Ty::Bool,
+                        for_token.clone(),
+                        Access::Read,
+                        false,
+                    )
+                    .temp()
+                    .ok_or(CompileError::InvalidIr("range final test"))?;
+                let test_block = self.finish_block(Terminator::BranchBool {
+                    condition: last,
+                    yes: BlockId(usize::MAX),
+                    no: BlockId(self.blocks.len() + 1),
+                    span: for_token.clone(),
+                    charges: vec![],
+                });
+                self.enter_edge(test_block, 1)?;
+                final_branch = Some(test_block);
+            }
+            self.pending_charges.push(WorkPlanner::charge(
+                WorkEvent::RangeAdvance,
+                for_token.clone(),
+            ));
+            self.statement_op(
+                Op::RangeAdvance { cursor, limit },
+                for_token.clone(),
+                Access::Write,
+                false,
+            );
+            self.finish_block(Terminator::Jump {
+                target: header,
+                span: body.span.clone(),
+                charges: vec![],
+            });
+            for id in loop_context.continues {
+                if let Terminator::Jump { target, .. } = &mut self.blocks[id.0].terminator {
+                    *target = advance;
+                }
+            }
+        }
+        let exit = BlockId(self.blocks.len());
+        self.enter_edge(branch, 1)?;
+        if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
+            *no = exit;
+        }
+        if let Some(final_branch) = final_branch
+            && let Terminator::BranchBool { yes, .. } = &mut self.blocks[final_branch.0].terminator
+        {
+            *yes = exit;
+        }
+        for id in loop_context.breaks {
+            if let Terminator::Jump { target, .. } = &mut self.blocks[id.0].terminator {
+                *target = exit;
+            }
+        }
+        self.plan_exit(
+            ExitPlan {
+                surviving: self.live_temps.clone(),
+                locals: vec![
+                    (limit, body.close_span.clone()),
+                    (cursor, body.close_span.clone()),
+                ],
+                reserved: None,
+            },
+            &body.close_span,
+        );
+        Ok(())
+    }
+
     fn finish_for_after_body(
         &mut self,
         state: ForState,
         body: &parse::Block,
         body_result: Result<(), CompileError>,
     ) -> Result<(), CompileError> {
+        if matches!(state, ForState::RangeLive { .. }) {
+            return self.finish_for_range_after_body(state, body, body_result);
+        }
         let ForState::Live {
             header,
             branch,
@@ -4193,6 +4573,20 @@ impl Lower<'_> {
                 depth: usize,
                 surviving_temps: HashSet<TempId>,
             },
+            ForRangeAfterLower {
+                statement: &'a Statement,
+                upper: &'a Expr,
+                depth: usize,
+                inclusive: bool,
+                surviving_temps: HashSet<TempId>,
+            },
+            ForRangeAfterUpper {
+                statement: &'a Statement,
+                depth: usize,
+                inclusive: bool,
+                lower: Flow,
+                surviving_temps: HashSet<TempId>,
+            },
             ForAfterBody {
                 state: Box<ForState>,
                 body: &'a parse::Block,
@@ -4387,6 +4781,41 @@ impl Lower<'_> {
                 state: IfState,
                 else_span: Option<Span>,
             },
+        }
+        fn schedule_for_body<'a>(
+            lower: &mut Lower<'_>,
+            tasks: &mut Vec<Task<'a>>,
+            statement: &'a Statement,
+            depth: usize,
+            state: ForState,
+        ) -> Result<(), CompileError> {
+            let Statement::For { body, .. } = statement else {
+                return Err(CompileError::InvalidIr("for statement"));
+            };
+            let surviving = lower.live_temps.clone();
+            let saved = lower.scope;
+            lower.scope = ScopeId(lower.next_scope);
+            lower.next_scope += 1;
+            lower.scope_parents.push(Some(saved));
+            lower.scopes.push(Vec::new());
+            tasks.push(Task::ForAfterBody {
+                state: Box::new(state),
+                body,
+            });
+            tasks.push(Task::Block(Box::new(Frame {
+                statements: &body.statements,
+                depth: depth + 1,
+                index: 0,
+                unreachable: None,
+                scoped: Some(Scoped {
+                    block: body,
+                    surviving,
+                    saved,
+                }),
+                pending: None,
+                value_tail: None,
+            })));
+            Ok(())
         }
         enum WhileState<'a> {
             Analyze {
@@ -4724,32 +5153,67 @@ impl Lower<'_> {
                         match started {
                             Err(error) => completed = Some(Err(error)),
                             Ok(state) => {
-                                let Statement::For { body, .. } = statement else {
-                                    return Err(CompileError::InvalidIr("for statement"));
-                                };
-                                let surviving = self.live_temps.clone();
-                                let saved = self.scope;
-                                self.scope = ScopeId(self.next_scope);
-                                self.next_scope += 1;
-                                self.scope_parents.push(Some(saved));
-                                self.scopes.push(Vec::new());
-                                tasks.push(Task::ForAfterBody {
-                                    state: Box::new(state),
-                                    body,
+                                schedule_for_body(self, &mut tasks, statement, depth, state)?
+                            }
+                        }
+                    }
+                    Some(Task::ForRangeAfterLower { .. }) => {
+                        let Some(Task::ForRangeAfterLower {
+                            statement,
+                            upper,
+                            depth,
+                            inclusive,
+                            surviving_temps,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("range lower continuation"));
+                        };
+                        match result {
+                            Err(error) => completed = Some(Err(error)),
+                            Ok(Some(lower)) => {
+                                tasks.push(Task::ForRangeAfterUpper {
+                                    statement,
+                                    depth,
+                                    inclusive,
+                                    lower,
+                                    surviving_temps,
                                 });
-                                tasks.push(Task::Block(Box::new(Frame {
-                                    statements: &body.statements,
-                                    depth: depth + 1,
-                                    index: 0,
-                                    unreachable: None,
-                                    scoped: Some(Scoped {
-                                        block: body,
-                                        surviving,
-                                        saved,
-                                    }),
-                                    pending: None,
-                                    value_tail: None,
-                                })));
+                                tasks.push(Task::Expr {
+                                    value: upper,
+                                    expected: Some(Ty::I64),
+                                    depth,
+                                    borrow: false,
+                                });
+                            }
+                            Ok(None) => {
+                                completed = Some(Err(CompileError::InvalidIr("range lower flow")))
+                            }
+                        }
+                    }
+                    Some(Task::ForRangeAfterUpper { .. }) => {
+                        let Some(Task::ForRangeAfterUpper {
+                            statement,
+                            depth,
+                            inclusive,
+                            lower,
+                            surviving_temps,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("range upper continuation"));
+                        };
+                        let started = result.and_then(|value| {
+                            self.begin_for_range(
+                                statement,
+                                lower,
+                                value.ok_or(CompileError::InvalidIr("range upper flow"))?,
+                                inclusive,
+                                surviving_temps,
+                            )
+                        });
+                        match started {
+                            Err(error) => completed = Some(Err(error)),
+                            Ok(state) => {
+                                schedule_for_body(self, &mut tasks, statement, depth, state)?
                             }
                         }
                     }
@@ -6305,17 +6769,41 @@ impl Lower<'_> {
                             self.charge_control_statement(span);
                         }
                         let surviving_temps = self.live_temps.clone();
-                        tasks.push(Task::ForAfterIterable {
-                            statement,
-                            depth,
-                            surviving_temps,
-                        });
-                        tasks.push(Task::Expr {
-                            value: iterable,
-                            expected: None,
-                            depth,
-                            borrow: false,
-                        });
+                        let mut ungrouped = iterable;
+                        while let Expr::Group(inner, _) = ungrouped {
+                            ungrouped = inner;
+                        }
+                        if let Expr::Binary {
+                            op, left, right, ..
+                        } = ungrouped
+                            && matches!(op.as_str(), "..<" | "..=")
+                        {
+                            tasks.push(Task::ForRangeAfterLower {
+                                statement,
+                                upper: right,
+                                depth,
+                                inclusive: op == "..=",
+                                surviving_temps,
+                            });
+                            tasks.push(Task::Expr {
+                                value: left,
+                                expected: Some(Ty::I64),
+                                depth,
+                                borrow: false,
+                            });
+                        } else {
+                            tasks.push(Task::ForAfterIterable {
+                                statement,
+                                depth,
+                                surviving_temps,
+                            });
+                            tasks.push(Task::Expr {
+                                value: iterable,
+                                expected: None,
+                                depth,
+                                borrow: false,
+                            });
+                        }
                     }
                     Task::AssignEnter(statement) => {
                         let Statement::Assign { place, value, .. } = statement else {
@@ -8282,6 +8770,8 @@ impl Lower<'_> {
                     Task::Block(_)
                     | Task::StatementExprAfter(_)
                     | Task::ForAfterIterable { .. }
+                    | Task::ForRangeAfterLower { .. }
+                    | Task::ForRangeAfterUpper { .. }
                     | Task::ForAfterBody { .. }
                     | Task::YieldAfterValue { .. }
                     | Task::AssignAfterSelector(_)
@@ -9561,6 +10051,294 @@ mod tests {
         assert!(errors.iter().any(|error| {
             error.code == "NX-E0202" && error.subcause.as_deref() == Some("maybe_consumed")
         }));
+    }
+
+    fn hidden_f5_range_program(source: &str) -> Result<Program, CompileError> {
+        let ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let mut checked = crate::check::check_for_compilation("case.n", source, &ast, false);
+        assert!(checked.internal_error.is_none());
+        enum Node<'a> {
+            Block(&'a parse::Block),
+            Statement(&'a Statement),
+            Expr(&'a Expr),
+        }
+        let tokens = crate::frontend::lex::lex("case.n", source).unwrap();
+        let mut pending: Vec<_> = ast.functions.iter().map(|f| Node::Block(&f.body)).collect();
+        while let Some(node) = pending.pop() {
+            match node {
+                Node::Block(block) => pending.extend(block.statements.iter().map(Node::Statement)),
+                Node::Statement(statement) => match statement {
+                    Statement::Let {
+                        name, value, span, ..
+                    } => {
+                        if let Some(token) = tokens.iter().find(|token| {
+                            token.text == *name
+                                && token.span.start >= span.start
+                                && token.span.end <= span.end
+                        }) && let Expr::Call { target, .. } = value
+                            && matches!(target.as_ref(), Expr::Name(name, _) if name == "MockOpen")
+                        {
+                            checked.inferred.bindings.insert(
+                                token.span.start,
+                                crate::check::types::ResolvedType::Concrete(
+                                    parse::Type::MockResource,
+                                ),
+                            );
+                        }
+                        pending.push(Node::Expr(value));
+                    }
+                    Statement::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        pending.push(Node::Expr(condition));
+                        pending.push(Node::Block(then_block));
+                        if let Some(otherwise) = otherwise {
+                            pending.push(Node::Statement(otherwise));
+                        }
+                    }
+                    Statement::For { iterable, body, .. }
+                    | Statement::While {
+                        condition: iterable,
+                        body,
+                        ..
+                    } => {
+                        pending.push(Node::Expr(iterable));
+                        pending.push(Node::Block(body));
+                    }
+                    Statement::Expr { value, .. } => pending.push(Node::Expr(value)),
+                    Statement::Return {
+                        value: Some(value), ..
+                    } => pending.push(Node::Expr(value)),
+                    Statement::Block(block) => pending.push(Node::Block(block)),
+                    _ => {}
+                },
+                Node::Expr(expr) => {
+                    let ty = match expr {
+                        Expr::Name(name, _) if name == "i" => Some(parse::Type::I64),
+                        Expr::Integer(..) => Some(parse::Type::I64),
+                        Expr::Bool(..) => Some(parse::Type::Bool),
+                        Expr::Binary {
+                            op, left, right, ..
+                        } => {
+                            pending.push(Node::Expr(left));
+                            pending.push(Node::Expr(right));
+                            matches!(op.as_str(), "==" | "!=" | "<" | "<=" | ">" | ">=")
+                                .then_some(parse::Type::Bool)
+                        }
+                        Expr::Call { target, args, .. } => {
+                            pending.extend(args.iter().map(|arg| Node::Expr(&arg.value)));
+                            match target.as_ref() {
+                                Expr::Name(name, _) if name == "Print" => Some(parse::Type::Unit),
+                                Expr::Name(name, _) if name == "MockOpen" => {
+                                    Some(parse::Type::MockResource)
+                                }
+                                Expr::Name(name, _)
+                                    if name == "Lo" || name == "Hi" || name == "F" =>
+                                {
+                                    Some(parse::Type::I64)
+                                }
+                                _ => None,
+                            }
+                        }
+                        Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                            pending.push(Node::Expr(value));
+                            None
+                        }
+                        _ => None,
+                    };
+                    if let Some(ty) = ty {
+                        let span = expr.span();
+                        checked.inferred.expressions.insert(
+                            (span.start, span.end),
+                            crate::check::types::ResolvedType::Concrete(ty),
+                        );
+                    }
+                }
+            }
+        }
+        compile_ast_with_flow_limit(&ast, source, &checked.inferred, AnalysisLimits::NORMAL)
+    }
+
+    #[test]
+    fn f5_internal_range_ir_has_literal_exclusive_and_inclusive_ticks() {
+        for (source, ticks) in [
+            ("fn Main(){for i in 0..<3{}}", 19),
+            ("fn Main(){for i in 0..=2{}}", 20),
+        ] {
+            let program = hidden_f5_range_program(source).expect("typed range IR");
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(execution.outcome, crate::interp::Outcome::Unit, "{source}");
+            assert_eq!(execution.work_consumed, ticks, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_internal_range_limits_are_evaluated_once_and_max_never_advances() {
+        for (source, stdout) in [
+            (
+                "fn Lo()->I64{Print(1);return 0;}fn Hi()->I64{Print(2);return 2;}fn Main(){for i in Lo()..<Hi(){Print(i);}}",
+                vec!["1", "2", "0", "1"],
+            ),
+            (
+                "fn Main(){for i in 2..<2{Print(i);}for i in 3..=2{Print(i);}}",
+                vec![],
+            ),
+            (
+                "fn Main(){for i in 9223372036854775807..=9223372036854775807{Print(i);}}",
+                vec!["9223372036854775807"],
+            ),
+            (
+                "fn Main(){for i in -9223372036854775808..=-9223372036854775808{Print(i);}}",
+                vec!["-9223372036854775808"],
+            ),
+        ] {
+            let program = hidden_f5_range_program(source).expect("typed range IR");
+            let function = program.functions.function("Main").unwrap();
+            assert!(
+                std::iter::once(&function.block)
+                    .chain(&function.blocks)
+                    .all(|block| {
+                        block
+                            .instructions
+                            .iter()
+                            .all(|ins| !matches!(ins.op, Op::BuildArray(_)))
+                    })
+            );
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(execution.outcome, crate::interp::Outcome::Unit, "{source}");
+            assert_eq!(execution.observations.stdout(), stdout, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_internal_range_values_match_independent_integer_oracle() {
+        for (lower, upper, inclusive) in [
+            (0_i64, 3_i64, false),
+            (0, 2, true),
+            (2, 2, false),
+            (2, 2, true),
+            (3, 2, true),
+            (i64::MIN, i64::MIN, true),
+            (i64::MAX, i64::MAX, true),
+        ] {
+            let operation = if inclusive { "..=" } else { "..<" };
+            let source = format!("fn Main(){{for i in {lower}{operation}{upper}{{Print(i);}}}}");
+            let program = hidden_f5_range_program(&source).expect("typed range IR");
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            let expected: Vec<_> = if inclusive {
+                (lower..=upper).map(|value| value.to_string()).collect()
+            } else {
+                (lower..upper).map(|value| value.to_string()).collect()
+            };
+            assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+            assert_eq!(execution.observations.stdout(), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_internal_range_verifier_rejects_invalid_final_test_and_cursor() {
+        let source = "fn Main(){for i in 0..=1{}}";
+        let mut final_test = hidden_f5_range_program(source).expect("typed range IR");
+        let function = final_test
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let instruction = std::iter::once(&mut function.block)
+            .chain(function.blocks.iter_mut())
+            .flat_map(|block| block.instructions.iter_mut())
+            .find(|ins| {
+                matches!(
+                    ins.op,
+                    Op::RangeTest {
+                        final_test: true,
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        if let Op::RangeTest { inclusive, .. } = &mut instruction.op {
+            *inclusive = false;
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            crate::ir::verify::verify_program(&final_test),
+            Err("exclusive range final test")
+        );
+
+        let mut advance = hidden_f5_range_program(source).expect("typed range IR");
+        let function = advance
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let instruction = std::iter::once(&mut function.block)
+            .chain(function.blocks.iter_mut())
+            .flat_map(|block| block.instructions.iter_mut())
+            .find(|ins| matches!(ins.op, Op::RangeAdvance { .. }))
+            .unwrap();
+        if let Op::RangeAdvance { cursor, limit } = &mut instruction.op {
+            *cursor = *limit;
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            crate::ir::verify::verify_program(&advance),
+            Err("range cursor write")
+        );
+    }
+
+    #[test]
+    fn f5_internal_range_binding_is_not_visible_after_loop() {
+        let source = "fn Main(){for i in 0..<1{}Print(i);}";
+        assert!(matches!(
+            hidden_f5_range_program(source),
+            Err(CompileError::InvalidIr("unresolved local"))
+        ));
+    }
+
+    #[test]
+    fn f5_internal_range_control_closes_each_body_before_advancing() {
+        let source = "fn Main(){for i in 0..<2{let r=MockOpen(i);if i==0{continue;}break;}}";
+        let program = hidden_f5_range_program(source).expect("typed range with control edges");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(
+            execution.observations.events(),
+            ["open:0:0", "close:0:0", "open:1:1", "close:1:1"]
+        );
+        let returning = "fn Main(){for i in 0..<2{let r=MockOpen(i);return;}}";
+        let program = hidden_f5_range_program(returning).expect("typed returning range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(execution.observations.events(), ["open:0:0", "close:0:0"]);
+        let max_continue =
+            "fn Main(){for i in 9223372036854775807..=9223372036854775807{continue;}}";
+        let program = hidden_f5_range_program(max_continue).expect("typed MAX continue range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        let early_break = "fn Main(){for i in 0..<3{if i==0{break;}Print(i);}}";
+        let program = hidden_f5_range_program(early_break).expect("typed early break range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert!(execution.observations.stdout().is_empty());
+        let return_value = "fn F()->I64{for i in 0..<2{return i;}return -1;}fn Main(){Print(F());}";
+        let program = hidden_f5_range_program(return_value).expect("typed returning value range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(execution.observations.stdout(), ["0"]);
     }
 
     fn analyzed_lower<'a>(

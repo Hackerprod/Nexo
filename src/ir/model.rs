@@ -324,6 +324,18 @@ pub enum Op {
         left: TempId,
         right: TempId,
     },
+    /// A typed range control test over hidden I64 slots, without a Range value.
+    RangeTest {
+        cursor: LocalId,
+        limit: LocalId,
+        inclusive: bool,
+        final_test: bool,
+    },
+    /// The effective cursor increment after its exit test.
+    RangeAdvance {
+        cursor: LocalId,
+        limit: LocalId,
+    },
     Unary {
         op: Unary,
         operand: TempId,
@@ -938,6 +950,23 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     });
                     number(&mut bytes, left.0);
                     number(&mut bytes, right.0)
+                }
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive,
+                    final_test,
+                } => {
+                    bytes.push(46);
+                    number(&mut bytes, cursor.0);
+                    number(&mut bytes, limit.0);
+                    bytes.push(u8::from(*inclusive));
+                    bytes.push(u8::from(*final_test));
+                }
+                Op::RangeAdvance { cursor, limit } => {
+                    bytes.push(47);
+                    number(&mut bytes, cursor.0);
+                    number(&mut bytes, limit.0);
                 }
                 Op::Unary { op, operand } => {
                     bytes.push(43);

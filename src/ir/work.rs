@@ -23,6 +23,9 @@ pub(crate) enum WorkEvent {
     IfExpression,
     IndexExpression,
     OperatorExpression,
+    RangeTest,
+    RangeFinalTest,
+    RangeAdvance,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -43,6 +46,7 @@ pub(crate) enum WorkOrigin {
     BindingToken,
     BranchOperand,
     IndexAccess,
+    ForToken,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -189,6 +193,27 @@ const CATALOG: &[WorkRule] = &[
         origin: WorkOrigin::Expression,
         phase: WorkPhase::PreOrder,
         order: 14,
+    },
+    WorkRule {
+        event: WorkEvent::RangeTest,
+        units: 1,
+        origin: WorkOrigin::ForToken,
+        phase: WorkPhase::PreOrder,
+        order: 14,
+    },
+    WorkRule {
+        event: WorkEvent::RangeFinalTest,
+        units: 1,
+        origin: WorkOrigin::ForToken,
+        phase: WorkPhase::AfterOperand,
+        order: 15,
+    },
+    WorkRule {
+        event: WorkEvent::RangeAdvance,
+        units: 1,
+        origin: WorkOrigin::ForToken,
+        phase: WorkPhase::AfterOperand,
+        order: 16,
     },
 ];
 

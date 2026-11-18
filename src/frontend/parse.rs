@@ -3516,7 +3516,7 @@ impl Parser<'_> {
                                 lhs.span().start as usize,
                             ));
                         }
-                        if matches!(op, "..<" | "..=") {
+                        if matches!(op, "..<" | "..=") && !self.f5_operators {
                             return Err(self.feature("range", self.peek().span.clone()));
                         }
                         if op == "+=" {
@@ -3571,6 +3571,18 @@ impl Parser<'_> {
                                 &token,
                                 "grammar.CompareExpr",
                                 &[";", "and", "or"],
+                                lhs.span().start as usize,
+                            ));
+                        }
+                        if prec == levels.range
+                            && self.f5_operators
+                            && matches!(&lhs, Expr::Binary { op, .. } if matches!(op.as_str(), "..<" | "..="))
+                        {
+                            let token = self.peek().clone();
+                            return Err(self.syntax(
+                                &token,
+                                "grammar.RangeExpr",
+                                &["!=", ";", "<", "<=", "==", ">", ">=", "and", "or"],
                                 lhs.span().start as usize,
                             ));
                         }
@@ -5971,6 +5983,167 @@ mod b_tests {
                     }
                 }
             }
+        }
+    }
+
+    #[test]
+    fn hidden_f5_range_level_has_adr_ast_shape_across_both_sides() {
+        fn shape(expr: &Expr) -> String {
+            match expr {
+                Expr::Integer(value, _) => value.clone(),
+                Expr::Bool(value, _) => value.to_string(),
+                Expr::Name(name, _) => name.clone(),
+                Expr::Group(value, _) => format!("(group {})", shape(value)),
+                Expr::Unary {
+                    mode: Mode::Read,
+                    value,
+                    ..
+                } => {
+                    format!("(try {})", shape(value))
+                }
+                Expr::Binary {
+                    op, left, right, ..
+                } => {
+                    format!("({op} {} {})", shape(left), shape(right))
+                }
+                Expr::Call { target, .. } => format!("(call {})", shape(target)),
+                Expr::Index { target, index, .. } => {
+                    format!("(index {} {})", shape(target), shape(index))
+                }
+                _ => panic!("unexpected range fixture expression: {expr:?}"),
+            }
+        }
+        fn check(expression: &str, expected: &str) {
+            let source = format!("fn Main(){{let x={expression};}}");
+            let ast = parse_f5_hidden("case.n", &source).unwrap();
+            let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+                panic!("expected let")
+            };
+            assert_eq!(shape(value), expected, "{expression}");
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            let Statement::Let { value, .. } = &reparsed.functions[0].body.statements[0] else {
+                panic!("expected let")
+            };
+            assert_eq!(shape(value), expected, "{printed}");
+        }
+
+        // ADR §§2.1, 3.1: logical < comparison < range < addition
+        // < multiplication < postfix. Each adjacency is checked on both sides.
+        for range in ["..<", "..="] {
+            for op in ["<", "<=", ">", ">=", "==", "!="] {
+                check(
+                    &format!("1 {range} 2 {op} 3"),
+                    &format!("({op} ({range} 1 2) 3)"),
+                );
+                check(
+                    &format!("1 {op} 2 {range} 3"),
+                    &format!("({op} 1 ({range} 2 3))"),
+                );
+            }
+            for op in ["+", "-", "*", "/", "%"] {
+                check(
+                    &format!("1 {op} 2 {range} 3"),
+                    &format!("({range} ({op} 1 2) 3)"),
+                );
+                check(
+                    &format!("1 {range} 2 {op} 3"),
+                    &format!("({range} 1 ({op} 2 3))"),
+                );
+            }
+            for op in ["and", "or"] {
+                check(
+                    &format!("true {op} 1 {range} 2"),
+                    &format!("({op} true ({range} 1 2))"),
+                );
+                check(
+                    &format!("1 {range} 2 {op} true"),
+                    &format!("({op} ({range} 1 2) true)"),
+                );
+            }
+            for (postfix, expected) in [
+                ("F()?", "(try (call F))"),
+                ("F(1)", "(call F)"),
+                ("a[0]", "(index a 0)"),
+            ] {
+                check(
+                    &format!("1 {range} {postfix}"),
+                    &format!("({range} 1 {expected})"),
+                );
+                check(
+                    &format!("{postfix} {range} 1"),
+                    &format!("({range} {expected} 1)"),
+                );
+            }
+            let source = format!("fn Main(){{for i in (0{range}2){{}}}}");
+            let ast = parse_f5_hidden("case.n", &source).unwrap();
+            let Statement::For { iterable, .. } = &ast.functions[0].body.statements[0] else {
+                panic!("expected for")
+            };
+            assert_eq!(shape(iterable), format!("(group ({range} 0 2))"));
+        }
+    }
+
+    #[test]
+    fn hidden_f5_second_range_operator_has_s18_diagnostic() {
+        for first in ["..<", "..="] {
+            for second in ["..<", "..="] {
+                let source = format!("fn Main(){{let x=0{first}1{second}2;}}");
+                let error = parse_f5_hidden("case.n", &source).unwrap_err();
+                assert_eq!(error.code, "NX-E0002");
+                assert_eq!(error.stage, Stage::Parse);
+                assert_eq!(error.parser_context.as_deref(), Some("grammar.RangeExpr"));
+                assert_eq!(
+                    error.primary_span.as_ref().map(|s| (s.start, s.end)),
+                    Some((21, 24))
+                );
+                assert_eq!(
+                    error
+                        .unexpected_token
+                        .as_ref()
+                        .and_then(|t| t.text.as_deref()),
+                    Some(second)
+                );
+                assert_eq!(
+                    error.expected_tokens,
+                    ["!=", ";", "<", "<=", "==", ">", ">=", "and", "or"]
+                );
+                assert_eq!(
+                    error.recognized_prefix.as_ref().map(|s| (s.start, s.end)),
+                    Some((16, 21))
+                );
+            }
+        }
+        let historical = parse_new_profile("case.n", "fn Main(){for i in 0..<2{}}")
+            .expect_err("J keeps the range parser closed");
+        assert_eq!(historical.code, "NX-E0006");
+        assert_eq!(historical.feature_id.as_deref(), Some("range"));
+        let old_endpoint = parse_f5_hidden("case.n", "fn Main(){let x=0..1;}")
+            .expect_err("the removed bare range token keeps its own diagnostic");
+        assert_eq!(
+            old_endpoint.parser_context.as_deref(),
+            Some("range_endpoint")
+        );
+        assert_eq!(old_endpoint.expected_tokens, ["..<", "..="]);
+    }
+
+    #[test]
+    fn hidden_f5_range_token_mutations_never_panic() {
+        let atoms = [
+            "0", "1", "..<", "..=", "<", "==", "+", "-", "(", ")", "i", " ",
+        ];
+        let mut seed = 0x5f05_2026_u64;
+        for _ in 0..512 {
+            let mut expression = String::new();
+            for _ in 0..16 {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                expression.push_str(atoms[((seed >> 32) as usize) % atoms.len()]);
+            }
+            let source = format!("fn Main(){{for i in {expression}{{}}}}");
+            assert!(
+                std::panic::catch_unwind(|| parse_f5_hidden("case.n", &source)).is_ok(),
+                "{source}"
+            );
         }
     }
 }

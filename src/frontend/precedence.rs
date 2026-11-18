@@ -7,6 +7,7 @@ pub(super) const OPERAND: u8 = 1;
 #[derive(Clone, Copy)]
 pub(super) struct Levels {
     pub comparison: u8,
+    pub range: u8,
     pub addition: u8,
     pub multiplication: u8,
     pub try_guard: u8,
@@ -19,6 +20,7 @@ pub(super) const J: Levels = Levels {
     logical_or: 0,
     logical_and: 0,
     comparison: 1,
+    range: 0,
     addition: 2,
     multiplication: 0,
     try_guard: 4,
@@ -29,10 +31,11 @@ pub(super) const F5: Levels = Levels {
     logical_or: 1,
     logical_and: 2,
     comparison: 3,
-    addition: 4,
-    multiplication: 5,
-    try_guard: 7,
-    postfix: 8,
+    range: 4,
+    addition: 5,
+    multiplication: 6,
+    try_guard: 8,
+    postfix: 9,
 };
 
 impl Levels {
@@ -41,6 +44,7 @@ impl Levels {
             "or" => self.logical_or,
             "and" => self.logical_and,
             "==" | "<" | "!=" | ">" | "<=" | ">=" => self.comparison,
+            "..<" | "..=" => self.range,
             "+" | "-" => self.addition,
             "*" | "/" | "%" => self.multiplication,
             _ => EXPRESSION,

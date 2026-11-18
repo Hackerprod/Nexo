@@ -3324,6 +3324,50 @@ impl Machine {
                         };
                         Some(value)
                     }
+                    Op::RangeTest {
+                        cursor,
+                        limit,
+                        inclusive,
+                        final_test,
+                    } => {
+                        let (Some(Value::Int(cursor)), Some(Value::Int(limit))) = (
+                            locals.get(cursor.0).and_then(Option::as_ref),
+                            locals.get(limit.0).and_then(Option::as_ref),
+                        ) else {
+                            return Err("range test slots");
+                        };
+                        let result = if *final_test {
+                            if !*inclusive {
+                                return Err("exclusive range final test");
+                            }
+                            cursor == limit
+                        } else if *inclusive {
+                            cursor <= limit
+                        } else {
+                            cursor < limit
+                        };
+                        if !self.cell(&ins.span) {
+                            break;
+                        }
+                        Some(Value::Bool(result))
+                    }
+                    Op::RangeAdvance { cursor, limit } => {
+                        let Some(Value::Int(bound)) = locals.get(limit.0).and_then(Option::as_ref)
+                        else {
+                            return Err("range limit slot");
+                        };
+                        let bound = *bound;
+                        let Some(Value::Int(current)) =
+                            locals.get_mut(cursor.0).and_then(Option::as_mut)
+                        else {
+                            return Err("range cursor slot");
+                        };
+                        if *current >= bound {
+                            return Err("range advance after limit");
+                        }
+                        *current = current.checked_add(1).ok_or("range cursor overflow")?;
+                        None
+                    }
                     Op::Unary { op, operand } => {
                         let taken = Self::take(&mut temps, *operand)?;
                         self.cells = self.cells.saturating_sub(taken.owned_cells());

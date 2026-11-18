@@ -904,6 +904,35 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 Some(op.result_type(&l).ok_or("binary domain")?)
             }
+            Op::RangeTest {
+                cursor,
+                limit,
+                inclusive,
+                final_test,
+            } => {
+                if *final_test && !*inclusive {
+                    return Err("exclusive range final test");
+                }
+                for id in [cursor, limit] {
+                    let local = function.locals.get(id.0).ok_or("range slot")?;
+                    if local.ty != Ty::I64 || !initialized[id.0] || active_exclusive[id.0] != 0 {
+                        return Err("range slot type or state");
+                    }
+                }
+                Some(Ty::Bool)
+            }
+            Op::RangeAdvance { cursor, limit } => {
+                for id in [cursor, limit] {
+                    let local = function.locals.get(id.0).ok_or("range slot")?;
+                    if local.ty != Ty::I64 || !initialized[id.0] || active_exclusive[id.0] != 0 {
+                        return Err("range slot type or state");
+                    }
+                }
+                if !function.locals[cursor.0].mutable || cursor == limit {
+                    return Err("range cursor write");
+                }
+                None
+            }
             Op::Unary { op, operand } => {
                 if borrowed.get(operand.0) == Some(&true) {
                     return Err("borrowed arithmetic operand");
@@ -1364,6 +1393,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Op::TestVariant { .. }
             | Op::TestLiteral { .. }
             | Op::ProjectPayload { .. } => Access::Read,
+            Op::RangeTest { .. } => Access::Read,
             Op::CompoundLoad { .. } => Access::Read,
             Op::WritePlace { .. }
             | Op::WriteIndex { .. }
@@ -1371,6 +1401,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Op::BindView { .. }
             | Op::BindEdit { .. }
             | Op::ExtractPayload { .. } => Access::Write,
+            Op::RangeAdvance { .. } => Access::Write,
             _ => Access::Own,
         };
         if ins.access != access {
@@ -2694,6 +2725,41 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     Some(op.result_type(&left).ok_or("binary domain")?)
                 }
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive,
+                    final_test,
+                } => {
+                    if *final_test && !*inclusive {
+                        return Err("exclusive range final test");
+                    }
+                    for id in [cursor, limit] {
+                        let local = function.locals.get(id.0).ok_or("range slot")?;
+                        if local.ty != Ty::I64
+                            || !tree.get(&initialized, id.0)
+                            || temps.exclusive(id.0) != 0
+                        {
+                            return Err("range slot type or state");
+                        }
+                    }
+                    Some(Ty::Bool)
+                }
+                Op::RangeAdvance { cursor, limit } => {
+                    for id in [cursor, limit] {
+                        let local = function.locals.get(id.0).ok_or("range slot")?;
+                        if local.ty != Ty::I64
+                            || !tree.get(&initialized, id.0)
+                            || temps.exclusive(id.0) != 0
+                        {
+                            return Err("range slot type or state");
+                        }
+                    }
+                    if !function.locals[cursor.0].mutable || cursor == limit {
+                        return Err("range cursor write");
+                    }
+                    None
+                }
                 Op::Unary { op, operand } => {
                     if temps.info(*operand)?.is_borrowed {
                         return Err("borrowed arithmetic operand");
@@ -3108,6 +3174,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 | Op::TestVariant { .. }
                 | Op::TestLiteral { .. }
                 | Op::ProjectPayload { .. } => Access::Read,
+                Op::RangeTest { .. } => Access::Read,
                 Op::CompoundLoad { .. } => Access::Read,
                 Op::WritePlace { .. }
                 | Op::WriteIndex { .. }
@@ -3115,6 +3182,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 | Op::BindView { .. }
                 | Op::BindEdit { .. }
                 | Op::ExtractPayload { .. } => Access::Write,
+                Op::RangeAdvance { .. } => Access::Write,
                 _ => Access::Own,
             };
             if ins.access != access {
