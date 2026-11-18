@@ -25,7 +25,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "b506d7d"
-OUTPUT = ROOT / "docs/validation/i07c-mutations/population.json"
+MUTATIONS_DIR = ROOT / os.environ.get("I07C_MUT_DIR", "docs/validation/i07c-mutations")
+OUTPUT = MUTATIONS_DIR / "population.json"
 RESULTS_PATH: Path | None = None
 # Los plazos son andamiaje: con varios fragmentos en paralelo se escalan sin cambiar
 # la población ni la regla de clasificación.
