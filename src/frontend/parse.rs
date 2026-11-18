@@ -3442,7 +3442,7 @@ impl Parser<'_> {
                             continue 'work;
                         }
                         if self.at_text("?") {
-                            if min == if self.f5_operators { 6 } else { 4 } {
+                            if min == if self.f5_operators { 7 } else { 4 } {
                                 break;
                             }
                             if matches!(&lhs, Expr::If { .. }) {
@@ -5653,5 +5653,49 @@ mod b_tests {
             assert!(parse_f5_hidden("case.n", &printed).is_ok(), "{printed}");
         }
         assert!(parse_new_profile("case.n", "fn Main(){let b=true and false;}").is_err());
+    }
+
+    #[test]
+    fn hidden_f5_postfix_binds_above_every_binary_level() {
+        // F5 §2.1: or < and < comparison < addition < multiplication
+        // < unary < try < call/index. The F5 unary spelling is opened in L01b.
+        for (left, op) in [
+            ("false", "or"),
+            ("false", "and"),
+            ("1", "<"),
+            ("1", "+"),
+            ("1", "*"),
+            ("1", "/"),
+            ("1", "%"),
+        ] {
+            for (operand, postfix) in [("F()?", "?"), ("F(1)", "call"), ("a[0]", "index")] {
+                let expression = format!("{left} {op} {operand}");
+                let source = format!("fn Main(){{let x={expression};}}");
+                let ast = parse_f5_hidden("case.n", &source).unwrap();
+                let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                assert!(printed.contains(&expression), "{op} {postfix}: {printed}");
+                let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                assert_eq!(
+                    crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                    printed,
+                    "{op} {postfix}"
+                );
+            }
+        }
+        for (source, expected) in [
+            ("fn Main(){let x=1/F()?%2;}", "1 / F()? % 2"),
+            ("fn Main(){let x=1*F()?;}", "1 * F()?"),
+        ] {
+            let printed = crate::frontend::print::print_canonical(
+                &parse_f5_hidden("case.n", source).unwrap(),
+            )
+            .unwrap();
+            assert!(printed.contains(expected), "{printed}");
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            assert_eq!(
+                crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                printed
+            );
+        }
     }
 }
