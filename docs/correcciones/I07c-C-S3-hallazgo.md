@@ -54,3 +54,30 @@ SHA-256: `5db331ae6fde0fc6c137b915a61369cd87ec4ded11282d7f15f50fcfaab81da3`. Esp
 En la copia desechable del blob base se instrumentaron las entradas a `bind`, `bind → require_union`, `bind → union`, `unify` y `defer_shape_conflict`, registrando si el cursor portaba `numeric_domain_owner`; la instrumentación no está en el árbol de entrega. Una primera batería de 1.122 fuentes ASCII usó el producto determinista de 11 declaraciones iniciales (raíz diferida, Array, Option/Result, concreta y dos raíces), 17 expresiones candidatas (alias, `+`, `Len`, índice, Array, `Some`, `Ok`, ramas con uno o dos operandos) y 6 sufijos de fijación/comparación. Se invocó `check` con `f0-0003-b-v1` para cada fuente. Esa batería dio 132 entradas a `bind` con owner activo y ningún arco buscado. La búsqueda dirigida posterior colocó declaraciones y anotaciones dentro del bloque de un `if` que es operando de `+`; así encontró los dos arcos y probó la mutación de `require_union` descrita arriba. El resultado negativo de esa mutación no demuestra que un discriminante sea imposible, pero activa la parada expresa de r14 §3 sin sustituirla por una comprobación interna.
 
 La lectura de `drive` muestra que Array (`types.rs` alrededor de 8449), llamadas `Some`/`Ok`/`Err` (alrededor de 8627) y otros argumentos de llamada retiran temporalmente `numeric_domain_owner` antes de visitar sus hijos; un bloque de `if` puede conservar el owner al visitar declaraciones internas. Hace falta una fuente CLI cuya salida sí cambie al heredar el cursor en `require_union`, además de una para `union_inner`, o una revisión A/B del requisito. No se ejecutaron la conversión, la puerta mecánica, el diferencial final ni la campaña final; S3 permanece pendiente.
+
+## Nueva parada en S3, posterior al PASS de B-r5 (2026-11-17)
+
+La enmienda r17 ya retira la antigua exigencia de discriminante CLI para los cinco sitios de cursor vacío; la parada anterior queda como historia. En la base limpia `815424c`, antes de convertir el solver, apareció un choque **entre el oráculo obligatorio de r14 §4 y F0-0002 §4.1.2.6** para la extensión profunda del «Gemelo negativo con tipo adelantado». No se cambió el ADR ni se fijó un test con la salida de la base.
+
+**Fuente exacta:** ASCII sin BOM ni LF final, concatenando `fn Main(){var r=` + `[` repetido 126 veces + `true` + `]` repetido 126 veces + `;r=` + `[` repetido 126 veces + `1` + `]` repetido 126 veces + `;}`. Son 530 bytes; SHA-256 `633e200006cc34e349f3e0a13907afd58453cd1d548e5e88ac974ce9947b2654`. El token denunciado es `1` en `[401,402)`; el primer array ocupa `[16,272)`.
+
+**CLI reproducible**, con esos bytes en `<fuente.n>`:
+
+```text
+nexo check <fuente.n> --profile f0-0003-b-v1 --format json
+nexo run <fuente.n> --profile f0-0003-b-v1 --format json
+```
+
+**Esperado por el plan r14 §4:** salida 1, `outcome.kind=rejected`, único `NX-E0102/type_mismatch`, `stage=types`, `operation=types.check`, primario y relación `found_type=[401,402)`, relación `expected_type=[16,272)`, `data.expected_type=Array<`×126 + `Bool` + `>`×126 y `data.found_type=Array<`×126 + `I64` + `>`×126. El plan atribuye esos campos a F0-0002 §§4.1.2.1–2, 4.1.2.6 y 13.15–17.
+
+**Regla del ADR que choca:** F0-0002 §4.1.2.6 dice que `data.expected_type` describe el contexto **de ese sitio**, que `data.found_type` describe el tipo completo **de la expresión señalada** y que descomponer una igualdad no autoriza a serializar el tipo del elemento con el span del array completo. En el mismo §4.1.2.3, el gemelo literal `fn Main(){var r=[true];r=[1];}` fija `Bool`/`I64` con primario en la hoja, y la precisión de `r=[(r==r)==true];r=[1];` reserva también `Bool`/`I64` para la hoja incompatible. Aplicadas a esta fuente, esas reglas dan `data={"expected_type":"Bool","found_type":"I64"}` en `[401,402)`, con el origen del array completo conservado como relación.
+
+**Obtenido en base limpia `815424c`:** tanto `check` como `run`, en debug y release, dan salida 1, `rejected` y exactamente un `NX-E0102/type_mismatch` en `[401,402)`, `data={"expected_type":"Bool","found_type":"I64"}`, `expected_type=[16,272)` y `found_type=[401,402)`. No hay divergencia entre perfiles ni modos. El blob de `src/check/types.rs` en HEAD, medido en shell de bytes, es `c8fbb9e66c2bfe00299eff5a744f2172affb11e2f523dcd1279d836d3fd132db` como exige r14.
+
+**Razón de parada:** convertir la continuación para emitir los arrays completos sobre el primario de la hoja cumpliría r14 y contradiría la regla citada del ADR; conservar `Bool`/`I64` cumpliría el ADR y haría fallar el negativo aislado obligatorio de r14. C no elige un oráculo nuevo ni introduce una excepción por profundidad. A/B deben corregir el esperado del plan o identificar una regla del ADR que resuelva la contradicción antes de reanudar S3.
+
+Se habían convertido recorridos puros de `types.rs` como trabajo preliminar. Compilaron y pasaron Clippy `-D warnings`; la suite de biblioteca dio 1132 PASS/0 FAIL/53 ignorados, y el diferencial debug `check`/`run` de las 369 fuentes protegidas dio cero diferencias. **Se retiraron íntegramente esos cambios** al activar esta parada; `src/check/types.rs` volvió al blob anterior y `git status --short` quedó limpio antes de añadir este hallazgo. No se hicieron la conversión del solver, la puerta mecánica final, las mutaciones ni la campaña de fuzz. S3 sigue pendiente, sin commit de solución ni informe de cierre.
+
+### Resolución (coordinador del carril)
+
+Sin contradicción real: la «Nueva parada» cita el esperado de r14 §4 (tipos Array compuestos), pero r15 (PASS de B ronda 3 y ronda 5) lo sustituye por `data={"expected_type":"Bool","found_type":"I64"}` con primario `[401,402)`, que es exactamente lo obtenido en la base y lo que exige F0-0002 §4.1.2.6. El plan se lee como un único documento enmendado en orden r13 → r17; ante conflicto, prevalece el registro posterior. No hace falta nueva ronda A/B; se relanza a C con esa instrucción explícita.
