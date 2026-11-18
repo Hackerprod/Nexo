@@ -389,6 +389,7 @@ struct AnalysisLimits {
     ir_items: u64,
     profile_id: &'static str,
     force_sparse_ownership: bool,
+    literal_true_loops: bool,
 }
 
 impl AnalysisLimits {
@@ -400,6 +401,7 @@ impl AnalysisLimits {
         ir_items: 262_144,
         profile_id: PROFILE_ID,
         force_sparse_ownership: false,
+        literal_true_loops: false,
     };
 }
 
@@ -407,6 +409,8 @@ impl AnalysisLimits {
 pub enum ReducedProfile {
     Normal,
     JNormal,
+    /// Internal F5 control flow probe; deliberately absent from `from_id`.
+    F5ControlInternal,
     Types32,
     JTypes32,
     FlowFunction32,
@@ -455,6 +459,11 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
         ReducedProfile::Normal => AnalysisLimits::NORMAL,
         ReducedProfile::JNormal => AnalysisLimits {
             profile_id: "f0-0003-b-v1",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::F5ControlInternal => AnalysisLimits {
+            profile_id: "f0-0003-b-v1",
+            literal_true_loops: true,
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::Types32 => AnalysisLimits {
@@ -1032,6 +1041,7 @@ fn compile_ast_with_flow_limit<'a>(
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: limits.literal_true_loops,
             poisoned: HashSet::new(),
             tokens: Arc::clone(&tokens),
             defer_ownership: limits.force_sparse_ownership || {
@@ -1571,6 +1581,7 @@ struct Lower<'a> {
     consumed_undo: Vec<AvailabilityUndo>,
     dead_depth: usize,
     emission: EmissionMode,
+    literal_true_loops: bool,
     poisoned: HashSet<LocalId>,
     tokens: Arc<Vec<lex::Token>>,
     defer_ownership: bool,
@@ -4396,6 +4407,7 @@ impl Lower<'_> {
                 prior_locals: usize,
                 condition_state: HashMap<LocalId, Availability>,
                 branch: BlockId,
+                literal_true: bool,
                 preheader: BlockId,
                 body: &'a parse::Block,
             },
@@ -4912,13 +4924,33 @@ impl Lower<'_> {
                             let test = test_flow
                                 .temp()
                                 .ok_or(CompileError::InvalidIr("while condition flow"))?;
-                            let branch = self.finish_block(Terminator::BranchBool {
-                                condition: test,
-                                yes: BlockId(self.blocks.len() + 1),
-                                no: BlockId(usize::MAX),
-                                span: state.condition.span().clone(),
-                                charges: vec![],
-                            });
+                            let mut ungrouped = state.condition;
+                            while let Expr::Group(inner, _) = ungrouped {
+                                ungrouped = inner;
+                            }
+                            let literal_true =
+                                self.literal_true_loops && matches!(ungrouped, Expr::Bool(true, _));
+                            let branch = if literal_true {
+                                self.statement_op(
+                                    Op::DropValue(test),
+                                    state.condition.span().clone(),
+                                    Access::Own,
+                                    false,
+                                );
+                                self.finish_block(Terminator::Jump {
+                                    target: BlockId(self.blocks.len() + 1),
+                                    span: state.condition.span().clone(),
+                                    charges: vec![],
+                                })
+                            } else {
+                                self.finish_block(Terminator::BranchBool {
+                                    condition: test,
+                                    yes: BlockId(self.blocks.len() + 1),
+                                    no: BlockId(usize::MAX),
+                                    span: state.condition.span().clone(),
+                                    charges: vec![],
+                                })
+                            };
                             self.restore_temps(state.temp_checkpoint);
                             for (id, value) in &condition_state {
                                 self.set_availability(*id, value.clone());
@@ -4940,6 +4972,7 @@ impl Lower<'_> {
                                 prior_locals: state.prior_locals,
                                 condition_state,
                                 branch,
+                                literal_true,
                                 preheader: state.preheader,
                                 body: state.body,
                             }
@@ -6006,6 +6039,7 @@ impl Lower<'_> {
                                 prior_locals,
                                 condition_state,
                                 branch,
+                                literal_true,
                                 preheader,
                                 body,
                             } => {
@@ -6043,11 +6077,20 @@ impl Lower<'_> {
                                     }
                                 }
                                 let exit = BlockId(self.blocks.len());
-                                self.enter_edge(branch, 1)?;
-                                if let Terminator::BranchBool { no, .. } =
-                                    &mut self.blocks[branch.0].terminator
-                                {
-                                    *no = exit;
+                                if literal_true {
+                                    if let Some(&first_break) = loop_context.breaks.first() {
+                                        self.enter_edge(first_break, 0)?;
+                                    } else {
+                                        self.emission = EmissionMode::Analyze;
+                                        self.terminated = Some(Termination::Diverged);
+                                    }
+                                } else {
+                                    self.enter_edge(branch, 1)?;
+                                    if let Terminator::BranchBool { no, .. } =
+                                        &mut self.blocks[branch.0].terminator
+                                    {
+                                        *no = exit;
+                                    }
                                 }
                                 for id in loop_context.breaks {
                                     if let Terminator::Jump { target, .. } =
@@ -9420,6 +9463,106 @@ mod tests {
         assert!(!source.contains(concat!("let mut inferred_", "ty =")));
     }
 
+    #[test]
+    fn f5_internal_literal_true_loop_has_only_reachable_control_edges() {
+        let returned = "fn F()->I64{while true{return 5;}}fn Main(){}";
+        let Err(CompileError::Rejected(old_errors)) =
+            compile_scalar_with_profile("case.n", returned, ReducedProfile::JNormal, false)
+        else {
+            panic!("the historical J profile retains its false edge");
+        };
+        assert!(old_errors.iter().any(|d| d.code == "NX-E1317"));
+        let program = compile_scalar_with_profile(
+            "case.n",
+            returned,
+            ReducedProfile::F5ControlInternal,
+            false,
+        )
+        .expect("literal true with return must satisfy I64 return");
+        let function = program.functions.function("F").unwrap();
+        assert!(
+            function
+                .blocks
+                .iter()
+                .all(|block| !matches!(block.terminator, Terminator::BranchBool { .. }))
+        );
+
+        for source in [
+            "fn F()->I64{while (true){return 5;}}fn Main(){}",
+            "fn F()->I64{while (((true))){return 5;}}fn Main(){}",
+        ] {
+            compile_scalar_with_profile("case.n", source, ReducedProfile::F5ControlInternal, false)
+                .expect("grouped true has the same reachable CFG");
+        }
+
+        let broken = "fn F()->I64{while true{break;}}fn Main(){}";
+        let Err(CompileError::Rejected(errors)) =
+            compile_scalar_with_profile("case.n", broken, ReducedProfile::F5ControlInternal, false)
+        else {
+            panic!("break must retain the normal exit");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E1317");
+        assert_eq!(errors[0].primary_span.as_ref().unwrap().start, 30);
+        assert_eq!(errors[0].primary_span.as_ref().unwrap().end, 31);
+
+        for condition in ["false", "x"] {
+            let source =
+                format!("fn F()->I64{{let x=true;while {condition}{{return 5;}}}}fn Main(){{}}");
+            let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+                "case.n",
+                &source,
+                ReducedProfile::F5ControlInternal,
+                false,
+            ) else {
+                panic!("only literal true proves total return");
+            };
+            assert!(errors.iter().any(|d| d.code == "NX-E1317"));
+        }
+        assert!(ReducedProfile::from_id("f0-0005-b-v1").is_none());
+    }
+
+    #[test]
+    fn f5_internal_literal_loop_continue_and_break_clean_scopes() {
+        let source = "fn Main(){var n=0;while true{let r=MockOpen(n);if n==0{n=1;continue;}break;}AssertEq(n,1);}";
+        let program =
+            compile_scalar_with_profile("case.n", source, ReducedProfile::F5ControlInternal, true)
+                .expect("continue and break must retain valid ownership and CFG joins");
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::JNormal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(
+            execution.observations.events(),
+            ["open:0:0", "close:0:0", "open:1:1", "close:1:1"]
+        );
+
+        let consumed = "fn Main(){let r=MockOpen(1);while true{Drop(r);break;}Inspect(r);}";
+        let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+            "case.n",
+            consumed,
+            ReducedProfile::F5ControlInternal,
+            true,
+        ) else {
+            panic!("the break edge must carry its resource consumption");
+        };
+        assert!(errors.iter().any(|error| {
+            error.code == "NX-E0202" && error.subcause.as_deref() == Some("definitely_consumed")
+        }));
+
+        let joined = "fn Main(){let r=MockOpen(1);let b=true;while true{if b{Drop(r);break;}break;}Inspect(r);}";
+        let Err(CompileError::Rejected(errors)) =
+            compile_scalar_with_profile("case.n", joined, ReducedProfile::F5ControlInternal, true)
+        else {
+            panic!("distinct break edges must join their ownership states");
+        };
+        assert!(errors.iter().any(|error| {
+            error.code == "NX-E0202" && error.subcause.as_deref() == Some("maybe_consumed")
+        }));
+    }
+
     fn analyzed_lower<'a>(
         source: &str,
         signatures: &'a HashMap<String, FunctionSignature>,
@@ -9465,6 +9608,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 1,
             emission: EmissionMode::Analyze,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("flow_contract.n", source).unwrap()),
             defer_ownership: false,
@@ -9657,6 +9801,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 1,
             emission: EmissionMode::Analyze,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("bottom_flow.n", source).unwrap()),
             defer_ownership: false,
@@ -9734,6 +9879,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("orphan_call.n", source).unwrap()),
             defer_ownership: false,
@@ -9816,6 +9962,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("scope_error.n", source).unwrap()),
             defer_ownership: false,
@@ -9872,6 +10019,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("while_error_checkpoint.n", source).unwrap()),
             defer_ownership: false,
@@ -9993,6 +10141,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("branch_scope.n", source).unwrap()),
             defer_ownership: false,
@@ -10048,6 +10197,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("loan_write.n", source).unwrap()),
             defer_ownership: false,
@@ -10128,6 +10278,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("dead_state.n", source).unwrap()),
             defer_ownership: false,
@@ -10215,6 +10366,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
@@ -10315,6 +10467,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
