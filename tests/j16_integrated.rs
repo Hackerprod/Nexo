@@ -161,6 +161,86 @@ fn consumed_call_once_receiver_precedes_mode_error() {
 }
 
 #[test]
+fn hypothetical_call_releases_its_receiver_loan() {
+    use nexo::diagnostic::{DataValue, Operation, RelatedRole, Stage};
+
+    const PREFIX: &str = "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};";
+    let rejected = [
+        (format!("{PREFIX}return;f();move f();}}"), (65, 66)),
+        (format!("{PREFIX}return;f();Drop(f);}}"), (65, 66)),
+        (
+            format!("{PREFIX}var i=0;while i<1{{break;f();move f();}}}}"),
+            (82, 83),
+        ),
+        (
+            format!("{PREFIX}var i=0;while i<1{{continue;f();move f();}}}}"),
+            (85, 86),
+        ),
+        (
+            format!("{PREFIX}if true{{return;f();move f();}}}}"),
+            (73, 74),
+        ),
+        (
+            format!("{PREFIX}var i=0;while i<1{{break;f();Drop(f);}}}}"),
+            (82, 83),
+        ),
+    ];
+    let profile = ReducedProfile::from_id(PROFILE).unwrap();
+    for (source, expected_span) in rejected {
+        let Err(CompileError::Rejected(errors)) =
+            compile_scalar_with_profile(FILE, &source, profile, true)
+        else {
+            panic!("expected mode rejection: {source}");
+        };
+        assert_eq!(errors.len(), 1, "{source}: {errors:?}");
+        let error = &errors[0];
+        error.validate(FILE, &source).unwrap();
+        assert_eq!(error.code, "NX-E1107", "{source}");
+        assert_eq!(error.subcause, None, "{source}");
+        assert_eq!(error.stage, Stage::Ownership, "{source}");
+        assert_eq!(error.operation, Operation::OwnershipCheck, "{source}");
+        let span = error.primary_span.as_ref().unwrap();
+        assert_eq!((span.start, span.end), expected_span, "{source}");
+        assert_eq!(error.related_spans.len(), 1, "{source}");
+        assert_eq!(
+            error.related_spans[0].role,
+            RelatedRole::Declaration,
+            "{source}"
+        );
+        let declaration = &error.related_spans[0].span;
+        assert_eq!((declaration.start, declaration.end), (32, 33), "{source}");
+        assert!(error.cause_chain.is_empty(), "{source}");
+        assert_eq!(
+            error.data,
+            std::collections::BTreeMap::from([
+                ("requested_mode".into(), DataValue::String("read".into())),
+                ("required_mode".into(), DataValue::String("consume".into())),
+            ]),
+            "{source}"
+        );
+        for action in ["check", "run"] {
+            let (status, output) = report(action, &source);
+            assert_eq!(status, 1, "{source}: {output}");
+            assert_eq!(
+                output.matches("\"code\":\"NX-E").count(),
+                1,
+                "{source}: {output}"
+            );
+            assert!(output.contains("\"observations\":[]"), "{source}: {output}");
+        }
+    }
+
+    let accepted =
+        "fn Main(){let r=MockOpen(1);let f=fn [move r](){Inspect(r);};return;f();move f();}";
+    assert!(compile_scalar_with_profile(FILE, accepted, profile, true).is_ok());
+    for action in ["check", "run"] {
+        let (status, output) = report(action, accepted);
+        assert_eq!(status, 0, "{output}");
+        assert!(output.contains("\"diagnostics\":[]"), "{output}");
+    }
+}
+
+#[test]
 fn callonce_mode_error_survives_ownership_flow_limit() {
     // The pre-B3 base reported only NX-E1107 for this source and profile.
     const FLOW_PROFILE: &str = "f0-0003-b-test-flow-32-v1";

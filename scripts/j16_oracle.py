@@ -392,10 +392,22 @@ def callonce_cases() -> list[dict]:
         ("callonce-edit-immutable-mode", "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};edit f();}", [mode(63, 64)]),
         ("callonce-other-receiver-error", "fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}", [diag("NX-E1105", "active_borrow_conflict", 80, 81), mode(80, 81)]),
         ("callonce-invalid-copy", prefix + "let g=f;g();f();}", [diag("NX-E0201", None, 64, 65), mode(66, 67), mode(70, 71)]),
+        ("callonce-hypothetical-return-move", prefix + "return;f();move f();}", [mode(65, 66)]),
+        ("callonce-hypothetical-return-drop", prefix + "return;f();Drop(f);}", [mode(65, 66)]),
+        ("callonce-hypothetical-break-move", prefix + "var i=0;while i<1{break;f();move f();}}", [mode(82, 83)]),
+        ("callonce-hypothetical-continue-move", prefix + "var i=0;while i<1{continue;f();move f();}}", [mode(85, 86)]),
+        ("callonce-hypothetical-branch-move", prefix + "if true{return;f();move f();}}", [mode(73, 74)]),
+        ("callonce-hypothetical-break-drop", prefix + "var i=0;while i<1{break;f();Drop(f);}}", [mode(82, 83)]),
     ]
     rows = []
     for id, source, diagnostics in cases:
         for action in ("check", "run"):
+            if id.startswith("callonce-hypothetical-") and id != "callonce-hypothetical-return":
+                diagnostics = [{**diagnostics[0], "stage": "ownership",
+                    "operation": "ownership.check", "related_spans": [{
+                        "role": "declaration", "span": {"file": "<memory>",
+                        "start": 32, "end": 33}}], "cause_chain": [],
+                    "data": {"requested_mode": "read", "required_mode": "consume"}}]
             expected = {"exit": 1, "outcome": "rejected", "diagnostics": diagnostics,
                         "events": [], "stdout": [], "reserved_observation_bytes": 0}
             if id == "callonce-consumed-twice":
@@ -436,6 +448,12 @@ def callonce_cases() -> list[dict]:
     rows.append(case("callonce-consumer-positive", source, "run", {
         "exit": 0, "diagnostics": [], "outcome": "unit", "events": ["open:0:1", "close:0:1"],
         "stdout": [], "reserved_observation_bytes": 0}, "F0-0003 §§4.2,9.2"))
+    source = "fn Main(){let r=MockOpen(1);let f=fn [move r](){Inspect(r);};return;f();move f();}"
+    for action in ("check", "run"):
+        rows.append(case("callonce-hypothetical-valid-" + action, source, action, {
+            "exit": 0, "diagnostics": [], "outcome": "unit" if action == "run" else "checked",
+            "events": ["open:0:1", "close:0:1"] if action == "run" else [],
+            "stdout": [], "reserved_observation_bytes": 0}, "F0-0003 §§4.2,9.2"))
     return rows
 
 
@@ -627,10 +645,15 @@ def evaluate(binary: Path, fixture: dict, directory: Path) -> dict:
                     "diagnostics": [{"code": d["code"], "subcause": d["subcause"],
                                      "primary": [d["primary_span"]["start"], d["primary_span"]["end"]]
                                      if d["primary_span"] else None, "data": normalize(d["data"]),
-                                     "feature_id": d["feature_id"]} for d in diagnostics]}
+                                      "feature_id": d["feature_id"]} for d in diagnostics]}
     except (subprocess.TimeoutExpired, ValueError, KeyError) as error:
         return dict(status="FALLA", observed={"harness_error": type(error).__name__})
     expected = fixture["expected"]
+    for wanted, concise, full in zip(expected.get("diagnostics", []),
+                                      observed["diagnostics"], diagnostics):
+        for field in ("stage", "operation", "related_spans", "cause_chain"):
+            if field in wanted:
+                concise[field] = full[field]
     faults = []
     if expected.get("robustness"):
         if run.returncode not in (0, 1, 2) or observed["outcome"] == "internal_error":

@@ -7960,6 +7960,14 @@ impl Lower<'_> {
                                         receiver_loan,
                                     } => {
                                         if self.emission == EmissionMode::Analyze {
+                                            if let Some((root, loan, origin)) = receiver_loan {
+                                                self.release_call_loans(&[(
+                                                    root,
+                                                    loan,
+                                                    origin.clone(),
+                                                )]);
+                                                self.end_call_loans(vec![(root, loan, origin)]);
+                                            }
                                             completed_value = Some(Ok(Some(Flow::Value {
                                                 temp: None,
                                                 ty: state.inferred,
