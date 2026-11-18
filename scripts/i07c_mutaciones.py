@@ -444,6 +444,11 @@ def run_population(population: list[dict], debug_sample: int, fast_only: bool,
         env = os.environ.copy()
         env["CARGO_TARGET_DIR"] = str((target_dir or Path(temporary) / "target").resolve())
         env["CARGO_INCREMENTAL"] = "1"
+        # Ajustes de entorno de compilación opcionales (andamiaje): I07C_MUT_ENV_<VAR>=<valor>.
+        # No cambian población, pruebas ni clasificación; reducen la E/S del disco de compilación.
+        for key, value in os.environ.items():
+            if key.startswith("I07C_MUT_ENV_"):
+                env[key[len("I07C_MUT_ENV_"):]] = value
         # Two independent shards share 24 logical CPUs; cap each test binary's
         # worker pool while letting the complete suite run in parallel.
         env["RUST_TEST_THREADS"] = "8"
