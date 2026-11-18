@@ -546,7 +546,11 @@
       "fixture": "F3-Q03-negative",
       "id": "guard-before-extraction",
       "mutated_observed": {
-        "build_exit": 101
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "checked",
+        "stdout": []
       },
       "paired_baseline": "PASA",
       "paired_expected": {
@@ -563,10 +567,10 @@
       },
       "paired_fixture": "guard-before-extraction-false",
       "sha_initial": "8ebf9e2de0f736bd4f416c48fd5c843ebb42d1e92dcfa4e4ab707ea17fdff8e3",
-      "sha_mutated": "3bd0b457ff53804dbee070cebf6677e4878c3c0b2139e25a31dba3d79294219d",
+      "sha_mutated": "694e578fa0ab795db07b3f0863c9b4bcfe5a9450eb02159189152324f4594021",
       "sha_restored": "8ebf9e2de0f736bd4f416c48fd5c843ebb42d1e92dcfa4e4ab707ea17fdff8e3",
       "site": "src/ir/lower_match.rs",
-      "status": "inválido"
+      "status": "muerto"
     },
     {
       "adr_rule": "F0-0003 §§4,9.2; A2 §12.1",
@@ -700,27 +704,62 @@
         "diagnostics": [
           {
             "code": "NX-E0201",
-            "data": {},
             "primary": [
-              43,
-              44
+              64,
+              65
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E1107",
+            "primary": [
+              66,
+              67
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E1107",
+            "primary": [
+              70,
+              71
             ],
             "subcause": null
           }
         ],
-        "exit": 1
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
       },
-      "fixture": "F3-C03-negative",
+      "fixture": "callonce-invalid-copy-check",
       "id": "captured-resource-copy",
       "mutated_observed": {
         "diagnostics": [
           {
-            "code": "NX-E0201",
-            "data": {},
+            "code": "NX-E1107",
+            "data": {
+              "requested_mode": "read",
+              "required_mode": "consume"
+            },
             "feature_id": null,
             "primary": [
-              43,
-              44
+              66,
+              67
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E1107",
+            "data": {
+              "requested_mode": "read",
+              "required_mode": "consume"
+            },
+            "feature_id": null,
+            "primary": [
+              70,
+              71
             ],
             "subcause": null
           }
@@ -733,14 +772,21 @@
       "paired_baseline": "PASA",
       "paired_expected": {
         "diagnostics": [],
-        "exit": 0
+        "events": [
+          "open:0:1",
+          "close:0:1"
+        ],
+        "exit": 0,
+        "outcome": "unit",
+        "reserved_observation_bytes": 0,
+        "stdout": []
       },
-      "paired_fixture": "F3-C03-positive",
+      "paired_fixture": "callonce-consumer-positive",
       "sha_initial": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
       "sha_mutated": "9072d059cf8e42cc9a499b418e37d65e6e6ef12b98f0357dcc3ad34cebc135b9",
       "sha_restored": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
       "site": "src/ir/lower.rs",
-      "status": "superviviente"
+      "status": "muerto"
     },
     {
       "adr_rule": "F0-0003 §§4.1,9.2",
@@ -779,6 +825,13 @@
       "sha_restored": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
       "site": "src/ir/lower.rs",
       "status": "muerto"
+    }
+  ],
+  "notes": [
+    {
+      "id": "V3-resume-match-proofs",
+      "reason": "verify_cfg ya valida el destino Yield→resume; la segunda arista se usa solo para propagar pruebas de variante y no añade hechos nuevos. No se halló programa fuente ni IR emitida válida cuyo veredicto cambie al suprimirla. La clasificación es provisional hasta hallar un testigo discriminante.",
+      "status": "equivalente probable para IR emitida"
     }
   ],
   "schema_version": 1

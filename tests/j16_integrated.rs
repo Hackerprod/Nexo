@@ -23,6 +23,10 @@ struct Pair {
 }
 
 fn report(command: &str, source: &str) -> (i32, String) {
+    report_profile(command, source, PROFILE)
+}
+
+fn report_profile(command: &str, source: &str, profile: &str) -> (i32, String) {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
     let path =
         std::env::temp_dir().join(format!("nexo-j16-integrated-{}-{id}.n", std::process::id()));
@@ -32,7 +36,7 @@ fn report(command: &str, source: &str) -> (i32, String) {
             command,
             path.to_str().unwrap(),
             "--profile",
-            PROFILE,
+            profile,
             "--format",
             "json",
         ])
@@ -106,6 +110,8 @@ fn consumed_call_once_receiver_precedes_mode_error() {
         (format!("{PREFIX}let g=move f;f();}}"), vec![("NX-E0202", Some("definitely_consumed"), 71, 72)]),
         ("fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};move f();edit f();}".into(), vec![("NX-E0202", Some("definitely_consumed"), 72, 73)]),
         ("fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};edit f();}".into(), vec![("NX-E1107", None, 63, 64)]),
+        ("fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};edit f();}".into(), vec![("NX-E1107", None, 63, 64)]),
+        ("fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}".into(), vec![("NX-E1105", Some("active_borrow_conflict"), 80, 81), ("NX-E1107", None, 80, 81)]),
         (format!("{PREFIX}let g=f;g();f();}}"), vec![("NX-E0201", None, 64, 65), ("NX-E1107", None, 66, 67), ("NX-E1107", None, 70, 71)]),
         (format!("{PREFIX}f();move f();f();}}"), vec![("NX-E1107", None, 58, 59), ("NX-E0202", Some("definitely_consumed"), 71, 72)]),
         (format!("{PREFIX}f();move f();f();var i=0;while i<1{{i=i+1;}}}}"), vec![("NX-E1107", None, 58, 59), ("NX-E0202", Some("definitely_consumed"), 71, 72)]),
@@ -152,6 +158,101 @@ fn consumed_call_once_receiver_precedes_mode_error() {
     }
     let accepted = format!("{PREFIX}move f();}}");
     assert!(compile_scalar_with_profile(FILE, &accepted, profile, true).is_ok());
+}
+
+#[test]
+fn callonce_mode_error_survives_ownership_flow_limit() {
+    // The pre-B3 base reported only NX-E1107 for this source and profile.
+    const FLOW_PROFILE: &str = "f0-0003-b-test-flow-32-v1";
+    let source = format!(
+        "fn Main(){{let r=MockOpen(1);let f=fn [move r](){{Drop(r);}};f();{}}}",
+        (0..6)
+            .map(|i| format!("var i{i}=0;while i{i}<1{{i{i}=i{i}+1;}}"))
+            .collect::<String>()
+    );
+    let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+        FILE,
+        &source,
+        ReducedProfile::from_id(FLOW_PROFILE).unwrap(),
+        true,
+    ) else {
+        panic!("expected mode and flow limit diagnostics");
+    };
+    let actual: Vec<_> = errors
+        .iter()
+        .map(|d| {
+            d.validate(FILE, &source).unwrap();
+            let span = d.primary_span.as_ref().unwrap();
+            (d.code.as_str(), d.subcause.as_deref(), span.start, span.end)
+        })
+        .collect();
+    assert_eq!(
+        actual,
+        [("NX-E1107", None, 58, 59), ("NX-E0003", None, 117, 118)]
+    );
+    assert_eq!(
+        errors[1].data.get("budget_kind"),
+        Some(&nexo::diagnostic::DataValue::String(
+            "ownership_flow_steps".into()
+        ))
+    );
+    for action in ["check", "run"] {
+        let (status, output) = report_profile(action, &source, FLOW_PROFILE);
+        assert_eq!(status, 1, "{output}");
+        let first = output.find("\"code\":\"NX-E1107\"").unwrap();
+        let second = output.find("\"code\":\"NX-E0003\"").unwrap();
+        assert!(first < second, "{output}");
+    }
+}
+
+#[test]
+fn callonce_immutable_edit_reports_mode_before_mutability() {
+    let source = "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};edit f();}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+        FILE,
+        source,
+        ReducedProfile::from_id(PROFILE).unwrap(),
+        true,
+    ) else {
+        panic!("expected mode rejection");
+    };
+    let actual: Vec<_> = errors
+        .iter()
+        .map(|d| {
+            d.validate(FILE, source).unwrap();
+            let span = d.primary_span.as_ref().unwrap();
+            (d.code.as_str(), d.subcause.as_deref(), span.start, span.end)
+        })
+        .collect();
+    assert_eq!(actual, [("NX-E1107", None, 63, 64)]);
+}
+
+#[test]
+fn callonce_mode_error_survives_other_receiver_error() {
+    let source = "fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}";
+    let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+        FILE,
+        source,
+        ReducedProfile::from_id(PROFILE).unwrap(),
+        true,
+    ) else {
+        panic!("expected receiver and mode rejection");
+    };
+    let actual: Vec<_> = errors
+        .iter()
+        .map(|d| {
+            d.validate(FILE, source).unwrap();
+            let span = d.primary_span.as_ref().unwrap();
+            (d.code.as_str(), d.subcause.as_deref(), span.start, span.end)
+        })
+        .collect();
+    assert_eq!(
+        actual,
+        [
+            ("NX-E1105", Some("active_borrow_conflict"), 80, 81),
+            ("NX-E1107", None, 80, 81)
+        ]
+    );
 }
 
 const PAIRS: &[Pair] = &[

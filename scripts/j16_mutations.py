@@ -104,7 +104,7 @@ MUTATIONS = [
      ["cargo", "test", "--locked", "--offline", "--test", "j16_integrated",
       "adr_section_seven_ticks_and_check_run"]),
     ("guard-before-extraction", "src/ir/lower_match.rs",
-     "let violations = guard_violations(guard);", "let violations = Vec::new();", 0,
+     "let violations = guard_violations(guard);", "let violations = Vec::<(&'static str, Span)>::new();", 0,
      "F3-Q03-negative", "F0-0003 §§3.3,9.2", None),
     ("resource-close-on-error", "src/interp/machine.rs",
      "for id in &function.cleanup {", "for id in function.cleanup.iter().take(0) {", 0,
@@ -114,7 +114,7 @@ MUTATIONS = [
      "reservation-retained-close", "F0-0003 §§7.2,9.2", None),
     ("captured-resource-copy", "src/ir/lower.rs",
      "if !borrow && !ty.copyable() {", "if false {", 0,
-     "F3-C03-negative", "F0-0003 §§4.1,9.1", None),
+     "callonce-invalid-copy-check", "F0-0003 §§4.1,9.1", None),
     ("escaping-closure-loan", "src/ir/lower.rs",
      ".find(|loan| self.locals[loan.root.0].scope == self.scope)",
      ".find(|_| false)", 0,
@@ -137,7 +137,7 @@ PAIRED_FIXTURES = {
     "guard-before-extraction": "guard-before-extraction-false",
     "resource-close-on-error": "A2-EX01-sum25",
     "observation-reservation": "reservation-shared-limit",
-    "captured-resource-copy": "F3-C03-positive",
+    "captured-resource-copy": "callonce-consumer-positive",
     "escaping-closure-loan": "F3-C06-positive",
 }
 
@@ -155,7 +155,16 @@ def replace_nth(source: str, before: str, after: str, occurrence: int) -> str:
 
 
 def write_document(rows: list[dict]) -> None:
-    OUTPUT.write_text(json.dumps({"schema_version": 1, "mutations": rows},
+    notes = [{
+        "id": "V3-resume-match-proofs",
+        "status": "equivalente probable para IR emitida",
+        "reason": ("verify_cfg ya valida el destino Yield→resume; la segunda arista "
+                   "se usa solo para propagar pruebas de variante y no añade hechos "
+                   "nuevos. No se halló programa fuente ni IR emitida válida cuyo "
+                   "veredicto cambie al suprimirla. La clasificación es provisional "
+                   "hasta hallar un testigo discriminante."),
+    }]
+    OUTPUT.write_text(json.dumps({"schema_version": 1, "mutations": rows, "notes": notes},
                                  ensure_ascii=False, sort_keys=True, indent=2) + "\n",
                       encoding="utf-8", newline="\n")
 

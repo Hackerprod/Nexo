@@ -36,9 +36,10 @@ def sha(source: str) -> str:
 
 
 def case(id: str, source: str, action: str, expected: dict, section: str,
-         kind: str = "núcleo", limit: str | None = None) -> dict:
+         kind: str = "núcleo", limit: str | None = None,
+         profile: str = PROFILE) -> dict:
     assert len(source.encode("utf-8")) <= MAX_SOURCE_BYTES, id
-    return dict(id=id, source=source, source_sha256=sha(source), profile=PROFILE,
+    return dict(id=id, source=source, source_sha256=sha(source), profile=profile,
                 action=action, expected=expected, section=section, class_=kind,
                 later_limit=limit)
 
@@ -388,6 +389,8 @@ def callonce_cases() -> list[dict]:
         ("callonce-mode-single", prefix + "f();}", [mode(58, 59)]),
         ("callonce-edit-after-consume", "fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};move f();edit f();}", [definitely(72, 73)]),
         ("callonce-edit-mode", "fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};edit f();}", [mode(63, 64)]),
+        ("callonce-edit-immutable-mode", "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};edit f();}", [mode(63, 64)]),
+        ("callonce-other-receiver-error", "fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}", [diag("NX-E1105", "active_borrow_conflict", 80, 81), mode(80, 81)]),
         ("callonce-invalid-copy", prefix + "let g=f;g();f();}", [diag("NX-E0201", None, 64, 65), mode(66, 67), mode(70, 71)]),
     ]
     rows = []
@@ -417,6 +420,18 @@ def callonce_cases() -> list[dict]:
                     "repair": [], "data": {}}]
             rows.append(case(id + "-" + action, source, action, expected,
                              "F0-0003 §§4.2,8.1–8.2,9.1–9.2"))
+    flow_source = prefix + "f();" + "".join(
+        f"var i{i}=0;while i{i}<1{{i{i}=i{i}+1;}}" for i in range(6)) + "}"
+    for action in ("check", "run"):
+        rows.append(case("callonce-flow-limit-" + action, flow_source, action, {
+            "exit": 1, "outcome": "rejected", "diagnostics": [
+                mode(58, 59), {**diag("NX-E0003", None, 117, 118),
+                    "data": {"budget_kind": "ownership_flow_steps", "limit": 32,
+                             "observed": 33, "budget_scope": "function",
+                             "incomplete_analysis": "ownership",
+                             "analysis_function": {"id": "function:3", "kind": "function"}}}],
+            "events": [], "stdout": [], "reserved_observation_bytes": 0},
+            "F0-0003 §§4.2,7.1,9.2", profile="f0-0003-b-test-flow-32-v1"))
     source = prefix + "move f();}"
     rows.append(case("callonce-consumer-positive", source, "run", {
         "exit": 0, "diagnostics": [], "outcome": "unit", "events": ["open:0:1", "close:0:1"],

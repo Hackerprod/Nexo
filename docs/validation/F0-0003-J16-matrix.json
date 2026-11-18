@@ -43779,6 +43779,1118 @@
           "diagnostic_full": [
             {
               "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 64,
+                "file": "<memory>",
+                "start": 63
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                63,
+                64
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1107",
+            "primary": [
+              63,
+              64
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "id": "callonce-edit-immutable-mode-check",
+      "later_limit": null,
+      "profile": "f0-0003-b-v1",
+      "release": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 64,
+                "file": "<memory>",
+                "start": 63
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                63,
+                64
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "section": "F0-0003 §§4.2,8.1–8.2,9.1–9.2",
+      "source": "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};edit f();}",
+      "source_sha256": "e825c8b33bc492b3e27fe1d47e4381ec1a5bd5dd3991e21ebd792f2d770f7f66",
+      "status": "PASA"
+    },
+    {
+      "action": "run",
+      "class": "núcleo",
+      "debug": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 64,
+                "file": "<memory>",
+                "start": 63
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                63,
+                64
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1107",
+            "primary": [
+              63,
+              64
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "id": "callonce-edit-immutable-mode-run",
+      "later_limit": null,
+      "profile": "f0-0003-b-v1",
+      "release": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 64,
+                "file": "<memory>",
+                "start": 63
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "inout",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                63,
+                64
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "section": "F0-0003 §§4.2,8.1–8.2,9.1–9.2",
+      "source": "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};edit f();}",
+      "source_sha256": "e825c8b33bc492b3e27fe1d47e4381ec1a5bd5dd3991e21ebd792f2d770f7f66",
+      "status": "PASA"
+    },
+    {
+      "action": "check",
+      "class": "núcleo",
+      "debug": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [
+                {
+                  "entity": {
+                    "id": "loan:68:0",
+                    "kind": "loan"
+                  },
+                  "evidence": "verified",
+                  "kind": "borrow",
+                  "operation": "borrow.inout",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1105/active_borrow_conflict",
+              "feature_id": null,
+              "message": "active_borrow_conflict: acceso incompatible con préstamo vivo; permission_escalation: derivar permiso más fuerte del recibido; overlapping_mutable_borrows: crear segundo préstamo mutable solapado.",
+              "operation": "ownership.access",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                },
+                {
+                  "role": "origin",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1105/active_borrow_conflict",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": "active_borrow_conflict",
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": "active_borrow_conflict"
+            },
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1105",
+            "primary": [
+              80,
+              81
+            ],
+            "subcause": "active_borrow_conflict"
+          },
+          {
+            "code": "NX-E1107",
+            "primary": [
+              80,
+              81
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "id": "callonce-other-receiver-error-check",
+      "later_limit": null,
+      "profile": "f0-0003-b-v1",
+      "release": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [
+                {
+                  "entity": {
+                    "id": "loan:68:0",
+                    "kind": "loan"
+                  },
+                  "evidence": "verified",
+                  "kind": "borrow",
+                  "operation": "borrow.inout",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1105/active_borrow_conflict",
+              "feature_id": null,
+              "message": "active_borrow_conflict: acceso incompatible con préstamo vivo; permission_escalation: derivar permiso más fuerte del recibido; overlapping_mutable_borrows: crear segundo préstamo mutable solapado.",
+              "operation": "ownership.access",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                },
+                {
+                  "role": "origin",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1105/active_borrow_conflict",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": "active_borrow_conflict",
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": "active_borrow_conflict"
+            },
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "section": "F0-0003 §§4.2,8.1–8.2,9.1–9.2",
+      "source": "fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}",
+      "source_sha256": "07ec64af92135cf617ac88793e6e83cf6fa25752b45c15865f0fdcc285e115da",
+      "status": "PASA"
+    },
+    {
+      "action": "run",
+      "class": "núcleo",
+      "debug": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [
+                {
+                  "entity": {
+                    "id": "loan:68:0",
+                    "kind": "loan"
+                  },
+                  "evidence": "verified",
+                  "kind": "borrow",
+                  "operation": "borrow.inout",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1105/active_borrow_conflict",
+              "feature_id": null,
+              "message": "active_borrow_conflict: acceso incompatible con préstamo vivo; permission_escalation: derivar permiso más fuerte del recibido; overlapping_mutable_borrows: crear segundo préstamo mutable solapado.",
+              "operation": "ownership.access",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                },
+                {
+                  "role": "origin",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1105/active_borrow_conflict",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": "active_borrow_conflict",
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": "active_borrow_conflict"
+            },
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1105",
+            "primary": [
+              80,
+              81
+            ],
+            "subcause": "active_borrow_conflict"
+          },
+          {
+            "code": "NX-E1107",
+            "primary": [
+              80,
+              81
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "id": "callonce-other-receiver-error-run",
+      "later_limit": null,
+      "profile": "f0-0003-b-v1",
+      "release": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [
+                {
+                  "entity": {
+                    "id": "loan:68:0",
+                    "kind": "loan"
+                  },
+                  "evidence": "verified",
+                  "kind": "borrow",
+                  "operation": "borrow.inout",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1105/active_borrow_conflict",
+              "feature_id": null,
+              "message": "active_borrow_conflict: acceso incompatible con préstamo vivo; permission_escalation: derivar permiso más fuerte del recibido; overlapping_mutable_borrows: crear segundo préstamo mutable solapado.",
+              "operation": "ownership.access",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                },
+                {
+                  "role": "origin",
+                  "span": {
+                    "end": 74,
+                    "file": "<memory>",
+                    "start": 68
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1105/active_borrow_conflict",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": "active_borrow_conflict",
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 81,
+                "file": "<memory>",
+                "start": 80
+              },
+              "profile_id": "f0-0003-b-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1105",
+              "data": {
+                "active_permission": "inout",
+                "binding": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "loan": {
+                  "id": "loan:68:0",
+                  "kind": "loan"
+                },
+                "origin": {
+                  "id": "binding:32",
+                  "kind": "binding"
+                },
+                "requested_access": "read"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": "active_borrow_conflict"
+            },
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                80,
+                81
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "section": "F0-0003 §§4.2,8.1–8.2,9.1–9.2",
+      "source": "fn Main(){let r=MockOpen(1);var f=fn [move r](){Drop(r);};let h=fn [edit f](){};f();Drop(h);}",
+      "source_sha256": "07ec64af92135cf617ac88793e6e83cf6fa25752b45c15865f0fdcc285e115da",
+      "status": "PASA"
+    },
+    {
+      "action": "check",
+      "class": "núcleo",
+      "debug": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
               "code": "NX-E0201",
               "data": {},
               "diagnostic_namespace": "Nexo-proposed-v1",
@@ -44512,6 +45624,624 @@
       "section": "F0-0003 §§4.2,8.1–8.2,9.1–9.2",
       "source": "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};let g=f;g();f();}",
       "source_sha256": "e55e211d0d8867067f3247d76771f2e7775b4cd762c435b4838eafa01155a524",
+      "status": "PASA"
+    },
+    {
+      "action": "check",
+      "class": "núcleo",
+      "debug": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 59,
+                "file": "<memory>",
+                "start": 58
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E0003",
+              "feature_id": null,
+              "message": "Presupuesto explícito de análisis excedido; budget_kind usa exclusivamente la enumeración cerrada de este catálogo. Subcause = null.",
+              "operation": "analysis.limit",
+              "parser_context": null,
+              "primary_span": {
+                "end": 118,
+                "file": "<memory>",
+                "start": 117
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [],
+              "repair": [],
+              "rule": "NX-E0003",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                58,
+                59
+              ],
+              "subcause": null
+            },
+            {
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "feature_id": null,
+              "primary": [
+                117,
+                118
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1107",
+            "primary": [
+              58,
+              59
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E0003",
+            "data": {
+              "analysis_function": {
+                "id": "function:3",
+                "kind": "function"
+              },
+              "budget_kind": "ownership_flow_steps",
+              "budget_scope": "function",
+              "incomplete_analysis": "ownership",
+              "limit": 32,
+              "observed": 33
+            },
+            "primary": [
+              117,
+              118
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "id": "callonce-flow-limit-check",
+      "later_limit": null,
+      "profile": "f0-0003-b-test-flow-32-v1",
+      "release": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 59,
+                "file": "<memory>",
+                "start": 58
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E0003",
+              "feature_id": null,
+              "message": "Presupuesto explícito de análisis excedido; budget_kind usa exclusivamente la enumeración cerrada de este catálogo. Subcause = null.",
+              "operation": "analysis.limit",
+              "parser_context": null,
+              "primary_span": {
+                "end": 118,
+                "file": "<memory>",
+                "start": 117
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [],
+              "repair": [],
+              "rule": "NX-E0003",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                58,
+                59
+              ],
+              "subcause": null
+            },
+            {
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "feature_id": null,
+              "primary": [
+                117,
+                118
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "section": "F0-0003 §§4.2,7.1,9.2",
+      "source": "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};f();var i0=0;while i0<1{i0=i0+1;}var i1=0;while i1<1{i1=i1+1;}var i2=0;while i2<1{i2=i2+1;}var i3=0;while i3<1{i3=i3+1;}var i4=0;while i4<1{i4=i4+1;}var i5=0;while i5<1{i5=i5+1;}}",
+      "source_sha256": "fdcca5e04ada886075a9a06ddf60ecbac3eebe5bb8eafc361fc3afc294d726a1",
+      "status": "PASA"
+    },
+    {
+      "action": "run",
+      "class": "núcleo",
+      "debug": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 59,
+                "file": "<memory>",
+                "start": 58
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E0003",
+              "feature_id": null,
+              "message": "Presupuesto explícito de análisis excedido; budget_kind usa exclusivamente la enumeración cerrada de este catálogo. Subcause = null.",
+              "operation": "analysis.limit",
+              "parser_context": null,
+              "primary_span": {
+                "end": 118,
+                "file": "<memory>",
+                "start": 117
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [],
+              "repair": [],
+              "rule": "NX-E0003",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                58,
+                59
+              ],
+              "subcause": null
+            },
+            {
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "feature_id": null,
+              "primary": [
+                117,
+                118
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1107",
+            "primary": [
+              58,
+              59
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E0003",
+            "data": {
+              "analysis_function": {
+                "id": "function:3",
+                "kind": "function"
+              },
+              "budget_kind": "ownership_flow_steps",
+              "budget_scope": "function",
+              "incomplete_analysis": "ownership",
+              "limit": 32,
+              "observed": 33
+            },
+            "primary": [
+              117,
+              118
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "id": "callonce-flow-limit-run",
+      "later_limit": null,
+      "profile": "f0-0003-b-test-flow-32-v1",
+      "release": {
+        "mismatches": [],
+        "observed": {
+          "diagnostic_full": [
+            {
+              "cause_chain": [],
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E1107",
+              "feature_id": null,
+              "message": "Invalid name, call or type in the proposed profile.",
+              "operation": "ownership.check",
+              "parser_context": null,
+              "primary_span": {
+                "end": 59,
+                "file": "<memory>",
+                "start": 58
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [
+                {
+                  "role": "declaration",
+                  "span": {
+                    "end": 33,
+                    "file": "<memory>",
+                    "start": 32
+                  }
+                }
+              ],
+              "repair": [],
+              "rule": "NX-E1107",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            },
+            {
+              "cause_chain": [],
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "diagnostic_namespace": "Nexo-proposed-v1",
+              "expected_tokens": [],
+              "expected_tokens_kind": null,
+              "explanation_id": "NX-E0003",
+              "feature_id": null,
+              "message": "Presupuesto explícito de análisis excedido; budget_kind usa exclusivamente la enumeración cerrada de este catálogo. Subcause = null.",
+              "operation": "analysis.limit",
+              "parser_context": null,
+              "primary_span": {
+                "end": 118,
+                "file": "<memory>",
+                "start": 117
+              },
+              "profile_id": "f0-0003-b-test-flow-32-v1",
+              "recognized_prefix": null,
+              "related_spans": [],
+              "repair": [],
+              "rule": "NX-E0003",
+              "schema_version": 1,
+              "severity": "error",
+              "stage": "ownership",
+              "subcause": null,
+              "unexpected_token": null
+            }
+          ],
+          "diagnostics": [
+            {
+              "code": "NX-E1107",
+              "data": {
+                "requested_mode": "read",
+                "required_mode": "consume"
+              },
+              "feature_id": null,
+              "primary": [
+                58,
+                59
+              ],
+              "subcause": null
+            },
+            {
+              "code": "NX-E0003",
+              "data": {
+                "analysis_function": {
+                  "id": "function:3",
+                  "kind": "function"
+                },
+                "budget_kind": "ownership_flow_steps",
+                "budget_scope": "function",
+                "incomplete_analysis": "ownership",
+                "limit": 32,
+                "observed": 33
+              },
+              "feature_id": null,
+              "primary": [
+                117,
+                118
+              ],
+              "subcause": null
+            }
+          ],
+          "events": [],
+          "exit": 1,
+          "observation_bytes": 0,
+          "observations": [],
+          "outcome": "rejected",
+          "outcome_detail": {
+            "kind": "rejected"
+          },
+          "reserved_observation_bytes": 0,
+          "stdout": []
+        },
+        "status": "PASA"
+      },
+      "section": "F0-0003 §§4.2,7.1,9.2",
+      "source": "fn Main(){let r=MockOpen(1);let f=fn [move r](){Drop(r);};f();var i0=0;while i0<1{i0=i0+1;}var i1=0;while i1<1{i1=i1+1;}var i2=0;while i2<1{i2=i2+1;}var i3=0;while i3<1{i3=i3+1;}var i4=0;while i4<1{i4=i4+1;}var i5=0;while i5<1{i5=i5+1;}}",
+      "source_sha256": "fdcca5e04ada886075a9a06ddf60ecbac3eebe5bb8eafc361fc3afc294d726a1",
       "status": "PASA"
     },
     {
