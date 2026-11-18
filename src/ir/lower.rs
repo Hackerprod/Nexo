@@ -1438,6 +1438,7 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::DropLocal(_)
         | Op::DropValue(_)
         | Op::Unary { .. }
+        | Op::CompoundLoad { .. }
         | Op::EndLoan(_) => 1,
         Op::BeginLoan { indexes, .. } => 1 + indexes.len() as u64,
         Op::BuildArray(values) | Op::CallIntrinsic { args: values, .. } => values.len() as u64,
@@ -1453,6 +1454,7 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::BorrowIndex { indexes, .. }
         | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
         Op::IndexValue { .. } | Op::Binary { .. } | Op::WritePlace { .. } => 2,
+        Op::CompoundStore { .. } => 3,
         Op::WriteIndex { indexes, .. } => 2 + indexes.len() as u64,
         Op::CallDirect { args, .. } | Op::BuildGenerator { args, .. } => 1 + args.len() as u64,
         Op::ResumeGenerator { .. } => 2,

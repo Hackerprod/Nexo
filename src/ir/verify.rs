@@ -47,6 +47,31 @@ fn index_site(op: &Op) -> Option<(&IndexSite, usize)> {
     }
 }
 
+fn compound_loads(function: &Function) -> std::collections::HashMap<TempId, TempId> {
+    std::iter::once(&function.block)
+        .chain(&function.blocks)
+        .flat_map(|block| &block.instructions)
+        .filter_map(|ins| match (ins.output, &ins.op) {
+            (Some(output), Op::CompoundLoad { loan }) => Some((output, *loan)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn output_positions(function: &Function) -> std::collections::HashMap<TempId, (usize, usize)> {
+    std::iter::once(&function.block)
+        .chain(&function.blocks)
+        .enumerate()
+        .flat_map(|(block, instructions)| {
+            instructions
+                .instructions
+                .iter()
+                .enumerate()
+                .filter_map(move |(position, ins)| ins.output.map(|id| (id, (block, position))))
+        })
+        .collect()
+}
+
 pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
     if program.profile != crate::diagnostic::PROFILE_ID {
         return Err("profile");
@@ -359,6 +384,8 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     if !function.blocks.is_empty() {
         return verify_cfg(function);
     }
+    let compound_loads = compound_loads(function);
+    let output_positions = output_positions(function);
     let mut temps = Vec::<Ty>::new();
     let mut live = Vec::<bool>::new();
     let mut borrowed = Vec::<bool>::new();
@@ -890,6 +917,65 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 )?;
                 Some(op.result_type(&value).ok_or("unary domain")?)
             }
+            Op::CompoundLoad { loan } => {
+                if loan_permission.get(loan.0) != Some(&Some(LoanPermission::Inout))
+                    || peek(*loan, &temps, &live)? != Ty::I64
+                {
+                    return Err("compound loan domain");
+                }
+                Some(Ty::I64)
+            }
+            Op::CompoundStore { loan, old, rhs, op } => {
+                if compound_loads.get(old) != Some(loan)
+                    || op.result_type(&Ty::I64) != Some(Ty::I64)
+                    || loan_permission.get(loan.0) != Some(&Some(LoanPermission::Inout))
+                {
+                    return Err("compound place sequence");
+                }
+                let root = borrow_sources
+                    .get(loan.0)
+                    .and_then(|root| *root)
+                    .ok_or("compound loan root")?;
+                let loan_id = loan_id_by_temp[loan.0].ok_or("compound loan identity")?;
+                if !matches!((output_positions.get(old), output_positions.get(rhs)),
+                    (Some((0, load_at)), Some((0, rhs_at))) if load_at < rhs_at)
+                {
+                    return Err("compound evaluation order");
+                }
+                if !matches!(function.block.instructions.get(position + 1).map(|next| &next.op), Some(Op::EndLoan(id)) if *id == loan_id)
+                {
+                    return Err("compound loan end");
+                }
+                if take(
+                    *old,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )? != Ty::I64
+                    || take(
+                        *rhs,
+                        &temps,
+                        &mut live,
+                        &borrow_sources,
+                        &mut active_borrows,
+                    )? != Ty::I64
+                {
+                    return Err("compound operand domain");
+                }
+                active_exclusive[root.0] = active_exclusive[root.0]
+                    .checked_sub(1)
+                    .ok_or("exclusive loan count")?;
+                take(
+                    *loan,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?;
+                pending_end.push(loan_id.0);
+                None
+            }
             Op::WritePlace { local, value } => {
                 let l = function.locals.get(local.0).ok_or("write local")?;
                 if active_borrows[local.0] != 0 {
@@ -1278,8 +1364,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Op::TestVariant { .. }
             | Op::TestLiteral { .. }
             | Op::ProjectPayload { .. } => Access::Read,
+            Op::CompoundLoad { .. } => Access::Read,
             Op::WritePlace { .. }
             | Op::WriteIndex { .. }
+            | Op::CompoundStore { .. }
             | Op::BindView { .. }
             | Op::BindEdit { .. }
             | Op::ExtractPayload { .. } => Access::Write,
@@ -1581,6 +1669,12 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
             visit(*left);
             visit(*right);
         }
+        Op::CompoundLoad { loan } => visit(*loan),
+        Op::CompoundStore { loan, old, rhs, .. } => {
+            visit(*loan);
+            visit(*old);
+            visit(*rhs);
+        }
         Op::Unary { operand: value, .. }
         | Op::WritePlace { value, .. }
         | Op::BindView { value, .. }
@@ -1867,6 +1961,8 @@ impl<'a> CfgTemps<'a> {
 
 fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     use std::collections::{HashSet, VecDeque};
+    let compound_loads = compound_loads(function);
+    let output_positions = output_positions(function);
     let blocks: Vec<_> = std::iter::once(&function.block)
         .chain(&function.blocks)
         .collect();
@@ -2607,6 +2703,52 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                             .ok_or("unary domain")?,
                     )
                 }
+                Op::CompoundLoad { loan } => {
+                    let info = temps.info(*loan)?;
+                    if info.permission != Some(LoanPermission::Inout)
+                        || info.ty != Ty::I64
+                        || info.exclusive_root.is_none()
+                    {
+                        return Err("compound loan domain");
+                    }
+                    Some(Ty::I64)
+                }
+                Op::CompoundStore { loan, old, rhs, op } => {
+                    if compound_loads.get(old) != Some(loan)
+                        || op.result_type(&Ty::I64) != Some(Ty::I64)
+                    {
+                        return Err("compound place sequence");
+                    }
+                    let info = temps.info(*loan)?;
+                    let root = info.exclusive_root.ok_or("compound loan root")?;
+                    let loan_id = info.loan.ok_or("compound loan identity")?;
+                    let (load_block, load_at) = output_positions.get(old).ok_or("compound load")?;
+                    let (rhs_block, rhs_at) = output_positions.get(rhs).ok_or("compound rhs")?;
+                    if !((*load_block == *rhs_block && load_at < rhs_at)
+                        || (*load_block != *rhs_block
+                            && entered[*load_block] <= entered[*rhs_block]
+                            && exited[*rhs_block] <= exited[*load_block]))
+                    {
+                        return Err("compound evaluation order");
+                    }
+                    if !matches!(block.instructions.get(position + 1).map(|next| &next.op), Some(Op::EndLoan(id)) if *id == loan_id)
+                    {
+                        return Err("compound loan end");
+                    }
+                    if temps.read(*old, true)? != Ty::I64
+                        || temps.read(*rhs, true)? != Ty::I64
+                        || temps.read(*loan, true)? != Ty::I64
+                    {
+                        return Err("compound operand domain");
+                    }
+                    let count = temps
+                        .exclusive(root)
+                        .checked_sub(1)
+                        .ok_or("exclusive loan count")?;
+                    temps.exclusive.insert(root, count);
+                    temps.pending_end.push(loan_id);
+                    None
+                }
                 Op::WritePlace { local, value } => {
                     let local = function.locals.get(local.0).ok_or("write local")?;
                     if temps.reads(local.id.0) != 0 || temps.exclusive(local.id.0) != 0 {
@@ -2966,8 +3108,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 | Op::TestVariant { .. }
                 | Op::TestLiteral { .. }
                 | Op::ProjectPayload { .. } => Access::Read,
+                Op::CompoundLoad { .. } => Access::Read,
                 Op::WritePlace { .. }
                 | Op::WriteIndex { .. }
+                | Op::CompoundStore { .. }
                 | Op::BindView { .. }
                 | Op::BindEdit { .. }
                 | Op::ExtractPayload { .. } => Access::Write,

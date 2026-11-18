@@ -14,6 +14,24 @@ use crate::ir::model::{
 use crate::ir::work::{WorkEvent, WorkPlanner};
 use crate::union::{UnionKind, VariantTag};
 
+#[cfg(test)]
+thread_local! {
+    static FAULT_LOCAL_SNAPSHOTS: std::cell::RefCell<Option<Vec<Vec<Option<String>>>>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn capture_fault_local_snapshots<T>(
+    run: impl FnOnce() -> T,
+) -> (T, Vec<Vec<Option<String>>>) {
+    FAULT_LOCAL_SNAPSHOTS.with(|slot| {
+        assert!(slot.borrow().is_none());
+        *slot.borrow_mut() = Some(Vec::new());
+    });
+    let result = run();
+    let snapshots = FAULT_LOCAL_SNAPSHOTS.with(|slot| slot.borrow_mut().take().unwrap());
+    (result, snapshots)
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Outcome {
     Unit,
@@ -30,6 +48,15 @@ pub struct Execution {
     pub work_consumed: u64,
     #[cfg(test)]
     pub(crate) disposals: u64,
+}
+#[cfg(test)]
+impl Execution {
+    pub(crate) fn run_with_fault_snapshots(
+        program: &Program,
+        mock_env: MockEnvironment,
+    ) -> (Self, Vec<Vec<Option<String>>>) {
+        capture_fault_local_snapshots(|| run_verified(program, mock_env, ExecutionLimits::NORMAL))
+    }
 }
 #[derive(Clone, Copy, Debug)]
 pub struct ExecutionLimits {
@@ -2290,15 +2317,15 @@ impl Machine {
     #[inline(never)]
     fn binary_op(
         &mut self,
-        ins: &crate::ir::model::Instruction,
+        op: Binary,
+        left: TempId,
+        right: TempId,
+        span: &crate::diagnostic::Span,
         locals: &[Option<Value>],
         temps: &mut [Option<TempValue>],
     ) -> Result<Option<Value>, &'static str> {
-        let Op::Binary { op, left, right } = &ins.op else {
-            return Err("binary instruction");
-        };
-        let l = Self::take(temps, *left)?;
-        let r = Self::take(temps, *right)?;
+        let l = Self::take(temps, left)?;
+        let r = Self::take(temps, right)?;
         self.cells = self.cells.saturating_sub(l.owned_cells() + r.owned_cells());
         let lv = l.as_value(locals)?;
         let rv = r.as_value(locals)?;
@@ -2306,46 +2333,46 @@ impl Machine {
             (Binary::Add, Value::Int(a), Value::Int(b)) => match a.checked_add(*b) {
                 Some(n) => Value::Int(n),
                 None => {
-                    self.fault("R0101", &ins.span, vec![]);
+                    self.fault("R0101", span, vec![]);
                     return Ok(None);
                 }
             },
             (Binary::Sub, Value::Int(a), Value::Int(b)) => match a.checked_sub(*b) {
                 Some(n) => Value::Int(n),
                 None => {
-                    self.fault("R0103", &ins.span, vec![]);
+                    self.fault("R0103", span, vec![]);
                     return Ok(None);
                 }
             },
             (Binary::Mul, Value::Int(a), Value::Int(b)) => match a.checked_mul(*b) {
                 Some(n) => Value::Int(n),
                 None => {
-                    self.fault("R0501", &ins.span, vec![]);
+                    self.fault("R0501", span, vec![]);
                     return Ok(None);
                 }
             },
             (Binary::Div, Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    self.fault("R0502", &ins.span, vec![]);
+                    self.fault("R0502", span, vec![]);
                     return Ok(None);
                 }
                 match a.checked_div(*b) {
                     Some(n) => Value::Int(n),
                     None => {
-                        self.fault("R0503", &ins.span, vec![]);
+                        self.fault("R0503", span, vec![]);
                         return Ok(None);
                     }
                 }
             }
             (Binary::Rem, Value::Int(a), Value::Int(b)) => {
                 if *b == 0 {
-                    self.fault("R0504", &ins.span, vec![]);
+                    self.fault("R0504", span, vec![]);
                     return Ok(None);
                 }
                 Value::Int(if *a == i64::MIN && *b == -1 { 0 } else { a % b })
             }
             (Binary::Less, Value::Int(a), Value::Int(b)) => {
-                if !self.charge_work(2, &ins.span) {
+                if !self.charge_work(2, span) {
                     return Ok(None);
                 }
                 Value::Bool(a < b)
@@ -2355,7 +2382,7 @@ impl Machine {
                 Value::Int(a),
                 Value::Int(b),
             ) => {
-                if !self.charge_work(2, &ins.span) {
+                if !self.charge_work(2, span) {
                     return Ok(None);
                 }
                 Value::Bool(match op {
@@ -2367,14 +2394,14 @@ impl Machine {
             }
             (Binary::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
             (Binary::Equal | Binary::NotEqual, a, b) => {
-                if !self.charge_work(equal_pairs(a, b), &ins.span) {
+                if !self.charge_work(equal_pairs(a, b), span) {
                     return Ok(None);
                 }
-                Value::Bool((a == b) == (*op == Binary::Equal))
+                Value::Bool((a == b) == (op == Binary::Equal))
             }
             _ => return Err("verified binary domain"),
         };
-        if (*op != Binary::And && !self.charge_work(1, &ins.span)) || !self.cell(&ins.span) {
+        if (op != Binary::And && !self.charge_work(1, span)) || !self.cell(span) {
             return Ok(None);
         }
         Ok(Some(v))
@@ -3289,8 +3316,10 @@ impl Machine {
                         self.cells = self.cells.saturating_sub(size + own - selected.cells());
                         Some(selected)
                     }
-                    Op::Binary { .. } => {
-                        let Some(value) = self.binary_op(ins, &locals, &mut temps)? else {
+                    Op::Binary { op, left, right } => {
+                        let Some(value) =
+                            self.binary_op(*op, *left, *right, &ins.span, &locals, &mut temps)?
+                        else {
                             break;
                         };
                         Some(value)
@@ -3313,6 +3342,52 @@ impl Machine {
                             break;
                         }
                         Some(result)
+                    }
+                    Op::CompoundLoad { loan } => {
+                        let Some(TempValue::Exclusive(root, path)) =
+                            temps.get(loan.0).and_then(Option::as_ref)
+                        else {
+                            return Err("compound loan");
+                        };
+                        let selected = locals
+                            .get(root.0)
+                            .and_then(Option::as_ref)
+                            .and_then(|value| get_path(value, path))
+                            .ok_or("compound place")?;
+                        let Value::Int(old) = selected else {
+                            return Err("compound scalar");
+                        };
+                        let old = *old;
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                            break;
+                        }
+                        Some(Value::Int(old))
+                    }
+                    Op::CompoundStore { loan, old, rhs, op } => {
+                        let Some(TempValue::Exclusive(root, path)) =
+                            temps.get(loan.0).and_then(Option::as_ref)
+                        else {
+                            return Err("compound loan");
+                        };
+                        let (root, path) = (*root, path.clone());
+                        let Some(replacement) =
+                            self.binary_op(*op, *old, *rhs, &ins.span, &locals, &mut temps)?
+                        else {
+                            break;
+                        };
+                        if !self.charge_work(1, &ins.span) {
+                            self.dispose(replacement)?;
+                            break;
+                        }
+                        let _ = Self::take(&mut temps, *loan)?;
+                        let place = locals
+                            .get_mut(root.0)
+                            .and_then(Option::as_mut)
+                            .and_then(|value| get_mut_path(value, &path))
+                            .ok_or("compound place")?;
+                        let previous = std::mem::replace(place, replacement);
+                        self.dispose(previous)?;
+                        None
                     }
                     Op::WritePlace { .. } => {
                         self.write_place(ins, &mut locals, &edit_aliases, &mut temps)?;
@@ -3530,6 +3605,19 @@ impl Machine {
                     break 'cfg;
                 }
             }
+        }
+        #[cfg(test)]
+        if self.fault.is_some() {
+            FAULT_LOCAL_SNAPSHOTS.with(|slot| {
+                if let Some(snapshots) = slot.borrow_mut().as_mut() {
+                    snapshots.push(
+                        locals
+                            .iter()
+                            .map(|value| value.as_ref().map(Value::text))
+                            .collect(),
+                    );
+                }
+            });
         }
         if suspension.is_none() {
             for v in temps.iter_mut().rev().filter_map(Option::take) {

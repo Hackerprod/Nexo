@@ -3,6 +3,368 @@ use super::{
     model::{self, Binary, Op},
     verify,
 };
+
+fn compound_scalar_ir(source: &str, operator: Binary) -> model::Program {
+    let mut program = compile_scalar("case.n", source).unwrap();
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let instructions = &mut function.block.instructions;
+    let position = instructions
+        .iter()
+        .position(|ins| matches!(ins.op, Op::BorrowValue(model::LocalId(0))))
+        .unwrap();
+    let mut begin = instructions[position].clone();
+    let place = crate::diagnostic::Span {
+        file: "case.n".into(),
+        start: begin.span.start - 2,
+        end: begin.span.end - 2,
+    };
+    let loan = model::LoanId(place.start as usize);
+    begin.op = Op::BeginLoan {
+        root: model::LocalId(0),
+        indexes: vec![],
+        site: model::IndexSite {
+            context: place.clone(),
+            selectors: vec![],
+        },
+        loan,
+        origin_span: place.clone(),
+        permission: model::LoanPermission::Inout,
+        parent: None,
+    };
+    begin.span = place.clone();
+    begin.charges.truncate(1);
+    instructions[position] = begin;
+    let mut load = instructions[position].clone();
+    load.op = Op::CompoundLoad {
+        loan: model::TempId(1),
+    };
+    load.output = Some(model::TempId(2));
+    load.charges.clear();
+    instructions.insert(position + 1, load);
+    instructions[position + 2].output = Some(model::TempId(3));
+    let binary = position + 3;
+    assert!(matches!(instructions[binary].op, Op::Binary { .. }));
+    instructions[binary].op = Op::CompoundStore {
+        loan: model::TempId(1),
+        old: model::TempId(2),
+        rhs: model::TempId(3),
+        op: operator,
+    };
+    instructions[binary].output = None;
+    instructions[binary].ty = None;
+    instructions[binary].access = model::Access::Write;
+    instructions[binary].charges.clear();
+    instructions[binary + 1].op = Op::EndLoan(loan);
+    instructions[binary + 1].access = model::Access::Own;
+    instructions[binary + 1].charges.clear();
+    for (at, ins) in instructions.iter_mut().enumerate() {
+        ins.origin = model::OriginId(at);
+    }
+    for exit in &mut function.exit_info {
+        if exit.block == model::BlockId(0) && exit.index > position {
+            exit.index += 1;
+        }
+    }
+    function.content_hash = model::content_hash(function);
+    program
+}
+
+#[test]
+fn compound_scalar_place_has_one_exclusive_loan_and_t08_work() {
+    let program = compound_scalar_ir("fn Main(){var x=1;x=x+2;}", Binary::Add);
+    verify::verify_program(&program).unwrap();
+    let execution = run_scalar(&program, Default::default());
+    assert_eq!(execution.outcome, Outcome::Unit);
+    assert_eq!(execution.work_consumed, 11);
+}
+
+#[test]
+fn compound_integer_forms_reuse_checked_arithmetic_and_store_once() {
+    for (op, expected) in [
+        (Binary::Add, "10"),
+        (Binary::Sub, "4"),
+        (Binary::Mul, "21"),
+        (Binary::Div, "2"),
+        (Binary::Rem, "1"),
+    ] {
+        let program = compound_scalar_ir("fn Main(){var x=7;x=x+3;Print(x);}", op);
+        verify::verify_program(&program).unwrap();
+        let execution = run_scalar(&program, Default::default());
+        assert_eq!(execution.outcome, Outcome::Unit, "{op:?}");
+        assert_eq!(execution.observations.stdout(), vec![expected], "{op:?}");
+    }
+    for (source, op, code) in [
+        (
+            "fn Main(){var x=9223372036854775807;x=x+2;}",
+            Binary::Mul,
+            "R0501",
+        ),
+        ("fn Main(){var x=7;x=x+0;}", Binary::Div, "R0502"),
+        (
+            "fn Main(){var x=-9223372036854775808;x=x+-1;}",
+            Binary::Div,
+            "R0503",
+        ),
+        ("fn Main(){var x=7;x=x+0;}", Binary::Rem, "R0504"),
+    ] {
+        let program = compound_scalar_ir(source, op);
+        verify::verify_program(&program).unwrap();
+        let execution = run_scalar(&program, Default::default());
+        assert_eq!(execution.outcome, Outcome::SimulatorFault, "{source}");
+        assert_eq!(execution.diagnostics[0].code, code, "{source}");
+    }
+}
+
+#[test]
+fn compound_loan_rejects_rhs_read_of_the_reserved_root() {
+    let mut program = compound_scalar_ir("fn Main(){var x=1;x=x+2;}", Binary::Add);
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let rhs = function
+        .block
+        .instructions
+        .iter_mut()
+        .find(|ins| ins.output == Some(model::TempId(3)))
+        .unwrap();
+    rhs.op = Op::CopyValue(model::LocalId(0));
+    rhs.access = model::Access::Read;
+    function.content_hash = model::content_hash(function);
+    assert_eq!(
+        verify::verify_program(&program),
+        Err("read during exclusive loan")
+    );
+}
+
+#[test]
+fn compound_verifier_requires_load_provenance_and_immediate_release() {
+    let source = "fn Main(){var x=1;x=x+2;}";
+    let mut program = compound_scalar_ir(source, Binary::Add);
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let store = function
+        .block
+        .instructions
+        .iter_mut()
+        .find(|ins| matches!(ins.op, Op::CompoundStore { .. }))
+        .unwrap();
+    let Op::CompoundStore { old, .. } = &mut store.op else {
+        unreachable!()
+    };
+    *old = model::TempId(3);
+    function.content_hash = model::content_hash(function);
+    assert_eq!(
+        verify::verify_program(&program),
+        Err("compound place sequence")
+    );
+
+    let mut program = compound_scalar_ir(source, Binary::Add);
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let end = function
+        .block
+        .instructions
+        .iter_mut()
+        .find(|ins| matches!(ins.op, Op::EndLoan(_)))
+        .unwrap();
+    end.op = Op::DropLocal(model::LocalId(0));
+    function.content_hash = model::content_hash(function);
+    assert_eq!(verify::verify_program(&program), Err("compound loan end"));
+
+    let mut program = compound_scalar_ir(source, Binary::Add);
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let store = function
+        .block
+        .instructions
+        .iter_mut()
+        .find(|ins| matches!(ins.op, Op::CompoundStore { .. }))
+        .unwrap();
+    let Op::CompoundStore { rhs, .. } = &mut store.op else {
+        unreachable!()
+    };
+    *rhs = model::TempId(0);
+    function.content_hash = model::content_hash(function);
+    assert_eq!(
+        verify::verify_program(&program),
+        Err("compound evaluation order")
+    );
+
+    let mut program = compound_scalar_ir(source, Binary::Add);
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let store = function
+        .block
+        .instructions
+        .iter_mut()
+        .find(|ins| matches!(ins.op, Op::CompoundStore { .. }))
+        .unwrap();
+    let Op::CompoundStore { op, .. } = &mut store.op else {
+        unreachable!()
+    };
+    *op = Binary::And;
+    function.content_hash = model::content_hash(function);
+    assert_eq!(
+        verify::verify_program(&program),
+        Err("compound place sequence")
+    );
+}
+
+fn compound_index_ir(source: &str, operator: Binary) -> model::Program {
+    let mut program = compile_scalar("case.n", source).unwrap();
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let instructions = &mut function.block.instructions;
+    let index_call = instructions
+        .iter()
+        .position(|ins| matches!(&ins.op, Op::CallDirect { function, .. } if function.0 == "Index"))
+        .unwrap();
+    let rhs_call = index_call + 1;
+    let Op::WriteIndex { site, .. } = &instructions[rhs_call + 1].op else {
+        unreachable!()
+    };
+    let site = site.clone();
+    let loan = model::LoanId(site.context.start as usize);
+    let mut begin = instructions[rhs_call + 1].clone();
+    begin.op = Op::BeginLoan {
+        root: model::LocalId(0),
+        indexes: vec![model::TempId(2)],
+        site: site.clone(),
+        loan,
+        origin_span: site.context.clone(),
+        permission: model::LoanPermission::Inout,
+        parent: None,
+    };
+    begin.output = Some(model::TempId(3));
+    begin.ty = Some(model::Ty::I64);
+    begin.span = site.context.clone();
+    begin.access = model::Access::Read;
+    let mut load = begin.clone();
+    load.op = Op::CompoundLoad {
+        loan: model::TempId(3),
+    };
+    load.output = Some(model::TempId(4));
+    load.charges.clear();
+    let mut rhs = instructions[rhs_call].clone();
+    rhs.output = Some(model::TempId(5));
+    let mut store = instructions[rhs_call + 1].clone();
+    store.op = Op::CompoundStore {
+        loan: model::TempId(3),
+        old: model::TempId(4),
+        rhs: model::TempId(5),
+        op: operator,
+    };
+    let mut end = store.clone();
+    end.op = Op::EndLoan(loan);
+    end.access = model::Access::Own;
+    instructions.splice(rhs_call..rhs_call + 2, [begin, load, rhs, store, end]);
+    for ins in instructions.iter_mut().skip(rhs_call + 5) {
+        match &mut ins.op {
+            Op::BorrowValue(_) => ins.output = Some(model::TempId(6)),
+            Op::CallIntrinsic { args, .. } => {
+                args[0] = model::TempId(6);
+                ins.output = Some(model::TempId(7));
+            }
+            Op::DropValue(id) => *id = model::TempId(7),
+            Op::ConstUnit => ins.output = Some(model::TempId(8)),
+            _ => {}
+        }
+    }
+    if let model::Terminator::Return { value, .. } = &mut function.block.terminator {
+        *value = Some(model::TempId(8));
+    }
+    for (at, ins) in instructions.iter_mut().enumerate() {
+        ins.origin = model::OriginId(at);
+    }
+    for exit in &mut function.exit_info {
+        if exit.block == model::BlockId(0) && exit.index > rhs_call {
+            exit.index += 3;
+        }
+    }
+    function.content_hash = model::content_hash(function);
+    program
+}
+
+#[test]
+fn indexed_compound_place_prepares_index_before_rhs_and_stores_once() {
+    let source = "fn Index()->I64{Print(1);return 0;}fn Rhs()->I64{Print(2);return 3;}fn Main(){var a=[4];a[Index()]=Rhs();Print(a);}";
+    let program = compound_index_ir(source, Binary::Mul);
+    verify::verify_program(&program).unwrap();
+    let execution = run_scalar(&program, Default::default());
+    assert_eq!(execution.outcome, Outcome::Unit);
+    assert_eq!(execution.observations.stdout(), vec!["1", "2", "[12]"]);
+    assert!(execution.observations.events().is_empty());
+}
+
+#[test]
+fn indexed_compound_checks_bounds_before_rhs_and_preserves_fault_priority() {
+    let source = "fn Index()->I64{Print(1);return 2;}fn Rhs()->I64{Print(2);return 3;}fn Main(){var a=[4];a[Index()]=Rhs();Print(a);}";
+    let program = compound_index_ir(source, Binary::Mul);
+    verify::verify_program(&program).unwrap();
+    let execution = run_scalar(&program, Default::default());
+    assert_eq!(execution.outcome, Outcome::SimulatorFault);
+    assert_eq!(execution.diagnostics[0].code, "R0102");
+    assert_eq!(execution.observations.stdout(), vec!["1"]);
+
+    let source = "fn Index()->I64{Print(1);return 0;}fn Rhs()->I64{Print(2);return 7+0;}fn Main(){var a=[4];a[Index()]=Rhs();Print(a);}";
+    let mut program = compound_index_ir(source, Binary::Mul);
+    let rhs = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Rhs")
+        .unwrap();
+    let ins = rhs
+        .block
+        .instructions
+        .iter_mut()
+        .find(|ins| matches!(ins.op, Op::Binary { .. }))
+        .unwrap();
+    let Op::Binary { op, .. } = &mut ins.op else {
+        unreachable!()
+    };
+    *op = Binary::Div;
+    rhs.content_hash = model::content_hash(rhs);
+    verify::verify_program(&program).unwrap();
+    let (execution, snapshots) =
+        crate::interp::Execution::run_with_fault_snapshots(&program, Default::default());
+    assert_eq!(execution.outcome, Outcome::SimulatorFault);
+    assert_eq!(execution.diagnostics[0].code, "R0502");
+    assert_eq!(execution.observations.stdout(), vec!["1", "2"]);
+    assert!(
+        snapshots
+            .iter()
+            .any(|frame| frame.iter().any(|local| local.as_deref() == Some("[4]")))
+    );
+}
 use crate::{
     diagnostic::Operation,
     interp::{Outcome, run_scalar},

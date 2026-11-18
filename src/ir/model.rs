@@ -328,6 +328,19 @@ pub enum Op {
         op: Unary,
         operand: TempId,
     },
+    /// Reads the scalar selected by an exclusive BeginLoan after its indexes
+    /// have been checked, without releasing the prepared place.
+    CompoundLoad {
+        loan: TempId,
+    },
+    /// Applies a checked integer operation and installs it at the prepared
+    /// place. EndLoan must immediately follow on the successful path.
+    CompoundStore {
+        loan: TempId,
+        old: TempId,
+        rhs: TempId,
+        op: Binary,
+    },
     WritePlace {
         local: LocalId,
         value: TempId,
@@ -933,6 +946,24 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Unary::Not => 2,
                     });
                     number(&mut bytes, operand.0);
+                }
+                Op::CompoundLoad { loan } => {
+                    bytes.push(44);
+                    number(&mut bytes, loan.0);
+                }
+                Op::CompoundStore { loan, old, rhs, op } => {
+                    bytes.push(45);
+                    bytes.push(match op {
+                        Binary::Add => 1,
+                        Binary::Sub => 2,
+                        Binary::Mul => 3,
+                        Binary::Div => 4,
+                        Binary::Rem => 5,
+                        _ => 0,
+                    });
+                    number(&mut bytes, loan.0);
+                    number(&mut bytes, old.0);
+                    number(&mut bytes, rhs.0);
                 }
                 Op::WritePlace { local, value } => {
                     bytes.push(6);

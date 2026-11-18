@@ -840,7 +840,7 @@ fn parse_inner(
 ) -> ParseResult {
     #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(file);
-    let tokens = lex::lex(file, source)?;
+    let tokens = lex::lex_with_compounds(file, source, f5_operators)?;
     // Terminators belong to the active statement. Preserve source gaps and
     // decide at its descent boundary; a token-only pre-pass cannot distinguish
     // a function suffix from an expression or a block inside parentheses.
