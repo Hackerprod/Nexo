@@ -65,66 +65,630 @@ pub(super) type Type = InferTy;
 
 impl From<&SyntaxType> for InferTy {
     fn from(value: &SyntaxType) -> Self {
-        match value {
-            SyntaxType::I64 => Self::I64,
-            SyntaxType::Bool => Self::Bool,
-            SyntaxType::Unit => Self::Unit,
-            SyntaxType::MockResource => Self::MockResource,
-            SyntaxType::MockBlockingResource => Self::MockBlockingResource,
-            SyntaxType::Array(inner) => Self::Array(Arc::new(Self::from(inner.as_ref()))),
-            SyntaxType::Result(ok, err) => Self::result(
-                Arc::new(Self::from(ok.as_ref())),
-                Arc::new(Self::from(err.as_ref())),
-            ),
-            SyntaxType::Option(some) => Self::option(Arc::new(Self::from(some.as_ref()))),
-            SyntaxType::Generator { site, item } => Self::Generator {
-                site: *site,
-                item: Arc::new(Self::from(item.as_ref())),
-            },
-            SyntaxType::Closure {
-                site,
-                copyable,
-                owns_resource,
-            } => Self::Closure {
-                site: *site,
-                copyable: *copyable,
-                owns_resource: *owns_resource,
-            },
+        enum Frame<'a> {
+            Enter(&'a SyntaxType),
+            Array,
+            Result,
+            Option,
+            Generator(u64),
         }
+        let mut frames = vec![Frame::Enter(value)];
+        let mut values = Vec::new();
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(ty) => match ty {
+                    SyntaxType::I64 => values.push(Self::I64),
+                    SyntaxType::Bool => values.push(Self::Bool),
+                    SyntaxType::Unit => values.push(Self::Unit),
+                    SyntaxType::MockResource => values.push(Self::MockResource),
+                    SyntaxType::MockBlockingResource => values.push(Self::MockBlockingResource),
+                    SyntaxType::Array(inner) => {
+                        frames.push(Frame::Array);
+                        frames.push(Frame::Enter(inner));
+                    }
+                    SyntaxType::Result(ok, err) => {
+                        frames.push(Frame::Result);
+                        frames.push(Frame::Enter(err));
+                        frames.push(Frame::Enter(ok));
+                    }
+                    SyntaxType::Option(some) => {
+                        frames.push(Frame::Option);
+                        frames.push(Frame::Enter(some));
+                    }
+                    SyntaxType::Generator { site, item } => {
+                        frames.push(Frame::Generator(*site));
+                        frames.push(Frame::Enter(item));
+                    }
+                    SyntaxType::Closure {
+                        site,
+                        copyable,
+                        owns_resource,
+                    } => values.push(Self::Closure {
+                        site: *site,
+                        copyable: *copyable,
+                        owns_resource: *owns_resource,
+                    }),
+                },
+                Frame::Array => {
+                    let child = values.pop().unwrap();
+                    values.push(Self::Array(Arc::new(child)));
+                }
+                Frame::Option => {
+                    let child = values.pop().unwrap();
+                    values.push(Self::option(Arc::new(child)));
+                }
+                Frame::Generator(site) => {
+                    let child = values.pop().unwrap();
+                    values.push(Self::Generator {
+                        site,
+                        item: Arc::new(child),
+                    });
+                }
+                Frame::Result => {
+                    let err = values.pop().unwrap();
+                    let ok = values.pop().unwrap();
+                    values.push(Self::result(Arc::new(ok), Arc::new(err)));
+                }
+            }
+        }
+        values.pop().unwrap()
     }
 }
 
 fn syntax_type(value: &InferTy) -> Option<SyntaxType> {
-    match value {
-        InferTy::I64 => Some(SyntaxType::I64),
-        InferTy::Bool => Some(SyntaxType::Bool),
-        InferTy::Unit => Some(SyntaxType::Unit),
-        InferTy::MockResource => Some(SyntaxType::MockResource),
-        InferTy::MockBlockingResource => Some(SyntaxType::MockBlockingResource),
-        InferTy::Array(inner) => Some(SyntaxType::Array(Box::new(syntax_type(inner)?))),
-        InferTy::Union(UnionKind::Result, ok, Some(err)) => Some(SyntaxType::Result(
-            Box::new(syntax_type(ok)?),
-            Box::new(syntax_type(err)?),
-        )),
-        InferTy::Union(UnionKind::Option, some, None) => {
-            Some(SyntaxType::Option(Box::new(syntax_type(some)?)))
-        }
-        InferTy::Closure {
-            site,
-            copyable,
-            owns_resource,
-        } => Some(SyntaxType::Closure {
-            site: *site,
-            copyable: *copyable,
-            owns_resource: *owns_resource,
-        }),
-        InferTy::Generator { site, item } => Some(SyntaxType::Generator {
-            site: *site,
-            item: Box::new(syntax_type(item)?),
-        }),
-        InferTy::Union(..) => None,
-        InferTy::Deferred(_) | InferTy::Never | InferTy::Tainted => None,
+    enum Frame<'a> {
+        Enter(&'a InferTy),
+        Array,
+        Result,
+        Option,
+        Generator(u64),
     }
+    let mut frames = vec![Frame::Enter(value)];
+    let mut values = Vec::new();
+    while let Some(frame) = frames.pop() {
+        match frame {
+            Frame::Enter(ty) => match ty {
+                InferTy::I64 => values.push(SyntaxType::I64),
+                InferTy::Bool => values.push(SyntaxType::Bool),
+                InferTy::Unit => values.push(SyntaxType::Unit),
+                InferTy::MockResource => values.push(SyntaxType::MockResource),
+                InferTy::MockBlockingResource => values.push(SyntaxType::MockBlockingResource),
+                InferTy::Array(inner) => {
+                    frames.push(Frame::Array);
+                    frames.push(Frame::Enter(inner));
+                }
+                InferTy::Union(UnionKind::Result, ok, Some(err)) => {
+                    frames.push(Frame::Result);
+                    frames.push(Frame::Enter(err));
+                    frames.push(Frame::Enter(ok));
+                }
+                InferTy::Union(UnionKind::Option, some, None) => {
+                    frames.push(Frame::Option);
+                    frames.push(Frame::Enter(some));
+                }
+                InferTy::Closure {
+                    site,
+                    copyable,
+                    owns_resource,
+                } => values.push(SyntaxType::Closure {
+                    site: *site,
+                    copyable: *copyable,
+                    owns_resource: *owns_resource,
+                }),
+                InferTy::Generator { site, item } => {
+                    frames.push(Frame::Generator(*site));
+                    frames.push(Frame::Enter(item));
+                }
+                InferTy::Union(..) | InferTy::Deferred(_) | InferTy::Never | InferTy::Tainted => {
+                    return None;
+                }
+            },
+            Frame::Array => {
+                let child = values.pop().unwrap();
+                values.push(SyntaxType::Array(Box::new(child)));
+            }
+            Frame::Option => {
+                let child = values.pop().unwrap();
+                values.push(SyntaxType::Option(Box::new(child)));
+            }
+            Frame::Generator(site) => {
+                let child = values.pop().unwrap();
+                values.push(SyntaxType::Generator {
+                    site,
+                    item: Box::new(child),
+                });
+            }
+            Frame::Result => {
+                let err = values.pop().unwrap();
+                let ok = values.pop().unwrap();
+                values.push(SyntaxType::Result(Box::new(ok), Box::new(err)));
+            }
+        }
+    }
+    values.pop()
+}
+
+// Deferred projections keep a selector after its source visit. Clone every
+// expression and nested block through one heap work list, including Array,
+// Option/Result calls, branch bodies and patterns at the admitted depth.
+fn clone_projection_selector(value: &Expr) -> Expr {
+    enum Work<'a> {
+        EnterExpr(&'a Expr),
+        ExitExpr(&'a Expr),
+        EnterBlock(&'a Block),
+        ExitBlock(&'a Block),
+        EnterStatement(&'a Statement),
+        ExitStatement(&'a Statement),
+        EnterElse(&'a Else),
+        ExitElse(&'a Else),
+        EnterMatch(&'a parse::Match),
+        ExitMatch(&'a parse::Match),
+        EnterArm(&'a parse::Arm),
+        ExitArm(&'a parse::Arm),
+        EnterPattern(&'a Pattern),
+        ExitPattern(&'a Pattern),
+        EnterClosure(&'a parse::Closure),
+        ExitClosure(&'a parse::Closure),
+    }
+    enum Value {
+        Expr(Expr),
+        Block(Block),
+        Statement(Statement),
+        Else(Else),
+        Match(parse::Match),
+        Arm(parse::Arm),
+        Pattern(Pattern),
+        Closure(parse::Closure),
+    }
+    fn expr(values: &mut Vec<Value>) -> Expr {
+        match values.pop().unwrap() {
+            Value::Expr(value) => value,
+            _ => unreachable!("expr"),
+        }
+    }
+    fn block(values: &mut Vec<Value>) -> Block {
+        match values.pop().unwrap() {
+            Value::Block(value) => value,
+            _ => unreachable!("block"),
+        }
+    }
+    fn statement(values: &mut Vec<Value>) -> Statement {
+        match values.pop().unwrap() {
+            Value::Statement(value) => value,
+            _ => unreachable!("statement"),
+        }
+    }
+    fn branch(values: &mut Vec<Value>) -> Else {
+        match values.pop().unwrap() {
+            Value::Else(value) => value,
+            _ => unreachable!("else"),
+        }
+    }
+    fn selection(values: &mut Vec<Value>) -> parse::Match {
+        match values.pop().unwrap() {
+            Value::Match(value) => value,
+            _ => unreachable!("match"),
+        }
+    }
+    fn arm(values: &mut Vec<Value>) -> parse::Arm {
+        match values.pop().unwrap() {
+            Value::Arm(value) => value,
+            _ => unreachable!("arm"),
+        }
+    }
+    fn pattern(values: &mut Vec<Value>) -> Pattern {
+        match values.pop().unwrap() {
+            Value::Pattern(value) => value,
+            _ => unreachable!("pattern"),
+        }
+    }
+    fn closure(values: &mut Vec<Value>) -> parse::Closure {
+        match values.pop().unwrap() {
+            Value::Closure(value) => value,
+            _ => unreachable!("closure"),
+        }
+    }
+    fn syntax(value: &SyntaxType) -> SyntaxType {
+        syntax_type(&Type::from(value)).unwrap()
+    }
+    let mut work = vec![Work::EnterExpr(value)];
+    let mut values = Vec::new();
+    while let Some(frame) = work.pop() {
+        match frame {
+            Work::EnterExpr(value) => {
+                work.push(Work::ExitExpr(value));
+                match value {
+                    Expr::Array(items, _) => {
+                        for item in items.iter().rev() {
+                            work.push(Work::EnterExpr(item));
+                        }
+                    }
+                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                        work.push(Work::EnterExpr(inner));
+                    }
+                    Expr::Binary { left, right, .. } => {
+                        work.push(Work::EnterExpr(right));
+                        work.push(Work::EnterExpr(left));
+                    }
+                    Expr::Call { target, args, .. } => {
+                        for arg in args.iter().rev() {
+                            work.push(Work::EnterExpr(&arg.value));
+                        }
+                        work.push(Work::EnterExpr(target));
+                    }
+                    Expr::Index { target, index, .. } => {
+                        work.push(Work::EnterExpr(index));
+                        work.push(Work::EnterExpr(target));
+                    }
+                    Expr::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        if let Some(otherwise) = otherwise {
+                            work.push(Work::EnterElse(otherwise));
+                        }
+                        work.push(Work::EnterBlock(then_block));
+                        work.push(Work::EnterExpr(condition));
+                    }
+                    Expr::Match(selection) => work.push(Work::EnterMatch(selection)),
+                    Expr::Closure(closure) => work.push(Work::EnterClosure(closure)),
+                    Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+                }
+            }
+            Work::ExitExpr(value) => {
+                let cloned = match value {
+                    Expr::Name(name, span) => Expr::Name(name.clone(), span.clone()),
+                    Expr::Integer(text, span) => Expr::Integer(text.clone(), span.clone()),
+                    Expr::Bool(value, span) => Expr::Bool(*value, span.clone()),
+                    Expr::Unit(span) => Expr::Unit(span.clone()),
+                    Expr::Array(items, span) => {
+                        let mut cloned = Vec::with_capacity(items.len());
+                        for _ in items {
+                            cloned.push(expr(&mut values));
+                        }
+                        cloned.reverse();
+                        Expr::Array(cloned, span.clone())
+                    }
+                    Expr::Group(_, span) => Expr::Group(Box::new(expr(&mut values)), span.clone()),
+                    Expr::Unary { mode, span, .. } => Expr::Unary {
+                        mode: *mode,
+                        value: Box::new(expr(&mut values)),
+                        span: span.clone(),
+                    },
+                    Expr::Binary { op, span, .. } => {
+                        let right = expr(&mut values);
+                        let left = expr(&mut values);
+                        Expr::Binary {
+                            op: op.clone(),
+                            left: Box::new(left),
+                            right: Box::new(right),
+                            span: span.clone(),
+                        }
+                    }
+                    Expr::Call { args, span, .. } => {
+                        let mut cloned = Vec::with_capacity(args.len());
+                        for arg in args.iter().rev() {
+                            cloned.push(parse::Argument {
+                                label: arg.label.clone(),
+                                value: expr(&mut values),
+                                span: arg.span.clone(),
+                            });
+                        }
+                        cloned.reverse();
+                        Expr::Call {
+                            target: Box::new(expr(&mut values)),
+                            args: cloned,
+                            span: span.clone(),
+                        }
+                    }
+                    Expr::Index { selector, span, .. } => {
+                        let index = expr(&mut values);
+                        let target = expr(&mut values);
+                        Expr::Index {
+                            target: Box::new(target),
+                            index: Box::new(index),
+                            selector: selector.clone(),
+                            span: span.clone(),
+                        }
+                    }
+                    Expr::If {
+                        otherwise, span, ..
+                    } => {
+                        let branch = otherwise.as_ref().map(|_| Box::new(branch(&mut values)));
+                        let then_block = block(&mut values);
+                        let condition = expr(&mut values);
+                        Expr::If {
+                            condition: Box::new(condition),
+                            then_block,
+                            otherwise: branch,
+                            span: span.clone(),
+                        }
+                    }
+                    Expr::Match(_) => Expr::Match(Box::new(selection(&mut values))),
+                    Expr::Closure(_) => Expr::Closure(Box::new(closure(&mut values))),
+                };
+                values.push(Value::Expr(cloned));
+            }
+            Work::EnterBlock(value) => {
+                work.push(Work::ExitBlock(value));
+                for statement in value.statements.iter().rev() {
+                    work.push(Work::EnterStatement(statement));
+                }
+            }
+            Work::ExitBlock(value) => {
+                let mut statements = Vec::with_capacity(value.statements.len());
+                for _ in &value.statements {
+                    statements.push(statement(&mut values));
+                }
+                statements.reverse();
+                values.push(Value::Block(Block {
+                    statements,
+                    span: value.span.clone(),
+                    close_span: value.close_span.clone(),
+                }));
+            }
+            Work::EnterStatement(value) => {
+                work.push(Work::ExitStatement(value));
+                match value {
+                    Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                        work.push(Work::EnterExpr(value))
+                    }
+                    Statement::Assign { place, value, .. } => {
+                        work.push(Work::EnterExpr(value));
+                        work.push(Work::EnterExpr(place));
+                    }
+                    Statement::Return { value, .. }
+                    | Statement::GuardControl { value, .. }
+                    | Statement::Value { value, .. } => {
+                        if let Some(value) = value {
+                            work.push(Work::EnterExpr(value));
+                        }
+                    }
+                    Statement::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        if let Some(otherwise) = otherwise {
+                            work.push(Work::EnterStatement(otherwise));
+                        }
+                        work.push(Work::EnterBlock(then_block));
+                        work.push(Work::EnterExpr(condition));
+                    }
+                    Statement::While {
+                        condition, body, ..
+                    } => {
+                        work.push(Work::EnterBlock(body));
+                        work.push(Work::EnterExpr(condition));
+                    }
+                    Statement::For { iterable, body, .. } => {
+                        work.push(Work::EnterBlock(body));
+                        work.push(Work::EnterExpr(iterable));
+                    }
+                    Statement::Match(selection) => work.push(Work::EnterMatch(selection)),
+                    Statement::Block(block) => work.push(Work::EnterBlock(block)),
+                }
+            }
+            Work::ExitStatement(value) => {
+                let cloned = match value {
+                    Statement::Let {
+                        mutable,
+                        name,
+                        annotation,
+                        span,
+                        ..
+                    } => Statement::Let {
+                        mutable: *mutable,
+                        name: name.clone(),
+                        annotation: annotation.as_ref().map(syntax),
+                        value: expr(&mut values),
+                        span: span.clone(),
+                    },
+                    Statement::Assign { span, .. } => {
+                        let value = expr(&mut values);
+                        let place = expr(&mut values);
+                        Statement::Assign {
+                            place,
+                            value,
+                            span: span.clone(),
+                        }
+                    }
+                    Statement::Return { value, span } => Statement::Return {
+                        value: value.as_ref().map(|_| expr(&mut values)),
+                        span: span.clone(),
+                    },
+                    Statement::GuardControl {
+                        token,
+                        value,
+                        guarded,
+                        token_span,
+                        span,
+                    } => Statement::GuardControl {
+                        token: token.clone(),
+                        value: value.as_ref().map(|_| expr(&mut values)),
+                        guarded: *guarded,
+                        token_span: token_span.clone(),
+                        span: span.clone(),
+                    },
+                    Statement::Value {
+                        value,
+                        marker,
+                        span,
+                    } => Statement::Value {
+                        value: value.as_ref().map(|_| expr(&mut values)),
+                        marker: marker.clone(),
+                        span: span.clone(),
+                    },
+                    Statement::If {
+                        otherwise, span, ..
+                    } => {
+                        let otherwise =
+                            otherwise.as_ref().map(|_| Box::new(statement(&mut values)));
+                        let then_block = block(&mut values);
+                        let condition = expr(&mut values);
+                        Statement::If {
+                            condition,
+                            then_block,
+                            otherwise,
+                            span: span.clone(),
+                        }
+                    }
+                    Statement::While { span, .. } => {
+                        let body = block(&mut values);
+                        let condition = expr(&mut values);
+                        Statement::While {
+                            condition,
+                            body,
+                            span: span.clone(),
+                        }
+                    }
+                    Statement::For {
+                        name,
+                        name_span,
+                        span,
+                        ..
+                    } => {
+                        let body = block(&mut values);
+                        let iterable = expr(&mut values);
+                        Statement::For {
+                            name: name.clone(),
+                            name_span: name_span.clone(),
+                            iterable,
+                            body,
+                            span: span.clone(),
+                        }
+                    }
+                    Statement::Match(_) => Statement::Match(selection(&mut values)),
+                    Statement::Block(_) => Statement::Block(block(&mut values)),
+                    Statement::Expr { span, .. } => Statement::Expr {
+                        value: expr(&mut values),
+                        span: span.clone(),
+                    },
+                };
+                values.push(Value::Statement(cloned));
+            }
+            Work::EnterElse(value) => {
+                work.push(Work::ExitElse(value));
+                match value {
+                    Else::Block(block) => work.push(Work::EnterBlock(block)),
+                    Else::If(expr) => work.push(Work::EnterExpr(expr)),
+                }
+            }
+            Work::ExitElse(value) => {
+                let cloned = match value {
+                    Else::Block(_) => Else::Block(block(&mut values)),
+                    Else::If(_) => Else::If(Box::new(expr(&mut values))),
+                };
+                values.push(Value::Else(cloned));
+            }
+            Work::EnterMatch(value) => {
+                work.push(Work::ExitMatch(value));
+                for arm in value.arms.iter().rev() {
+                    work.push(Work::EnterArm(arm));
+                }
+                work.push(Work::EnterExpr(&value.scrutinee));
+            }
+            Work::ExitMatch(value) => {
+                let mut arms = Vec::with_capacity(value.arms.len());
+                for _ in &value.arms {
+                    arms.push(arm(&mut values));
+                }
+                arms.reverse();
+                let scrutinee = Box::new(expr(&mut values));
+                values.push(Value::Match(parse::Match {
+                    scrutinee,
+                    mode: value.mode,
+                    mode_span: value.mode_span.clone(),
+                    arms,
+                    span: value.span.clone(),
+                    keyword_span: value.keyword_span.clone(),
+                }));
+            }
+            Work::EnterArm(value) => {
+                work.push(Work::ExitArm(value));
+                work.push(Work::EnterBlock(&value.body));
+                if let Some(guard) = &value.guard {
+                    work.push(Work::EnterExpr(guard));
+                }
+                work.push(Work::EnterPattern(&value.pattern));
+            }
+            Work::ExitArm(value) => {
+                let body = block(&mut values);
+                let guard = value.guard.as_ref().map(|_| expr(&mut values));
+                let pattern = pattern(&mut values);
+                values.push(Value::Arm(parse::Arm {
+                    pattern,
+                    guard,
+                    guard_span: value.guard_span.clone(),
+                    body,
+                    span: value.span.clone(),
+                }));
+            }
+            Work::EnterPattern(value) => {
+                work.push(Work::ExitPattern(value));
+                if let Pattern::Constructor { args, .. } = value {
+                    for arg in args.iter().rev() {
+                        work.push(Work::EnterPattern(arg));
+                    }
+                }
+            }
+            Work::ExitPattern(value) => {
+                let cloned = match value {
+                    Pattern::Wildcard(span) => Pattern::Wildcard(span.clone()),
+                    Pattern::Integer(text, span) => Pattern::Integer(text.clone(), span.clone()),
+                    Pattern::Bool(value, span) => Pattern::Bool(*value, span.clone()),
+                    Pattern::Name { name, mode, span } => Pattern::Name {
+                        name: name.clone(),
+                        mode: *mode,
+                        span: span.clone(),
+                    },
+                    Pattern::Constructor { name, args, span } => {
+                        let mut cloned = Vec::with_capacity(args.len());
+                        for _ in args {
+                            cloned.push(pattern(&mut values));
+                        }
+                        cloned.reverse();
+                        Pattern::Constructor {
+                            name: name.clone(),
+                            args: cloned,
+                            span: span.clone(),
+                        }
+                    }
+                };
+                values.push(Value::Pattern(cloned));
+            }
+            Work::EnterClosure(value) => {
+                work.push(Work::ExitClosure(value));
+                work.push(Work::EnterBlock(&value.body));
+            }
+            Work::ExitClosure(value) => {
+                let body = block(&mut values);
+                let params = value
+                    .params
+                    .iter()
+                    .map(|parameter| parse::ClosureParameter {
+                        mode: parameter.mode,
+                        name: parameter.name.clone(),
+                        ty: parameter.ty.as_ref().map(syntax),
+                        span: parameter.span.clone(),
+                    })
+                    .collect();
+                values.push(Value::Closure(parse::Closure {
+                    fn_span: value.fn_span.clone(),
+                    captures: value.captures.clone(),
+                    params,
+                    result: value.result.as_ref().map(syntax),
+                    with_clause: value.with_clause.clone(),
+                    body,
+                    span: value.span.clone(),
+                }));
+            }
+        }
+    }
+    expr(&mut values)
 }
 
 #[cfg(test)]
@@ -550,7 +1114,7 @@ struct PendingProjection {
     item: u64,
     base_span: Span,
     result_span: Span,
-    selector: Expr,
+    selector: Arc<Expr>,
     selector_variable: Option<u64>,
     checked_without_context: bool,
     selector_invalid: bool,
@@ -1504,6 +2068,19 @@ struct VisitCursor {
     owner_activations: usize,
 }
 
+impl VisitCursor {
+    fn solver_snapshot(&self) -> Self {
+        Self {
+            tainted: self.tainted,
+            numeric_domain_owner: self.numeric_domain_owner,
+            #[cfg(test)]
+            statement_entries: Vec::new(),
+            #[cfg(test)]
+            owner_activations: 0,
+        }
+    }
+}
+
 #[derive(Clone)]
 struct InferenceGraph {
     locals: HashMap<u64, Known>,
@@ -1705,6 +2282,142 @@ struct Checker<'a> {
     generator_item: Option<Type>,
     loop_depth: usize,
     errors: Vec<Box<Diagnostic>>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum SolverBindSite {
+    Ordinary,
+    RequireUnion,
+    UnionArrayA,
+    UnionArrayB,
+    UnionPayloadA,
+    UnionPayloadB,
+    InheritedPayload,
+}
+
+struct SolverBind {
+    visit: VisitCursor,
+    parent_visit: VisitCursor,
+    site: SolverBindSite,
+    id: u64,
+    ty: Type,
+    origin: Span,
+    found: Span,
+    intrinsic: bool,
+}
+
+impl SolverBind {
+    #[allow(clippy::too_many_arguments)]
+    fn child(
+        parent: &VisitCursor,
+        site: SolverBindSite,
+        id: u64,
+        ty: Type,
+        origin: Span,
+        found: Span,
+        intrinsic: bool,
+    ) -> Self {
+        Self {
+            visit: parent.solver_snapshot(),
+            parent_visit: parent.solver_snapshot(),
+            site,
+            id,
+            ty,
+            origin,
+            found,
+            intrinsic,
+        }
+    }
+}
+
+struct SolverUnify {
+    visit: VisitCursor,
+    left: Type,
+    right: Type,
+    left_origin: Span,
+    right_origin: Span,
+    found: Span,
+    policy: UnifyPolicy,
+}
+
+struct SolverUnion {
+    left: u64,
+    right: u64,
+    found: Span,
+    parent_visit: VisitCursor,
+}
+
+struct SolverUnionJoin {
+    a: u64,
+    b: u64,
+    found: Span,
+    parent_visit: VisitCursor,
+    a_concrete: Option<(Type, Span)>,
+    b_concrete: Option<(Type, Span)>,
+    a_intrinsic: bool,
+    b_intrinsic: bool,
+    a_child: Option<u64>,
+    b_child: Option<u64>,
+    a_result: Option<UnionDescriptor<u64>>,
+    b_result: Option<UnionDescriptor<u64>>,
+    a_full: Option<(Type, Span)>,
+    b_full: Option<(Type, Span)>,
+    variant_constructed: bool,
+    array_constructed: bool,
+    bottom_only: bool,
+    a_copyable: Option<Span>,
+    b_copyable: Option<Span>,
+}
+
+enum SolverRequest {
+    Bind(SolverBind),
+    RequireUnion {
+        id: u64,
+        kind: UnionKind,
+        origin: Span,
+        parent_visit: VisitCursor,
+    },
+    Union(SolverUnion),
+    Unify(SolverUnify),
+}
+
+enum SolverValue {
+    Unit,
+    Union(UnionDescriptor<u64>),
+    Type(Type),
+}
+
+#[cfg(test)]
+#[derive(Clone, Copy)]
+struct SolverBindTrace {
+    site: SolverBindSite,
+    parent_tainted: bool,
+    parent_owner: Option<(u64, u64)>,
+    child_tainted: bool,
+    child_owner: Option<(u64, u64)>,
+}
+
+#[cfg(test)]
+thread_local! {
+    static SOLVER_BIND_TRACE_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static SOLVER_BIND_TRACE: std::cell::RefCell<Vec<SolverBindTrace>> = const { std::cell::RefCell::new(Vec::new()) };
+}
+
+#[cfg(test)]
+fn record_solver_bind_entry(request: &SolverBind) {
+    SOLVER_BIND_TRACE_ENABLED.with(|enabled| {
+        if enabled.get() {
+            SOLVER_BIND_TRACE.with(|trace| {
+                trace.borrow_mut().push(SolverBindTrace {
+                    site: request.site,
+                    parent_tainted: request.parent_visit.tainted,
+                    parent_owner: request.parent_visit.numeric_domain_owner,
+                    child_tainted: request.visit.tainted,
+                    child_owner: request.visit.numeric_domain_owner,
+                });
+            });
+        }
+    });
 }
 
 impl Checker<'_> {
@@ -2440,25 +3153,27 @@ impl Checker<'_> {
         depth: usize,
         paths: &mut Vec<DataValue>,
     ) {
-        if depth > 128 || self.concrete(id).is_some() {
-            return;
-        }
-        let root = self.root(id);
-        if let Some(child) = self.graph.type_nodes[&root].array_child {
-            self.unresolved_union_paths(child, format!("{path}.element"), depth + 1, paths);
-        } else if let Some(union) = self.graph.type_nodes[&root].variant_children {
-            for variant in union.variants {
-                if let Some(child) = variant.payload {
-                    self.unresolved_union_paths(
-                        child,
-                        format!("{path}.{}", variant.name.to_ascii_lowercase()),
-                        depth + 1,
-                        paths,
-                    );
-                }
+        let mut frames = vec![(id, path, depth)];
+        while let Some((id, path, depth)) = frames.pop() {
+            if depth > 128 || self.concrete(id).is_some() {
+                continue;
             }
-        } else {
-            paths.push(DataValue::String(path));
+            let root = self.root(id);
+            if let Some(child) = self.graph.type_nodes[&root].array_child {
+                frames.push((child, format!("{path}.element"), depth + 1));
+            } else if let Some(union) = self.graph.type_nodes[&root].variant_children {
+                for variant in union.variants.iter().rev() {
+                    if let Some(child) = variant.payload {
+                        frames.push((
+                            child,
+                            format!("{path}.{}", variant.name.to_ascii_lowercase()),
+                            depth + 1,
+                        ));
+                    }
+                }
+            } else {
+                paths.push(DataValue::String(path));
+            }
         }
     }
     fn pending_joins(&self) -> impl Iterator<Item = &PendingDeferredJoin> {
@@ -2614,11 +3329,17 @@ impl Checker<'_> {
     }
 
     fn type_shape_hint(ty: &Type) -> ShapeHint {
-        match ty {
-            Type::Array(child) => ShapeHint::Array(Box::new(Self::type_shape_hint(child))),
+        let mut current = ty;
+        let mut depth = 0;
+        while let Type::Array(child) = current {
+            depth += 1;
+            current = child;
+        }
+        let leaf = match current {
             Type::Deferred(_) | Type::Never | Type::Tainted => ShapeHint::Unknown,
             scalar => ShapeHint::Scalar(scalar.clone()),
-        }
+        };
+        (0..depth).fold(leaf, |shape, _| ShapeHint::Array(Box::new(shape)))
     }
 
     fn variable_shape_hint(&mut self, id: u64) -> ShapeHint {
@@ -2726,14 +3447,18 @@ impl Checker<'_> {
     }
 
     fn shape_hints_conflict(left: &ShapeHint, right: &ShapeHint) -> bool {
-        match (left, right) {
-            (ShapeHint::Array(left), ShapeHint::Array(right)) => {
-                Self::shape_hints_conflict(left, right)
+        let (mut left, mut right) = (left, right);
+        loop {
+            match (left, right) {
+                (ShapeHint::Array(a), ShapeHint::Array(b)) => {
+                    left = a;
+                    right = b;
+                }
+                (ShapeHint::Scalar(a), ShapeHint::Scalar(b)) => return a != b,
+                (ShapeHint::Array(_), ShapeHint::Scalar(_))
+                | (ShapeHint::Scalar(_), ShapeHint::Array(_)) => return true,
+                _ => return false,
             }
-            (ShapeHint::Scalar(left), ShapeHint::Scalar(right)) => left != right,
-            (ShapeHint::Array(_), ShapeHint::Scalar(_))
-            | (ShapeHint::Scalar(_), ShapeHint::Array(_)) => true,
-            _ => false,
         }
     }
 
@@ -3384,59 +4109,15 @@ impl Checker<'_> {
         kind: UnionKind,
         origin: &Span,
     ) -> Result<UnionDescriptor<u64>, Box<Diagnostic>> {
-        self.charge_solver(origin)?;
-        let root = self.root(id);
-        if let Some(children) = self.graph.type_nodes[&root].variant_children {
-            return if children.kind == kind {
-                Ok(children)
-            } else {
-                Err(unresolved_type(origin.clone()))
-            };
+        match self.solve(SolverRequest::RequireUnion {
+            id,
+            kind,
+            origin: origin.clone(),
+            parent_visit: VisitCursor::default(),
+        })? {
+            SolverValue::Union(children) => Ok(children),
+            _ => unreachable!("require_union result"),
         }
-        if self.graph.type_nodes[&root].array_child.is_some()
-            || self.graph.type_nodes[&root]
-                .concrete
-                .as_ref()
-                .is_some_and(|(ty, _)| concrete_union(ty).is_none_or(|union| union.kind != kind))
-        {
-            return Err(unresolved_type(origin.clone()));
-        }
-        let first = self.new_variable(origin)?;
-        let second = if kind == UnionKind::Result {
-            Some(self.new_variable(origin)?)
-        } else {
-            None
-        };
-        let children = if let Some(second) = second {
-            UnionDescriptor::result(first, second)
-        } else {
-            UnionDescriptor::option(first)
-        };
-        if let Some((concrete, previous_origin)) = self.graph.type_nodes[&root].concrete.clone()
-            && let Some(wanted) = concrete_union(&concrete)
-        {
-            self.graph.type_nodes.get_mut(&root).unwrap().concrete = None;
-            let intrinsic = self.graph.type_nodes[&root].concrete_intrinsic;
-            for (actual, target) in children.variants.iter().zip(wanted.variants) {
-                if let (Some(actual), Some(target)) = (actual.payload, target.payload) {
-                    self.bind(
-                        &VisitCursor::default(),
-                        actual,
-                        (*target).clone(),
-                        previous_origin.clone(),
-                        origin.clone(),
-                        intrinsic,
-                    )?;
-                }
-            }
-        }
-        self.graph
-            .type_nodes
-            .get_mut(&root)
-            .unwrap()
-            .variant_children = Some(children);
-        self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin.clone());
-        Ok(children)
     }
 
     fn require_copyable(
@@ -3445,50 +4126,54 @@ impl Checker<'_> {
         origin: &Span,
         data_only: bool,
     ) -> Result<(), Box<Diagnostic>> {
-        self.charge_solver(origin)?;
-        let root = self.root(id);
-        if let Some((ty, _)) = self.concrete(root)
-            && !(if data_only {
-                comparable_data(&ty)
-            } else {
-                copyable(&ty)
-            })
-        {
-            return Err(mismatch(
-                origin.clone(),
-                origin.clone(),
-                None,
-                "domain:copyable_data",
-                &ty,
-            ));
-        }
-        if self.graph.type_nodes[&root].variant_children.is_some() && self.concrete(root).is_none()
-        {
-            self.graph.register(ObligationKind::Domain(PendingDomain {
-                variable: root,
-                operand: origin.clone(),
-                domain: "domain:copyable_data",
-            }));
-        }
-        // Only presence of this domain is consulted by unification. A later
-        // failure uses its current operand as primary, so choosing the first
-        // recorded origin span cannot change a source-level diagnostic.
-        let previous = self.graph.type_nodes[&root].copyable_origin.clone();
-        if previous
-            .as_ref()
-            .is_none_or(|span| origin.start < span.start)
-        {
-            self.graph
-                .type_nodes
-                .get_mut(&root)
-                .unwrap()
-                .copyable_origin = Some(origin.clone());
-        }
-        // require_array and explicit constructors already gave this child
-        // the copyable domain. Requiring it again preserves that invariant
-        // for manually built solver states, with no new source-level result.
-        if let Some(child) = self.graph.type_nodes[&root].array_child {
-            self.require_copyable(child, origin, data_only)?;
+        let mut frames = vec![id];
+        while let Some(id) = frames.pop() {
+            self.charge_solver(origin)?;
+            let root = self.root(id);
+            if let Some((ty, _)) = self.concrete(root)
+                && !(if data_only {
+                    comparable_data(&ty)
+                } else {
+                    copyable(&ty)
+                })
+            {
+                return Err(mismatch(
+                    origin.clone(),
+                    origin.clone(),
+                    None,
+                    "domain:copyable_data",
+                    &ty,
+                ));
+            }
+            if self.graph.type_nodes[&root].variant_children.is_some()
+                && self.concrete(root).is_none()
+            {
+                self.graph.register(ObligationKind::Domain(PendingDomain {
+                    variable: root,
+                    operand: origin.clone(),
+                    domain: "domain:copyable_data",
+                }));
+            }
+            // Only presence of this domain is consulted by unification. A later
+            // failure uses its current operand as primary, so choosing the first
+            // recorded origin span cannot change a source-level diagnostic.
+            let previous = self.graph.type_nodes[&root].copyable_origin.clone();
+            if previous
+                .as_ref()
+                .is_none_or(|span| origin.start < span.start)
+            {
+                self.graph
+                    .type_nodes
+                    .get_mut(&root)
+                    .unwrap()
+                    .copyable_origin = Some(origin.clone());
+            }
+            // require_array and explicit constructors already gave this child
+            // the copyable domain. Requiring it again preserves that invariant
+            // for manually built solver states, with no new source-level result.
+            if let Some(child) = self.graph.type_nodes[&root].array_child {
+                frames.push(child);
+            }
         }
         Ok(())
     }
@@ -3512,49 +4197,100 @@ impl Checker<'_> {
     }
 
     fn concrete_with_depth(&mut self, id: u64, depth: usize) -> Option<(Type, Span)> {
-        if depth > 128 {
-            return None;
+        enum Frame {
+            Enter(u64, usize),
+            Array,
+            Union {
+                kind: UnionKind,
+                origin: Option<Span>,
+                remaining: Vec<u64>,
+                payloads: Vec<(Type, Span)>,
+                depth: usize,
+            },
         }
-        let root = self.root(id);
-        let node = self.graph.type_nodes[&root].clone();
-        if let Some(concrete) = node.concrete {
-            if node.array_child.is_some() && !matches!(concrete.0, Type::Array(..))
-                || node.variant_children.is_some_and(|children| {
-                    concrete_union(&concrete.0).is_none_or(|union| union.kind != children.kind)
-                })
-            {
-                // A malformed representative must remain unresolved instead
-                // of hiding its structural children behind a scalar witness.
-                return None;
-            }
-            return Some(concrete);
-        }
-        if let Some(child) = node.array_child {
-            let (ty, child_origin) = self.concrete_with_depth(child, depth + 1)?;
-            return Some((Type::Array(Arc::new(ty)), child_origin));
-        }
-        if let Some(union) = node.variant_children {
-            let mut payloads = Vec::new();
-            for variant in union.variants {
-                if let Some(child) = variant.payload {
-                    payloads.push(self.concrete_with_depth(child, depth + 1)?);
+        let mut frames = vec![Frame::Enter(id, depth)];
+        let mut result = None;
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(id, depth) => {
+                    if depth > 128 {
+                        return None;
+                    }
+                    let root = self.root(id);
+                    let node = self.graph.type_nodes[&root].clone();
+                    if let Some(concrete) = node.concrete {
+                        if node.array_child.is_some() && !matches!(concrete.0, Type::Array(..))
+                            || node.variant_children.is_some_and(|children| {
+                                concrete_union(&concrete.0)
+                                    .is_none_or(|union| union.kind != children.kind)
+                            })
+                        {
+                            return None;
+                        }
+                        result = Some(concrete);
+                    } else if let Some(child) = node.array_child {
+                        frames.push(Frame::Array);
+                        frames.push(Frame::Enter(child, depth + 1));
+                    } else {
+                        let union = node.variant_children?;
+                        let remaining: Vec<_> = union
+                            .variants
+                            .iter()
+                            .filter_map(|variant| variant.payload)
+                            .collect();
+                        if let Some(&first) = remaining.first() {
+                            frames.push(Frame::Union {
+                                kind: union.kind,
+                                origin: node.variant_origin,
+                                remaining: remaining[1..].to_vec(),
+                                payloads: Vec::new(),
+                                depth,
+                            });
+                            frames.push(Frame::Enter(first, depth + 1));
+                        } else {
+                            return None;
+                        }
+                    }
                 }
-            }
-            let origin = node
-                .variant_origin
-                .or_else(|| payloads.first().map(|(_, origin)| origin.clone()))?;
-            return match (union.kind, payloads.as_slice()) {
-                (UnionKind::Option, [(some, _)]) => {
-                    Some((Type::option(Arc::new(some.clone())), origin))
+                Frame::Array => {
+                    let (ty, origin) = result.take()?;
+                    result = Some((Type::Array(Arc::new(ty)), origin));
                 }
-                (UnionKind::Result, [(ok, _), (err, _)]) => Some((
-                    Type::result(Arc::new(ok.clone()), Arc::new(err.clone())),
+                Frame::Union {
+                    kind,
                     origin,
-                )),
-                _ => None,
-            };
+                    mut remaining,
+                    mut payloads,
+                    depth,
+                } => {
+                    payloads.push(result.take()?);
+                    if !remaining.is_empty() {
+                        let next = remaining.remove(0);
+                        frames.push(Frame::Union {
+                            kind,
+                            origin,
+                            remaining,
+                            payloads,
+                            depth,
+                        });
+                        frames.push(Frame::Enter(next, depth + 1));
+                    } else {
+                        let origin = origin.or_else(|| payloads.first().map(|p| p.1.clone()))?;
+                        result = match (kind, payloads.as_slice()) {
+                            (UnionKind::Option, [(some, _)]) => {
+                                Some((Type::option(Arc::new(some.clone())), origin))
+                            }
+                            (UnionKind::Result, [(ok, _), (err, _)]) => Some((
+                                Type::result(Arc::new(ok.clone()), Arc::new(err.clone())),
+                                origin,
+                            )),
+                            _ => None,
+                        };
+                    }
+                }
+            }
         }
-        None
+        result
     }
 
     fn concrete_evidence(&mut self, id: u64) -> Option<ConcreteEvidence> {
@@ -3617,71 +4353,138 @@ impl Checker<'_> {
     }
 
     fn resolved_syntax_type(&mut self, ty: &Type) -> Option<SyntaxType> {
-        match ty {
-            Type::Deferred(id) => {
-                let (resolved, _) = self.concrete(*id)?;
-                syntax_type(&resolved)
-            }
-            Type::Array(inner) => Some(SyntaxType::Array(Box::new(
-                self.resolved_syntax_type(inner)?,
-            ))),
-            Type::Union(UnionKind::Result, ok, Some(err)) => Some(SyntaxType::Result(
-                Box::new(self.resolved_syntax_type(ok)?),
-                Box::new(self.resolved_syntax_type(err)?),
-            )),
-            Type::Union(UnionKind::Option, some, None) => Some(SyntaxType::Option(Box::new(
-                self.resolved_syntax_type(some)?,
-            ))),
-            Type::Union(..) => None,
-            _ => syntax_type(ty),
+        enum Frame {
+            Enter(Type),
+            Array,
+            Option,
+            Result,
         }
+        let mut frames = vec![Frame::Enter(ty.clone())];
+        let mut values = Vec::new();
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(ty) => match ty {
+                    Type::Deferred(id) => {
+                        let (resolved, _) = self.concrete(id)?;
+                        values.push(syntax_type(&resolved)?);
+                    }
+                    Type::Array(inner) => {
+                        frames.push(Frame::Array);
+                        frames.push(Frame::Enter(inner.as_ref().clone()));
+                    }
+                    Type::Union(UnionKind::Result, ok, Some(err)) => {
+                        frames.push(Frame::Result);
+                        frames.push(Frame::Enter(err.as_ref().clone()));
+                        frames.push(Frame::Enter(ok.as_ref().clone()));
+                    }
+                    Type::Union(UnionKind::Option, some, None) => {
+                        frames.push(Frame::Option);
+                        frames.push(Frame::Enter(some.as_ref().clone()));
+                    }
+                    Type::Union(..) => return None,
+                    _ => values.push(syntax_type(&ty)?),
+                },
+                Frame::Array => {
+                    let child = values.pop()?;
+                    values.push(SyntaxType::Array(Box::new(child)));
+                }
+                Frame::Option => {
+                    let child = values.pop()?;
+                    values.push(SyntaxType::Option(Box::new(child)));
+                }
+                Frame::Result => {
+                    let err = values.pop()?;
+                    let ok = values.pop()?;
+                    values.push(SyntaxType::Result(Box::new(ok), Box::new(err)));
+                }
+            }
+        }
+        values.pop()
     }
 
     // Coverage and pattern bindings need the constructor identities already
     // established in the inference graph, even when a payload stays open.
     fn selection_type(&mut self, ty: &Type, depth: usize) -> Type {
-        if depth > 128 {
-            return ty.clone();
+        enum Frame {
+            Enter(Type, usize),
+            Array,
+            Option,
+            Result,
         }
-        match ty {
-            Type::Deferred(id) => {
-                if let Some((concrete, _)) = self.concrete(*id) {
-                    return concrete;
+        let mut frames = vec![Frame::Enter(ty.clone(), depth)];
+        let mut values = Vec::new();
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(ty, depth) => {
+                    if depth > 128 {
+                        values.push(ty);
+                        continue;
+                    }
+                    match ty {
+                        Type::Deferred(id) => {
+                            if let Some((concrete, _)) = self.concrete(id) {
+                                values.push(concrete);
+                                continue;
+                            }
+                            let root = self.root(id);
+                            let node = self.graph.type_nodes[&root].clone();
+                            if let Some(child) = node.array_child {
+                                frames.push(Frame::Array);
+                                frames.push(Frame::Enter(Type::Deferred(child), depth + 1));
+                            } else if let Some(union) = node.variant_children {
+                                let payloads: Vec<_> = union
+                                    .variants
+                                    .iter()
+                                    .filter_map(|variant| variant.payload)
+                                    .collect();
+                                match (union.kind, payloads.as_slice()) {
+                                    (UnionKind::Option, [some]) => {
+                                        frames.push(Frame::Option);
+                                        frames.push(Frame::Enter(Type::Deferred(*some), depth + 1));
+                                    }
+                                    (UnionKind::Result, [ok, err]) => {
+                                        frames.push(Frame::Result);
+                                        frames.push(Frame::Enter(Type::Deferred(*err), depth + 1));
+                                        frames.push(Frame::Enter(Type::Deferred(*ok), depth + 1));
+                                    }
+                                    _ => values.push(Type::Deferred(id)),
+                                }
+                            } else {
+                                values.push(Type::Deferred(id));
+                            }
+                        }
+                        Type::Array(child) => {
+                            frames.push(Frame::Array);
+                            frames.push(Frame::Enter(child.as_ref().clone(), depth + 1));
+                        }
+                        Type::Union(UnionKind::Option, some, None) => {
+                            frames.push(Frame::Option);
+                            frames.push(Frame::Enter(some.as_ref().clone(), depth + 1));
+                        }
+                        Type::Union(UnionKind::Result, ok, Some(err)) => {
+                            frames.push(Frame::Result);
+                            frames.push(Frame::Enter(err.as_ref().clone(), depth + 1));
+                            frames.push(Frame::Enter(ok.as_ref().clone(), depth + 1));
+                        }
+                        other => values.push(other),
+                    }
                 }
-                let root = self.root(*id);
-                let node = self.graph.type_nodes[&root].clone();
-                if let Some(child) = node.array_child {
-                    return Type::Array(Arc::new(
-                        self.selection_type(&Type::Deferred(child), depth + 1),
-                    ));
+                Frame::Array => {
+                    let child = values.pop().unwrap();
+                    values.push(Type::Array(Arc::new(child)));
                 }
-                if let Some(union) = node.variant_children {
-                    let payloads: Vec<_> = union
-                        .variants
-                        .iter()
-                        .filter_map(|variant| variant.payload)
-                        .map(|child| {
-                            Arc::new(self.selection_type(&Type::Deferred(child), depth + 1))
-                        })
-                        .collect();
-                    return match (union.kind, payloads.as_slice()) {
-                        (UnionKind::Option, [some]) => Type::option(some.clone()),
-                        (UnionKind::Result, [ok, err]) => Type::result(ok.clone(), err.clone()),
-                        _ => ty.clone(),
-                    };
+                Frame::Option => {
+                    let child = values.pop().unwrap();
+                    values.push(Type::option(Arc::new(child)));
                 }
-                ty.clone()
+                Frame::Result => {
+                    let err = values.pop().unwrap();
+                    let ok = values.pop().unwrap();
+                    values.push(Type::result(Arc::new(ok), Arc::new(err)));
+                }
             }
-            Type::Array(child) => Type::Array(Arc::new(self.selection_type(child, depth + 1))),
-            Type::Union(UnionKind::Option, some, None) => {
-                Type::option(Arc::new(self.selection_type(some, depth + 1)))
-            }
-            Type::Union(UnionKind::Result, ok, Some(err)) => Type::result(
-                Arc::new(self.selection_type(ok, depth + 1)),
-                Arc::new(self.selection_type(err, depth + 1)),
-            ),
-            _ => ty.clone(),
         }
+        values.pop().unwrap()
     }
 
     fn bind(
@@ -3693,222 +4496,19 @@ impl Checker<'_> {
         found: Span,
         intrinsic: bool,
     ) -> Result<(), Box<Diagnostic>> {
-        // Divergence contributes no witness for either component. Keeping it
-        // as a concrete node would make later compatible equalities conflict.
-        if ty == Type::Never {
-            return Ok(());
-        }
-        // A constructor containing a variable is a structural constraint,
-        // never a concrete type stored in a union-find representative.
-        if let Type::Deferred(other) = ty {
-            return self.union(id, other, found);
-        }
-        if let Some(wanted) = concrete_union(&ty) {
-            let root = self.root(id);
-            if internal_state(&ty).is_some()
-                || self.graph.type_nodes[&root].variant_children.is_some()
-            {
-                let kind = wanted.kind;
-                return self.atomic(|checker| {
-                    let root = checker.root(id);
-                    let was_concrete = checker.concrete(root).is_some();
-                    if let Some((previous, previous_origin)) =
-                        checker.graph.type_nodes[&root].concrete.clone()
-                        && concrete_union(&previous).is_none_or(|union| union.kind != kind)
-                    {
-                        let expected =
-                            pretty(&previous).ok_or_else(|| unresolved_type(found.clone()))?;
-                        return Err(mismatch(
-                            found.clone(),
-                            found.clone(),
-                            (!checker.origin_intrinsic(root)).then_some(previous_origin),
-                            &expected,
-                            &ty,
-                        ));
-                    }
-                    let actual = checker.require_union(id, kind, &found)?;
-                    for (actual, target) in actual.variants.iter().zip(wanted.variants) {
-                        if let (Some(actual), Some(target)) = (actual.payload, target.payload) {
-                            checker.bind(
-                                visit,
-                                actual,
-                                target.clone(),
-                                origin.clone(),
-                                found.clone(),
-                                intrinsic,
-                            )?;
-                        }
-                    }
-                    if !was_concrete && checker.concrete(root).is_some() {
-                        checker
-                            .graph
-                            .type_nodes
-                            .get_mut(&root)
-                            .unwrap()
-                            .variant_origin = Some(origin.clone());
-                    }
-                    Ok(())
-                });
-            }
-        }
-        let root = self.root(id);
-        if self.graph.type_nodes[&root].variant_children.is_some() {
-            // A union shape cannot be replaced by a scalar while one of its
-            // children is still open. The source equality owns the conflict;
-            // its caller can defer it until both whole types are printable.
-            return Err(unresolved_type(found));
-        }
-        if let Type::Array(element) = ty {
-            let root = self.root(id);
-            // An earlier conditional selector becomes active if this Array
-            // equality succeeds. If its selector is the same monomorphic
-            // variable, the required I64 and the proposed Array cannot both
-            // hold. Reject the later equality at its source occurrence
-            // before changing the representative (§4.1.2.1–3).
-            let conditional_selectors: Vec<_> = self
-                .graph
-                .obligations
-                .iter()
-                .filter_map(|entry| match entry {
-                    ObligationKind::Projection(projection) => projection
-                        .selector_variable
-                        .map(|selector| (projection.base, selector)),
-                    _ => None,
-                })
-                .collect();
-            if conditional_selectors
-                .into_iter()
-                .any(|(base, selector)| self.root(base) == root && self.root(selector) == root)
-            {
-                return Err(mismatch(
-                    found.clone(),
-                    found,
-                    None,
-                    "I64",
-                    &Type::Array(element),
-                ));
-            }
-            if let Some((previous, previous_origin)) = self.graph.type_nodes[&root].concrete.clone()
-            {
-                let expected_label =
-                    pretty(&previous).ok_or_else(|| unresolved_type(found.clone()))?;
-                return Err(mismatch(
-                    found.clone(),
-                    found,
-                    (!self.origin_intrinsic(root)).then_some(previous_origin),
-                    &expected_label,
-                    &Type::Array(element),
-                ));
-            }
-            let whole_expected = self.concrete(root).map(|(ty, _)| ty);
-            let whole_found = Type::Array(element.clone());
-            let child = self.require_array(id, &found)?;
-            return self
-                .bind(
-                    visit,
-                    child,
-                    element.as_ref().clone(),
-                    origin,
-                    found,
-                    intrinsic,
-                )
-                .map_err(|error| {
-                    if let Some(expected) = &whole_expected {
-                        array_mismatch(error, expected, &whole_found)
-                    } else {
-                        error
-                    }
-                });
-        }
-        self.charge_solver(&found)?;
-        let root = self.root(id);
-        if self.graph.type_nodes[&root].copyable_origin.is_some() && !copyable(&ty) {
-            self.fail_constructed_dependents(root);
-            return Err(mismatch(
-                found.clone(),
-                found,
-                None,
-                "domain:copyable_data",
-                &ty,
-            ));
-        }
-        if let Some(child) = self.graph.type_nodes[&root].array_child {
-            let Type::Array(element) = &ty else {
-                if (self.graph.type_nodes[&root].array_constructed
-                    || self.graph.type_nodes[&root]
-                        .array_child
-                        .is_some_and(|child| self.graph.preseeded_children.contains(&child)))
-                    && self.concrete(root).is_none()
-                {
-                    // §4.1.1 considers all local constraints, irrespective
-                    // of solver order. A later constraint may determine the
-                    // element and turn this into a concrete §13.15 mismatch.
-                    self.defer_shape_conflict(
-                        visit,
-                        Type::Deferred(root),
-                        ty,
-                        root,
-                        origin,
-                        found,
-                        UnifyPolicy {
-                            branch: false,
-                            related_expected: !intrinsic,
-                        },
-                    );
-                    return Ok(());
-                }
-                self.graph.mark_failed_constructor(root);
-                return Err(self.array_domain_conflict(root, &ty, found));
-            };
-            self.bind(
-                visit,
-                child,
-                element.as_ref().clone(),
-                origin.clone(),
-                found.clone(),
-                intrinsic,
-            )?;
-        }
-        if let Some((previous, previous_origin)) = self.concrete(root) {
-            if previous != ty {
-                let previous_label =
-                    pretty(&previous).ok_or_else(|| unresolved_type(found.clone()))?;
-                return Err(mismatch(
-                    found.clone(),
-                    found,
-                    (!self.origin_intrinsic(root)).then_some(previous_origin),
-                    &previous_label,
-                    &ty,
-                ));
-            }
-        } else {
-            self.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((ty, origin));
-            self.graph
-                .type_nodes
-                .get_mut(&root)
-                .unwrap()
-                .concrete_intrinsic = intrinsic;
-        }
-        Ok(())
-    }
-
-    fn atomic<T>(
-        &mut self,
-        work: impl FnOnce(&mut Self) -> Result<T, Box<Diagnostic>>,
-    ) -> Result<T, Box<Diagnostic>> {
-        let snapshot = self.clone();
-        match work(self) {
-            Ok(value) => Ok(value),
-            Err(error) => {
-                let steps = self.solver_steps;
-                let quota = self.quota_error.clone();
-                *self = snapshot;
-                self.solver_steps = steps;
-                if quota.is_some() {
-                    self.quota_error = quota;
-                }
-                Err(error)
-            }
+        let request = SolverBind {
+            visit: visit.solver_snapshot(),
+            parent_visit: visit.solver_snapshot(),
+            site: SolverBindSite::Ordinary,
+            id,
+            ty,
+            origin,
+            found,
+            intrinsic,
+        };
+        match self.solve(SolverRequest::Bind(request))? {
+            SolverValue::Unit => Ok(()),
+            _ => unreachable!("bind result"),
         }
     }
 
@@ -4092,28 +4692,32 @@ impl Checker<'_> {
     }
 
     fn result_shape_conflict(&mut self, id: u64, against: &Type, depth: usize) -> bool {
-        if depth > 128 || matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {
-            return false;
-        }
-        let root = self.root(id);
-        let Some(union) = self.graph.type_nodes[&root].variant_children else {
-            return false;
-        };
-        let Some(wanted) = concrete_union(against) else {
-            return true;
-        };
-        union.kind != wanted.kind
-            || union
-                .variants
-                .iter()
-                .zip(wanted.variants)
-                .any(|(actual, wanted)| match (actual.payload, wanted.payload) {
+        let mut frames = vec![(id, against.clone(), depth)];
+        while let Some((id, against, depth)) = frames.pop() {
+            if depth > 128 || matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {
+                continue;
+            }
+            let root = self.root(id);
+            let Some(union) = self.graph.type_nodes[&root].variant_children else {
+                continue;
+            };
+            let Some(wanted) = concrete_union(&against) else {
+                return true;
+            };
+            if union.kind != wanted.kind {
+                return true;
+            }
+            for (actual, wanted) in union.variants.iter().zip(wanted.variants).rev() {
+                match (actual.payload, wanted.payload) {
                     (Some(actual), Some(wanted)) => {
-                        self.result_shape_conflict(actual, wanted, depth + 1)
+                        frames.push((actual, wanted.clone(), depth + 1));
                     }
-                    (None, None) => false,
-                    _ => true,
-                })
+                    (None, None) => {}
+                    _ => return true,
+                }
+            }
+        }
+        false
     }
 
     #[allow(clippy::too_many_arguments)] // The visit is threaded through the existing solver call.
@@ -4168,22 +4772,50 @@ impl Checker<'_> {
     }
 
     fn resolved_join_side(&mut self, ty: Type) -> Option<Type> {
-        match ty {
-            Type::Deferred(id) => self.concrete(id).map(|(ty, _)| ty),
-            Type::Array(child) => Some(Type::Array(Arc::new(
-                self.resolved_join_side(child.as_ref().clone())?,
-            ))),
-            Type::Union(UnionKind::Result, ok, Some(err)) => Some(Type::result(
-                Arc::new(self.resolved_join_side(ok.as_ref().clone())?),
-                Arc::new(self.resolved_join_side(err.as_ref().clone())?),
-            )),
-            Type::Union(UnionKind::Option, some, None) => Some(Type::option(Arc::new(
-                self.resolved_join_side(some.as_ref().clone())?,
-            ))),
-            Type::Union(..) => None,
-            Type::Never | Type::Tainted => None,
-            other => Some(other),
+        enum Frame {
+            Enter(Type),
+            Array,
+            Option,
+            Result,
         }
+        let mut frames = vec![Frame::Enter(ty)];
+        let mut values = Vec::new();
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(ty) => match ty {
+                    Type::Deferred(id) => values.push(self.concrete(id)?.0),
+                    Type::Array(child) => {
+                        frames.push(Frame::Array);
+                        frames.push(Frame::Enter(child.as_ref().clone()));
+                    }
+                    Type::Union(UnionKind::Result, ok, Some(err)) => {
+                        frames.push(Frame::Result);
+                        frames.push(Frame::Enter(err.as_ref().clone()));
+                        frames.push(Frame::Enter(ok.as_ref().clone()));
+                    }
+                    Type::Union(UnionKind::Option, some, None) => {
+                        frames.push(Frame::Option);
+                        frames.push(Frame::Enter(some.as_ref().clone()));
+                    }
+                    Type::Union(..) | Type::Never | Type::Tainted => return None,
+                    other => values.push(other),
+                },
+                Frame::Array => {
+                    let child = values.pop()?;
+                    values.push(Type::Array(Arc::new(child)));
+                }
+                Frame::Option => {
+                    let child = values.pop()?;
+                    values.push(Type::option(Arc::new(child)));
+                }
+                Frame::Result => {
+                    let err = values.pop()?;
+                    let ok = values.pop()?;
+                    values.push(Type::result(Arc::new(ok), Arc::new(err)));
+                }
+            }
+        }
+        values.pop()
     }
 
     /// The single structural unification operation used by source joins.
@@ -4224,685 +4856,1497 @@ impl Checker<'_> {
         found: Span,
         policy: UnifyPolicy,
     ) -> Result<Type, Box<Diagnostic>> {
-        let UnifyPolicy {
-            branch,
-            related_expected,
-        } = policy;
-        // §11.1 charges each logical pair, including every nested array
-        // element compared while resolving one source-level constraint.
-        self.charge_solver(&found)?;
-        match (left, right) {
-            (Type::Tainted, _) | (_, Type::Tainted) => Ok(Type::Tainted),
-            (Type::Never, other) | (other, Type::Never) => Ok(other),
-            (Type::Deferred(a), Type::Deferred(b)) => {
-                if branch
-                    && let (Some((left, _)), Some((right, _))) =
-                        (self.concrete(a), self.concrete(b))
-                    && left != right
-                {
-                    // A branch may make its earlier deferred operand concrete
-                    // while evaluating the later continuation (§4.7).
-                    return Err(compare_source_site(
-                        &left,
-                        &right,
-                        left_origin,
-                        found.clone(),
-                        policy,
-                    )
-                    .unwrap_or_else(|| unresolved_type(found)));
+        let request = SolverUnify {
+            visit: visit.solver_snapshot(),
+            left,
+            right,
+            left_origin,
+            right_origin,
+            found,
+            policy,
+        };
+        match self.solve(SolverRequest::Unify(request))? {
+            SolverValue::Type(ty) => Ok(ty),
+            _ => unreachable!("unify result"),
+        }
+    }
+
+    #[cfg(test)]
+    fn union(&mut self, left: u64, right: u64, found: Span) -> Result<(), Box<Diagnostic>> {
+        match self.solve(SolverRequest::Union(SolverUnion {
+            left,
+            right,
+            found,
+            parent_visit: VisitCursor::default(),
+        }))? {
+            SolverValue::Unit => Ok(()),
+            _ => unreachable!("union result"),
+        }
+    }
+
+    fn solve(&mut self, request: SolverRequest) -> Result<SolverValue, Box<Diagnostic>> {
+        enum Frame<'a> {
+            Enter(SolverRequest),
+            AtomicEnd(Box<Checker<'a>>),
+            UnionInner(SolverUnion),
+            BindUnionAfterRequire {
+                request: SolverBind,
+                root: u64,
+                was_concrete: bool,
+            },
+            BindUnionFinish {
+                root: u64,
+                was_concrete: bool,
+                origin: Span,
+            },
+            BindArrayDone {
+                expected: Option<Type>,
+                found: Type,
+            },
+            RequireUnionFinish {
+                root: u64,
+                children: UnionDescriptor<u64>,
+                origin: Span,
+            },
+            UnionAfterBinds(SolverUnionJoin),
+            UnionMerge(SolverUnionJoin),
+            UnifyAfterUnion {
+                request: SolverUnify,
+                a: u64,
+                b: u64,
+                a_root: u64,
+                b_root: u64,
+                pending_before: usize,
+            },
+            UnifyAfterBind {
+                request: SolverUnify,
+                id: u64,
+                other: Type,
+                left_deferred: bool,
+                pending_before: usize,
+            },
+            UnifyArrayDone {
+                key: (usize, usize),
+                before_inner: u64,
+                pending_before: usize,
+                expected: Type,
+                found: Type,
+            },
+            UnifyUnionNext {
+                request: SolverUnify,
+                kind: UnionKind,
+                expected: Type,
+                found: Type,
+                remaining: Vec<(Type, Type)>,
+                payloads: Vec<Type>,
+                waiting: bool,
+            },
+            UnifyUnionWrap {
+                expected: Type,
+                found: Type,
+            },
+        }
+
+        let mut frames = vec![Frame::Enter(request)];
+        let mut outcome: Result<SolverValue, Box<Diagnostic>> = Ok(SolverValue::Unit);
+        while let Some(frame) = frames.pop() {
+            match frame {
+                Frame::Enter(request) => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    match request {
+                        SolverRequest::Bind(mut request) => {
+                            match request.site {
+                                SolverBindSite::RequireUnion
+                                | SolverBindSite::UnionArrayA
+                                | SolverBindSite::UnionArrayB
+                                | SolverBindSite::UnionPayloadA
+                                | SolverBindSite::UnionPayloadB => {
+                                    request.visit = VisitCursor::default();
+                                }
+                                SolverBindSite::Ordinary | SolverBindSite::InheritedPayload => {}
+                            }
+                            #[cfg(test)]
+                            record_solver_bind_entry(&request);
+                            let SolverBind {
+                                visit,
+                                parent_visit,
+                                site: _,
+                                id,
+                                ty,
+                                origin,
+                                found,
+                                intrinsic,
+                            } = request;
+                            if matches!(ty, Type::Never) {
+                                outcome = Ok(SolverValue::Unit);
+                                continue;
+                            }
+                            if let Type::Deferred(other) = ty {
+                                frames.push(Frame::Enter(SolverRequest::Union(SolverUnion {
+                                    left: id,
+                                    right: other,
+                                    found,
+                                    parent_visit: visit,
+                                })));
+                                continue;
+                            }
+                            if let Some(wanted) = concrete_union(&ty) {
+                                let root = self.root(id);
+                                if internal_state(&ty).is_some()
+                                    || self.graph.type_nodes[&root].variant_children.is_some()
+                                {
+                                    let kind = wanted.kind;
+                                    frames.push(Frame::AtomicEnd(Box::new(self.clone())));
+                                    let was_concrete = self.concrete(root).is_some();
+                                    if let Some((previous, previous_origin)) =
+                                        self.graph.type_nodes[&root].concrete.clone()
+                                        && concrete_union(&previous)
+                                            .is_none_or(|union| union.kind != kind)
+                                    {
+                                        outcome = match pretty(&previous) {
+                                            Some(expected) => Err(mismatch(
+                                                found.clone(),
+                                                found,
+                                                (!self.origin_intrinsic(root))
+                                                    .then_some(previous_origin),
+                                                &expected,
+                                                &ty,
+                                            )),
+                                            None => Err(unresolved_type(found)),
+                                        };
+                                        continue;
+                                    }
+                                    frames.push(Frame::BindUnionAfterRequire {
+                                        request: SolverBind {
+                                            visit: visit.solver_snapshot(),
+                                            parent_visit,
+                                            site: SolverBindSite::Ordinary,
+                                            id,
+                                            ty,
+                                            origin,
+                                            found: found.clone(),
+                                            intrinsic,
+                                        },
+                                        root,
+                                        was_concrete,
+                                    });
+                                    frames.push(Frame::Enter(SolverRequest::RequireUnion {
+                                        id,
+                                        kind,
+                                        origin: found,
+                                        parent_visit: visit,
+                                    }));
+                                    continue;
+                                }
+                            }
+                            let root = self.root(id);
+                            if self.graph.type_nodes[&root].variant_children.is_some() {
+                                outcome = Err(unresolved_type(found));
+                                continue;
+                            }
+                            if let Type::Array(element) = ty {
+                                let conditional_selectors: Vec<_> = self
+                                    .graph
+                                    .obligations
+                                    .iter()
+                                    .filter_map(|entry| match entry {
+                                        ObligationKind::Projection(projection) => projection
+                                            .selector_variable
+                                            .map(|selector| (projection.base, selector)),
+                                        _ => None,
+                                    })
+                                    .collect();
+                                if conditional_selectors.into_iter().any(|(base, selector)| {
+                                    self.root(base) == root && self.root(selector) == root
+                                }) {
+                                    outcome = Err(mismatch(
+                                        found.clone(),
+                                        found,
+                                        None,
+                                        "I64",
+                                        &Type::Array(element),
+                                    ));
+                                    continue;
+                                }
+                                if let Some((previous, previous_origin)) =
+                                    self.graph.type_nodes[&root].concrete.clone()
+                                {
+                                    outcome = match pretty(&previous) {
+                                        Some(expected) => Err(mismatch(
+                                            found.clone(),
+                                            found,
+                                            (!self.origin_intrinsic(root))
+                                                .then_some(previous_origin),
+                                            &expected,
+                                            &Type::Array(element),
+                                        )),
+                                        None => Err(unresolved_type(found)),
+                                    };
+                                    continue;
+                                }
+                                let whole_expected = self.concrete(root).map(|(ty, _)| ty);
+                                let whole_found = Type::Array(element.clone());
+                                match self.require_array(id, &found) {
+                                    Ok(child) => {
+                                        frames.push(Frame::BindArrayDone {
+                                            expected: whole_expected,
+                                            found: whole_found,
+                                        });
+                                        frames.push(Frame::Enter(SolverRequest::Bind(
+                                            SolverBind::child(
+                                                &visit,
+                                                SolverBindSite::Ordinary,
+                                                child,
+                                                element.as_ref().clone(),
+                                                origin,
+                                                found,
+                                                intrinsic,
+                                            ),
+                                        )));
+                                    }
+                                    Err(error) => outcome = Err(error),
+                                }
+                                continue;
+                            }
+                            let root = self.root(id);
+                            if let Err(error) = self.charge_solver(&found) {
+                                outcome = Err(error);
+                                continue;
+                            }
+                            if self.graph.type_nodes[&root].copyable_origin.is_some()
+                                && !copyable(&ty)
+                            {
+                                self.fail_constructed_dependents(root);
+                                outcome = Err(mismatch(
+                                    found.clone(),
+                                    found,
+                                    None,
+                                    "domain:copyable_data",
+                                    &ty,
+                                ));
+                                continue;
+                            }
+                            if self.graph.type_nodes[&root].array_child.is_some() {
+                                let child = self.graph.type_nodes[&root].array_child.unwrap();
+                                if (self.graph.type_nodes[&root].array_constructed
+                                    || self.graph.preseeded_children.contains(&child))
+                                    && self.concrete(root).is_none()
+                                {
+                                    self.defer_shape_conflict(
+                                        &visit,
+                                        Type::Deferred(root),
+                                        ty,
+                                        root,
+                                        origin,
+                                        found,
+                                        UnifyPolicy {
+                                            branch: false,
+                                            related_expected: !intrinsic,
+                                        },
+                                    );
+                                    outcome = Ok(SolverValue::Unit);
+                                } else {
+                                    self.graph.mark_failed_constructor(root);
+                                    outcome = Err(self.array_domain_conflict(root, &ty, found));
+                                }
+                                continue;
+                            }
+                            if let Some((previous, previous_origin)) = self.concrete(root) {
+                                if previous != ty {
+                                    outcome = match pretty(&previous) {
+                                        Some(expected) => Err(mismatch(
+                                            found.clone(),
+                                            found,
+                                            (!self.origin_intrinsic(root))
+                                                .then_some(previous_origin),
+                                            &expected,
+                                            &ty,
+                                        )),
+                                        None => Err(unresolved_type(found)),
+                                    };
+                                } else {
+                                    outcome = Ok(SolverValue::Unit);
+                                }
+                            } else {
+                                self.graph.type_nodes.get_mut(&root).unwrap().concrete =
+                                    Some((ty, origin));
+                                self.graph
+                                    .type_nodes
+                                    .get_mut(&root)
+                                    .unwrap()
+                                    .concrete_intrinsic = intrinsic;
+                                outcome = Ok(SolverValue::Unit);
+                            }
+                        }
+                        SolverRequest::RequireUnion {
+                            id,
+                            kind,
+                            origin,
+                            parent_visit,
+                        } => {
+                            if let Err(error) = self.charge_solver(&origin) {
+                                outcome = Err(error);
+                                continue;
+                            }
+                            let root = self.root(id);
+                            if let Some(children) = self.graph.type_nodes[&root].variant_children {
+                                outcome = if children.kind == kind {
+                                    Ok(SolverValue::Union(children))
+                                } else {
+                                    Err(unresolved_type(origin))
+                                };
+                                continue;
+                            }
+                            if self.graph.type_nodes[&root].array_child.is_some()
+                                || self.graph.type_nodes[&root].concrete.as_ref().is_some_and(
+                                    |(ty, _)| {
+                                        concrete_union(ty).is_none_or(|union| union.kind != kind)
+                                    },
+                                )
+                            {
+                                outcome = Err(unresolved_type(origin));
+                                continue;
+                            }
+                            let first = match self.new_variable(&origin) {
+                                Ok(id) => id,
+                                Err(error) => {
+                                    outcome = Err(error);
+                                    continue;
+                                }
+                            };
+                            let second = if kind == UnionKind::Result {
+                                match self.new_variable(&origin) {
+                                    Ok(id) => Some(id),
+                                    Err(error) => {
+                                        outcome = Err(error);
+                                        continue;
+                                    }
+                                }
+                            } else {
+                                None
+                            };
+                            let children = if let Some(second) = second {
+                                UnionDescriptor::result(first, second)
+                            } else {
+                                UnionDescriptor::option(first)
+                            };
+                            if let Some((concrete, previous_origin)) =
+                                self.graph.type_nodes[&root].concrete.clone()
+                                && let Some(wanted) = concrete_union(&concrete)
+                            {
+                                self.graph.type_nodes.get_mut(&root).unwrap().concrete = None;
+                                let intrinsic = self.graph.type_nodes[&root].concrete_intrinsic;
+                                let binds: Vec<_> = children
+                                    .variants
+                                    .iter()
+                                    .zip(wanted.variants)
+                                    .filter_map(|(actual, target)| {
+                                        Some((actual.payload?, target.payload?.clone()))
+                                    })
+                                    .collect();
+                                frames.push(Frame::RequireUnionFinish {
+                                    root,
+                                    children,
+                                    origin: origin.clone(),
+                                });
+                                for (actual, target) in binds.into_iter().rev() {
+                                    frames.push(Frame::Enter(SolverRequest::Bind(
+                                        SolverBind::child(
+                                            &parent_visit,
+                                            SolverBindSite::RequireUnion,
+                                            actual,
+                                            target,
+                                            previous_origin.clone(),
+                                            origin.clone(),
+                                            intrinsic,
+                                        ),
+                                    )));
+                                }
+                            } else {
+                                self.graph
+                                    .type_nodes
+                                    .get_mut(&root)
+                                    .unwrap()
+                                    .variant_children = Some(children);
+                                self.graph.type_nodes.get_mut(&root).unwrap().variant_origin =
+                                    Some(origin);
+                                outcome = Ok(SolverValue::Union(children));
+                            }
+                        }
+                        SolverRequest::Union(request) => {
+                            let l = self.root(request.left);
+                            let r = self.root(request.right);
+                            if self.graph.type_nodes[&l].variant_children.is_some()
+                                || self.graph.type_nodes[&r].variant_children.is_some()
+                            {
+                                frames.push(Frame::AtomicEnd(Box::new(self.clone())));
+                            }
+                            frames.push(Frame::UnionInner(request));
+                        }
+                        SolverRequest::Unify(request) => {
+                            if let Err(error) = self.charge_solver(&request.found) {
+                                outcome = Err(error);
+                                continue;
+                            }
+                            match (request.left.clone(), request.right.clone()) {
+                                (Type::Tainted, _) | (_, Type::Tainted) => {
+                                    outcome = Ok(SolverValue::Type(Type::Tainted));
+                                }
+                                (Type::Never, other) | (other, Type::Never) => {
+                                    outcome = Ok(SolverValue::Type(other));
+                                }
+                                (Type::Deferred(a), Type::Deferred(b)) => {
+                                    let prepared = (|| -> Result<Option<Type>, Box<Diagnostic>> {
+                                        if request.policy.branch
+                                            && let (Some((left, _)), Some((right, _))) =
+                                                (self.concrete(a), self.concrete(b))
+                                            && left != right
+                                        {
+                                            return Err(compare_source_site(
+                                                &left,
+                                                &right,
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                request.policy,
+                                            )
+                                            .unwrap_or_else(|| {
+                                                unresolved_type(request.found.clone())
+                                            }));
+                                        }
+                                        let l = self.concrete(a);
+                                        let r = self.concrete(b);
+                                        let a_root = self.root(a);
+                                        let b_root = self.root(b);
+                                        let incompatible_shapes =
+                                            self.graph.type_nodes[&a_root].array_child.is_some()
+                                                && self.graph.type_nodes[&b_root]
+                                                    .variant_children
+                                                    .is_some()
+                                                || self.graph.type_nodes[&a_root]
+                                                    .variant_children
+                                                    .is_some()
+                                                    && self.graph.type_nodes[&b_root]
+                                                        .array_child
+                                                        .is_some();
+                                        if incompatible_shapes {
+                                            let constructor = if self.graph.type_nodes[&a_root]
+                                                .variant_children
+                                                .is_some()
+                                            {
+                                                a_root
+                                            } else {
+                                                b_root
+                                            };
+                                            self.defer_shape_conflict(
+                                                &request.visit,
+                                                Type::Deferred(a),
+                                                Type::Deferred(b),
+                                                constructor,
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                request.policy,
+                                            );
+                                            return Ok(Some(Type::Deferred(a_root)));
+                                        }
+                                        let constructor = match (&l, &r) {
+                                            (Some((ty, _)), None) => self
+                                                .unresolved_constructor_shape_conflict(
+                                                    b,
+                                                    ty,
+                                                    &request.found,
+                                                )?,
+                                            (None, Some((ty, _))) => self
+                                                .unresolved_constructor_shape_conflict(
+                                                    a,
+                                                    ty,
+                                                    &request.found,
+                                                )?,
+                                            _ => None,
+                                        };
+                                        if let Some(constructor) = constructor {
+                                            self.charge_solver(&request.found)?;
+                                            self.defer_shape_conflict(
+                                                &request.visit,
+                                                Type::Deferred(a),
+                                                Type::Deferred(b),
+                                                constructor,
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                request.policy,
+                                            );
+                                            return Ok(Some(Type::Deferred(self.root(a))));
+                                        }
+                                        Ok(None)
+                                    })();
+                                    match prepared {
+                                        Ok(Some(ty)) => outcome = Ok(SolverValue::Type(ty)),
+                                        Ok(None) => {
+                                            let a_root = self.root(a);
+                                            let b_root = self.root(b);
+                                            let pending_before = self.pending_join_count();
+                                            let union_found = request.found.clone();
+                                            let union_visit = request.visit.solver_snapshot();
+                                            frames.push(Frame::UnifyAfterUnion {
+                                                request: SolverUnify {
+                                                    left: Type::Deferred(a),
+                                                    right: Type::Deferred(b),
+                                                    ..request
+                                                },
+                                                a,
+                                                b,
+                                                a_root,
+                                                b_root,
+                                                pending_before,
+                                            });
+                                            frames.push(Frame::Enter(SolverRequest::Union(
+                                                SolverUnion {
+                                                    left: a,
+                                                    right: b,
+                                                    found: union_found,
+                                                    parent_visit: union_visit,
+                                                },
+                                            )));
+                                        }
+                                        Err(error) => outcome = Err(error),
+                                    }
+                                }
+                                (Type::Deferred(id), other) => {
+                                    let prepared = (|| -> Result<Option<Type>, Box<Diagnostic>> {
+                                        if let Some(error) = self.pattern_shape_mismatch(
+                                            id,
+                                            &other,
+                                            &request.right_origin,
+                                            &request.found,
+                                        ) {
+                                            return Err(error);
+                                        }
+                                        if request.policy.branch
+                                            && internal_state(&other).is_none()
+                                            && let Some((left, _)) = self.concrete(id)
+                                            && left != other
+                                        {
+                                            return Err(compare_source_site(
+                                                &left,
+                                                &other,
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                request.policy,
+                                            )
+                                            .unwrap_or_else(|| {
+                                                unresolved_type(request.found.clone())
+                                            }));
+                                        }
+                                        if internal_state(&other).is_none()
+                                            && let Some(constructor) = self
+                                                .unresolved_constructor_shape_conflict(
+                                                    id,
+                                                    &other,
+                                                    &request.found,
+                                                )?
+                                        {
+                                            self.charge_solver(&request.found)?;
+                                            self.defer_shape_conflict(
+                                                &request.visit,
+                                                Type::Deferred(id),
+                                                other.clone(),
+                                                constructor,
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                request.policy,
+                                            );
+                                            return Ok(Some(Type::Deferred(self.root(id))));
+                                        }
+                                        Ok(None)
+                                    })();
+                                    match prepared {
+                                        Ok(Some(ty)) => outcome = Ok(SolverValue::Type(ty)),
+                                        Ok(None) => {
+                                            let pending_before = self.pending_join_count();
+                                            let bind = SolverBind::child(
+                                                &request.visit,
+                                                SolverBindSite::Ordinary,
+                                                id,
+                                                other.clone(),
+                                                request.right_origin.clone(),
+                                                request.found.clone(),
+                                                !request.policy.related_expected,
+                                            );
+                                            frames.push(Frame::UnifyAfterBind {
+                                                request,
+                                                id,
+                                                other,
+                                                left_deferred: true,
+                                                pending_before,
+                                            });
+                                            frames.push(Frame::Enter(SolverRequest::Bind(bind)));
+                                        }
+                                        Err(error) => outcome = Err(error),
+                                    }
+                                }
+                                (other, Type::Deferred(id)) => {
+                                    let prepared = (|| -> Result<Option<Type>, Box<Diagnostic>> {
+                                        if let Some(error) = self.pattern_shape_mismatch(
+                                            id,
+                                            &other,
+                                            &request.left_origin,
+                                            &request.found,
+                                        ) {
+                                            return Err(error);
+                                        }
+                                        if internal_state(&other).is_none()
+                                            && let Some((right, _)) = self.concrete(id)
+                                            && other != right
+                                        {
+                                            return Err(compare_source_site(
+                                                &other,
+                                                &right,
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                request.policy,
+                                            )
+                                            .unwrap_or_else(|| {
+                                                unresolved_type(request.found.clone())
+                                            }));
+                                        }
+                                        if internal_state(&other).is_none()
+                                            && let Some(constructor) = self
+                                                .unresolved_constructor_shape_conflict(
+                                                    id,
+                                                    &other,
+                                                    &request.found,
+                                                )?
+                                        {
+                                            self.charge_solver(&request.found)?;
+                                            self.defer_shape_conflict(
+                                                &request.visit,
+                                                other.clone(),
+                                                Type::Deferred(id),
+                                                constructor,
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                request.policy,
+                                            );
+                                            return Ok(Some(Type::Deferred(self.root(id))));
+                                        }
+                                        Ok(None)
+                                    })();
+                                    match prepared {
+                                        Ok(Some(ty)) => outcome = Ok(SolverValue::Type(ty)),
+                                        Ok(None) => {
+                                            let pending_before = self.pending_join_count();
+                                            let bind = SolverBind::child(
+                                                &request.visit,
+                                                SolverBindSite::Ordinary,
+                                                id,
+                                                other.clone(),
+                                                request.left_origin.clone(),
+                                                request.found.clone(),
+                                                !request.policy.related_expected,
+                                            );
+                                            frames.push(Frame::UnifyAfterBind {
+                                                request,
+                                                id,
+                                                other,
+                                                left_deferred: false,
+                                                pending_before,
+                                            });
+                                            frames.push(Frame::Enter(SolverRequest::Bind(bind)));
+                                        }
+                                        Err(error) => outcome = Err(error),
+                                    }
+                                }
+                                (Type::Array(a), Type::Array(b)) => {
+                                    let key = (Arc::as_ptr(&a) as usize, Arc::as_ptr(&b) as usize);
+                                    if let Some((_, _, resolved, inner_pairs)) =
+                                        self.graph.array_unify_cache.get(&key).cloned()
+                                    {
+                                        let mut error = None;
+                                        for _ in 0..inner_pairs {
+                                            if let Err(failed) = self.charge_solver(&request.found)
+                                            {
+                                                error = Some(failed);
+                                                break;
+                                            }
+                                        }
+                                        outcome = match error {
+                                            Some(error) => Err(error),
+                                            None => Ok(SolverValue::Type(resolved)),
+                                        };
+                                        continue;
+                                    }
+                                    let before_inner = self.solver_steps;
+                                    let expected = Type::Array(a.clone());
+                                    let found = Type::Array(b.clone());
+                                    let pending_before = self.pending_join_count();
+                                    let child = SolverUnify {
+                                        visit: request.visit,
+                                        left: a.as_ref().clone(),
+                                        right: b.as_ref().clone(),
+                                        left_origin: request.left_origin,
+                                        right_origin: request.right_origin,
+                                        found: request.found,
+                                        policy: UnifyPolicy {
+                                            branch: request.policy.branch,
+                                            related_expected: true,
+                                        },
+                                    };
+                                    frames.push(Frame::UnifyArrayDone {
+                                        key,
+                                        before_inner,
+                                        pending_before,
+                                        expected,
+                                        found,
+                                    });
+                                    frames.push(Frame::Enter(SolverRequest::Unify(child)));
+                                }
+                                (expected, found_type)
+                                    if concrete_union(&expected).is_some()
+                                        && concrete_union(&found_type).is_some() =>
+                                {
+                                    let left_union = concrete_union(&expected).unwrap();
+                                    let right_union = concrete_union(&found_type).unwrap();
+                                    if left_union.kind != right_union.kind {
+                                        outcome = match compare_source_site(
+                                            &expected,
+                                            &found_type,
+                                            request.left_origin,
+                                            request.found,
+                                            request.policy,
+                                        ) {
+                                            Some(error) => Err(error),
+                                            None => Ok(SolverValue::Type(expected)),
+                                        };
+                                        continue;
+                                    }
+                                    let pairs: Vec<_> = left_union
+                                        .variants
+                                        .iter()
+                                        .zip(right_union.variants)
+                                        .filter_map(|(left, right)| {
+                                            Some((left.payload?.clone(), right.payload?.clone()))
+                                        })
+                                        .collect();
+                                    frames.push(Frame::UnifyUnionWrap {
+                                        expected: expected.clone(),
+                                        found: found_type.clone(),
+                                    });
+                                    if internal_state(&expected).is_some()
+                                        || internal_state(&found_type).is_some()
+                                    {
+                                        frames.push(Frame::AtomicEnd(Box::new(self.clone())));
+                                    }
+                                    frames.push(Frame::UnifyUnionNext {
+                                        request,
+                                        kind: left_union.kind,
+                                        expected,
+                                        found: found_type,
+                                        remaining: pairs,
+                                        payloads: Vec::new(),
+                                        waiting: false,
+                                    });
+                                }
+                                (a, b) => {
+                                    outcome = match compare_source_site(
+                                        &a,
+                                        &b,
+                                        request.left_origin,
+                                        request.found,
+                                        request.policy,
+                                    ) {
+                                        Some(error) => Err(error),
+                                        None => Ok(SolverValue::Type(a)),
+                                    };
+                                }
+                            }
+                        }
+                    }
                 }
-                // A concrete scalar cannot be united with a still unresolved
-                // literal-array child. Keep both whole roots until later
-                // constraints determine the child (§§4.1.1, 4.7, 13.17).
-                // This check precedes union, which otherwise partly changes
-                // child representatives before discovering the contradiction.
-                let l = self.concrete(a);
-                let r = self.concrete(b);
-                let a_root = self.root(a);
-                let b_root = self.root(b);
-                let incompatible_shapes = self.graph.type_nodes[&a_root].array_child.is_some()
-                    && self.graph.type_nodes[&b_root].variant_children.is_some()
-                    || self.graph.type_nodes[&a_root].variant_children.is_some()
-                        && self.graph.type_nodes[&b_root].array_child.is_some();
-                if incompatible_shapes {
-                    let constructor = if self.graph.type_nodes[&a_root].variant_children.is_some() {
-                        a_root
-                    } else {
-                        b_root
+                Frame::UnionInner(request) => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    let prepared = (|| -> Result<Option<(SolverUnionJoin, Vec<SolverBind>)>, Box<Diagnostic>> {
+                        self.charge_solver(&request.found)?;
+                        let l = self.root(request.left);
+                        let r = self.root(request.right);
+                        if l == r {
+                            return Ok(None);
+                        }
+                        if self.graph.type_nodes[&l].array_child.is_some()
+                            && self.graph.type_nodes[&r].variant_children.is_some()
+                            || self.graph.type_nodes[&l].variant_children.is_some()
+                                && self.graph.type_nodes[&r].array_child.is_some()
+                        {
+                            return Err(unresolved_type(request.found.clone()));
+                        }
+                        if (self.graph.type_nodes[&l].array_child.is_some()
+                            || self.graph.type_nodes[&l].variant_children.is_some()
+                            || self.graph.type_nodes[&r].array_child.is_some()
+                            || self.graph.type_nodes[&r].variant_children.is_some())
+                            && (self.type_reaches(l, r, &request.found)?
+                                || self.type_reaches(r, l, &request.found)?)
+                        {
+                            if self.graph.type_nodes[&l].array_child.is_some()
+                                || self.graph.type_nodes[&r].array_child.is_some()
+                            {
+                                self.fail_constructed_dependents(l);
+                                self.fail_constructed_dependents(r);
+                            }
+                            return Err(names::diagnostic(
+                                "NX-E0103",
+                                None,
+                                Stage::Types,
+                                Operation::TypesInfer,
+                                request.found.clone(),
+                            ));
+                        }
+                        let (a, b) = if self.graph.type_nodes[&l].size
+                            > self.graph.type_nodes[&r].size
+                            || (self.graph.type_nodes[&l].size
+                                == self.graph.type_nodes[&r].size
+                                && l < r)
+                        {
+                            (l, r)
+                        } else {
+                            (r, l)
+                        };
+                        let a_concrete = self.graph.type_nodes[&a].concrete.clone();
+                        let b_concrete = self.graph.type_nodes[&b].concrete.clone();
+                        let a_intrinsic = self.graph.type_nodes[&a].concrete_intrinsic;
+                        let b_intrinsic = self.graph.type_nodes[&b].concrete_intrinsic;
+                        let a_child = self.graph.type_nodes[&a].array_child;
+                        let b_child = self.graph.type_nodes[&b].array_child;
+                        let a_result = self.graph.type_nodes[&a].variant_children;
+                        let b_result = self.graph.type_nodes[&b].variant_children;
+                        if let (Some(left), Some(right)) = (a_result, b_result)
+                            && left.kind != right.kind
+                        {
+                            return Err(unresolved_type(request.found.clone()));
+                        }
+                        if let Some((other, _)) = &b_concrete
+                            && a_result.is_some()
+                            && concrete_union(other)
+                                .is_none_or(|union| Some(union.kind) != a_result.map(|u| u.kind))
+                        {
+                            return Err(unresolved_type(request.found.clone()));
+                        }
+                        if let Some((other, _)) = &a_concrete
+                            && b_result.is_some()
+                            && concrete_union(other)
+                                .is_none_or(|union| Some(union.kind) != b_result.map(|u| u.kind))
+                        {
+                            return Err(unresolved_type(request.found.clone()));
+                        }
+                        let (a_full, b_full) = if a_result.is_some() || b_result.is_some() {
+                            (self.concrete(a), self.concrete(b))
+                        } else {
+                            (None, None)
+                        };
+                        let variant_constructed = self.graph.type_nodes[&a].variant_constructed
+                            || self.graph.type_nodes[&b].variant_constructed;
+                        let array_constructed = self.graph.type_nodes[&a].array_constructed
+                            || self.graph.type_nodes[&b].array_constructed;
+                        let bottom_only = self.graph.type_nodes[&a].bottom_only
+                            || self.graph.type_nodes[&b].bottom_only;
+                        let a_copyable = self.graph.type_nodes[&a].copyable_origin.clone();
+                        let b_copyable = self.graph.type_nodes[&b].copyable_origin.clone();
+                        if let (Some(_), Some((ty, _))) = (&a_copyable, &b_concrete)
+                            && !copyable(ty)
+                        {
+                            return Err(mismatch(
+                                request.found.clone(),
+                                request.found.clone(),
+                                None,
+                                "domain:copyable_data",
+                                ty,
+                            ));
+                        }
+                        if let (Some(_), Some((ty, _))) = (&b_copyable, &a_concrete)
+                            && !copyable(ty)
+                        {
+                            return Err(mismatch(
+                                request.found.clone(),
+                                request.found.clone(),
+                                None,
+                                "domain:copyable_data",
+                                ty,
+                            ));
+                        }
+                        let mut binds = Vec::new();
+                        let mut push_bind = |site, id, ty, origin, intrinsic| {
+                            binds.push(SolverBind::child(
+                                &request.parent_visit,
+                                site,
+                                id,
+                                ty,
+                                origin,
+                                request.found.clone(),
+                                intrinsic,
+                            ));
+                        };
+                        if let (Some(child), Some((Type::Array(element), origin))) =
+                            (a_child, &b_concrete)
+                        {
+                            push_bind(
+                                SolverBindSite::UnionArrayA,
+                                child,
+                                element.as_ref().clone(),
+                                origin.clone(),
+                                b_intrinsic,
+                            );
+                        }
+                        if let (Some(child), Some((Type::Array(element), origin))) =
+                            (b_child, &a_concrete)
+                        {
+                            push_bind(
+                                SolverBindSite::UnionArrayB,
+                                child,
+                                element.as_ref().clone(),
+                                origin.clone(),
+                                a_intrinsic,
+                            );
+                        }
+                        if let (Some(children), Some((ty, origin))) = (a_result, &b_concrete)
+                            && let Some(concrete) = concrete_union(ty)
+                        {
+                            for (child, target) in children.variants.iter().zip(concrete.variants) {
+                                if let (Some(child), Some(target)) = (child.payload, target.payload) {
+                                    push_bind(
+                                        SolverBindSite::UnionPayloadA,
+                                        child,
+                                        target.clone(),
+                                        origin.clone(),
+                                        b_intrinsic,
+                                    );
+                                }
+                            }
+                        }
+                        if let (Some(children), Some((ty, origin))) = (b_result, &a_concrete)
+                            && let Some(concrete) = concrete_union(ty)
+                        {
+                            for (child, target) in children.variants.iter().zip(concrete.variants) {
+                                if let (Some(child), Some(target)) = (child.payload, target.payload) {
+                                    push_bind(
+                                        SolverBindSite::UnionPayloadB,
+                                        child,
+                                        target.clone(),
+                                        origin.clone(),
+                                        a_intrinsic,
+                                    );
+                                }
+                            }
+                        }
+                        Ok(Some((SolverUnionJoin {
+                            a,
+                            b,
+                            found: request.found,
+                            parent_visit: request.parent_visit,
+                            a_concrete,
+                            b_concrete,
+                            a_intrinsic,
+                            b_intrinsic,
+                            a_child,
+                            b_child,
+                            a_result,
+                            b_result,
+                            a_full,
+                            b_full,
+                            variant_constructed,
+                            array_constructed,
+                            bottom_only,
+                            a_copyable,
+                            b_copyable,
+                        }, binds)))
+                    })();
+                    match prepared {
+                        Ok(None) => outcome = Ok(SolverValue::Unit),
+                        Ok(Some((state, binds))) => {
+                            frames.push(Frame::UnionAfterBinds(state));
+                            for bind in binds.into_iter().rev() {
+                                frames.push(Frame::Enter(SolverRequest::Bind(bind)));
+                            }
+                        }
+                        Err(error) => outcome = Err(error),
+                    }
+                }
+                Frame::AtomicEnd(snapshot) => {
+                    if outcome.is_err() {
+                        let steps = self.solver_steps;
+                        let quota = self.quota_error.clone();
+                        *self = *snapshot;
+                        self.solver_steps = steps;
+                        if quota.is_some() {
+                            self.quota_error = quota;
+                        }
+                    }
+                }
+                Frame::BindUnionAfterRequire {
+                    request,
+                    root,
+                    was_concrete,
+                } => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    let SolverValue::Union(actual) = &outcome.as_ref().unwrap() else {
+                        unreachable!("require_union continuation")
                     };
-                    self.defer_shape_conflict(
-                        visit,
-                        Type::Deferred(a),
-                        Type::Deferred(b),
-                        constructor,
-                        left_origin,
-                        found,
-                        policy,
-                    );
-                    return Ok(Type::Deferred(a_root));
-                }
-                let constructor = match (&l, &r) {
-                    (Some((ty, _)), None) => {
-                        self.unresolved_constructor_shape_conflict(b, ty, &found)?
+                    let wanted = concrete_union(&request.ty).unwrap();
+                    let binds: Vec<_> = actual
+                        .variants
+                        .iter()
+                        .zip(wanted.variants)
+                        .filter_map(|(actual, target)| {
+                            Some((actual.payload?, target.payload?.clone()))
+                        })
+                        .collect();
+                    frames.push(Frame::BindUnionFinish {
+                        root,
+                        was_concrete,
+                        origin: request.origin.clone(),
+                    });
+                    for (actual, target) in binds.into_iter().rev() {
+                        frames.push(Frame::Enter(SolverRequest::Bind(SolverBind::child(
+                            &request.visit,
+                            SolverBindSite::InheritedPayload,
+                            actual,
+                            target,
+                            request.origin.clone(),
+                            request.found.clone(),
+                            request.intrinsic,
+                        ))));
                     }
-                    (None, Some((ty, _))) => {
-                        self.unresolved_constructor_shape_conflict(a, ty, &found)?
-                    }
-                    _ => None,
-                };
-                if let Some(constructor) = constructor {
-                    self.charge_solver(&found)?;
-                    self.defer_shape_conflict(
-                        visit,
-                        Type::Deferred(a),
-                        Type::Deferred(b),
-                        constructor,
-                        left_origin,
-                        found,
-                        policy,
-                    );
-                    return Ok(Type::Deferred(self.root(a)));
                 }
-                let previous = self.pending_join_count();
-                match self.union(a, b, found.clone()) {
-                    Ok(()) => {}
-                    Err(error)
+                Frame::BindUnionFinish {
+                    root,
+                    was_concrete,
+                    origin,
+                } => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    if !was_concrete && self.concrete(root).is_some() {
+                        self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);
+                    }
+                    outcome = Ok(SolverValue::Unit);
+                }
+                Frame::BindArrayDone { expected, found } => {
+                    if let Err(error) = outcome {
+                        outcome = Err(if let Some(expected) = expected {
+                            array_mismatch(error, &expected, &found)
+                        } else {
+                            error
+                        });
+                    }
+                }
+                Frame::RequireUnionFinish {
+                    root,
+                    children,
+                    origin,
+                } => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    self.graph
+                        .type_nodes
+                        .get_mut(&root)
+                        .unwrap()
+                        .variant_children = Some(children);
+                    self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);
+                    outcome = Ok(SolverValue::Union(children));
+                }
+                Frame::UnionAfterBinds(state) => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    let prepared = (|| -> Result<Vec<SolverUnion>, Box<Diagnostic>> {
+                        if let Some((other, _)) = &state.b_concrete
+                            && state.a_child.is_some()
+                            && !matches!(other, Type::Array(_))
+                        {
+                            return Err(self.array_domain_conflict(
+                                state.a,
+                                other,
+                                state.found.clone(),
+                            ));
+                        }
+                        if let Some((other, _)) = &state.a_concrete
+                            && state.b_child.is_some()
+                            && !matches!(other, Type::Array(_))
+                        {
+                            return Err(self.array_domain_conflict(
+                                state.b,
+                                other,
+                                state.found.clone(),
+                            ));
+                        }
+                        if let (Some((a_ty, a_origin)), Some((b_ty, b_origin))) =
+                            (&state.a_concrete, &state.b_concrete)
+                            && a_ty != b_ty
+                        {
+                            let (expected, expected_origin, expected_intrinsic, actual) =
+                                if a_origin.start <= b_origin.start {
+                                    (a_ty, a_origin, state.a_intrinsic, b_ty)
+                                } else {
+                                    (b_ty, b_origin, state.b_intrinsic, a_ty)
+                                };
+                            let expected_label = pretty(expected)
+                                .ok_or_else(|| unresolved_type(state.found.clone()))?;
+                            return Err(mismatch(
+                                state.found.clone(),
+                                state.found.clone(),
+                                (!expected_intrinsic).then_some(expected_origin.clone()),
+                                &expected_label,
+                                actual,
+                            ));
+                        }
+                        let mut unions = Vec::new();
+                        if let (Some(left), Some(right)) = (state.a_child, state.b_child) {
+                            unions.push(SolverUnion {
+                                left,
+                                right,
+                                found: state.found.clone(),
+                                parent_visit: state.parent_visit.solver_snapshot(),
+                            });
+                        }
+                        if let (Some(left), Some(right)) = (state.a_result, state.b_result) {
+                            for (left, right) in left.variants.iter().zip(right.variants) {
+                                if let (Some(left), Some(right)) = (left.payload, right.payload) {
+                                    unions.push(SolverUnion {
+                                        left,
+                                        right,
+                                        found: state.found.clone(),
+                                        parent_visit: state.parent_visit.solver_snapshot(),
+                                    });
+                                }
+                            }
+                        }
+                        Ok(unions)
+                    })();
+                    match prepared {
+                        Ok(unions) => {
+                            frames.push(Frame::UnionMerge(state));
+                            for union in unions.into_iter().rev() {
+                                frames.push(Frame::Enter(SolverRequest::Union(union)));
+                            }
+                        }
+                        Err(error) => outcome = Err(error),
+                    }
+                }
+                Frame::UnionMerge(state) => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    let SolverUnionJoin {
+                        a,
+                        b,
+                        found,
+                        a_concrete,
+                        b_concrete,
+                        a_intrinsic,
+                        b_intrinsic,
+                        a_child,
+                        b_child,
+                        a_result,
+                        b_result,
+                        a_full,
+                        b_full,
+                        variant_constructed,
+                        array_constructed,
+                        bottom_only,
+                        a_copyable,
+                        b_copyable,
+                        ..
+                    } = state;
+                    self.graph.type_nodes.get_mut(&b).unwrap().parent = a;
+                    let b_join = self.graph.type_nodes[&b].clone();
+                    let a_join = self.graph.type_nodes.get_mut(&a).unwrap();
+                    a_join.deferred_join |= b_join.deferred_join;
+                    a_join.recursive_join |= b_join.recursive_join;
+                    a_join.branch_join_scopes.extend(b_join.branch_join_scopes);
+                    self.graph.type_nodes.get_mut(&a).unwrap().size +=
+                        self.graph.type_nodes[&b].size;
+                    self.graph.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);
+                    self.graph.type_nodes.get_mut(&a).unwrap().variant_children =
+                        a_result.or(b_result);
+                    self.graph
+                        .type_nodes
+                        .get_mut(&a)
+                        .unwrap()
+                        .variant_constructed = variant_constructed;
+                    self.graph.type_nodes.get_mut(&a).unwrap().variant_origin =
+                        self.graph.type_nodes[&a]
+                            .variant_origin
+                            .clone()
+                            .or_else(|| self.graph.type_nodes[&b].variant_origin.clone());
+                    if self.graph.type_nodes[&a].variant_children.is_some() {
+                        if let Some(origin) = a_full.or(b_full).map(|(_, origin)| origin) {
+                            self.graph.type_nodes.get_mut(&a).unwrap().variant_origin =
+                                Some(origin);
+                        } else if self.concrete(a).is_some() {
+                            self.graph.type_nodes.get_mut(&a).unwrap().variant_origin =
+                                Some(found.clone());
+                        }
+                    }
+                    self.graph.type_nodes.get_mut(&a).unwrap().array_constructed =
+                        array_constructed;
+                    self.graph.type_nodes.get_mut(&a).unwrap().bottom_only = bottom_only;
+                    self.graph.type_nodes.get_mut(&a).unwrap().copyable_origin =
+                        match (a_copyable, b_copyable) {
+                            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
+                            (Some(a), None) | (None, Some(a)) => Some(a),
+                            (None, None) => None,
+                        };
+                    let a_array_origin = self.graph.type_nodes[&a].array_origin.clone();
+                    let b_array_origin = self.graph.type_nodes[&b].array_origin.clone();
+                    self.graph.type_nodes.get_mut(&a).unwrap().array_origin =
+                        match (a_array_origin, b_array_origin) {
+                            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
+                            (Some(a), None) | (None, Some(a)) => Some(a),
+                            (None, None) => None,
+                        };
+                    let (chosen, intrinsic) = match (a_concrete, b_concrete) {
+                        (Some(a), Some(b)) if a.1.start <= b.1.start => (Some(a), a_intrinsic),
+                        (Some(_), Some(b)) => (Some(b), b_intrinsic),
+                        (Some(a), None) => (Some(a), a_intrinsic),
+                        (None, Some(b)) => (Some(b), b_intrinsic),
+                        (None, None) => (None, false),
+                    };
+                    self.graph.type_nodes.get_mut(&a).unwrap().concrete = chosen;
+                    self.graph
+                        .type_nodes
+                        .get_mut(&a)
+                        .unwrap()
+                        .concrete_intrinsic = intrinsic;
+                    let failed = self.graph.take_failed_constructor(a)
+                        | self.graph.take_failed_constructor(b);
+                    if failed {
+                        self.graph.mark_failed_constructor(a);
+                    }
+                    outcome = Ok(SolverValue::Unit);
+                }
+                Frame::UnifyAfterUnion {
+                    request,
+                    a,
+                    b,
+                    a_root,
+                    b_root,
+                    pending_before,
+                } => {
+                    if let Err(error) = outcome {
                         if error.code == "NX-E0102"
                             && (self.graph.type_nodes[&a_root].variant_children.is_some()
                                 || self.graph.type_nodes[&b_root].variant_children.is_some())
-                            && (self.concrete(a).is_none() || self.concrete(b).is_none()) =>
-                    {
-                        let constructor = self.root(a);
-                        self.graph
-                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
-                                left: Type::Deferred(a),
-                                right: Type::Deferred(b),
-                                constructor,
-                                left_origin,
-                                found,
-                                branch,
-                                related_expected,
-                                numeric_domain_owner: visit.numeric_domain_owner,
-                                comparison_domain_if_unresolved: None,
-                            })));
-                        return Ok(Type::Deferred(constructor));
+                            && (self.concrete(a).is_none() || self.concrete(b).is_none())
+                        {
+                            let constructor = self.root(a);
+                            self.graph.register(ObligationKind::Join(Box::new(
+                                PendingDeferredJoin {
+                                    left: Type::Deferred(a),
+                                    right: Type::Deferred(b),
+                                    constructor,
+                                    left_origin: request.left_origin,
+                                    found: request.found,
+                                    branch: request.policy.branch,
+                                    related_expected: request.policy.related_expected,
+                                    numeric_domain_owner: request.visit.numeric_domain_owner,
+                                    comparison_domain_if_unresolved: None,
+                                },
+                            )));
+                            outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));
+                        } else if error.code == "NX-E0103" {
+                            let constructor = self.root(a);
+                            let node = self.graph.type_nodes.get_mut(&constructor).unwrap();
+                            node.deferred_join = true;
+                            node.recursive_join = true;
+                            self.graph.register(ObligationKind::Join(Box::new(
+                                PendingDeferredJoin {
+                                    left: Type::Deferred(a),
+                                    right: Type::Deferred(b),
+                                    constructor,
+                                    left_origin: request.left_origin,
+                                    found: request.found,
+                                    branch: request.policy.branch,
+                                    related_expected: request.policy.related_expected,
+                                    numeric_domain_owner: request.visit.numeric_domain_owner,
+                                    comparison_domain_if_unresolved: None,
+                                },
+                            )));
+                            outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));
+                        } else {
+                            outcome = Err(error);
+                        }
+                        continue;
                     }
-                    Err(error) if error.code == "NX-E0103" => {
-                        // ADR §4.1.2.2: a recursive equality is rejected at
-                        // this occurrence, but later compatible constraints
-                        // can complete both sides for a serializable M/J.
-                        let constructor = self.root(a);
-                        let node = self.graph.type_nodes.get_mut(&constructor).unwrap();
-                        node.deferred_join = true;
-                        node.recursive_join = true;
-                        self.graph
-                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
-                                left: Type::Deferred(a),
-                                right: Type::Deferred(b),
-                                constructor,
-                                left_origin,
-                                found,
-                                branch,
-                                related_expected,
-                                numeric_domain_owner: visit.numeric_domain_owner,
-                                comparison_domain_if_unresolved: None,
-                            })));
-                        return Ok(Type::Deferred(constructor));
+                    for join in self.pending_joins_mut().skip(pending_before) {
+                        join.left = Type::Deferred(a);
+                        join.right = Type::Deferred(b);
+                        join.left_origin = request.left_origin.clone();
+                        join.branch = request.policy.branch;
+                        join.related_expected = request.policy.related_expected;
                     }
-                    Err(error) => return Err(error),
+                    outcome = Ok(SolverValue::Type(Type::Deferred(self.root(a))));
                 }
-                for join in self.pending_joins_mut().skip(previous) {
-                    join.left = Type::Deferred(a);
-                    join.right = Type::Deferred(b);
-                    join.left_origin = left_origin.clone();
-                    join.branch = branch;
-                    join.related_expected = related_expected;
-                }
-                Ok(Type::Deferred(self.root(a)))
-            }
-            (Type::Deferred(id), other) => {
-                if let Some(error) = self.pattern_shape_mismatch(id, &other, &right_origin, &found)
-                {
-                    return Err(error);
-                }
-                if branch
-                    && internal_state(&other).is_none()
-                    && let Some((left, _)) = self.concrete(id)
-                    && left != other
-                {
-                    return Err(compare_source_site(
-                        &left,
-                        &other,
-                        left_origin,
-                        found.clone(),
-                        policy,
-                    )
-                    .unwrap_or_else(|| unresolved_type(found)));
-                }
-                if internal_state(&other).is_none()
-                    && let Some(constructor) =
-                        self.unresolved_constructor_shape_conflict(id, &other, &found)?
-                {
-                    self.charge_solver(&found)?;
-                    self.defer_shape_conflict(
-                        visit,
-                        Type::Deferred(id),
-                        other,
-                        constructor,
-                        left_origin,
-                        found,
-                        policy,
-                    );
-                    return Ok(Type::Deferred(self.root(id)));
-                }
-                let previous = self.pending_join_count();
-                if let Err(error) = self.bind(
-                    visit,
+                Frame::UnifyAfterBind {
+                    request,
                     id,
-                    other.clone(),
-                    right_origin,
-                    found.clone(),
-                    !related_expected,
-                ) {
-                    let root = self.root(id);
-                    if error.code == "NX-E0102"
-                        && concrete_union(&other).is_some()
-                        && self.graph.type_nodes[&root].variant_children.is_some()
-                        && self.concrete(id).is_none()
-                    {
-                        self.graph
-                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
-                                left: Type::Deferred(id),
-                                right: other,
-                                constructor: root,
-                                left_origin,
-                                found,
-                                branch,
-                                related_expected,
-                                numeric_domain_owner: visit.numeric_domain_owner,
-                                comparison_domain_if_unresolved: None,
-                            })));
-                        return Ok(Type::Deferred(root));
+                    other,
+                    left_deferred,
+                    pending_before,
+                } => {
+                    if let Err(error) = outcome {
+                        let root = self.root(id);
+                        if error.code == "NX-E0102"
+                            && concrete_union(&other).is_some()
+                            && self.graph.type_nodes[&root].variant_children.is_some()
+                            && self.concrete(id).is_none()
+                        {
+                            self.graph.register(ObligationKind::Join(Box::new(
+                                PendingDeferredJoin {
+                                    left: if left_deferred {
+                                        Type::Deferred(id)
+                                    } else {
+                                        other.clone()
+                                    },
+                                    right: if left_deferred {
+                                        other
+                                    } else {
+                                        Type::Deferred(id)
+                                    },
+                                    constructor: root,
+                                    left_origin: request.left_origin,
+                                    found: request.found,
+                                    branch: request.policy.branch,
+                                    related_expected: request.policy.related_expected,
+                                    numeric_domain_owner: request.visit.numeric_domain_owner,
+                                    comparison_domain_if_unresolved: None,
+                                },
+                            )));
+                            outcome = Ok(SolverValue::Type(Type::Deferred(root)));
+                        } else {
+                            outcome = Err(error);
+                        }
+                        continue;
                     }
-                    return Err(error);
-                }
-                for join in self.pending_joins_mut().skip(previous) {
-                    join.left = Type::Deferred(id);
-                    join.right = other.clone();
-                    join.left_origin = left_origin.clone();
-                    join.branch = branch;
-                    join.related_expected = related_expected;
-                }
-                Ok(self
-                    .concrete(id)
-                    .map_or(Type::Deferred(self.root(id)), |(ty, _)| ty))
-            }
-            (other, Type::Deferred(id)) => {
-                if let Some(error) = self.pattern_shape_mismatch(id, &other, &left_origin, &found) {
-                    return Err(error);
-                }
-                if internal_state(&other).is_none()
-                    && let Some((right, _)) = self.concrete(id)
-                    && other != right
-                {
-                    return Err(compare_source_site(
-                        &other,
-                        &right,
-                        left_origin,
-                        found.clone(),
-                        policy,
-                    )
-                    .unwrap_or_else(|| unresolved_type(found)));
-                }
-                if internal_state(&other).is_none()
-                    && let Some(constructor) =
-                        self.unresolved_constructor_shape_conflict(id, &other, &found)?
-                {
-                    self.charge_solver(&found)?;
-                    self.defer_shape_conflict(
-                        visit,
-                        other,
-                        Type::Deferred(id),
-                        constructor,
-                        left_origin,
-                        found,
-                        policy,
-                    );
-                    return Ok(Type::Deferred(self.root(id)));
-                }
-                let previous = self.pending_join_count();
-                if let Err(error) = self.bind(
-                    visit,
-                    id,
-                    other.clone(),
-                    left_origin.clone(),
-                    found.clone(),
-                    !related_expected,
-                ) {
-                    let root = self.root(id);
-                    if error.code == "NX-E0102"
-                        && concrete_union(&other).is_some()
-                        && self.graph.type_nodes[&root].variant_children.is_some()
-                        && self.concrete(id).is_none()
-                    {
-                        self.graph
-                            .register(ObligationKind::Join(Box::new(PendingDeferredJoin {
-                                left: other,
-                                right: Type::Deferred(id),
-                                constructor: root,
-                                left_origin,
-                                found,
-                                branch,
-                                related_expected,
-                                numeric_domain_owner: visit.numeric_domain_owner,
-                                comparison_domain_if_unresolved: None,
-                            })));
-                        return Ok(Type::Deferred(root));
+                    for join in self.pending_joins_mut().skip(pending_before) {
+                        join.left = if left_deferred {
+                            Type::Deferred(id)
+                        } else {
+                            other.clone()
+                        };
+                        join.right = if left_deferred {
+                            other.clone()
+                        } else {
+                            Type::Deferred(id)
+                        };
+                        join.left_origin = request.left_origin.clone();
+                        join.branch = request.policy.branch;
+                        join.related_expected = request.policy.related_expected;
                     }
-                    return Err(error);
+                    let ty = self
+                        .concrete(id)
+                        .map_or(Type::Deferred(self.root(id)), |(ty, _)| ty);
+                    outcome = Ok(SolverValue::Type(ty));
                 }
-                for join in self.pending_joins_mut().skip(previous) {
-                    join.left = other.clone();
-                    join.right = Type::Deferred(id);
-                    join.left_origin = left_origin.clone();
-                    join.branch = branch;
-                    join.related_expected = related_expected;
-                }
-                Ok(self
-                    .concrete(id)
-                    .map_or(Type::Deferred(self.root(id)), |(ty, _)| ty))
-            }
-            (Type::Array(a), Type::Array(b)) => {
-                let key = (Arc::as_ptr(&a) as usize, Arc::as_ptr(&b) as usize);
-                if let Some((_, _, resolved, inner_pairs)) =
-                    self.graph.array_unify_cache.get(&key).cloned()
-                {
-                    // §11.8, point 1 counts every logical pair even when a cache
-                    // avoids revisiting the same immutable concrete trees.
-                    for _ in 0..inner_pairs {
-                        self.charge_solver(&found)?;
-                    }
-                    return Ok(resolved.clone());
-                }
-                let before_inner = self.solver_steps;
-                let expected = Type::Array(a.clone());
-                let found_type = Type::Array(b.clone());
-                let pending_before = self.pending_join_count();
-                let element = self
-                    .unify(
-                        visit,
-                        a.as_ref().clone(),
-                        b.as_ref().clone(),
-                        left_origin,
-                        right_origin,
-                        found,
-                        branch,
-                    )
-                    .map_err(|error| array_mismatch(error, &expected, &found_type))?;
-                // A deferred conflict inside the element still belongs to
-                // the whole source operand. Complete both serialized types
-                // at every enclosing constructor (ADR §4.1.2.6).
-                for join in self.pending_joins_mut().skip(pending_before) {
-                    join.left = Type::Array(Arc::new(join.left.clone()));
-                    join.right = Type::Array(Arc::new(join.right.clone()));
-                }
-                let resolved = Type::Array(Arc::new(element));
-                // A successful mixed pair cannot later change its answer:
-                // Deferred is bound or aliased monotonically, conflicting
-                // later binds fail at their own site, and Never/Tainted are
-                // immutable. Reusing the exact Arc pair would still charge
-                // inner_pairs. The concrete-only cache policy keeps entries
-                // directly printable and avoids retaining transient nodes.
-                if internal_state(&expected).is_none() && internal_state(&found_type).is_none() {
-                    self.graph.array_unify_cache.insert(
-                        key,
-                        (
-                            expected,
-                            found_type,
-                            resolved.clone(),
-                            self.solver_steps - before_inner,
-                        ),
-                    );
-                }
-                Ok(resolved)
-            }
-            (a, b) if concrete_union(&a).is_some() && concrete_union(&b).is_some() => {
-                let expected = a;
-                let found_type = b;
-                let left_union = concrete_union(&expected).unwrap();
-                let right_union = concrete_union(&found_type).unwrap();
-                if left_union.kind != right_union.kind {
-                    return match compare_source_site(
-                        &expected,
-                        &found_type,
-                        left_origin,
-                        found,
-                        policy,
-                    ) {
-                        Some(error) => Err(error),
-                        None => Ok(expected),
+                Frame::UnifyArrayDone {
+                    key,
+                    before_inner,
+                    pending_before,
+                    expected,
+                    found,
+                } => {
+                    let element = match outcome {
+                        Ok(SolverValue::Type(element)) => element,
+                        Ok(_) => unreachable!("array child result"),
+                        Err(error) => {
+                            outcome = Err(array_mismatch(error, &expected, &found));
+                            continue;
+                        }
                     };
-                }
-                let compare = |checker: &mut Self| {
-                    let mut payloads = Vec::new();
-                    for (left, right) in left_union.variants.iter().zip(right_union.variants) {
-                        if let (Some(left), Some(right)) = (left.payload, right.payload) {
-                            payloads.push(checker.unify(
-                                visit,
-                                left.clone(),
-                                right.clone(),
-                                left_origin.clone(),
-                                right_origin.clone(),
-                                found.clone(),
-                                branch,
-                            )?);
-                        }
+                    for join in self.pending_joins_mut().skip(pending_before) {
+                        join.left = Type::Array(Arc::new(join.left.clone()));
+                        join.right = Type::Array(Arc::new(join.right.clone()));
                     }
-                    Ok(match (left_union.kind, payloads.as_slice()) {
-                        (UnionKind::Option, [some]) => Type::option(Arc::new(some.clone())),
-                        (UnionKind::Result, [ok, err]) => {
-                            Type::result(Arc::new(ok.clone()), Arc::new(err.clone()))
-                        }
-                        _ => return Err(unresolved_type(found.clone())),
-                    })
-                };
-                let outcome = if internal_state(&expected).is_none()
-                    && internal_state(&found_type).is_none()
-                {
-                    compare(self)
-                } else {
-                    self.atomic(compare)
-                };
-                outcome.map_err(|error| array_mismatch(error, &expected, &found_type))
-            }
-            (a, b) => match compare_source_site(&a, &b, left_origin, found, policy) {
-                Some(error) => Err(error),
-                None => Ok(a),
-            },
-        }
-    }
-
-    fn union(&mut self, left: u64, right: u64, found: Span) -> Result<(), Box<Diagnostic>> {
-        let l = self.root(left);
-        let r = self.root(right);
-        if self.graph.type_nodes[&l].variant_children.is_some()
-            || self.graph.type_nodes[&r].variant_children.is_some()
-        {
-            return self.atomic(|checker| checker.union_inner(left, right, found));
-        }
-        self.union_inner(left, right, found)
-    }
-
-    fn union_inner(&mut self, left: u64, right: u64, found: Span) -> Result<(), Box<Diagnostic>> {
-        self.charge_solver(&found)?;
-        let l = self.root(left);
-        let r = self.root(right);
-        if l == r {
-            return Ok(());
-        }
-        if self.graph.type_nodes[&l].array_child.is_some()
-            && self.graph.type_nodes[&r].variant_children.is_some()
-            || self.graph.type_nodes[&l].variant_children.is_some()
-                && self.graph.type_nodes[&r].array_child.is_some()
-        {
-            return Err(unresolved_type(found));
-        }
-        if (self.graph.type_nodes[&l].array_child.is_some()
-            || self.graph.type_nodes[&l].variant_children.is_some()
-            || self.graph.type_nodes[&r].array_child.is_some()
-            || self.graph.type_nodes[&r].variant_children.is_some())
-            && (self.type_reaches(l, r, &found)? || self.type_reaches(r, l, &found)?)
-        {
-            if self.graph.type_nodes[&l].array_child.is_some()
-                || self.graph.type_nodes[&r].array_child.is_some()
-            {
-                self.fail_constructed_dependents(l);
-                self.fail_constructed_dependents(r);
-            }
-            // A finite monomorphic type cannot contain itself. The ADR does
-            // not assign a separate occurs-check code; inference remains
-            // unresolved at this constructor.
-            return Err(names::diagnostic(
-                "NX-E0103",
-                None,
-                Stage::Types,
-                Operation::TypesInfer,
-                found,
-            ));
-        }
-        // Root rank and numeric ID determine only the private representative.
-        // Choosing the other root, even when sizes differ, still attaches a
-        // tree with summed size and merges every constraint below. Public
-        // origins are selected by source spans, never by representative ID.
-        let (a, b) = if self.graph.type_nodes[&l].size > self.graph.type_nodes[&r].size
-            || (self.graph.type_nodes[&l].size == self.graph.type_nodes[&r].size && l < r)
-        {
-            (l, r)
-        } else {
-            (r, l)
-        };
-        let a_concrete = self.graph.type_nodes[&a].concrete.clone();
-        let b_concrete = self.graph.type_nodes[&b].concrete.clone();
-        let a_intrinsic = self.graph.type_nodes[&a].concrete_intrinsic;
-        let b_intrinsic = self.graph.type_nodes[&b].concrete_intrinsic;
-        let a_child = self.graph.type_nodes[&a].array_child;
-        let b_child = self.graph.type_nodes[&b].array_child;
-        let a_result = self.graph.type_nodes[&a].variant_children;
-        let b_result = self.graph.type_nodes[&b].variant_children;
-        if let (Some(left), Some(right)) = (a_result, b_result)
-            && left.kind != right.kind
-        {
-            return Err(unresolved_type(found));
-        }
-        if let Some((other, _)) = &b_concrete
-            && a_result.is_some()
-            && concrete_union(other)
-                .is_none_or(|union| Some(union.kind) != a_result.map(|u| u.kind))
-        {
-            return Err(unresolved_type(found));
-        }
-        if let Some((other, _)) = &a_concrete
-            && b_result.is_some()
-            && concrete_union(other)
-                .is_none_or(|union| Some(union.kind) != b_result.map(|u| u.kind))
-        {
-            return Err(unresolved_type(found));
-        }
-        let (a_full, b_full) = if a_result.is_some() || b_result.is_some() {
-            (self.concrete(a), self.concrete(b))
-        } else {
-            (None, None)
-        };
-        let variant_constructed = self.graph.type_nodes[&a].variant_constructed
-            || self.graph.type_nodes[&b].variant_constructed;
-        let array_constructed = self.graph.type_nodes[&a].array_constructed
-            || self.graph.type_nodes[&b].array_constructed;
-        let bottom_only =
-            self.graph.type_nodes[&a].bottom_only || self.graph.type_nodes[&b].bottom_only;
-        let a_copyable = self.graph.type_nodes[&a].copyable_origin.clone();
-        let b_copyable = self.graph.type_nodes[&b].copyable_origin.clone();
-        if let (Some(_), Some((ty, _))) = (&a_copyable, &b_concrete)
-            && !copyable(ty)
-        {
-            return Err(mismatch(
-                found.clone(),
-                found,
-                None,
-                "domain:copyable_data",
-                ty,
-            ));
-        }
-        if let (Some(_), Some((ty, _))) = (&b_copyable, &a_concrete)
-            && !copyable(ty)
-        {
-            return Err(mismatch(
-                found.clone(),
-                found,
-                None,
-                "domain:copyable_data",
-                ty,
-            ));
-        }
-        if let (Some(child), Some((Type::Array(element), origin))) = (a_child, &b_concrete) {
-            self.bind(
-                &VisitCursor::default(),
-                child,
-                element.as_ref().clone(),
-                origin.clone(),
-                found.clone(),
-                b_intrinsic,
-            )?;
-        }
-        if let (Some(child), Some((Type::Array(element), origin))) = (b_child, &a_concrete) {
-            self.bind(
-                &VisitCursor::default(),
-                child,
-                element.as_ref().clone(),
-                origin.clone(),
-                found.clone(),
-                a_intrinsic,
-            )?;
-        }
-        if let (Some(children), Some((ty, origin))) = (a_result, &b_concrete)
-            && let Some(concrete) = concrete_union(ty)
-        {
-            for (child, target) in children.variants.iter().zip(concrete.variants) {
-                if let (Some(child), Some(target)) = (child.payload, target.payload) {
-                    self.bind(
-                        &VisitCursor::default(),
-                        child,
-                        (*target).clone(),
-                        origin.clone(),
-                        found.clone(),
-                        b_intrinsic,
-                    )?;
+                    let resolved = Type::Array(Arc::new(element));
+                    if internal_state(&expected).is_none() && internal_state(&found).is_none() {
+                        self.graph.array_unify_cache.insert(
+                            key,
+                            (
+                                expected,
+                                found,
+                                resolved.clone(),
+                                self.solver_steps - before_inner,
+                            ),
+                        );
+                    }
+                    outcome = Ok(SolverValue::Type(resolved));
+                }
+                Frame::UnifyUnionNext {
+                    request,
+                    kind,
+                    expected,
+                    found,
+                    mut remaining,
+                    mut payloads,
+                    waiting,
+                } => {
+                    if outcome.is_err() {
+                        continue;
+                    }
+                    if waiting {
+                        let previous = std::mem::replace(&mut outcome, Ok(SolverValue::Unit));
+                        let Ok(SolverValue::Type(ty)) = previous else {
+                            unreachable!("union payload result")
+                        };
+                        payloads.push(ty);
+                    }
+                    if !remaining.is_empty() {
+                        let (left, right) = remaining.remove(0);
+                        let child = SolverUnify {
+                            visit: request.visit.solver_snapshot(),
+                            left,
+                            right,
+                            left_origin: request.left_origin.clone(),
+                            right_origin: request.right_origin.clone(),
+                            found: request.found.clone(),
+                            policy: UnifyPolicy {
+                                branch: request.policy.branch,
+                                related_expected: true,
+                            },
+                        };
+                        frames.push(Frame::UnifyUnionNext {
+                            request,
+                            kind,
+                            expected,
+                            found,
+                            remaining,
+                            payloads,
+                            waiting: true,
+                        });
+                        frames.push(Frame::Enter(SolverRequest::Unify(child)));
+                    } else {
+                        outcome = match (kind, payloads.as_slice()) {
+                            (UnionKind::Option, [some]) => {
+                                Ok(SolverValue::Type(Type::option(Arc::new(some.clone()))))
+                            }
+                            (UnionKind::Result, [ok, err]) => Ok(SolverValue::Type(Type::result(
+                                Arc::new(ok.clone()),
+                                Arc::new(err.clone()),
+                            ))),
+                            _ => Err(unresolved_type(request.found)),
+                        };
+                    }
+                }
+                Frame::UnifyUnionWrap { expected, found } => {
+                    if let Err(error) = outcome {
+                        outcome = Err(array_mismatch(error, &expected, &found));
+                    }
                 }
             }
         }
-        if let (Some(children), Some((ty, origin))) = (b_result, &a_concrete)
-            && let Some(concrete) = concrete_union(ty)
-        {
-            for (child, target) in children.variants.iter().zip(concrete.variants) {
-                if let (Some(child), Some(target)) = (child.payload, target.payload) {
-                    self.bind(
-                        &VisitCursor::default(),
-                        child,
-                        (*target).clone(),
-                        origin.clone(),
-                        found.clone(),
-                        a_intrinsic,
-                    )?;
-                }
-            }
-        }
-        if let Some((other, _)) = &b_concrete
-            && a_child.is_some()
-            && !matches!(other, Type::Array(_))
-        {
-            return Err(self.array_domain_conflict(a, other, found));
-        }
-        if let Some((other, _)) = &a_concrete
-            && b_child.is_some()
-            && !matches!(other, Type::Array(_))
-        {
-            return Err(self.array_domain_conflict(b, other, found));
-        }
-        if let (Some((a_ty, a_origin)), Some((b_ty, b_origin))) = (&a_concrete, &b_concrete)
-            && a_ty != b_ty
-        {
-            let (expected, expected_origin, expected_intrinsic, actual) =
-                if a_origin.start <= b_origin.start {
-                    (a_ty, a_origin, a_intrinsic, b_ty)
-                } else {
-                    (b_ty, b_origin, b_intrinsic, a_ty)
-                };
-            let expected_label = pretty(expected).ok_or_else(|| unresolved_type(found.clone()))?;
-            return Err(mismatch(
-                found.clone(),
-                found,
-                (!expected_intrinsic).then_some(expected_origin.clone()),
-                &expected_label,
-                actual,
-            ));
-        }
-        if let (Some(left_child), Some(right_child)) = (a_child, b_child) {
-            self.union(left_child, right_child, found.clone())?;
-        }
-        if let (Some(left), Some(right)) = (a_result, b_result) {
-            for (left, right) in left.variants.iter().zip(right.variants) {
-                if let (Some(left), Some(right)) = (left.payload, right.payload) {
-                    self.union(left, right, found.clone())?;
-                }
-            }
-        }
-        self.graph.type_nodes.get_mut(&b).unwrap().parent = a;
-        let b_join = self.graph.type_nodes[&b].clone();
-        let a_join = self.graph.type_nodes.get_mut(&a).unwrap();
-        a_join.deferred_join |= b_join.deferred_join;
-        a_join.recursive_join |= b_join.recursive_join;
-        a_join.branch_join_scopes.extend(b_join.branch_join_scopes);
-        self.graph.type_nodes.get_mut(&a).unwrap().size += self.graph.type_nodes[&b].size;
-        self.graph.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);
-        self.graph.type_nodes.get_mut(&a).unwrap().variant_children = a_result.or(b_result);
-        self.graph
-            .type_nodes
-            .get_mut(&a)
-            .unwrap()
-            .variant_constructed = variant_constructed;
-        self.graph.type_nodes.get_mut(&a).unwrap().variant_origin = self.graph.type_nodes[&a]
-            .variant_origin
-            .clone()
-            .or_else(|| self.graph.type_nodes[&b].variant_origin.clone());
-        if self.graph.type_nodes[&a].variant_children.is_some() {
-            if let Some(origin) = a_full.or(b_full).map(|(_, origin)| origin) {
-                self.graph.type_nodes.get_mut(&a).unwrap().variant_origin = Some(origin);
-            } else if self.concrete(a).is_some() {
-                self.graph.type_nodes.get_mut(&a).unwrap().variant_origin = Some(found.clone());
-            }
-        }
-        self.graph.type_nodes.get_mut(&a).unwrap().array_constructed = array_constructed;
-        self.graph.type_nodes.get_mut(&a).unwrap().bottom_only = bottom_only;
-        // only presence of copyable_origin participates in constraints.
-        // Its saved span is not emitted as a related diagnostic location;
-        // choosing either present span leaves the public result unchanged.
-        self.graph.type_nodes.get_mut(&a).unwrap().copyable_origin = match (a_copyable, b_copyable)
-        {
-            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
-            (Some(a), None) | (None, Some(a)) => Some(a),
-            (None, None) => None,
-        };
-        let a_array_origin = self.graph.type_nodes[&a].array_origin.clone();
-        let b_array_origin = self.graph.type_nodes[&b].array_origin.clone();
-        // two independent array-constructor origins joined at this
-        // type level are disjoint source spans. Their start order and the
-        // comparison of one end with the other start choose the same origin;
-        // a containing constructor would have failed the occurs check.
-        self.graph.type_nodes.get_mut(&a).unwrap().array_origin =
-            match (a_array_origin, b_array_origin) {
-                (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),
-                (Some(a), None) | (None, Some(a)) => Some(a),
-                (None, None) => None,
-            };
-        let (chosen, intrinsic) = match (a_concrete, b_concrete) {
-            (Some(a), Some(b)) if a.1.start <= b.1.start => (Some(a), a_intrinsic),
-            (Some(_), Some(b)) => (Some(b), b_intrinsic),
-            (Some(a), None) => (Some(a), a_intrinsic),
-            (None, Some(b)) => (Some(b), b_intrinsic),
-            (None, None) => (None, false),
-        };
-        self.graph.type_nodes.get_mut(&a).unwrap().concrete = chosen;
-        self.graph
-            .type_nodes
-            .get_mut(&a)
-            .unwrap()
-            .concrete_intrinsic = intrinsic;
-        // Failure belongs to the equivalence class, not to whichever node
-        // happened to win the rank comparison.
-        let failed = self.graph.take_failed_constructor(a) | self.graph.take_failed_constructor(b);
-        if failed {
-            self.graph.mark_failed_constructor(a);
-        }
-        Ok(())
+        outcome
     }
 
     fn type_reaches(
@@ -9850,7 +11294,7 @@ impl Checker<'_> {
                                     item: child,
                                     base_span: Self::primary_span(target),
                                     result_span: Self::primary_span(e),
-                                    selector: (**index).clone(),
+                                    selector: Arc::new(clone_projection_selector(index)),
                                     selector_variable,
                                     checked_without_context: false,
                                     selector_invalid: false,
@@ -13279,6 +14723,100 @@ mod j16_probe_types {
     }
 
     #[test]
+    fn s3_types_or_checker_child() {
+        let Ok(source_path) = std::env::var("I07C_S3_SOURCE") else {
+            return;
+        };
+        let source = std::fs::read_to_string(source_path).unwrap();
+        let ast = parse::parse_new_profile("stack.n", &source).unwrap();
+        let mode = std::env::var("I07C_S3_MODE").unwrap();
+        let kib = std::env::var("I07C_S3_STACK_KIB")
+            .unwrap()
+            .parse::<usize>()
+            .unwrap();
+        let resolved = if mode == "TYPES" {
+            Some(names::resolve_with_option("stack.n", &source, &ast, true).unwrap())
+        } else {
+            None
+        };
+        let resolved_ref = resolved.as_ref();
+        let source_ref = &source;
+        let ast_ref = &ast;
+        let report = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(kib * 1024)
+                .spawn_scoped(scope, move || {
+                    if let Some(resolved) = resolved_ref {
+                        check_with_partial_limit(
+                            "stack.n", source_ref, ast_ref, resolved, 1_000_000,
+                        )
+                    } else {
+                        let resolved =
+                            names::resolve_with_option("stack.n", source_ref, ast_ref, true)
+                                .unwrap();
+                        check_with_partial_limit(
+                            "stack.n", source_ref, ast_ref, &resolved, 1_000_000,
+                        )
+                    }
+                })
+                .unwrap()
+                .join()
+                .unwrap()
+        });
+        let wide = if let Some(resolved) = resolved.as_ref() {
+            check_with_partial_limit("stack.n", &source, &ast, resolved, 1_000_000)
+        } else {
+            let resolved = names::resolve_with_option("stack.n", &source, &ast, true).unwrap();
+            check_with_partial_limit("stack.n", &source, &ast, &resolved, 1_000_000)
+        };
+        assert_eq!(report.errors, wide.errors);
+        if let Ok(expected) = std::env::var("I07C_S3_EXPECT_ERROR") {
+            assert_eq!(
+                report.errors.first().map(|e| e.code.as_str()),
+                Some(expected.as_str())
+            );
+        } else {
+            assert!(report.errors.is_empty(), "{:?}", report.errors);
+        }
+    }
+
+    #[test]
+    fn s3_clone_selector_child() {
+        let Ok(source_path) = std::env::var("I07C_S3_SOURCE") else {
+            return;
+        };
+        let source = std::fs::read_to_string(source_path).unwrap();
+        let ast = parse::parse_new_profile("clone.n", &source).unwrap();
+        let Statement::Let {
+            value: Expr::Index { index, .. },
+            ..
+        } = &ast.functions[0].body.statements[0]
+        else {
+            panic!("expected index selector");
+        };
+        let drop_in_worker = std::env::var_os("I07C_S3_DROP_IN_WORKER").is_some();
+        let cloned = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(204 * 1024)
+                .spawn_scoped(scope, || {
+                    let cloned = clone_projection_selector(index);
+                    if drop_in_worker {
+                        drop(cloned);
+                        None
+                    } else {
+                        Some(cloned)
+                    }
+                })
+                .unwrap()
+                .join()
+                .unwrap()
+        });
+        if let Some(cloned) = cloned {
+            assert_eq!(cloned, **index);
+        }
+    }
+
+    #[test]
     fn parent() {
         let exe = std::env::current_exe().unwrap();
         for family in [
@@ -14475,6 +16013,172 @@ mod quota_tests {
                 nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
             },
         }
+    }
+
+    #[test]
+    fn solver_child_frames_keep_each_cursor_boundary() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let parent = VisitCursor {
+            tainted: true,
+            numeric_domain_owner: Some((1, 2)),
+            ..VisitCursor::default()
+        };
+        SOLVER_BIND_TRACE.with(|trace| trace.borrow_mut().clear());
+        SOLVER_BIND_TRACE_ENABLED.with(|enabled| enabled.set(true));
+
+        // A concrete Option is decomposed by require_union while an outer
+        // bind is active. Its payload bind starts a separate visit; the bind
+        // of the wanted payload after require_union inherits the outer visit.
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let payload = checker.new_variable(&site(2)).unwrap();
+        checker
+            .bind(
+                &VisitCursor::default(),
+                root,
+                Type::option(Arc::new(Type::I64)),
+                site(3),
+                site(4),
+                false,
+            )
+            .unwrap();
+        checker
+            .bind(
+                &parent,
+                root,
+                Type::option(Arc::new(Type::Deferred(payload))),
+                site(5),
+                site(6),
+                false,
+            )
+            .unwrap();
+
+        // Array concrete representatives are injected only in this internal
+        // fixture: source Array values are decomposed into array_child.
+        for concrete_first in [false, true] {
+            let mut checker = empty_checker(&resolved);
+            let first = checker.new_variable(&site(10)).unwrap();
+            let second = checker.new_variable(&site(11)).unwrap();
+            let structural = if concrete_first { second } else { first };
+            let concrete = if concrete_first { first } else { second };
+            checker.require_array(structural, &site(12)).unwrap();
+            checker
+                .graph
+                .type_nodes
+                .get_mut(&concrete)
+                .unwrap()
+                .concrete = Some((Type::Array(Arc::new(Type::I64)), site(13)));
+            checker
+                .bind(
+                    &parent,
+                    first,
+                    Type::Deferred(second),
+                    site(14),
+                    site(15),
+                    false,
+                )
+                .unwrap();
+        }
+
+        for concrete_first in [false, true] {
+            let mut checker = empty_checker(&resolved);
+            let first = checker.new_variable(&site(20)).unwrap();
+            let second = checker.new_variable(&site(21)).unwrap();
+            let structural = if concrete_first { second } else { first };
+            let concrete = if concrete_first { first } else { second };
+            checker
+                .require_union(structural, UnionKind::Option, &site(22))
+                .unwrap();
+            checker
+                .bind(
+                    &VisitCursor::default(),
+                    concrete,
+                    Type::option(Arc::new(Type::I64)),
+                    site(23),
+                    site(24),
+                    false,
+                )
+                .unwrap();
+            checker
+                .bind(
+                    &parent,
+                    first,
+                    Type::Deferred(second),
+                    site(25),
+                    site(26),
+                    false,
+                )
+                .unwrap();
+        }
+
+        SOLVER_BIND_TRACE_ENABLED.with(|enabled| enabled.set(false));
+        let traces = SOLVER_BIND_TRACE.with(|trace| trace.borrow().clone());
+        for site in [
+            SolverBindSite::RequireUnion,
+            SolverBindSite::UnionArrayA,
+            SolverBindSite::UnionArrayB,
+            SolverBindSite::UnionPayloadA,
+            SolverBindSite::UnionPayloadB,
+        ] {
+            let entries: Vec<_> = traces.iter().filter(|entry| entry.site == site).collect();
+            assert_eq!(entries.len(), 1, "{site:?} must enter one child bind");
+            let entry = entries[0];
+            assert!(entry.parent_tainted, "{site:?}");
+            assert_eq!(entry.parent_owner, Some((1, 2)), "{site:?}");
+            assert!(!entry.child_tainted, "{site:?}");
+            assert_eq!(entry.child_owner, None, "{site:?}");
+        }
+        let inherited: Vec<_> = traces
+            .iter()
+            .filter(|entry| entry.site == SolverBindSite::InheritedPayload)
+            .collect();
+        assert_eq!(inherited.len(), 1);
+        assert!(inherited[0].child_tainted);
+        assert_eq!(inherited[0].child_owner, Some((1, 2)));
+        assert!(parent.tainted);
+        assert_eq!(parent.numeric_domain_owner, Some((1, 2)));
+    }
+
+    #[test]
+    fn s3_solver_unify_depth_child() {
+        if std::env::var_os("I07C_S3_DIRECT_UNIFY").is_none() {
+            return;
+        }
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut left = Type::I64;
+        let mut right = Type::I64;
+        for _ in 0..126 {
+            left = Type::Array(Arc::new(left));
+            right = Type::Array(Arc::new(right));
+        }
+        let outcome = std::thread::scope(|scope| {
+            std::thread::Builder::new()
+                .stack_size(204 * 1024)
+                .spawn_scoped(scope, || {
+                    let mut checker = empty_checker(&resolved);
+                    checker.unify(
+                        &VisitCursor::default(),
+                        left,
+                        right,
+                        site(1),
+                        site(2),
+                        site(3),
+                        false,
+                    )
+                })
+                .unwrap()
+                .join()
+                .unwrap()
+        });
+        assert!(outcome.is_ok(), "{outcome:?}");
     }
 
     #[test]

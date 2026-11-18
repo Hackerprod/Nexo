@@ -1019,7 +1019,7 @@ fn run_bug(src: &str) -> Option<String> {
     }
     match catch_unwind(AssertUnwindSafe(|| match compile_scalar("t.n", src) {
         Ok(p) => {
-            let ex = nexo::interp::run_scalar(&p);
+            let ex = nexo::interp::run_scalar(&p, nexo::interp::MockEnvironment::empty());
             if let nexo::interp::Outcome::InternalError(m) = ex.outcome {
                 Some(format!("run internal:{m}"))
             } else {
@@ -1633,7 +1633,10 @@ fn main() {
                     R::Bug(message) => println!("BUG {message}"),
                     R::Rej(rows) => {
                         for (key, start, end) in rows {
-                            println!("  {key:?} [{start},{end}) {}", &source.src[start as usize..end as usize]);
+                            println!(
+                                "  {key:?} [{start},{end}) {}",
+                                &source.src[start as usize..end as usize]
+                            );
                         }
                     }
                 }
@@ -1646,7 +1649,10 @@ fn main() {
                     R::Bug(message) => println!("BUG {message}"),
                     R::Rej(rows) => {
                         for (key, start, end) in rows {
-                            println!("  {key:?} [{start},{end}) {}", &source.src[start as usize..end as usize]);
+                            println!(
+                                "  {key:?} [{start},{end}) {}",
+                                &source.src[start as usize..end as usize]
+                            );
                         }
                     }
                 }

@@ -312,7 +312,7 @@ def test_only_regions(path: str) -> tuple[tuple[int, int], ...]:
         # bodies and cfg-gated if/block expressions close at their outer brace;
         # declarations and let statements close at their outer semicolon.
         head = masked[start:start + 100]
-        braced = bool(re.match(r"(?:pub(?:\([^)]*\))?\s+)?(?:fn|mod|impl|struct|enum|trait|if|loop|while|match)\b|\{", head))
+        braced = bool(re.match(r"(?:pub(?:\([^)]*\))?\s+)?(?:fn|mod|impl|struct|enum|trait|if|loop|while|match)\b|thread_local!\s*\{|\{", head))
         parens = brackets = braces = 0
         end = None
         for pos in range(start, len(masked)):
@@ -330,6 +330,10 @@ def test_only_regions(path: str) -> tuple[tuple[int, int], ...]:
             elif ch == "}" and parens == brackets == 0:
                 braces -= 1
                 if braced and braces == 0:
+                    end = pos + 1
+                    break
+                if not braced and braces == 0 and "=>" in head and re.match(r"\s*}", masked[pos + 1:]):
+                    # The final match arm may omit its trailing comma.
                     end = pos + 1
                     break
             elif ch == ";" and parens == brackets == braces == 0:
@@ -861,6 +865,7 @@ def normalize_timeout_rows(population: list[dict], shards: int) -> None:
 
 
 def main() -> None:
+    global RESULTS_PATH
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--base", default=BASE)
     parser.add_argument("--run", action="store_true")
@@ -878,7 +883,7 @@ def main() -> None:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--reuse-tree", type=Path, help="copia desechable existente con target propio")
     parser.add_argument("--target-dir", type=Path,
-                        help="target ya existente dentro del repositorio para un worker aislado")
+                        help="target Cargo ya existente; con --reuse-tree, dentro del repositorio")
     parser.add_argument("--integration-test", help="binarios de integración separados por comas para supervivientes")
     parser.add_argument("--unit-filter", help="test unitario exacto para supervivientes")
     parser.add_argument("--unit-prefix", help="prefijo de tests unitarios para supervivientes")
@@ -889,18 +894,20 @@ def main() -> None:
                         help="perfil de la reejecución dirigida")
     parser.add_argument("--ids", help="IDs separados por comas para --integration-test")
     parser.add_argument("--results-copy", type=Path,
-                        help="resultado aislado para dos diferenciales simultáneos")
+                        help="ruta aislada de resultados para ejecución o recheck")
     parser.add_argument("--mutant-timeout", type=int, default=180,
                         help="plazo por mutante en reejecuciones dirigidas")
     parser.add_argument("--normalize-timeouts", action="store_true")
     parser.add_argument("--only", choices=("all", "test", "production"), default=DEFAULT_ONLY)
     args = parser.parse_args()
+    if args.run and args.results_copy is not None:
+        RESULTS_PATH = args.results_copy
     assert args.full_suite_timeout > 0
     target = None
     if args.target_dir is not None:
-        assert args.reuse_tree is not None
         target = args.target_dir.resolve(strict=True)
-        assert ROOT.resolve() in target.parents
+        if args.reuse_tree is not None:
+            assert ROOT.resolve() in target.parents
     population = enumerate_population(args.base, args.shard == 0)
     assert sum((args.seed_shards, args.refresh_shards, args.merge_shards)) <= 1
     if args.seed_shards or args.refresh_shards:
