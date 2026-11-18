@@ -5855,7 +5855,7 @@ mod b_tests {
                             _ => panic!("expected let"),
                         };
                         let prefixed = match value {
-                            Expr::Binary { left, right: _, .. } if left_mode => left.as_ref(),
+                            Expr::Binary { left, .. } if left_mode => left.as_ref(),
                             Expr::Binary { left: _, right, .. } => right.as_ref(),
                             _ => panic!("expected outer binary: {expression}"),
                         };
