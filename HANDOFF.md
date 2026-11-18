@@ -456,3 +456,8 @@ Se integra a main el Bloque 2 de J16 hasta `8ddd591` en `i07c-robustez` (S2 `sel
 ## F0-0003 — J16, Bloque 3 integrado (2026-11-17)
 
 Se integra a main el Bloque 3 de J16 hasta `f904b58` en `i07c-robustez`: batería independiente (46 parejas de §9, T01–T14, oráculo y matriz de 291 casos), pasada final de mutación de núcleo, pruebas de IR inválida en `src/ir/verify.rs::tests` y dos correcciones de núcleo por propuesta validada (`CallOnce`: NX-E0202 en la segunda llamada; préstamo de prueba liberado en flujo hipotético). D' dio PASS; objetivo 15/29, `validate.sh` exit 0. Filas `J16-B3-*` en `Pending.md`. J16 queda cerrado salvo S1b/S1c, que esperan al solver de I07c (requisito en `docs/I07c-PENDIENTE.md` §7).
+
+
+## F0-0005 — Plan, lagunas y Bloque B1a integrados (2026-11-18)
+
+Se integra a main el plan `docs/correcciones/F5-r1.md` r6 (PASS de B), la propuesta de lagunas H1–H5 ya insertada en el ADR F0-0005 (`f81b6ce`, decisión revertible del coordinador) y el Bloque B1a hasta `76b6f60` en `i07c-robustez`: L01a (operadores tipados y aritmética comprobada en IR), L02a (lógica y cortocircuito en IR), L03a (lugar compuesto exclusivo en IR), tabla única de precedencias `src/frontend/precedence.rs` y correcciones del parser oculto F5. D' dio PASS; objetivo 15/29, `validate.sh` exit 0. Ninguna fuente nueva se acepta antes de F5-L08. Filas `F5-B1A-*` en `Pending.md`. Siguen B2a y B3a (sin `types.rs`); el tipado (B1b/B2b/B3b) espera al Bloque II de I07c en main.
