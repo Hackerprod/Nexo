@@ -3442,7 +3442,7 @@ impl Parser<'_> {
                             continue 'work;
                         }
                         if self.at_text("?") {
-                            if min == 4 {
+                            if min == if self.f5_operators { 6 } else { 4 } {
                                 break;
                             }
                             if matches!(&lhs, Expr::If { .. }) {
@@ -3519,9 +3519,11 @@ impl Parser<'_> {
                         {
                             return Err(self.feature("traits_generics", self.peek().span.clone()));
                         }
-                        if matches!(op, "and" | "or")
-                            || (!self.f5_operators
-                                && matches!(op, "*" | "/" | "%" | "!=" | ">" | "<=" | ">="))
+                        if !self.f5_operators
+                            && matches!(
+                                op,
+                                "*" | "/" | "%" | "!=" | ">" | "<=" | ">=" | "and" | "or"
+                            )
                         {
                             let token = self.peek().clone();
                             return Err(self.syntax(
@@ -3531,11 +3533,21 @@ impl Parser<'_> {
                                 self.statement_start,
                             ));
                         }
-                        let prec = match op {
-                            "==" | "<" | "!=" | ">" | "<=" | ">=" => 1,
-                            "+" | "-" => 2,
-                            "*" | "/" | "%" if self.f5_operators => 3,
-                            _ => 0,
+                        let prec = if self.f5_operators {
+                            match op {
+                                "or" => 1,
+                                "and" => 2,
+                                "==" | "<" | "!=" | ">" | "<=" | ">=" => 3,
+                                "+" | "-" => 4,
+                                "*" | "/" | "%" => 5,
+                                _ => 0,
+                            }
+                        } else {
+                            match op {
+                                "==" | "<" => 1,
+                                "+" | "-" => 2,
+                                _ => 0,
+                            }
                         };
                         if prec < min || prec == 0 {
                             break;
@@ -3548,7 +3560,7 @@ impl Parser<'_> {
                                 None,
                             ));
                         }
-                        if prec == 1
+                        if prec == 3
                             && self.f5_operators
                             && matches!(&lhs, Expr::Binary { op, .. } if matches!(op.as_str(), "<" | "<=" | ">" | ">=" | "==" | "!="))
                         {
@@ -5626,5 +5638,20 @@ mod b_tests {
             error.primary_span.as_ref().map(|s| (s.start, s.end)),
             Some((19, 20))
         );
+    }
+
+    #[test]
+    fn hidden_logical_precedence_roundtrips_without_opening_public_profile() {
+        for source in [
+            "fn Main(){let b=false and true;}",
+            "fn Main(){let b=true or false;}",
+            "fn Main(){let b=false or true and 1<2;}",
+            "fn Main(){let b=(false or true) and false;}",
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(parse_f5_hidden("case.n", &printed).is_ok(), "{printed}");
+        }
+        assert!(parse_new_profile("case.n", "fn Main(){let b=true and false;}").is_err());
     }
 }

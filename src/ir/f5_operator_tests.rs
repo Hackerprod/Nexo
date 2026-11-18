@@ -12,6 +12,194 @@ use std::{
     process::{Command, Stdio},
 };
 
+#[test]
+fn logical_short_circuit_uses_verified_cfg_and_charges_only_the_taken_rhs() {
+    for (left, and, expected) in [
+        (false, true, 7),
+        (true, true, 9),
+        (true, false, 7),
+        (false, false, 9),
+    ] {
+        let source = "fn Main(){let b=if true then true else false;}";
+        let mut program = compile_scalar("case.n", source).unwrap();
+        let function = program
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        function.block.instructions[0].op = Op::ConstBool(left);
+        let skip = if and { 1 } else { 0 };
+        let rhs = 1 - skip;
+        function.blocks[skip].instructions[0].op = Op::ConstBool(!and);
+        function.blocks[rhs].instructions[0].op = Op::ConstBool(!left);
+        function.blocks[skip].instructions[0].charges.clear();
+        function.content_hash = model::content_hash(function);
+        verify::verify_program(&program).unwrap();
+        let execution = run_scalar(&program, Default::default());
+        assert_eq!(execution.outcome, Outcome::Unit);
+        assert_eq!(execution.work_consumed, expected, "left={left} and={and}");
+    }
+}
+
+#[test]
+fn logical_join_returns_the_selected_boolean() {
+    for (left, and, expected) in [
+        (false, true, "false"),
+        (true, true, "false"),
+        (true, false, "true"),
+        (false, false, "true"),
+    ] {
+        let mut program = compile_scalar(
+            "case.n",
+            "fn Main(){let b=if true then true else false;Print(b);}",
+        )
+        .unwrap();
+        let function = program
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        function.block.instructions[0].op = Op::ConstBool(left);
+        let skip = if and { 1 } else { 0 };
+        let rhs = 1 - skip;
+        function.blocks[skip].instructions[0].op = Op::ConstBool(!and);
+        function.blocks[rhs].instructions[0].op = Op::ConstBool(!left);
+        function.content_hash = model::content_hash(function);
+        verify::verify_program(&program).unwrap();
+        let execution = run_scalar(&program, Default::default());
+        assert_eq!(execution.outcome, Outcome::Unit);
+        assert_eq!(execution.observations.stdout(), vec![expected]);
+    }
+}
+
+#[test]
+fn logical_rhs_resources_follow_only_the_selected_cfg_edge() {
+    let source = "fn Main(){let b=if true then {let r=MockOpen(1);value:true;}else{value:false;};}";
+    let mut program = compile_scalar("case.n", source).unwrap();
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    function.block.instructions[0].op = Op::ConstBool(false);
+    function.content_hash = model::content_hash(function);
+    verify::verify_program(&program).unwrap();
+    let skipped = run_scalar(&program, Default::default());
+    assert_eq!(skipped.outcome, Outcome::Unit);
+    assert!(skipped.observations.events().is_empty());
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    function.block.instructions[0].op = Op::ConstBool(true);
+    function.content_hash = model::content_hash(function);
+    verify::verify_program(&program).unwrap();
+    let taken = run_scalar(&program, Default::default());
+    assert_eq!(taken.outcome, Outcome::Unit);
+    assert_eq!(taken.observations.events(), vec!["open:0:1", "close:0:1"]);
+}
+
+#[test]
+fn logical_rhs_static_io_effect_is_retained_on_an_omitted_edge() {
+    let source =
+        "fn Main() with no_io {let b=if false then {Print(9);value:true;}else{value:false;};}";
+    let result = compile_scalar("case.n", source);
+    match result {
+        Err(super::CompileError::Rejected(errors)) => {
+            assert!(errors.iter().any(|d| d.code == "NX-E0415"))
+        }
+        other => panic!("expected static IO rejection, got {other:?}"),
+    }
+}
+
+#[test]
+fn boolean_not_is_typed_and_executed_by_the_verified_ir() {
+    let mut program = compile_scalar("case.n", "fn Main(){Print(true==false);}").unwrap();
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let index = function
+        .block
+        .instructions
+        .iter()
+        .position(|i| matches!(i.op, Op::Binary { .. }))
+        .unwrap();
+    let Op::Binary { left, right, .. } = function.block.instructions[index].op else {
+        unreachable!()
+    };
+    let mut drop_right = function.block.instructions[index].clone();
+    drop_right.op = Op::DropValue(right);
+    drop_right.output = None;
+    drop_right.ty = None;
+    drop_right.charges.clear();
+    function.block.instructions.insert(index, drop_right);
+    function.block.instructions[index + 1].op = Op::Unary {
+        op: model::Unary::Not,
+        operand: left,
+    };
+    for (at, ins) in function.block.instructions.iter_mut().enumerate() {
+        ins.origin = model::OriginId(at);
+    }
+    for exit in &mut function.exit_info {
+        if exit.block == model::BlockId(0) && exit.index >= index {
+            exit.index += 1;
+        }
+    }
+    function.content_hash = model::content_hash(function);
+    verify::verify_program(&program).unwrap();
+    let execution = run_scalar(&program, Default::default());
+    assert_eq!(execution.outcome, Outcome::Unit);
+    assert_eq!(execution.observations.stdout(), vec!["false"]);
+}
+
+#[test]
+fn boolean_not_rejects_integer_operand_in_verified_ir() {
+    let mut program = compile_scalar("case.n", "fn Main(){Print(1+2);}").unwrap();
+    let function = program
+        .functions
+        .entries
+        .iter_mut()
+        .find(|f| f.name == "Main")
+        .unwrap();
+    let index = function
+        .block
+        .instructions
+        .iter()
+        .position(|i| matches!(i.op, Op::Binary { .. }))
+        .unwrap();
+    let Op::Binary { left, right, .. } = function.block.instructions[index].op else {
+        unreachable!()
+    };
+    let mut drop_right = function.block.instructions[index].clone();
+    drop_right.op = Op::DropValue(right);
+    drop_right.output = None;
+    drop_right.ty = None;
+    drop_right.charges.clear();
+    function.block.instructions.insert(index, drop_right);
+    function.block.instructions[index + 1].op = Op::Unary {
+        op: model::Unary::Not,
+        operand: left,
+    };
+    for (at, ins) in function.block.instructions.iter_mut().enumerate() {
+        ins.origin = model::OriginId(at);
+    }
+    for exit in &mut function.exit_info {
+        if exit.block == model::BlockId(0) && exit.index >= index {
+            exit.index += 1;
+        }
+    }
+    function.content_hash = model::content_hash(function);
+    assert_eq!(verify::verify_program(&program), Err("unary domain"));
+}
+
 fn run_binary(source: &str, op: Binary) -> crate::interp::Execution {
     let mut program = compile_scalar("case.n", source).unwrap();
     let function = program

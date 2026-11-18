@@ -155,9 +155,36 @@ pub enum Binary {
     NotEqual,
     And,
 }
+impl Binary {
+    pub(crate) fn result_type(self, operand: &Ty) -> Option<Ty> {
+        match self {
+            Self::Add | Self::Sub | Self::Mul | Self::Div | Self::Rem if *operand == Ty::I64 => {
+                Some(Ty::I64)
+            }
+            Self::Less | Self::LessEqual | Self::Greater | Self::GreaterEqual
+                if *operand == Ty::I64 =>
+            {
+                Some(Ty::Bool)
+            }
+            Self::Equal | Self::NotEqual if operand.copyable() => Some(Ty::Bool),
+            Self::And if *operand == Ty::Bool => Some(Ty::Bool),
+            _ => None,
+        }
+    }
+}
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Unary {
     Neg,
+    Not,
+}
+impl Unary {
+    pub(crate) fn result_type(self, operand: &Ty) -> Option<Ty> {
+        match self {
+            Self::Neg if *operand == Ty::I64 => Some(Ty::I64),
+            Self::Not if *operand == Ty::Bool => Some(Ty::Bool),
+            _ => None,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MatchLiteral {
@@ -903,6 +930,7 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     bytes.push(43);
                     bytes.push(match op {
                         Unary::Neg => 1,
+                        Unary::Not => 2,
                     });
                     number(&mut bytes, operand.0);
                 }

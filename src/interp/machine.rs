@@ -3295,23 +3295,24 @@ impl Machine {
                         };
                         Some(value)
                     }
-                    Op::Unary {
-                        op: Unary::Neg,
-                        operand,
-                    } => {
+                    Op::Unary { op, operand } => {
                         let taken = Self::take(&mut temps, *operand)?;
                         self.cells = self.cells.saturating_sub(taken.owned_cells());
-                        let Value::Int(value) = taken.as_value(&locals)? else {
-                            return Err("verified unary domain");
-                        };
-                        let Some(negated) = value.checked_neg() else {
-                            self.fault("R0505", &ins.span, vec![]);
-                            break;
+                        let result = match (op, taken.as_value(&locals)?) {
+                            (Unary::Neg, Value::Int(value)) => {
+                                let Some(negated) = value.checked_neg() else {
+                                    self.fault("R0505", &ins.span, vec![]);
+                                    break;
+                                };
+                                Value::Int(negated)
+                            }
+                            (Unary::Not, Value::Bool(value)) => Value::Bool(!value),
+                            _ => return Err("verified unary domain"),
                         };
                         if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
                             break;
                         }
-                        Some(Value::Int(negated))
+                        Some(result)
                     }
                     Op::WritePlace { .. } => {
                         self.write_place(ins, &mut locals, &edit_aliases, &mut temps)?;

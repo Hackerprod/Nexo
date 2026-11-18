@@ -682,7 +682,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
             } => {
                 let end = span.end as usize;
                 frames.push(Frame::At("?", Role::Suffix, end - 1, end));
-                frames.push(Frame::Visit(value, 3));
+                frames.push(Frame::Visit(value, 6));
             }
             Expr::Unary {
                 mode: prefix,
@@ -692,15 +692,17 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                 let text = mode(*prefix);
                 let start = span.start as usize;
                 at(out, text, Role::Word, start, start + text.len());
-                frames.push(Frame::Visit(value, 3));
+                frames.push(Frame::Visit(value, 6));
             }
             Expr::Binary {
                 op, left, right, ..
             } => {
                 let p = match op.as_str() {
-                    "*" | "/" | "%" => 3,
-                    "+" | "-" => 2,
-                    _ => 1,
+                    "or" => 1,
+                    "and" => 2,
+                    "*" | "/" | "%" => 5,
+                    "+" | "-" => 4,
+                    _ => 3,
                 };
                 let wrap = p < parent;
                 if wrap {
@@ -709,7 +711,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                 }
                 frames.push(Frame::Visit(right, p + 1));
                 frames.push(Frame::After(op, Role::Binary, left.span().end as usize));
-                frames.push(Frame::Visit(left, p + u8::from(p == 1)));
+                frames.push(Frame::Visit(left, p + u8::from(p == 3)));
             }
             Expr::Call { target, args, span } => {
                 let end = span.end as usize;
@@ -729,7 +731,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     Role::AttachedOpen,
                     target.span().end as usize,
                 ));
-                frames.push(Frame::Visit(target, 3));
+                frames.push(Frame::Visit(target, 6));
             }
             Expr::Index {
                 target,
@@ -745,7 +747,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     Role::AttachedOpen,
                     target.span().end as usize,
                 ));
-                frames.push(Frame::Visit(target, 3));
+                frames.push(Frame::Visit(target, 6));
             }
             Expr::If {
                 condition,
