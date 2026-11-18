@@ -9,6 +9,7 @@ use crate::diagnostic::{
 };
 use crate::ir::model::{
     Binary, Function, Intrinsic, LocalId, MatchLiteral, Op, ParameterMode, Program, TempId, Ty,
+    Unary,
 };
 use crate::ir::work::{WorkEvent, WorkPlanner};
 use crate::union::{UnionKind, VariantTag};
@@ -1293,6 +1294,10 @@ impl Machine {
             "R0001" | "R0002" => Operation::RuntimeLimit,
             "R0101" => Operation::ValueAdd,
             "R0103" => Operation::ValueSub,
+            "R0501" => Operation::ValueMul,
+            "R0502" | "R0503" => Operation::ValueDiv,
+            "R0504" => Operation::ValueRem,
+            "R0505" => Operation::ValueNeg,
             "R0102" => Operation::ValueIndex,
             "R0201" => Operation::AssertEq,
             _ => Operation::Fail,
@@ -1310,6 +1315,11 @@ impl Machine {
             message: match code {
                 "R0103" => "Desbordamiento de resta i64.",
                 "R0101" => "Desbordamiento de suma i64.",
+                "R0501" => "Desbordamiento de multiplicación i64.",
+                "R0502" => "División por cero.",
+                "R0503" => "Desbordamiento de división i64.",
+                "R0504" => "Resto por cero.",
+                "R0505" => "Desbordamiento de negación i64.",
                 _ => "Fallo del simulador.",
             }
             .into(),
@@ -2307,18 +2317,60 @@ impl Machine {
                     return Ok(None);
                 }
             },
+            (Binary::Mul, Value::Int(a), Value::Int(b)) => match a.checked_mul(*b) {
+                Some(n) => Value::Int(n),
+                None => {
+                    self.fault("R0501", &ins.span, vec![]);
+                    return Ok(None);
+                }
+            },
+            (Binary::Div, Value::Int(a), Value::Int(b)) => {
+                if *b == 0 {
+                    self.fault("R0502", &ins.span, vec![]);
+                    return Ok(None);
+                }
+                match a.checked_div(*b) {
+                    Some(n) => Value::Int(n),
+                    None => {
+                        self.fault("R0503", &ins.span, vec![]);
+                        return Ok(None);
+                    }
+                }
+            }
+            (Binary::Rem, Value::Int(a), Value::Int(b)) => {
+                if *b == 0 {
+                    self.fault("R0504", &ins.span, vec![]);
+                    return Ok(None);
+                }
+                Value::Int(if *a == i64::MIN && *b == -1 { 0 } else { a % b })
+            }
             (Binary::Less, Value::Int(a), Value::Int(b)) => {
                 if !self.charge_work(2, &ins.span) {
                     return Ok(None);
                 }
                 Value::Bool(a < b)
             }
+            (
+                Binary::LessEqual | Binary::Greater | Binary::GreaterEqual,
+                Value::Int(a),
+                Value::Int(b),
+            ) => {
+                if !self.charge_work(2, &ins.span) {
+                    return Ok(None);
+                }
+                Value::Bool(match op {
+                    Binary::LessEqual => a <= b,
+                    Binary::Greater => a > b,
+                    Binary::GreaterEqual => a >= b,
+                    _ => unreachable!(),
+                })
+            }
             (Binary::And, Value::Bool(a), Value::Bool(b)) => Value::Bool(*a && *b),
-            (Binary::Equal, a, b) => {
+            (Binary::Equal | Binary::NotEqual, a, b) => {
                 if !self.charge_work(equal_pairs(a, b), &ins.span) {
                     return Ok(None);
                 }
-                Value::Bool(a == b)
+                Value::Bool((a == b) == (*op == Binary::Equal))
             }
             _ => return Err("verified binary domain"),
         };
@@ -3242,6 +3294,24 @@ impl Machine {
                             break;
                         };
                         Some(value)
+                    }
+                    Op::Unary {
+                        op: Unary::Neg,
+                        operand,
+                    } => {
+                        let taken = Self::take(&mut temps, *operand)?;
+                        self.cells = self.cells.saturating_sub(taken.owned_cells());
+                        let Value::Int(value) = taken.as_value(&locals)? else {
+                            return Err("verified unary domain");
+                        };
+                        let Some(negated) = value.checked_neg() else {
+                            self.fault("R0505", &ins.span, vec![]);
+                            break;
+                        };
+                        if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                            break;
+                        }
+                        Some(Value::Int(negated))
                     }
                     Op::WritePlace { .. } => {
                         self.write_place(ins, &mut locals, &edit_aliases, &mut temps)?;

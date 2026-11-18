@@ -5,8 +5,9 @@ use std::sync::mpsc::{self, Sender};
 #[cfg(test)]
 pub(crate) fn measure_parse_work(source: &str) -> (Result<Ast, Box<Diagnostic>>, u64) {
     let work = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let result = parse_with_split_tokens_counted("scale.n", source, Some(work.clone()), false)
-        .map(|(ast, _)| ast);
+    let result =
+        parse_with_split_tokens_counted("scale.n", source, Some(work.clone()), false, false)
+            .map(|(ast, _)| ast);
     let units = work.load(std::sync::atomic::Ordering::Relaxed);
     (result, units)
 }
@@ -42,7 +43,7 @@ mod j16_parser_stack_probe {
         };
         std::thread::Builder::new()
             .stack_size(204 * 1024)
-            .spawn(move || parse_inner("probe.n", &source, None, true).unwrap())
+            .spawn(move || parse_inner("probe.n", &source, None, true, false).unwrap())
             .unwrap()
             .join()
             .unwrap();
@@ -60,7 +61,7 @@ mod j16_parser_stack_probe {
             .unwrap_or(204);
         let result = std::thread::Builder::new()
             .stack_size(kib * 1024)
-            .spawn(move || parse_inner("probe.n", &source, None, true))
+            .spawn(move || parse_inner("probe.n", &source, None, true, false))
             .unwrap()
             .join()
             .unwrap();
@@ -690,6 +691,7 @@ struct ParseJob {
     source: String,
     response: Sender<WorkerResult>,
     new_profile: bool,
+    f5_operators: bool,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
 }
 thread_local! {
@@ -715,6 +717,7 @@ pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
         local_scopes: Vec::new(),
         work: None,
         new_profile: false,
+        f5_operators: false,
         pending_match: None,
         guard_context: 0,
         callable_count: 0,
@@ -733,14 +736,19 @@ pub fn parse(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
 }
 
 pub(crate) fn parse_new_profile(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
-    parse_with_split_tokens_counted(file, source, None, true).map(|(ast, _)| ast)
+    parse_with_split_tokens_counted(file, source, None, true, false).map(|(ast, _)| ast)
+}
+
+#[cfg(test)]
+pub(crate) fn parse_f5_hidden(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
+    parse_with_split_tokens_counted(file, source, None, true, true).map(|(ast, _)| ast)
 }
 
 pub(crate) fn parse_with_split_tokens(
     file: &str,
     source: &str,
 ) -> Result<(Ast, Vec<usize>), Box<Diagnostic>> {
-    parse_with_split_tokens_counted(file, source, None, false)
+    parse_with_split_tokens_counted(file, source, None, false, false)
 }
 
 fn parse_with_split_tokens_counted(
@@ -748,6 +756,7 @@ fn parse_with_split_tokens_counted(
     source: &str,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
+    f5_operators: bool,
 ) -> Result<(Ast, Vec<usize>), Box<Diagnostic>> {
     if source.len() > 1_048_576 {
         let parser = Parser {
@@ -763,6 +772,7 @@ fn parse_with_split_tokens_counted(
             local_scopes: Vec::new(),
             work: None,
             new_profile,
+            f5_operators,
             pending_match: None,
             guard_context: 0,
             callable_count: 0,
@@ -782,6 +792,7 @@ fn parse_with_split_tokens_counted(
         response,
         work,
         new_profile,
+        f5_operators,
     };
     let sent = PARSE_WORKER.with(|slot| {
         let mut worker = slot.borrow_mut();
@@ -794,7 +805,13 @@ fn parse_with_split_tokens_counted(
                 .spawn(move || {
                     for job in jobs {
                         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                            parse_inner(&job.file, &job.source, job.work.clone(), job.new_profile)
+                            parse_inner(
+                                &job.file,
+                                &job.source,
+                                job.work.clone(),
+                                job.new_profile,
+                                job.f5_operators,
+                            )
                         }));
                         let _ = job.response.send(result);
                     }
@@ -819,6 +836,7 @@ fn parse_inner(
     source: &str,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
+    f5_operators: bool,
 ) -> ParseResult {
     #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(file);
@@ -848,6 +866,7 @@ fn parse_inner(
         local_scopes: Vec::new(),
         work,
         new_profile,
+        f5_operators,
         pending_match: None,
         guard_context: 0,
         callable_count: 0,
@@ -1178,7 +1197,7 @@ mod tests {
         let source = "fn F(){let x=1;}";
         let start = Instant::now();
         for _ in 0..COUNT {
-            std::hint::black_box(parse_inner("cost.n", source, None, false).unwrap());
+            std::hint::black_box(parse_inner("cost.n", source, None, false, false).unwrap());
         }
         let direct = start.elapsed();
         let before = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get);
@@ -1929,6 +1948,7 @@ struct Parser<'a> {
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
     pending_match: Option<(&'static str, Span)>,
+    f5_operators: bool,
     guard_context: usize,
     callable_count: usize,
 }
@@ -3499,10 +3519,10 @@ impl Parser<'_> {
                         {
                             return Err(self.feature("traits_generics", self.peek().span.clone()));
                         }
-                        if matches!(
-                            op,
-                            "*" | "/" | "%" | "!=" | ">" | "<=" | ">=" | "and" | "or"
-                        ) {
+                        if matches!(op, "and" | "or")
+                            || (!self.f5_operators
+                                && matches!(op, "*" | "/" | "%" | "!=" | ">" | "<=" | ">="))
+                        {
                             let token = self.peek().clone();
                             return Err(self.syntax(
                                 &token,
@@ -3512,8 +3532,9 @@ impl Parser<'_> {
                             ));
                         }
                         let prec = match op {
-                            "==" | "<" => 1,
+                            "==" | "<" | "!=" | ">" | "<=" | ">=" => 1,
                             "+" | "-" => 2,
+                            "*" | "/" | "%" if self.f5_operators => 3,
                             _ => 0,
                         };
                         if prec < min || prec == 0 {
@@ -3528,6 +3549,19 @@ impl Parser<'_> {
                             ));
                         }
                         if prec == 1
+                            && self.f5_operators
+                            && matches!(&lhs, Expr::Binary { op, .. } if matches!(op.as_str(), "<" | "<=" | ">" | ">=" | "==" | "!="))
+                        {
+                            let token = self.peek().clone();
+                            return Err(self.syntax(
+                                &token,
+                                "grammar.CompareExpr",
+                                &[";", "and", "or"],
+                                lhs.span().start as usize,
+                            ));
+                        }
+                        if prec == 1
+                            && !self.f5_operators
                             && matches!(&lhs, Expr::Binary { op, .. } if op == "<" || op == "==")
                         {
                             return Err(self.err(
@@ -5424,6 +5458,7 @@ mod b_tests {
             local_scopes: Vec::new(),
             work: None,
             new_profile: false,
+            f5_operators: false,
             pending_match: None,
             guard_context: 0,
             callable_count: 0,
@@ -5542,6 +5577,7 @@ mod b_tests {
                 local_scopes: Vec::new(),
                 work: None,
                 new_profile: false,
+                f5_operators: false,
                 pending_match: None,
                 guard_context: 0,
                 callable_count: 0,
@@ -5559,5 +5595,36 @@ mod b_tests {
             }
             assert_eq!(parser.statement_start, 97, "{source}");
         }
+    }
+
+    #[test]
+    fn hidden_f5_binary_parser_preserves_public_j_and_rejects_chains() {
+        for source in [
+            "fn Main(){let x=1*2+3/4%5;}",
+            "fn Main(){let x=1!=2;}",
+            "fn Main(){let x=1>=2;}",
+            "fn Main(){let x=(1<2)==true;}",
+        ] {
+            assert!(parse_f5_hidden("case.n", source).is_ok(), "{source}");
+        }
+        for source in [
+            "fn Main(){let x=1*2+3;}",
+            "fn Main(){let x=1+2*3;}",
+            "fn Main(){let x=(1<2)==true;}",
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(parse_f5_hidden("case.n", &printed).is_ok(), "{printed}");
+        }
+        assert!(parse_new_profile("case.n", "fn Main(){let x=1*2;}").is_err());
+        let source = "fn Main(){let x=1<2<3;}";
+        let error = parse_f5_hidden("case.n", source).unwrap_err();
+        assert_eq!(error.code, "NX-E0002");
+        assert_eq!(error.parser_context.as_deref(), Some("grammar.CompareExpr"));
+        assert_eq!(error.expected_tokens, [";", "and", "or"]);
+        assert_eq!(
+            error.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some((19, 20))
+        );
     }
 }

@@ -1437,6 +1437,7 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::DropBinding(_)
         | Op::DropLocal(_)
         | Op::DropValue(_)
+        | Op::Unary { .. }
         | Op::EndLoan(_) => 1,
         Op::BeginLoan { indexes, .. } => 1 + indexes.len() as u64,
         Op::BuildArray(values) | Op::CallIntrinsic { args: values, .. } => values.len() as u64,
@@ -5367,8 +5368,15 @@ impl Lower<'_> {
                             let operator = match state.op {
                                 "+" => Binary::Add,
                                 "-" => Binary::Sub,
+                                "*" => Binary::Mul,
+                                "/" => Binary::Div,
+                                "%" => Binary::Rem,
                                 "<" => Binary::Less,
+                                "<=" => Binary::LessEqual,
+                                ">" => Binary::Greater,
+                                ">=" => Binary::GreaterEqual,
                                 "==" => Binary::Equal,
+                                "!=" => Binary::NotEqual,
                                 _ => return Err(CompileError::InvalidIr("binary operation")),
                             };
                             let ty = state.inferred;
@@ -8726,9 +8734,14 @@ impl Lower<'_> {
                 Expr::Match(selection) => own.push(selection.span.clone()),
                 Expr::Closure(closure) => own.push(closure.fn_span.clone()),
             }
+            let event = if matches!(e, Expr::Binary { .. }) {
+                WorkEvent::OperatorExpression
+            } else {
+                WorkEvent::IfExpression
+            };
             self.pending_charges.extend(
                 own.into_iter()
-                    .map(|origin| WorkPlanner::charge(WorkEvent::IfExpression, origin)),
+                    .map(|origin| WorkPlanner::charge(event, origin)),
             );
         }
         // This threaded AST depth is not

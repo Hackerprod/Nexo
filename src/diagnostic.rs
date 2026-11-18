@@ -79,6 +79,8 @@ vocabulary!(Operation {
     EntryCheck => "entry.check", ValueCopy => "value.copy", OwnershipUse => "ownership.use",
     OwnershipAccess => "ownership.access", Branch => "flow.branch", Return => "flow.return",
     RuntimeLimit => "runtime.limit", ValueAdd => "value.add", ValueSub => "value.sub",
+    ValueMul => "value.mul", ValueDiv => "value.div", ValueRem => "value.rem",
+    ValueNeg => "value.neg",
     ValueIndex => "value.index", AssertEq => "intrinsic.assert_eq", Fail => "intrinsic.fail",
     FunctionCall => "function.call", IntrinsicCall => "intrinsic.call",
     BuildArray => "value.build_array", ValueDrop => "value.drop",
@@ -352,7 +354,8 @@ impl Diagnostic {
                 return fail("runtime rule must equal code");
             }
             if ![
-                "R0001", "R0002", "R0101", "R0102", "R0103", "R0201", "R0301",
+                "R0001", "R0002", "R0101", "R0102", "R0103", "R0201", "R0301", "R0501", "R0502",
+                "R0503", "R0504", "R0505",
             ]
             .contains(&self.code.as_str())
             {
@@ -776,6 +779,10 @@ impl Diagnostic {
                 "R0101" => Operation::ValueAdd,
                 "R0102" => Operation::ValueIndex,
                 "R0103" => Operation::ValueSub,
+                "R0501" => Operation::ValueMul,
+                "R0502" | "R0503" => Operation::ValueDiv,
+                "R0504" => Operation::ValueRem,
+                "R0505" => Operation::ValueNeg,
                 "R0201" => Operation::AssertEq,
                 "R0301" => Operation::Fail,
                 _ => return err("§13.12 unknown runtime operation code"),

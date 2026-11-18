@@ -1,6 +1,6 @@
 use super::model::{
     Access, BasicBlock, Binary, Function, IndexSite, Intrinsic, LoanPermission, LocalId, Op,
-    ParameterMode, Program, TempId, Terminator, Ty, WorkCharge,
+    ParameterMode, Program, TempId, Terminator, Ty, Unary, WorkCharge,
 };
 
 fn valid_span(function: &Function, span: &crate::diagnostic::Span) -> bool {
@@ -853,7 +853,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 Some(*child)
             }
             Op::Binary { op, left, right } => {
-                if *op != Binary::Equal
+                if !matches!(op, Binary::Equal | Binary::NotEqual)
                     && (borrowed.get(left.0) == Some(&true) || borrowed.get(right.0) == Some(&true))
                 {
                     return Err("borrowed arithmetic operand");
@@ -876,17 +876,54 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     return Err("operand type");
                 }
                 match op {
-                    Binary::Add | Binary::Sub | Binary::Less if l == Ty::I64 => {
-                        Some(if *op == Binary::Less {
-                            Ty::Bool
-                        } else {
-                            Ty::I64
-                        })
+                    Binary::Add
+                    | Binary::Sub
+                    | Binary::Mul
+                    | Binary::Div
+                    | Binary::Rem
+                    | Binary::Less
+                    | Binary::LessEqual
+                    | Binary::Greater
+                    | Binary::GreaterEqual
+                        if l == Ty::I64 =>
+                    {
+                        Some(
+                            if matches!(
+                                op,
+                                Binary::Less
+                                    | Binary::LessEqual
+                                    | Binary::Greater
+                                    | Binary::GreaterEqual
+                            ) {
+                                Ty::Bool
+                            } else {
+                                Ty::I64
+                            },
+                        )
                     }
-                    Binary::Equal if l.copyable() => Some(Ty::Bool),
+                    Binary::Equal | Binary::NotEqual if l.copyable() => Some(Ty::Bool),
                     Binary::And if l == Ty::Bool => Some(Ty::Bool),
                     _ => return Err("binary domain"),
                 }
+            }
+            Op::Unary {
+                op: Unary::Neg,
+                operand,
+            } => {
+                if borrowed.get(operand.0) == Some(&true) {
+                    return Err("borrowed arithmetic operand");
+                }
+                let value = take(
+                    *operand,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?;
+                if value != Ty::I64 {
+                    return Err("unary domain");
+                }
+                Some(Ty::I64)
             }
             Op::WritePlace { local, value } => {
                 let l = function.locals.get(local.0).ok_or("write local")?;
@@ -2594,12 +2631,35 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         return Err("operand type");
                     }
                     Some(match op {
-                        Binary::Add | Binary::Sub if left == Ty::I64 => Ty::I64,
-                        Binary::Less if left == Ty::I64 => Ty::Bool,
-                        Binary::Equal if left.copyable() => Ty::Bool,
+                        Binary::Add | Binary::Sub | Binary::Mul | Binary::Div | Binary::Rem
+                            if left == Ty::I64 =>
+                        {
+                            Ty::I64
+                        }
+                        Binary::Less
+                        | Binary::LessEqual
+                        | Binary::Greater
+                        | Binary::GreaterEqual
+                            if left == Ty::I64 =>
+                        {
+                            Ty::Bool
+                        }
+                        Binary::Equal | Binary::NotEqual if left.copyable() => Ty::Bool,
                         Binary::And if left == Ty::Bool => Ty::Bool,
                         _ => return Err("binary domain"),
                     })
+                }
+                Op::Unary {
+                    op: Unary::Neg,
+                    operand,
+                } => {
+                    if temps.info(*operand)?.is_borrowed {
+                        return Err("borrowed arithmetic operand");
+                    }
+                    if temps.read(*operand, true)? != Ty::I64 {
+                        return Err("unary domain");
+                    }
+                    Some(Ty::I64)
                 }
                 Op::WritePlace { local, value } => {
                     let local = function.locals.get(local.0).ok_or("write local")?;

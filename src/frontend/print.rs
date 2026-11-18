@@ -697,7 +697,11 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
             Expr::Binary {
                 op, left, right, ..
             } => {
-                let p = if op == "+" || op == "-" { 2 } else { 1 };
+                let p = match op.as_str() {
+                    "*" | "/" | "%" => 3,
+                    "+" | "-" => 2,
+                    _ => 1,
+                };
                 let wrap = p < parent;
                 if wrap {
                     inserted(out, "(", Role::Open);

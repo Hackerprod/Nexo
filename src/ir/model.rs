@@ -144,9 +144,20 @@ pub enum Access {
 pub enum Binary {
     Add,
     Sub,
+    Mul,
+    Div,
+    Rem,
     Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
     Equal,
+    NotEqual,
     And,
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unary {
+    Neg,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MatchLiteral {
@@ -285,6 +296,10 @@ pub enum Op {
         op: Binary,
         left: TempId,
         right: TempId,
+    },
+    Unary {
+        op: Unary,
+        operand: TempId,
     },
     WritePlace {
         local: LocalId,
@@ -873,9 +888,23 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Binary::Less => 3,
                         Binary::Equal => 4,
                         Binary::And => 5,
+                        Binary::Mul => 6,
+                        Binary::Div => 7,
+                        Binary::Rem => 8,
+                        Binary::LessEqual => 9,
+                        Binary::Greater => 10,
+                        Binary::GreaterEqual => 11,
+                        Binary::NotEqual => 12,
                     });
                     number(&mut bytes, left.0);
                     number(&mut bytes, right.0)
+                }
+                Op::Unary { op, operand } => {
+                    bytes.push(43);
+                    bytes.push(match op {
+                        Unary::Neg => 1,
+                    });
+                    number(&mut bytes, operand.0);
                 }
                 Op::WritePlace { local, value } => {
                     bytes.push(6);

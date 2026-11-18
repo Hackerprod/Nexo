@@ -122,6 +122,8 @@ pub(crate) fn cfg_forward_work(n: u64) {
 pub(crate) fn count_cfg_work(_: u64) {}
 
 #[cfg(test)]
+mod f5_operator_tests;
+#[cfg(test)]
 mod i05_tests;
 #[cfg(test)]
 mod i06_tests;

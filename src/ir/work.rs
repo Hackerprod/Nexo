@@ -22,6 +22,7 @@ pub(crate) enum WorkEvent {
     Binding,
     IfExpression,
     IndexExpression,
+    OperatorExpression,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -181,6 +182,13 @@ const CATALOG: &[WorkRule] = &[
         origin: WorkOrigin::IndexAccess,
         phase: WorkPhase::PreOrder,
         order: 15,
+    },
+    WorkRule {
+        event: WorkEvent::OperatorExpression,
+        units: 1,
+        origin: WorkOrigin::Expression,
+        phase: WorkPhase::PreOrder,
+        order: 14,
     },
 ];
 
