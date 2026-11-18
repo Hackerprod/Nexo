@@ -5894,4 +5894,83 @@ mod b_tests {
             }
         }
     }
+
+    #[test]
+    fn hidden_f5_arithmetic_and_comparison_precedence_has_adr_ast_shape() {
+        fn shape(expr: &Expr) -> String {
+            match expr {
+                Expr::Integer(value, _) => value.clone(),
+                Expr::Binary {
+                    op, left, right, ..
+                } => {
+                    format!("({op} {} {})", shape(left), shape(right))
+                }
+                _ => panic!("unexpected expression in precedence fixture: {expr:?}"),
+            }
+        }
+
+        // F5 §2.1: comparison < addition < multiplication, with the
+        // arithmetic operators left associative. The strings here encode
+        // the ADR tree independently of the parser and printer.
+        for add in ["+", "-"] {
+            for mul in ["*", "/", "%"] {
+                for (expression, expected_shape) in [
+                    (
+                        format!("1 {add} 2 {mul} 3"),
+                        format!("({add} 1 ({mul} 2 3))"),
+                    ),
+                    (
+                        format!("1 {mul} 2 {add} 3"),
+                        format!("({add} ({mul} 1 2) 3)"),
+                    ),
+                ] {
+                    let source = format!("fn Main(){{let x={expression};}}");
+                    let ast = parse_f5_hidden("case.n", &source).unwrap();
+                    let value = match &ast.functions[0].body.statements[0] {
+                        Statement::Let { value, .. } => value,
+                        _ => panic!("expected let"),
+                    };
+                    assert_eq!(shape(value), expected_shape, "{expression}");
+                    let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                    assert!(printed.contains(&expression), "{source}: {printed}");
+                    let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                    assert_eq!(
+                        crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                        printed
+                    );
+                }
+            }
+        }
+        for compare in ["<", "<=", ">", ">=", "==", "!="] {
+            for add in ["+", "-"] {
+                for mul in ["*", "/", "%"] {
+                    for (expression, expected_shape) in [
+                        (
+                            format!("1 {compare} 2 {add} 3 {mul} 4"),
+                            format!("({compare} 1 ({add} 2 ({mul} 3 4)))"),
+                        ),
+                        (
+                            format!("1 {add} 2 {mul} 3 {compare} 4"),
+                            format!("({compare} ({add} 1 ({mul} 2 3)) 4)"),
+                        ),
+                    ] {
+                        let source = format!("fn Main(){{let x={expression};}}");
+                        let ast = parse_f5_hidden("case.n", &source).unwrap();
+                        let value = match &ast.functions[0].body.statements[0] {
+                            Statement::Let { value, .. } => value,
+                            _ => panic!("expected let"),
+                        };
+                        assert_eq!(shape(value), expected_shape, "{expression}");
+                        let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                        assert!(printed.contains(&expression), "{source}: {printed}");
+                        let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                        assert_eq!(
+                            crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                            printed
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
