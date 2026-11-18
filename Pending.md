@@ -530,3 +530,19 @@ El Bloque 2 de J16 (plan `docs/correcciones/J16-r1.md` r5) entra en main hasta `
 | J16-B2-TWIN-HARNESS | El arnés `twin` no compila en main (cambió la firma de `run_scalar`); lo arregla la sesión de I07c en su rama cuando necesite medir. | Aviso de `nexo-a4`. | I07c |
 
 Pendiente de J16: Bloque 1b (S1b/S1c, aplazados hasta el solver de I07c) y Bloque 3 (batería integrada, pasada de mutación de núcleo y matriz de límites). El corte J16 NO está cerrado.
+
+
+## F0-0003 — J16, Bloque 3 (batería integrada, mutación de núcleo y corrección de `CallOnce`) integrado (2026-11-17)
+
+El Bloque 3 de J16 entra en main hasta `f904b58`: batería independiente (`tests/j16_integrated.rs` con 46 parejas de §9 y T01–T14; oráculo `scripts/j16_oracle.py` con esperados del ADR; matriz `docs/validation/F0-0003-J16-matrix.json` de 291 casos con 19 límites; pruebas unitarias de IR inválida dentro de `src/ir/verify.rs::tests`), pasada final de mutación de núcleo (`scripts/j16_mutations.py`, `docs/validation/F0-0003-J16-mutations.json`) y dos correcciones de núcleo por propuesta validada (`docs/correcciones/J16-b3-callonce-r1.md` v3.1): `9cb2da1` (la segunda llamada a una closure CallOnce ya consumida da NX-E0202 y no NX-E1107, ADR §9.2/C08) y `f904b58` (el préstamo de prueba del receptor se libera en flujo hipotético; quita un NX-E1105 falso tras `return`/`break`/`continue`). D' dio PASS (diferencial de 5.700 fuentes en el último paso y 6.643 en el anterior, sin diferencias debug/release; `validate.sh` exit 0, objetivo 15/29, RD 152/152). Informes en `.scratch/val-j16/b3-*`. Decisión del coordinador (revertible): las pruebas de IR inválida van en `src/ir/verify.rs::tests` porque el verificador es `pub(crate)`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| J16-B3-CALLONCE-SPAN | Con `while`, el NX-E0202 por repetir `move f()` usa como primario el prefijo completo `[67,75)` y no el nombre `[72,73)`; ya ocurría en la base. §9.2 no fija ese span. | Informe D `b3prop-informe-2`. | J16 (decisión) |
+| J16-B3-MUT-T0-GROUP | La inversión de `expression_shape_hint` para grupos sobrevive al testigo `mutation-grouped-array`; sin programa que difiera del ADR (1.361 programas probados). | Informes D y D'. | Endurecimiento |
+| J16-B3-MUT-F-PRINT | Quitar el cierre de constructor en `print_pattern` sobrevive al test de corpus canónico; sin programa normativo discriminante. | Informes D y D'. | Endurecimiento |
+| J16-B3-MUT-COPY | La inversión local de `copyable` en lowering sobrevive a C03 (la regla se rechaza antes en otra fase). | Informe D. | Endurecimiento |
+| J16-B3-MUT-V3-MC | V3 (segundo chequeo de resume en `verify_cfg`) y `mc-code` sin programa discriminante; quitar `end_call_loans` en la rama Analyze parece redundante para el veredicto observable. | Informe D'. | Endurecimiento |
+| J16-B3-E0202-AFLORA | Al desaparecer el NX-E1105 falso, en algunas fuentes afloran NX-E0202/E0201 que ese error enmascaraba (13 fuentes medidas por D'); documentar en el plan. | Informe D' `b3-dprime-informe-2`. | Documentación |
+
+Pendiente de J16: S1b/S1c (aplazados al solver de I07c; filas `J16-S1C-*`). El corte J16 queda cerrado en lo que no depende del solver de I07c; se reabre solo para S1b/S1c cuando el solver de I07c esté estable en main.

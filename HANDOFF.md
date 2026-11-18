@@ -451,3 +451,8 @@ Se integra a main el Bloque 1 de J16 (pilas explícitas en parser, names, tipos,
 ## F0-0003 — J16, Bloque 2 integrado (2026-11-17)
 
 Se integra a main el Bloque 2 de J16 hasta `8ddd591` en `i07c-robustez` (S2 `self` en names, S3 permisos/cardinalidad, S4 borde Err de `?` verificable con `BranchVariant`, S5 guardia de dispatch, más tres commits de regresiones). D' dio PASS; objetivo 15/29, `validate.sh` exit 0. `types.rs` intacto (I07c). Filas nuevas `J16-B2-*` en `Pending.md`. J16 sigue abierto: faltan el Bloque 3 y S1b/S1c (tras el solver de I07c).
+
+
+## F0-0003 — J16, Bloque 3 integrado (2026-11-17)
+
+Se integra a main el Bloque 3 de J16 hasta `f904b58` en `i07c-robustez`: batería independiente (46 parejas de §9, T01–T14, oráculo y matriz de 291 casos), pasada final de mutación de núcleo, pruebas de IR inválida en `src/ir/verify.rs::tests` y dos correcciones de núcleo por propuesta validada (`CallOnce`: NX-E0202 en la segunda llamada; préstamo de prueba liberado en flujo hipotético). D' dio PASS; objetivo 15/29, `validate.sh` exit 0. Filas `J16-B3-*` en `Pending.md`. J16 queda cerrado salvo S1b/S1c, que esperan al solver de I07c (requisito en `docs/I07c-PENDIENTE.md` §7).
