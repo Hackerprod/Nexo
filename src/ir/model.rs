@@ -133,6 +133,24 @@ impl Ty {
         }
         false
     }
+
+    pub fn allowed_array_element(&self) -> bool {
+        let mut pending = vec![self];
+        while let Some(ty) = pending.pop() {
+            match ty {
+                Self::I64 | Self::Bool | Self::Unit => {}
+                Self::Array(inner) => pending.push(inner),
+                Self::Union { first, second, .. } => {
+                    pending.push(first);
+                    if let Some(second) = second {
+                        pending.push(second);
+                    }
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Access {
@@ -199,6 +217,9 @@ pub enum Intrinsic {
     DropData,
     Fail,
     Len,
+    Push,
+    Pop,
+    JoinArrays,
     MockOpen,
     MockBlockingOpen,
     Inspect,
@@ -1022,6 +1043,9 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Intrinsic::DropData => 3,
                         Intrinsic::Fail => 4,
                         Intrinsic::Len => 5,
+                        Intrinsic::Push => 15,
+                        Intrinsic::Pop => 16,
+                        Intrinsic::JoinArrays => 17,
                         Intrinsic::MockOpen => 6,
                         Intrinsic::MockBlockingOpen => 7,
                         Intrinsic::Inspect => 8,

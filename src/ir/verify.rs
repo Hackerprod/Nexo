@@ -3,6 +3,32 @@ use super::model::{
     ParameterMode, Program, TempId, Terminator, Ty, WorkCharge,
 };
 
+fn array_intrinsic_type(
+    intrinsic: Intrinsic,
+    first: Ty,
+    second: Option<Ty>,
+) -> Result<Ty, &'static str> {
+    let Ty::Array(element) = first else {
+        return Err("array intrinsic domain");
+    };
+    if !element.allowed_array_element() {
+        return Err("array element domain");
+    }
+    match intrinsic {
+        Intrinsic::Push if second.as_ref() == Some(element.as_ref()) => Ok(Ty::Unit),
+        Intrinsic::Pop if second.is_none() => Ok(Ty::option(element)),
+        Intrinsic::JoinArrays
+            if second
+                .as_ref()
+                .is_some_and(|ty| matches!(ty, Ty::Array(other) if other == &element)) =>
+        {
+            Ok(Ty::Array(element))
+        }
+        Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays => Err("array intrinsic type"),
+        _ => Err("array intrinsic opcode"),
+    }
+}
+
 fn valid_span(function: &Function, span: &crate::diagnostic::Span) -> bool {
     span.file == function.source_file
         && span.start <= span.end
@@ -550,7 +576,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 let Some(Ty::Array(element)) = &ins.ty else {
                     return Err("array result type");
                 };
-                if !element.copyable() {
+                if !element.allowed_array_element() {
                     return Err("resource array");
                 }
                 for id in items {
@@ -1081,17 +1107,22 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 None
             }
             Op::CallIntrinsic { intrinsic, args } => {
+                let mut array_result = None;
                 let arity = match intrinsic {
                     Intrinsic::Print
                     | Intrinsic::DropData
                     | Intrinsic::Len
+                    | Intrinsic::Pop
                     | Intrinsic::MockOpen
                     | Intrinsic::MockBlockingOpen
                     | Intrinsic::Inspect
                     | Intrinsic::MockReadRecords
                     | Intrinsic::MockWriteI64
                     | Intrinsic::MockReply => 1,
-                    Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+                    Intrinsic::AssertEq
+                    | Intrinsic::TryAdd
+                    | Intrinsic::Push
+                    | Intrinsic::JoinArrays => 2,
                     Intrinsic::MockRequest => 0,
                     Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                 };
@@ -1123,6 +1154,18 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     };
                     if *intrinsic == Intrinsic::Len && !matches!(first, Ty::Array(_)) {
                         return Err("len domain");
+                    }
+                    if matches!(intrinsic, Intrinsic::Push | Intrinsic::Pop) {
+                        if loan_permission.get(first_id.0) != Some(&Some(LoanPermission::Inout)) {
+                            return Err("array edit permission");
+                        }
+                        let root = borrow_sources
+                            .get(first_id.0)
+                            .and_then(|root| *root)
+                            .ok_or("array edit root")?;
+                        active_exclusive[root.0] = active_exclusive[root.0]
+                            .checked_sub(1)
+                            .ok_or("exclusive loan count")?;
                     }
                     if matches!(intrinsic, Intrinsic::MockOpen | Intrinsic::MockBlockingOpen)
                         && first != Ty::I64
@@ -1175,9 +1218,30 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     {
                         return Err("try_add argument type");
                     }
+                    if matches!(intrinsic, Intrinsic::Push | Intrinsic::JoinArrays) {
+                        if *intrinsic == Intrinsic::Push && borrowed.get(args[1].0) == Some(&true) {
+                            return Err("array borrowed element");
+                        }
+                        let second = take(
+                            args[1],
+                            &temps,
+                            &mut live,
+                            &borrow_sources,
+                            &mut active_borrows,
+                        )?;
+                        if let Some(Some(loan)) = loan_id_by_temp.get(args[1].0) {
+                            pending_end.push(loan.0);
+                        }
+                        array_result = Some(array_intrinsic_type(*intrinsic, first, Some(second))?);
+                    } else if *intrinsic == Intrinsic::Pop {
+                        array_result = Some(array_intrinsic_type(*intrinsic, first, None)?);
+                    }
                 }
                 Some(match intrinsic {
                     Intrinsic::Len => Ty::I64,
+                    Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays => {
+                        array_result.ok_or("array intrinsic result")?
+                    }
                     Intrinsic::MockOpen => Ty::MockResource,
                     Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
                     Intrinsic::TryAdd => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),
@@ -2484,6 +2548,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     let Some(Ty::Array(element)) = &ins.ty else {
                         return Err("array result type");
                     };
+                    if !element.allowed_array_element() {
+                        return Err("resource array");
+                    }
                     for id in items {
                         if temps.read(*id, true)? != **element {
                             return Err("array element type");
@@ -2871,17 +2938,22 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     None
                 }
                 Op::CallIntrinsic { intrinsic, args } => {
+                    let mut array_result = None;
                     let arity = match intrinsic {
                         Intrinsic::Print
                         | Intrinsic::DropData
                         | Intrinsic::Len
+                        | Intrinsic::Pop
                         | Intrinsic::MockOpen
                         | Intrinsic::MockBlockingOpen
                         | Intrinsic::Inspect
                         | Intrinsic::MockReadRecords
                         | Intrinsic::MockWriteI64
                         | Intrinsic::MockReply => 1,
-                        Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+                        Intrinsic::AssertEq
+                        | Intrinsic::TryAdd
+                        | Intrinsic::Push
+                        | Intrinsic::JoinArrays => 2,
                         Intrinsic::MockRequest => 0,
                         Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                     };
@@ -2889,6 +2961,18 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         return Err("intrinsic arity");
                     }
                     let first = if let Some(id) = args.first() {
+                        if matches!(intrinsic, Intrinsic::Push | Intrinsic::Pop) {
+                            let info = temps.info(*id)?;
+                            if info.permission != Some(LoanPermission::Inout) {
+                                return Err("array edit permission");
+                            }
+                            let root = info.exclusive_root.ok_or("array edit root")?;
+                            let remaining = temps
+                                .exclusive(root)
+                                .checked_sub(1)
+                                .ok_or("exclusive loan count")?;
+                            temps.exclusive.insert(root, remaining);
+                        }
                         if *intrinsic == Intrinsic::DropData && temps.info(*id)?.is_borrowed {
                             return Err("drop borrowed value");
                         }
@@ -2951,8 +3035,36 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     {
                         return Err("print resource");
                     }
+                    if matches!(
+                        intrinsic,
+                        Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays
+                    ) {
+                        let second = if matches!(intrinsic, Intrinsic::Push | Intrinsic::JoinArrays)
+                        {
+                            if *intrinsic == Intrinsic::Push {
+                                let info = temps.info(args[1])?;
+                                if info.is_borrowed || info.exclusive_root.is_some() {
+                                    return Err("array borrowed element");
+                                }
+                            }
+                            if let Some(loan) = temps.info(args[1])?.loan {
+                                temps.pending_end.push(loan);
+                            }
+                            Some(temps.read(args[1], true)?)
+                        } else {
+                            None
+                        };
+                        array_result = Some(array_intrinsic_type(
+                            *intrinsic,
+                            first.ok_or("array intrinsic argument")?,
+                            second,
+                        )?);
+                    }
                     Some(match intrinsic {
                         Intrinsic::Len => Ty::I64,
+                        Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays => {
+                            array_result.ok_or("array intrinsic result")?
+                        }
                         Intrinsic::MockOpen => Ty::MockResource,
                         Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
                         Intrinsic::TryAdd => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),

@@ -9687,6 +9687,15 @@ fn intrinsic_parameters(intrinsic: Intrinsic) -> Vec<(String, ParameterMode, Ty)
             Ty::Never,
         )],
         Intrinsic::Len => vec![("a".into(), ParameterMode::Read, Ty::Never)],
+        Intrinsic::Push => vec![
+            ("a".into(), ParameterMode::Inout, Ty::Never),
+            ("value".into(), ParameterMode::Consume, Ty::Never),
+        ],
+        Intrinsic::Pop => vec![("a".into(), ParameterMode::Inout, Ty::Never)],
+        Intrinsic::JoinArrays => vec![
+            ("left".into(), ParameterMode::Read, Ty::Never),
+            ("right".into(), ParameterMode::Read, Ty::Never),
+        ],
         Intrinsic::Inspect => vec![("r".into(), ParameterMode::Read, Ty::Never)],
         Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
             vec![("label".into(), ParameterMode::Consume, Ty::I64)]
@@ -9709,13 +9718,14 @@ fn intrinsic_arity(intrinsic: Intrinsic) -> usize {
         Intrinsic::Print
         | Intrinsic::DropData
         | Intrinsic::Len
+        | Intrinsic::Pop
         | Intrinsic::MockOpen
         | Intrinsic::MockBlockingOpen
         | Intrinsic::Inspect
         | Intrinsic::MockReadRecords
         | Intrinsic::MockWriteI64
         | Intrinsic::MockReply => 1,
-        Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+        Intrinsic::AssertEq | Intrinsic::TryAdd | Intrinsic::Push | Intrinsic::JoinArrays => 2,
         Intrinsic::MockRequest | Intrinsic::Fail | Intrinsic::MockUnknown => 0,
     }
 }

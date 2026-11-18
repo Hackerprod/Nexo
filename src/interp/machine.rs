@@ -57,6 +57,23 @@ impl Execution {
     ) -> (Self, Vec<Vec<Option<String>>>) {
         capture_fault_local_snapshots(|| run_verified(program, mock_env, ExecutionLimits::NORMAL))
     }
+
+    pub(crate) fn run_with_fault_snapshots_cells64(
+        program: &Program,
+        mock_env: MockEnvironment,
+    ) -> (Self, Vec<Vec<Option<String>>>) {
+        capture_fault_local_snapshots(|| {
+            run_verified(
+                program,
+                mock_env,
+                ExecutionLimits {
+                    profile_id: "f0-0003-b-test-cells-64-v1",
+                    cells: 64,
+                    ..ExecutionLimits::NORMAL
+                },
+            )
+        })
+    }
 }
 #[derive(Clone, Copy, Debug)]
 pub struct ExecutionLimits {
@@ -125,7 +142,8 @@ enum Value {
     Int(i64),
     Bool(bool),
     Unit,
-    Array(Rc<Vec<Value>>, u64),
+    /// Elements, cached value cells, and logical slot capacity.
+    Array(Rc<Vec<Value>>, u64, u64),
     Union {
         kind: UnionKind,
         tag: VariantTag,
@@ -183,7 +201,9 @@ impl PartialEq for Value {
                     },
                 ) if (a, al, ab) == (b, bl, bb) => {}
                 (Self::Loan(a), Self::Loan(b)) if a == b => {}
-                (Self::Array(a, ac), Self::Array(b, bc)) if ac == bc && a.len() == b.len() => {
+                (Self::Array(a, ac, _), Self::Array(b, bc, _))
+                    if ac == bc && a.len() == b.len() =>
+                {
                     pending.extend(
                         left.children(BorrowWalk::Structure)
                             .into_iter()
@@ -301,7 +321,7 @@ fn descend_owned(
             payload: Some(value),
             ..
         } => pending.push((*value, close)),
-        Value::Array(values, _) => {
+        Value::Array(values, _, _) => {
             if let Ok(values) = Rc::try_unwrap(values) {
                 pending.extend(values.into_iter().map(|value| (value, close)));
             }
@@ -351,7 +371,7 @@ fn drop_shadow(value: Value) {
 impl Value {
     fn children(&self, policy: BorrowWalk) -> Vec<&Self> {
         match self {
-            Self::Array(items, _)
+            Self::Array(items, _, _)
                 if matches!(
                     policy,
                     BorrowWalk::Structure | BorrowWalk::Display | BorrowWalk::PairWork
@@ -456,7 +476,7 @@ impl Value {
     fn copy_value(&self, deep_arrays: bool) -> Self {
         enum Action<'a> {
             Visit(&'a Value),
-            Array(usize, u64),
+            Array(usize, u64, u64),
             Union(UnionKind, VariantTag, bool),
             Closure(u64, usize),
             Generator(&'a GeneratorValue, usize),
@@ -478,11 +498,11 @@ impl Value {
                     blocking: *blocking,
                 }),
                 Action::Visit(Self::Loan(loan)) => built.push(Self::Loan(loan.clone())),
-                Action::Visit(Self::Array(items, cells)) if !deep_arrays => {
-                    built.push(Self::Array(Rc::clone(items), *cells));
+                Action::Visit(Self::Array(items, cells, capacity)) if !deep_arrays => {
+                    built.push(Self::Array(Rc::clone(items), *cells, *capacity));
                 }
-                Action::Visit(value @ Self::Array(items, cells)) => {
-                    actions.push(Action::Array(items.len(), *cells));
+                Action::Visit(value @ Self::Array(items, cells, _)) => {
+                    actions.push(Action::Array(items.len(), *cells, items.len() as u64));
                     actions.extend(
                         value
                             .children(BorrowWalk::Structure)
@@ -517,9 +537,9 @@ impl Value {
                     actions.push(Action::Generator(generator, count));
                     actions.extend(children.into_iter().rev().map(Action::Visit));
                 }
-                Action::Array(len, cells) => {
+                Action::Array(len, cells, capacity) => {
                     let items = built.split_off(built.len() - len);
-                    built.push(Self::Array(Rc::new(items), cells));
+                    built.push(Self::Array(Rc::new(items), cells, capacity));
                 }
                 Action::Union(kind, tag, has_payload) => {
                     let payload = has_payload.then(|| Box::new(built.pop().unwrap()));
@@ -632,7 +652,7 @@ impl Value {
         while let Some((value, ty)) = pending.pop() {
             match (value, ty) {
                 (Self::Int(_), Ty::I64) | (Self::Bool(_), Ty::Bool) | (Self::Unit, Ty::Unit) => {}
-                (Self::Array(xs, _), Ty::Array(element)) => {
+                (Self::Array(xs, _, _), Ty::Array(element)) => {
                     pending.extend(xs.iter().map(|value| (value, element.as_ref())));
                 }
                 (Self::Union { kind, tag, payload }, ty) => {
@@ -672,7 +692,7 @@ impl Value {
         let mut pending = vec![self];
         while let Some(value) = pending.pop() {
             total += match value {
-                Self::Array(_, cells) => *cells,
+                Self::Array(_, cells, _) => *cells,
                 _ => 1,
             };
             pending.extend(value.children(BorrowWalk::Cells));
@@ -680,13 +700,13 @@ impl Value {
         total
     }
     fn element(&self, index: i64) -> Option<&Value> {
-        let Self::Array(xs, _) = self else {
+        let Self::Array(xs, _, _) = self else {
             return None;
         };
         xs.get(usize::try_from(index).ok()?)
     }
     fn element_mut(&mut self, index: i64) -> Option<&mut Value> {
-        let Self::Array(xs, _) = self else {
+        let Self::Array(xs, _, _) = self else {
             return None;
         };
         Rc::get_mut(xs)?.get_mut(usize::try_from(index).ok()?)
@@ -698,7 +718,7 @@ fn equal_pairs(left: &Value, right: &Value) -> u64 {
     while let Some((left, right)) = pending.pop() {
         work = work.saturating_add(2);
         match (left, right) {
-            (Value::Array(a, _), Value::Array(b, _)) if a.len() == b.len() => {
+            (Value::Array(a, _, _), Value::Array(b, _, _)) if a.len() == b.len() => {
                 // The published work model stops at the first unequal item.
                 // Check that boundary iteratively before scheduling children.
                 let mut selected = Vec::new();
@@ -903,7 +923,7 @@ impl MockReplyValue {
                     })
                     .collect();
                 let cells = 1 + (values.len() as u64) * 2;
-                (true, Value::Array(Rc::new(values), cells))
+                (true, Value::Array(Rc::new(values), cells, (cells - 1) / 2))
             }
             Self::Read(Err(n)) | Self::Scalar(Err(n)) => (false, Value::Int(n)),
             Self::Scalar(Ok(n)) => (true, Value::Int(n)),
@@ -1295,6 +1315,8 @@ impl Machine {
         for value in values.drain(..).rev() {
             if matches!(&value, TempValue::Own(owned) if owned.owns_resource()) {
                 self.dispose(value.into_owned()?)?;
+            } else if let TempValue::Own(owned) = value {
+                drop_shadow(owned);
             }
         }
         Ok(())
@@ -1947,11 +1969,119 @@ impl Machine {
                 return Ok(None);
             }
             Intrinsic::Len => {
-                let Value::Array(xs, _) = values[0].as_value(locals)? else {
+                let Value::Array(xs, _, _) = values[0].as_value(locals)? else {
                     return Err("len domain");
                 };
                 let n = i64::try_from(xs.len()).map_err(|_| "array length overflow")?;
                 Value::Int(n)
+            }
+            Intrinsic::Push => {
+                let TempValue::Exclusive(root, path) = &values[0] else {
+                    return Err("push receiver loan");
+                };
+                let (root, path) = (*root, path.clone());
+                let (length, capacity) =
+                    match get_path(locals[root.0].as_ref().ok_or("push root")?, &path) {
+                        Some(Value::Array(items, _, capacity)) => (items.len() as u64, *capacity),
+                        _ => return Err("push array"),
+                    };
+                let grown = if length == capacity {
+                    capacity
+                        .checked_mul(2)
+                        .map(|n| n.max(1))
+                        .ok_or("array capacity overflow")?
+                } else {
+                    capacity
+                };
+                if length == capacity && !self.charge_work(length, &ins.span) {
+                    self.dispose_intrinsic_resources(&mut values)?;
+                    return Ok(None);
+                }
+                let prepared_cells = values[1].owned_cells();
+                let result_cells = prepared_cells.checked_add(1).ok_or("push cells overflow")?;
+                if !self.charge_work(1, &ins.span) || !self.reserve_cells(result_cells, &ins.span) {
+                    self.dispose_intrinsic_resources(&mut values)?;
+                    return Ok(None);
+                }
+                pre_reserved_output = true;
+                precharged_output_work = true;
+                let element = values.pop().ok_or("push argument")?.into_owned()?;
+                let added = element.cells();
+                if added != prepared_cells {
+                    return Err("push prepared cell count");
+                }
+                let root_value = locals[root.0].as_mut().ok_or("push root")?;
+                let selected = get_mut_path(root_value, &path).ok_or("push path")?;
+                let Value::Array(items, cells, capacity) = selected else {
+                    return Err("push array");
+                };
+                let buffer = Rc::get_mut(items).ok_or("shared array owner")?;
+                if length == *capacity {
+                    // Keep the old allocation live until the replacement has
+                    // space, then move handles once in source order.
+                    let mut replacement = Vec::with_capacity(
+                        usize::try_from(grown).map_err(|_| "array capacity overflow")?,
+                    );
+                    replacement.append(buffer);
+                    *buffer = replacement;
+                }
+                buffer.push(element);
+                *cells = cells.checked_add(added).ok_or("array cells overflow")?;
+                *capacity = grown;
+                adjust_size(root_value, &path, 0, added);
+                Value::Unit
+            }
+            Intrinsic::Pop => {
+                let TempValue::Exclusive(root, path) = &values[0] else {
+                    return Err("pop receiver loan");
+                };
+                let (root, path) = (*root, path.clone());
+                // Reserve the Option tag before changing the source array.
+                if !self.charge_work(1, &ins.span) || !self.cell(&ins.span) {
+                    return Ok(None);
+                }
+                pre_reserved_output = true;
+                precharged_output_work = true;
+                let root_value = locals[root.0].as_mut().ok_or("pop root")?;
+                let selected = get_mut_path(root_value, &path).ok_or("pop path")?;
+                let Value::Array(items, cells, _) = selected else {
+                    return Err("pop array");
+                };
+                let payload = Rc::get_mut(items).ok_or("shared array owner")?.pop();
+                if let Some(value) = &payload {
+                    let removed = value.cells();
+                    *cells = cells.checked_sub(removed).ok_or("array cells underflow")?;
+                    adjust_size(root_value, &path, removed, 0);
+                }
+                Value::Union {
+                    kind: UnionKind::Option,
+                    tag: VariantTag(u8::from(payload.is_some())),
+                    payload: payload.map(Box::new),
+                }
+            }
+            Intrinsic::JoinArrays => {
+                let (left, right) = (values[0].as_value(locals)?, values[1].as_value(locals)?);
+                let (Value::Array(left, _, _), Value::Array(right, _, _)) = (left, right) else {
+                    return Err("join array domain");
+                };
+                let length = left
+                    .len()
+                    .checked_add(right.len())
+                    .ok_or("join length overflow")?;
+                let copied_cells = left
+                    .iter()
+                    .chain(right.iter())
+                    .fold(0u64, |sum, value| sum.saturating_add(value.cells()));
+                let total = copied_cells.checked_add(1).ok_or("join cells overflow")?;
+                if !self.charge_work(total, &ins.span) || !self.reserve_cells(total, &ins.span) {
+                    self.dispose_intrinsic_resources(&mut values)?;
+                    return Ok(None);
+                }
+                pre_reserved_output = true;
+                precharged_output_work = true;
+                let mut joined = Vec::with_capacity(length);
+                joined.extend(left.iter().chain(right.iter()).map(Value::deep_copy));
+                Value::Array(Rc::new(joined), total, length as u64)
             }
             Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
                 let Value::Int(label) = values[0].as_value(locals)? else {
@@ -2050,6 +2180,8 @@ impl Machine {
                 temps.insert(id.0, Some(value));
             } else if matches!(&value, TempValue::Own(owned) if owned.owns_resource()) {
                 self.dispose(value.into_owned()?)?;
+            } else if let TempValue::Own(owned) = value {
+                drop_shadow(owned);
             }
         }
         if *intrinsic != Intrinsic::Print
@@ -3217,7 +3349,7 @@ impl Machine {
                             self.cells = self.cells.saturating_sub(total - 1);
                             break;
                         }
-                        Some(Value::Array(Rc::new(xs), total))
+                        Some(Value::Array(Rc::new(xs), total, items.len() as u64))
                     }
                     Op::BuildClosure { .. } => {
                         let Some(value) = self.build_closure(
@@ -3727,7 +3859,7 @@ fn first_bad_index(mut node: &Value, path: &[i64]) -> Option<usize> {
 fn adjust_size(root: &mut Value, path: &[i64], old: u64, new: u64) {
     let mut node = root;
     for &index in path {
-        let Value::Array(xs, cells) = node else {
+        let Value::Array(xs, cells, _) = node else {
             return;
         };
         *cells = cells.saturating_sub(old).saturating_add(new);
@@ -4065,10 +4197,10 @@ mod tests {
     }
     #[test]
     fn ordinary_array_read_shares_storage_but_owner_copy_is_deep() {
-        let original = Value::Array(Rc::new(vec![Value::Int(1)]), 2);
+        let original = Value::Array(Rc::new(vec![Value::Int(1)]), 2, 1);
         let borrowed = original.clone();
         let owned = original.deep_copy();
-        let (Value::Array(a, _), Value::Array(b, _), Value::Array(c, _)) =
+        let (Value::Array(a, _, _), Value::Array(b, _, _), Value::Array(c, _, _)) =
             (&original, &borrowed, &owned)
         else {
             panic!("arrays")
