@@ -27,6 +27,9 @@ ROOT = Path(__file__).resolve().parents[1]
 BASE = "b506d7d"
 OUTPUT = ROOT / "docs/validation/i07c-mutations/population.json"
 RESULTS_PATH: Path | None = None
+# Los plazos son andamiaje: con varios fragmentos en paralelo se escalan sin cambiar
+# la población ni la regla de clasificación.
+TIMEOUT_SCALE = float(os.environ.get("I07C_MUT_TIMEOUT_SCALE", "1"))
 DIRECTORIES = ("src/check/", "src/ir/")
 DEFAULT_ONLY = "all"
 TARGETED_TEST: str | None = None
@@ -364,6 +367,7 @@ def source_line_offsets(path: str) -> tuple[int, ...]:
 
 def run_limited(command: list[str], tree: Path, env: dict, seconds: int):
     """Devuelve None al agotar plazo y termina solo el subárbol creado."""
+    seconds = seconds * TIMEOUT_SCALE
     options = ({"creationflags": subprocess.CREATE_NEW_PROCESS_GROUP}
                if os.name == "nt" else {"start_new_session": True})
     with tempfile.TemporaryFile() as output_file:
