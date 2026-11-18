@@ -617,6 +617,8 @@ impl Diagnostic {
             "expected_arity",
             "found_arity",
             "scrutinee_type",
+            "scrutinee_constructor",
+            "found_constructor",
             "required_mode",
             "requested_mode",
             "property_evidence",
@@ -1056,9 +1058,15 @@ impl Diagnostic {
             "NX-E0004" => &["invalid_bytes_hex"],
             "NX-E0006" => &["pending_scope", "type_spelling"],
             "NX-E0101" => &["use_kind"],
+            "NX-E0102" if cause == Some("constructor_shape") => {
+                &["expected_type", "found_constructor"]
+            }
             "NX-E0102" | "NX-E1303" => &["expected_type", "found_type"],
             "NX-E1325" if cause == Some("constructor_arity") => {
                 &["constructor", "expected_arity", "found_arity"]
+            }
+            "NX-E1325" if cause == Some("constructor_shape") => {
+                &["constructor", "scrutinee_constructor"]
             }
             "NX-E1325" => &["constructor", "scrutinee_type"],
             "NX-E1304" if cause == Some("non_exhaustive") => &["missing_pattern"],
@@ -1116,7 +1124,13 @@ impl Diagnostic {
                     .into(),
             ));
         }
-        if matches!(code, "NX-E0102" | "NX-E1303") && (!has("expected_type") || !has("found_type"))
+        if matches!(code, "NX-E0102" | "NX-E1303")
+            && (!has("expected_type")
+                || if cause == Some("constructor_shape") {
+                    !has("found_constructor")
+                } else {
+                    !has("found_type")
+                })
         {
             return Err(SchemaError(format!(
                 "§13.6/§13.17 {code} requires expected_type and found_type"
@@ -1390,7 +1404,12 @@ impl Diagnostic {
             ));
         }
         if matches!(code, "NX-E0102" | "NX-E1303") {
-            for key in ["expected_type", "found_type"] {
+            let keys: &[&str] = if cause == Some("constructor_shape") {
+                &["expected_type"]
+            } else {
+                &["expected_type", "found_type"]
+            };
+            for &key in keys {
                 let expected_position = key == "expected_type";
                 if !matches!(self.data.get(key), Some(DataValue::String(value)) if valid_diagnostic_type(value, expected_position))
                 {
@@ -2163,6 +2182,8 @@ fn subcause_description(code: &str, subcause: &str) -> Option<String> {
             "Constructor de patrón de unión con aridad incorrecta."
         }
         ("NX-E1325", "constructor_type") => "Constructor de patrón de otra unión nominal.",
+        ("NX-E1325", "constructor_shape") => "Constructor incompatible con la forma seleccionada.",
+        ("NX-E0102", "constructor_shape") => "La forma del valor no coincide con el tipo esperado.",
         ("NX-E1326", "break_outside_loop") => "break requiere un bucle en este invocable.",
         ("NX-E1326", "continue_outside_loop") => "continue requiere un bucle en este invocable.",
         ("NX-E1305", "guard_effect") => {
@@ -2511,6 +2532,10 @@ fn published_source(code: &str, subcause: Option<&str>) -> (&'static str, &'stat
             "fn Main(){let o:Option<I64>=Some(1);match o{Ok(n)=>{},_=>{}}}",
             "fn Main(){let o:Option<I64>=Some(1);match o{Some(n)=>{},_=>{}}}",
         ),
+        ("NX-E1325", Some("constructor_shape")) => (
+            "fn Main(){let l0=(if true then {return;} else {return;});match l0{Some(x)=>{},Ok(y)=>{},_=>{}}}",
+            "fn Main(){let l0=(if true then {return;} else {return;});match l0{Some(x)=>{},None=>{}}}",
+        ),
         ("NX-E1326", Some("break_outside_loop")) => {
             ("fn Main(){break;}", "fn Main(){while false{break;}}")
         }
@@ -2562,6 +2587,10 @@ fn published_source(code: &str, subcause: Option<&str>) -> (&'static str, &'stat
         ("NX-E0102", Some("type_mismatch")) => (
             "fn F()->I64{return true;} fn Main(){}",
             "fn F()->I64{return 1;} fn Main(){}",
+        ),
+        ("NX-E0102", Some("constructor_shape")) => (
+            "fn Main(){let l0=(if true then {return;} else {return;});match l0{Some(x)=>{},_=>{}}let b:Bool=l0;}",
+            "fn Main(){let l0=(if true then {return;} else {return;});match l0{Some(x)=>{},_=>{}}let b:Option<I64>=l0;}",
         ),
         ("NX-E0102", Some("not_indexable")) => {
             ("fn Main(){let x=1[0];}", "fn Main(){let x=[1][0];}")
@@ -2808,10 +2837,16 @@ static CATALOG: &[CatalogEntry] = &[
     },
     CatalogEntry {
         code: "NX-E0102",
-        description: "type_mismatch: tipo incompatible; not_indexable: indexación no aplicable; resource_required: operación que requiere recurso; field_requires_grouped_call: miembro campo usado en forma de llamada de método x.m(); la invocación del campo se escribe (x.m)() (D13 G.1, C52d/C52c).",
+        description: "type_mismatch: tipo incompatible; constructor_shape: forma parcial de patrón incompatible con una igualdad concreta posterior; not_indexable: indexación no aplicable; resource_required: operación que requiere recurso; field_requires_grouped_call: miembro campo usado en forma de llamada de método x.m(); la invocación del campo se escribe (x.m)() (D13 G.1, C52d/C52c).",
         subcauses: &[
             CatalogSubcause {
                 name: "type_mismatch",
+                availability: "in_profile",
+                stage: "types",
+                operation: "types.check",
+            },
+            CatalogSubcause {
+                name: "constructor_shape",
                 availability: "in_profile",
                 stage: "types",
                 operation: "types.check",
@@ -3712,6 +3747,12 @@ static CATALOG: &[CatalogEntry] = &[
             },
             CatalogSubcause {
                 name: "constructor_type",
+                availability: "in_profile",
+                stage: "types",
+                operation: "types.check",
+            },
+            CatalogSubcause {
+                name: "constructor_shape",
                 availability: "in_profile",
                 stage: "types",
                 operation: "types.check",

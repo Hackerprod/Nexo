@@ -149,7 +149,7 @@ fn explain_json_entries_are_comma_separated_in_a_single_object() {
     );
     let json = String::from_utf8(output.stdout).unwrap();
     let entries = json.matches(r#""explanation_id":"#).count();
-    assert_eq!(entries, 4);
+    assert_eq!(entries, 5);
     assert!(json.starts_with(
         r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","code":"NX-E0102","entries":[{"subcause":"#
     ));

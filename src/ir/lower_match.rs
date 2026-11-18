@@ -987,6 +987,9 @@ impl Lower<'_> {
         path: &mut Vec<VariantTag>,
         tests: &mut Vec<TempId>,
     ) -> Result<(), CompileError> {
+        if self.emission == EmissionMode::Analyze && *ty == Ty::Never {
+            return Ok(());
+        }
         let mut current_ty = ty;
         let mut current_pattern = pattern;
         let original_path_len = path.len();
@@ -1101,6 +1104,13 @@ impl Lower<'_> {
             let mut ty = ty;
             let mut pattern = pattern;
             while let Pattern::Constructor { name, args, .. } = pattern {
+                if self.emission == EmissionMode::Analyze && *ty == Ty::Never {
+                    if let Some(arg) = args.first() {
+                        pattern = arg;
+                        continue;
+                    }
+                    break;
+                }
                 let union = ty
                     .union_descriptor()
                     .ok_or(CompileError::InvalidIr("pattern union"))?;
@@ -1127,7 +1137,10 @@ impl Lower<'_> {
                                 kind: UnionKind::Option,
                                 ..
                             }
-                        )) =>
+                        ))
+                        && !(self.emission == EmissionMode::Analyze
+                            && *ty == Ty::Never
+                            && !self.inferred_bindings.bindings.contains_key(&span.start)) =>
                 {
                     if !source.provisional
                         && *mode == Some(Mode::Consume)

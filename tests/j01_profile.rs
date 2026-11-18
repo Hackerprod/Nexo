@@ -300,3 +300,14 @@ fn j01_explain_describes_each_constructor_and_loop_subcause_separately() {
         assert_ne!(first[0].description, second[0].description);
     }
 }
+
+#[test]
+fn j01_explain_describes_partial_constructor_shapes() {
+    for code in ["NX-E1325", "NX-E0102"] {
+        let rows = nexo::diagnostic::explain(code, Some("constructor_shape")).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert!(rows[0].description.contains("forma"));
+        assert!(rows[0].negative_source.contains("match l0"));
+        assert!(rows[0].positive_source.contains("match l0"));
+    }
+}

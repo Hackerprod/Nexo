@@ -234,6 +234,8 @@ fn match_explanations_carry_paired_b_sources() {
         ("NX-E1304", "unreachable_arm"),
         ("NX-E1325", "constructor_arity"),
         ("NX-E1325", "constructor_type"),
+        ("NX-E1325", "constructor_shape"),
+        ("NX-E0102", "constructor_shape"),
         ("NX-E1326", "break_outside_loop"),
         ("NX-E1326", "continue_outside_loop"),
     ] {

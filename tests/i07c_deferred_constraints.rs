@@ -4,6 +4,149 @@ use nexo::ir::{CompileError, check_scalar, compile_scalar};
 
 const DV: &str = "(if true then {return;} else {return;})";
 
+#[test]
+fn pattern_shape_conflicts_belong_to_later_equality() {
+    for (body, expected, primary, expected_span, origin_span) in [
+        (
+            "let l0=DV;match l0{Some(x)=>{},_=>{}}let b:Bool=l0;",
+            "Bool",
+            (95, 97),
+            (90, 94),
+            (66, 73),
+        ),
+        (
+            "let l0=DV;match l0{Some(x)=>{},_=>{}}let b:Result<I64,I64>=l0;",
+            "Result<I64,I64>",
+            (106, 108),
+            (90, 105),
+            (66, 73),
+        ),
+        (
+            "let l0=DV;match l0{Ok(Some(x))=>{},_=>{}}let b:Result<Bool,I64>=l0;",
+            "Result<Bool,I64>",
+            (111, 113),
+            (94, 110),
+            (69, 76),
+        ),
+    ] {
+        let src = source(body);
+        for execute in [false, true] {
+            let Err(CompileError::Rejected(mut errors)) = nexo::ir::compile_scalar_with_profile(
+                "deferred_constraints.n",
+                &src,
+                nexo::ir::ReducedProfile::JNormal,
+                execute,
+            ) else {
+                panic!("expected rejection: {src}")
+            };
+            assert_eq!(errors.len(), 1, "{src}: {errors:?}");
+            let mut error = errors.remove(0);
+            error.publish("deferred_constraints.n", &src).unwrap();
+            assert_eq!(
+                (error.code.as_str(), error.subcause.as_deref()),
+                ("NX-E0102", Some("constructor_shape"))
+            );
+            assert_eq!(
+                (error.stage, error.operation),
+                (Stage::Types, Operation::TypesCheck)
+            );
+            assert_eq!(
+                (
+                    error.primary_span.as_ref().unwrap().start,
+                    error.primary_span.as_ref().unwrap().end
+                ),
+                primary
+            );
+            assert_eq!(&src[primary.0 as usize..primary.1 as usize], "l0");
+            assert_eq!(error.data.len(), 2);
+            assert_eq!(
+                error.data.get("expected_type"),
+                Some(&DataValue::String(expected.into()))
+            );
+            assert_eq!(
+                error.data.get("found_constructor"),
+                Some(&DataValue::String("Option".into()))
+            );
+            assert_eq!(
+                error
+                    .related_spans
+                    .iter()
+                    .map(|r| (r.role, r.span.start, r.span.end))
+                    .collect::<Vec<_>>(),
+                vec![
+                    (RelatedRole::Origin, origin_span.0, origin_span.1),
+                    (RelatedRole::ExpectedType, expected_span.0, expected_span.1),
+                    (RelatedRole::FoundType, primary.0, primary.1),
+                ]
+            );
+            assert!(error.cause_chain.is_empty());
+            assert!(error.repair.is_empty());
+            assert!(error.feature_id.is_none());
+            assert!(error.unexpected_token.is_none());
+            assert!(error.expected_tokens.is_empty());
+            assert!(error.expected_tokens_kind.is_none());
+            assert!(error.parser_context.is_none());
+            assert!(error.recognized_prefix.is_none());
+        }
+    }
+    let positive = source("let l0=DV;match l0{Some(x)=>{},_=>{}}let b:Option<I64>=l0;");
+    for execute in [false, true] {
+        nexo::ir::compile_scalar_with_profile(
+            "deferred_constraints.n",
+            &positive,
+            nexo::ir::ReducedProfile::JNormal,
+            execute,
+        )
+        .unwrap();
+    }
+}
+
+#[test]
+fn value_constructors_still_require_closed_live_components() {
+    let unresolved = "fn Main(){let l0=None;match l0{Some(x)=>{},None=>{}}}";
+    for execute in [false, true] {
+        let Err(CompileError::Rejected(errors)) = nexo::ir::compile_scalar_with_profile(
+            "deferred_constraints.n",
+            unresolved,
+            nexo::ir::ReducedProfile::JNormal,
+            execute,
+        ) else {
+            panic!("expected NX-E0113")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E0113");
+    }
+    let closed = "fn Main(){let l0:Option<I64>=Some(1);match l0{Some(x)=>{},None=>{}}}";
+    for execute in [false, true] {
+        nexo::ir::compile_scalar_with_profile(
+            "deferred_constraints.n",
+            closed,
+            nexo::ir::ReducedProfile::JNormal,
+            execute,
+        )
+        .unwrap();
+    }
+}
+
+#[test]
+fn partial_option_domain_has_no_internal_failure() {
+    let src = source("let l0=DV;match l0{Some(x)=>{},_=>{}}let n=Len(l0);");
+    for execute in [false, true] {
+        assert!(
+            matches!(
+                nexo::ir::compile_scalar_with_profile(
+                    "deferred_constraints.n",
+                    &src,
+                    nexo::ir::ReducedProfile::JNormal,
+                    execute
+                ),
+                Ok(_) | Err(CompileError::Rejected(_))
+            ),
+            "{src}"
+        );
+    }
+}
+
 fn source(body: &str) -> String {
     format!("fn Main(){{{}}}", body.replace("DV", DV))
 }

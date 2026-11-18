@@ -577,6 +577,7 @@ enum ShapeHint {
 enum ObligationKind {
     Constructor { child: u64, array: u64, span: Span },
     VariantConstructor { union: u64, span: Span },
+    PatternConstructor { union: u64, span: Span },
     Join(Box<PendingDeferredJoin>),
     Domain(PendingDomain),
     DomainNominal(Box<PendingNominalDomain>),
@@ -595,6 +596,7 @@ enum ObligationClass {
     BinaryDomain = 5,
     GuardedComparison = 6,
     Projection = 7,
+    PatternConstructor = 8,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -611,6 +613,9 @@ impl ObligationKind {
             Self::Constructor { span, .. } => (ObligationClass::Constructor, span_key(span)),
             Self::VariantConstructor { span, .. } => {
                 (ObligationClass::VariantConstructor, span_key(span))
+            }
+            Self::PatternConstructor { span, .. } => {
+                (ObligationClass::PatternConstructor, span_key(span))
             }
             Self::Join(join) => (ObligationClass::Join, span_key(&join.found)),
             Self::Domain(domain) => (ObligationClass::Domain, span_key(&domain.operand)),
@@ -1484,7 +1489,7 @@ struct OccurrenceState {
     flags: u8,
     conditional_result: Option<Type>,
     nominal_sources: HashSet<(u64, u64)>,
-    obligations: [Option<ObligationStatus>; 8],
+    obligations: [Option<ObligationStatus>; 9],
 }
 
 #[derive(Clone)]
@@ -3971,6 +3976,95 @@ impl Checker<'_> {
         Ok(None)
     }
 
+    fn pattern_shape_mismatch(
+        &mut self,
+        id: u64,
+        expected: &Type,
+        expected_origin: &Span,
+        found: &Span,
+    ) -> Option<Box<Diagnostic>> {
+        let expected_label = pretty(expected)?;
+        let root = self.root(id);
+        if self.concrete(root).is_some() {
+            return None;
+        }
+        let pattern_sites: Vec<_> = self
+            .graph
+            .obligations
+            .iter()
+            .filter_map(|obligation| match obligation {
+                ObligationKind::PatternConstructor { union, span } => Some((*union, span.clone())),
+                _ => None,
+            })
+            .collect();
+        let mut origins = HashMap::new();
+        for (union, span) in pattern_sites {
+            origins.entry(self.root(union)).or_insert(span);
+        }
+        let mut pending = vec![(root, expected.clone(), 0_usize)];
+        let mut conflict = None;
+        while let Some((id, wanted, depth)) = pending.pop() {
+            if depth > 128 {
+                break;
+            }
+            let root = self.root(id);
+            if self.concrete(root).is_some() {
+                continue;
+            }
+            let Some(actual) = self.graph.type_nodes[&root].variant_children else {
+                continue;
+            };
+            let wanted_union = concrete_union(&wanted);
+            if wanted_union.is_none_or(|union| union.kind != actual.kind) {
+                if let Some(origin) = origins.get(&root) {
+                    conflict = Some((actual.kind, origin.clone()));
+                    break;
+                }
+                continue;
+            }
+            let wanted_union = wanted_union.unwrap();
+            for (actual, wanted) in actual.variants.iter().zip(wanted_union.variants).rev() {
+                if let (Some(child), Some(expected_child)) = (actual.payload, wanted.payload) {
+                    pending.push((child, expected_child.clone(), depth + 1));
+                }
+            }
+        }
+        let (kind, origin) = conflict?;
+        let mut diagnostic = names::diagnostic(
+            "NX-E0102",
+            Some("constructor_shape"),
+            Stage::Types,
+            Operation::TypesCheck,
+            found.clone(),
+        );
+        diagnostic
+            .data
+            .insert("expected_type".into(), DataValue::String(expected_label));
+        diagnostic.data.insert(
+            "found_constructor".into(),
+            DataValue::String(match kind {
+                UnionKind::Option => "Option".into(),
+                UnionKind::Result => "Result".into(),
+            }),
+        );
+        diagnostic.message = "La forma del valor no coincide con el tipo esperado.".into();
+        diagnostic.related_spans.push(RelatedSpan {
+            role: RelatedRole::Origin,
+            span: origin,
+        });
+        if expected_origin != found {
+            diagnostic.related_spans.push(RelatedSpan {
+                role: RelatedRole::ExpectedType,
+                span: expected_origin.clone(),
+            });
+        }
+        diagnostic.related_spans.push(RelatedSpan {
+            role: RelatedRole::FoundType,
+            span: found.clone(),
+        });
+        Some(diagnostic)
+    }
+
     fn result_shape_conflict(&mut self, id: u64, against: &Type, depth: usize) -> bool {
         if depth > 128 || matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {
             return false;
@@ -4232,6 +4326,10 @@ impl Checker<'_> {
                 Ok(Type::Deferred(self.root(a)))
             }
             (Type::Deferred(id), other) => {
+                if let Some(error) = self.pattern_shape_mismatch(id, &other, &right_origin, &found)
+                {
+                    return Err(error);
+                }
                 if branch
                     && internal_state(&other).is_none()
                     && let Some((left, _)) = self.concrete(id)
@@ -4303,6 +4401,9 @@ impl Checker<'_> {
                     .map_or(Type::Deferred(self.root(id)), |(ty, _)| ty))
             }
             (other, Type::Deferred(id)) => {
+                if let Some(error) = self.pattern_shape_mismatch(id, &other, &left_origin, &found) {
+                    return Err(error);
+                }
                 if internal_state(&other).is_none()
                     && let Some((right, _)) = self.concrete(id)
                     && other != right
@@ -8600,6 +8701,11 @@ impl Checker<'_> {
                                 continue;
                             }
                         };
+                        if let Err(error) = self.require_match_pattern_shapes(selection, &inferred)
+                        {
+                            result = Err(error);
+                            continue;
+                        }
                         frames.push(Frame::StatementMatch {
                             selection,
                             selected: self.selection_type(&inferred, 0),
@@ -8699,6 +8805,16 @@ impl Checker<'_> {
                                 );
                             }
                             Ok(inferred) => {
+                                if let Err(error) =
+                                    self.require_match_pattern_shapes(selection, &inferred)
+                                {
+                                    result = self.check_against_context_one(
+                                        expr,
+                                        context.borrowed(),
+                                        Some(PrecomputedType::MatchComplete(Err(error))),
+                                    );
+                                    continue;
+                                }
                                 let mut progress = MatchProgress {
                                     selection,
                                     context,
@@ -10598,6 +10714,136 @@ impl Checker<'_> {
         })
     }
 
+    fn pattern_constructor_error(
+        &self,
+        name: &str,
+        kind: UnionKind,
+        actual: Option<&Type>,
+        span: &Span,
+    ) -> Box<Diagnostic> {
+        let partial = actual.is_none_or(|ty| pretty(ty).is_none());
+        let mut diagnostic = names::diagnostic(
+            "NX-E1325",
+            Some(if partial {
+                "constructor_shape"
+            } else {
+                "constructor_type"
+            }),
+            Stage::Types,
+            Operation::TypesCheck,
+            span.clone(),
+        );
+        diagnostic.data.insert(
+            "constructor".into(),
+            DataValue::String(format!("prelude:{name}")),
+        );
+        diagnostic.data.insert(
+            if partial {
+                "scrutinee_constructor"
+            } else {
+                "scrutinee_type"
+            }
+            .into(),
+            DataValue::String(if partial {
+                match kind {
+                    UnionKind::Option => "Option".into(),
+                    UnionKind::Result => "Result".into(),
+                }
+            } else {
+                pretty(actual.unwrap()).unwrap_or_default()
+            }),
+        );
+        if partial {
+            diagnostic.message = "Constructor incompatible con la forma seleccionada.".into();
+        }
+        diagnostic
+    }
+
+    fn require_match_pattern_shapes(
+        &mut self,
+        selection: &parse::Match,
+        selected: &Type,
+    ) -> Result<(), Box<Diagnostic>> {
+        for arm in &selection.arms {
+            let mut pattern = &arm.pattern;
+            let mut current = selected.clone();
+            while let Pattern::Constructor { name, args, span } = pattern {
+                let kind = match name.as_str() {
+                    "Some" | "None" => UnionKind::Option,
+                    "Ok" | "Err" => UnionKind::Result,
+                    _ => break,
+                };
+                let Some(tag) = kind.variant_tag(name) else {
+                    break;
+                };
+                let payload = if let Type::Deferred(id) = &current {
+                    let root = self.root(*id);
+                    if let Some((concrete, _)) = self.concrete(root) {
+                        let Some(union) = concrete_union(&concrete).filter(|u| u.kind == kind)
+                        else {
+                            return Err(self.pattern_constructor_error(
+                                name,
+                                kind,
+                                Some(&concrete),
+                                span,
+                            ));
+                        };
+                        union
+                            .variant(tag)
+                            .and_then(|variant| variant.payload)
+                            .cloned()
+                    } else {
+                        if let Some(existing) = self.graph.type_nodes[&root].variant_children
+                            && existing.kind != kind
+                        {
+                            return Err(self.pattern_constructor_error(
+                                name,
+                                existing.kind,
+                                None,
+                                span,
+                            ));
+                        }
+                        if self.graph.type_nodes[&root].array_child.is_some() {
+                            break;
+                        }
+                        let is_new = self.graph.type_nodes[&root].variant_children.is_none();
+                        let children = self.require_union(root, kind, span)?;
+                        if is_new {
+                            self.graph.register(ObligationKind::PatternConstructor {
+                                union: root,
+                                span: span.clone(),
+                            });
+                        }
+                        children
+                            .variant(tag)
+                            .and_then(|variant| variant.payload)
+                            .map(Type::Deferred)
+                    }
+                } else if let Some(union) = concrete_union(&current) {
+                    if union.kind != kind {
+                        return Err(self.pattern_constructor_error(
+                            name,
+                            union.kind,
+                            Some(&current),
+                            span,
+                        ));
+                    }
+                    union
+                        .variant(tag)
+                        .and_then(|variant| variant.payload)
+                        .cloned()
+                } else {
+                    break;
+                };
+                let Some(arg) = args.first() else { break };
+                let Some(payload) = payload else { break };
+                current = payload;
+                pattern = arg;
+            }
+        }
+        Ok(())
+    }
+
     fn pattern_type(
         &mut self,
         pattern: &Pattern,
@@ -10605,39 +10851,43 @@ impl Checker<'_> {
         origin: &Span,
     ) -> Result<(), Box<Diagnostic>> {
         let mut pattern = pattern;
-        let mut selected = selected;
+        let mut selected = selected.clone();
         loop {
             self.charge_solver(pattern.span())?;
             match pattern {
                 Pattern::Wildcard(_) => return Ok(()),
                 Pattern::Integer(_, span) => {
-                    if selected == &Type::I64 || pretty(selected).is_none() {
+                    if selected == Type::I64 || pretty(&selected).is_none() {
                         return Ok(());
                     } else {
                         return Err(mismatch(
                             span.clone(),
                             span.clone(),
                             Some(origin.clone()),
-                            &pretty(selected).unwrap_or_default(),
+                            &pretty(&selected).unwrap_or_default(),
                             &Type::I64,
                         ));
                     }
                 }
                 Pattern::Bool(_, span) => {
-                    if selected == &Type::Bool || pretty(selected).is_none() {
+                    if selected == Type::Bool || pretty(&selected).is_none() {
                         return Ok(());
                     } else {
                         return Err(mismatch(
                             span.clone(),
                             span.clone(),
                             Some(origin.clone()),
-                            &pretty(selected).unwrap_or_default(),
+                            &pretty(&selected).unwrap_or_default(),
                             &Type::Bool,
                         ));
                     }
                 }
                 Pattern::Name { name, span, .. }
-                    if name == "None" && matches!(selected, Type::Union(UnionKind::Option, ..)) =>
+                    if name == "None"
+                        && matches!(
+                            self.selection_type(&selected, 0),
+                            Type::Union(UnionKind::Option, ..)
+                        ) =>
                 {
                     return Ok(());
                 }
@@ -10648,7 +10898,7 @@ impl Checker<'_> {
                             ty: selected.clone(),
                             origin: origin.clone(),
                             variable: if let Type::Deferred(id) = selected {
-                                Some(*id)
+                                Some(id)
                             } else {
                                 None
                             },
@@ -10664,10 +10914,11 @@ impl Checker<'_> {
                         "Ok" | "Err" => UnionKind::Result,
                         _ => return Ok(()), // names.resolve owns unknown constructors.
                     };
+                    let shaped = self.selection_type(&selected, 0);
                     let Some(descriptor) =
-                        concrete_union(selected).filter(|union| union.kind == kind)
+                        concrete_union(&shaped).filter(|union| union.kind == kind)
                     else {
-                        if pretty(selected).is_none() {
+                        if pretty(&shaped).is_none() {
                             // The scrutinee's unresolved constructor reports NX-E0113.
                             return Ok(());
                         }
@@ -10684,7 +10935,7 @@ impl Checker<'_> {
                         );
                         diagnostic.data.insert(
                             "scrutinee_type".into(),
-                            DataValue::String(pretty(selected).unwrap_or_default()),
+                            DataValue::String(pretty(&shaped).unwrap_or_default()),
                         );
                         return Err(diagnostic);
                     };
@@ -10717,7 +10968,7 @@ impl Checker<'_> {
                     }
                     if let (Some(payload), Some(arg)) = (variant.payload, args.first()) {
                         pattern = arg;
-                        selected = payload;
+                        selected = payload.clone();
                         continue;
                     }
                     return Ok(());

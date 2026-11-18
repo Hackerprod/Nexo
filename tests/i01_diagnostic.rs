@@ -449,6 +449,7 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
         "NX-E0102",
         &[
             (Some("type_mismatch"), "in_profile"),
+            (Some("constructor_shape"), "in_profile"),
             (Some("not_indexable"), "in_profile"),
             (Some("resource_required"), "in_profile"),
             (Some("field_requires_grouped_call"), "outside_profile"),
@@ -645,6 +646,7 @@ const EXPECTED_CATALOG_ROWS: &[AvailabilityExpectation] = &[
         &[
             (Some("constructor_arity"), "in_profile"),
             (Some("constructor_type"), "in_profile"),
+            (Some("constructor_shape"), "in_profile"),
         ],
     ),
     (
@@ -677,6 +679,7 @@ fn availability_matches_independent_full_registry_expectations() {
             "NX-E0102",
             &[
                 (Some("type_mismatch"), "in_profile"),
+                (Some("constructor_shape"), "in_profile"),
                 (Some("not_indexable"), "in_profile"),
                 (Some("resource_required"), "in_profile"),
                 (Some("field_requires_grouped_call"), "outside_profile"),
@@ -873,6 +876,7 @@ fn availability_matches_independent_full_registry_expectations() {
             &[
                 (Some("constructor_arity"), "in_profile"),
                 (Some("constructor_type"), "in_profile"),
+                (Some("constructor_shape"), "in_profile"),
             ],
         ),
         (
@@ -908,7 +912,7 @@ fn availability_matches_independent_full_registry_expectations() {
         }
     }
     assert_eq!(EXPECTED.len(), 73);
-    assert_eq!(combinations, 119);
+    assert_eq!(combinations, 121);
 }
 
 fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Diagnostic {
@@ -984,6 +988,10 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
         "NX-E0104" => {
             data.insert("declaration_kind".into(), V::String("binding".into()));
         }
+        "NX-E0102" if subcause == Some("constructor_shape") => {
+            data.insert("expected_type".into(), V::String("Bool".into()));
+            data.insert("found_constructor".into(), V::String("Option".into()));
+        }
         "NX-E0102" | "NX-E1303" => {
             data.insert("expected_type".into(), V::String("I64".into()));
             data.insert("found_type".into(), V::String("Bool".into()));
@@ -1000,6 +1008,10 @@ fn diagnostic_for_catalog(code: &str, subcause: Option<&str>) -> diagnostic::Dia
             data.insert("constructor".into(), V::String("prelude:Some".into()));
             data.insert("expected_arity".into(), V::UInt(1));
             data.insert("found_arity".into(), V::UInt(2));
+        }
+        "NX-E1325" if subcause == Some("constructor_shape") => {
+            data.insert("constructor".into(), V::String("prelude:Ok".into()));
+            data.insert("scrutinee_constructor".into(), V::String("Option".into()));
         }
         "NX-E1325" => {
             data.insert("constructor".into(), V::String("prelude:Ok".into()));
@@ -1331,7 +1343,7 @@ fn explain_and_to_json_accept_every_emitible_catalog_combination() {
         }
     }
     assert_eq!(type_fixtures, 59);
-    assert_eq!(accepted, 156, "valid ADR constructed diagnostics");
+    assert_eq!(accepted, 158, "valid ADR constructed diagnostics");
     for code in ["NX-E0005", "NX-E0006", "R0101"] {
         let mut d = if code == "R0101" {
             let mut d = diagnostic_for_catalog("NX-E0006", None);
