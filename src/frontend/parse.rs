@@ -5663,23 +5663,33 @@ mod b_tests {
             ("false", "or"),
             ("false", "and"),
             ("1", "<"),
+            ("1", "<="),
+            ("1", ">"),
+            ("1", ">="),
+            ("1", "=="),
+            ("1", "!="),
             ("1", "+"),
+            ("1", "-"),
             ("1", "*"),
             ("1", "/"),
             ("1", "%"),
         ] {
             for (operand, postfix) in [("F()?", "?"), ("F(1)", "call"), ("a[0]", "index")] {
-                let expression = format!("{left} {op} {operand}");
-                let source = format!("fn Main(){{let x={expression};}}");
-                let ast = parse_f5_hidden("case.n", &source).unwrap();
-                let printed = crate::frontend::print::print_canonical(&ast).unwrap();
-                assert!(printed.contains(&expression), "{op} {postfix}: {printed}");
-                let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
-                assert_eq!(
-                    crate::frontend::print::print_canonical(&reparsed).unwrap(),
-                    printed,
-                    "{op} {postfix}"
-                );
+                for expression in [
+                    format!("{left} {op} {operand}"),
+                    format!("{operand} {op} {left}"),
+                ] {
+                    let source = format!("fn Main(){{let x={expression};}}");
+                    let ast = parse_f5_hidden("case.n", &source).unwrap();
+                    let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                    assert!(printed.contains(&expression), "{op} {postfix}: {printed}");
+                    let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                    assert_eq!(
+                        crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                        printed,
+                        "{op} {postfix}"
+                    );
+                }
             }
         }
         for (source, expected) in [
@@ -5691,6 +5701,31 @@ mod b_tests {
             )
             .unwrap();
             assert!(printed.contains(expected), "{printed}");
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            assert_eq!(
+                crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                printed
+            );
+        }
+    }
+
+    #[test]
+    fn hidden_f5_multiplication_and_logical_precedence_prints_structure() {
+        for (source, expected) in [
+            ("fn Main(){let x=1+2*3;}", "1 + 2 * 3"),
+            ("fn Main(){let x=(1+2)*3;}", "(1 + 2) * 3"),
+            (
+                "fn Main(){let x=false or true and false;}",
+                "false or true and false",
+            ),
+            (
+                "fn Main(){let x=(false or true) and false;}",
+                "(false or true) and false",
+            ),
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(printed.contains(expected), "{source}: {printed}");
             let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
             assert_eq!(
                 crate::frontend::print::print_canonical(&reparsed).unwrap(),

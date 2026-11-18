@@ -5,12 +5,16 @@ use super::{
 };
 
 fn compound_scalar_ir(source: &str, operator: Binary) -> model::Program {
+    compound_scalar_ir_in(source, operator, "Main")
+}
+
+fn compound_scalar_ir_in(source: &str, operator: Binary, name: &str) -> model::Program {
     let mut program = compile_scalar("case.n", source).unwrap();
     let function = program
         .functions
         .entries
         .iter_mut()
-        .find(|f| f.name == "Main")
+        .find(|f| f.name == name)
         .unwrap();
     let instructions = &mut function.block.instructions;
     let position = instructions
@@ -232,6 +236,101 @@ fn compound_verifier_requires_load_provenance_and_immediate_release() {
         verify::verify_program(&program),
         Err("compound place sequence")
     );
+}
+
+#[test]
+fn cfg_compound_store_requires_load_before_rhs_and_preserves_place_sequence() {
+    let source = "fn Main(){var x=1;x=x+2;if true{}Print(x);}";
+    let program = compound_scalar_ir(source, Binary::Add);
+    assert!(
+        !program
+            .functions
+            .entries
+            .iter()
+            .find(|f| f.name == "Main")
+            .unwrap()
+            .blocks
+            .is_empty()
+    );
+    verify::verify_program(&program).unwrap();
+    let execution = run_scalar(&program, Default::default());
+    assert_eq!(execution.outcome, Outcome::Unit);
+    assert_eq!(execution.observations.stdout(), vec!["3"]);
+
+    for invalid in 0..5 {
+        let mut forged = program.clone();
+        let function = forged
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let instructions = &mut function.block.instructions;
+        let begin = instructions
+            .iter()
+            .position(|i| matches!(i.op, Op::BeginLoan { .. }))
+            .unwrap();
+        let load = instructions
+            .iter()
+            .position(|i| matches!(i.op, Op::CompoundLoad { .. }))
+            .unwrap();
+        let store = instructions
+            .iter()
+            .position(|i| matches!(i.op, Op::CompoundStore { .. }))
+            .unwrap();
+        let end = instructions
+            .iter()
+            .position(|i| matches!(i.op, Op::EndLoan(_)))
+            .unwrap();
+        match invalid {
+            0 => {
+                let (left, right) = instructions.split_at_mut(end);
+                std::mem::swap(&mut left[store].op, &mut right[0].op);
+            }
+            1 => {
+                let Op::CompoundStore { op, .. } = &mut instructions[store].op else {
+                    unreachable!()
+                };
+                *op = Binary::Less;
+            }
+            2 => {
+                let Op::CompoundStore { old, rhs, .. } = &mut instructions[store].op else {
+                    unreachable!()
+                };
+                std::mem::swap(old, rhs);
+            }
+            3 => {
+                let Op::BeginLoan { permission, .. } = &mut instructions[begin].op else {
+                    unreachable!()
+                };
+                *permission = model::LoanPermission::Read;
+            }
+            4 => {
+                let (left, right) = instructions.split_at_mut(load);
+                std::mem::swap(&mut left[begin].op, &mut right[0].op);
+            }
+            _ => unreachable!(),
+        }
+        function.content_hash = model::content_hash(function);
+        assert!(
+            verify::verify_program(&forged).is_err(),
+            "invalid={invalid}"
+        );
+    }
+}
+
+#[test]
+fn repeated_cfg_compound_store_releases_replaced_cell() {
+    let source = format!("fn F(){{var x=1;x=x+2;}}fn Main(){{{}}}", "F();".repeat(30));
+    let normal = compile_scalar("case.n", &source).unwrap();
+    let compound = compound_scalar_ir_in(&source, Binary::Add, "F");
+    verify::verify_program(&compound).unwrap();
+    let profile = crate::interp::ReducedExecutionProfile::Cells64;
+    let expected = crate::interp::run_with_limits(&normal, Default::default(), profile);
+    let actual = crate::interp::run_with_limits(&compound, Default::default(), profile);
+    assert_eq!(expected.outcome, Outcome::Unit);
+    assert_eq!(actual.outcome, Outcome::Unit);
+    assert_eq!(actual.disposals, expected.disposals);
 }
 
 fn compound_index_ir(source: &str, operator: Binary) -> model::Program {
