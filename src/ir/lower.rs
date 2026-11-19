@@ -1943,6 +1943,7 @@ struct IfBeginState {
 enum ForState {
     Analyze {
         saved: ScopeId,
+        loan_root: Option<LocalId>,
     },
     RangeLive {
         header: BlockId,
@@ -2677,7 +2678,10 @@ impl Lower<'_> {
             self.name_spans.push(name_span.clone());
             self.visible.entry(name.into()).or_default().push(binding);
             self.emission = EmissionMode::Analyze;
-            return Ok(ForState::Analyze { saved });
+            return Ok(ForState::Analyze {
+                saved,
+                loan_root: None,
+            });
         }
         let (lower_temp, upper_temp) = (
             lower
@@ -2856,6 +2860,19 @@ impl Lower<'_> {
         let array_ty =
             clone_ty_iterative(flow.ty().ok_or(CompileError::InvalidIr("array for type"))?);
         if flow.diverged() || self.emission == EmissionMode::Analyze {
+            let loan_root = place_parts(iterable)
+                .ok()
+                .and_then(|(root, _)| place_name(root))
+                .map(|name| self.get(name))
+                .transpose()?;
+            if let Some(root) = loan_root {
+                self.active_loans.entry(root).or_default().push(ActiveLoan {
+                    permission: LoanPermission::Read,
+                    span: iterable.span().clone(),
+                    loan: LoanId(iterable.span().start as usize),
+                    parent: None,
+                });
+            }
             let saved = self.scope;
             self.scope = ScopeId(self.next_scope);
             self.next_scope += 1;
@@ -2874,7 +2891,7 @@ impl Lower<'_> {
             self.name_spans.push(name_span.clone());
             self.visible.entry(name.into()).or_default().push(binding);
             self.emission = EmissionMode::Analyze;
-            return Ok(ForState::Analyze { saved });
+            return Ok(ForState::Analyze { saved, loan_root });
         }
         let value = flow
             .temp()
@@ -3148,7 +3165,10 @@ impl Lower<'_> {
             self.name_spans.push(name_span.clone());
             self.visible.entry(name.into()).or_default().push(id);
             self.emission = EmissionMode::Analyze;
-            return Ok(ForState::Analyze { saved });
+            return Ok(ForState::Analyze {
+                saved,
+                loan_root: None,
+            });
         }
         let iterator = LocalId(self.locals.len());
         self.name_spans.push(span.clone());
@@ -3553,10 +3573,16 @@ impl Lower<'_> {
             iterator,
         } = state
         else {
-            let ForState::Analyze { saved } = state else {
+            let ForState::Analyze { saved, loan_root } = state else {
                 unreachable!()
             };
             self.leave_scope(saved)?;
+            if let Some(root) = loan_root {
+                self.active_loans
+                    .get_mut(&root)
+                    .expect("array for hypothetical loan")
+                    .pop();
+            }
             return body_result;
         };
         let loop_context = self
@@ -10689,6 +10715,32 @@ mod tests {
             crate::interp::Outcome::Unit,
             "{execution:?}"
         );
+    }
+
+    #[test]
+    fn f5_array_for_checks_borrow_in_dead_code() {
+        for source in [
+            "fn Main(){var a=[1];return;for x in a{a[0]=2;}}",
+            "fn Main(){var a=[1];while true{break;for x in a{a[0]=2;}}}",
+            "fn Main(){var a=[1];while true{continue;for x in a{a[0]=2;}}}",
+        ] {
+            let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+                panic!("dead Array for lost its read loan: {source}");
+            };
+            assert!(
+                errors.iter().any(|error| {
+                    error.code == "NX-E1105"
+                        && error.subcause.as_deref() == Some("active_borrow_conflict")
+                        && error.primary_span.as_ref().is_some_and(|span| {
+                            span.start == source.rfind("a[0]").unwrap() as u64
+                                && span.end == span.start + 1
+                        })
+                }),
+                "{source}: {errors:?}"
+            );
+        }
+        hidden_f5_range_program("fn Main(){var a=[1];return;for x in a{}a[0]=2;}")
+            .expect("hypothetical Array loan ends after the dead loop");
     }
 
     #[test]
