@@ -65,8 +65,8 @@ def filter_pairs(pairs):
         fail("[profile.fast] debe heredar de default")
     if set(default) != {"slow-timeout"} or default["slow-timeout"] != {"period": "30m", "terminate-after": 1}:
         fail("default debe conservar el timeout completo de 30 min, sin reintentos")
-    if set(fast) != {"inherits", "default-filter", "slow-timeout"} or fast["slow-timeout"] != {"period": "8m", "terminate-after": 1}:
-        fail("fast solo puede diferir en filtro y timeout de 8 min, sin reintentos")
+    if set(fast) != {"inherits", "default-filter", "slow-timeout"} or fast["slow-timeout"] != {"period": "11m", "terminate-after": 1}:
+        fail("fast solo puede diferir en filtro y timeout de 11 min, sin reintentos")
     actual = fast["default-filter"]
     expected = "not (" + " | ".join(f"(binary_id(={binary}) & test(={name}))" for binary, name in pairs) + ")"
     if re.sub(r"\s+", "", actual) != re.sub(r"\s+", "", expected):

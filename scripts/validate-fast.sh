@@ -17,5 +17,5 @@ fi
 cargo fmt --all -- --check
 cargo clippy --locked --offline --all-targets -- -D warnings
 python -B scripts/check-nextest-selection.py
-cargo nextest run --locked --offline --profile fast
-cargo nextest run --locked --offline --profile fast --release
+cargo nextest run --locked --offline --profile fast --retries 0
+cargo nextest run --locked --offline --profile fast --retries 0 --release
