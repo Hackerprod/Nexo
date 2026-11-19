@@ -17,8 +17,16 @@ import tempfile
 import time
 
 repo = Path(sys.argv[1]).resolve()
-if len(sys.argv) not in (3, 4) or (len(sys.argv) == 4 and sys.argv[3] != '--verify'):
-    raise SystemExit('uso: sh scripts/gate.sh <commit> [--verify]')
+mode = 'run'
+profile_requested = None
+if len(sys.argv) == 4 and sys.argv[3] == '--verify':
+    mode = 'verify'
+elif len(sys.argv) == 5 and sys.argv[3] == '--cached-bin' and sys.argv[4] in ('debug', 'release'):
+    mode = 'cached-bin'
+elif len(sys.argv) != 3:
+    raise SystemExit('uso: sh scripts/gate.sh <commit> [--verify|--cached-bin debug|release]')
+if mode == 'cached-bin':
+    profile_requested = sys.argv[4]
 revision = sys.argv[2]
 
 
@@ -69,7 +77,8 @@ identity_tag = sha(json.dumps(identity, sort_keys=True).encode())[:16]
 record_file = root / (commit + '-' + identity_tag + '.json')
 log_file = root / (commit + '-' + identity_tag + '.log')
 
-if len(sys.argv) == 4:
+cache_dir = Path('C:/nexo-work/cache') / tree / sha(rustc.encode())[:16]
+if mode in ('verify', 'cached-bin'):
     if not record_file.exists() or not log_file.exists():
         raise SystemExit('registro ausente para esta identidad de árbol, herramientas y entorno')
     record = json.loads(record_file.read_text(encoding='utf-8'))
@@ -90,7 +99,21 @@ if len(sys.argv) == 4:
         raise SystemExit('RD incompleto')
     if not record.get('objective'):
         raise SystemExit('objetivo ausente')
-    print(f'registro GREEN verificado: {commit} {tree}')
+    if mode == 'cached-bin':
+        if env.get('NEXO_MUTANT') == '1':
+            raise SystemExit('caché prohibida para árbol mutado')
+        manifest = cache_dir / 'manifest.json'
+        if not manifest.exists():
+            raise SystemExit('caché ausente')
+        cache = json.loads(manifest.read_text(encoding='utf-8'))
+        if cache.get('identity') != identity or cache.get('record') != str(record_file) or cache.get('log_sha256') != record['log_sha256']:
+            raise SystemExit('manifiesto de caché de otra identidad')
+        binary = cache_dir / (profile_requested + '.exe')
+        if not binary.exists() or sha(binary.read_bytes()) != cache['binaries'][profile_requested]:
+            raise SystemExit('SHA-256 de binario en caché distinto')
+        print(binary)
+    else:
+        print(f'registro GREEN verificado: {commit} {tree}')
     raise SystemExit(0)
 
 work = Path('C:/nexo-work/tmp')
@@ -162,6 +185,38 @@ def cargo_inventory(profile):
             'runnable': counts[0] - counts[1]}
 
 
+def publish_cache():
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    hashes = {}
+    for profile in ('debug', 'release'):
+        source = target / profile / 'nexo.exe'
+        if not source.exists():
+            raise RuntimeError(f'binario de caché ausente: {profile}')
+        temporary_binary = cache_dir / (profile + '.exe.tmp')
+        shutil.copy2(source, temporary_binary)
+        hashes[profile] = sha(temporary_binary.read_bytes())
+        os.replace(temporary_binary, cache_dir / (profile + '.exe'))
+    manifest = {'identity': identity, 'record': str(record_file),
+                'log_sha256': record['log_sha256'], 'binaries': hashes}
+    temporary_manifest = cache_dir / 'manifest.json.tmp'
+    temporary_manifest.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n',
+                                  encoding='utf-8')
+    os.replace(temporary_manifest, cache_dir / 'manifest.json')
+    # Cada entrada es reconstruible a partir del commit. No se borra la entrada actual.
+    cache_root = Path('C:/nexo-work/cache').resolve()
+    entries = sorted(cache_root.rglob('manifest.json'), key=lambda p: p.stat().st_mtime)
+    size = sum(p.stat().st_size for p in cache_root.rglob('*') if p.is_file())
+    for entry in entries:
+        if size <= 4_000_000_000:
+            break
+        directory = entry.parent.resolve()
+        if directory == cache_dir.resolve() or not directory.is_relative_to(cache_root):
+            continue
+        removed = sum(p.stat().st_size for p in directory.rglob('*') if p.is_file())
+        shutil.rmtree(directory)
+        size -= removed
+
+
 try:
     archive = git('archive', commit)
     record['archive_sha256'] = sha(archive)
@@ -218,6 +273,11 @@ finally:
     temporary = record_file.with_suffix('.json.tmp')
     temporary.write_text(json.dumps(record, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
     os.replace(temporary, record_file)
+    if record['status'] == 'GREEN':
+        try:
+            publish_cache()
+        except Exception as cache_error:
+            print(f'caché no publicada: {cache_error}', file=sys.stderr)
     if copy.resolve().is_relative_to(work.resolve()):
         shutil.rmtree(copy)
     if target.resolve().is_relative_to(work.resolve()):

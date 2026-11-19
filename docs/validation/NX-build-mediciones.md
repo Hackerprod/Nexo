@@ -280,3 +280,9 @@ Medición condicional de caché para diferenciales `4a61ee1`→`1ace709`: tres r
 | mediana | **273,753** | **17,571** | **93,58 %** |
 
 La medición supera el umbral del 20 % de P4 para el subpaso P4-cache; su integración exige un commit separado con manifiesto ligado al registro verde. No se usa ninguna copia para árboles mutados.
+
+### NX-B2-P4-cache — publicación y lectura
+
+El subpaso publica `debug.exe`, `release.exe` y un manifiesto atómico solo tras el registro GREEN de la puerta, bajo el hash de árbol y la versión de `rustc`. El manifiesto referencia la identidad y el SHA-256 del log verde y contiene el SHA-256 de ambos binarios. La lectura `--cached-bin` vuelve a verificar registro, log, identidad, manifiesto y binario; `NEXO_MUTANT=1` se rechaza. Se recortan únicamente entradas reconstruibles propias cuando la caché supera 4 GB.
+
+En un repo sintético, tras construir ambos binarios, la puerta publicó GREEN y `--cached-bin debug` y `--cached-bin release` devolvieron binarios con SHA-256 válido. Al añadir un byte al binario debug de esa copia, `--cached-bin debug` terminó con exit 1 y `SHA-256 de binario en caché distinto`. La copia dañada no se usa como evidencia del repositorio Nexo. El diferencial real de tres repeticiones de la tabla anterior satisface el umbral de adopción de P4-cache con salidas byte a byte idénticas.
