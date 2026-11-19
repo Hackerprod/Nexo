@@ -1442,6 +1442,7 @@ fn ir_operand_count(op: &Op) -> u64 {
     match op {
         Op::ConstI64(_) | Op::ConstBool(_) | Op::ConstUnit => 1,
         Op::CopyValue(_)
+        | Op::BeginArrayIteration(_)
         | Op::TransferValue(_)
         | Op::BorrowValue(_)
         | Op::DropBinding(_)
@@ -1952,6 +1953,18 @@ enum ForState {
         cursor: LocalId,
         limit: LocalId,
         inclusive: bool,
+    },
+    ArrayLive {
+        header: BlockId,
+        branch: BlockId,
+        saved: ScopeId,
+        availability_checkpoint: usize,
+        binding: LocalId,
+        cursor: LocalId,
+        limit: LocalId,
+        root: LocalId,
+        owned_root: bool,
+        guard: TempId,
     },
     Live {
         header: BlockId,
@@ -2820,12 +2833,284 @@ impl Lower<'_> {
         })
     }
 
+    fn begin_for_array(
+        &mut self,
+        statement: &Statement,
+        flow: Flow,
+        surviving_temps: HashSet<TempId>,
+    ) -> Result<ForState, CompileError> {
+        let Statement::For {
+            name,
+            name_span,
+            iterable,
+            body,
+            span,
+        } = statement
+        else {
+            return Err(CompileError::InvalidIr("array for statement"));
+        };
+        let Some(Ty::Array(item)) = flow.ty() else {
+            return Err(CompileError::InvalidIr("array for iterable type"));
+        };
+        let item = clone_ty_iterative(item);
+        let array_ty =
+            clone_ty_iterative(flow.ty().ok_or(CompileError::InvalidIr("array for type"))?);
+        if flow.diverged() || self.emission == EmissionMode::Analyze {
+            let saved = self.scope;
+            self.scope = ScopeId(self.next_scope);
+            self.next_scope += 1;
+            self.scope_parents.push(Some(saved));
+            self.scopes.push(vec![name.into()]);
+            let binding = LocalId(self.locals.len());
+            self.locals.push(Local {
+                id: binding,
+                name: name.into(),
+                name_span: name_span.clone(),
+                ty: item,
+                mutable: false,
+                scope: self.scope,
+                parameter_mode: Some(ParameterMode::Read),
+            });
+            self.name_spans.push(name_span.clone());
+            self.visible.entry(name.into()).or_default().push(binding);
+            self.emission = EmissionMode::Analyze;
+            return Ok(ForState::Analyze { saved });
+        }
+        let value = flow
+            .temp()
+            .ok_or(CompileError::InvalidIr("array for flow"))?;
+        let borrowed_root = place_name(iterable)
+            .map(|name| self.get(name))
+            .transpose()?;
+        let (root, owned_root) = if let Some(root) = borrowed_root {
+            self.statement_op(
+                Op::DropValue(value),
+                iterable.span().clone(),
+                Access::Own,
+                false,
+            );
+            (root, false)
+        } else {
+            let root = LocalId(self.locals.len());
+            self.locals.push(Local {
+                id: root,
+                name: String::new(),
+                name_span: iterable.span().clone(),
+                ty: clone_ty_iterative(&array_ty),
+                mutable: false,
+                scope: self.scope,
+                parameter_mode: None,
+            });
+            self.name_spans.push(iterable.span().clone());
+            self.statement_op(
+                Op::WritePlace { local: root, value },
+                iterable.span().clone(),
+                Access::Write,
+                false,
+            );
+            (root, true)
+        };
+        let loan = LoanId(iterable.span().start as usize);
+        self.conflict(root, iterable.span().clone(), "borrow_read")?;
+        let guard = self
+            .emitted(
+                Op::BeginLoan {
+                    root,
+                    indexes: Vec::new(),
+                    site: IndexSite {
+                        context: iterable.span().clone(),
+                        selectors: Vec::new(),
+                    },
+                    loan,
+                    origin_span: iterable.span().clone(),
+                    permission: LoanPermission::Read,
+                    parent: (self.locals[root.0].parameter_mode == Some(ParameterMode::Inout))
+                        .then_some(root),
+                },
+                clone_ty_iterative(&array_ty),
+                iterable.span().clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array for guard"))?;
+        self.active_loans.entry(root).or_default().push(ActiveLoan {
+            permission: LoanPermission::Read,
+            span: iterable.span().clone(),
+            loan,
+            parent: (self.locals[root.0].parameter_mode == Some(ParameterMode::Inout))
+                .then_some(root),
+        });
+        let cursor = self.hidden_range_slot(iterable.span(), true);
+        let limit = self.hidden_range_slot(iterable.span(), false);
+        let zero = self
+            .emitted(
+                Op::ConstI64(0),
+                Ty::I64,
+                iterable.span().clone(),
+                Access::Own,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array cursor zero"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: cursor,
+                value: zero,
+            },
+            iterable.span().clone(),
+            Access::Write,
+            false,
+        );
+        self.pending_charges.push(WorkPlanner::charge(
+            WorkEvent::ArrayIterationLength,
+            iterable.span().clone(),
+        ));
+        let length = self
+            .emitted(
+                Op::BeginArrayIteration(root),
+                Ty::I64,
+                iterable.span().clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array length"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: limit,
+                value: length,
+            },
+            iterable.span().clone(),
+            Access::Write,
+            false,
+        );
+        self.finish_block(Terminator::Jump {
+            target: BlockId(self.blocks.len() + 1),
+            span: span.clone(),
+            charges: vec![],
+        });
+        let header = BlockId(self.blocks.len());
+        let for_token = Span {
+            file: span.file.clone(),
+            start: span.start,
+            end: span.start + 3,
+        };
+        self.pending_charges
+            .push(WorkPlanner::charge(WorkEvent::RangeTest, for_token.clone()));
+        let test = self
+            .emitted(
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive: false,
+                    final_test: false,
+                },
+                Ty::Bool,
+                for_token.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array test"))?;
+        let branch = self.finish_block(Terminator::BranchBool {
+            condition: test,
+            yes: BlockId(self.blocks.len() + 1),
+            no: BlockId(usize::MAX),
+            span: for_token.clone(),
+            charges: vec![],
+        });
+        let saved = self.scope;
+        let scope_depth = self.scopes.len();
+        self.scope = ScopeId(self.next_scope);
+        self.next_scope += 1;
+        self.scope_parents.push(Some(saved));
+        self.scopes.push(vec![name.into()]);
+        let binding = LocalId(self.locals.len());
+        self.locals.push(Local {
+            id: binding,
+            name: name.into(),
+            name_span: name_span.clone(),
+            ty: clone_ty_iterative(&item),
+            mutable: false,
+            scope: self.scope,
+            parameter_mode: Some(ParameterMode::Read),
+        });
+        self.name_spans.push(name_span.clone());
+        self.visible.entry(name.into()).or_default().push(binding);
+        let index = self
+            .emitted(
+                Op::BorrowValue(cursor),
+                Ty::I64,
+                name_span.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array index"))?;
+        let selected = self
+            .emitted(
+                Op::BorrowIndex {
+                    local: root,
+                    indexes: vec![index],
+                    site: IndexSite {
+                        context: name_span.clone(),
+                        selectors: vec![name_span.clone()],
+                    },
+                },
+                item,
+                name_span.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array element alias"))?;
+        self.statement_op(
+            Op::BindView {
+                local: binding,
+                value: selected,
+                hold: false,
+            },
+            name_span.clone(),
+            Access::Write,
+            false,
+        );
+        let mut surviving_temps = surviving_temps;
+        surviving_temps.insert(guard);
+        self.loop_stack.push(LoopContext {
+            continue_target: BlockId(usize::MAX),
+            scope_depth,
+            cleanup_span: body.close_span.clone(),
+            breaks: Vec::new(),
+            continues: Vec::new(),
+            match_depth: self.match_boundaries.len(),
+            surviving_temps,
+        });
+        let availability_checkpoint = self.consumed_undo.len();
+        self.dead_depth += 1;
+        Ok(ForState::ArrayLive {
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            cursor,
+            limit,
+            root,
+            owned_root,
+            guard,
+        })
+    }
+
     fn begin_for_after_iterable(
         &mut self,
         statement: &Statement,
         flow: Flow,
         surviving_temps: HashSet<TempId>,
     ) -> Result<ForState, CompileError> {
+        if matches!(flow.ty(), Some(Ty::Array(_))) {
+            return self.begin_for_array(statement, flow, surviving_temps);
+        }
         let Statement::For {
             name,
             name_span,
@@ -3042,13 +3327,13 @@ impl Lower<'_> {
             iterator,
         })
     }
-    fn finish_for_range_after_body(
+    fn finish_for_counted_after_body(
         &mut self,
         state: ForState,
         body: &parse::Block,
         body_result: Result<(), CompileError>,
     ) -> Result<(), CompileError> {
-        let ForState::RangeLive {
+        let (
             header,
             branch,
             saved,
@@ -3057,9 +3342,51 @@ impl Lower<'_> {
             cursor,
             limit,
             inclusive,
-        } = state
-        else {
-            return Err(CompileError::InvalidIr("range for state"));
+            array,
+        ) = match state {
+            ForState::RangeLive {
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                inclusive,
+            } => (
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                inclusive,
+                None,
+            ),
+            ForState::ArrayLive {
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                root,
+                owned_root,
+                guard,
+            } => (
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                false,
+                Some((root, owned_root, guard)),
+            ),
+            _ => return Err(CompileError::InvalidIr("counted for state")),
         };
         let loop_context = self
             .loop_stack
@@ -3178,13 +3505,25 @@ impl Lower<'_> {
                 *target = exit;
             }
         }
+        if let Some((_, _, guard)) = array {
+            self.statement_op(
+                Op::DropValue(guard),
+                body.close_span.clone(),
+                Access::Own,
+                false,
+            );
+        }
+        let mut locals = vec![
+            (limit, body.close_span.clone()),
+            (cursor, body.close_span.clone()),
+        ];
+        if let Some((root, true, _)) = array {
+            locals.push((root, body.close_span.clone()));
+        }
         self.plan_exit(
             ExitPlan {
                 surviving: self.live_temps.clone(),
-                locals: vec![
-                    (limit, body.close_span.clone()),
-                    (cursor, body.close_span.clone()),
-                ],
+                locals,
                 reserved: None,
             },
             &body.close_span,
@@ -3198,8 +3537,11 @@ impl Lower<'_> {
         body: &parse::Block,
         body_result: Result<(), CompileError>,
     ) -> Result<(), CompileError> {
-        if matches!(state, ForState::RangeLive { .. }) {
-            return self.finish_for_range_after_body(state, body, body_result);
+        if matches!(
+            state,
+            ForState::RangeLive { .. } | ForState::ArrayLive { .. }
+        ) {
+            return self.finish_for_counted_after_body(state, body, body_result);
         }
         let ForState::Live {
             header,
@@ -6792,6 +7134,8 @@ impl Lower<'_> {
                                 borrow: false,
                             });
                         } else {
+                            let array_binding = place_name(iterable).is_some()
+                                && matches!(self.resolved_expr(iterable), Ok(Ty::Array(_)));
                             tasks.push(Task::ForAfterIterable {
                                 statement,
                                 depth,
@@ -6801,7 +7145,7 @@ impl Lower<'_> {
                                 value: iterable,
                                 expected: None,
                                 depth,
-                                borrow: false,
+                                borrow: array_binding,
                             });
                         }
                     }
@@ -10119,6 +10463,10 @@ mod tests {
                         pending.push(Node::Block(body));
                     }
                     Statement::Expr { value, .. } => pending.push(Node::Expr(value)),
+                    Statement::Assign { place, value, .. } => {
+                        pending.push(Node::Expr(place));
+                        pending.push(Node::Expr(value));
+                    }
                     Statement::Return {
                         value: Some(value), ..
                     } => pending.push(Node::Expr(value)),
@@ -10127,9 +10475,14 @@ mod tests {
                 },
                 Node::Expr(expr) => {
                     let ty = match expr {
-                        Expr::Name(name, _) if name == "i" => Some(parse::Type::I64),
+                        Expr::Name(name, _) if name == "i" || name == "x" => Some(parse::Type::I64),
                         Expr::Integer(..) => Some(parse::Type::I64),
                         Expr::Bool(..) => Some(parse::Type::Bool),
+                        Expr::Index { target, index, .. } => {
+                            pending.push(Node::Expr(target));
+                            pending.push(Node::Expr(index));
+                            Some(parse::Type::I64)
+                        }
                         Expr::Binary {
                             op, left, right, ..
                         } => {
@@ -10170,6 +10523,210 @@ mod tests {
             }
         }
         compile_ast_with_flow_limit(&ast, source, &checked.inferred, AnalysisLimits::NORMAL)
+    }
+
+    #[test]
+    fn f5_internal_array_for_captures_length_and_charges_t03() {
+        let source = "fn Main(){for x in [1,2,3]{}}";
+        let result = hidden_f5_range_program(source);
+        assert!(result.is_ok(), "{result:?}");
+        let program = result.unwrap();
+        crate::ir::verify::verify_program(&program).unwrap();
+        let function = program
+            .functions
+            .entries
+            .iter()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        assert_eq!(
+            std::iter::once(&function.block)
+                .chain(&function.blocks)
+                .flat_map(|block| &block.instructions)
+                .filter(|ins| matches!(ins.op, Op::BeginArrayIteration(_)))
+                .count(),
+            1,
+        );
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(
+            execution.outcome,
+            crate::interp::Outcome::Unit,
+            "{execution:?}"
+        );
+        assert_eq!(execution.work_consumed, 20);
+    }
+
+    #[test]
+    fn f5_internal_array_for_borrow_move_and_control_edges() {
+        for (source, expected) in [
+            (
+                "fn Main(){let a=[1,2,3];for x in a{Print(x);}AssertEq(a,[1,2,3]);}",
+                vec!["1", "2", "3"],
+            ),
+            (
+                "fn Main(){var a=[1,2,3];for x in move a{if x==1{continue;}Print(x);if x==2{break;}}}",
+                vec!["2"],
+            ),
+            (
+                "fn F()->I64{for x in [4,5]{return x;}return -1;}fn Main(){Print(F());}",
+                vec!["4"],
+            ),
+            (
+                "fn Main(){let a:Array<I64>=[];for x in a{Print(x);}AssertEq(a,[]);}",
+                vec![],
+            ),
+            ("fn Main(){for x in [[1],[2]]{}}", vec![]),
+        ] {
+            let program =
+                super::super::ownership_flow::with_dense_oracle(|| hidden_f5_range_program(source))
+                    .expect("typed array for IR and sparse/dense ownership parity");
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(
+                execution.outcome,
+                crate::interp::Outcome::Unit,
+                "{source}: {execution:?}"
+            );
+            assert_eq!(execution.observations.stdout(), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_array_for_borrows_source_without_defensive_copy() {
+        let program = hidden_f5_range_program("fn Main(){let a=[1,2];for x in a{Print(x);}}")
+            .expect("typed borrowed array for");
+        let function = program
+            .functions
+            .entries
+            .iter()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let root = function
+            .locals
+            .iter()
+            .find(|local| local.name == "a")
+            .unwrap()
+            .id;
+        let instructions = std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|block| &block.instructions)
+            .collect::<Vec<_>>();
+        assert!(
+            !instructions
+                .iter()
+                .any(|ins| matches!(ins.op, Op::CopyValue(id) if id == root))
+        );
+        assert!(instructions.iter().any(|ins| matches!(ins.op, Op::BeginLoan { root: id, permission: LoanPermission::Read, .. } if id == root)));
+    }
+
+    #[test]
+    fn f5_array_for_move_consumes_source_binding() {
+        let source = "fn Main(){let a=[1];for x in move a{}Print(a);}";
+        let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+            panic!("moved Array remained available");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E0202");
+    }
+
+    #[test]
+    fn f5_internal_array_for_blocks_root_write_and_releases_after_break() {
+        let blocked = "fn Main(){var a=[1];for x in a{a[0]=2;}}";
+        let result = hidden_f5_range_program(blocked);
+        let Err(CompileError::Rejected(errors)) = result else {
+            panic!("{result:?}")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E1105");
+        assert_eq!(
+            errors[0].subcause.as_deref(),
+            Some("active_borrow_conflict")
+        );
+        let primary = errors[0].primary_span.as_ref().unwrap();
+        assert_eq!((primary.start, primary.end), (31, 32));
+        assert_eq!(
+            errors[0].cause_chain[0].entity.as_ref().unwrap().id,
+            "loan:29:0"
+        );
+        let origin = errors[0]
+            .related_spans
+            .iter()
+            .find(|r| r.role == diagnostic::RelatedRole::Origin)
+            .unwrap();
+        assert_eq!((origin.span.start, origin.span.end), (29, 30));
+
+        let independent = "fn Main(){var a=[1];for x in [1]{a[0]=2;}}";
+        let program =
+            hidden_f5_range_program(independent).expect("temporary array does not loan a");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(
+            execution.outcome,
+            crate::interp::Outcome::Unit,
+            "{execution:?}"
+        );
+
+        let released = "fn Main(){var a=[1];for x in a{break;}a[0]=2;AssertEq(a,[2]);}";
+        let program = hidden_f5_range_program(released).expect("array loan ends on break");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(
+            execution.outcome,
+            crate::interp::Outcome::Unit,
+            "{execution:?}"
+        );
+    }
+
+    #[test]
+    fn f5_array_iteration_verifier_checks_root_and_loan_cleanup() {
+        let source = "fn Main(){let a=[1];for x in a{Print(x);}}";
+        let program = hidden_f5_range_program(source).expect("typed array for IR");
+        let mut wrong_root = program.clone();
+        let function = wrong_root
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        for block in std::iter::once(&mut function.block).chain(&mut function.blocks) {
+            for instruction in &mut block.instructions {
+                if let Op::BeginArrayIteration(root) = &mut instruction.op {
+                    *root = LocalId(usize::MAX);
+                }
+            }
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            super::super::verify::verify_program(&wrong_root),
+            Err("array iteration root")
+        );
+
+        let mut missing_cleanup = program;
+        let function = missing_cleanup
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let guard = std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|b| &b.instructions)
+            .find_map(|ins| {
+                matches!(ins.op, Op::BeginLoan { .. })
+                    .then_some(ins.output)
+                    .flatten()
+            })
+            .unwrap();
+        for block in std::iter::once(&mut function.block).chain(&mut function.blocks) {
+            block
+                .instructions
+                .retain(|ins| !matches!(ins.op, Op::DropValue(id) if id == guard));
+            for (position, instruction) in block.instructions.iter_mut().enumerate() {
+                instruction.origin = OriginId(position);
+            }
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert!(super::super::verify::verify_program(&missing_cleanup).is_err());
     }
 
     #[test]

@@ -26,6 +26,7 @@ pub(crate) enum WorkEvent {
     RangeTest,
     RangeFinalTest,
     RangeAdvance,
+    ArrayIterationLength,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -214,6 +215,13 @@ const CATALOG: &[WorkRule] = &[
         origin: WorkOrigin::ForToken,
         phase: WorkPhase::AfterOperand,
         order: 16,
+    },
+    WorkRule {
+        event: WorkEvent::ArrayIterationLength,
+        units: 1,
+        origin: WorkOrigin::Expression,
+        phase: WorkPhase::AfterOperand,
+        order: 14,
     },
 ];
 

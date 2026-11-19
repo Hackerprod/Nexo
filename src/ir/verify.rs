@@ -947,6 +947,17 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 Some(Ty::Bool)
             }
+            Op::BeginArrayIteration(root) => {
+                let local = function.locals.get(root.0).ok_or("array iteration root")?;
+                if !matches!(local.ty, Ty::Array(_))
+                    || !initialized[root.0]
+                    || active_exclusive[root.0] != 0
+                    || active_borrows[root.0] == 0
+                {
+                    return Err("array iteration root state");
+                }
+                Some(Ty::I64)
+            }
             Op::RangeAdvance { cursor, limit } => {
                 for id in [cursor, limit] {
                     let local = function.locals.get(id.0).ok_or("range slot")?;
@@ -1457,7 +1468,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Op::TestVariant { .. }
             | Op::TestLiteral { .. }
             | Op::ProjectPayload { .. } => Access::Read,
-            Op::RangeTest { .. } => Access::Read,
+            Op::RangeTest { .. } | Op::BeginArrayIteration(_) => Access::Read,
             Op::CompoundLoad { .. } => Access::Read,
             Op::WritePlace { .. }
             | Op::WriteIndex { .. }
@@ -2812,6 +2823,17 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     Some(Ty::Bool)
                 }
+                Op::BeginArrayIteration(root) => {
+                    let local = function.locals.get(root.0).ok_or("array iteration root")?;
+                    if !matches!(local.ty, Ty::Array(_))
+                        || !tree.get(&initialized, root.0)
+                        || temps.exclusive(root.0) != 0
+                        || temps.reads(root.0) == 0
+                    {
+                        return Err("array iteration root state");
+                    }
+                    Some(Ty::I64)
+                }
                 Op::RangeAdvance { cursor, limit } => {
                     for id in [cursor, limit] {
                         let local = function.locals.get(id.0).ok_or("range slot")?;
@@ -3286,7 +3308,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 | Op::TestVariant { .. }
                 | Op::TestLiteral { .. }
                 | Op::ProjectPayload { .. } => Access::Read,
-                Op::RangeTest { .. } => Access::Read,
+                Op::RangeTest { .. } | Op::BeginArrayIteration(_) => Access::Read,
                 Op::CompoundLoad { .. } => Access::Read,
                 Op::WritePlace { .. }
                 | Op::WriteIndex { .. }

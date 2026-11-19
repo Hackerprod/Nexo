@@ -3483,6 +3483,19 @@ impl Machine {
                         }
                         Some(Value::Bool(result))
                     }
+                    Op::BeginArrayIteration(root) => {
+                        let Some(Value::Array(items, ..)) =
+                            locals.get(root.0).and_then(Option::as_ref)
+                        else {
+                            return Err("array iteration root");
+                        };
+                        let length =
+                            i64::try_from(items.len()).map_err(|_| "array iteration length")?;
+                        if !self.cell(&ins.span) {
+                            break;
+                        }
+                        Some(Value::Int(length))
+                    }
                     Op::RangeAdvance { cursor, limit } => {
                         let Some(Value::Int(bound)) = locals.get(limit.0).and_then(Option::as_ref)
                         else {

@@ -345,6 +345,8 @@ pub enum Op {
         left: TempId,
         right: TempId,
     },
+    /// Captures the logical length of a borrowed Array at loop entry.
+    BeginArrayIteration(LocalId),
     /// A typed range control test over hidden I64 slots, without a Range value.
     RangeTest {
         cursor: LocalId,
@@ -983,6 +985,10 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     number(&mut bytes, limit.0);
                     bytes.push(u8::from(*inclusive));
                     bytes.push(u8::from(*final_test));
+                }
+                Op::BeginArrayIteration(root) => {
+                    bytes.push(48);
+                    number(&mut bytes, root.0);
                 }
                 Op::RangeAdvance { cursor, limit } => {
                     bytes.push(47);
