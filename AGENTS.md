@@ -207,3 +207,26 @@ las decisiones.
   local se corrige localmente; solo varios fallos con una causa estructural común justifican rediseñar.
 - Una migración se hace en un solo corte: el código y las fixtures nuevas sustituyen a las antiguas, sin
   dejar rastro de la versión anterior salvo en documentos históricos.
+
+
+## Aceleración de puertas y máquina compartida (decisión del propietario, 2026-11-19)
+
+Origen: medición propia del atasco (puerta completa de ~27–33 min, repetida ~25 veces por bloque, 71 ejecutables de test, disco `D:` lento, dos carriles sobre la misma máquina) y un análisis independiente en `.scratch/analisis-fable.md` (informe de un agente sin acceso a nuestras propuestas). Estas reglas se aplican a TODO agente y brief; no se pierden por compactación de contexto. Principio rector: **un fallo es evidencia suficiente de fallo; solo la ejecución completa es evidencia de éxito.** Ninguna acelera ni muestrea una comprobación que hoy fundamente un PASS, un FAIL, la muerte o la supervivencia de un mutante.
+
+### Reglas de máquina (obligatorias, en todos los briefs)
+- Prohibido `taskkill /IM` y cualquier parada de procesos por nombre de imagen (incidente 2026-11-19: un D' mató `cargo.exe` y `python.exe` y con ello los 6 procesos de la campaña de mutación de la otra sesión). Cada agente mata solo los PID que lanzó y no deja procesos al terminar.
+- Todo el trabajo va en `C:` (NVMe): `CARGO_TARGET_DIR=C:/nexo-work/target`, clones y copias de validadores en `C:\nexo-work\val\<nombre>` o `C:\nexo-work\tmp` (borrar clon y `target` al terminar; ~25 GB libres compartidos: ≤ 8–10 GB por agente). `D:` (HDD USB) solo para archivo o resultados ya reconstruibles; nunca para compilar. Hasta 6 workers de cargo por agente (`CARGO_BUILD_JOBS=6`); `cargo-nextest` está instalado.
+- PATH de las tareas: toolchain `C:\Users\hackerprod\.rustup\toolchains\1.99.1-x86_64-pc-windows-msvc\bin` y `C:\Users\hackerprod\.cargo\bin`.
+
+### Puerta por niveles (nextest; plan en `docs/correcciones/NX-build-r1.md`)
+- `scripts/validate.sh` es la puerta COMPLETA (fmt, clippy `-D warnings`, todos los tests ejecutables en debug y release, con `--profile default`). Es la única que fundamenta PASS: la usan D, D', la integración a main, el cierre de bloque y de corte, y todo diferencial o medición de mutante «muere/sobrevive».
+- Nivel rápido (`scripts/validate-fast.sh`, perfil `fast`): solo para el bucle de edición de C; excluye por nombre una lista versionada de tests pesados y NUNCA vale como evidencia de PASS ni de supervivencia (imprime el aviso). Un chequeo mecánico versionado comprueba que rápida ∪ pesados = completo y que cada nombre existe.
+- C trabaja con un `target` persistente por sesión (compilación incremental) y deja el clon limpio con `validate.sh` solo para la puerta final del commit publicado o del bloque. Mismo árbol y mismo `rustc` con registro verde no se repite: se cita el hash del árbol.
+- Veredicto de mutante: parada en el primer fallo (`cargo nextest run`) basta para declararlo MUERTO (se anota el test que lo mata); declarar SUPERVIVIENTE exige la suite completa en debug y release. Un timeout de test es «detectado por no terminación» solo si la suite correcta termina y el mutante no, y se repite con menos carga antes de contarlo.
+
+### Cola de mejoras acordadas (ordenadas; cada una por Flujo B con medición antes/después)
+1. Un único binario de integración (`tests/suite.rs` con `#[path]`, `autotests = false`; el `#[global_allocator]` de `i07c_mutant_projection_scale` queda aparte): medido por el análisis independiente 269 → 73 s en frío debug, 4,3 → 1,2 GB, mismos 1.979/1.981 tests; cada corte nuevo añade una línea, no un binario.
+2. Selección por etapa en el nivel rápido (tests de la etapa en curso + guardas globales baratas) y release solo al cierre de bloque.
+3. `scripts/gate.sh <commit>` lanzado por el coordinador, con registro (hash del árbol, versión de `rustc`, salida, recuentos por perfil, SHA-256 del log) que D reutiliza; D' ejecuta su propia puerta en frío. Caché de `nexo.exe` de cada commit con registro para los diferenciales.
+4. Reglas de turno para trabajos pesados entre sesiones (bloqueo de archivo o límite de procesos de la campaña de mutación mientras haya un bloque en C, D o D').
+5. Solo con prueba de que no cambian los marcos de pila medidos en debug (puertas de 204/256 KiB): `debug = "line-tables-only"` y `rust-lld`; sin esa prueba no se adoptan.
