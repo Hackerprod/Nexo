@@ -263,3 +263,20 @@ Los parches exactos, hashes y perfiles están en `docs/validation/NX-build-mutan
 | `T0-group-shape` | SUPERVIVIENTE, debug 481,699 s (1.896/1.896, 72 ignorados), release 427,254 s (1.898/1.898, 73 ignorados) | debug 982,207 s (1.896 pasados, 72 ignorados), release 584,916 s (1.898 pasados, 73 ignorados); ambos exit 0 | mismo veredicto; se ejecutaron los dos perfiles completos |
 
 El test sintético `clock_probe` pasó con 10 ms de espera. Con el parche de 60 s y `slow-timeout = { period = "1s", terminate-after = 1 }`, nextest terminó exit 100 con `event=failed`, `reason="time limit exceeded"` y `1 timed out`; el helper lo clasificó INCONCLUSO, no MUERTO. Una primera sonda con límite de proceso de 2 s alcanzó el límite durante compilación y tampoco se contó como muerte. Los procesos iniciados se cerraron por su PID; no quedaron hijos de la sonda. La campaña I07c en curso conserva su clasificador y no se reconfiguró.
+
+## NX-B2-P4 — registro de puerta y condición de caché
+
+`scripts/gate.sh` archiva el commit y conserva el hash de árbol, los hashes de los cuatro archivos de puerta (`validate.sh`, `validate-fast.sh`, `check-nextest-selection.py`, `.config/nextest.toml`), el del propio script, las versiones de Rust y nextest, entorno relevante, log SHA-256, exits y recuentos por perfil. Solo publica GREEN si `validate.sh`, objetivo y RD salen 0 y los resúmenes terminales concuerdan con `nextest list` default (o con listados íntegros de `cargo test`). El verificador exige la misma identidad y un log intacto. `git archive` en Windows produjo CRLF en scripts cuyo blob Git tiene LF; la comprobación acepta únicamente el hash literal o el de normalizar CRLF a LF y registra el hash del archivo del commit.
+
+Controles en repo sintético de un test, Rust 1.99.1 y nextest 0.9.152: árbol sano con nextest produjo GREEN y `--verify` lo reprodujo; el fallback `cargo test` también produjo GREEN con recuentos iguales. Un test roto produjo FAIL exit 100 bajo `NEXTEST_RETRIES=1`; un `validate.sh` sintético que devolvía 0 sin resumen produjo FAIL por resumen ausente; cambiar `NEXTEST_RETRIES` invalidó `--verify` por identidad distinta. Los registros de las dos variantes del mismo árbol tuvieron el mismo conjunto de tests (un test debug y release). Son controles de arnés, no evidencia de puerta del repositorio real.
+
+Medición condicional de caché para diferenciales `4a61ee1`→`1ace709`: tres repeticiones con `git archive`, target nuevo por commit en `C:`, seis workers, orden alternado; se compiló `nexo.exe` debug/release y se comparó con una copia byte a byte de cada binario. En cada variante se ejecutaron los 29 programas objetivo con `check` y `run` en ambos perfiles (116 invocaciones por réplica) y se compararon exit, stdout y stderr, sin diferencias. La carga fue variable; en la tercera réplica se observaron hasta 49 `rustc` y 47 `link` de la máquina compartida.
+
+| Réplica | recompilar + ejecutar (s) | copiar + ejecutar (s) | ahorro |
+| --- | ---: | ---: | ---: |
+| 1 | 131,339 | 6,997 | 94,67 % |
+| 2 | 382,351 | 19,749 | 94,83 % |
+| 3 | 273,753 | 17,571 | 93,58 % |
+| mediana | **273,753** | **17,571** | **93,58 %** |
+
+La medición supera el umbral del 20 % de P4 para el subpaso P4-cache; su integración exige un commit separado con manifiesto ligado al registro verde. No se usa ninguna copia para árboles mutados.
