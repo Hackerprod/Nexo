@@ -33,7 +33,8 @@ pub const PENDING_INTRINSICS: [PendingIntrinsic; 3] = [
 
 /// Destinations reserved for F0-0005. Name resolution connects these only when
 /// the public profile opens in L01b; historical profiles keep their namespace.
-pub const F5_ARRAY_INTRINSICS: [PendingIntrinsic; 3] = [
+#[cfg(test)]
+const F5_ARRAY_INTRINSICS: [PendingIntrinsic; 3] = [
     PendingIntrinsic {
         identity: "prelude:push",
         spelling: "Push",

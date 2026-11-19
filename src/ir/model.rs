@@ -134,7 +134,7 @@ impl Ty {
         false
     }
 
-    pub fn allowed_array_element(&self) -> bool {
+    pub(crate) fn allowed_array_element(&self) -> bool {
         let mut pending = vec![self];
         while let Some(ty) = pending.pop() {
             match ty {
