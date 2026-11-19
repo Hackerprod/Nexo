@@ -1465,6 +1465,7 @@ fn ir_operand_count(op: &Op) -> u64 {
         | Op::BorrowIndex { indexes, .. }
         | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
         Op::IndexValue { .. }
+        | Op::BorrowArrayElement { .. }
         | Op::Binary { .. }
         | Op::RangeTest { .. }
         | Op::RangeAdvance { .. }
@@ -1966,6 +1967,7 @@ enum ForState {
         root: LocalId,
         owned_root: bool,
         guard: TempId,
+        source: TempId,
     },
     Live {
         header: BlockId,
@@ -2245,6 +2247,7 @@ impl Lower<'_> {
                 self.temp_live(*base, false);
                 self.temp_live(*index, false);
             }
+            Op::BorrowArrayElement { index, .. } => self.temp_live(*index, false),
             Op::BuildVariant {
                 payload: Some(id), ..
             } => self.temp_live(*id, false),
@@ -2896,16 +2899,12 @@ impl Lower<'_> {
         let value = flow
             .temp()
             .ok_or(CompileError::InvalidIr("array for flow"))?;
-        let borrowed_root = place_name(iterable)
+        let borrowed_root = place_parts(iterable)
+            .ok()
+            .and_then(|(root, _)| place_name(root))
             .map(|name| self.get(name))
             .transpose()?;
         let (root, owned_root) = if let Some(root) = borrowed_root {
-            self.statement_op(
-                Op::DropValue(value),
-                iterable.span().clone(),
-                Access::Own,
-                false,
-            );
             (root, false)
         } else {
             let root = LocalId(self.locals.len());
@@ -2927,6 +2926,19 @@ impl Lower<'_> {
             );
             (root, true)
         };
+        let source = if owned_root {
+            self.emitted(
+                Op::BorrowValue(root),
+                clone_ty_iterative(&array_ty),
+                iterable.span().clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array iteration source"))?
+        } else {
+            value
+        };
         let loan = LoanId(iterable.span().start as usize);
         self.conflict(root, iterable.span().clone(), "borrow_read")?;
         let guard = self
@@ -2944,7 +2956,7 @@ impl Lower<'_> {
                     parent: (self.locals[root.0].parameter_mode == Some(ParameterMode::Inout))
                         .then_some(root),
                 },
-                clone_ty_iterative(&array_ty),
+                clone_ty_iterative(&self.locals[root.0].ty),
                 iterable.span().clone(),
                 Access::Read,
                 false,
@@ -2985,7 +2997,7 @@ impl Lower<'_> {
         ));
         let length = self
             .emitted(
-                Op::BeginArrayIteration(root),
+                Op::BeginArrayIteration(source),
                 Ty::I64,
                 iterable.span().clone(),
                 Access::Read,
@@ -3067,9 +3079,9 @@ impl Lower<'_> {
             .ok_or(CompileError::InvalidIr("array index"))?;
         let selected = self
             .emitted(
-                Op::BorrowIndex {
-                    local: root,
-                    indexes: vec![index],
+                Op::BorrowArrayElement {
+                    source,
+                    index,
                     site: IndexSite {
                         context: name_span.clone(),
                         selectors: vec![name_span.clone()],
@@ -3094,6 +3106,7 @@ impl Lower<'_> {
         );
         let mut surviving_temps = surviving_temps;
         surviving_temps.insert(guard);
+        surviving_temps.insert(source);
         self.loop_stack.push(LoopContext {
             continue_target: BlockId(usize::MAX),
             scope_depth,
@@ -3116,6 +3129,7 @@ impl Lower<'_> {
             root,
             owned_root,
             guard,
+            source,
         })
     }
 
@@ -3395,6 +3409,7 @@ impl Lower<'_> {
                 root,
                 owned_root,
                 guard,
+                source,
             } => (
                 header,
                 branch,
@@ -3404,7 +3419,7 @@ impl Lower<'_> {
                 cursor,
                 limit,
                 false,
-                Some((root, owned_root, guard)),
+                Some((root, owned_root, guard, source)),
             ),
             _ => return Err(CompileError::InvalidIr("counted for state")),
         };
@@ -3525,9 +3540,15 @@ impl Lower<'_> {
                 *target = exit;
             }
         }
-        if let Some((_, _, guard)) = array {
+        if let Some((_, _, guard, source)) = array {
             self.statement_op(
                 Op::DropValue(guard),
+                body.close_span.clone(),
+                Access::Own,
+                false,
+            );
+            self.statement_op(
+                Op::DropValue(source),
                 body.close_span.clone(),
                 Access::Own,
                 false,
@@ -3537,7 +3558,7 @@ impl Lower<'_> {
             (limit, body.close_span.clone()),
             (cursor, body.close_span.clone()),
         ];
-        if let Some((root, true, _)) = array {
+        if let Some((root, true, _, _)) = array {
             locals.push((root, body.close_span.clone()));
         }
         self.plan_exit(
@@ -7160,7 +7181,10 @@ impl Lower<'_> {
                                 borrow: false,
                             });
                         } else {
-                            let array_binding = place_name(iterable).is_some()
+                            let array_binding = place_parts(iterable)
+                                .ok()
+                                .and_then(|(root, _)| place_name(root))
+                                .is_some()
                                 && matches!(self.resolved_expr(iterable), Ok(Ty::Array(_)));
                             tasks.push(Task::ForAfterIterable {
                                 statement,
@@ -9954,7 +9978,7 @@ fn index_site(expr: &Expr, context: Span) -> IndexSite {
         selectors: index_selectors(expr),
     }
 }
-fn clone_ty_iterative(ty: &Ty) -> Ty {
+pub(super) fn clone_ty_iterative(ty: &Ty) -> Ty {
     enum Frame<'a> {
         Enter(&'a Ty),
         Array,
@@ -10507,7 +10531,16 @@ mod tests {
                         Expr::Index { target, index, .. } => {
                             pending.push(Node::Expr(target));
                             pending.push(Node::Expr(index));
-                            Some(parse::Type::I64)
+                            checked
+                                .inferred
+                                .expressions
+                                .get(&(expr.span().start, expr.span().end))
+                                .and_then(|resolved| match resolved {
+                                    crate::check::types::ResolvedType::Concrete(ty) => {
+                                        Some(ty.clone())
+                                    }
+                                    _ => None,
+                                })
                         }
                         Expr::Binary {
                             op, left, right, ..
@@ -10660,6 +10693,205 @@ mod tests {
     }
 
     #[test]
+    fn f5_array_for_indexed_place_keeps_original_root_borrowed() {
+        let source = "fn Main(){var rows=[[1,2]];for x in rows[0]{rows[0][1]=9;Print(x);}}";
+        let result = hidden_f5_range_program(source);
+        let Err(CompileError::Rejected(errors)) = result else {
+            panic!("indexed Array iterator was detached from rows: {result:?}");
+        };
+        assert!(
+            errors.iter().any(|error| {
+                error.code == "NX-E1105"
+                    && error.subcause.as_deref() == Some("active_borrow_conflict")
+                    && error
+                        .primary_span
+                        .as_ref()
+                        .is_some_and(|span| (span.start, span.end) == (44, 48))
+            }),
+            "{errors:?}"
+        );
+
+        for source in [
+            "fn Main(){var a=[1,2];for x in a{a[0]=9;return;}}",
+            "fn Main(){var rows=[[1,2]];for x in rows[0]{rows[0][1]=9;break;}}",
+            "fn Main(){var rows=[[1,2]];for x in rows[0]{rows[0][1]=9;return;}}",
+            "fn Main(){var rows=[[1,2]];return;for x in rows[0]{rows[0][1]=9;}}",
+            "fn Main(){var rows=[[1,2]];for x in rows[0]{continue;rows[0][1]=9;}}",
+            "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{cube[0][0][1]=9;}}",
+        ] {
+            let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+                panic!("indexed iterator mutation accepted: {source}");
+            };
+            assert!(
+                errors.iter().any(|error| {
+                    error.code == "NX-E1105"
+                        && error.subcause.as_deref() == Some("active_borrow_conflict")
+                }),
+                "{source}: {errors:?}"
+            );
+        }
+
+        for (source, expected) in [
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{Print(x);}rows[0][1]=9;AssertEq(rows,[[1,9]]);}",
+                vec!["1", "2"],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in (rows[0]){Print(x);}}",
+                vec!["1", "2"],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{break;}rows[0][1]=9;AssertEq(rows,[[1,9]]);}",
+                vec![],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{if x==1{continue;}Print(x);}}",
+                vec!["2"],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){for x in Make(){Print(x);}}",
+                vec!["4", "5"],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{return;}}",
+                vec![],
+            ),
+            ("fn Main(){var a=[1,2];for x in a{return;}}", vec![]),
+            (
+                "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{Print(x);}}",
+                vec!["1", "2"],
+            ),
+            (
+                "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{break;}cube[0][0][1]=9;}",
+                vec![],
+            ),
+            (
+                "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{return;}}",
+                vec![],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){var a=[0];for x in Make(){a[0]=9;}AssertEq(a,[9]);}",
+                vec![],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){for x in Make(){break;}}",
+                vec![],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){for x in Make(){return;}}",
+                vec![],
+            ),
+            ("fn Main(){var a=[1,2];for x in move a{break;}}", vec![]),
+            ("fn Main(){var a=[1,2];for x in move a{return;}}", vec![]),
+        ] {
+            let program = hidden_f5_range_program(source).expect(source);
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(
+                execution.outcome,
+                crate::interp::Outcome::Unit,
+                "{source}: {execution:?}"
+            );
+            assert_eq!(execution.observations.stdout(), expected, "{source}");
+        }
+
+        let source = "fn Main(){var rows=[[1,2]];for x in rows[0]{Print(x);}}";
+        let program = hidden_f5_range_program(source).expect("indexed Array IR");
+        let function = program
+            .functions
+            .entries
+            .iter()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let root = function
+            .locals
+            .iter()
+            .find(|local| local.name == "rows")
+            .unwrap()
+            .id;
+        let iterable = source.find("rows[0]").unwrap() as u64;
+        let instructions = std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|block| &block.instructions)
+            .collect::<Vec<_>>();
+        assert!(instructions.iter().any(|ins| {
+            matches!(ins.op, Op::BorrowIndex { local, .. } if local == root)
+                && ins.span.start == iterable
+        }));
+        assert!(instructions.iter().any(|ins| {
+            matches!(ins.op, Op::BeginLoan { root: id, permission: LoanPermission::Read, .. } if id == root)
+        }));
+        assert!(
+            !instructions.iter().any(|ins| {
+                matches!(ins.op, Op::ReadIndex { .. }) && ins.span.start == iterable
+            })
+        );
+
+        let mut malformed = program.clone();
+        let function = malformed
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        for block in std::iter::once(&mut function.block).chain(&mut function.blocks) {
+            for instruction in &mut block.instructions {
+                if let Op::BorrowArrayElement { source, .. } = &mut instruction.op {
+                    *source = TempId(usize::MAX);
+                }
+            }
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            super::super::verify::verify_program(&malformed),
+            Err("undefined temporary")
+        );
+    }
+
+    #[test]
+    fn f5_array_for_projected_sources_do_not_panic() {
+        for seed in 0..80 {
+            let selector = ["0", "1", "-1", "2"][seed % 4];
+            let body = [
+                "Print(x);",
+                "break;",
+                "continue;",
+                "return;",
+                "rows[0][1]=9;",
+            ][(seed / 4) % 5];
+            let source =
+                format!("fn Main(){{var rows=[[1,2],[3,4]];for x in rows[{selector}]{{{body}}}}}");
+            if let Ok(program) = hidden_f5_range_program(&source) {
+                let _ =
+                    crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            }
+        }
+    }
+
+    #[test]
+    fn f5_array_for_deep_projection_fits_small_stacks() {
+        let nested = format!("{}1{}", "[".repeat(126), "]".repeat(126));
+        let source = format!("fn Main(){{var rows={nested};for x in rows[0]{{}}}}");
+        for bytes in [204, 256] {
+            let source = source.clone();
+            std::thread::Builder::new()
+                .stack_size(bytes * 1024)
+                .spawn(move || {
+                    let program = hidden_f5_range_program(&source)
+                        .expect("deep indexed Array for remains within the type limit");
+                    let execution = crate::interp::run_scalar(
+                        &program,
+                        crate::interp::MockEnvironment::empty(),
+                    );
+                    assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+                })
+                .unwrap()
+                .join()
+                .unwrap();
+        }
+    }
+
+    #[test]
     fn f5_array_for_move_consumes_source_binding() {
         let source = "fn Main(){let a=[1];for x in move a{}Print(a);}";
         let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
@@ -10667,6 +10899,12 @@ mod tests {
         };
         assert_eq!(errors.len(), 1);
         assert_eq!(errors[0].code, "NX-E0202");
+
+        let source = "fn Main(){var a=[1];for x in move a{a[0]=9;}}";
+        let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+            panic!("moved Array root remained available in loop body");
+        };
+        assert!(errors.iter().any(|error| error.code == "NX-E0202"));
     }
 
     #[test]
@@ -10739,6 +10977,7 @@ mod tests {
                 "{source}: {errors:?}"
             );
         }
+
         hidden_f5_range_program("fn Main(){var a=[1];return;for x in a{}a[0]=2;}")
             .expect("hypothetical Array loan ends after the dead loop");
     }
@@ -10757,14 +10996,14 @@ mod tests {
         for block in std::iter::once(&mut function.block).chain(&mut function.blocks) {
             for instruction in &mut block.instructions {
                 if let Op::BeginArrayIteration(root) = &mut instruction.op {
-                    *root = LocalId(usize::MAX);
+                    *root = TempId(usize::MAX);
                 }
             }
         }
         function.content_hash = super::super::model::content_hash(function);
         assert_eq!(
             super::super::verify::verify_program(&wrong_root),
-            Err("array iteration root")
+            Err("undefined temporary")
         );
 
         let mut missing_cleanup = program;

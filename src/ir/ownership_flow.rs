@@ -287,7 +287,6 @@ fn closing_span(span: &Span) -> Span {
 fn use_local(op: &Op) -> Option<LocalId> {
     match op {
         Op::CopyValue(id)
-        | Op::BeginArrayIteration(id)
         | Op::BorrowValue(id)
         | Op::TransferValue(id)
         | Op::DropBinding(id)

@@ -3129,6 +3129,48 @@ impl Machine {
                     )?;
                     continue;
                 }
+                if let Op::BorrowArrayElement {
+                    source,
+                    index,
+                    site,
+                } = &ins.op
+                {
+                    let taken = Self::take(&mut temps, *index)?;
+                    let Value::Int(position) = taken.as_value(&locals)? else {
+                        return Err("array iteration index type");
+                    };
+                    let position = *position;
+                    if matches!(taken, TempValue::Own(_)) {
+                        self.cells = self.cells.saturating_sub(1);
+                    }
+                    let source_value = temps
+                        .get(source.0)
+                        .and_then(Option::as_ref)
+                        .ok_or("array iteration source")?;
+                    let selected = source_value.as_value(&locals)?.element(position);
+                    let Some(selected) = selected else {
+                        self.index_fault(site, 0);
+                        break;
+                    };
+                    let borrowed =
+                        if matches!(selected, Value::Int(_) | Value::Bool(_) | Value::Unit) {
+                            TempValue::ReadScalar(selected.clone())
+                        } else {
+                            let (root, mut path) = match source_value {
+                                TempValue::Borrow(root) => (*root, Vec::new()),
+                                TempValue::BorrowIndex(root, path) => (*root, path.clone()),
+                                _ => return Err("array iteration source loan"),
+                            };
+                            path.push(position);
+                            TempValue::BorrowIndex(root, path)
+                        };
+                    Self::install_temp(
+                        &mut temps,
+                        ins.output.ok_or("array element output identity")?,
+                        borrowed,
+                    )?;
+                    continue;
+                }
                 if let Op::ProjectPayload { local, path } = &ins.op {
                     let source = locals
                         .get(local.0)
@@ -3225,6 +3267,7 @@ impl Machine {
                 let value = match &ins.op {
                     Op::BorrowValue(_) => return Err("borrow dispatch"),
                     Op::BorrowIndex { .. } => return Err("borrow index dispatch"),
+                    Op::BorrowArrayElement { .. } => return Err("array element dispatch"),
                     Op::BeginLoan { .. } => return Err("loan dispatch"),
                     Op::EndLoan(_) => None,
                     Op::TestVariant { local, path, tag } => {
@@ -3483,9 +3526,11 @@ impl Machine {
                         }
                         Some(Value::Bool(result))
                     }
-                    Op::BeginArrayIteration(root) => {
-                        let Some(Value::Array(items, ..)) =
-                            locals.get(root.0).and_then(Option::as_ref)
+                    Op::BeginArrayIteration(source) => {
+                        let Some(Value::Array(items, ..)) = temps
+                            .get(source.0)
+                            .and_then(Option::as_ref)
+                            .and_then(|value| value.as_value(&locals).ok())
                         else {
                             return Err("array iteration root");
                         };

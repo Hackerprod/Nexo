@@ -330,6 +330,11 @@ pub enum Op {
         indexes: Vec<TempId>,
         site: IndexSite,
     },
+    BorrowArrayElement {
+        source: TempId,
+        index: TempId,
+        site: IndexSite,
+    },
     CheckIndex {
         local: LocalId,
         indexes: Vec<TempId>,
@@ -346,7 +351,7 @@ pub enum Op {
         right: TempId,
     },
     /// Captures the logical length of a borrowed Array at loop entry.
-    BeginArrayIteration(LocalId),
+    BeginArrayIteration(TempId),
     /// A typed range control test over hidden I64 slots, without a Range value.
     RangeTest {
         cursor: LocalId,
@@ -934,6 +939,16 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     for id in indexes {
                         number(&mut bytes, id.0);
                     }
+                    index_site(&mut bytes, site, source_base);
+                }
+                Op::BorrowArrayElement {
+                    source,
+                    index,
+                    site,
+                } => {
+                    bytes.push(49);
+                    number(&mut bytes, source.0);
+                    number(&mut bytes, index.0);
                     index_site(&mut bytes, site, source_base);
                 }
                 Op::CheckIndex {

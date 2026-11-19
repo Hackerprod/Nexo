@@ -63,12 +63,13 @@ fn valid_charges(function: &Function, charges: &[WorkCharge]) -> bool {
 
 fn index_site(op: &Op) -> Option<(&IndexSite, usize)> {
     match op {
-        Op::BeginLoan { site, indexes, .. }
-        | Op::ReadIndex { site, indexes, .. }
+        Op::BeginLoan { site, indexes, .. } => Some((site, indexes.len())),
+        Op::ReadIndex { site, indexes, .. }
         | Op::BorrowIndex { site, indexes, .. }
         | Op::CheckIndex { site, indexes, .. }
         | Op::WriteIndex { site, indexes, .. } => Some((site, indexes.len())),
         Op::IndexValue { site, .. } => Some((site, 1)),
+        Op::BorrowArrayElement { site, .. } => Some((site, 1)),
         _ => None,
     }
 }
@@ -853,6 +854,27 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 Some(ty)
             }
+            Op::BorrowArrayElement { source, index, .. } => {
+                if !live.get(source.0).copied().unwrap_or(false)
+                    || !borrowed.get(source.0).copied().unwrap_or(false)
+                {
+                    return Err("array iteration source loan");
+                }
+                if take(
+                    *index,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )? != Ty::I64
+                {
+                    return Err("array iteration index type");
+                }
+                let Ty::Array(item) = temps.get(source.0).ok_or("array iteration source")? else {
+                    return Err("array iteration source type");
+                };
+                Some(super::lower::clone_ty_iterative(item))
+            }
             Op::CheckIndex { local, indexes, .. } => {
                 let l = function.locals.get(local.0).ok_or("check index local")?;
                 if active_exclusive[local.0] != 0 {
@@ -947,14 +969,12 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 Some(Ty::Bool)
             }
-            Op::BeginArrayIteration(root) => {
-                let local = function.locals.get(root.0).ok_or("array iteration root")?;
-                if !matches!(local.ty, Ty::Array(_))
-                    || !initialized[root.0]
-                    || active_exclusive[root.0] != 0
-                    || active_borrows[root.0] == 0
+            Op::BeginArrayIteration(source) => {
+                if !live.get(source.0).copied().unwrap_or(false)
+                    || !borrowed.get(source.0).copied().unwrap_or(false)
+                    || !matches!(temps.get(source.0), Some(Ty::Array(_)))
                 {
-                    return Err("array iteration root state");
+                    return Err("array iteration source state");
                 }
                 Some(Ty::I64)
             }
@@ -1464,6 +1484,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Op::BeginLoan { .. }
             | Op::ReadIndex { .. }
             | Op::BorrowIndex { .. }
+            | Op::BorrowArrayElement { .. }
             | Op::CheckIndex { .. }
             | Op::TestVariant { .. }
             | Op::TestLiteral { .. }
@@ -1488,7 +1509,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 return Err("temporary identity");
             }
             let scalar_snapshot = matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
-                && matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. });
+                && matches!(
+                    ins.op,
+                    Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                );
             temps.push(ty);
             live.push(true);
             borrowed.push(
@@ -1496,6 +1520,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     ins.op,
                     Op::BorrowValue(_)
                         | Op::BorrowIndex { .. }
+                        | Op::BorrowArrayElement { .. }
                         | Op::BeginLoan { .. }
                         | Op::ProjectPayload { .. }
                 ) && !scalar_snapshot,
@@ -1503,6 +1528,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             let source = match ins.op {
                 Op::BorrowValue(id) => Some(id),
                 Op::BorrowIndex { local, .. } => Some(local),
+                Op::BorrowArrayElement { source, .. } => {
+                    borrow_sources.get(source.0).copied().flatten()
+                }
                 Op::BeginLoan { root, .. } => Some(root),
                 Op::ProjectPayload { local, .. } => Some(local),
                 _ => None,
@@ -1519,9 +1547,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     }
                     Some(permission)
                 }
-                Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::ProjectPayload { .. } => {
-                    Some(LoanPermission::Read)
-                }
+                Op::BorrowValue(_)
+                | Op::BorrowIndex { .. }
+                | Op::BorrowArrayElement { .. }
+                | Op::ProjectPayload { .. } => Some(LoanPermission::Read),
                 _ => None,
             };
             loan_permission.push(permission);
@@ -1765,6 +1794,11 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
             visit(*base);
             visit(*index);
         }
+        Op::BorrowArrayElement { source, index, .. } => {
+            visit(*source);
+            visit(*index);
+        }
+        Op::BeginArrayIteration(source) => visit(*source),
         Op::BuildVariant {
             payload: Some(payload),
             ..
@@ -2268,12 +2302,15 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 super::count_cfg_work(1);
             }
             if let (Some(id), Some(ty)) = (ins.output, ins.ty.clone()) {
-                let scalar_snapshot = matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                    && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit);
+                let scalar_snapshot = matches!(
+                    ins.op,
+                    Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit);
                 let is_borrowed = matches!(
                     ins.op,
                     Op::BorrowValue(_)
                         | Op::BorrowIndex { .. }
+                        | Op::BorrowArrayElement { .. }
                         | Op::BeginLoan {
                             permission: LoanPermission::Read,
                             ..
@@ -2281,6 +2318,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 ) && !scalar_snapshot;
                 let borrowed_from = match ins.op {
                     Op::BorrowValue(root) | Op::BorrowIndex { local: root, .. } => Some(root.0),
+                    Op::BorrowArrayElement { source, .. } => definitions
+                        .get(&source.0)
+                        .and_then(|(_, info)| info.borrowed_from),
                     Op::BeginLoan {
                         root,
                         permission: LoanPermission::Read,
@@ -2289,8 +2329,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     _ => None,
                 }
                 .filter(|_| {
-                    !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                        && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
+                    !(matches!(
+                        ins.op,
+                        Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                    ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
                 });
                 let exclusive_root = match ins.op {
                     Op::BeginLoan {
@@ -2785,6 +2827,18 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         Some(ty)
                     }
                 }
+                Op::BorrowArrayElement { source, index, .. } => {
+                    if !temps.info(*source)?.is_borrowed {
+                        return Err("array iteration source loan");
+                    }
+                    if temps.read(*index, true)? != Ty::I64 {
+                        return Err("array iteration index type");
+                    }
+                    let Ty::Array(item) = temps.read(*source, false)? else {
+                        return Err("array iteration source type");
+                    };
+                    Some(*item)
+                }
                 Op::IndexValue { base, index, .. } => {
                     let base = temps.read(*base, true)?;
                     if temps.read(*index, true)? != Ty::I64 {
@@ -2823,14 +2877,11 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     }
                     Some(Ty::Bool)
                 }
-                Op::BeginArrayIteration(root) => {
-                    let local = function.locals.get(root.0).ok_or("array iteration root")?;
-                    if !matches!(local.ty, Ty::Array(_))
-                        || !tree.get(&initialized, root.0)
-                        || temps.exclusive(root.0) != 0
-                        || temps.reads(root.0) == 0
+                Op::BeginArrayIteration(source) => {
+                    if !temps.info(*source)?.is_borrowed
+                        || !matches!(temps.read(*source, false)?, Ty::Array(_))
                     {
-                        return Err("array iteration root state");
+                        return Err("array iteration source state");
                     }
                     Some(Ty::I64)
                 }
@@ -3304,6 +3355,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 | Op::BeginLoan { .. }
                 | Op::ReadIndex { .. }
                 | Op::BorrowIndex { .. }
+                | Op::BorrowArrayElement { .. }
                 | Op::CheckIndex { .. }
                 | Op::TestVariant { .. }
                 | Op::TestLiteral { .. }
@@ -3349,6 +3401,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     let borrowed_from = match ins.op {
                         Op::BorrowValue(root) => Some(root.0),
                         Op::BorrowIndex { local, .. } => Some(local.0),
+                        Op::BorrowArrayElement { source, .. } => temps.info(source)?.borrowed_from,
                         Op::BeginLoan {
                             root,
                             permission: LoanPermission::Read,
@@ -3358,14 +3411,24 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         _ => None,
                     };
                     let is_borrowed = borrowed_from.is_some()
-                        && !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                            && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit));
+                        && !(matches!(
+                            ins.op,
+                            Op::BorrowValue(_)
+                                | Op::BorrowIndex { .. }
+                                | Op::BorrowArrayElement { .. }
+                        ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit));
                     let borrowed_from = borrowed_from.filter(|_| {
-                        !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                            && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
+                        !(matches!(
+                            ins.op,
+                            Op::BorrowValue(_)
+                                | Op::BorrowIndex { .. }
+                                | Op::BorrowArrayElement { .. }
+                        ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
                     });
-                    if (matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                        && !matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
+                    if (matches!(
+                        ins.op,
+                        Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                    ) && !matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
                         || matches!(ins.op, Op::ProjectPayload { .. }))
                         && let Some(root) = borrowed_from
                     {
