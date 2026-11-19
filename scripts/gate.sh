@@ -1,6 +1,12 @@
 #!/usr/bin/env sh
 set -eu
 repo=$(git rev-parse --show-toplevel)
+case "${2:-}" in
+    --verify|--cached-bin) ;;
+    *) if [ "${NEXO_HEAVY_LOCK_HELD:-}" != "1" ]; then
+           exec python -B "$repo/scripts/heavy-lock.py" run --session "gate:${1:-unknown}" -- sh "$repo/scripts/gate.sh" "$@"
+       fi ;;
+esac
 python -B - "$repo" "$@" <<'PY'
 """Puerta completa reproducible de un commit; el verde se publica al final."""
 import hashlib
@@ -56,6 +62,7 @@ try:
 except subprocess.CalledProcessError:
     main_validate_sha256 = None
 env = os.environ.copy()
+env.pop('NEXO_HEAVY_LOCK_HELD', None)
 env['CARGO_BUILD_JOBS'] = '6'
 env['NO_COLOR'] = '1'
 relevant = {key: sha(value.encode()) for key, value in sorted(env.items())
