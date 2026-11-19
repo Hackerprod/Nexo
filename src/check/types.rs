@@ -17597,4 +17597,90 @@ mod quota_tests {
             }
         }
     }
+    #[test]
+    fn i07c_survivor_refuted_binary_and_guarded_results() {
+        let source = "fn Main(){}";
+        let ast = parse::parse_new_profile("survivor.n", source).unwrap();
+        let resolved = names::resolve_with_option("survivor.n", source, &ast, true).unwrap();
+        let mut graph = empty_checker(&resolved).graph;
+        let binary = (10, 20);
+        let guarded = (30, 40);
+        graph.transition(
+            binary,
+            ObligationClass::BinaryDomain,
+            ObligationStatus::Refuted,
+        );
+        assert!(graph.refuted_result_sites().contains(&binary));
+        graph.occurrences.clear();
+        graph.transition(
+            guarded,
+            ObligationClass::GuardedComparison,
+            ObligationStatus::Refuted,
+        );
+        assert!(graph.refuted_result_sites().contains(&guarded));
+    }
+
+    #[test]
+    fn i07c_survivor_conditional_bindings_follow_their_result_sites() {
+        let source = "fn Main(){}";
+        let ast = parse::parse_new_profile("survivor.n", source).unwrap();
+        let resolved = names::resolve_with_option("survivor.n", source, &ast, true).unwrap();
+        let mut graph = empty_checker(&resolved).graph;
+        let site = |start| Span {
+            file: "survivor.n".into(),
+            start,
+            end: start + 1,
+        };
+        let nominal = site(10);
+        let binary = site(20);
+        let guarded = site(30);
+        graph.obligations = vec![
+            ObligationKind::DomainNominal(Box::new(PendingNominalDomain {
+                variable: 0,
+                domain: "domain:array",
+                call: nominal.clone(),
+                nominal: Type::I64,
+                expected: None,
+                expected_span: None,
+                depends_on: None,
+                conditional_bindings: Vec::new(),
+            })),
+            ObligationKind::BinaryDomain(Box::new(PendingBinaryDomain {
+                variable: 1,
+                operator: binary.clone(),
+                found: binary.clone(),
+                domain: "I64",
+                result: binary.clone(),
+                conditional_bindings: Vec::new(),
+            })),
+            ObligationKind::GuardedComparison(Box::new(PendingGuardedComparison {
+                variable: 2,
+                domain: "I64",
+                expected: Type::I64,
+                found: Type::Bool,
+                expected_origin: guarded.clone(),
+                found_site: guarded.clone(),
+                result: guarded.clone(),
+                consumer_expected: None,
+                consumer_origin: None,
+                domain_error_if_equal: None,
+                additional_domains: Vec::new(),
+                projections: Vec::new(),
+                dependent_results: Vec::new(),
+                require_resolved: false,
+                conditional_bindings: Vec::new(),
+            })),
+        ];
+        for (id, result) in [(3, &nominal), (4, &binary), (5, &guarded)] {
+            graph.attach_conditional_binding(result, id, Type::I64);
+        }
+        assert_eq!(
+            graph.conditional_bindings(),
+            vec![
+                (3, nominal, Type::I64),
+                (4, binary, Type::I64),
+                (5, guarded, Type::I64),
+            ]
+        );
+    }
 }

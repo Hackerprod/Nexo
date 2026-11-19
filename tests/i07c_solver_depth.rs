@@ -375,3 +375,22 @@ fn deep_union_signatures_and_late_projection_export_remain_valid() {
     }
     accepts("fn Main(){var a=[];a=[1];let b=a;let x=b[0];}");
 }
+
+#[test]
+fn pending_projection_clones_all_selector_statement_shapes() {
+    let selectors = [
+        "if true then {var i=0;i=1;value:i;}else{value:2;}",
+        "if true then {if false {let z=1;}else{let z=2;}value:0;}else{value:1;}",
+        "if true then {var i=0;while i<1{i=i+1;}value:i;}else{value:1;}",
+        "if true then {for i in G(){let z=i;}value:0;}else{value:1;}",
+        "match Some(Some(1)){Some(Some(n)) if n==1=>{value:0;},_=>{value:1;}}",
+        "if true then {let f=fn []()->I64{return 1;};value:0;}else{value:1;}",
+        "if true then {match true{true if true=>{},_=>{}}value:0;}else{value:1;}",
+    ];
+    for selector in selectors {
+        let source = format!(
+            "gen fn G()->I64{{yield 1;}}fn Main(){{var q=(if true then {{return;}} else {{return;}});let x=q[{selector}];q=[1];}}"
+        );
+        accepts(&source);
+    }
+}
