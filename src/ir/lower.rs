@@ -3108,7 +3108,7 @@ impl Lower<'_> {
         flow: Flow,
         surviving_temps: HashSet<TempId>,
     ) -> Result<ForState, CompileError> {
-        if matches!(flow.ty(), Some(Ty::Array(_))) {
+        if self.literal_true_loops && matches!(flow.ty(), Some(Ty::Array(_))) {
             return self.begin_for_array(statement, flow, surviving_temps);
         }
         let Statement::For {
@@ -10522,7 +10522,21 @@ mod tests {
                 }
             }
         }
-        compile_ast_with_flow_limit(&ast, source, &checked.inferred, AnalysisLimits::NORMAL)
+        compile_ast_with_flow_limit(
+            &ast,
+            source,
+            &checked.inferred,
+            analysis_limits(ReducedProfile::F5ControlInternal),
+        )
+    }
+
+    #[test]
+    fn public_j_profile_keeps_array_iteration_out_of_lowering() {
+        let source = "fn Main(){var v2=[];let n=Len(v2);for x in v2{}v2[0]=7;}";
+        assert!(matches!(
+            compile_scalar_with_profile("case.n", source, ReducedProfile::JNormal, false),
+            Err(CompileError::InvalidIr("for iterable type"))
+        ));
     }
 
     #[test]
