@@ -83,6 +83,16 @@ contexto limpio.
 
 ## Reglas comunes
 
+- **Puertas NX-build.** C usa `sh scripts/validate-fast.sh` solo para iterar por commit y
+  `sh scripts/validate.sh` en clon limpio antes de D y al cerrar cada bloque. B, D, D' e
+  integración usan siempre la puerta completa. Toda mutación de núcleo, mutación inversa
+  por regla, diferencial debug/release o `check`/`run`, y medición citada para decidir si
+  un mutante muere o sobrevive usa `--profile default` explícito y todos los tests
+  ejecutables. El fallback es `cargo test` íntegro. La puerta rápida nunca fundamenta
+  PASS, supervivencia ni muerte de un mutante. Un timeout de nextest falla la puerta;
+  se repite el test aislado y se investiga como fallo no determinista, nunca se cuenta
+  como PASS ni se reintenta en silencio.
+
 - Implementador y validador siempre distintos. Al validador se le da el código y los
   criterios, no la opinión previa del coordinador.
 - Las observaciones de una revisión se clasifican según el contrato del corte, no según el número de
