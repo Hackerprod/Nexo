@@ -8,8 +8,8 @@ set -eu
 cargo fmt --all -- --check
 cargo clippy --locked --offline --all-targets -- -D warnings
 if [ "${NEXO_VALIDATE_RUNNER:-auto}" != "cargo-test" ] && cargo nextest --version >/dev/null 2>&1; then
-    cargo nextest run --locked --offline
-    cargo nextest run --locked --offline --release
+    cargo nextest run --locked --offline --profile default
+    cargo nextest run --locked --offline --profile default --release
 else
     cargo test --locked --offline
     cargo test --locked --offline --release

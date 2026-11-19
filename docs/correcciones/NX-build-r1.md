@@ -1,5 +1,9 @@
 # NX-build — plan r2 para acelerar las puertas
 
+## Adenda operativa de C (decisión del coordinador, 2026-11-19)
+
+Tras un cuelgue no reproducible en una muestra caliente, ambos perfiles de nextest incorporan `slow-timeout` con `terminate-after = 1`, sin `retries`: 30 min en `default` y 8 min en `fast`. El máximo individual medido en la tabla es 414,0 s, por lo que 30 min excede tres veces ese máximo. El timeout es fallo de puerta que se repite aislado y se investiga; nunca es PASS. Esta decisión sustituye únicamente las frases de §3 y §5 que prescribían mantener `slow-timeout` sin tope. La prueba sintética del timeout y los valores observados se registran en `docs/validation/NX-build-mediciones.md`.
+
 ## Cambios respecto a la versión anterior
 
 - Se separa la medición de tiempo de `98ff91d` del inventario reproducible de `ae9130f`: 2.051 tests descubiertos, 72 ignorados y 1.979 ejecutables en debug; los ignorados quedan fuera de ambas puertas.
