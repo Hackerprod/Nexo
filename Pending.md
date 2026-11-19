@@ -575,3 +575,17 @@ Entra en main el Bloque B2a hasta `98ff91d`: F5-L04a (`bfab04b`: retorno total d
 | F5-B2A-NO-EVALUADO | Generadores, closures, `match` y `?` con rango: D' los evaluó en el arnés interno sin discrepancias; el tipado público queda para B2b. | Informe D'. | F5 (B2b) |
 
 Pendiente de F0-0005: B3a (L07a→L06a, en curso), B1b/B2b/B3b (tipado tras el Bloque II de I07c), B4 (L08), B5 (const) y B6. El corte F0-0005 NO está cerrado.
+
+
+## F0-0005 — Bloque B3a (Array dinámico y `for` sobre Array sin `types.rs`) integrado (2026-11-19)
+
+Entra en main el Bloque B3a hasta `dad10f0`: F5-L07a (`8cd60e1`: Array dinámico con intrínsecos internos Push/Pop/JoinArrays en IR/verificador/máquina/efectos y preámbulo en `src/prelude.rs`; independencia anidada, `None`, fallos parciales, alloc de JoinArrays según F5-B10; sin tipo `List`) y F5-L06a (`efe4ba8`: `for` interno sobre Array prestado, temporal y movido; T03 = 20 ticks; par F5-B01), con cuatro correcciones tras el FAIL de D: M2 `53a6010` (el `for` sobre Array queda en una variante INTERNA del perfil; el perfil J/A2 y toda salida pública idénticos a la base, incluido el `internal_error` de `var v2=[];let n=Len(v2);for x in v2{}v2[0]=7;`, que pertenece a I07c), M4 `9ea50ba` (visibilidad mínima), M3 `1570f8b` (préstamo del `for` también en código muerto) y M1 `dad10f0` (el iterando indexado o proyectado se presta durante todo el bucle, sin copia defensiva; NX-E1105 en `rows[0]`). D' dio PASS (matriz de 1.050 casos iterando×mutación×salida×código vivo/muerto contra ADR §3.2/§6; batería propia de L07a de 0 a 1.024 elementos con barridos de cuota; Arrays anidados de 120 a 126 niveles a 204 y 256 KiB y 127–129 con NX-E0003 como la base; diferencial de 3.600 fuentes propias y unas 43.200 ejecuciones, 0 diferencias; `validate.sh` exit 0, objetivo 15/29). Ninguna fuente nueva se acepta antes de F5-L08; `f0-0005-b-v1` sigue dando `unknown_profile`. Informes en `.scratch/val-f5/b3a-*`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| F5-B3A-MUT-SUPERVIVIENTES | Supervivientes sin programa discriminante: Q1 (quitar el `conflict` inicial de `begin_for_array`), `Unit` fuera de `allowed_array_element` y la colisión de tag en `content_hash`; no cambian el comportamiento del producto. | Informes D y D' de B3a. | F5 (endurecimiento) |
+| F5-B3A-REGRESIONES-FALTAN | Faltan regresiones para `Array<()>` y para iterar un Array de Arrays observando `x`. | Informe D'. | F5 (endurecimiento) |
+| F5-B3A-NO-EVALUADO | NX-E1104 con closures y `for` sobre Array dentro de `gen fn`, closure o `if` con valor: el arnés interno no puede tipar sin `types.rs`; llamadas, closures y `for` anidado dentro de cuerpos de bucle dan `InvalidIr` también con `for` de rango (límite del arnés, no del corte). Se evalúan en B3b con el tipado. | Informes D y D'. | F5 (B3b) |
+| F5-B3A-INTERNAL-ERROR-LEN-FOR | `var v2=[];let n=Len(v2);for x in v2{}v2[0]=7;` da `internal_error` en la base y sigue igual en los perfiles públicos (no es regresión; pertenece a I07c). | CLI en `98ff91d`. | I07c |
+
+Pendiente de F0-0005: B1b/B2b/B3b (tipado en `src/check/operators.rs` con enganche mínimo en `types.rs`; esperan el Bloque II de I07c integrado en main), B4 (L08 contabilidad, retira la barrera en `lower`), B5 (const) y B6 (integración y adversarial). El corte F0-0005 NO está cerrado.

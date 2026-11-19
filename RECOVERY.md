@@ -369,3 +369,5 @@ J16 Bloque 3 integrado (2026-11-17, hasta `f904b58`); J16 cerrado salvo S1b/S1c 
 F0-0005 Bloque B1a integrado (2026-11-18, hasta `76b6f60`). Siguiente: B2a (L04a/L05a) y B3a (L06a/L07a) sin `types.rs` según `docs/correcciones/F5-r1.md` r6; B1b/B2b/B3b tras el Bloque II de I07c en main (`origin/i07c-estructural-r2`); luego B4 (L08), B5 (const) y B6. I07c lo lleva la sesión «Nexo i07c»; integrar con fast-forward tras PASS de su D'.
 
 F0-0005 Bloque B2a integrado (2026-11-18, hasta `98ff91d`). Siguiente: B3a (L07a→L06a, en `i07c-robustez` desde `8cd60e1`, aún sin validar), tipado B1b/B2b/B3b tras el Bloque II de I07c en main, luego B4 (L08), B5 y B6 según `docs/correcciones/F5-r1.md` r6.
+
+F0-0005 Bloque B3a integrado (2026-11-19, hasta `dad10f0`). Siguiente: tipado B1b/B2b/B3b tras el Bloque II de I07c en main (rama propia basada en `origin/i07c-estructural-r2`), luego B4 (L08), B5 (const) y B6 según `docs/correcciones/F5-r1.md` r6. Entorno: todo en `C:\nexo-work` (NVMe), `cargo-nextest` instalado y usado por `scripts/validate.sh`.

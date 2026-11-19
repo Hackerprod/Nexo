@@ -466,3 +466,8 @@ Se integra a main el plan `docs/correcciones/F5-r1.md` r6 (PASS de B), la propue
 ## F0-0005 — Bloque B2a integrado (2026-11-18)
 
 Se integra a main el Bloque B2a hasta `98ff91d` en `i07c-robustez`: L04a (`while true`, `break`/`continue` y joins I07b en CFG interno) y L05a (`for` sobre rango con límites únicos y limpieza, sin materializar el rango). D y D' dieron PASS; objetivo 15/29, `validate.sh` exit 0. Ninguna fuente nueva se acepta antes de F5-L08. Filas `F5-B2A-*` en `Pending.md` (incluye un defecto preexistente de cierre de recursos condicionales en bloques internos). Siguen B3a (en curso) y el tipado B1b/B2b/B3b tras el Bloque II de I07c.
+
+
+## F0-0005 — Bloque B3a integrado (2026-11-19)
+
+Se integra a main el Bloque B3a hasta `dad10f0` en `i07c-robustez`: L07a (Array dinámico: Push/Pop/JoinArrays internos, preámbulo en `src/prelude.rs`) y L06a (`for` interno sobre Array prestado, temporal y movido, con el perfil interno acotado para no alterar J/A2) más las correcciones de M1–M4 tras el FAIL de D. D' dio PASS; objetivo 15/29, `validate.sh` exit 0. Ninguna fuente nueva se acepta antes de F5-L08. Filas `F5-B3A-*` en `Pending.md`. Siguen el tipado B1b/B2b/B3b (tras el Bloque II de I07c en main), B4 (L08), B5 (const) y B6.
