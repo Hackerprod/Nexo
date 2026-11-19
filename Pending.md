@@ -560,3 +560,18 @@ Entra en main: el plan `docs/correcciones/F5-r1.md` r6 (PASS de B tras cinco rev
 | F5-B1A-UNARIOS | `-x`, `not x` y `edit v` sin llamada siguen rechazados por el parser F5 oculto (como en J); entran con la parte de tipado (L01b/L02b). | Informe D'. | F5 (B1b) |
 
 Pendiente de F0-0005: B2a (control: L04a/L05a) y B3a (Array dinámico: L06a/L07a) sin `types.rs`; B1b/B2b/B3b (tipado) tras I07c Bloque II; B4 (L08 contabilidad, retira la barrera en `lower`); B5 (const); B6 (integración y adversarial). El corte F0-0005 NO está cerrado.
+
+
+## F0-0005 — Bloque B2a (control sin `types.rs`) integrado (2026-11-18)
+
+Entra en main el Bloque B2a hasta `98ff91d`: F5-L04a (`bfab04b`: retorno total de `while true`, `break`/`continue` y joins I07b sin perder consumos, en CFG interno bajo la variante interna `F5ControlInternal` de `ReducedProfile`, no seleccionable por CLI) y F5-L05a (`98ff91d`: `for` sobre rango con límites únicos, vacío/MIN/MAX, control y limpieza, sin materializar el rango; parser oculto F5, IR, verificador y máquina). D y D' dieron PASS (D' con unas 20.000 ejecuciones aleatorias contra un oráculo propio del ADR sin discrepancias, 2.520 programas bucle×control×posición×anidamiento, tablas de operadores 15²/15³/15⁴ sin desacuerdos, diferencial de 5.300 fuentes propias con 21.200 comparaciones sin diferencias; `validate.sh` exit 0 con 3.918 tests; objetivo 15/29, RD 152/152). Ninguna fuente nueva se acepta antes de F5-L08; `f0-0005-b-v1` sigue dando `unknown_profile`. Informes en `.scratch/val-f5/b2a-*`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| F5-B2A-MUT-SUPERVIVIENTES | Supervivientes sin programa discriminante: M4/M7 (primer frente a último `break`; omitir `enter_edge` del primer `break`), N3, N4, N5, N20 y N24 de D, y MK, MM, MN y MO de D' (equivalentes o inalcanzables con IR válida). | Informes D y D' de B2a. | F5 (endurecimiento) |
+| F5-B2A-RECURSO-CONDICIONAL | Defecto PREEXISTENTE en la base: un recurso consumido condicionalmente en un bloque interno se cierra al final de la función, no del bloque. No es regresión de B2a. | Informe D' `b2a-dprime-informe`. | F5/núcleo (decidir su corte) |
+| F5-B2A-PROFILE-PUB | `F5ControlInternal` es `pub` por ser variante de un enum público; pasarlo a `pub(crate)` o `#[doc(hidden)]` cuando L04b conecte el perfil. `precedence.rs` no figura en la lista de archivos de L05 del plan (justificado como fuente única de niveles de B1a; solo añade el campo `range`). | Informes D y D'. | F5 (B2b) |
+| F5-B2A-RECOGNIZED-PREFIX | El ADR no fija dónde empieza `recognized_prefix` cuando la cadena no empieza el inicializador; el parser usa el inicio de la producción. `print.rs` imprime el operando izquierdo de un rango sin paréntesis (no alcanzable: el parser conserva siempre el `Group`). | Informes D y D'. | F5 (laguna a decidir) |
+| F5-B2A-NO-EVALUADO | Generadores, closures, `match` y `?` con rango: D' los evaluó en el arnés interno sin discrepancias; el tipado público queda para B2b. | Informe D'. | F5 (B2b) |
+
+Pendiente de F0-0005: B3a (L07a→L06a, en curso), B1b/B2b/B3b (tipado tras el Bloque II de I07c), B4 (L08), B5 (const) y B6. El corte F0-0005 NO está cerrado.
