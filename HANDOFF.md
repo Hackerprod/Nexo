@@ -461,3 +461,8 @@ Se integra a main el Bloque 3 de J16 hasta `f904b58` en `i07c-robustez`: baterí
 ## F0-0005 — Plan, lagunas y Bloque B1a integrados (2026-11-18)
 
 Se integra a main el plan `docs/correcciones/F5-r1.md` r6 (PASS de B), la propuesta de lagunas H1–H5 ya insertada en el ADR F0-0005 (`f81b6ce`, decisión revertible del coordinador) y el Bloque B1a hasta `76b6f60` en `i07c-robustez`: L01a (operadores tipados y aritmética comprobada en IR), L02a (lógica y cortocircuito en IR), L03a (lugar compuesto exclusivo en IR), tabla única de precedencias `src/frontend/precedence.rs` y correcciones del parser oculto F5. D' dio PASS; objetivo 15/29, `validate.sh` exit 0. Ninguna fuente nueva se acepta antes de F5-L08. Filas `F5-B1A-*` en `Pending.md`. Siguen B2a y B3a (sin `types.rs`); el tipado (B1b/B2b/B3b) espera al Bloque II de I07c en main.
+
+
+## F0-0005 — Bloque B2a integrado (2026-11-18)
+
+Se integra a main el Bloque B2a hasta `98ff91d` en `i07c-robustez`: L04a (`while true`, `break`/`continue` y joins I07b en CFG interno) y L05a (`for` sobre rango con límites únicos y limpieza, sin materializar el rango). D y D' dieron PASS; objetivo 15/29, `validate.sh` exit 0. Ninguna fuente nueva se acepta antes de F5-L08. Filas `F5-B2A-*` en `Pending.md` (incluye un defecto preexistente de cierre de recursos condicionales en bloques internos). Siguen B3a (en curso) y el tipado B1b/B2b/B3b tras el Bloque II de I07c.
