@@ -17683,4 +17683,601 @@ mod quota_tests {
             ]
         );
     }
+
+    #[test]
+    fn i07c_survivor2_nested_shape_hints_reach_the_leaf() {
+        let array = Type::Array(Arc::new(Type::I64));
+        assert!(
+            Checker::type_shape_hint(&array)
+                == ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::I64)))
+        );
+        let left = ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::I64)));
+        let right = ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::Bool)));
+        assert!(Checker::shape_hints_conflict(&left, &right));
+        assert!(!Checker::shape_hints_conflict(&left, &left));
+    }
+
+    #[test]
+    fn i07c_survivor2_pending_operation_types_match_their_sites() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let nominal = site(10);
+        let guarded = site(20);
+        checker
+            .graph
+            .register(ObligationKind::DomainNominal(Box::new(
+                PendingNominalDomain {
+                    variable: 0,
+                    domain: "I64",
+                    call: nominal.clone(),
+                    nominal: Type::I64,
+                    expected: None,
+                    expected_span: None,
+                    depends_on: None,
+                    conditional_bindings: Vec::new(),
+                },
+            )));
+        checker
+            .graph
+            .register(ObligationKind::GuardedComparison(Box::new(
+                PendingGuardedComparison {
+                    variable: 0,
+                    domain: "I64",
+                    expected: Type::I64,
+                    found: Type::Bool,
+                    expected_origin: guarded.clone(),
+                    found_site: guarded.clone(),
+                    result: guarded.clone(),
+                    consumer_expected: None,
+                    consumer_origin: None,
+                    domain_error_if_equal: None,
+                    additional_domains: Vec::new(),
+                    projections: Vec::new(),
+                    dependent_results: Vec::new(),
+                    require_resolved: false,
+                    conditional_bindings: Vec::new(),
+                },
+            )));
+        assert!(
+            checker.pending_operation_type(&Expr::Integer("1".into(), nominal)) == Some(Type::I64)
+        );
+        assert!(checker.pending_operation_type(&Expr::Bool(true, guarded)) == Some(Type::Bool));
+        assert!(
+            checker
+                .pending_operation_type(&Expr::Bool(true, site(30)))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn i07c_survivor2_pending_nominal_requires_live_domain() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        for (concrete, array, failed, bottom, expected) in [
+            (Some(Type::Bool), false, false, false, false),
+            (None, true, false, false, false),
+            (None, true, false, true, false),
+            (None, false, true, false, false),
+            (None, false, false, false, true),
+            (None, false, false, true, true),
+        ] {
+            let mut checker = empty_checker(&resolved);
+            let root = checker.new_variable(&site(1)).unwrap();
+            let child = checker.new_variable(&site(2)).unwrap();
+            let node = checker.graph.type_nodes.get_mut(&root).unwrap();
+            node.concrete = concrete.map(|ty| (ty, site(1)));
+            node.array_child = array.then_some(child);
+            node.failed_constructor = failed;
+            node.bottom_only = bottom;
+            checker
+                .graph
+                .register(ObligationKind::BinaryDomain(Box::new(
+                    PendingBinaryDomain {
+                        variable: root,
+                        operator: site(3),
+                        found: site(3),
+                        domain: "I64",
+                        result: site(4),
+                        conditional_bindings: Vec::new(),
+                    },
+                )));
+            assert_eq!(
+                checker.pending_nominal_available(&Expr::Bool(true, site(4))),
+                expected,
+                "array={array} failed={failed} bottom={bottom}"
+            );
+        }
+    }
+
+    #[test]
+    fn i07c_survivor2_solver_preserves_constructor_identity() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.new_variable(&site(2)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&root)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(child));
+        assert!(checker.require_array(root, &site(3)).is_err());
+
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete =
+            Some((Type::option(Arc::new(Type::I64)), site(4)));
+        assert!(checker.concrete(root).is_some());
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((
+            Type::result(Arc::new(Type::I64), Arc::new(Type::Bool)),
+            site(5),
+        ));
+        assert!(checker.concrete(root).is_none());
+
+        let scalar = checker.new_variable(&site(6)).unwrap();
+        checker.graph.type_nodes.get_mut(&scalar).unwrap().concrete = Some((Type::Bool, site(6)));
+        assert!(checker.require_array(scalar, &site(7)).is_err());
+        let element = checker.new_variable(&site(8)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&scalar)
+            .unwrap()
+            .array_child = Some(element);
+        assert!(checker.concrete(scalar).is_none());
+    }
+
+    #[test]
+    fn i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        checker.graph.shape_plan.insert(10, vec![site(2)]);
+        checker.seed_planned_shape(10, root);
+        let child = checker.graph.type_nodes[&root].array_child.unwrap();
+        assert!(!checker.graph.type_nodes[&child].failed_constructor);
+        assert!(!checker.graph.type_nodes[&child].deferred_join);
+        checker.graph.type_nodes.get_mut(&child).unwrap().concrete = Some((Type::Bool, site(3)));
+        checker.graph.concrete_plan.insert(
+            10,
+            ConcreteEvidence {
+                ty: Type::Array(Arc::new(Type::I64)),
+                origin: site(4),
+                intrinsic: false,
+            },
+        );
+        checker.seed_planned_shape(10, root);
+        assert!(checker.graph.type_nodes[&child].concrete == Some((Type::Bool, site(3))));
+    }
+
+    #[test]
+    fn i07c_survivor2_closure_restores_enclosing_result_site() {
+        let source = "fn Main(){let f=fn []()->I64{return 1;};}";
+        let ast = parse::parse_new_profile("closure.n", source).unwrap();
+        let resolved = names::resolve_with_option("closure.n", source, &ast, true).unwrap();
+        let Statement::Let {
+            value: Expr::Closure(closure),
+            ..
+        } = &ast.functions[0].body.statements[0]
+        else {
+            panic!("expected closure binding")
+        };
+        let mut checker = empty_checker(&resolved);
+        let enclosing_site = site(90);
+        checker.graph.result = Type::Bool;
+        checker.graph.result_span = Some(enclosing_site.clone());
+        let context = OwnedCheckContext {
+            expected: None,
+            expected_span: None,
+            check_here: false,
+            anchor: None,
+            outer_compare: false,
+            related_expected: false,
+            deferred_element: false,
+        };
+        let progress = checker.closure_begin(closure, context).unwrap();
+        checker.closure_finish(progress, Ok(())).unwrap();
+        assert_eq!(checker.graph.result, Type::Bool);
+        assert_eq!(checker.graph.result_span, Some(enclosing_site));
+    }
+
+    #[test]
+    fn i07c_survivor2_concrete_closure_result_does_not_bind_pending_return() {
+        let source = "fn Main(){let f=fn []()->Bool{var q=[];return q[0];};}";
+        let ast = parse::parse_new_profile("closure.n", source).unwrap();
+        let resolved = names::resolve_with_option("closure.n", source, &ast, true).unwrap();
+        let Statement::Let {
+            value: Expr::Closure(closure),
+            ..
+        } = &ast.functions[0].body.statements[0]
+        else {
+            panic!("expected closure binding")
+        };
+        let mut checker = empty_checker(&resolved);
+        let unresolved = checker.new_variable(&site(1)).unwrap();
+        let context = OwnedCheckContext {
+            expected: None,
+            expected_span: None,
+            check_here: false,
+            anchor: None,
+            outer_compare: false,
+            related_expected: false,
+            deferred_element: false,
+        };
+        let mut progress = checker.closure_begin(closure, context).unwrap();
+        progress.next = closure.body.statements.len();
+        progress.pending_statement = Some(ClosurePending::Return {
+            statement: &closure.body.statements[1],
+            expected: Type::Bool,
+            prior_taint: false,
+        });
+        checker.block_depth = 1;
+        let action = checker.closure_body_advance(
+            &mut VisitCursor::default(),
+            &mut progress,
+            Some(Ok(Type::Deferred(unresolved))),
+        );
+        assert!(matches!(action, ClosureAction::Done(Ok(()))));
+        assert!(checker.graph.type_nodes[&unresolved].concrete.is_none());
+    }
+
+    #[test]
+    fn i07c_survivor2_pending_selector_keeps_independent_taint() {
+        let source = "fn Main(){var q=[];var r=[];let x=q[(r-r)];r=[3];q=[1];}";
+        let ast = parse::parse_new_profile("selector.n", source).unwrap();
+        let resolved = names::resolve_with_option("selector.n", source, &ast, true).unwrap();
+        let Statement::Let {
+            value: Expr::Index { target, index, .. },
+            ..
+        } = &ast.functions[0].body.statements[2]
+        else {
+            panic!("expected pending projection")
+        };
+        let mut checker = empty_checker(&resolved);
+        let origin = Span {
+            file: "selector.n".into(),
+            start: source.find("r=[]").unwrap() as u64,
+            end: source.find("r=[]").unwrap() as u64 + 1,
+        };
+        let base = checker.new_variable(target.span()).unwrap();
+        let item = checker.new_variable(index.span()).unwrap();
+        let r = checker.new_variable(&origin).unwrap();
+        checker.require_array(r, &origin).unwrap();
+        checker.graph.locals.insert(
+            origin.start,
+            Known {
+                ty: Type::Deferred(r),
+                origin: origin.clone(),
+                variable: Some(r),
+                invalid: false,
+                nominal_sources: HashSet::new(),
+            },
+        );
+        checker
+            .graph
+            .register(ObligationKind::Projection(Box::new(PendingProjection {
+                base,
+                item,
+                base_span: target.span().clone(),
+                result_span: parse::statement_span(&ast.functions[0].body.statements[2]).clone(),
+                selector: Arc::new(index.as_ref().clone()),
+                selector_variable: None,
+                checked_without_context: false,
+                selector_invalid: false,
+                expected: None,
+                expected_span: None,
+                related_expected: false,
+            })));
+        checker.resolve_pending_projections(false).unwrap();
+        let flag = checker.graph.obligations.iter().find_map(|obligation| {
+            let ObligationKind::Projection(projection) = obligation else {
+                return None;
+            };
+            Some((
+                projection.checked_without_context,
+                projection.selector_invalid,
+            ))
+        });
+        assert_eq!(flag, Some((true, true)));
+    }
+
+    #[test]
+    fn i07c_survivor2_selection_depth_keeps_the_current_type() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        assert!(checker.selection_type(&Type::I64, 129) == Type::I64);
+        let nested = Type::Array(Arc::new(Type::I64));
+        assert!(checker.selection_type(&nested, 128) == nested);
+    }
+
+    #[test]
+    fn i07c_survivor2_resolved_join_rebuilds_option_payload() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((Type::I64, site(2)));
+        let side = Type::option(Arc::new(Type::Deferred(root)));
+        assert!(checker.resolved_join_side(side) == Some(Type::option(Arc::new(Type::I64))));
+    }
+
+    #[test]
+    fn i07c_survivor2_expression_dependencies_cover_branch_children() {
+        fn value_block(value: Expr, at: u64) -> Block {
+            Block {
+                statements: vec![Statement::Value {
+                    value: Some(value),
+                    marker: None,
+                    span: site(at),
+                }],
+                span: site(at),
+                close_span: site(at + 1),
+            }
+        }
+        fn assert_child(checker: &mut Checker<'_>, parent: &Expr, child: &Expr) {
+            let source = (child.span().start + 100, child.span().end + 100);
+            checker.graph.occurrences.clear();
+            checker
+                .graph
+                .occurrences
+                .entry(span_key(child.span()))
+                .or_default()
+                .nominal_sources
+                .insert(source);
+            checker.capture_expression_dependencies(parent);
+            assert!(
+                checker.graph.occurrences[&span_key(parent.span())]
+                    .nominal_sources
+                    .contains(&source),
+                "missing dependency from {:?}",
+                child.span()
+            );
+        }
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let call = Expr::Call {
+            target: Box::new(Expr::Name("F".into(), site(10))),
+            args: Vec::new(),
+            span: site(9),
+        };
+        let Expr::Call { target, .. } = &call else {
+            unreachable!()
+        };
+        assert_child(&mut checker, &call, target);
+
+        let branch = Expr::If {
+            condition: Box::new(Expr::Bool(true, site(20))),
+            then_block: value_block(Expr::Integer("1".into(), site(21)), 22),
+            otherwise: Some(Box::new(Else::Block(value_block(
+                Expr::Integer("2".into(), site(23)),
+                24,
+            )))),
+            span: site(19),
+        };
+        let Expr::If {
+            condition,
+            then_block,
+            otherwise,
+            ..
+        } = &branch
+        else {
+            unreachable!()
+        };
+        assert_child(&mut checker, &branch, condition);
+        assert_child(
+            &mut checker,
+            &branch,
+            branch_value_expr(then_block).unwrap(),
+        );
+        let Some(Else::Block(otherwise)) = otherwise.as_deref() else {
+            unreachable!()
+        };
+        assert_child(&mut checker, &branch, branch_value_expr(otherwise).unwrap());
+
+        let selection = Expr::Match(Box::new(parse::Match {
+            scrutinee: Box::new(Expr::Bool(true, site(31))),
+            mode: None,
+            mode_span: None,
+            arms: vec![parse::Arm {
+                pattern: Pattern::Wildcard(site(32)),
+                guard: Some(Expr::Bool(true, site(33))),
+                guard_span: Some(site(33)),
+                body: value_block(Expr::Integer("3".into(), site(34)), 35),
+                span: site(36),
+            }],
+            span: site(30),
+            keyword_span: site(30),
+        }));
+        let Expr::Match(selection_parts) = &selection else {
+            unreachable!()
+        };
+        assert_child(&mut checker, &selection, &selection_parts.scrutinee);
+        assert_child(
+            &mut checker,
+            &selection,
+            selection_parts.arms[0].guard.as_ref().unwrap(),
+        );
+        assert_child(
+            &mut checker,
+            &selection,
+            branch_value_expr(&selection_parts.arms[0].body).unwrap(),
+        );
+    }
+
+    #[test]
+    fn i07c_survivor2_root_compresses_the_entire_parent_chain() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let leaf = checker.new_variable(&site(1)).unwrap();
+        let middle = checker.new_variable(&site(2)).unwrap();
+        let root = checker.new_variable(&site(3)).unwrap();
+        checker.graph.type_nodes.get_mut(&leaf).unwrap().parent = middle;
+        checker.graph.type_nodes.get_mut(&middle).unwrap().parent = root;
+        assert_eq!(checker.root(leaf), root);
+        assert_eq!(checker.graph.type_nodes[&leaf].parent, root);
+    }
+
+    #[test]
+    fn i07c_survivor2_result_shape_conflict_keeps_payload_identity() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.new_variable(&site(2)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&root)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(child));
+        let grandchild = checker.new_variable(&site(3)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&child)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(grandchild));
+        assert!(checker.result_shape_conflict(root, &Type::I64, 0));
+        assert!(checker.result_shape_conflict(
+            root,
+            &Type::result(Arc::new(Type::I64), Arc::new(Type::I64)),
+            0
+        ));
+        assert!(checker.result_shape_conflict(root, &Type::option(Arc::new(Type::I64)), 0));
+        assert!(!checker.result_shape_conflict(root, &Type::Never, 0));
+        assert!(!checker.result_shape_conflict(root, &Type::I64, 129));
+    }
+
+    #[test]
+    fn i07c_survivor2_shape_conflicts_continue_past_irrelevant_children() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let ok = checker.new_variable(&site(2)).unwrap();
+        let err = checker.new_variable(&site(3)).unwrap();
+        let payload = checker.new_variable(&site(4)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&root)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::result(ok, err));
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&err)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(payload));
+        let expected = Type::result(Arc::new(Type::Never), Arc::new(Type::I64));
+        assert!(checker.result_shape_conflict(root, &expected, 0));
+
+        checker.graph.register(ObligationKind::PatternConstructor {
+            union: err,
+            span: site(5),
+        });
+        let pattern_expected = Type::result(Arc::new(Type::I64), Arc::new(Type::I64));
+        let diagnostic = checker
+            .pattern_shape_mismatch(root, &pattern_expected, &site(6), &site(7))
+            .unwrap();
+        assert_eq!(diagnostic.code, "NX-E0102");
+        assert_eq!(diagnostic.subcause.as_deref(), Some("constructor_shape"));
+        assert_eq!(diagnostic.primary_span.as_ref().map(span_key), Some((7, 8)));
+        assert_eq!(
+            diagnostic.message,
+            "La forma del valor no coincide con el tipo esperado."
+        );
+        assert_eq!(
+            diagnostic.data.get("found_constructor"),
+            Some(&DataValue::String("Option".into()))
+        );
+        checker.graph.type_nodes.get_mut(&ok).unwrap().concrete = Some((Type::I64, site(8)));
+        assert!(
+            checker
+                .pattern_shape_mismatch(root, &pattern_expected, &site(6), &site(7))
+                .is_some()
+        );
+    }
+
+    #[test]
+    fn i07c_survivor2_pattern_shape_chooses_first_conflicting_child() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let ok = checker.new_variable(&site(2)).unwrap();
+        let err = checker.new_variable(&site(3)).unwrap();
+        let ok_payload = checker.new_variable(&site(4)).unwrap();
+        let err_left = checker.new_variable(&site(5)).unwrap();
+        let err_right = checker.new_variable(&site(6)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&root)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::result(ok, err));
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&ok)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(ok_payload));
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&err)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::result(err_left, err_right));
+        for (id, span) in [(ok, site(7)), (err, site(8))] {
+            checker
+                .graph
+                .register(ObligationKind::PatternConstructor { union: id, span });
+        }
+        let expected = Type::result(Arc::new(Type::I64), Arc::new(Type::Bool));
+        let diagnostic = checker
+            .pattern_shape_mismatch(root, &expected, &site(9), &site(10))
+            .unwrap();
+        assert_eq!(
+            diagnostic.data.get("found_constructor"),
+            Some(&DataValue::String("Option".into()))
+        );
+        assert_eq!(diagnostic.related_spans[0].span, site(7));
+    }
 }

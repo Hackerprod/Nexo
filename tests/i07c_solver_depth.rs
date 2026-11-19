@@ -394,3 +394,25 @@ fn pending_projection_clones_all_selector_statement_shapes() {
         accepts(&source);
     }
 }
+
+#[test]
+fn closure_inferred_returns_keep_type_mismatch_diagnostic() {
+    // A2 §4.1.1: successive returns constrain the same inferred result.
+    let source = "fn Main(){let f=fn [](){return 1;return true;};}";
+    exact(
+        source,
+        "NX-E0102",
+        Some("type_mismatch"),
+        Operation::TypesCheck,
+        (40, 44),
+        "true",
+        &[
+            (RelatedRole::ExpectedType, 31, 32),
+            (RelatedRole::FoundType, 40, 44),
+        ],
+        data(&[
+            ("expected_type", string("I64")),
+            ("found_type", string("Bool")),
+        ]),
+    );
+}
