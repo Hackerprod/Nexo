@@ -1,0 +1,3288 @@
+{
+ "M00001": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00002": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00003": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00004": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00005": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00006": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00007": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00008": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00009": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00010": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00011": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00012": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00013": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00014": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00015": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00016": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00017": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00018": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00019": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00020": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00021": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00022": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00023": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00024": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00025": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00026": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00027": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00028": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00029": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00030": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00031": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00032": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00033": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00034": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00035": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00036": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00037": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00038": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00039": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00040": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00041": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00042": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00043": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `ccdb5085237a135cfe8ac962133aa3e4a0aa6f56e0fa47a30e4d991650593bc8`"
+ },
+ "M00044": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `fd67d824a2fd2eddb8b2757269d2979ff975bc4a1b7746295c5624e11844a3d0`"
+ },
+ "M00045": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00046": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `f9b3159a9cc3404ab1643d68b844ddb2a295ee0289b4f68f65ec8cbf4c7a9aa7`"
+ },
+ "M00047": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `0ed9c3ccc16578297beee748737d238fad0da0dac1b374521aec9025a413952b`"
+ },
+ "M00048": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `b35beb80f74da63adc28fda2a5086e944e803af1b90de2b788f732ce2797dec8`"
+ },
+ "M00049": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `9d89c1ad90b8b00e882b9c7efbe389cb4f158fcb7170503752abbe4e9845a56b`"
+ },
+ "M00050": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `35e5fdff588c66e6c897d4b9e1944811b016ded0aaa49afee075d3aa35c4e194`"
+ },
+ "M00051": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `5d991fe72a94c1b29438400c491a28a9c72a82c805d37640c5e1e6dc03412db7`"
+ },
+ "M00052": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `aa544d518f22fa79ebe83514eef55b1c901bb745feca00328880ce749e3ba939`"
+ },
+ "M00053": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00054": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00055": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00056": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `bead201644fe2ccfd91d67ed1d248e3b08f1da42d07ac3c6ee7faa02ece16703`"
+ },
+ "M00057": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `3e6fb3ca64769d79cc65a6557c66d9348cb9f558cb139162bcf685902081194d`"
+ },
+ "M00058": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `00aa7be933c40dcf1c72f64f56fcc58cc8c7c27ce8ff012466397deda85d9212`"
+ },
+ "M00059": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `eb0880ad3171017bd6de4c54c9b141e03470a2bbe3df779fc142e77e796a4a5b`"
+ },
+ "M00060": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `76c274875a106052462e1ea19f8d19a452271b984db8e36443aac5213aa5af91`"
+ },
+ "M00061": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `34a71a72752cfb108c39318df4cd86f2a597edd70d08908ea8c55047e34065d7`"
+ },
+ "M00062": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `804c3394ac7a6fda19696ef8a69a4ab38cb628424931f0fd1004ce30deb429fc`"
+ },
+ "M00063": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `dc73dc1c382452013b3fa79a497a7efc2bc5d665afefa124243e4da120ba44f5`"
+ },
+ "M00064": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `05871654a46a465f936ce17e47df248c211f40c3f5891553bf3ef2d1ad7b37b5`"
+ },
+ "M00065": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `8064a511bcb546a0357b88bf58b422cc3a4dc1c304c199837e3234d81185b13e`"
+ },
+ "M00066": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `6069d08821bca91a8943b650da7d384ac52acac77325ed48e27b05879d019233`"
+ },
+ "M00067": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `0edaee80be33cbb66696694e094ab8c57cafb65564aafdf28c34b4f84a2ee0e7`"
+ },
+ "M00068": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `c8ecd617a35e71f734492364a4d6280821851c072d934b8e395d7e64c38539d0`"
+ },
+ "M00069": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `pending_projection_clones_all_selector_statement_shapes` | `e80bf2e6c253952230fd379e792429f61d65c2c3e19889860c2b2ef88ccc770b`"
+ },
+ "M00070": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00071": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00072": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `i07c_survivor_refuted_binary_and_guarded_results` | `07a3ef52629d45d3bdbdacd7b7bb8eba46b88975c7f243585993f308184d04e2`"
+ },
+ "M00073": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `i07c_survivor_conditional_bindings_follow_their_result_sites` | `bf66d0fa46a70afc173129188d756f0f5ecda0d70e4a686ceee98bb3e1630f6b`"
+ },
+ "M00074": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `i07c_survivor_conditional_bindings_follow_their_result_sites` | `789033fcdb73838745ea0f346befb2fe9a51784d0324a1e65372d82077a86886`"
+ },
+ "M00075": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `i07c_survivor_conditional_bindings_follow_their_result_sites` | `9544f830c4caff5bbd58c409f7799f5fac4d0d275552d986ebcd0e3d71d5e632`"
+ },
+ "M00076": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 1,
+  "detalle": "matado por `i07c_survivor_conditional_bindings_follow_their_result_sites` | `a7dedd14387d65a8544fa6b0a37d2c1193fcbea34b6e69f60846550973a5f1ad`"
+ },
+ "M00077": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00078": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00079": {
+  "clase": "equivalente_con_argumento",
+  "lote": 1,
+  "detalle": "equivalente: `type_nodes` ya está vacío al entrar en `clear_failed_constructors` | `b661ad06e3a2023c51957822fae1ef98560fc32aac06787a5690adb1d14c1fed`"
+ },
+ "M00080": {
+  "clase": "equivalente_con_argumento",
+  "lote": 1,
+  "detalle": "equivalente: `type_nodes` ya está vacío; asignar `true` no alcanza ningún nodo | `1c6c249577fbd4cb9c178e6b91defd5df9018f473a6892b202ed044fd2a4db3e`"
+ },
+ "M00081": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00082": {
+  "clase": "equivalente_con_argumento",
+  "lote": 1,
+  "detalle": "equivalente: todos los llamadores descartan el `bool` devuelto por `mark`; el bit se inserta igual | `10276ca12633d26aff01cb1665f9ecfb45429b0a5b964abfd85426a40f6e4af4`"
+ },
+ "M00083": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "release",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ]
+  ]
+ },
+ "M00084": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00085": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00086": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00087": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00088": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_closure_restores_enclosing_result_site` | `40c47523660aa91753fd302b731183145b14b5b943998830aa0690d0f8bed9b5`"
+ },
+ "M00089": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_concrete_closure_result_does_not_bind_pending_return` | `9802fbe4db2c2c28e5753e872c4153d98273645c7aed67754f2dc3d074d5d4ae`"
+ },
+ "M00090": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00091": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `closure_inferred_returns_keep_type_mismatch_diagnostic` | `3cddb3ce63135e915409ad18316eb47a7671b6690626c666aa329ab74006a19c`"
+ },
+ "M00092": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00093": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00094": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00095": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00096": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00097": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00098": {
+  "clase": "equivalente_con_argumento",
+  "lote": 2,
+  "detalle": "equivalente: si `first == start`, ambos tipos proceden de la misma primera asignación y `prior != source_type` es falso | `18bf980466012fe1f3f167be6b16536f9ba367f4d304baf62ef580a43a400295`"
+ },
+ "M00099": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00100": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00101": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00102": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00103": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00104": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00105": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00106": {
+  "clase": "detectada",
+  "evidencia": "fallo de test aislado (verify-hang)"
+ },
+ "M00107": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00108": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf` | `b1915d6a26014da371a0dc8f2d5de0d0b42bccbaa8323a7b1a85b5f17ca2a573`"
+ },
+ "M00109": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf` | `4cc5e0539bccd08abe44d6d544c82cfd9b350331cd1f2c73c061187f3545be09`"
+ },
+ "M00110": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00111": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00112": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00113": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00114": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf` | `ec7bdd66e5720744ad106c150ce1a2a9cc76455ba67e6c24ffe1eb3987866716`"
+ },
+ "M00115": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00116": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00117": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00118": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00119": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00120": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ],
+   [
+    "release",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ]
+  ]
+ },
+ "M00121": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "lib completa",
+    "NO_TERMINA_EN_900s"
+   ]
+  ]
+ },
+ "M00122": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00123": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_nested_shape_hints_reach_the_leaf` | `42306051dcffb2536784bfd63608f31bff88c3ed805708195ba4e2bc60fc97d6`"
+ },
+ "M00124": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "release",
+    "i07c_tests",
+    "NO_TERMINA_EN_300s"
+   ]
+  ]
+ },
+ "M00125": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_nested_shape_hints_reach_the_leaf` | `d670205fb7602fb79ddfa79593f0941979de8dc05fbf46737d5ee0f62ea78843`"
+ },
+ "M00126": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00127": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00128": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00129": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00130": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_selector_keeps_independent_taint` | `85016c2f6593b7aacb60dd18abb09785a30ceb41f56a1388059c9fa973c3813f`"
+ },
+ "M00131": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00132": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00133": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00134": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00135": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00136": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00137": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00138": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00139": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00140": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00141": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00142": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_operation_types_match_their_sites` | `be7573a69047712733697781855bb838f593ce18063b3c13982f83ec22132604`"
+ },
+ "M00143": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_operation_types_match_their_sites` | `85cf5fce41f4d9858fe38ec37850aa422b738d6826b600f8c4a00c45b7ef3142`"
+ },
+ "M00144": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00145": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_nominal_requires_live_domain` | `8e00454b3a0a44c9c9787bfd5540fa5bfc2932115ebe28fa015480244637d06e`"
+ },
+ "M00146": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_nominal_requires_live_domain` | `ad7669eb91a16d1b1f20cfdfce68328c43116605ad8eb7bfe43dfc58d0a392d8`"
+ },
+ "M00147": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00148": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00149": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_nominal_requires_live_domain` | `264bd6301e112390e2eaa7f002739483e7f4892462a2a306faa0090a4eb1e071`"
+ },
+ "M00150": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00151": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_nominal_requires_live_domain` | `d52a1a76608b9c69728d734fb01b381f8a0f159008b6bd03d54e28affdb7c7d2`"
+ },
+ "M00152": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pending_nominal_requires_live_domain` | `b2699ce13f3c6d3d987c20bbf83315ac63ae416727417b20c607292442483782`"
+ },
+ "M00153": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00154": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00155": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00156": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_expression_dependencies_cover_branch_children` | `9b2961eb0bd54afa3219ad491c5dc1a93553b4db9cd32577f208cbd234b3c207`"
+ },
+ "M00157": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_expression_dependencies_cover_branch_children` | `de31b000adda84659a7d283fb12d93af4bcad579f1c384502f8599e22f267fdd`"
+ },
+ "M00158": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_expression_dependencies_cover_branch_children` | `1985270d76c3386ed8873503628352124cf6cbf0f10660035c300af1e74242b4`"
+ },
+ "M00159": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_expression_dependencies_cover_branch_children` | `0633b46d0b376bb9a1de93228306a7319f59e472c6445a2827aaedc0bb1d5530`"
+ },
+ "M00160": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_expression_dependencies_cover_branch_children` | `3da0d3bb1dc56a65d881148dcfa841271919e5a9d850f34960d4297df3fd8e9a`"
+ },
+ "M00161": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_expression_dependencies_cover_branch_children` | `36025fa6afd736f526c67c0e2e0af35f5778acc24a69692baa0940f05dd04689`"
+ },
+ "M00162": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_expression_dependencies_cover_branch_children` | `745074a53648757b9ec4b109980e5ed1a12003cacfcebc0c49ab7c28d8e03f73`"
+ },
+ "M00163": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00164": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00165": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00166": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00167": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00168": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00169": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_solver_preserves_constructor_identity` | `685205fe4352b0c7880dca0f33aab39cc086da33cb1fde8ec48a794036e9e207`"
+ },
+ "M00170": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00171": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00172": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00173": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00174": {
+  "clase": "equivalente_con_argumento",
+  "lote": 2,
+  "detalle": "equivalente: con inicio de span igual solo cambia el origen conservado; sus consumidores consultan presencia, no ese span | `00cbefbff64797b13259ddc646fd48b984883a63a5d7caf58f492d32f408a14a`"
+ },
+ "M00175": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00176": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ],
+   [
+    "release",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ]
+  ]
+ },
+ "M00177": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ],
+   [
+    "release",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ]
+  ]
+ },
+ "M00178": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_root_compresses_the_entire_parent_chain` | `df5538c0d74638c5bca86283e90b61b9e8540973636047f685c0cded2b716524`"
+ },
+ "M00179": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00180": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_solver_preserves_constructor_identity` | `de8ab3d5d3861f53c4c9495383d93580866b9e431d56eb2af577c755e173eed9`"
+ },
+ "M00181": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_solver_preserves_constructor_identity` | `f1d32731a972f57ba3ffa48fd05fa16152254b37f111a0aa3c58293241c90eb3`"
+ },
+ "M00182": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00183": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00184": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00185": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00186": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00187": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00188": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00189": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00190": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00191": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00192": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00193": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00194": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00195": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00196": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00197": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00198": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00199": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00200": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00201": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_selection_depth_keeps_the_current_type` | `932838128071273e45772f53672c00f4760567cceabf1581e7fa5ab6d10aeaa1`"
+ },
+ "M00202": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_selection_depth_keeps_the_current_type` | `12acf27c04909029d206fe18c9efe8bdc634d8da9e698a0500297d8aa3aedcc3`"
+ },
+ "M00203": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00204": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00205": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00206": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00207": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00208": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00209": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00210": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00211": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00212": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00213": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00214": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00215": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00216": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00217": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00218": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00219": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00220": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00221": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00222": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00223": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00224": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00225": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00226": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 2,
+  "detalle": "sin programa: la profundidad de tipo fuente superior a 128 se rechaza antes de este recorrido | `eebea0083c33eb5fbefcd58d913e99c95f78c4553502169ad3a246875d40762f`"
+ },
+ "M00227": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_shape_conflicts_continue_past_irrelevant_children` | `f3504fabe947676c42bb1f354dab9c00aefd133c41a5db09b3156b0ee09deca8`"
+ },
+ "M00228": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_shape_conflicts_continue_past_irrelevant_children` | `51d0bf5f55df5ca6d6cc1a90f7ff27b071615c2e9c5f392df0d1091baa0474ac`"
+ },
+ "M00229": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00230": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00231": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_pattern_shape_chooses_first_conflicting_child` | `049c1bddda4c766bd958e0e0d6f17cda1aefeaf8a33c9434cdfa4ae1ce58f777`"
+ },
+ "M00232": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_shape_walk_checks_later_result_payload` | `1fa9f6dd32060912d92f0c1836f810191814fbf10f8a1e8298685b8a169cf61c`"
+ },
+ "M00233": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00234": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_shape_conflicts_continue_past_irrelevant_children` | `d7b2791bc285cf23f693e4fc0ed60ad508e5f63c0f23b11f22b7be82671e4b6e`"
+ },
+ "M00235": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00236": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_result_shape_conflict_keeps_payload_identity` | `987fde0318ae0a67de3bd1e20d4706a230a6003ec5ca6c3e95cd93ba4f7e776e`"
+ },
+ "M00237": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_shape_conflicts_continue_past_irrelevant_children` | `682471cb004fcd08e64cc5e102fb2145b4dcf75e097f4b58a3c4d97936511b6e`"
+ },
+ "M00238": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_shape_walk_checks_later_result_payload` | `2dfb6a78a325990c9ab50b04f12f70d45d9fb32e9174f635321f6f9a0fb8cc17`"
+ },
+ "M00239": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00240": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00241": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor2_result_shape_conflict_keeps_payload_identity` | `931c979f6b87164f41ff9dc49f4cbd089296c87a0f050ad3f654b27f60db3b9a`"
+ },
+ "M00242": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00243": {
+  "clase": "equivalente_con_argumento",
+  "lote": 2,
+  "detalle": "equivalente: las parejas de variantes canónicas de `Option` y `Result` tienen las mismas posiciones `Some`/`None` | `58310f6cddecc7487587c2ec0bda7ee12dcb2730f09807352e22502d3872a6ec`"
+ },
+ "M00244": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00245": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00246": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00247": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00248": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00249": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00250": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00251": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_resolved_join_rebuilds_option_payload` | `54bba01a8e7391de639cfaa907c7b50bec06b45e7da44c465ade91985b8b6d11`"
+ },
+ "M00252": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_resolved_join_rebuilds_option_payload` | `00d2b4598769594e78d148589fc9f6e926ba9f4c5bb9f2e8f9ef5cb1460ffe02`"
+ },
+ "M00253": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00254": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 2,
+  "detalle": "matado por `i07c_survivor2_resolved_join_rebuilds_option_payload` | `0cc16445803b4c85967034800026bb8ad854830ef19c57bf417ee3c6dcc76d1b`"
+ },
+ "M00255": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00256": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00257": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00258": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: Bind(Never) deja el resultado previo; no se halló una continuación que consuma un valor distinto de Unit | `b1b555795b12a346a89c889060057d7f56bc16ebc7134b65bba45ea153669115`"
+ },
+ "M00259": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_never_payload_keeps_later_result_bind` | `5637769bad9a41111ab290d9cbcbe9f3fc95a6451f2f56ac60d73a518e9d6a37`"
+ },
+ "M00260": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00261": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00262": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00263": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00264": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00265": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: salida anticipada de Bind ante conflicto concreto; no se halló un frame externo que cambie la restauración | `f250d8f6e89c8b8528637fac3bf8cdef55285175232ebd3c38f9316cf83976e6`"
+ },
+ "M00266": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00267": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_shape_requirements_reject_incompatible_roots` | `714d01a2ba0eef19d463fba4755b94a2845c1a5f78b8f79009b6238bfd563e21`"
+ },
+ "M00268": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_result_bind_restores_first_payload` | `d6d9be8a8d85a1a74fd04fad32d684bb0f615bde89f5fafa9c1a63d080e1539f`"
+ },
+ "M00269": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00270": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00271": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00272": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: autoselección de array en Bind; no se halló continuación observable tras el error | `16f32c48cafa35848fb70e5f0a4e99c2f644bd56f8fc47ec4b60e98898ecce50`"
+ },
+ "M00273": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00274": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00275": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00276": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: cuota en Bind; no se halló continuación observable tras el primer error | `0583ded51199bf892fd32d5a18a87335da1a5fc854c96b3370d6a72c4f00e479`"
+ },
+ "M00277": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00278": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_noncopyable_second_payload_restores_first_bind` | `631dc799261cef3558da4dbeba08c17373a562e2fb149618929e3b0a74f18864`"
+ },
+ "M00279": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00280": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00281": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00282": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: Bind difiere un conflicto de forma; no se halló continuación que consuma el resultado previo | `610bd85f55bff378010909917bd499b2847110b10c94bf1b1f62d13b4a092f77`"
+ },
+ "M00283": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00284": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00285": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00286": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: Bind escalar de tipo igual; no se halló continuación que consuma el resultado previo | `5f1dc9f023e22caf89578edf018cb762adf239b91c1fcaecb57f50eb5f03631c`"
+ },
+ "M00287": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: Bind escalar nuevo; no se halló continuación que consuma el resultado previo | `4400e488b082be54632f4244518e4af30caa76f80535ddbdd3703412119da2e4`"
+ },
+ "M00288": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_require_union_quota_propagates_through_bind` | `367637b92d4aa869b15889dc299168730663de7fcb036ec2fd60fac535a96625`"
+ },
+ "M00289": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: cuota al entrar en RequireUnion; no se halló continuación observable tras el primer error | `9efcaf7ae658d86704bcc4188dabbc1912a27c3d511e998655508fca237a078b`"
+ },
+ "M00290": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00291": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00292": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_shape_requirements_reject_incompatible_roots` | `1e3e8e750d8a92b9b7d7c14136b43e042945d0fbb7a16cf95c39c6df4166e406`"
+ },
+ "M00293": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00294": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_shape_requirements_reject_incompatible_roots` | `b8a69577af4dbc4b1c586a14142f5bddd28cdd523230fde09c6ebd8c829968c2`"
+ },
+ "M00295": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: forma incompatible en RequireUnion; no se halló continuación observable tras el error | `07ca7c3384f0734c72757ae90e76d9ff8fef7f82edbb08b83f020d93a865c090`"
+ },
+ "M00296": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_union_child_allocation_propagates_quota_errors` | `9e4aab66828c05a9dcc5308beb1f494f6d8a2de266537d5476f62a0d15c25af0`"
+ },
+ "M00297": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: cuota al crear el primer hijo de RequireUnion; no se halló continuación observable | `3348da9cedad7b95252ba0384f31f0133c04cb9846d3400dd645460a97eb3037`"
+ },
+ "M00298": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00299": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_union_child_allocation_propagates_quota_errors` | `95a25bbb110a23ca6d10f1132b6bfa58344b40147c9b7b51d7764fd1e651c2db`"
+ },
+ "M00300": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: cuota al crear el segundo hijo de RequireUnion; no se halló continuación observable | `40599d4dfdb09af80bc4736f40838a9b61514c95ae2ee352b232021cd4b78d48`"
+ },
+ "M00301": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00302": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_require_union_moves_concrete_payloads_to_children` | `1e95c4d44cff1017ea37599e26e9ca7de40e8ec5541f69496536a231fc36972a`"
+ },
+ "M00303": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00304": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind` | `b270986544ce74bb9355ef5a132224085839a85a31a99f9bcb1062cf0735071c`"
+ },
+ "M00305": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind` | `73afb1dfcd7447d5179ab7e92ce881b71c1eb349bed33fbb354e1d1cb2390824`"
+ },
+ "M00306": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00307": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00308": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_late_result_payload_quota_rolls_back_first_bind` | `76f91ea1907178665e77fbfa97cba3c831e2c594c182962abe076632f0c334da`"
+ },
+ "M00309": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00310": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00311": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00312": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00313": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00314": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00315": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00316": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00317": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion` | `17542c7f4ba1ef057abdc3366a9b84b9bf74331a73f3c4a6a7df4a49360834eb`"
+ },
+ "M00318": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00319": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00320": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00321": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00322": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00323": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00324": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00325": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00326": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_array_join_wraps_pending_operand_shapes` | `6f6fa1a8c65b6c9c58a9bd8c64fcd5c29976da37f9f88aa23036e10b03d09872`"
+ },
+ "M00327": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00328": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00329": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00330": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00331": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00332": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00333": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00334": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00335": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00336": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00337": {
+  "clase": "equivalente_con_argumento",
+  "lote": 3,
+  "detalle": "equivalente: la cuota agotada conserva el primer error; repetir charge_solver en el bucle no cambia contador ni diagnóstico | `dacb6b582ae5d90fa48cb8db819618ff2423bb7c74e8c04c7fc0707ddf36329e`"
+ },
+ "M00338": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_cached_array_child_rebuilds_outer_shape` | `cdb5784f542443dda81e8ed9922b921e6aaf8203a22768bb9123db0203c346c9`"
+ },
+ "M00339": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00340": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00341": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00342": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind` | `7adb5e09c40cd44b6a67af88238a7d66e57aa5ce4f23ffbda15d98a34e32087d`"
+ },
+ "M00343": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_unify_concrete_union_kinds_and_payloads` | `4c34100ac49f94beb8bed1ee25981963af73d2eebef43d960068f5853a8d82f5`"
+ },
+ "M00344": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind` | `94b8f7d8d274b930c911ca3e6d7f71f41c38f12f34a91d05a61b4fe0ee8785a3`"
+ },
+ "M00345": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind` | `bdb92c747b5c190147547d3f5fe048e2ff3855b8f3c691edffda0f31583820d7`"
+ },
+ "M00346": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00347": {
+  "clase": "equivalente_con_argumento",
+  "lote": 3,
+  "detalle": "equivalente: UnionInner solo se apila después de Union exitoso, por lo que la guarda de error no se alcanza | `dbb4414e7f1d7069a78488f0ebf78dab089fe8bf4f326c629ea42c4380034b88`"
+ },
+ "M00348": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00349": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00350": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00351": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_union_rejects_variant_against_array_in_both_orders` | `1f0b230fa04e32ab205c1d653e4ec250e9fb64e8a255b2791002bd5abca28b9f`"
+ },
+ "M00352": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00353": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00354": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00355": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00356": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00357": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00358": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00359": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00360": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00361": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_union_prefers_larger_component_before_id` | `25169a66943ac4e7aa1bfd631d3b162ad37c83b7a4138b06958d92be1fa679a1`"
+ },
+ "M00362": {
+  "clase": "equivalente_con_argumento",
+  "lote": 3,
+  "detalle": "equivalente: tras el descarte previo de l == r, l < r y l <= r coinciden | `c29336cf7210a2062a7d0d6d48243c4e64ac74b629550581605ee31e70a9f44e`"
+ },
+ "M00363": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00364": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00365": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00366": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00367": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00368": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00369": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00370": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00371": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_union_transfers_single_sided_shape_and_origin` | `73fbc964d3d0359ca648931e8348cac0fbe7882a04ab08781370ae00694222a9`"
+ },
+ "M00372": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_union_transfers_single_sided_shape_and_origin` | `9f9c45a1f7892ec6bd44473f36ef640d23c2a6b16d4460e27a29b205206a51fe`"
+ },
+ "M00373": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00374": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00375": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00376": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00377": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00378": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00379": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00380": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00381": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_union_restores_both_constructor_roots` | `ed9fc08545ac6a8d0d44804536bc13247273e6bc90f88d39e0fdb4d51fd6a256`"
+ },
+ "M00382": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_atomic_union_preserves_quota_error` | `c9fcec341330f70afb13c6ec3dbc5ad12da290e918209715c2fa7b9418690fc6`"
+ },
+ "M00383": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_concrete_union_expansion_restores_root` | `b90285fb355501f3d734d9687f44141e8e0156e91beb758ac3b83795b90412b5`"
+ },
+ "M00384": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00385": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_rebinding_known_union_keeps_first_shape_origin` | `5cbacb7f543c8305bf02e25985814365cb693a6377d2552164a2ce23f9c3c57f`"
+ },
+ "M00386": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_completed_option_uses_binding_origin` | `820a775592f17f5b028749bdb1de85749d2b34414beb0cd06614f1dc59ec0edf`"
+ },
+ "M00387": {
+  "clase": "equivalente_con_argumento",
+  "lote": 5,
+  "detalle": "**equivalente**: `BindUnionFinish` sigue a `BindUnionAfterRequire`. Los descriptores canónicos `Option` y `Result` aportan respectivamente uno o dos pares de payload; cada `Bind` hijo exitoso devuelve `SolverValue::Unit`. Al quitar la asignación final, `outcome` ya es `Unit`; un error toma la salida"
+ },
+ "M00388": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_concrete_union_expansion_restores_root` | `9012c1ba000cbb814207391f592e62505f323ee51880a8b7203095fdb65e89c6`"
+ },
+ "M00389": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_require_union_moves_concrete_payloads_to_children` | `bfbbe729c6c3cfaf8261173a2d5a21c5364e6b82559572f7fe02883836ae9c2b`"
+ },
+ "M00390": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00391": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind` | `8ef59775b8cc7d9d3e5aea1a39ee8848541c1de3f013dd97729be8587c135fbd`"
+ },
+ "M00392": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00393": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00394": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00395": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00396": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00397": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00398": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00399": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00400": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00401": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00402": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00403": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00404": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00405": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00406": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00407": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00408": {
+  "clase": "equivalente_con_argumento",
+  "lote": 3,
+  "detalle": "equivalente: el desempate de copyable_origin solo cambia el span almacenado; los consumidores consultan su presencia | `fc610d0002e23b29d445538da918ef36663506034891d377497c52dc6c4fc11a`"
+ },
+ "M00409": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_equal_start_array_origins_choose_left_diagnostic_span` | `2f266de7f6669fa3f632208ad571b0ad19f20cb91805c816980ad8a90123efea`"
+ },
+ "M00410": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span` | `fd399b079960a0e35023c87f14205a46e2664b765617e1efd59f1b93293170ab`"
+ },
+ "M00411": {
+  "clase": "equivalente_con_argumento",
+  "lote": 3,
+  "detalle": "equivalente: con concrete=None, Bind sobrescribe concrete_intrinsic antes de cualquier lectura diagnóstica | `9f4a634bdf0df44068159198851484581abf418c7dbde978cfe6cc4349f408d3`"
+ },
+ "M00412": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00413": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: UnionMerge conserva el resultado previo; no se halló consumidor que lo distinga de Unit | `ab383199c4950e59d6128b80a54f33382bde5b34fe4ad990ba4454303d58ef0f`"
+ },
+ "M00414": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00415": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00416": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_nested_partial_result_deferral_keeps_array_shape` | `29ff8940ec9099f864331257b664929b9a2d100d379d3802ac7acd1a5d26fe14`"
+ },
+ "M00417": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00418": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_nested_partial_result_deferral_keeps_array_shape` | `1d78426d4f67ed8e379f7b21da89fcad427691db04ffe66e7b6665926fcff945`"
+ },
+ "M00419": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00420": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00421": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00422": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00423": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00424": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00425": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00426": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00427": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_nested_partial_result_deferral_keeps_array_shape` | `f0672d6c056b8248baba17af5be7f8227d5ca53e12fd9576f6918de4a04ba17b`"
+ },
+ "M00428": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands` | `fa64d1cebe89daa1f799d6d6bb60f6055b5085ff0d26d4dc1a0d65eb59b995d0`"
+ },
+ "M00429": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands` | `614cd4c4c264e79b63152b97cf640465075d0cbfa03d883316b64fd788b1dbcd`"
+ },
+ "M00430": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands` | `bc6d86e55512ab3d5167892c8c3338097e57b7d71dd42f1bda146209cbbdf891`"
+ },
+ "M00431": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands` | `0e0d42c02b68c7c0a06312b71d2f23e8df08f6f0f65605c0145708e59fbc34e0`"
+ },
+ "M00432": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 5,
+  "detalle": "**matado por** `check::types::quota_tests::i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands`, prueba ya versionada en lote 3. Comprueba `related_expected` del join diferido; no se duplicó. | `c7b9c6bf13871b53333a5f5f91034c35b332f7a61f935be8dd4590c60151c8a5`"
+ },
+ "M00433": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00434": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00435": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00436": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "0 | base ccf6df1 | matado por survivor_m00436_check_diagnostics | 80fc1c72c70967019db107035ad8b883927edb428fe4fdd575b6d3c4a68003c8"
+ },
+ "M00437": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00438": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00439": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00440": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_nested_partial_result_deferral_keeps_array_shape` | `e6a3817eb7b70bf1e2a961879e41d6973e2400abcfbdf9167beb55fc69fe58d7`"
+ },
+ "M00441": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands` | `70b61e5bb9aa6d941a937b07fca0312b2436e82a3c4b2acf735f932681f17fa8`"
+ },
+ "M00442": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `check::types::quota_tests::i07c_survivor4_deferred_bind_keeps_branch_policy` | `c24f1637c00132b5d3f7e9c0501d11af2124f1da51f189c93c564a5963269c3c`"
+ },
+ "M00443": {
+  "clase": "equivalente_con_argumento",
+  "lote": 3,
+  "detalle": "equivalente: defer_shape_conflict ya inicializó related_expected con !intrinsic, igual que la asignación eliminada | `95daedf0e3c54a0de1c58925a37d76aca853e653fa96a34b2f024fbeb62e007a`"
+ },
+ "M00444": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00445": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00446": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00447": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_array_join_wraps_pending_operand_shapes` | `e10b7bfdfa72e99688f804e06833da462a893f36d6e6887d5e0db5d8009e4e21`"
+ },
+ "M00448": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `check::types::quota_tests::i07c_survivor3_array_join_wraps_pending_operand_shapes` | `b73947dfd349fc70af2498c565ed8df4ec3916a15894044338b8d6d6728d8ab6`"
+ },
+ "M00449": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00450": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00451": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00452": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00453": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 3,
+  "detalle": "matado por `i07c_survivor3_unify_concrete_union_kinds_and_payloads` | `74066d6f1e8f3e9827504a1b7ed86b722612e314539c4bf1e5a62064535575ec`"
+ },
+ "M00454": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00455": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00456": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00457": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00458": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00459": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00460": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00461": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00462": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `function`; las obligaciones diferidas y los dominios nominales ensayados conservaron el mismo resultado | `e4ccd0d8d4cf52fbeba2ad508fc9915a4ff976b009c09ac62a87875340ead398`"
+ },
+ "M00463": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: cadena DomainNominal: tres programas Len/selección con dominio pendiente no alcanzaron una unión observable distinta | `ed527951ebdbfae357486f5e174056e30afd3a5f72eec720d36966ecdff311ca`"
+ },
+ "M00464": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: Bind condicional de nominal: los tres programas Len/selección dieron el mismo resultado | `8c6dadba8b64337272d29e0d9e825b0ec493020ebde5b98ee03055ec98afa6f7`"
+ },
+ "M00465": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00466": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "305 | base ccf6df1 | matado por survivor_m00466_check_diagnostics | 3cf25a1a15c1fe0a6974cfd269f4c1cafbcfe9f96cf3cc3bdb2f9b5f7b99707d"
+ },
+ "M00467": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00468": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00469": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00470": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00471": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00472": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00473": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00474": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "4941 | Bloque I efe299f | matado por survivor_m00474_check_diagnostics | beae5e975e3ab50a5dd03d71cc9c867dc48dea4411f29808939b08281ac4c7c1"
+ },
+ "M00475": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "4941 | Bloque I efe299f | matado por survivor_m00475_check_diagnostics | e089b450a46355bb438d6cabaa872cfc019438c8ff310fc2593fd1a23b30bd79"
+ },
+ "M00476": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00477": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ],
+   [
+    "release",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ]
+  ]
+ },
+ "M00478": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00479": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ],
+   [
+    "release",
+    "check::tests",
+    "NO_TERMINA_EN_300s"
+   ]
+  ]
+ },
+ "M00480": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00481": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00482": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: DomainNominal con dominio pendiente: no se halló programa cuyo estado Satisfied/Pending cambiara el diagnóstico | `7a813d1b336183618950bd8cef09edcf08dcacd04771debe7880e7e1785738a2`"
+ },
+ "M00483": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: DomainNominal con dominio pendiente: no se halló programa cuyo estado Satisfied/Pending cambiara el diagnóstico | `15c72b3e495ac6429d2a8b290d94860f5b1272f810666f1e1d4db122cfc1fd70`"
+ },
+ "M00484": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00485": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `function`; las obligaciones diferidas y los dominios nominales ensayados conservaron el mismo resultado | `1a638517a5e4d578df2717e84d0898689f2f5d42085c3fec45723414dc09f70a`"
+ },
+ "M00486": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00487": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00488": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00489": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00490": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00491": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00492": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00493": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00494": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "12092 | base ccf6df1 | matado por survivor_m00494_check_diagnostics | d23e9e007f90f3da1cc9c8a739e2bdc0500d918fe820e4a44e33e8d5997b1ced"
+ },
+ "M00495": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: restauración de visit.tainted tras let condicional: no se halló consumidor posterior que distinga el estado | `8e47f5e23b977f7014d061c06f4f383d940b5b189e491a987084edc4aa8381ba`"
+ },
+ "M00496": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00497": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00498": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00499": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00500": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00501": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00502": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00503": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00504": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00505": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00506": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00507": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00508": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00509": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00510": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00511": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00512": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00513": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: contexto de elemento diferido en comparación: no se halló fuente con diagnóstico distinto | `34e012bc1feccd64bd8249d151a7ba35e04fb5a933be4290400a57a92cce54d1`"
+ },
+ "M00514": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00515": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `check::types::quota_tests::i07c_survivor4_invalid_control_condition_taints_visit` | `4e5857d00670801f87f21ece7e26e8fbdc9524a7fbe36c176a81817262ba4fd9`"
+ },
+ "M00516": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `check::types::quota_tests::i07c_survivor4_invalid_control_condition_taints_visit` | `07fe9fe66f938707ab0868cf571bf46cef45390d03e7d7fe80213ba9d827c4ba`"
+ },
+ "M00517": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `check::types::quota_tests::i07c_survivor4_invalid_control_condition_taints_visit` | `4ad387f85cecbfb6602fc5275c9b91b4da447d5bee51804c7a3989f1181c42c4`"
+ },
+ "M00518": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `check::types::quota_tests::i07c_survivor4_invalid_control_condition_taints_visit` | `03ae19189a9966fe7c485ba955536b4ab173db5e926b6d6c1f6c90c3fb3173e0`"
+ },
+ "M00519": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: restauración de numeric_domain_owner al cerrar array: no se halló operador posterior afectado | `50f9701066aef7657e4dc8a7a33971f529d0538c918282e373fa6bdeafe79e72`"
+ },
+ "M00520": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00521": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00522": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00523": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `fb3d562d011b9620437df5376022a5e21d2ea0f4275c273f65b98f9e5e839847`"
+ },
+ "M00524": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00525": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00526": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00527": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `ced4daeda6332bd79068176c12b64aaeb6c053966b2389c956e1e9bf21998171`"
+ },
+ "M00528": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00529": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `d051d436d9b5bc84b3dec7758c12caf463b14fdadcdd95f344d04120c4987aa8`"
+ },
+ "M00530": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `5737ae5bf6ceec4e71c953b14633c2f9439ca3ce0236da64c9f9b5d913f11848`"
+ },
+ "M00531": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 5,
+  "detalle": "**sin programa encontrado**: el cambio `&&`→` |  | ` amplía la entrada al marco `BinaryRight` cuando una condición previa la impediría. Las 1.512 combinaciones y la batería `check::` dieron iguales diagnósticos, tipos y estado; no se probó que todos los estados futuros sean equivalentes. | `056c30e4"
+ },
+ "M00532": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `04dc25e3bc1dad2f3a8d1333c75ee2ecd72b7dbb185525619638777d9c4095d6`"
+ },
+ "M00533": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `1ae3839f3290f3f59b6f9cfeb9714bd45a16f0e5852f641867606a36c9b71755`"
+ },
+ "M00534": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `19146fa94d054e7ceface5143c76ab40fe6ba74729b0562dc0c96fffcbd0b785`"
+ },
+ "M00535": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `a58048b9f0daf3e1967d944923cd8cce5a06b82ab41e6021c0dcf109f3d8c982`"
+ },
+ "M00536": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `d7fae075d5f95c3cb6517c27394c3e26973e129e4cbffc491c21652ea53b6e54`"
+ },
+ "M00537": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: limpieza de numeric_domain_owner al acabar RHS binario: no se halló operador posterior afectado | `22084edb3d33d9c12faa79525905a7509f7bb67730d063ad8f90e5e55ad06e6f`"
+ },
+ "M00538": {
+  "clase": "equivalente_con_argumento",
+  "lote": 5,
+  "detalle": "**equivalente**: la rama `right_failed` entrega inmediatamente `Ok(Type::Tainted)` a `check_against_context_one`. Esa función marca la expresión `Tainted` y pone `visit.tainted = true` antes de usarlo para el chequeo contextual. La asignación suprimida no cambia el estado posterior ni el diagnóstico"
+ },
+ "M00539": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `7818bb1ad2637fab743bdd0188b47e3379c47f7490c3bc9b7eaf40442c4ee6be`"
+ },
+ "M00540": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `ebb7dc277dc2d74610c9aeca1a8c1f767a7adf75fafb7ab16c65770af8a63f9b`"
+ },
+ "M00541": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `78e0aa53c6e6d97d08825e610e96b4d159c0453a423b980dbcbe4c09c1119ba7`"
+ },
+ "M00542": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `2e92974eb71a60a70a5e7675f550a75bc07356b5fa5bf560e3ee12987a885117`"
+ },
+ "M00543": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00544": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00545": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `6775370ba89b5d1b14aeaa4588794e52163906449134d53c44758562321ef9cf`"
+ },
+ "M00546": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00547": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00548": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00549": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00550": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `bdef3cbb069c96c25790bc216d325f42ae213bf2323e32cc2b2a345b3cb74dda`"
+ },
+ "M00551": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `96fb94dbb9fd7604d7d6baa496e988c69fa2572c20a9a0d7d28cfd077c41a0f4`"
+ },
+ "M00552": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `58303beac2271c58a8b4a091b6bfebd84f69c1e9fb55cec55da3e3716dfc9f68`"
+ },
+ "M00553": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `1115af80def7f5167ad20a699872acf178ca6251ce7687443aab7b024068bb17`"
+ },
+ "M00554": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `13f775c8c2be4df925f0db1c712c47ea6a90687e0b4479724257985fb25a6071`"
+ },
+ "M00555": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: restauración de numeric_domain_owner ante AnalysisLimit: no se halló resultado posterior distinto | `04bf33c77402d010a816de3738642bf93977e15c39c507e5853b0b0ed2bda8f5`"
+ },
+ "M00556": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `ddc3252026622ef7ed4a727faf4a4e25ea0289e56512a898c8f07ed20a713fa4`"
+ },
+ "M00557": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `542fa6992e6ef1c36f758bd10dcc1d0f86ee74015777d90747160dac869a886d`"
+ },
+ "M00558": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `bf1e6302ecccb7246c5ea9fa23bc1da47747d3dc60f5fd7950a16c854e02ee00`"
+ },
+ "M00559": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `a9c45d6d32983d5d7352a7f1351b60edc98f18201f73519e357adcb809a7e587`"
+ },
+ "M00560": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `bedd3107257be6c2afdf096b8ea45a36ba69d1543be45cac1066b4a7ffc2ebe6`"
+ },
+ "M00561": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: propagación de visit.tainted al cerrar payload de unión: no se halló diagnóstico posterior distinto | `71452561170013dfd291c1bfb63041ec27b6a210eb91f52b15eb35de4b67bda7`"
+ },
+ "M00562": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `508d21dc7c9b73a4f4dd7648e55736af6fa00bcf2157fb7aa163e62ef4f199e3`"
+ },
+ "M00563": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `a8cc628124d4be69b715f0b6470f1161fa488e4ffbfe28848df8540e6f1b6846`"
+ },
+ "M00564": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `cb11324099a90b1ab4b814db85336f318ed7ae21a4891c4cea180496f267356a`"
+ },
+ "M00565": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `f670b171b9d8fd37e24083027fda0ed932f6627e8780b02181ad318f08323371`"
+ },
+ "M00566": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `246d18c1fc015767811753f5cfe3500fa4f314c96e5d70315a3ff23b1f233c15`"
+ },
+ "M00567": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: limpieza de numeric_domain_owner tras TryAdd: no se halló operador posterior afectado | `bac400653c10792bf85fc23def4dc7d9a1d80b270ddb891442ffb4fca48eff0c`"
+ },
+ "M00568": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `9ece5833f976a33c9911dd94bf1c2320599c1b30a9e1f350275b0492cb1461f0`"
+ },
+ "M00569": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `12ec819906ad413b83bb2431bcdcb9f3cbdb8356d0dbfeafbde33f738808e1fa`"
+ },
+ "M00570": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `66dc8da4fac13c82006f86420046b28c0fab9f869327633e7d11cfef53451dc0`"
+ },
+ "M00571": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `c2b188f01304ee608fa23e3d7f112a3759af64aeb867aad2ef5d58d8b15d21e2`"
+ },
+ "M00572": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00573": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00574": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00575": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00576": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `87edb230ce92b9a3544a1bd34c733bb424c6256f01732f129517407b28bd7ac2`"
+ },
+ "M00577": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `ed3f64ac7e8c19c45ba4065bb08100f43858c72fbf59c1298ea466b19c990c09`"
+ },
+ "M00578": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `6999d420c39e06a63a36e28fa33a863931da314ebab3705060029f297914d59a`"
+ },
+ "M00579": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 3,
+  "detalle": "sin programa encontrado: limpieza de numeric_domain_owner al entrar en binario: no se halló operador anidado afectado | `e6ccbbe0bdeabced78a474da37d913a36a44ec181d80240fc475d39c311c8aab`"
+ },
+ "M00580": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00581": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `fa799ff6e488642e76b3ff81da68a42946d7cfc35d0e8efac5d9e3c69c502e2f`"
+ },
+ "M00582": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00583": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00584": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00585": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00586": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00587": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00588": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "6040 | base ccf6df1 | matado por survivor_m00588_check_diagnostics | 75ea482068a44e5f92d42c67c5e6241703fd9e7fd615888969bdf3dc5fa7ebd2"
+ },
+ "M00589": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `resume_non_match`; los marcos de control, binarios, llamada, intrínseco y match ensayados no cambiaron resultado ni diagnóstico | `950cb278e4360636968e27300a6d1401f089d08a9469ee4f577ea836cbffa041`"
+ },
+ "M00590": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00591": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00592": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `check_against_context_one`; las comprobaciones de contexto diferido ensayadas no cambiaron el diagnóstico | `5e4a11ca341ec052afc7c2beec964caa26150221010d16c23f31369536ef0111`"
+ },
+ "M00593": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `check_against_context_one`; las comprobaciones de contexto diferido ensayadas no cambiaron el diagnóstico | `7aa9d74bc0fd912c76676ffb0987c5efebf8d8cec5d456e201222942021056cf`"
+ },
+ "M00594": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00595": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00596": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00597": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00598": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00599": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00600": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00601": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00602": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00603": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `a8a2ce71febd9af9f915adfa843a3667edd4102f192b46899d851c5aad55203a`"
+ },
+ "M00604": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `565ddbb2df805a8fc54a837c514726038b507ba297a2455e51629cb9904c7bea`"
+ },
+ "M00605": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00606": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00607": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `57195c72f1470f744694c8c8e38b9dfc08d90b8f628f8743845da2db4387ef0a`"
+ },
+ "M00608": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00609": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00610": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00611": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00612": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00613": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00614": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00615": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00616": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `bd48a5d934311d59fa7c5b543a2261a494f37bcd4cb960cc220b5ab0a62768fd`"
+ },
+ "M00617": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `9419f4d66a006cff26e0dd214400b94a6377e0b0f4b83df69570911f1579d5ce`"
+ },
+ "M00618": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00619": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00620": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00621": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00622": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `baeb4d2e8918a1bca861e384de0b8f65c53501c31b1a6fe63f683c9a055a6fb2`"
+ },
+ "M00623": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00624": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `46d4f8f2e45a1ae64505b56b80766444f0cead813e77a5406cdd4860b8763615`"
+ },
+ "M00625": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00626": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `ed73d97629e1584c062b4d5e25a003c9bbd1c082cfecdec9fc90d37b9ce3e745`"
+ },
+ "M00627": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `b906e97d5a8c20f500280124b8b195024f3fb21b02718d756d3cdd1bf06b4af0`"
+ },
+ "M00628": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `expr_inner`; las expresiones indexadas, con error previo y con contexto pendiente ensayadas no cambiaron el diagnóstico | `45f23026ea2b26d16c752f599225f8b1c427c58b0a17188602a0b83879c0850c`"
+ },
+ "M00629": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00630": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00631": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00632": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00633": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00634": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00635": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00636": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00637": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00638": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00639": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00640": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00641": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00642": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `array_accept`; el array con elemento incompatible ensayado conservó el diagnóstico | `c03e918ea40710d97cab8a3aedad0ef2a3e98b2698c61558305273c66f778565`"
+ },
+ "M00643": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `array_accept`; el array con elemento incompatible ensayado conservó el diagnóstico | `fe4d86e3f40bef726afa0899a27105fd3ae0116a8ac141cb8e0f06039a5a8278`"
+ },
+ "M00644": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00645": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00646": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00647": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00648": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00649": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00650": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00651": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00652": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `finish_deferred_binary_right`; los operandos numéricos diferidos ensayados conservaron el diagnóstico | `cec82b2f3ab75ff1e0119f6c0a91a1aef75329d772ea025d60b8f6db8c1bd33a`"
+ },
+ "M00653": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `finish_deferred_binary_right`; los operandos numéricos diferidos ensayados conservaron el diagnóstico | `c4757a4e2fe9da10303c17af140b84499fa6ff522fbdb92e1cdf6b83aced193c`"
+ },
+ "M00654": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00655": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "4667 | Bloque I efe299f | matado por survivor_m00655_check_diagnostics | b0e2d27701f0bc4033197bea434a0f9e72f150a4e09d53339f8032373de6aae3"
+ },
+ "M00656": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00657": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00658": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00659": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00660": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00661": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00662": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00663": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `finish_binary_right`; el binario con error independiente conservó el diagnóstico | `fa19804825a2c82b20c84903ebc8a94301213f2fea1ee33d39ab55c362750d04`"
+ },
+ "M00664": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `finish_binary_right`; el binario con error independiente conservó el diagnóstico | `bef8aa75db58378ee21887ed1adabab4c0511c1b0773a84e7903bdb1a4b22649`"
+ },
+ "M00665": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00666": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00667": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00668": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `partial_constructor_shape_uses_canonical_message` | `3e54e0bddd5458fb15ba0cf73ed74506dfda670e61a559244591347f0bda60d1`"
+ },
+ "M00669": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `require_match_pattern_shapes`; el nombre ajeno a Some/None/Ok/Err se rechaza en nombres antes de esta ruta | `d8074260537d117ac27e2dd7bbde30a1bf00fcb28d0b7f17ba8ef25ea42fd320`"
+ },
+ "M00670": {
+  "clase": "equivalente_con_argumento",
+  "lote": 4,
+  "detalle": "equivalente: el mapeo previo solo asigna Option a Some/None y Result a Ok/Err; `kind.variant_tag(name)` siempre devuelve Some | `15fed8c8991181cd2c3fa7d7066c0f6725789229b934babecf7453116d0f6bad`"
+ },
+ "M00671": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00672": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00673": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00674": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `unresolved_array_match_does_not_loop_on_option_pattern` (no terminación >60 s; base 0.06 s) | `ef414f3e2897d60e2a36b2c90f28c2758e6e3169a15a3134341bdd9dc4e9b1ab`"
+ },
+ "M00675": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00676": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "nextest suite completa",
+    "TIMEOUT por test 600 s: nexo::i07c_pattern_deferred unreachable_match_arms_still_check_resource_ownership"
+   ]
+  ]
+ },
+ "M00677": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `constructor_arity_errors_do_not_repeat_pattern_walk` (no terminación >60 s; base 0.07 s) | `435a58c6739b42c453b81b467b1a43cc5925565906ff0a89c9f6134d77568da7`"
+ },
+ "M00678": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 4,
+  "detalle": "matado por `constructor_arity_errors_do_not_repeat_pattern_walk` (no terminación >60 s; base 0.07 s) | `b7a7a4af43bef113337d24b0368610c60c37eb5d8bf963fc5a53f4ecd79de5c8`"
+ },
+ "M00679": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00680": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00681": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00682": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00683": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00684": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00685": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00686": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00687": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00688": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00689": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00690": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00691": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00692": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00693": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00694": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00695": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00696": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00697": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00698": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00699": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00700": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00701": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "6203 | base ccf6df1 | matado por survivor_m00701_check_diagnostics | 45822e87dac6a3f059901a3ac1f03c6151d879af645cd9b15004c55875f1b201"
+ },
+ "M00702": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "6203 | base ccf6df1 | matado por survivor_m00702_check_diagnostics | 5271c14c3346cd230f23405aab75c3f8449eff8f1c96ad8c75cad4c8ff4696f0"
+ },
+ "M00703": {
+  "clase": "detectada_por_regresion_nueva",
+  "lote": 6,
+  "detalle": "6203 | base ccf6df1 | matado por survivor_m00703_check_diagnostics | c3f1f9d853aa6e093eead2893c07754bf2b1fa479b0f69ad3dcf85d10ed60bf5"
+ },
+ "M00704": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00705": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00706": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00707": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00708": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00709": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00710": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00711": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00712": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00713": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `assert_eq_prepare`; las comparaciones con error previo ensayadas conservaron el diagnóstico | `aac71c7e50e73bfa883f955454cbf8070bf93fd6759b980da194f4cbe508ff87`"
+ },
+ "M00714": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00715": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00716": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00717": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `assert_eq_accept`; las comparaciones con origen y error previo ensayadas conservaron el diagnóstico | `2786859c5b0a02197b12aaa891a42c1e7f236daf7d4e29da3641cb75cc69f94f`"
+ },
+ "M00718": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `assert_eq_accept`; las comparaciones con origen y error previo ensayadas conservaron el diagnóstico | `19233b635aa13dbfcbefb74382beb201777d40de92dd2fc86e6ea108a780046e`"
+ },
+ "M00719": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `assert_eq_accept`; las comparaciones con origen y error previo ensayadas conservaron el diagnóstico | `043100b676da3342dfaa751cd00992019da1b42a3e56872da03f7d6d7572c779`"
+ },
+ "M00720": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `assert_eq_accept`; las comparaciones con origen y error previo ensayadas conservaron el diagnóstico | `0af10f9fde5bdde4e3ae17adf5b4e1212c70408aa143e88ac2bd4b15e6846591`"
+ },
+ "M00721": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `assert_eq_accept`; las comparaciones con origen y error previo ensayadas conservaron el diagnóstico | `498e38e4a51ddb90f979c34a1e35d1343e1fbfcf4f33ae177a108a23ddc7a95b`"
+ },
+ "M00722": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00723": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00724": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00725": {
+  "clase": "no_compila",
+  "evidencia": "campana"
+ },
+ "M00726": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00727": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `match_tests`; los matches anidados que llegan a IR conservaron los eventos | `876d24e7f13b8b6eff6a274d4969564fc8e5b0fe3bf991d5b06f2a77f773700b`"
+ },
+ "M00728": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00729": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00730": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `bind_match_pattern`; los matches anidados que llegan a IR conservaron los eventos | `50659b87a4e7912ba258bc6ac3ccfa7fd2e398325f09ee4728e088d4fa72d795`"
+ },
+ "M00731": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00732": {
+  "clase": "detectada_por_no_terminacion",
+  "evidencia": [
+   [
+    "debug",
+    "nextest suite completa",
+    "TIMEOUT por test 600 s: nexo::i07c_deferred_constraints pattern_shape_conflicts_belong_to_later_equality"
+   ]
+  ]
+ },
+ "M00733": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `bind_match_pattern`; los matches anidados que llegan a IR conservaron los eventos | `304fed13ceb0ccf82ceed275b38fb7b816c64dc8e9af7d38d6775aea86e912c0`"
+ },
+ "M00734": {
+  "clase": "sin_programa_tras_caza",
+  "lote": 4,
+  "detalle": "sin programa encontrado: `bind_match_pattern`; los matches anidados que llegan a IR conservaron los eventos | `614097341233e165ab2572dd280160c4f8ce54be4d5434dedaff7fee196a8495`"
+ },
+ "M00735": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00736": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00737": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00738": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ },
+ "M00739": {
+  "clase": "detectada",
+  "evidencia": "campana"
+ }
+}

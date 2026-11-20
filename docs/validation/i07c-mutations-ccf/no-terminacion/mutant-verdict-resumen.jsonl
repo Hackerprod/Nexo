@@ -1,0 +1,7 @@
+{"id": "M00121", "exit": 0, "segundos": 2404, "stderr": "", "veredicto": "INCONCLUSO", "perfiles": [["debug", "INCONCLUSO", null]]}
+{"id": "M00387", "exit": 0, "segundos": 344, "stderr": "", "veredicto": "SUPERVIVIENTE", "perfiles": [["debug", "VERDE", null], ["release", "VERDE", null]]}
+{"id": "M00432", "exit": 0, "segundos": 343, "stderr": "", "veredicto": "SUPERVIVIENTE", "perfiles": [["debug", "VERDE", null], ["release", "VERDE", null]]}
+{"id": "M00538", "exit": 0, "segundos": 342, "stderr": "", "veredicto": "SUPERVIVIENTE", "perfiles": [["debug", "VERDE", null], ["release", "VERDE", null]]}
+{"id": "M00676", "exit": 0, "segundos": 2401, "stderr": "", "veredicto": "INCONCLUSO", "perfiles": [["debug", "INCONCLUSO", null]]}
+{"id": "M00732", "exit": 0, "segundos": 2401, "stderr": "", "veredicto": "INCONCLUSO", "perfiles": [["debug", "INCONCLUSO", null]]}
+{"fin": true}

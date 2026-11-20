@@ -1,0 +1,18 @@
+{"tipo": "base", "perfil": "release", "filtro": "check::tests", "build_exit": 0, "run_exit": 0, "run_seconds": 41.9, "timeout": false, "tail": ""}
+{"tipo": "mutante", "id": "M00083", "perfil": "release", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.3, "build_seconds": 21.2, "mut_sha": "30230d654fdf68af", "tail": ""}
+{"tipo": "base", "perfil": "debug", "filtro": "i07c_tests", "build_exit": 0, "run_exit": 0, "run_seconds": 5.9, "timeout": false, "tail": ""}
+{"tipo": "mutante", "id": "M00106", "perfil": "debug", "filtro": "i07c_tests", "resultado": "FALLA", "run_seconds": 231.7, "build_seconds": 4.5, "mut_sha": "8f1686621a662103", "tail": "ibuted_left_failure_suppresses_second_domain_error\n\ntest result: FAILED. 154 passed; 1 failed; 7 ignored; 0 measured; 1028 filtered out; finished in 231.68s\n\nerror: test failed, to rerun pass `--lib`\n"}
+{"tipo": "base", "perfil": "debug", "filtro": "check::tests", "build_exit": 0, "run_exit": 0, "run_seconds": 6.0, "timeout": false, "tail": ""}
+{"tipo": "mutante", "id": "M00120", "perfil": "debug", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.2, "build_seconds": 3.8, "mut_sha": "ed8e26aa32202b10", "tail": ""}
+{"tipo": "mutante", "id": "M00120", "perfil": "release", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.2, "build_seconds": 20.4, "mut_sha": "ed8e26aa32202b10", "tail": ""}
+{"tipo": "base", "perfil": "release", "filtro": "i07c_tests", "build_exit": 0, "run_exit": 0, "run_seconds": 2.1, "timeout": false, "tail": ""}
+{"tipo": "mutante", "id": "M00124", "perfil": "release", "filtro": "i07c_tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.3, "build_seconds": 20.8, "mut_sha": "93f11325743b59cb", "tail": ""}
+{"tipo": "mutante", "id": "M00176", "perfil": "debug", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.9, "build_seconds": 4.1, "mut_sha": "f97532e976e859e6", "tail": ""}
+{"tipo": "mutante", "id": "M00176", "perfil": "release", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 301.1, "build_seconds": 20.7, "mut_sha": "f97532e976e859e6", "tail": ""}
+{"tipo": "mutante", "id": "M00177", "perfil": "debug", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.3, "build_seconds": 25.3, "mut_sha": "68e6f4d6e28f54a1", "tail": ""}
+{"tipo": "mutante", "id": "M00177", "perfil": "release", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.2, "build_seconds": 18.0, "mut_sha": "68e6f4d6e28f54a1", "tail": ""}
+{"tipo": "mutante", "id": "M00477", "perfil": "debug", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.6, "build_seconds": 3.8, "mut_sha": "4d441b5d2d1f24a6", "tail": ""}
+{"tipo": "mutante", "id": "M00477", "perfil": "release", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.6, "build_seconds": 17.3, "mut_sha": "4d441b5d2d1f24a6", "tail": ""}
+{"tipo": "mutante", "id": "M00479", "perfil": "debug", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.4, "build_seconds": 5.1, "mut_sha": "7cd51bac0f9a3be5", "tail": ""}
+{"tipo": "mutante", "id": "M00479", "perfil": "release", "filtro": "check::tests", "resultado": "NO_TERMINA_EN_300s", "run_seconds": 300.8, "build_seconds": 28.7, "mut_sha": "7cd51bac0f9a3be5", "tail": ""}
+{"tipo": "fin", "sha_restaurado": "1c1f9edda28e8377b9f9fbd9dcb845b169f00163daeac161d7b8f5af86596b36"}

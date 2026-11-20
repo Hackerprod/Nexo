@@ -1,0 +1,5 @@
+{"tipo": "base", "perfil": "debug", "build_exit": 0, "run_exit": 0, "run_seconds": 132.1, "timeout": false, "tail": ""}
+{"tipo": "mutante", "id": "M00121", "archivo": "src/check/types.rs", "linea": 3266, "resultado": "NO_TERMINA_EN_900s", "run_seconds": 900.2, "fallos": []}
+{"tipo": "mutante", "id": "M00676", "archivo": "src/check/types.rs", "linea": 12446, "resultado": "PASA", "run_seconds": 152.9, "fallos": []}
+{"tipo": "mutante", "id": "M00732", "archivo": "src/ir/lower_match.rs", "linea": 1109, "resultado": "PASA", "run_seconds": 142.7, "fallos": []}
+{"tipo": "fin"}
