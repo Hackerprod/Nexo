@@ -81,7 +81,7 @@ def classify(result):
         return "INCONCLUSO", None, "salida sin test terminal"
     if not parsed or not any(e.get("type") == "suite" and e.get("event") == "ok" for e in parsed):
         return "INCONCLUSO", None, "resumen JSON ausente"
-    if not re.search(r"Summary\s+\[.*\]\s+\d+ tests run: \d+ passed", result["stderr"]):
+    if not re.search(r"Summary\s+\[.*\]\s+\d+ tests? run: \d+ passed", result["stderr"]):
         return "INCONCLUSO", None, "resumen nextest ausente"
     return "VERDE", None, "suite completa"
 

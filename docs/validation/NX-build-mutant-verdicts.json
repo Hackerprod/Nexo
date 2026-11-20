@@ -135,5 +135,5 @@
     },
     "sha_restored": "c901786a8c273e2db56ad5b82e98d94dc627045dd56986e546024fc36fede191"
   },
-  "note": "La campaña I07c activa conserva su clasificador; este helper se usa de forma aut?noma. Los logs temporales se eliminaron tras extraer hashes y recuentos."
+  "note": "La campaña I07c activa conserva su clasificador; este helper se usa de forma autónoma. Los logs temporales se eliminaron tras extraer hashes y recuentos."
 }
