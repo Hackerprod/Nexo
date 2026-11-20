@@ -17,6 +17,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 TABLE = ROOT / "docs/validation/NX-build-mediciones.md"
 CONFIG = ROOT / ".config/nextest.toml"
+SUITE = ROOT / "tests/suite.rs"
 START = "<!-- NX-BUILD-EXCLUSIONS-START -->"
 END = "<!-- NX-BUILD-EXCLUSIONS-END -->"
 
@@ -73,6 +74,39 @@ def filter_pairs(pairs):
         fail("el filtro fast no coincide exactamente con los pares de la tabla")
 
 
+def suite_sources():
+    manifest = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+    if manifest["package"].get("autotests") is not False:
+        fail("Cargo debe declarar autotests = false")
+    targets = {(test.get("name"), test.get("path")) for test in manifest.get("test", [])}
+    if targets != {("suite", "tests/suite.rs"),
+                   ("i07c_mutant_projection_scale", "tests/i07c_mutant_projection_scale.rs")}:
+        fail("los destinos de integración deben ser suite y el asignador global aparte")
+    content = SUITE.read_text(encoding="utf-8")
+    declarations = re.findall(r'^#\[path = "([A-Za-z0-9_]+)\.rs"\]\nmod ([A-Za-z0-9_]+);$',
+                              content, re.MULTILINE)
+    if any(source != module for source, module in declarations):
+        fail("la declaración #[path] debe conservar el nombre de su fuente")
+    ordinary = [source for source, _ in declarations]
+    sources = {path.stem for path in (ROOT / "tests").glob("*.rs")}
+    special = {"suite", "j14_frontend_stack", "j16_frontend_stack",
+               "i07c_mutant_projection_scale"}
+    if len(ordinary) != len(set(ordinary)) or set(ordinary) != sources - special:
+        fail("suite.rs omite o duplica una fuente de tests")
+    if sources & special != special:
+        fail("falta una de las fuentes especiales de tests")
+    if set(re.findall(r'include!\("([A-Za-z0-9_]+)\.rs"\);', content)) != {
+            "j14_frontend_stack", "j16_frontend_stack"}:
+        fail("J14 y J16 deben conservar sus inclusiones especiales")
+    if content.count("#[test]\nfn measured_stack_child()") != 1:
+        fail("falta el único alias raíz de measured_stack_child")
+    common = {path.stem for path in (ROOT / "tests").glob("*.rs")
+              if re.search(r"(?m)^mod common;", path.read_text(encoding="utf-8"))}
+    if not common <= set(ordinary) | {"j14_frontend_stack", "j16_frontend_stack"}:
+        fail("una fuente con mod common quedó fuera de suite")
+    print(f"suite: {len(ordinary)} módulos ordinarios, {len(common)} con mod common; J14/J16 y asignador aparte")
+
+
 def inventory(build, profile):
     command = ["cargo", "nextest", "list", "--locked", "--offline"]
     if build == "release":
@@ -103,6 +137,7 @@ def inventory(build, profile):
 
 
 def check():
+    suite_sources()
     pairs = table_pairs()
     filter_pairs(pairs)
     heavy = set(pairs)
@@ -113,6 +148,12 @@ def check():
             fail(f"descubrimiento o ignorados difieren entre default y fast en {build}")
         if universe != all_default - ignored_default:
             fail(f"default deja fuera ejecutables en {build}")
+        alias = ("nexo::suite", "measured_stack_child")
+        original = ("nexo::suite", "j14_frontend_stack::measured_stack_child")
+        children = {("nexo::suite", "parser_child"),
+                    ("nexo::suite", "deep_match_type_stack_child")}
+        if alias not in universe or original not in universe or not children <= universe:
+            fail(f"hijos exactos J14/J16 o alias ausentes en {build}")
         missing = heavy - universe
         if missing:
             fail(f"pares pesados ausentes del inventario ejecutable {build}: {sorted(missing)[:5]}")
@@ -120,7 +161,8 @@ def check():
             fail(f"fast ejecuta pares pesados en {build}: {sorted(fast & heavy)[:5]}")
         if fast | heavy != universe or universe - fast != heavy:
             fail(f"fast ∪ pesados ≠ completo en {build}; faltan={sorted(universe - (fast | heavy))[:5]} extras={sorted((fast | heavy) - universe)[:5]}")
-        print(f"{build}: completo={len(universe)} fast={len(fast)} pesados={len(heavy)} ignorados={len(ignored_default)}")
+        print(f"{build}: completo={len(universe)} (originales={len(universe)-1}, alias=1) "
+              f"fast={len(fast)} pesados={len(heavy)} ignorados={len(ignored_default)}")
 
 
 if __name__ == "__main__":
