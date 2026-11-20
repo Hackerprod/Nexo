@@ -41,12 +41,17 @@ Con el código correcto: `check::tests` release 41,9 s y debug 6,0 s; `i07c_test
 M00106 (debug) no es de esta clase: su filtro `i07c_tests` falla con el mutante tras 231,7 s y queda `detectada`. M00387, M00432 y M00538 dieron suite completa en verde con `mutant-verdict.py`; M00432 lo mata además un test del lote 3 y M00387 y M00538 se clasifican equivalentes con argumento (lote 5).
 
 ## Ficheros
+Los SHA-256 siguientes son los del contenido tal como lo guarda Git (fin de línea LF); comprobar con `git show <commit>:<ruta> | sha256sum`.
 - `results.jsonl` SHA-256 `194ab9243e1a1f81c2c7884f64c4811bc46163ed8e3097d9d156e9ce384f72d6`
-- `clasificacion.json` SHA-256 `481d804b287eff89d926ce0f56a0dba1bea3a56462818498755d7f00f24cb1b1`
-- `no-terminacion/verify-hang.jsonl` SHA-256 `a3501717de0678612aae94b70b60a2d396308441450e652c393d4c072e2059e6`
-- `no-terminacion/verify-lib.jsonl` SHA-256 `ac7f25fdc7c9a32453ee8279e9edea150b8a062675f422e4a08b62e30342b477`
-- `no-terminacion/verify-nextest.jsonl` SHA-256 `d3718a3690fcc9db8be69dc3501a44afc9a294839fe405827471c77186406596`
-- `no-terminacion/mutant-verdict-resumen.jsonl` SHA-256 `a05bb580556f7022a44f015a2d7213ad987056c9e381516d96fd81d2c1344098`
+- `clasificacion.json` SHA-256 `23f4d4829d825969d8184406106809bcb227db7cd7b9d72257b520dc6f82533e`
+- `no-terminacion/verify-hang.jsonl` SHA-256 `1679738a6ae80507f335ff2b28173fa01bbd7f718290d4aaf0e27882332437f6`
+- `no-terminacion/verify-lib.jsonl` SHA-256 `7bfa0cacc80cdc988506c6d402ada7a7d539dbc7511effbe7ccf0984aeecd74f`
+- `no-terminacion/verify-nextest.jsonl` SHA-256 `4e38bcdabe35d9e8b15567a8ca6b141ff3adb6e4adf2c2c4dae406d309e6bc8c`
+- `no-terminacion/mutant-verdict-resumen.jsonl` SHA-256 `de06c79c13461a4aa74f4a91bf0e65283012378fe4d30f1f4ab55496ebd9ffb0`
 - `caza/hunt-resultados.jsonl` SHA-256 `7e425d088562ffc0ccd9296076095489a959242dfaa7621f968a95869c477267`
-- `caza/lote6-programas.json` SHA-256 `9fb1e39a9b11183fa0da542c4255e6befdf3e926387f8df37adb189212ed6cf3`
+- `caza/lote6-programas.json` SHA-256 `672990b0f991b7dfb59cb775c4a490bbe2913844010c982965cca98fbe05048c`
 - `andamiaje/`: scripts usados (caza, verificaciones, construcción de esta evidencia); son andamiaje, no código de producción.
+
+## Trazabilidad y notas
+- Los SHA-256 de blob mutante que figuran en la columna final de las tablas de los lotes 1 a 3 (`docs/correcciones/I07c-C-mutaciones-lote1.md` a `-lote3.md`) se calcularon sobre una revisión anterior de `src/check/types.rs` (antes de añadir pruebas de lotes posteriores al final del fichero). Sirven para identificar el mutante, no para reproducir byte a byte el blob sobre el árbol final; los de los lotes 4 a 6 coinciden con la revisión indicada en cada informe.
+- Para los tres mutantes cuyo esperado procede del Bloque I y no de `ccf6df1` (M00474, M00475 y M00655), el ADR F0-0002 §4.1.2.5 no trae un ejemplo normativo que los fije literalmente; si algún día se modifica esa regla conviene añadir uno (justificación en `docs/correcciones/I07c-C-mutaciones-lote6.md`).
