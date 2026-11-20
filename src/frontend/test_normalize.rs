@@ -118,7 +118,7 @@ fn erase_expr_spans(expr: &mut Expr) {
             // parser has retained the enclosing expression's context.
             *expr = (**value).clone();
         }
-        Expr::Unary { value, span, .. } => {
+        Expr::Unary { value, span, .. } | Expr::Neg { value, span } => {
             blank(span);
             erase_expr_spans(value);
         }

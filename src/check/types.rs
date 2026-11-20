@@ -303,7 +303,9 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                             work.push(Work::EnterExpr(item));
                         }
                     }
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. } => {
                         work.push(Work::EnterExpr(inner));
                     }
                     Expr::Binary { left, right, .. } => {
@@ -354,6 +356,10 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                     Expr::Group(_, span) => Expr::Group(Box::new(expr(&mut values)), span.clone()),
                     Expr::Unary { mode, span, .. } => Expr::Unary {
                         mode: *mode,
+                        value: Box::new(expr(&mut values)),
+                        span: span.clone(),
+                    },
+                    Expr::Neg { span, .. } => Expr::Neg {
                         value: Box::new(expr(&mut values)),
                         span: span.clone(),
                     },
@@ -1441,6 +1447,7 @@ fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> 
                         },
                     ));
                 }
+                Expr::Neg { value, .. } => pending.push(Node::Expr(value, requested)),
                 Expr::Group(inner, _) => pending.push(Node::Expr(inner, requested)),
                 Expr::Array(items, _) => {
                     pending.extend(items.iter().rev().map(|item| Node::Expr(item, Mode::Read)));
@@ -1637,7 +1644,9 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
                     Expr::Array(items, _) => {
                         pending.extend(items.iter().rev().map(Node::Expression))
                     }
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. } => {
                         pending.push(Node::Expression(inner));
                     }
                     Expr::Binary { left, right, .. }
@@ -2258,6 +2267,7 @@ struct Checker<'a> {
     file: &'a str,
     tokens: Vec<Token>,
     resolved: &'a Resolved,
+    f5: bool,
     graph: InferenceGraph,
     closures: HashMap<u64, ClosureDraft>,
     saved_closures: HashMap<u64, ClosureDraft>,
@@ -3876,7 +3886,9 @@ impl Checker<'_> {
                 }
             }
             Expr::Array(items, _) => children.extend(items),
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => children.push(inner),
+            Expr::Group(inner, _)
+            | Expr::Unary { value: inner, .. }
+            | Expr::Neg { value: inner, .. } => children.push(inner),
             Expr::Binary { left, right, .. } => children.extend([left.as_ref(), right.as_ref()]),
             Expr::Call { target, args, .. } => {
                 children.push(target);
@@ -6531,9 +6543,9 @@ impl Checker<'_> {
                         }
                     }
                     Expr::Array(items, _) => pending.extend(items.iter().rev().map(Node::Expr)),
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
-                        pending.push(Node::Expr(inner))
-                    }
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. } => pending.push(Node::Expr(inner)),
                     Expr::Binary { left, right, .. }
                     | Expr::Index {
                         target: left,
@@ -6735,6 +6747,7 @@ impl Checker<'_> {
                 | Expr::Index { .. }
                 | Expr::Call { .. }
                 | Expr::Unary { .. }
+                | Expr::Neg { .. }
                 | Expr::Match(..)
                 | Expr::Closure(..) => return false,
             }
@@ -7843,6 +7856,7 @@ impl Checker<'_> {
 
     fn prepare_for_type(
         &mut self,
+        for_span: &Span,
         name_span: &Span,
         iterable: &Expr,
         got: Type,
@@ -7857,6 +7871,16 @@ impl Checker<'_> {
         let item = match got {
             Type::Generator { item, .. } => (*item).clone(),
             Type::Array(_) => {
+                if self.f5 {
+                    return Err(super::pending_f5::diagnostic(
+                        "L06",
+                        Span {
+                            file: for_span.file.clone(),
+                            start: for_span.start,
+                            end: for_span.start + 3,
+                        },
+                    ));
+                }
                 let mut error = names::diagnostic(
                     "NX-E0006",
                     None,
@@ -8617,6 +8641,7 @@ impl Checker<'_> {
                             name_span,
                             iterable,
                             body,
+                            span: for_span,
                             ..
                         } = statement
                         else {
@@ -8624,7 +8649,7 @@ impl Checker<'_> {
                         };
                         result = result.and_then(|got| {
                             checker
-                                .prepare_for_type(name_span, iterable, got)
+                                .prepare_for_type(for_span, name_span, iterable, got)
                                 .map(|_| Type::Unit)
                         });
                         if result.is_err() {
@@ -8844,7 +8869,7 @@ impl Checker<'_> {
                         else {
                             unreachable!("binary frame owns a binary")
                         };
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         let left_domain_failed = numeric
                             && error.primary_span.as_ref() == Some(&Checker::primary_span(left))
                             && error.data.get("expected_type")
@@ -8883,7 +8908,7 @@ impl Checker<'_> {
                         Ok(left_type),
                     ) = (expr, &result)
                     {
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         let pending_domain = checker.graph.has(
                             &span_key(&Checker::primary_span(left)),
                             OccurrenceFlag::PendingDomain,
@@ -8964,7 +8989,7 @@ impl Checker<'_> {
                             .graph
                             .has(&span_key(left.span()), OccurrenceFlag::Deferred)
                     {
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         let pending_before_operator = checker.pending_join_count();
                         frames.push(Frame::BinaryDeferredRight(Box::new(
                             BinaryDeferredProgress {
@@ -8995,7 +9020,7 @@ impl Checker<'_> {
                         Ok(left_type),
                     ) = (expr, &result)
                     {
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         if !checker.graph.has(
                             &span_key(&Checker::primary_span(left)),
                             OccurrenceFlag::PendingDomain,
@@ -9765,6 +9790,20 @@ impl Checker<'_> {
                             continue 'evaluate;
                         }
                         Statement::For { iterable, .. } => {
+                            if self.f5 && super::pending_f5::range_for(iterable) {
+                                let Statement::For { span, .. } = statement else {
+                                    unreachable!()
+                                };
+                                ready_result = Some(Err(super::pending_f5::diagnostic(
+                                    "L05",
+                                    Span {
+                                        file: span.file.clone(),
+                                        start: span.start,
+                                        end: span.start + 3,
+                                    },
+                                )));
+                                continue 'evaluate;
+                            }
                             frames.push(Frame::StatementFor(statement, 0));
                             inner = iterable;
                             inner_context = OwnedCheckContext {
@@ -9936,6 +9975,19 @@ impl Checker<'_> {
                         {
                             break;
                         }
+                        Expr::Neg { value, .. } => {
+                            frames.push(Frame::Unary(Box::new((inner, inner_context))));
+                            inner = value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
                         Expr::Unary {
                             mode: Mode::Read,
                             value,
@@ -9967,11 +10019,20 @@ impl Checker<'_> {
                             inner = value;
                             inner_context = child_context;
                         }
-                        Expr::Binary { op, left, .. } => {
+                        Expr::Binary { op, left, right, .. } => {
+                            if self.f5 && matches!(op.as_str(), "and" | "or") {
+                                computed_leaf = Some(PrecomputedType::Whole(Err(
+                                    super::pending_f5::diagnostic(
+                                        "L02",
+                                        self.operator_span(left.span(), right.span(), op),
+                                    ),
+                                )));
+                                break;
+                            }
                             let previous_owner = visit.numeric_domain_owner;
                             visit.numeric_domain_owner = None;
                             let pending_before = self.pending_join_count();
-                            let numeric = matches!(op.as_str(), "+" | "-");
+                            let numeric = super::operators::is_arithmetic(op, self.f5);
                             if numeric {
                                 visit.numeric_domain_owner = Some(span_key(inner.span()));
                                 #[cfg(test)]
@@ -10682,7 +10743,7 @@ impl Checker<'_> {
             // only after this function's pending obligations have closed.
             self.graph.set_conditional_result(
                 span_key(e.span()),
-                if matches!(op.as_str(), "<" | "==") {
+                if super::operators::is_comparison(op, self.f5) {
                     Type::Bool
                 } else {
                     Type::I64
@@ -10860,6 +10921,19 @@ impl Checker<'_> {
                 Ok(Type::I64)
             }
             Expr::Bool(..) => Ok(Type::Bool),
+            Expr::Neg { value, .. } => {
+                let got = unary_operand.expect("negated operand is scheduled by driver")?;
+                if got != Type::I64 {
+                    return Err(mismatch(
+                        Self::primary_span(value),
+                        Self::primary_span(value),
+                        None,
+                        "I64",
+                        &got,
+                    ));
+                }
+                Ok(Type::I64)
+            }
             Expr::Unit(..) => Ok(Type::Unit),
             Expr::Name(name, span) => match self.resolved.uses.get(&span.start) {
                 Some(ResolvedUse::Intrinsic(intrinsic)) if intrinsic == "None" => {
@@ -11122,7 +11196,7 @@ impl Checker<'_> {
                         visit.tainted = true;
                         return Ok(Type::Tainted);
                     }
-                    if matches!(op.as_str(), "<" | "==")
+                    if super::operators::is_comparison(op, self.f5)
                         && !right_tainted
                         && let Some(found) = self.pending_operation_type(right)
                         && let Some((variable, domain)) = self.pending_operation_guard(left)
@@ -11153,7 +11227,7 @@ impl Checker<'_> {
                                 },
                             )));
                     }
-                    if matches!(op.as_str(), "+" | "-")
+                    if super::operators::is_arithmetic(op, self.f5)
                         && let Some((variable, domain)) = self.pending_operation_guard(left)
                     {
                         self.defer_nominal_domain(
@@ -11175,13 +11249,13 @@ impl Checker<'_> {
                         // for a later assignment or an outer consumer.
                         return Ok(Type::Tainted);
                     }
-                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                    return Ok(if super::operators::is_comparison(op, self.f5) {
                         Type::Bool
                     } else {
                         Type::I64
                     });
                 }
-                if matches!(op.as_str(), "+" | "-")
+                if super::operators::is_arithmetic(op, self.f5)
                     && self.pending_join_count() > pending_before_left
                 {
                     // ADR §4.1.2.4-5: an internal failed join contaminates
@@ -11201,7 +11275,7 @@ impl Checker<'_> {
                     self.graph
                         .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
                     visit.tainted = true;
-                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                    return Ok(if super::operators::is_comparison(op, self.f5) {
                         Type::Bool
                     } else {
                         Type::I64
@@ -11215,13 +11289,13 @@ impl Checker<'_> {
                     visit.tainted = true;
                     self.graph
                         .mark(span_key(e.span()), OccurrenceFlag::Deferred);
-                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                    return Ok(if super::operators::is_comparison(op, self.f5) {
                         Type::Bool
                     } else {
                         Type::I64
                     });
                 }
-                if matches!(op.as_str(), "+" | "-") && l != Type::I64 {
+                if super::operators::is_arithmetic(op, self.f5) && l != Type::I64 {
                     independent_right.expect("independent binary right operand");
                     return Err(mismatch(
                         Self::primary_span(left),
@@ -11895,7 +11969,7 @@ impl Checker<'_> {
         &mut self,
         visit: &mut VisitCursor,
         e: &Expr,
-        op: &String,
+        op: &str,
         left: &Expr,
         right: &Expr,
         l: Type,
@@ -11910,7 +11984,7 @@ impl Checker<'_> {
             Err(error) if error.operation == Operation::AnalysisLimit => {
                 return Err(error);
             }
-            Err(error) if matches!(op.as_str(), "<" | "==") => {
+            Err(error) if super::operators::is_comparison(op, self.f5) => {
                 self.record_error(error);
                 if let Some(domain_error) =
                     self.comparison_domain_error(visit, op, left, right, &l)?
@@ -11926,7 +12000,7 @@ impl Checker<'_> {
             &span_key(&Self::primary_span(right)),
             OccurrenceFlag::PendingDomain,
         ) {
-            if matches!(op.as_str(), "<" | "==") {
+            if super::operators::is_comparison(op, self.f5) {
                 if let Some(domain_error) =
                     self.comparison_domain_error(visit, op, left, right, &l)?
                 {
@@ -11958,7 +12032,7 @@ impl Checker<'_> {
                         )));
                 }
             }
-            if matches!(op.as_str(), "+" | "-")
+            if super::operators::is_arithmetic(op, self.f5)
                 && let Some((variable, domain)) = self.pending_operation_guard(right)
             {
                 self.defer_nominal_domain(
@@ -11974,7 +12048,7 @@ impl Checker<'_> {
             self.graph
                 .mark(span_key(e.span()), OccurrenceFlag::PendingDomain);
             if !visit.tainted && self.pending_nominal_available(right) {
-                return Ok(if matches!(op.as_str(), "<" | "==") {
+                return Ok(if super::operators::is_comparison(op, self.f5) {
                     Type::Bool
                 } else {
                     Type::I64
@@ -11987,7 +12061,7 @@ impl Checker<'_> {
                 .graph
                 .has(&span_key(right.span()), OccurrenceFlag::FailedJoin)
         {
-            if matches!(op.as_str(), "<" | "==")
+            if super::operators::is_comparison(op, self.f5)
                 && let Some(domain_error) =
                     self.comparison_domain_error(visit, op, left, right, &l)?
             {
@@ -11995,7 +12069,7 @@ impl Checker<'_> {
             }
             return Ok(Type::Tainted);
         }
-        if matches!(op.as_str(), "<" | "==") {
+        if super::operators::is_comparison(op, self.f5) {
             // ADR §4.1.2.4: both operands are synthesized before
             // equality; only then is the common domain tested.
             let right_variable = self.expression_variable(right);
@@ -12029,13 +12103,13 @@ impl Checker<'_> {
             let complete = variable
                 .and_then(|id| self.concrete(id).map(|(ty, _)| ty))
                 .or_else(|| (internal_state(&common).is_none()).then_some(common));
-            let domain = if op == "<" {
+            let domain = if super::operators::is_relational(op, self.f5) {
                 "I64"
             } else {
                 "domain:copyable_data"
             };
             if let Some(ty) = complete {
-                let valid = if op == "<" {
+                let valid = if super::operators::is_relational(op, self.f5) {
                     ty == Type::I64
                 } else {
                     comparable_data(&ty)
@@ -12045,7 +12119,9 @@ impl Checker<'_> {
                 }
             } else if let Some(id) = variable {
                 let root = self.root(id);
-                if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
+                if super::operators::is_relational(op, self.f5)
+                    && self.graph.type_nodes[&root].array_child.is_none()
+                {
                     self.unify_with_expected_origin(
                         visit,
                         Type::I64,
@@ -12115,7 +12191,7 @@ impl Checker<'_> {
         expected: Option<&Type>,
         expected_span: Option<&Span>,
     ) -> Result<Type, Box<Diagnostic>> {
-        if matches!(op, "+" | "-") {
+        if super::operators::is_arithmetic(op, self.f5) {
             right_result?;
             if visit.tainted {
                 return Ok(Type::Tainted);
@@ -12210,7 +12286,7 @@ impl Checker<'_> {
                         .unwrap_or_else(|| left_type.clone()),
                     operator: self.operator_span(left.span(), right.span(), op),
                     found: Self::primary_span(left),
-                    domain: if op == "<" {
+                    domain: if super::operators::is_relational(op, self.f5) {
                         "I64"
                     } else {
                         "domain:copyable_data"
@@ -13439,7 +13515,7 @@ impl Checker<'_> {
                 return Ok(None);
             }
         }
-        let domain = if op == "<" {
+        let domain = if super::operators::is_relational(op, self.f5) {
             "I64"
         } else {
             "domain:copyable_data"
@@ -13449,7 +13525,7 @@ impl Checker<'_> {
             .and_then(|id| self.concrete(id).map(|(resolved, _)| resolved))
             .or_else(|| (internal_state(ty).is_none()).then_some(ty.clone()));
         if let Some(complete) = complete {
-            let invalid = if op == "<" {
+            let invalid = if super::operators::is_relational(op, self.f5) {
                 complete != Type::I64
             } else {
                 !comparable_data(&complete)
@@ -13468,7 +13544,9 @@ impl Checker<'_> {
             // §4.1.2.4–5, RD95: the independent valid operand retains its
             // domain site while its deferred type is completed later.
             let root = self.root(id);
-            if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
+            if super::operators::is_relational(op, self.f5)
+                && self.graph.type_nodes[&root].array_child.is_none()
+            {
                 let operator = self.operator_span(left.span(), right.span(), op);
                 self.unify_with_expected_origin(
                     visit,
@@ -13511,7 +13589,7 @@ impl Checker<'_> {
         result: Result<Type, Box<Diagnostic>>,
         right_tainted: bool,
     ) -> Result<bool, Box<Diagnostic>> {
-        let numeric = matches!(op, "+" | "-");
+        let numeric = super::operators::is_arithmetic(op, self.f5);
         let right_failed = result.is_err();
         match result {
             Ok(ty) if numeric && left_domain_failed && !right_tainted => {
@@ -13534,7 +13612,7 @@ impl Checker<'_> {
                 }
             }
             Ok(ty) if !right_tainted && !numeric => {
-                let wanted = if op == "<" {
+                let wanted = if super::operators::is_relational(op, self.f5) {
                     "I64"
                 } else {
                     "domain:copyable_data"
@@ -13544,7 +13622,7 @@ impl Checker<'_> {
                     .and_then(|id| self.concrete(id).map(|(resolved, _)| resolved))
                     .or_else(|| (internal_state(&ty).is_none()).then_some(ty));
                 if let Some(complete) = complete {
-                    let invalid = if op == "<" {
+                    let invalid = if super::operators::is_relational(op, self.f5) {
                         complete != Type::I64
                     } else {
                         !copyable(&complete)
@@ -13563,7 +13641,9 @@ impl Checker<'_> {
                     // intrinsic domain when its sibling is contaminated.
                     // A later type completes the same operator site.
                     let root = self.root(id);
-                    if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
+                    if super::operators::is_relational(op, self.f5)
+                        && self.graph.type_nodes[&root].array_child.is_none()
+                    {
                         let operator = self.operator_span(left.span(), right.span(), op);
                         self.unify_with_expected_origin(
                             &VisitCursor::default(),
@@ -13919,6 +13999,17 @@ impl Checker<'_> {
         expected_span: Option<&Span>,
         prepared: Option<Result<Type, Box<Diagnostic>>>,
     ) -> Result<Type, Box<Diagnostic>> {
+        if self.f5 && super::pending_f5::intrinsic_scope(name).is_some() {
+            let spelling = crate::prelude::f5_array_intrinsic(name)
+                .expect("sealed F5 intrinsic")
+                .spelling;
+            let span = Span {
+                file: call_span.file.clone(),
+                start: call_span.start,
+                end: call_span.start + spelling.len() as u64,
+            };
+            return Err(super::pending_f5::diagnostic("L07", span));
+        }
         let mut prepared = prepared;
         let declared = names::intrinsic(name).expect("intrinsic resolved from closed manifest");
         let declared_result = Type::from(&declared.result);
@@ -14117,7 +14208,9 @@ fn cyclic_generator<'a>(ast: &'a Ast, resolved: &Resolved) -> Option<&'a Functio
                     Expr::Array(items, _) => {
                         pending.extend(items.iter().rev().map(Node::Expr));
                     }
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. } => {
                         pending.push(Node::Expr(inner));
                     }
                     Expr::Binary { left, right, .. }
@@ -14234,6 +14327,7 @@ pub(crate) fn check_with_partial_limit(
         file,
         tokens,
         resolved,
+        f5: ast.f5_operators,
         closures: HashMap::new(),
         saved_closures: HashMap::new(),
         generator_slots: HashMap::new(),
@@ -14511,6 +14605,11 @@ pub(crate) fn check_with_partial_limit(
         {
             checker.record_error(error);
         }
+    }
+    if ast.f5_operators {
+        checker
+            .errors
+            .extend(ast.consts.iter().map(super::pending_f5::const_pending));
     }
     names::sort_diagnostics(&mut checker.errors);
     if !checker.errors.is_empty() {
@@ -15964,6 +16063,7 @@ mod quota_tests {
             file: "quota.n",
             tokens: Vec::new(),
             resolved,
+            f5: false,
             solver_steps: 0,
             solver_limit: 1_000_000,
             planning: false,

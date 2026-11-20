@@ -345,13 +345,43 @@ pub(crate) fn intrinsic(name: &str) -> Option<Signature> {
     })
 }
 
+fn f5_intrinsic(name: &str) -> Option<Signature> {
+    let entry = crate::prelude::f5_array_intrinsic(name)?;
+    let prelude_span = Span {
+        file: "<prelude>".into(),
+        start: 0,
+        end: 0,
+    };
+    let params = (0..entry.arity)
+        .map(|index| ParameterSig {
+            name: format!("arg{index}"),
+            name_span: prelude_span.clone(),
+            type_span: prelude_span.clone(),
+            mode: if index == 0 && entry.inout_first {
+                Mode::Inout
+            } else {
+                Mode::Read
+            },
+            ty: Type::Unit,
+        })
+        .collect();
+    Some(Signature {
+        name_span: prelude_span,
+        params,
+        result: Type::Unit,
+        intrinsic: true,
+    })
+}
+
 pub(crate) fn signature<'a>(
     resolved: &'a Resolved,
     target: &ResolvedUse,
 ) -> Option<Cow<'a, Signature>> {
     match target {
         ResolvedUse::Function(name) => resolved.signatures.get(name).map(Cow::Borrowed),
-        ResolvedUse::Intrinsic(name) => intrinsic(name).map(Cow::Owned),
+        ResolvedUse::Intrinsic(name) => intrinsic(name)
+            .or_else(|| f5_intrinsic(name))
+            .map(Cow::Owned),
         ResolvedUse::Local(_) => None,
     }
 }
@@ -383,6 +413,7 @@ struct Resolver {
     phase: Stage,
     errors: Vec<Box<Diagnostic>>,
     allow_option: bool,
+    allow_f5: bool,
     /// Scope index and whether the current closure has an exhaustive capture list.
     closure_boundaries: Vec<(usize, bool)>,
 }
@@ -552,6 +583,10 @@ impl Resolver {
             Some(ResolvedUse::Function(name.into()))
         } else if matches!(name, "Some" | "None") && !self.allow_option {
             None
+        } else if self.allow_f5
+            && let Some(entry) = crate::prelude::f5_array_intrinsic(name)
+        {
+            Some(ResolvedUse::Intrinsic(entry.identity.into()))
         } else {
             intrinsic(name).map(|_| ResolvedUse::Intrinsic(name.into()))
         }
@@ -757,6 +792,7 @@ impl Resolver {
                             }
                         }
                         Expr::Group(x, _) => tasks.push(Walk::Expr(x, call_target)),
+                        Expr::Neg { value, .. } => tasks.push(Walk::Expr(value, false)),
                         Expr::Unary { mode, value, span } => {
                             tasks.push(Walk::CheckUnary {
                                 mode: *mode,
@@ -1206,6 +1242,7 @@ pub(crate) fn resolve_with_option(
         phase: Stage::Names,
         errors: registration_errors,
         allow_option,
+        allow_f5: ast.f5_operators,
         closure_boundaries: Vec::new(),
     };
     let mut seen_functions = HashSet::new();
@@ -1487,6 +1524,7 @@ mod tests {
             phase: Stage::Names,
             errors: Vec::new(),
             allow_option: false,
+            allow_f5: false,
             closure_boundaries: Vec::new(),
         };
         resolver.function(&ast.functions[0]).unwrap();

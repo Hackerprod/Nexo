@@ -1047,7 +1047,9 @@ fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
                         frames.push(Frame::Expr(item));
                     }
                 }
-                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                Expr::Group(inner, _)
+                | Expr::Unary { value: inner, .. }
+                | Expr::Neg { value: inner, .. } => {
                     frames.push(Frame::Expr(inner));
                 }
                 Expr::Binary { left, right, .. } => {
@@ -1811,6 +1813,8 @@ pub(super) fn analyze(
                 DataValue::String(
                     if profile_id.starts_with("f0-0003-") {
                         "f0-0003-sim-v1"
+                    } else if profile_id.starts_with("f0-0005-") {
+                        "f0-0005-sim-v1"
                     } else {
                         "f0-0002-sim-v1"
                     }

@@ -288,7 +288,9 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
         match value {
             Expr::Closure(closure) => assert_simple_terminators(&closure.body, source),
             Expr::Array(items, _) => items.iter().for_each(|item| expression(item, source)),
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => expression(inner, source),
+            Expr::Group(inner, _)
+            | Expr::Unary { value: inner, .. }
+            | Expr::Neg { value: inner, .. } => expression(inner, source),
             Expr::Binary { left, right, .. } => {
                 expression(left, source);
                 expression(right, source);

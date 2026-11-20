@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::model::{
     self, Access, BasicBlock, Binary, BlockId, CaptureKind, Function, FunctionId, FunctionTable,
     IndexSite, Instruction, Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId,
-    Parameter, ParameterMode, Program, ScopeId, TempId, Terminator, Ty, WorkCharge,
+    Parameter, ParameterMode, Program, ScopeId, TempId, Terminator, Ty, Unary, WorkCharge,
 };
 #[path = "lower_match.rs"]
 mod lower_match;
@@ -409,6 +409,7 @@ impl AnalysisLimits {
 pub enum ReducedProfile {
     Normal,
     JNormal,
+    F5Normal,
     /// Internal F5 control flow probe; deliberately absent from `from_id`.
     F5ControlInternal,
     Types32,
@@ -441,6 +442,7 @@ impl ReducedProfile {
             "f0-0002-b-test-cells-64-v2" => Self::Cells64,
             "f0-0002-b-test-observations-64-v2" => Self::Observations64,
             "f0-0003-b-v1" => Self::JNormal,
+            "f0-0005-b-v1" => Self::F5Normal,
             "f0-0003-b-test-types-32-v1" => Self::JTypes32,
             "f0-0003-b-test-flow-32-v1" => Self::JFlowFunction32,
             "f0-0003-b-test-flow-global-32-v1" => Self::JFlowCompilation32,
@@ -459,6 +461,10 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
         ReducedProfile::Normal => AnalysisLimits::NORMAL,
         ReducedProfile::JNormal => AnalysisLimits {
             profile_id: "f0-0003-b-v1",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::F5Normal => AnalysisLimits {
+            profile_id: "f0-0005-b-v1",
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::F5ControlInternal => AnalysisLimits {
@@ -642,7 +648,9 @@ fn compile_scalar_with_analysis_limits_unchecked(
     run_entry: bool,
     limits: AnalysisLimits,
 ) -> Result<Program, CompileError> {
-    let ast = if limits.profile_id.starts_with("f0-0003-") {
+    let ast = if limits.profile_id.starts_with("f0-0005-") {
+        parse::parse_f5_hidden(file, source)
+    } else if limits.profile_id.starts_with("f0-0003-") {
         parse::parse_new_profile(file, source)
     } else {
         parse::parse(file, source)
@@ -846,7 +854,9 @@ pub(super) fn collect_closures(ast: &Ast) -> Vec<&parse::Closure> {
                         visits.push(Visit::Expr(item));
                     }
                 }
-                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                Expr::Group(inner, _)
+                | Expr::Unary { value: inner, .. }
+                | Expr::Neg { value: inner, .. } => {
                     visits.push(Visit::Expr(inner));
                 }
                 Expr::Binary { left, right, .. }
@@ -1435,7 +1445,143 @@ fn compile_ast_with_flow_limit<'a>(
     if !isolate_lowering {
         super::verify::verify_program(&program).map_err(CompileError::InvalidIr)?;
     }
+    if ast.f5_operators
+        && let Some(span) = first_f5_capability(ast)
+    {
+        let mut diagnostic = crate::check::names::diagnostic(
+            "NX-E0006",
+            None,
+            diagnostic::Stage::Lower,
+            diagnostic::Operation::IrLower,
+            span,
+        );
+        diagnostic.feature_id = Some("implementation_limit".into());
+        diagnostic.message = "Capacidad pendiente de implementación en L08.".into();
+        diagnostic.data.insert(
+            "pending_scope".into(),
+            diagnostic::DataValue::String("L08".into()),
+        );
+        return Err(CompileError::Rejected(vec![diagnostic]));
+    }
     Ok(program)
+}
+
+fn first_f5_capability(ast: &Ast) -> Option<Span> {
+    enum Node<'a> {
+        Expr(&'a Expr),
+        Statement(&'a Statement),
+        Block(&'a parse::Block),
+        Match(&'a parse::Match),
+    }
+    let mut pending: Vec<_> = ast.functions.iter().map(|f| Node::Block(&f.body)).collect();
+    let mut first: Option<Span> = None;
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Block(block) => pending.extend(block.statements.iter().map(Node::Statement)),
+            Node::Statement(statement) => match statement {
+                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                    pending.push(Node::Expr(value))
+                }
+                Statement::Assign { place, value, .. } => {
+                    pending.push(Node::Expr(value));
+                    pending.push(Node::Expr(place));
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        pending.push(Node::Expr(value));
+                    }
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(then_block));
+                    if let Some(otherwise) = otherwise {
+                        pending.push(Node::Statement(otherwise));
+                    }
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(body));
+                }
+                Statement::For { iterable, body, .. } => {
+                    pending.push(Node::Expr(iterable));
+                    pending.push(Node::Block(body));
+                }
+                Statement::Match(selection) => pending.push(Node::Match(selection)),
+                Statement::Block(block) => pending.push(Node::Block(block)),
+            },
+            Node::Match(selection) => {
+                pending.push(Node::Expr(&selection.scrutinee));
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        pending.push(Node::Expr(guard));
+                    }
+                    pending.push(Node::Block(&arm.body));
+                }
+            }
+            Node::Expr(expr) => match expr {
+                Expr::Binary {
+                    op,
+                    left,
+                    right,
+                    span,
+                } => {
+                    if crate::check::operators::needs_f5(op)
+                        && first.as_ref().is_none_or(|prior| span.start < prior.start)
+                    {
+                        first = Some(span.clone());
+                    }
+                    pending.push(Node::Expr(left));
+                    pending.push(Node::Expr(right));
+                }
+                Expr::Closure(closure) => pending.push(Node::Block(&closure.body)),
+                Expr::Array(items, _) => pending.extend(items.iter().map(Node::Expr)),
+                Expr::Neg { value, span } => {
+                    if first.as_ref().is_none_or(|prior| span.start < prior.start) {
+                        first = Some(span.clone());
+                    }
+                    pending.push(Node::Expr(value));
+                }
+                Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                    pending.push(Node::Expr(value))
+                }
+                Expr::Call { target, args, .. } => {
+                    pending.push(Node::Expr(target));
+                    pending.extend(args.iter().map(|arg| Node::Expr(&arg.value)));
+                }
+                Expr::Index { target, index, .. } => {
+                    pending.push(Node::Expr(target));
+                    pending.push(Node::Expr(index));
+                }
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(then_block));
+                    if let Some(otherwise) = otherwise {
+                        match otherwise.as_ref() {
+                            parse::Else::Block(block) => pending.push(Node::Block(block)),
+                            parse::Else::If(expr) => pending.push(Node::Expr(expr)),
+                        }
+                    }
+                }
+                Expr::Match(selection) => pending.push(Node::Match(selection)),
+                Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+            },
+        }
+    }
+    first
 }
 
 fn ir_operand_count(op: &Op) -> u64 {
@@ -2253,6 +2399,7 @@ impl Lower<'_> {
             } => self.temp_live(*id, false),
             Op::BuildVariant { payload: None, .. } => {}
             Op::BranchVariant { value, .. } => self.temp_live(*value, false),
+            Op::Unary { operand, .. } => self.temp_live(*operand, false),
             Op::Binary { left, right, .. } => {
                 self.temp_live(*left, false);
                 self.temp_live(*right, false);
@@ -5088,6 +5235,10 @@ impl Lower<'_> {
                 span: &'a Span,
                 inferred: Ty,
             },
+            NegAfter {
+                span: &'a Span,
+                inferred: Ty,
+            },
             UserCallNext(Box<UserCallState<'a>>),
             UserCallAfterArgument {
                 state: Box<UserCallState<'a>>,
@@ -6651,6 +6802,37 @@ impl Lower<'_> {
                             )))
                         }));
                     }
+                    Some(Task::NegAfter { .. }) => {
+                        let Some(Task::NegAfter { span, inferred }) = tasks.pop() else {
+                            unreachable!()
+                        };
+                        completed_value = Some(result.and_then(|value| {
+                            let operand =
+                                value.ok_or(CompileError::InvalidIr("negation operand flow"))?;
+                            if operand.diverged() {
+                                return Ok(Some(Flow::Diverged { ty: Some(inferred) }));
+                            }
+                            if self.emission == EmissionMode::Analyze {
+                                return Ok(Some(Flow::Value {
+                                    temp: None,
+                                    ty: inferred,
+                                }));
+                            }
+                            let operand = operand
+                                .temp()
+                                .ok_or(CompileError::InvalidIr("negation operand"))?;
+                            Ok(Some(self.emitted(
+                                Op::Unary {
+                                    op: Unary::Neg,
+                                    operand,
+                                },
+                                inferred,
+                                span.clone(),
+                                Access::Own,
+                                false,
+                            )))
+                        }));
+                    }
                     Some(Task::UnaryReadAfter { .. }) => {
                         let Some(Task::UnaryReadAfter { span, inferred }) = tasks.pop() else {
                             return Err(CompileError::InvalidIr("propagation continuation"));
@@ -7025,6 +7207,9 @@ impl Lower<'_> {
                     }
                     Some(Task::UnaryReadAfter { .. }) => {
                         return Err(CompileError::InvalidIr("propagation unit result"));
+                    }
+                    Some(Task::NegAfter { .. }) => {
+                        return Err(CompileError::InvalidIr("negation unit result"));
                     }
                     _ => return Err(CompileError::InvalidIr("lower task continuation")),
                 }
@@ -7865,6 +8050,19 @@ impl Lower<'_> {
                                         borrow: false,
                                     });
                                 }
+                            }
+                        } else if let Expr::Neg { value, span } = inner {
+                            match self.prepare_expr(inner) {
+                                Ok(inferred) => {
+                                    tasks.push(Task::NegAfter { span, inferred });
+                                    tasks.push(Task::Expr {
+                                        value,
+                                        expected: Some(Ty::I64),
+                                        depth: inner_depth + 1,
+                                        borrow: false,
+                                    });
+                                }
+                                Err(error) => completed_value = Some(Err(error)),
                             }
                         } else if let Expr::Unary {
                             mode: Mode::Read,
@@ -9193,6 +9391,7 @@ impl Lower<'_> {
                     | Task::UserCallAfterArgument { .. }
                     | Task::VariantAfter { .. }
                     | Task::UnaryReadAfter { .. }
+                    | Task::NegAfter { .. }
                     | Task::MatchRestore(_)
                     | Task::IfAfterThen { .. }
                     | Task::IfAfterElse { .. }
@@ -9660,10 +9859,11 @@ impl Lower<'_> {
                     }
                 }
                 Expr::Group(..) => {}
+                Expr::Neg { span, .. } => own.push(span.clone()),
                 Expr::Match(selection) => own.push(selection.span.clone()),
                 Expr::Closure(closure) => own.push(closure.fn_span.clone()),
             }
-            let event = if matches!(e, Expr::Binary { .. }) {
+            let event = if matches!(e, Expr::Binary { .. } | Expr::Neg { .. }) {
                 WorkEvent::OperatorExpression
             } else {
                 WorkEvent::IfExpression
@@ -10413,7 +10613,25 @@ mod tests {
             };
             assert!(errors.iter().any(|d| d.code == "NX-E1317"));
         }
-        assert!(ReducedProfile::from_id("f0-0005-b-v1").is_none());
+        assert!(ReducedProfile::from_id("f0-0005-b-v1").is_some());
+    }
+
+    #[test]
+    fn f5_neg_reaches_lowering_boundary() {
+        let result = compile_scalar_with_profile(
+            "case.n",
+            "fn Main(){let x=1;let y=-x;}",
+            ReducedProfile::F5Normal,
+            false,
+        );
+        let Err(CompileError::Rejected(errors)) = result else {
+            panic!("expected L08, got {result:?}");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].data.get("pending_scope"),
+            Some(&diagnostic::DataValue::String("L08".into()))
+        );
     }
 
     #[test]
@@ -10565,7 +10783,9 @@ mod tests {
                                 _ => None,
                             }
                         }
-                        Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                        Expr::Group(value, _)
+                        | Expr::Unary { value, .. }
+                        | Expr::Neg { value, .. } => {
                             pending.push(Node::Expr(value));
                             None
                         }

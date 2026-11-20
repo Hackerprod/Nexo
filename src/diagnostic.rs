@@ -286,6 +286,7 @@ impl Diagnostic {
         const PUBLISHED_PROFILES: &[&str] = &[
             PROFILE_ID,
             "f0-0003-b-v1",
+            "f0-0005-b-v1",
             "f0-0003-b-test-types-32-v1",
             "f0-0003-b-test-flow-32-v1",
             "f0-0003-b-test-flow-global-32-v1",
@@ -942,7 +943,9 @@ impl Diagnostic {
                     ("types", "types.check")
                 }
                 "for_iteration"
-                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Types =>
+                    if (self.profile_id.starts_with("f0-0003-")
+                        || self.profile_id.starts_with("f0-0005-"))
+                        && self.stage == Stage::Types =>
                 {
                     ("types", "types.check")
                 }
@@ -954,6 +957,7 @@ impl Diagnostic {
                 {
                     ("names", "names.resolve")
                 }
+                "implementation_limit" if self.stage == Stage::Lower => ("lower", "ir.lower"),
                 "implementation_limit" => ("types", "types.check"),
                 "inferred_non_unit_result" | "resource_array" | "option" | "unsupported_type" => {
                     ("types", "types.check")
@@ -1391,7 +1395,25 @@ impl Diagnostic {
         enum_value("use_kind", &["value", "call_target"])?;
         enum_value(
             "pending_scope",
-            &["F0-0003", "later_adr", "I08", "I09", "I10a", "I10b", "I11a"],
+            &[
+                "F0-0003",
+                "later_adr",
+                "I08",
+                "I09",
+                "I10a",
+                "I10b",
+                "I11a",
+                "L01",
+                "L02",
+                "L03",
+                "L04",
+                "L05",
+                "L06",
+                "L07",
+                "L08",
+                "L09",
+                "L10",
+            ],
         )?;
         enum_value("effect_evidence", &["known_effect", "unknown_effect"])?;
         enum_value("required_effect", &["alloc", "block", "suspend", "io"])?;
@@ -1400,6 +1422,8 @@ impl Diagnostic {
                 != Some(&DataValue::String(
                     if self.profile_id.starts_with("f0-0003-") {
                         "f0-0003-sim-v1"
+                    } else if self.profile_id.starts_with("f0-0005-") {
+                        "f0-0005-sim-v1"
                     } else {
                         "f0-0002-sim-v1"
                     }
@@ -1532,7 +1556,7 @@ impl Diagnostic {
             } else if let Some(expected) = expected {
                 scope == Some(&DataValue::String(expected.into()))
             } else {
-                matches!(scope, Some(DataValue::String(value)) if ["I08", "I09", "I10a", "I10b", "I11a"].contains(&value.as_str()))
+                matches!(scope, Some(DataValue::String(value)) if ["I08", "I09", "I10a", "I10b", "I11a", "L01", "L02", "L03", "L04", "L05", "L06", "L07", "L08", "L09", "L10"].contains(&value.as_str()))
             };
             if !valid {
                 return Err(SchemaError(

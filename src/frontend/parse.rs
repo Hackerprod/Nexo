@@ -329,9 +329,112 @@ const BRANCH_FIRST_NEW: &[&str] = &[
     "{",
 ];
 
+// F5 §12.2: closed FIRST sets for the active surface. Keep J's tables
+// unchanged so historical syntax diagnostics remain byte-identical.
+const EXPR_START_F5: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "not",
+    "true",
+];
+const NEG_START_F5: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "move",
+    "not",
+    "true",
+];
+const GROUP_FIRST_F5: &[&str] = &[
+    "(",
+    ")",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "not",
+    "true",
+];
+const ARRAY_FIRST_F5: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "]",
+    "edit",
+    "false",
+    "fn",
+    "if",
+    "match",
+    "move",
+    "not",
+    "true",
+];
+const BRANCH_FIRST_F5: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "edit",
+    "false",
+    "fn",
+    "move",
+    "not",
+    "true",
+    "{",
+];
+const BLOCK_NEXT_F5: &[&str] = &[
+    "(",
+    "-",
+    "IntLiteral",
+    "Name",
+    "[",
+    "break",
+    "continue",
+    "edit",
+    "false",
+    "fn",
+    "for",
+    "if",
+    "let",
+    "match",
+    "move",
+    "not",
+    "return",
+    "true",
+    "var",
+    "while",
+    "yield",
+    "{",
+    "}",
+];
+
 #[derive(Clone, Copy)]
 enum FirstSet {
     Expr,
+    Neg,
     Try,
     Block,
     Type,
@@ -342,34 +445,52 @@ enum FirstSet {
     Module,
 }
 
-fn first(new_profile: bool, set: FirstSet) -> &'static [&'static str] {
-    match (new_profile, set) {
-        (true, FirstSet::Expr) => EXPR_START_NEW,
-        (true, FirstSet::Try) => TRY_START_NEW,
-        (true, FirstSet::Block) => BLOCK_NEXT_NEW,
-        (true, FirstSet::Type) => TYPE_START_NEW,
-        (true, FirstSet::Postfix) => POSTFIX_START_NEW,
-        (true, FirstSet::Group) => GROUP_FIRST_NEW,
-        (true, FirstSet::Array) => ARRAY_FIRST_NEW,
-        (true, FirstSet::Branch) => BRANCH_FIRST_NEW,
-        (true, FirstSet::Module) => &["EOF", "fn", "gen"],
-        (false, FirstSet::Expr) => EXPR_START,
-        (false, FirstSet::Try) => TRY_START,
-        (false, FirstSet::Block) => BLOCK_NEXT,
-        (false, FirstSet::Type) => TYPE_START,
-        (false, FirstSet::Postfix) => POSTFIX_START,
-        (false, FirstSet::Group) => GROUP_FIRST,
-        (false, FirstSet::Array) => ARRAY_FIRST,
-        (false, FirstSet::Branch) => BRANCH_FIRST,
-        (false, FirstSet::Module) => &["EOF", "fn"],
+fn first(new_profile: bool, f5: bool, set: FirstSet) -> &'static [&'static str] {
+    match (new_profile, f5, set) {
+        (_, true, FirstSet::Expr) => EXPR_START_F5,
+        (_, true, FirstSet::Neg) => NEG_START_F5,
+        (_, true, FirstSet::Block) => BLOCK_NEXT_F5,
+        (_, true, FirstSet::Group) => GROUP_FIRST_F5,
+        (_, true, FirstSet::Array) => ARRAY_FIRST_F5,
+        (_, true, FirstSet::Branch) => BRANCH_FIRST_F5,
+        (_, true, FirstSet::Module) => &["EOF", "const", "fn", "gen"],
+        (true, _, FirstSet::Expr) => EXPR_START_NEW,
+        (true, _, FirstSet::Neg | FirstSet::Try) => TRY_START_NEW,
+        (true, _, FirstSet::Block) => BLOCK_NEXT_NEW,
+        (true, _, FirstSet::Type) => TYPE_START_NEW,
+        (true, _, FirstSet::Postfix) => POSTFIX_START_NEW,
+        (true, _, FirstSet::Group) => GROUP_FIRST_NEW,
+        (true, _, FirstSet::Array) => ARRAY_FIRST_NEW,
+        (true, _, FirstSet::Branch) => BRANCH_FIRST_NEW,
+        (true, _, FirstSet::Module) => &["EOF", "fn", "gen"],
+        (false, _, FirstSet::Expr) => EXPR_START,
+        (false, _, FirstSet::Neg | FirstSet::Try) => TRY_START,
+        (false, _, FirstSet::Block) => BLOCK_NEXT,
+        (false, _, FirstSet::Type) => TYPE_START,
+        (false, _, FirstSet::Postfix) => POSTFIX_START,
+        (false, _, FirstSet::Group) => GROUP_FIRST,
+        (false, _, FirstSet::Array) => ARRAY_FIRST,
+        (false, _, FirstSet::Branch) => BRANCH_FIRST,
+        (false, _, FirstSet::Module) => &["EOF", "fn"],
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Ast {
     pub functions: Vec<Function>,
+    pub consts: Vec<ConstDecl>,
     pub span: Span,
     pub(crate) f5_operators: bool,
+}
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ConstDecl {
+    pub name: String,
+    pub name_span: Span,
+    pub ty: Type,
+    pub value: Expr,
+    pub const_span: Span,
+    pub comptime_span: Span,
+    pub span: Span,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Function {
@@ -603,6 +724,10 @@ pub enum Expr {
         value: Box<Expr>,
         span: Span,
     },
+    Neg {
+        value: Box<Expr>,
+        span: Span,
+    },
     Binary {
         op: String,
         left: Box<Expr>,
@@ -650,6 +775,7 @@ impl Expr {
             | Self::Array(_, s)
             | Self::Group(_, s)
             | Self::Unary { span: s, .. }
+            | Self::Neg { span: s, .. }
             | Self::Binary { span: s, .. }
             | Self::Call { span: s, .. }
             | Self::Index { span: s, .. }
@@ -757,7 +883,6 @@ pub(crate) fn parse_new_profile(file: &str, source: &str) -> Result<Ast, Box<Dia
     parse_with_split_tokens_counted(file, source, None, true, false).map(|(ast, _)| ast)
 }
 
-#[cfg(test)]
 pub(crate) fn parse_f5_hidden(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
     parse_with_split_tokens_counted(file, source, None, true, true).map(|(ast, _)| ast)
 }
@@ -1600,6 +1725,7 @@ fn module_choice(row: &ProductionRow) -> ModuleChoice {
     match row.production {
         Production::FnDecl => ModuleChoice::Fn,
         Production::GenDecl => ModuleChoice::Gen,
+        Production::ConstDecl => ModuleChoice::Const,
         _ => ModuleChoice::Invalid,
     }
 }
@@ -1634,6 +1760,7 @@ fn primary_choice(row: &ProductionRow) -> PrimaryChoice {
 enum ModuleChoice {
     Fn,
     Gen,
+    Const,
     Deferred,
     Invalid,
 }
@@ -1764,7 +1891,7 @@ fn unadmitted_edit_walk(root: EditNode<'_>) -> Option<Span> {
                 } if !immediate_argument && !matches!(&**value, Expr::Call { .. }) => {
                     return Some(span.clone());
                 }
-                Expr::Unary { value, .. } | Expr::Group(value, _) => {
+                Expr::Unary { value, .. } | Expr::Neg { value, .. } | Expr::Group(value, _) => {
                     pending.push(EditNode::Expr(value, false));
                 }
                 Expr::Array(items, _) => {
@@ -1903,7 +2030,7 @@ fn non_unit_return(statement: &Statement) -> Option<Span> {
                     pending.push(Node::Block(then_block));
                     pending.push(Node::Expr(condition));
                 }
-                Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                Expr::Group(value, _) | Expr::Unary { value, .. } | Expr::Neg { value, .. } => {
                     pending.push(Node::Expr(value));
                 }
                 Expr::Binary { left, right, .. }
@@ -1951,6 +2078,7 @@ fn non_unit_return(statement: &Statement) -> Option<Span> {
 #[derive(Clone, Copy)]
 enum ConstructEntry {
     Block(bool),
+    Expr,
     #[cfg(test)]
     Statement {
         value_target: bool,
@@ -1960,6 +2088,7 @@ enum ConstructEntry {
 
 enum ConstructResult {
     Block(Block),
+    Expr(Expr),
     #[cfg(test)]
     Statement(Box<Statement>),
 }
@@ -2013,20 +2142,20 @@ impl Parser<'_> {
             ListKind::Argument => (
                 ")",
                 "grammar.Argument",
-                first(self.new_profile, FirstSet::Expr),
+                first(self.new_profile, self.f5_operators, FirstSet::Expr),
                 false,
             ),
             ListKind::ArrayElement => (
                 "]",
                 "array_element",
-                first(self.new_profile, FirstSet::Expr),
+                first(self.new_profile, self.f5_operators, FirstSet::Expr),
                 false,
             ),
             ListKind::ConstructorPattern => (")", "grammar.Pattern", PATTERN_FIRST, false),
             ListKind::TypeArgument => (
                 ">",
                 "grammar.Type",
-                first(self.new_profile, FirstSet::Type),
+                first(self.new_profile, self.f5_operators, FirstSet::Type),
                 false,
             ),
             ListKind::MatchArm => ("}", "grammar.Arm", PATTERN_FIRST, true),
@@ -2165,6 +2294,9 @@ impl Parser<'_> {
             Prefix,
             ModeOperand {
                 mode: Mode,
+                start: usize,
+            },
+            Neg {
                 start: usize,
             },
             Continue {
@@ -2324,6 +2456,7 @@ impl Parser<'_> {
         }
         let mut tasks = vec![match entry {
             ConstructEntry::Block(value_target) => Task::BlockStart { value_target },
+            ConstructEntry::Expr => Task::Enter(EXPRESSION),
             #[cfg(test)]
             ConstructEntry::Statement {
                 value_target,
@@ -2360,7 +2493,7 @@ impl Parser<'_> {
                         if self.eof() && frame.statements.is_empty() {
                             return Err(self.err(
                                 "block_item",
-                                first(self.new_profile, FirstSet::Block),
+                                first(self.new_profile, self.f5_operators, FirstSet::Block),
                                 frame.start,
                                 None,
                             ));
@@ -2370,7 +2503,7 @@ impl Parser<'_> {
                         self.expect(
                             "}",
                             "grammar.Block",
-                            first(self.new_profile, FirstSet::Block),
+                            first(self.new_profile, self.f5_operators, FirstSet::Block),
                             frame.start,
                         )?;
                         self.depth -= 1;
@@ -2388,7 +2521,7 @@ impl Parser<'_> {
                                 } else {
                                     "grammar.Block"
                                 },
-                                first(self.new_profile, FirstSet::Block),
+                                first(self.new_profile, self.f5_operators, FirstSet::Block),
                                 frame.start,
                                 None,
                             ));
@@ -2437,7 +2570,7 @@ impl Parser<'_> {
                         if token.text == "yield" && !self.starts_expr() {
                             return Err(self.err(
                                 "grammar.YieldStmt",
-                                first(self.new_profile, FirstSet::Expr),
+                                first(self.new_profile, self.f5_operators, FirstSet::Expr),
                                 start,
                                 None,
                             ));
@@ -2483,7 +2616,7 @@ impl Parser<'_> {
                         if !self.starts_expr() {
                             return Err(self.err(
                                 "binding_initializer",
-                                first(self.new_profile, FirstSet::Expr),
+                                first(self.new_profile, self.f5_operators, FirstSet::Expr),
                                 start,
                                 None,
                             ));
@@ -2969,7 +3102,7 @@ impl Parser<'_> {
                     if min > EXPRESSION && !self.starts_try() {
                         return Err(self.err(
                             "grammar.TryExpr",
-                            first(self.new_profile, FirstSet::Try),
+                            first(self.new_profile, self.f5_operators, FirstSet::Try),
                             self.peek().span.start as usize,
                             None,
                         ));
@@ -2983,7 +3116,33 @@ impl Parser<'_> {
                 }
                 Task::Prefix => {
                     let token = self.peek().clone();
-                    if self.select_primary_entry() == PrimaryChoice::If {
+                    if self.f5_operators
+                        && token.text == "-"
+                        && self
+                            .tokens
+                            .get(self.at + 1)
+                            .is_some_and(|next| next.kind != Kind::Integer)
+                    {
+                        self.take();
+                        if !self.starts_try()
+                            || matches!(
+                                self.select_primary_entry(),
+                                PrimaryChoice::If | PrimaryChoice::Match
+                            )
+                        {
+                            let unexpected = self.peek().clone();
+                            return Err(self.syntax(
+                                &unexpected,
+                                "grammar.NegExpr",
+                                first(self.new_profile, self.f5_operators, FirstSet::Neg),
+                                token.span.start as usize,
+                            ));
+                        }
+                        tasks.push(Task::Neg {
+                            start: token.span.start as usize,
+                        });
+                        tasks.push(Task::Enter(precedence::F5.unary));
+                    } else if self.select_primary_entry() == PrimaryChoice::If {
                         self.take();
                         tasks.push(Task::IfCondition {
                             start: token.span.start as usize,
@@ -3011,7 +3170,7 @@ impl Parser<'_> {
                             if !self.starts_expr() {
                                 return Err(self.err(
                                     "grammar.Primary",
-                                    first(self.new_profile, FirstSet::Group),
+                                    first(self.new_profile, self.f5_operators, FirstSet::Group),
                                     start,
                                     None,
                                 ));
@@ -3039,6 +3198,14 @@ impl Parser<'_> {
                             }
                         }
                     }
+                }
+                Task::Neg { start } => {
+                    let value = result.take().expect("negated operand has a result");
+                    let span = self.span(start, value.span().end as usize);
+                    result = Some(self.checked_expression(Expr::Neg {
+                        value: Box::new(value),
+                        span,
+                    })?);
                 }
                 Task::ModeOperand { mode, start } => {
                     let val = result.take().expect("mode operand has a result");
@@ -3145,7 +3312,7 @@ impl Parser<'_> {
                             "]",
                             "grammar.Primary",
                             if elements.is_empty() {
-                                first(self.new_profile, FirstSet::Array)
+                                first(self.new_profile, self.f5_operators, FirstSet::Array)
                             } else {
                                 &[",", "]"]
                             },
@@ -3171,9 +3338,9 @@ impl Parser<'_> {
                                     "grammar.Primary"
                                 },
                                 if after_comma {
-                                    first(self.new_profile, FirstSet::Expr)
+                                    first(self.new_profile, self.f5_operators, FirstSet::Expr)
                                 } else {
-                                    first(self.new_profile, FirstSet::Array)
+                                    first(self.new_profile, self.f5_operators, FirstSet::Array)
                                 },
                                 start,
                                 None,
@@ -3214,7 +3381,7 @@ impl Parser<'_> {
                                 ")",
                                 "grammar.Arguments",
                                 if args.is_empty() {
-                                    first(self.new_profile, FirstSet::Group)
+                                    first(self.new_profile, self.f5_operators, FirstSet::Group)
                                 } else {
                                     &[")", ","]
                                 },
@@ -3235,7 +3402,7 @@ impl Parser<'_> {
                             ")",
                             "grammar.Arguments",
                             if args.is_empty() {
-                                first(self.new_profile, FirstSet::Group)
+                                first(self.new_profile, self.f5_operators, FirstSet::Group)
                             } else {
                                 &[")", ","]
                             },
@@ -3256,9 +3423,9 @@ impl Parser<'_> {
                                     "grammar.Arguments"
                                 },
                                 if after_comma {
-                                    first(self.new_profile, FirstSet::Expr)
+                                    first(self.new_profile, self.f5_operators, FirstSet::Expr)
                                 } else {
-                                    first(self.new_profile, FirstSet::Group)
+                                    first(self.new_profile, self.f5_operators, FirstSet::Group)
                                 },
                                 if after_comma {
                                     self.peek().span.start as usize
@@ -3328,7 +3495,7 @@ impl Parser<'_> {
                         if !self.starts_try() {
                             return Err(self.err(
                                 "grammar.BranchOperand",
-                                first(self.new_profile, FirstSet::Branch),
+                                first(self.new_profile, self.f5_operators, FirstSet::Branch),
                                 self.peek().span.start as usize,
                                 None,
                             ));
@@ -3364,7 +3531,7 @@ impl Parser<'_> {
                     if !self.at_text("{") && !self.starts_try() {
                         return Err(self.err(
                             "grammar.BranchOperand",
-                            first(self.new_profile, FirstSet::Branch),
+                            first(self.new_profile, self.f5_operators, FirstSet::Branch),
                             start,
                             None,
                         ));
@@ -3663,6 +3830,9 @@ impl Parser<'_> {
             ConstructEntry::Block(_) => Ok(ConstructResult::Block(
                 block_result.expect("block has a result"),
             )),
+            ConstructEntry::Expr => Ok(ConstructResult::Expr(
+                result.expect("expression has a result"),
+            )),
             #[cfg(test)]
             ConstructEntry::Statement { .. } => Ok(ConstructResult::Statement(Box::new(
                 statement_result.expect("statement has a result"),
@@ -3677,6 +3847,11 @@ impl Parser<'_> {
         }
         match production_entry(self.peek(), GrammarState::ModuleItem) {
             Some((row, Entry::Active)) => module_choice(row),
+            Some((row, Entry::Deferred(_)))
+                if self.f5_operators && module_choice(row) == ModuleChoice::Const =>
+            {
+                module_choice(row)
+            }
             Some((_, Entry::Deferred(_))) => ModuleChoice::Deferred,
             _ => ModuleChoice::Invalid,
         }
@@ -3691,9 +3866,12 @@ impl Parser<'_> {
     fn program(mut self) -> ParseResult {
         let start = 0;
         let mut fs = Vec::new();
+        let mut consts = Vec::new();
         while !self.eof() {
             let choice = self.select_module_entry();
-            if matches!(choice, ModuleChoice::Fn | ModuleChoice::Gen) {
+            if choice == ModuleChoice::Const {
+                consts.push(self.const_declaration()?);
+            } else if matches!(choice, ModuleChoice::Fn | ModuleChoice::Gen) {
                 if let Some(name) = self
                     .tokens
                     .get(self.at + if self.word("gen") { 2 } else { 1 })
@@ -3713,7 +3891,11 @@ impl Parser<'_> {
                 }
                 return Err(self.err(
                     "module_item",
-                    first(self.new_profile, FirstSet::Module),
+                    if self.f5_operators {
+                        &["EOF", "const", "fn", "gen"]
+                    } else {
+                        first(self.new_profile, self.f5_operators, FirstSet::Module)
+                    },
                     0,
                     None,
                 ));
@@ -3725,11 +3907,37 @@ impl Parser<'_> {
         Ok((
             Ast {
                 functions: fs,
+                consts,
                 span: self.span(start, self.source.len()),
                 f5_operators: self.f5_operators,
             },
             self.split_type_closes,
         ))
+    }
+    fn const_declaration(&mut self) -> Result<ConstDecl, Box<Diagnostic>> {
+        let keyword = self.peek().clone();
+        let start = keyword.span.start as usize;
+        self.expect("const", "grammar.ConstDecl", &["const"], start)?;
+        let name = self.expect_name("grammar.ConstDecl", &["Name"], start)?;
+        self.expect(":", "grammar.ConstDecl", &[":"], start)?;
+        let ty = self.ty()?;
+        self.expect("=", "grammar.ConstDecl", &["="], start)?;
+        let comptime = self.peek().clone();
+        self.expect("comptime", "grammar.ConstDecl", &["comptime"], start)?;
+        let value = match self.parse_construct(ConstructEntry::Expr)? {
+            ConstructResult::Expr(value) => value,
+            _ => unreachable!("expression entry returned another construct"),
+        };
+        self.expect(";", "grammar.ConstDecl", &[";"], start)?;
+        Ok(ConstDecl {
+            name: name.text,
+            name_span: name.span,
+            ty,
+            value,
+            const_span: keyword.span,
+            comptime_span: comptime.span,
+            span: self.span(start, self.prev_end()),
+        })
     }
     fn function(&mut self, generator_span: Option<Span>) -> Result<Function, Box<Diagnostic>> {
         let start = generator_span
@@ -4224,7 +4432,7 @@ impl Parser<'_> {
                 }
                 return Err(self.err(
                     "grammar.Type",
-                    first(self.new_profile, FirstSet::Type),
+                    first(self.new_profile, self.f5_operators, FirstSet::Type),
                     self.peek().span.start as usize,
                     None,
                 ));
@@ -4279,7 +4487,6 @@ impl Parser<'_> {
     fn block_with_target(&mut self, value_target: bool) -> Result<Block, Box<Diagnostic>> {
         match self.parse_construct(ConstructEntry::Block(value_target))? {
             ConstructResult::Block(block) => Ok(block),
-            #[cfg(test)]
             _ => unreachable!("block entry returned another construct"),
         }
     }
@@ -4458,7 +4665,7 @@ impl Parser<'_> {
             return Err(self.syntax(
                 &t,
                 "unsupported_unary_operator",
-                first(self.new_profile, FirstSet::Expr),
+                first(self.new_profile, self.f5_operators, FirstSet::Expr),
                 self.statement_start,
             ));
         }
@@ -4489,7 +4696,7 @@ impl Parser<'_> {
             if !self.starts_postfix() {
                 return Err(self.err(
                     "grammar.Postfix",
-                    first(self.new_profile, FirstSet::Postfix),
+                    first(self.new_profile, self.f5_operators, FirstSet::Postfix),
                     op,
                     None,
                 ));
@@ -4535,7 +4742,7 @@ impl Parser<'_> {
         }
         Err(self.err(
             "grammar.Primary",
-            first(self.new_profile, FirstSet::Expr),
+            first(self.new_profile, self.f5_operators, FirstSet::Expr),
             t.span.start as usize,
             None,
         ))
@@ -5240,7 +5447,9 @@ fn drop_partial_expression(expr: Expr) {
                 }
                 Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
                 Expr::Array(elements, _) => pending.extend(elements.into_iter().map(Node::Expr)),
-                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                Expr::Group(inner, _)
+                | Expr::Unary { value: inner, .. }
+                | Expr::Neg { value: inner, .. } => {
                     pending.push(Node::Expr(*inner));
                 }
                 Expr::Binary { left, right, .. } => {
@@ -5386,7 +5595,7 @@ fn height_walk(root: HeightNode<'_>) -> usize {
                             children.extend(elements.iter().map(HeightNode::Expr));
                             1
                         }
-                        Expr::Unary { value, .. } => {
+                        Expr::Unary { value, .. } | Expr::Neg { value, .. } => {
                             children.push(HeightNode::Expr(value));
                             1
                         }
@@ -6167,6 +6376,74 @@ mod b_tests {
             Some("range_endpoint")
         );
         assert_eq!(old_endpoint.expected_tokens, ["..<", "..="]);
+    }
+
+    #[test]
+    fn f5_const_ast_and_negation_keep_source_structure() {
+        let source = "fn A(){}const k:I64=comptime 1;fn Main(){let x=2;let y=-x*3;}";
+        let ast = parse_f5_hidden("case.n", source).unwrap();
+        assert_eq!(ast.consts.len(), 1);
+        assert_eq!(ast.consts[0].name, "k");
+        assert_eq!(
+            (ast.consts[0].const_span.start, ast.consts[0].const_span.end),
+            (8, 13)
+        );
+        assert_eq!(ast.functions.len(), 2);
+        let Statement::Let { value, .. } = &ast.functions[1].body.statements[1] else {
+            panic!("second binding")
+        };
+        let Expr::Binary { op, left, .. } = value else {
+            panic!("multiplication")
+        };
+        assert_eq!(op, "*");
+        assert!(
+            matches!(left.as_ref(), Expr::Neg { value, .. } if matches!(value.as_ref(), Expr::Name(name, _) if name == "x"))
+        );
+        let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+        let a = printed.find("fn A").unwrap();
+        let k = printed.find("const k").unwrap();
+        let main = printed.find("fn Main").unwrap();
+        assert!(a < k && k < main, "{printed}");
+        let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+        assert_eq!(reparsed.consts.len(), 1);
+        assert_eq!(reparsed.functions.len(), 2);
+        assert!(parse_new_profile("case.n", source).is_err());
+    }
+
+    #[test]
+    fn f5_negation_binds_between_multiplication_and_postfix() {
+        for (source, postfix) in [
+            ("fn Main(){let x=-F()?*3;}", "try"),
+            ("fn Main(){let x=-a[0]*3;}", "index"),
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+                panic!("binding");
+            };
+            let Expr::Binary { op, left, .. } = value else {
+                panic!("outer multiplication: {source}");
+            };
+            assert_eq!(op, "*");
+            let Expr::Neg { value, .. } = left.as_ref() else {
+                panic!("negation precedes multiplication: {source}");
+            };
+            assert!(
+                match postfix {
+                    "try" =>
+                        matches!(value.as_ref(), Expr::Unary { mode: Mode::Read, value, .. } if matches!(value.as_ref(), Expr::Call { .. })),
+                    "index" => matches!(value.as_ref(), Expr::Index { .. }),
+                    _ => unreachable!(),
+                },
+                "{source}"
+            );
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            assert_eq!(
+                crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                printed,
+                "{source}"
+            );
+        }
     }
 
     #[test]

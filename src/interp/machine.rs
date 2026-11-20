@@ -96,6 +96,7 @@ impl ExecutionLimits {
 pub enum ReducedExecutionProfile {
     Normal,
     JNormal,
+    F5Normal,
     Types32,
     JTypes32,
     FlowFunction32,
@@ -126,6 +127,7 @@ impl ReducedExecutionProfile {
             "f0-0002-b-test-cells-64-v2" => Self::Cells64,
             "f0-0002-b-test-observations-64-v2" => Self::Observations64,
             "f0-0003-b-v1" => Self::JNormal,
+            "f0-0005-b-v1" => Self::F5Normal,
             "f0-0003-b-test-types-32-v1" => Self::JTypes32,
             "f0-0003-b-test-flow-32-v1" => Self::JFlowFunction32,
             "f0-0003-b-test-flow-global-32-v1" => Self::JFlowCompilation32,
@@ -955,6 +957,10 @@ pub fn run_with_limits(
         ReducedExecutionProfile::Normal => ExecutionLimits::NORMAL,
         ReducedExecutionProfile::JNormal => ExecutionLimits {
             profile_id: "f0-0003-b-v1",
+            ..ExecutionLimits::NORMAL
+        },
+        ReducedExecutionProfile::F5Normal => ExecutionLimits {
+            profile_id: "f0-0005-b-v1",
             ..ExecutionLimits::NORMAL
         },
         ReducedExecutionProfile::Types32 => ExecutionLimits {
