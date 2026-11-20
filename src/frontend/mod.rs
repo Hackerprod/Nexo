@@ -7,6 +7,9 @@ mod migrated_parser_contracts;
 #[cfg(test)]
 mod migrated_parser_final;
 pub mod parse;
+#[doc(hidden)]
+pub use parse::shutdown_parse_worker;
+mod precedence;
 pub mod print;
 #[cfg(test)]
 mod rows;

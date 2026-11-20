@@ -330,9 +330,20 @@ fn intrinsic_effect(intrinsic: super::model::Intrinsic) -> (u8, u8, &'static str
             (IO, 0, "intrinsic.call")
         }
         MockReadRecords => (ALLOC | IO, 0, "intrinsic.call"),
+        Push | JoinArrays => (ALLOC, 0, "intrinsic.call"),
         MockUnknown => (0, ALL, "intrinsic.call"),
-        Fail | AssertEq | DropData | Len | TryAdd => (0, 0, "intrinsic.call"),
+        Fail | AssertEq | DropData | Len | Pop | TryAdd => (0, 0, "intrinsic.call"),
     }
+}
+
+#[cfg(test)]
+#[test]
+fn f5_array_intrinsic_effects_keep_join_alloc_even_when_empty() {
+    use super::model::Intrinsic;
+    assert_eq!(intrinsic_effect(Intrinsic::Push).0, ALLOC);
+    assert_eq!(intrinsic_effect(Intrinsic::JoinArrays).0, ALLOC);
+    assert_eq!(intrinsic_effect(Intrinsic::Pop).0, 0);
+    assert_eq!(intrinsic_effect(Intrinsic::Len).0, 0);
 }
 
 fn explicit_drop_sources(f: &Function) -> HashMap<usize, super::model::LocalId> {
@@ -464,6 +475,9 @@ fn function_intrinsic_effect_with_context(
                         super::model::Intrinsic::DropData => "drop",
                         super::model::Intrinsic::Fail => "fail",
                         super::model::Intrinsic::Len => "len",
+                        super::model::Intrinsic::Push => "push",
+                        super::model::Intrinsic::Pop => "pop",
+                        super::model::Intrinsic::JoinArrays => "join_arrays",
                         super::model::Intrinsic::MockOpen => "mock_open",
                         super::model::Intrinsic::MockBlockingOpen => "mock_blocking_open",
                         super::model::Intrinsic::Inspect => "inspect",

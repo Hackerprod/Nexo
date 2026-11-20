@@ -363,3 +363,11 @@ J15 cerrado (2026-11-15, `d698142`): solo pruebas y dos líneas de F0-0003. Sigu
 J16 Bloque 1 integrado (2026-11-17, hasta `0e6c683`); J16 sigue abierto. Siguiente: ciclo 0 de S1b/S1c, Bloque 2 y Bloque 3 de `docs/correcciones/J16-r1.md`. I07c pendiente real: `docs/I07c-PENDIENTE.md`.
 
 J16 Bloque 2 integrado (2026-11-17, hasta `8ddd591`); J16 sigue abierto. Siguiente: Bloque 3 de `docs/correcciones/J16-r1.md` (batería integrada, mutación de núcleo, matriz de límites); S1b/S1c esperan al solver de I07c. I07c lo lleva la sesión `nexo-a4` (rama `i07c-estructural`).
+
+J16 Bloque 3 integrado (2026-11-17, hasta `f904b58`); J16 cerrado salvo S1b/S1c (aplazados al solver de I07c). Siguiente: F0-0005 (F5-L01–L12) y F0-0004 (K01–K10), cada uno con Flujo B; I07c lo lleva la sesión «Nexo i07c» (rama `i07c-estructural-r2`; integrar con fast-forward tras PASS de su D').
+
+F0-0005 Bloque B1a integrado (2026-11-18, hasta `76b6f60`). Siguiente: B2a (L04a/L05a) y B3a (L06a/L07a) sin `types.rs` según `docs/correcciones/F5-r1.md` r6; B1b/B2b/B3b tras el Bloque II de I07c en main (`origin/i07c-estructural-r2`); luego B4 (L08), B5 (const) y B6. I07c lo lleva la sesión «Nexo i07c»; integrar con fast-forward tras PASS de su D'.
+
+F0-0005 Bloque B2a integrado (2026-11-18, hasta `98ff91d`). Siguiente: B3a (L07a→L06a, en `i07c-robustez` desde `8cd60e1`, aún sin validar), tipado B1b/B2b/B3b tras el Bloque II de I07c en main, luego B4 (L08), B5 y B6 según `docs/correcciones/F5-r1.md` r6.
+
+F0-0005 Bloque B3a integrado (2026-11-19, hasta `dad10f0`). Siguiente: tipado B1b/B2b/B3b tras el Bloque II de I07c en main (rama propia basada en `origin/i07c-estructural-r2`), luego B4 (L08), B5 (const) y B6 según `docs/correcciones/F5-r1.md` r6. Entorno: todo en `C:\nexo-work` (NVMe), `cargo-nextest` instalado y usado por `scripts/validate.sh`.

@@ -530,3 +530,62 @@ El Bloque 2 de J16 (plan `docs/correcciones/J16-r1.md` r5) entra en main hasta `
 | J16-B2-TWIN-HARNESS | El arnés `twin` no compila en main (cambió la firma de `run_scalar`); lo arregla la sesión de I07c en su rama cuando necesite medir. | Aviso de `nexo-a4`. | I07c |
 
 Pendiente de J16: Bloque 1b (S1b/S1c, aplazados hasta el solver de I07c) y Bloque 3 (batería integrada, pasada de mutación de núcleo y matriz de límites). El corte J16 NO está cerrado.
+
+
+## F0-0003 — J16, Bloque 3 (batería integrada, mutación de núcleo y corrección de `CallOnce`) integrado (2026-11-17)
+
+El Bloque 3 de J16 entra en main hasta `f904b58`: batería independiente (`tests/j16_integrated.rs` con 46 parejas de §9 y T01–T14; oráculo `scripts/j16_oracle.py` con esperados del ADR; matriz `docs/validation/F0-0003-J16-matrix.json` de 291 casos con 19 límites; pruebas unitarias de IR inválida dentro de `src/ir/verify.rs::tests`), pasada final de mutación de núcleo (`scripts/j16_mutations.py`, `docs/validation/F0-0003-J16-mutations.json`) y dos correcciones de núcleo por propuesta validada (`docs/correcciones/J16-b3-callonce-r1.md` v3.1): `9cb2da1` (la segunda llamada a una closure CallOnce ya consumida da NX-E0202 y no NX-E1107, ADR §9.2/C08) y `f904b58` (el préstamo de prueba del receptor se libera en flujo hipotético; quita un NX-E1105 falso tras `return`/`break`/`continue`). D' dio PASS (diferencial de 5.700 fuentes en el último paso y 6.643 en el anterior, sin diferencias debug/release; `validate.sh` exit 0, objetivo 15/29, RD 152/152). Informes en `.scratch/val-j16/b3-*`. Decisión del coordinador (revertible): las pruebas de IR inválida van en `src/ir/verify.rs::tests` porque el verificador es `pub(crate)`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| J16-B3-CALLONCE-SPAN | Con `while`, el NX-E0202 por repetir `move f()` usa como primario el prefijo completo `[67,75)` y no el nombre `[72,73)`; ya ocurría en la base. §9.2 no fija ese span. | Informe D `b3prop-informe-2`. | J16 (decisión) |
+| J16-B3-MUT-T0-GROUP | La inversión de `expression_shape_hint` para grupos sobrevive al testigo `mutation-grouped-array`; sin programa que difiera del ADR (1.361 programas probados). | Informes D y D'. | Endurecimiento |
+| J16-B3-MUT-F-PRINT | Quitar el cierre de constructor en `print_pattern` sobrevive al test de corpus canónico; sin programa normativo discriminante. | Informes D y D'. | Endurecimiento |
+| J16-B3-MUT-COPY | La inversión local de `copyable` en lowering sobrevive a C03 (la regla se rechaza antes en otra fase). | Informe D. | Endurecimiento |
+| J16-B3-MUT-V3-MC | V3 (segundo chequeo de resume en `verify_cfg`) y `mc-code` sin programa discriminante; quitar `end_call_loans` en la rama Analyze parece redundante para el veredicto observable. | Informe D'. | Endurecimiento |
+| J16-B3-E0202-AFLORA | Al desaparecer el NX-E1105 falso, en algunas fuentes afloran NX-E0202/E0201 que ese error enmascaraba (13 fuentes medidas por D'); documentar en el plan. | Informe D' `b3-dprime-informe-2`. | Documentación |
+
+Pendiente de J16: S1b/S1c (aplazados al solver de I07c; filas `J16-S1C-*`). El corte J16 queda cerrado en lo que no depende del solver de I07c; se reabre solo para S1b/S1c cuando el solver de I07c esté estable en main.
+
+
+## F0-0005 — Plan, lagunas y Bloque B1a (operadores y lugares sin `types.rs`) integrados (2026-11-18)
+
+Entra en main: el plan `docs/correcciones/F5-r1.md` r6 (PASS de B tras cinco revisiones), la propuesta de lagunas `docs/correcciones/F5-lagunas-r1.md` r3 y su inserción en el ADR `docs/adr/F0-0005-operators-control-collections.md` (`f81b6ce`: ids F5-H01–H11, F5-S14–S18, F5-B10; decisión revertible del coordinador: H1 barrera `implementation_limit/L08` solo en `lower` para fuentes que superan las etapas previas, L01/L06/L07 siguen siendo salidas públicas en `types`; H2 estados de `const`; H3 comparaciones y rangos no asociativos con NX-E0002 en el segundo operador; H4 criterio de supervivientes; H5 efecto `alloc` de JoinArrays), y el Bloque B1a hasta `76b6f60`: F5-L01a (operadores tipados y aritmética comprobada en IR, `6d9a5dd`), F5-L02a (lógica tipada y cortocircuito en IR, `059d8d2`), F5-L03a (lugar compuesto exclusivo en IR, `db1bc11`), más correcciones de núcleo del parser oculto F5 tras FAIL de D y D' (`?` postfijo `749b776`; operando de `move`/`edit` y tabla única de precedencias `src/frontend/precedence.rs` `d033930`/`66c24d7`) y regresiones (`df5d8d6`, `76b6f60`). D' dio PASS (diferencial 1.000 fuentes nuevas con `move`/`edit`/`?` y 2.800 anteriores, 0 diferencias; `validate.sh` exit 0, 3.896 tests; objetivo 15/29, RD 152/152). Ninguna fuente nueva se acepta antes de F5-L08; el perfil `f0-0005-b-v1` sigue dando `unknown_profile`. Informes en `.scratch/val-f5/`. Parte (b) de tipado (B1b/B2b/B3b) espera al Bloque II de I07c integrado en main (rama `i07c-estructural-r2` @ `2e7735a`).
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| F5-B1A-MUT-SUPERVIVIENTES | Supervivientes sin programa discriminante: hash de `Unary::Not` igual al de `Neg`; verificador unario sin guarda de operando prestado; permiso `Read` redundante en `CompoundLoad`/`CompoundStore`; `take(loan)` omitido en `CompoundStore`; mutante equivalente del fallo de `CompoundStore`; `verify_cfg` `load_at < rhs_at` entre bloques; orden de cargo de `WorkEvent::OperatorExpression`; `Unary` sin celda de resultado. | Informes D/D' de B1a, `.scratch/c-f5b1a-nobloq.md`. | F5 (endurecimiento; revisar al abrir B1b) |
+| F5-B1A-LOWER-BRAZOS | Brazos de `lower.rs` para `* / % <= > >= !=` sin uso desde fuente en B1a; destino previsto de L01b. `WorkEvent::OperatorExpression` conserva origen distinto de `IfExpression`; se revisa en B1b. | Informe D/D'. | F5 (B1b) |
+| F5-B1A-MOVE-IMPRESION | `move r?` se imprime `(move r)?` en el perfil F5 oculto, mientras J imprime `move r?`; equivalente y estable, pero reparsea con un `Group`. Decidir en B1b si el formateador público conserva `move r?`. | Informe D' `b1a-dprime-informe-2`. | F5 (B1b, decisión) |
+| F5-B1A-UNARIOS | `-x`, `not x` y `edit v` sin llamada siguen rechazados por el parser F5 oculto (como en J); entran con la parte de tipado (L01b/L02b). | Informe D'. | F5 (B1b) |
+
+Pendiente de F0-0005: B2a (control: L04a/L05a) y B3a (Array dinámico: L06a/L07a) sin `types.rs`; B1b/B2b/B3b (tipado) tras I07c Bloque II; B4 (L08 contabilidad, retira la barrera en `lower`); B5 (const); B6 (integración y adversarial). El corte F0-0005 NO está cerrado.
+
+
+## F0-0005 — Bloque B2a (control sin `types.rs`) integrado (2026-11-18)
+
+Entra en main el Bloque B2a hasta `98ff91d`: F5-L04a (`bfab04b`: retorno total de `while true`, `break`/`continue` y joins I07b sin perder consumos, en CFG interno bajo la variante interna `F5ControlInternal` de `ReducedProfile`, no seleccionable por CLI) y F5-L05a (`98ff91d`: `for` sobre rango con límites únicos, vacío/MIN/MAX, control y limpieza, sin materializar el rango; parser oculto F5, IR, verificador y máquina). D y D' dieron PASS (D' con unas 20.000 ejecuciones aleatorias contra un oráculo propio del ADR sin discrepancias, 2.520 programas bucle×control×posición×anidamiento, tablas de operadores 15²/15³/15⁴ sin desacuerdos, diferencial de 5.300 fuentes propias con 21.200 comparaciones sin diferencias; `validate.sh` exit 0 con 3.918 tests; objetivo 15/29, RD 152/152). Ninguna fuente nueva se acepta antes de F5-L08; `f0-0005-b-v1` sigue dando `unknown_profile`. Informes en `.scratch/val-f5/b2a-*`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| F5-B2A-MUT-SUPERVIVIENTES | Supervivientes sin programa discriminante: M4/M7 (primer frente a último `break`; omitir `enter_edge` del primer `break`), N3, N4, N5, N20 y N24 de D, y MK, MM, MN y MO de D' (equivalentes o inalcanzables con IR válida). | Informes D y D' de B2a. | F5 (endurecimiento) |
+| F5-B2A-RECURSO-CONDICIONAL | Defecto PREEXISTENTE en la base: un recurso consumido condicionalmente en un bloque interno se cierra al final de la función, no del bloque. No es regresión de B2a. | Informe D' `b2a-dprime-informe`. | F5/núcleo (decidir su corte) |
+| F5-B2A-PROFILE-PUB | `F5ControlInternal` es `pub` por ser variante de un enum público; pasarlo a `pub(crate)` o `#[doc(hidden)]` cuando L04b conecte el perfil. `precedence.rs` no figura en la lista de archivos de L05 del plan (justificado como fuente única de niveles de B1a; solo añade el campo `range`). | Informes D y D'. | F5 (B2b) |
+| F5-B2A-RECOGNIZED-PREFIX | El ADR no fija dónde empieza `recognized_prefix` cuando la cadena no empieza el inicializador; el parser usa el inicio de la producción. `print.rs` imprime el operando izquierdo de un rango sin paréntesis (no alcanzable: el parser conserva siempre el `Group`). | Informes D y D'. | F5 (laguna a decidir) |
+| F5-B2A-NO-EVALUADO | Generadores, closures, `match` y `?` con rango: D' los evaluó en el arnés interno sin discrepancias; el tipado público queda para B2b. | Informe D'. | F5 (B2b) |
+
+Pendiente de F0-0005: B3a (L07a→L06a, en curso), B1b/B2b/B3b (tipado tras el Bloque II de I07c), B4 (L08), B5 (const) y B6. El corte F0-0005 NO está cerrado.
+
+
+## F0-0005 — Bloque B3a (Array dinámico y `for` sobre Array sin `types.rs`) integrado (2026-11-19)
+
+Entra en main el Bloque B3a hasta `dad10f0`: F5-L07a (`8cd60e1`: Array dinámico con intrínsecos internos Push/Pop/JoinArrays en IR/verificador/máquina/efectos y preámbulo en `src/prelude.rs`; independencia anidada, `None`, fallos parciales, alloc de JoinArrays según F5-B10; sin tipo `List`) y F5-L06a (`efe4ba8`: `for` interno sobre Array prestado, temporal y movido; T03 = 20 ticks; par F5-B01), con cuatro correcciones tras el FAIL de D: M2 `53a6010` (el `for` sobre Array queda en una variante INTERNA del perfil; el perfil J/A2 y toda salida pública idénticos a la base, incluido el `internal_error` de `var v2=[];let n=Len(v2);for x in v2{}v2[0]=7;`, que pertenece a I07c), M4 `9ea50ba` (visibilidad mínima), M3 `1570f8b` (préstamo del `for` también en código muerto) y M1 `dad10f0` (el iterando indexado o proyectado se presta durante todo el bucle, sin copia defensiva; NX-E1105 en `rows[0]`). D' dio PASS (matriz de 1.050 casos iterando×mutación×salida×código vivo/muerto contra ADR §3.2/§6; batería propia de L07a de 0 a 1.024 elementos con barridos de cuota; Arrays anidados de 120 a 126 niveles a 204 y 256 KiB y 127–129 con NX-E0003 como la base; diferencial de 3.600 fuentes propias y unas 43.200 ejecuciones, 0 diferencias; `validate.sh` exit 0, objetivo 15/29). Ninguna fuente nueva se acepta antes de F5-L08; `f0-0005-b-v1` sigue dando `unknown_profile`. Informes en `.scratch/val-f5/b3a-*`.
+
+| Id | Observación | Repro / evidencia | Corte |
+|---|---|---|---|
+| F5-B3A-MUT-SUPERVIVIENTES | Supervivientes sin programa discriminante: Q1 (quitar el `conflict` inicial de `begin_for_array`), `Unit` fuera de `allowed_array_element` y la colisión de tag en `content_hash`; no cambian el comportamiento del producto. | Informes D y D' de B3a. | F5 (endurecimiento) |
+| F5-B3A-REGRESIONES-FALTAN | Faltan regresiones para `Array<()>` y para iterar un Array de Arrays observando `x`. | Informe D'. | F5 (endurecimiento) |
+| F5-B3A-NO-EVALUADO | NX-E1104 con closures y `for` sobre Array dentro de `gen fn`, closure o `if` con valor: el arnés interno no puede tipar sin `types.rs`; llamadas, closures y `for` anidado dentro de cuerpos de bucle dan `InvalidIr` también con `for` de rango (límite del arnés, no del corte). Se evalúan en B3b con el tipado. | Informes D y D'. | F5 (B3b) |
+| F5-B3A-INTERNAL-ERROR-LEN-FOR | `var v2=[];let n=Len(v2);for x in v2{}v2[0]=7;` da `internal_error` en la base y sigue igual en los perfiles públicos (no es regresión; pertenece a I07c). | CLI en `98ff91d`. | I07c |
+
+Pendiente de F0-0005: B1b/B2b/B3b (tipado en `src/check/operators.rs` con enganche mínimo en `types.rs`; esperan el Bloque II de I07c integrado en main), B4 (L08 contabilidad, retira la barrera en `lower`), B5 (const) y B6 (integración y adversarial). El corte F0-0005 NO está cerrado.

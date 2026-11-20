@@ -41,11 +41,20 @@ pub struct Token {
 
 /// Lexes valid UTF-8 source and reports the first unrecognized token as NX-E0001.
 pub fn lex(file: &str, source: &str) -> Result<Vec<Token>, Box<Diagnostic>> {
+    lex_with_compounds(file, source, false)
+}
+
+pub(crate) fn lex_with_compounds(
+    file: &str,
+    source: &str,
+    f5_compounds: bool,
+) -> Result<Vec<Token>, Box<Diagnostic>> {
     let mut lexer = Lexer {
         file,
         source,
         at: 0,
         tokens: Vec::new(),
+        f5_compounds,
     };
     lexer.scan()?;
     Ok(lexer.tokens)
@@ -56,6 +65,7 @@ struct Lexer<'a> {
     source: &'a str,
     at: usize,
     tokens: Vec<Token>,
+    f5_compounds: bool,
 }
 
 impl Lexer<'_> {
@@ -140,7 +150,8 @@ impl Lexer<'_> {
                     return Err(self.error(start, self.at));
                 }
                 self.push(Kind::String, start, self.at);
-            } else if let Some(symbol) = longest_symbol(&self.source[self.at..]) {
+            } else if let Some(symbol) = longest_symbol(&self.source[self.at..], self.f5_compounds)
+            {
                 self.at += symbol.len();
                 self.push(Kind::Symbol, start, self.at);
             } else {
@@ -283,18 +294,33 @@ fn is_reserved(word: &str) -> bool {
     )
 }
 
-fn longest_symbol(source: &str) -> Option<&'static str> {
+fn longest_symbol(source: &str, f5_compounds: bool) -> Option<&'static str> {
     [
-        "..<", "..=", "..", "+=", "!=", "->", "=>", "==", "<=", ">=", "(", ")", "{", "}", "[", "]",
-        ",", ":", ";", "?", "+", "-", "<", ">", "=", "@", ".", "*", "/", "%",
+        "..<", "..=", "..", "+=", "-=", "*=", "/=", "%=", "!=", "->", "=>", "==", "<=", ">=", "(",
+        ")", "{", "}", "[", "]", ",", ":", ";", "?", "+", "-", "<", ">", "=", "@", ".", "*", "/",
+        "%",
     ]
     .into_iter()
-    .find(|symbol| source.starts_with(symbol))
+    .find(|symbol| {
+        (f5_compounds || !matches!(*symbol, "-=" | "*=" | "/=" | "%="))
+            && source.starts_with(symbol)
+    })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn compound_operator_symbols_are_single_tokens_before_public_assignment_support() {
+        let tokens = lex_with_compounds("case.n", "x+=1;x-=1;x*=1;x/=1;x%=1;", true).unwrap();
+        let operators: Vec<_> = tokens
+            .iter()
+            .filter(|token| token.text.ends_with('=') && token.text.len() == 2)
+            .map(|token| token.text.as_str())
+            .collect();
+        assert_eq!(operators, ["+=", "-=", "*=", "/=", "%="]);
+    }
 
     #[test]
     fn published_reserved_words_are_keywords_and_modes_stay_contextual() {

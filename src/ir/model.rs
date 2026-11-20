@@ -133,6 +133,24 @@ impl Ty {
         }
         false
     }
+
+    pub(crate) fn allowed_array_element(&self) -> bool {
+        let mut pending = vec![self];
+        while let Some(ty) = pending.pop() {
+            match ty {
+                Self::I64 | Self::Bool | Self::Unit => {}
+                Self::Array(inner) => pending.push(inner),
+                Self::Union { first, second, .. } => {
+                    pending.push(first);
+                    if let Some(second) = second {
+                        pending.push(second);
+                    }
+                }
+                _ => return false,
+            }
+        }
+        true
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Access {
@@ -144,9 +162,47 @@ pub enum Access {
 pub enum Binary {
     Add,
     Sub,
+    Mul,
+    Div,
+    Rem,
     Less,
+    LessEqual,
+    Greater,
+    GreaterEqual,
     Equal,
+    NotEqual,
     And,
+}
+impl Binary {
+    pub(crate) fn result_type(self, operand: &Ty) -> Option<Ty> {
+        match self {
+            Self::Add | Self::Sub | Self::Mul | Self::Div | Self::Rem if *operand == Ty::I64 => {
+                Some(Ty::I64)
+            }
+            Self::Less | Self::LessEqual | Self::Greater | Self::GreaterEqual
+                if *operand == Ty::I64 =>
+            {
+                Some(Ty::Bool)
+            }
+            Self::Equal | Self::NotEqual if operand.copyable() => Some(Ty::Bool),
+            Self::And if *operand == Ty::Bool => Some(Ty::Bool),
+            _ => None,
+        }
+    }
+}
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Unary {
+    Neg,
+    Not,
+}
+impl Unary {
+    pub(crate) fn result_type(self, operand: &Ty) -> Option<Ty> {
+        match self {
+            Self::Neg if *operand == Ty::I64 => Some(Ty::I64),
+            Self::Not if *operand == Ty::Bool => Some(Ty::Bool),
+            _ => None,
+        }
+    }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum MatchLiteral {
@@ -161,6 +217,9 @@ pub enum Intrinsic {
     DropData,
     Fail,
     Len,
+    Push,
+    Pop,
+    JoinArrays,
     MockOpen,
     MockBlockingOpen,
     Inspect,
@@ -271,6 +330,11 @@ pub enum Op {
         indexes: Vec<TempId>,
         site: IndexSite,
     },
+    BorrowArrayElement {
+        source: TempId,
+        index: TempId,
+        site: IndexSite,
+    },
     CheckIndex {
         local: LocalId,
         indexes: Vec<TempId>,
@@ -285,6 +349,37 @@ pub enum Op {
         op: Binary,
         left: TempId,
         right: TempId,
+    },
+    /// Captures the logical length of a borrowed Array at loop entry.
+    BeginArrayIteration(TempId),
+    /// A typed range control test over hidden I64 slots, without a Range value.
+    RangeTest {
+        cursor: LocalId,
+        limit: LocalId,
+        inclusive: bool,
+        final_test: bool,
+    },
+    /// The effective cursor increment after its exit test.
+    RangeAdvance {
+        cursor: LocalId,
+        limit: LocalId,
+    },
+    Unary {
+        op: Unary,
+        operand: TempId,
+    },
+    /// Reads the scalar selected by an exclusive BeginLoan after its indexes
+    /// have been checked, without releasing the prepared place.
+    CompoundLoad {
+        loan: TempId,
+    },
+    /// Applies a checked integer operation and installs it at the prepared
+    /// place. EndLoan must immediately follow on the successful path.
+    CompoundStore {
+        loan: TempId,
+        old: TempId,
+        rhs: TempId,
+        op: Binary,
     },
     WritePlace {
         local: LocalId,
@@ -846,6 +941,16 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                     }
                     index_site(&mut bytes, site, source_base);
                 }
+                Op::BorrowArrayElement {
+                    source,
+                    index,
+                    site,
+                } => {
+                    bytes.push(49);
+                    number(&mut bytes, source.0);
+                    number(&mut bytes, index.0);
+                    index_site(&mut bytes, site, source_base);
+                }
                 Op::CheckIndex {
                     local,
                     indexes,
@@ -873,9 +978,63 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Binary::Less => 3,
                         Binary::Equal => 4,
                         Binary::And => 5,
+                        Binary::Mul => 6,
+                        Binary::Div => 7,
+                        Binary::Rem => 8,
+                        Binary::LessEqual => 9,
+                        Binary::Greater => 10,
+                        Binary::GreaterEqual => 11,
+                        Binary::NotEqual => 12,
                     });
                     number(&mut bytes, left.0);
                     number(&mut bytes, right.0)
+                }
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive,
+                    final_test,
+                } => {
+                    bytes.push(46);
+                    number(&mut bytes, cursor.0);
+                    number(&mut bytes, limit.0);
+                    bytes.push(u8::from(*inclusive));
+                    bytes.push(u8::from(*final_test));
+                }
+                Op::BeginArrayIteration(root) => {
+                    bytes.push(48);
+                    number(&mut bytes, root.0);
+                }
+                Op::RangeAdvance { cursor, limit } => {
+                    bytes.push(47);
+                    number(&mut bytes, cursor.0);
+                    number(&mut bytes, limit.0);
+                }
+                Op::Unary { op, operand } => {
+                    bytes.push(43);
+                    bytes.push(match op {
+                        Unary::Neg => 1,
+                        Unary::Not => 2,
+                    });
+                    number(&mut bytes, operand.0);
+                }
+                Op::CompoundLoad { loan } => {
+                    bytes.push(44);
+                    number(&mut bytes, loan.0);
+                }
+                Op::CompoundStore { loan, old, rhs, op } => {
+                    bytes.push(45);
+                    bytes.push(match op {
+                        Binary::Add => 1,
+                        Binary::Sub => 2,
+                        Binary::Mul => 3,
+                        Binary::Div => 4,
+                        Binary::Rem => 5,
+                        _ => 0,
+                    });
+                    number(&mut bytes, loan.0);
+                    number(&mut bytes, old.0);
+                    number(&mut bytes, rhs.0);
                 }
                 Op::WritePlace { local, value } => {
                     bytes.push(6);
@@ -905,6 +1064,9 @@ pub(crate) fn content_hash(f: &Function) -> u64 {
                         Intrinsic::DropData => 3,
                         Intrinsic::Fail => 4,
                         Intrinsic::Len => 5,
+                        Intrinsic::Push => 15,
+                        Intrinsic::Pop => 16,
+                        Intrinsic::JoinArrays => 17,
                         Intrinsic::MockOpen => 6,
                         Intrinsic::MockBlockingOpen => 7,
                         Intrinsic::Inspect => 8,

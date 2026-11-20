@@ -389,6 +389,7 @@ struct AnalysisLimits {
     ir_items: u64,
     profile_id: &'static str,
     force_sparse_ownership: bool,
+    literal_true_loops: bool,
 }
 
 impl AnalysisLimits {
@@ -400,6 +401,7 @@ impl AnalysisLimits {
         ir_items: 262_144,
         profile_id: PROFILE_ID,
         force_sparse_ownership: false,
+        literal_true_loops: false,
     };
 }
 
@@ -407,6 +409,8 @@ impl AnalysisLimits {
 pub enum ReducedProfile {
     Normal,
     JNormal,
+    /// Internal F5 control flow probe; deliberately absent from `from_id`.
+    F5ControlInternal,
     Types32,
     JTypes32,
     FlowFunction32,
@@ -455,6 +459,11 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
         ReducedProfile::Normal => AnalysisLimits::NORMAL,
         ReducedProfile::JNormal => AnalysisLimits {
             profile_id: "f0-0003-b-v1",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::F5ControlInternal => AnalysisLimits {
+            profile_id: "f0-0003-b-v1",
+            literal_true_loops: true,
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::Types32 => AnalysisLimits {
@@ -886,6 +895,20 @@ pub(super) fn collect_closures(ast: &Ast) -> Vec<&parse::Closure> {
     out
 }
 
+fn mode_candidate_consumed(
+    diagnostic: &Diagnostic,
+    local: LocalId,
+    use_span: &Span,
+    name_spans: &[Span],
+) -> bool {
+    diagnostic.code == "NX-E0202"
+        && diagnostic.primary_span.as_ref() == Some(use_span)
+        && diagnostic.related_spans.iter().any(|related| {
+            related.role == diagnostic::RelatedRole::Declaration
+                && related.span == name_spans[local.0]
+        })
+}
+
 fn compile_ast_with_flow_limit<'a>(
     ast: &'a Ast,
     source_text: &str,
@@ -1018,6 +1041,7 @@ fn compile_ast_with_flow_limit<'a>(
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: limits.literal_true_loops,
             poisoned: HashSet::new(),
             tokens: Arc::clone(&tokens),
             defer_ownership: limits.force_sparse_ownership || {
@@ -1042,6 +1066,7 @@ fn compile_ast_with_flow_limit<'a>(
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut parameters = Vec::new();
         for (index, (p, (_, mode, ty))) in source
@@ -1180,6 +1205,9 @@ fn compile_ast_with_flow_limit<'a>(
             });
         }
         if diagnostics.len() > before_body {
+            diagnostics.extend(lower.mode_candidates.drain(..).map(|candidate| candidate.2));
+        }
+        if diagnostics.len() > before_body {
             ir_items = ir_items.saturating_add(count_partial_ir_items(&lower));
             if ir_items > limits.ir_items && ir_limit_span.is_none() {
                 ir_limit_span = Some(source.name_span.clone());
@@ -1266,7 +1294,13 @@ fn compile_ast_with_flow_limit<'a>(
         if ir_items > limits.ir_items && ir_limit_span.is_none() {
             ir_limit_span = Some(source.name_span.clone());
         }
-        entries.push((function, lower.name_spans, source.name_span.start, source));
+        entries.push((
+            function,
+            lower.name_spans,
+            source.name_span.start,
+            source,
+            lower.mode_candidates,
+        ));
     }
     // The complete constructible IR is collected before sparse ownership
     // analysis starts; its traversal follows source order and includes
@@ -1274,7 +1308,7 @@ fn compile_ast_with_flow_limit<'a>(
     let mut ownership_global_steps = 0_u64;
     let mut ownership_global_limited = false;
     let mut owned_entries = Vec::with_capacity(entries.len());
-    for (mut function, name_spans, function_start, source_function) in entries {
+    for (mut function, name_spans, function_start, source_function, mode_candidates) in entries {
         if ownership_global_limited {
             continue;
         }
@@ -1297,11 +1331,27 @@ fn compile_ast_with_flow_limit<'a>(
                         == Some(&diagnostic::DataValue::String("compilation".into()))
                 });
                 diagnostics.extend(errors.into_iter().map(|d| *d));
+                let retained: Vec<_> = mode_candidates
+                    .into_iter()
+                    .filter_map(|(id, span, error)| {
+                        (!diagnostics
+                            .iter()
+                            .any(|d| mode_candidate_consumed(d, id, &span, &name_spans)))
+                        .then_some(error)
+                    })
+                    .collect();
+                diagnostics.extend(retained);
                 continue;
             }
             Err(other) => return Err(other),
         };
-        if !flow_errors.is_empty() {
+        if !flow_errors.is_empty() || !mode_candidates.is_empty() {
+            diagnostics.extend(mode_candidates.into_iter().filter_map(|(id, span, error)| {
+                (!flow_errors
+                    .iter()
+                    .any(|d| mode_candidate_consumed(d, id, &span, &name_spans)))
+                .then_some(error)
+            }));
             diagnostics.extend(flow_errors);
             continue;
         }
@@ -1392,11 +1442,14 @@ fn ir_operand_count(op: &Op) -> u64 {
     match op {
         Op::ConstI64(_) | Op::ConstBool(_) | Op::ConstUnit => 1,
         Op::CopyValue(_)
+        | Op::BeginArrayIteration(_)
         | Op::TransferValue(_)
         | Op::BorrowValue(_)
         | Op::DropBinding(_)
         | Op::DropLocal(_)
         | Op::DropValue(_)
+        | Op::Unary { .. }
+        | Op::CompoundLoad { .. }
         | Op::EndLoan(_) => 1,
         Op::BeginLoan { indexes, .. } => 1 + indexes.len() as u64,
         Op::BuildArray(values) | Op::CallIntrinsic { args: values, .. } => values.len() as u64,
@@ -1411,7 +1464,13 @@ fn ir_operand_count(op: &Op) -> u64 {
         Op::ReadIndex { indexes, .. }
         | Op::BorrowIndex { indexes, .. }
         | Op::CheckIndex { indexes, .. } => 1 + indexes.len() as u64,
-        Op::IndexValue { .. } | Op::Binary { .. } | Op::WritePlace { .. } => 2,
+        Op::IndexValue { .. }
+        | Op::BorrowArrayElement { .. }
+        | Op::Binary { .. }
+        | Op::RangeTest { .. }
+        | Op::RangeAdvance { .. }
+        | Op::WritePlace { .. } => 2,
+        Op::CompoundStore { .. } => 3,
         Op::WriteIndex { indexes, .. } => 2 + indexes.len() as u64,
         Op::CallDirect { args, .. } | Op::BuildGenerator { args, .. } => 1 + args.len() as u64,
         Op::ResumeGenerator { .. } => 2,
@@ -1528,6 +1587,7 @@ struct Lower<'a> {
     consumed_undo: Vec<AvailabilityUndo>,
     dead_depth: usize,
     emission: EmissionMode,
+    literal_true_loops: bool,
     poisoned: HashSet<LocalId>,
     tokens: Arc<Vec<lex::Token>>,
     defer_ownership: bool,
@@ -1546,6 +1606,7 @@ struct Lower<'a> {
     temp_block_entry: EdgeState,
     temp_blocks: Vec<TempBlockState>,
     deferred_return_locals: Vec<(LocalId, Span)>,
+    mode_candidates: Vec<(LocalId, Span, Diagnostic)>,
 }
 
 impl Lower<'_> {
@@ -1883,6 +1944,30 @@ struct IfBeginState {
 enum ForState {
     Analyze {
         saved: ScopeId,
+        loan_root: Option<LocalId>,
+    },
+    RangeLive {
+        header: BlockId,
+        branch: BlockId,
+        saved: ScopeId,
+        availability_checkpoint: usize,
+        binding: LocalId,
+        cursor: LocalId,
+        limit: LocalId,
+        inclusive: bool,
+    },
+    ArrayLive {
+        header: BlockId,
+        branch: BlockId,
+        saved: ScopeId,
+        availability_checkpoint: usize,
+        binding: LocalId,
+        cursor: LocalId,
+        limit: LocalId,
+        root: LocalId,
+        owned_root: bool,
+        guard: TempId,
+        source: TempId,
     },
     Live {
         header: BlockId,
@@ -2162,6 +2247,7 @@ impl Lower<'_> {
                 self.temp_live(*base, false);
                 self.temp_live(*index, false);
             }
+            Op::BorrowArrayElement { index, .. } => self.temp_live(*index, false),
             Op::BuildVariant {
                 payload: Some(id), ..
             } => self.temp_live(*id, false),
@@ -2538,12 +2624,524 @@ impl Lower<'_> {
             false,
         ))
     }
+    fn hidden_range_slot(&mut self, span: &Span, mutable: bool) -> LocalId {
+        let id = LocalId(self.locals.len());
+        self.locals.push(Local {
+            id,
+            name: String::new(),
+            name_span: span.clone(),
+            ty: Ty::I64,
+            mutable,
+            scope: self.scope,
+            parameter_mode: None,
+        });
+        self.name_spans.push(span.clone());
+        id
+    }
+
+    fn begin_for_range(
+        &mut self,
+        statement: &Statement,
+        lower: Flow,
+        upper: Flow,
+        inclusive: bool,
+        surviving_temps: HashSet<TempId>,
+    ) -> Result<ForState, CompileError> {
+        let Statement::For {
+            name,
+            name_span,
+            iterable,
+            body,
+            span,
+        } = statement
+        else {
+            return Err(CompileError::InvalidIr("range for statement"));
+        };
+        if lower.ty().is_some_and(|ty| *ty != Ty::I64)
+            || upper.ty().is_some_and(|ty| *ty != Ty::I64)
+        {
+            return Err(CompileError::InvalidIr("range endpoint type"));
+        }
+        if lower.diverged() || upper.diverged() || self.emission == EmissionMode::Analyze {
+            let saved = self.scope;
+            self.scope = ScopeId(self.next_scope);
+            self.next_scope += 1;
+            self.scope_parents.push(Some(saved));
+            self.scopes.push(vec![name.into()]);
+            let binding = LocalId(self.locals.len());
+            self.locals.push(Local {
+                id: binding,
+                name: name.into(),
+                name_span: name_span.clone(),
+                ty: Ty::I64,
+                mutable: false,
+                scope: self.scope,
+                parameter_mode: None,
+            });
+            self.name_spans.push(name_span.clone());
+            self.visible.entry(name.into()).or_default().push(binding);
+            self.emission = EmissionMode::Analyze;
+            return Ok(ForState::Analyze {
+                saved,
+                loan_root: None,
+            });
+        }
+        let (lower_temp, upper_temp) = (
+            lower
+                .temp()
+                .ok_or(CompileError::InvalidIr("range lower flow"))?,
+            upper
+                .temp()
+                .ok_or(CompileError::InvalidIr("range upper flow"))?,
+        );
+        let origin_lower = self.hidden_range_slot(iterable.span(), false);
+        let origin_upper = self.hidden_range_slot(iterable.span(), false);
+        let cursor = self.hidden_range_slot(iterable.span(), true);
+        let limit = self.hidden_range_slot(iterable.span(), false);
+        for (local, value) in [(origin_lower, lower_temp), (origin_upper, upper_temp)] {
+            self.statement_op(
+                Op::WritePlace { local, value },
+                iterable.span().clone(),
+                Access::Write,
+                false,
+            );
+        }
+        for (source, target) in [(origin_lower, cursor), (origin_upper, limit)] {
+            let copy = self
+                .emitted(
+                    Op::CopyValue(source),
+                    Ty::I64,
+                    iterable.span().clone(),
+                    Access::Read,
+                    false,
+                )
+                .temp()
+                .ok_or(CompileError::InvalidIr("range slot copy"))?;
+            self.statement_op(
+                Op::WritePlace {
+                    local: target,
+                    value: copy,
+                },
+                iterable.span().clone(),
+                Access::Write,
+                false,
+            );
+        }
+        for local in [origin_upper, origin_lower] {
+            let value = self
+                .emitted(
+                    Op::TransferValue(local),
+                    Ty::I64,
+                    iterable.span().clone(),
+                    Access::Own,
+                    false,
+                )
+                .temp()
+                .ok_or(CompileError::InvalidIr("range scratch transfer"))?;
+            self.statement_op(
+                Op::DropValue(value),
+                iterable.span().clone(),
+                Access::Own,
+                false,
+            );
+        }
+        self.finish_block(Terminator::Jump {
+            target: BlockId(self.blocks.len() + 1),
+            span: span.clone(),
+            charges: vec![],
+        });
+        let header = BlockId(self.blocks.len());
+        let for_token = Span {
+            file: span.file.clone(),
+            start: span.start,
+            end: span.start + 3,
+        };
+        self.pending_charges
+            .push(WorkPlanner::charge(WorkEvent::RangeTest, for_token.clone()));
+        let test = self
+            .emitted(
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive,
+                    final_test: false,
+                },
+                Ty::Bool,
+                for_token.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("range entry test"))?;
+        let branch = self.finish_block(Terminator::BranchBool {
+            condition: test,
+            yes: BlockId(self.blocks.len() + 1),
+            no: BlockId(usize::MAX),
+            span: for_token.clone(),
+            charges: vec![],
+        });
+        let saved = self.scope;
+        let scope_depth = self.scopes.len();
+        self.scope = ScopeId(self.next_scope);
+        self.next_scope += 1;
+        self.scope_parents.push(Some(saved));
+        self.scopes.push(vec![name.into()]);
+        let binding = LocalId(self.locals.len());
+        self.locals.push(Local {
+            id: binding,
+            name: name.into(),
+            name_span: name_span.clone(),
+            ty: Ty::I64,
+            mutable: false,
+            scope: self.scope,
+            parameter_mode: None,
+        });
+        self.name_spans.push(name_span.clone());
+        self.visible.entry(name.into()).or_default().push(binding);
+        let index = self
+            .emitted(
+                Op::CopyValue(cursor),
+                Ty::I64,
+                name_span.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("range binding"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: binding,
+                value: index,
+            },
+            name_span.clone(),
+            Access::Write,
+            false,
+        );
+        self.loop_stack.push(LoopContext {
+            continue_target: BlockId(usize::MAX),
+            scope_depth,
+            cleanup_span: body.close_span.clone(),
+            breaks: Vec::new(),
+            continues: Vec::new(),
+            match_depth: self.match_boundaries.len(),
+            surviving_temps,
+        });
+        let availability_checkpoint = self.consumed_undo.len();
+        self.dead_depth += 1;
+        Ok(ForState::RangeLive {
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            cursor,
+            limit,
+            inclusive,
+        })
+    }
+
+    fn begin_for_array(
+        &mut self,
+        statement: &Statement,
+        flow: Flow,
+        surviving_temps: HashSet<TempId>,
+    ) -> Result<ForState, CompileError> {
+        let Statement::For {
+            name,
+            name_span,
+            iterable,
+            body,
+            span,
+        } = statement
+        else {
+            return Err(CompileError::InvalidIr("array for statement"));
+        };
+        let Some(Ty::Array(item)) = flow.ty() else {
+            return Err(CompileError::InvalidIr("array for iterable type"));
+        };
+        let item = clone_ty_iterative(item);
+        let array_ty =
+            clone_ty_iterative(flow.ty().ok_or(CompileError::InvalidIr("array for type"))?);
+        if flow.diverged() || self.emission == EmissionMode::Analyze {
+            let loan_root = place_parts(iterable)
+                .ok()
+                .and_then(|(root, _)| place_name(root))
+                .map(|name| self.get(name))
+                .transpose()?;
+            if let Some(root) = loan_root {
+                self.active_loans.entry(root).or_default().push(ActiveLoan {
+                    permission: LoanPermission::Read,
+                    span: iterable.span().clone(),
+                    loan: LoanId(iterable.span().start as usize),
+                    parent: None,
+                });
+            }
+            let saved = self.scope;
+            self.scope = ScopeId(self.next_scope);
+            self.next_scope += 1;
+            self.scope_parents.push(Some(saved));
+            self.scopes.push(vec![name.into()]);
+            let binding = LocalId(self.locals.len());
+            self.locals.push(Local {
+                id: binding,
+                name: name.into(),
+                name_span: name_span.clone(),
+                ty: item,
+                mutable: false,
+                scope: self.scope,
+                parameter_mode: Some(ParameterMode::Read),
+            });
+            self.name_spans.push(name_span.clone());
+            self.visible.entry(name.into()).or_default().push(binding);
+            self.emission = EmissionMode::Analyze;
+            return Ok(ForState::Analyze { saved, loan_root });
+        }
+        let value = flow
+            .temp()
+            .ok_or(CompileError::InvalidIr("array for flow"))?;
+        let borrowed_root = place_parts(iterable)
+            .ok()
+            .and_then(|(root, _)| place_name(root))
+            .map(|name| self.get(name))
+            .transpose()?;
+        let (root, owned_root) = if let Some(root) = borrowed_root {
+            (root, false)
+        } else {
+            let root = LocalId(self.locals.len());
+            self.locals.push(Local {
+                id: root,
+                name: String::new(),
+                name_span: iterable.span().clone(),
+                ty: clone_ty_iterative(&array_ty),
+                mutable: false,
+                scope: self.scope,
+                parameter_mode: None,
+            });
+            self.name_spans.push(iterable.span().clone());
+            self.statement_op(
+                Op::WritePlace { local: root, value },
+                iterable.span().clone(),
+                Access::Write,
+                false,
+            );
+            (root, true)
+        };
+        let source = if owned_root {
+            self.emitted(
+                Op::BorrowValue(root),
+                clone_ty_iterative(&array_ty),
+                iterable.span().clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array iteration source"))?
+        } else {
+            value
+        };
+        let loan = LoanId(iterable.span().start as usize);
+        self.conflict(root, iterable.span().clone(), "borrow_read")?;
+        let guard = self
+            .emitted(
+                Op::BeginLoan {
+                    root,
+                    indexes: Vec::new(),
+                    site: IndexSite {
+                        context: iterable.span().clone(),
+                        selectors: Vec::new(),
+                    },
+                    loan,
+                    origin_span: iterable.span().clone(),
+                    permission: LoanPermission::Read,
+                    parent: (self.locals[root.0].parameter_mode == Some(ParameterMode::Inout))
+                        .then_some(root),
+                },
+                clone_ty_iterative(&self.locals[root.0].ty),
+                iterable.span().clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array for guard"))?;
+        self.active_loans.entry(root).or_default().push(ActiveLoan {
+            permission: LoanPermission::Read,
+            span: iterable.span().clone(),
+            loan,
+            parent: (self.locals[root.0].parameter_mode == Some(ParameterMode::Inout))
+                .then_some(root),
+        });
+        let cursor = self.hidden_range_slot(iterable.span(), true);
+        let limit = self.hidden_range_slot(iterable.span(), false);
+        let zero = self
+            .emitted(
+                Op::ConstI64(0),
+                Ty::I64,
+                iterable.span().clone(),
+                Access::Own,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array cursor zero"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: cursor,
+                value: zero,
+            },
+            iterable.span().clone(),
+            Access::Write,
+            false,
+        );
+        self.pending_charges.push(WorkPlanner::charge(
+            WorkEvent::ArrayIterationLength,
+            iterable.span().clone(),
+        ));
+        let length = self
+            .emitted(
+                Op::BeginArrayIteration(source),
+                Ty::I64,
+                iterable.span().clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array length"))?;
+        self.statement_op(
+            Op::WritePlace {
+                local: limit,
+                value: length,
+            },
+            iterable.span().clone(),
+            Access::Write,
+            false,
+        );
+        self.finish_block(Terminator::Jump {
+            target: BlockId(self.blocks.len() + 1),
+            span: span.clone(),
+            charges: vec![],
+        });
+        let header = BlockId(self.blocks.len());
+        let for_token = Span {
+            file: span.file.clone(),
+            start: span.start,
+            end: span.start + 3,
+        };
+        self.pending_charges
+            .push(WorkPlanner::charge(WorkEvent::RangeTest, for_token.clone()));
+        let test = self
+            .emitted(
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive: false,
+                    final_test: false,
+                },
+                Ty::Bool,
+                for_token.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array test"))?;
+        let branch = self.finish_block(Terminator::BranchBool {
+            condition: test,
+            yes: BlockId(self.blocks.len() + 1),
+            no: BlockId(usize::MAX),
+            span: for_token.clone(),
+            charges: vec![],
+        });
+        let saved = self.scope;
+        let scope_depth = self.scopes.len();
+        self.scope = ScopeId(self.next_scope);
+        self.next_scope += 1;
+        self.scope_parents.push(Some(saved));
+        self.scopes.push(vec![name.into()]);
+        let binding = LocalId(self.locals.len());
+        self.locals.push(Local {
+            id: binding,
+            name: name.into(),
+            name_span: name_span.clone(),
+            ty: clone_ty_iterative(&item),
+            mutable: false,
+            scope: self.scope,
+            parameter_mode: Some(ParameterMode::Read),
+        });
+        self.name_spans.push(name_span.clone());
+        self.visible.entry(name.into()).or_default().push(binding);
+        let index = self
+            .emitted(
+                Op::BorrowValue(cursor),
+                Ty::I64,
+                name_span.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array index"))?;
+        let selected = self
+            .emitted(
+                Op::BorrowArrayElement {
+                    source,
+                    index,
+                    site: IndexSite {
+                        context: name_span.clone(),
+                        selectors: vec![name_span.clone()],
+                    },
+                },
+                item,
+                name_span.clone(),
+                Access::Read,
+                false,
+            )
+            .temp()
+            .ok_or(CompileError::InvalidIr("array element alias"))?;
+        self.statement_op(
+            Op::BindView {
+                local: binding,
+                value: selected,
+                hold: false,
+            },
+            name_span.clone(),
+            Access::Write,
+            false,
+        );
+        let mut surviving_temps = surviving_temps;
+        surviving_temps.insert(guard);
+        surviving_temps.insert(source);
+        self.loop_stack.push(LoopContext {
+            continue_target: BlockId(usize::MAX),
+            scope_depth,
+            cleanup_span: body.close_span.clone(),
+            breaks: Vec::new(),
+            continues: Vec::new(),
+            match_depth: self.match_boundaries.len(),
+            surviving_temps,
+        });
+        let availability_checkpoint = self.consumed_undo.len();
+        self.dead_depth += 1;
+        Ok(ForState::ArrayLive {
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            cursor,
+            limit,
+            root,
+            owned_root,
+            guard,
+            source,
+        })
+    }
+
     fn begin_for_after_iterable(
         &mut self,
         statement: &Statement,
         flow: Flow,
         surviving_temps: HashSet<TempId>,
     ) -> Result<ForState, CompileError> {
+        if self.literal_true_loops && matches!(flow.ty(), Some(Ty::Array(_))) {
+            return self.begin_for_array(statement, flow, surviving_temps);
+        }
         let Statement::For {
             name,
             name_span,
@@ -2581,7 +3179,10 @@ impl Lower<'_> {
             self.name_spans.push(name_span.clone());
             self.visible.entry(name.into()).or_default().push(id);
             self.emission = EmissionMode::Analyze;
-            return Ok(ForState::Analyze { saved });
+            return Ok(ForState::Analyze {
+                saved,
+                loan_root: None,
+            });
         }
         let iterator = LocalId(self.locals.len());
         self.name_spans.push(span.clone());
@@ -2760,12 +3361,229 @@ impl Lower<'_> {
             iterator,
         })
     }
+    fn finish_for_counted_after_body(
+        &mut self,
+        state: ForState,
+        body: &parse::Block,
+        body_result: Result<(), CompileError>,
+    ) -> Result<(), CompileError> {
+        let (
+            header,
+            branch,
+            saved,
+            availability_checkpoint,
+            binding,
+            cursor,
+            limit,
+            inclusive,
+            array,
+        ) = match state {
+            ForState::RangeLive {
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                inclusive,
+            } => (
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                inclusive,
+                None,
+            ),
+            ForState::ArrayLive {
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                root,
+                owned_root,
+                guard,
+                source,
+            } => (
+                header,
+                branch,
+                saved,
+                availability_checkpoint,
+                binding,
+                cursor,
+                limit,
+                false,
+                Some((root, owned_root, guard, source)),
+            ),
+            _ => return Err(CompileError::InvalidIr("counted for state")),
+        };
+        let loop_context = self
+            .loop_stack
+            .pop()
+            .ok_or(CompileError::InvalidIr("range loop stack"))?;
+        body_result?;
+        self.emission = EmissionMode::Live;
+        let body_return = self.terminated.take();
+        let normal_backedge = body_return.is_none();
+        if body_return != Some(Termination::Diverged) {
+            let local = (binding, body.close_span.clone());
+            if matches!(body_return, Some(Termination::Return(_))) {
+                self.deferred_return_locals.push(local);
+            } else {
+                self.plan_exit(
+                    ExitPlan {
+                        surviving: loop_context.surviving_temps.clone(),
+                        locals: vec![local],
+                        reserved: None,
+                    },
+                    &body.close_span,
+                );
+            }
+            self.finish_block(match body_return {
+                Some(Termination::Return(value)) => Terminator::Return {
+                    value: Some(value),
+                    span: body.span.clone(),
+                    charges: vec![],
+                },
+                _ => Terminator::Jump {
+                    target: BlockId(self.blocks.len() + 1),
+                    span: body.span.clone(),
+                    charges: vec![],
+                },
+            });
+        }
+        self.leave_scope(saved)?;
+        self.restore_availability(availability_checkpoint);
+        self.dead_depth -= 1;
+        let mut final_branch = None;
+        if normal_backedge || !loop_context.continues.is_empty() {
+            let advance = BlockId(self.blocks.len());
+            if !normal_backedge {
+                self.enter_edge(loop_context.continues[0], 0)?;
+            }
+            let Terminator::BranchBool {
+                span: for_token, ..
+            } = &self.blocks[branch.0].terminator
+            else {
+                return Err(CompileError::InvalidIr("range header branch"));
+            };
+            let for_token = for_token.clone();
+            if inclusive {
+                self.pending_charges.push(WorkPlanner::charge(
+                    WorkEvent::RangeFinalTest,
+                    for_token.clone(),
+                ));
+                let last = self
+                    .emitted(
+                        Op::RangeTest {
+                            cursor,
+                            limit,
+                            inclusive: true,
+                            final_test: true,
+                        },
+                        Ty::Bool,
+                        for_token.clone(),
+                        Access::Read,
+                        false,
+                    )
+                    .temp()
+                    .ok_or(CompileError::InvalidIr("range final test"))?;
+                let test_block = self.finish_block(Terminator::BranchBool {
+                    condition: last,
+                    yes: BlockId(usize::MAX),
+                    no: BlockId(self.blocks.len() + 1),
+                    span: for_token.clone(),
+                    charges: vec![],
+                });
+                self.enter_edge(test_block, 1)?;
+                final_branch = Some(test_block);
+            }
+            self.pending_charges.push(WorkPlanner::charge(
+                WorkEvent::RangeAdvance,
+                for_token.clone(),
+            ));
+            self.statement_op(
+                Op::RangeAdvance { cursor, limit },
+                for_token.clone(),
+                Access::Write,
+                false,
+            );
+            self.finish_block(Terminator::Jump {
+                target: header,
+                span: body.span.clone(),
+                charges: vec![],
+            });
+            for id in loop_context.continues {
+                if let Terminator::Jump { target, .. } = &mut self.blocks[id.0].terminator {
+                    *target = advance;
+                }
+            }
+        }
+        let exit = BlockId(self.blocks.len());
+        self.enter_edge(branch, 1)?;
+        if let Terminator::BranchBool { no, .. } = &mut self.blocks[branch.0].terminator {
+            *no = exit;
+        }
+        if let Some(final_branch) = final_branch
+            && let Terminator::BranchBool { yes, .. } = &mut self.blocks[final_branch.0].terminator
+        {
+            *yes = exit;
+        }
+        for id in loop_context.breaks {
+            if let Terminator::Jump { target, .. } = &mut self.blocks[id.0].terminator {
+                *target = exit;
+            }
+        }
+        if let Some((_, _, guard, source)) = array {
+            self.statement_op(
+                Op::DropValue(guard),
+                body.close_span.clone(),
+                Access::Own,
+                false,
+            );
+            self.statement_op(
+                Op::DropValue(source),
+                body.close_span.clone(),
+                Access::Own,
+                false,
+            );
+        }
+        let mut locals = vec![
+            (limit, body.close_span.clone()),
+            (cursor, body.close_span.clone()),
+        ];
+        if let Some((root, true, _, _)) = array {
+            locals.push((root, body.close_span.clone()));
+        }
+        self.plan_exit(
+            ExitPlan {
+                surviving: self.live_temps.clone(),
+                locals,
+                reserved: None,
+            },
+            &body.close_span,
+        );
+        Ok(())
+    }
+
     fn finish_for_after_body(
         &mut self,
         state: ForState,
         body: &parse::Block,
         body_result: Result<(), CompileError>,
     ) -> Result<(), CompileError> {
+        if matches!(
+            state,
+            ForState::RangeLive { .. } | ForState::ArrayLive { .. }
+        ) {
+            return self.finish_for_counted_after_body(state, body, body_result);
+        }
         let ForState::Live {
             header,
             branch,
@@ -2776,10 +3594,16 @@ impl Lower<'_> {
             iterator,
         } = state
         else {
-            let ForState::Analyze { saved } = state else {
+            let ForState::Analyze { saved, loan_root } = state else {
                 unreachable!()
             };
             self.leave_scope(saved)?;
+            if let Some(root) = loan_root {
+                self.active_loans
+                    .get_mut(&root)
+                    .expect("array for hypothetical loan")
+                    .pop();
+            }
             return body_result;
         };
         let loop_context = self
@@ -4138,6 +4962,20 @@ impl Lower<'_> {
                 depth: usize,
                 surviving_temps: HashSet<TempId>,
             },
+            ForRangeAfterLower {
+                statement: &'a Statement,
+                upper: &'a Expr,
+                depth: usize,
+                inclusive: bool,
+                surviving_temps: HashSet<TempId>,
+            },
+            ForRangeAfterUpper {
+                statement: &'a Statement,
+                depth: usize,
+                inclusive: bool,
+                lower: Flow,
+                surviving_temps: HashSet<TempId>,
+            },
             ForAfterBody {
                 state: Box<ForState>,
                 body: &'a parse::Block,
@@ -4333,6 +5171,41 @@ impl Lower<'_> {
                 else_span: Option<Span>,
             },
         }
+        fn schedule_for_body<'a>(
+            lower: &mut Lower<'_>,
+            tasks: &mut Vec<Task<'a>>,
+            statement: &'a Statement,
+            depth: usize,
+            state: ForState,
+        ) -> Result<(), CompileError> {
+            let Statement::For { body, .. } = statement else {
+                return Err(CompileError::InvalidIr("for statement"));
+            };
+            let surviving = lower.live_temps.clone();
+            let saved = lower.scope;
+            lower.scope = ScopeId(lower.next_scope);
+            lower.next_scope += 1;
+            lower.scope_parents.push(Some(saved));
+            lower.scopes.push(Vec::new());
+            tasks.push(Task::ForAfterBody {
+                state: Box::new(state),
+                body,
+            });
+            tasks.push(Task::Block(Box::new(Frame {
+                statements: &body.statements,
+                depth: depth + 1,
+                index: 0,
+                unreachable: None,
+                scoped: Some(Scoped {
+                    block: body,
+                    surviving,
+                    saved,
+                }),
+                pending: None,
+                value_tail: None,
+            })));
+            Ok(())
+        }
         enum WhileState<'a> {
             Analyze {
                 condition: &'a Expr,
@@ -4352,6 +5225,7 @@ impl Lower<'_> {
                 prior_locals: usize,
                 condition_state: HashMap<LocalId, Availability>,
                 branch: BlockId,
+                literal_true: bool,
                 preheader: BlockId,
                 body: &'a parse::Block,
             },
@@ -4668,32 +5542,67 @@ impl Lower<'_> {
                         match started {
                             Err(error) => completed = Some(Err(error)),
                             Ok(state) => {
-                                let Statement::For { body, .. } = statement else {
-                                    return Err(CompileError::InvalidIr("for statement"));
-                                };
-                                let surviving = self.live_temps.clone();
-                                let saved = self.scope;
-                                self.scope = ScopeId(self.next_scope);
-                                self.next_scope += 1;
-                                self.scope_parents.push(Some(saved));
-                                self.scopes.push(Vec::new());
-                                tasks.push(Task::ForAfterBody {
-                                    state: Box::new(state),
-                                    body,
+                                schedule_for_body(self, &mut tasks, statement, depth, state)?
+                            }
+                        }
+                    }
+                    Some(Task::ForRangeAfterLower { .. }) => {
+                        let Some(Task::ForRangeAfterLower {
+                            statement,
+                            upper,
+                            depth,
+                            inclusive,
+                            surviving_temps,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("range lower continuation"));
+                        };
+                        match result {
+                            Err(error) => completed = Some(Err(error)),
+                            Ok(Some(lower)) => {
+                                tasks.push(Task::ForRangeAfterUpper {
+                                    statement,
+                                    depth,
+                                    inclusive,
+                                    lower,
+                                    surviving_temps,
                                 });
-                                tasks.push(Task::Block(Box::new(Frame {
-                                    statements: &body.statements,
-                                    depth: depth + 1,
-                                    index: 0,
-                                    unreachable: None,
-                                    scoped: Some(Scoped {
-                                        block: body,
-                                        surviving,
-                                        saved,
-                                    }),
-                                    pending: None,
-                                    value_tail: None,
-                                })));
+                                tasks.push(Task::Expr {
+                                    value: upper,
+                                    expected: Some(Ty::I64),
+                                    depth,
+                                    borrow: false,
+                                });
+                            }
+                            Ok(None) => {
+                                completed = Some(Err(CompileError::InvalidIr("range lower flow")))
+                            }
+                        }
+                    }
+                    Some(Task::ForRangeAfterUpper { .. }) => {
+                        let Some(Task::ForRangeAfterUpper {
+                            statement,
+                            depth,
+                            inclusive,
+                            lower,
+                            surviving_temps,
+                        }) = tasks.pop()
+                        else {
+                            return Err(CompileError::InvalidIr("range upper continuation"));
+                        };
+                        let started = result.and_then(|value| {
+                            self.begin_for_range(
+                                statement,
+                                lower,
+                                value.ok_or(CompileError::InvalidIr("range upper flow"))?,
+                                inclusive,
+                                surviving_temps,
+                            )
+                        });
+                        match started {
+                            Err(error) => completed = Some(Err(error)),
+                            Ok(state) => {
+                                schedule_for_body(self, &mut tasks, statement, depth, state)?
                             }
                         }
                     }
@@ -4868,13 +5777,33 @@ impl Lower<'_> {
                             let test = test_flow
                                 .temp()
                                 .ok_or(CompileError::InvalidIr("while condition flow"))?;
-                            let branch = self.finish_block(Terminator::BranchBool {
-                                condition: test,
-                                yes: BlockId(self.blocks.len() + 1),
-                                no: BlockId(usize::MAX),
-                                span: state.condition.span().clone(),
-                                charges: vec![],
-                            });
+                            let mut ungrouped = state.condition;
+                            while let Expr::Group(inner, _) = ungrouped {
+                                ungrouped = inner;
+                            }
+                            let literal_true =
+                                self.literal_true_loops && matches!(ungrouped, Expr::Bool(true, _));
+                            let branch = if literal_true {
+                                self.statement_op(
+                                    Op::DropValue(test),
+                                    state.condition.span().clone(),
+                                    Access::Own,
+                                    false,
+                                );
+                                self.finish_block(Terminator::Jump {
+                                    target: BlockId(self.blocks.len() + 1),
+                                    span: state.condition.span().clone(),
+                                    charges: vec![],
+                                })
+                            } else {
+                                self.finish_block(Terminator::BranchBool {
+                                    condition: test,
+                                    yes: BlockId(self.blocks.len() + 1),
+                                    no: BlockId(usize::MAX),
+                                    span: state.condition.span().clone(),
+                                    charges: vec![],
+                                })
+                            };
                             self.restore_temps(state.temp_checkpoint);
                             for (id, value) in &condition_state {
                                 self.set_availability(*id, value.clone());
@@ -4896,6 +5825,7 @@ impl Lower<'_> {
                                 prior_locals: state.prior_locals,
                                 condition_state,
                                 branch,
+                                literal_true,
                                 preheader: state.preheader,
                                 body: state.body,
                             }
@@ -5326,8 +6256,15 @@ impl Lower<'_> {
                             let operator = match state.op {
                                 "+" => Binary::Add,
                                 "-" => Binary::Sub,
+                                "*" => Binary::Mul,
+                                "/" => Binary::Div,
+                                "%" => Binary::Rem,
                                 "<" => Binary::Less,
+                                "<=" => Binary::LessEqual,
+                                ">" => Binary::Greater,
+                                ">=" => Binary::GreaterEqual,
                                 "==" => Binary::Equal,
+                                "!=" => Binary::NotEqual,
                                 _ => return Err(CompileError::InvalidIr("binary operation")),
                             };
                             let ty = state.inferred;
@@ -5955,6 +6892,7 @@ impl Lower<'_> {
                                 prior_locals,
                                 condition_state,
                                 branch,
+                                literal_true,
                                 preheader,
                                 body,
                             } => {
@@ -5992,11 +6930,20 @@ impl Lower<'_> {
                                     }
                                 }
                                 let exit = BlockId(self.blocks.len());
-                                self.enter_edge(branch, 1)?;
-                                if let Terminator::BranchBool { no, .. } =
-                                    &mut self.blocks[branch.0].terminator
-                                {
-                                    *no = exit;
+                                if literal_true {
+                                    if let Some(&first_break) = loop_context.breaks.first() {
+                                        self.enter_edge(first_break, 0)?;
+                                    } else {
+                                        self.emission = EmissionMode::Analyze;
+                                        self.terminated = Some(Termination::Diverged);
+                                    }
+                                } else {
+                                    self.enter_edge(branch, 1)?;
+                                    if let Terminator::BranchBool { no, .. } =
+                                        &mut self.blocks[branch.0].terminator
+                                    {
+                                        *no = exit;
+                                    }
                                 }
                                 for id in loop_context.breaks {
                                     if let Terminator::Jump { target, .. } =
@@ -6211,17 +7158,46 @@ impl Lower<'_> {
                             self.charge_control_statement(span);
                         }
                         let surviving_temps = self.live_temps.clone();
-                        tasks.push(Task::ForAfterIterable {
-                            statement,
-                            depth,
-                            surviving_temps,
-                        });
-                        tasks.push(Task::Expr {
-                            value: iterable,
-                            expected: None,
-                            depth,
-                            borrow: false,
-                        });
+                        let mut ungrouped = iterable;
+                        while let Expr::Group(inner, _) = ungrouped {
+                            ungrouped = inner;
+                        }
+                        if let Expr::Binary {
+                            op, left, right, ..
+                        } = ungrouped
+                            && matches!(op.as_str(), "..<" | "..=")
+                        {
+                            tasks.push(Task::ForRangeAfterLower {
+                                statement,
+                                upper: right,
+                                depth,
+                                inclusive: op == "..=",
+                                surviving_temps,
+                            });
+                            tasks.push(Task::Expr {
+                                value: left,
+                                expected: Some(Ty::I64),
+                                depth,
+                                borrow: false,
+                            });
+                        } else {
+                            let array_binding = place_parts(iterable)
+                                .ok()
+                                .and_then(|(root, _)| place_name(root))
+                                .is_some()
+                                && matches!(self.resolved_expr(iterable), Ok(Ty::Array(_)));
+                            tasks.push(Task::ForAfterIterable {
+                                statement,
+                                depth,
+                                surviving_temps,
+                            });
+                            tasks.push(Task::Expr {
+                                value: iterable,
+                                expected: None,
+                                depth,
+                                borrow: array_binding,
+                            });
+                        }
                     }
                     Task::AssignEnter(statement) => {
                         let Statement::Assign { place, value, .. } = statement else {
@@ -7440,7 +8416,7 @@ impl Lower<'_> {
                         depth,
                         inferred,
                     } => {
-                        let (receiver_mode, receiver_span) = self
+                        let (mut receiver_mode, receiver_span) = self
                             .requested_receiver
                             .take()
                             .unwrap_or((ParameterMode::Read, target.span().clone()));
@@ -7508,8 +8484,20 @@ impl Lower<'_> {
                                     "requested_mode".into(),
                                     diagnostic::DataValue::String(mode_name(receiver_mode).into()),
                                 );
-                                completed_value = Some(Err(CompileError::Rejected(vec![error])));
-                                continue;
+                                if let Some(local) =
+                                    place_name(target).and_then(|name| self.get(name).ok())
+                                {
+                                    self.mode_candidates.push((
+                                        local,
+                                        target.span().clone(),
+                                        *error,
+                                    ));
+                                    receiver_mode = ParameterMode::Read;
+                                } else {
+                                    completed_value =
+                                        Some(Err(CompileError::Rejected(vec![error])));
+                                    continue;
+                                }
                             }
                             let state = ClosureCallState {
                                 args,
@@ -7526,7 +8514,18 @@ impl Lower<'_> {
                                     receiver_mode,
                                     &receiver_span,
                                 ) {
-                                    Err(error) => completed_value = Some(Err(error)),
+                                    Err(error) => {
+                                        if let CompileError::Rejected(errors) = &error
+                                            && errors.iter().any(|d| d.code == "NX-E0202")
+                                            && let Some(local) = place_name(target)
+                                                .and_then(|name| self.get(name).ok())
+                                        {
+                                            self.mode_candidates.retain(|(id, span, _)| {
+                                                *id != local || span != target.span()
+                                            });
+                                        }
+                                        completed_value = Some(Err(error));
+                                    }
                                     Ok((receiver, receiver_loan)) if receiver.diverged() => {
                                         let _ = receiver_loan;
                                         completed_value = Some(Ok(Some(Flow::Diverged {
@@ -7896,6 +8895,14 @@ impl Lower<'_> {
                                         receiver_loan,
                                     } => {
                                         if self.emission == EmissionMode::Analyze {
+                                            if let Some((root, loan, origin)) = receiver_loan {
+                                                self.release_call_loans(&[(
+                                                    root,
+                                                    loan,
+                                                    origin.clone(),
+                                                )]);
+                                                self.end_call_loans(vec![(root, loan, origin)]);
+                                            }
                                             completed_value = Some(Ok(Some(Flow::Value {
                                                 temp: None,
                                                 ty: state.inferred,
@@ -8157,6 +9164,8 @@ impl Lower<'_> {
                     Task::Block(_)
                     | Task::StatementExprAfter(_)
                     | Task::ForAfterIterable { .. }
+                    | Task::ForRangeAfterLower { .. }
+                    | Task::ForRangeAfterUpper { .. }
                     | Task::ForAfterBody { .. }
                     | Task::YieldAfterValue { .. }
                     | Task::AssignAfterSelector(_)
@@ -8654,9 +9663,14 @@ impl Lower<'_> {
                 Expr::Match(selection) => own.push(selection.span.clone()),
                 Expr::Closure(closure) => own.push(closure.fn_span.clone()),
             }
+            let event = if matches!(e, Expr::Binary { .. }) {
+                WorkEvent::OperatorExpression
+            } else {
+                WorkEvent::IfExpression
+            };
             self.pending_charges.extend(
                 own.into_iter()
-                    .map(|origin| WorkPlanner::charge(WorkEvent::IfExpression, origin)),
+                    .map(|origin| WorkPlanner::charge(event, origin)),
             );
         }
         // This threaded AST depth is not
@@ -8964,7 +9978,7 @@ fn index_site(expr: &Expr, context: Span) -> IndexSite {
         selectors: index_selectors(expr),
     }
 }
-fn clone_ty_iterative(ty: &Ty) -> Ty {
+pub(super) fn clone_ty_iterative(ty: &Ty) -> Ty {
     enum Frame<'a> {
         Enter(&'a Ty),
         Array,
@@ -9067,6 +10081,15 @@ fn intrinsic_parameters(intrinsic: Intrinsic) -> Vec<(String, ParameterMode, Ty)
             Ty::Never,
         )],
         Intrinsic::Len => vec![("a".into(), ParameterMode::Read, Ty::Never)],
+        Intrinsic::Push => vec![
+            ("a".into(), ParameterMode::Inout, Ty::Never),
+            ("value".into(), ParameterMode::Consume, Ty::Never),
+        ],
+        Intrinsic::Pop => vec![("a".into(), ParameterMode::Inout, Ty::Never)],
+        Intrinsic::JoinArrays => vec![
+            ("left".into(), ParameterMode::Read, Ty::Never),
+            ("right".into(), ParameterMode::Read, Ty::Never),
+        ],
         Intrinsic::Inspect => vec![("r".into(), ParameterMode::Read, Ty::Never)],
         Intrinsic::MockOpen | Intrinsic::MockBlockingOpen => {
             vec![("label".into(), ParameterMode::Consume, Ty::I64)]
@@ -9089,13 +10112,14 @@ fn intrinsic_arity(intrinsic: Intrinsic) -> usize {
         Intrinsic::Print
         | Intrinsic::DropData
         | Intrinsic::Len
+        | Intrinsic::Pop
         | Intrinsic::MockOpen
         | Intrinsic::MockBlockingOpen
         | Intrinsic::Inspect
         | Intrinsic::MockReadRecords
         | Intrinsic::MockWriteI64
         | Intrinsic::MockReply => 1,
-        Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+        Intrinsic::AssertEq | Intrinsic::TryAdd | Intrinsic::Push | Intrinsic::JoinArrays => 2,
         Intrinsic::MockRequest | Intrinsic::Fail | Intrinsic::MockUnknown => 0,
     }
 }
@@ -9333,6 +10357,862 @@ mod tests {
         assert!(!source.contains(concat!("let mut inferred_", "ty =")));
     }
 
+    #[test]
+    fn f5_internal_literal_true_loop_has_only_reachable_control_edges() {
+        let returned = "fn F()->I64{while true{return 5;}}fn Main(){}";
+        let Err(CompileError::Rejected(old_errors)) =
+            compile_scalar_with_profile("case.n", returned, ReducedProfile::JNormal, false)
+        else {
+            panic!("the historical J profile retains its false edge");
+        };
+        assert!(old_errors.iter().any(|d| d.code == "NX-E1317"));
+        let program = compile_scalar_with_profile(
+            "case.n",
+            returned,
+            ReducedProfile::F5ControlInternal,
+            false,
+        )
+        .expect("literal true with return must satisfy I64 return");
+        let function = program.functions.function("F").unwrap();
+        assert!(
+            function
+                .blocks
+                .iter()
+                .all(|block| !matches!(block.terminator, Terminator::BranchBool { .. }))
+        );
+
+        for source in [
+            "fn F()->I64{while (true){return 5;}}fn Main(){}",
+            "fn F()->I64{while (((true))){return 5;}}fn Main(){}",
+        ] {
+            compile_scalar_with_profile("case.n", source, ReducedProfile::F5ControlInternal, false)
+                .expect("grouped true has the same reachable CFG");
+        }
+
+        let broken = "fn F()->I64{while true{break;}}fn Main(){}";
+        let Err(CompileError::Rejected(errors)) =
+            compile_scalar_with_profile("case.n", broken, ReducedProfile::F5ControlInternal, false)
+        else {
+            panic!("break must retain the normal exit");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E1317");
+        assert_eq!(errors[0].primary_span.as_ref().unwrap().start, 30);
+        assert_eq!(errors[0].primary_span.as_ref().unwrap().end, 31);
+
+        for condition in ["false", "x"] {
+            let source =
+                format!("fn F()->I64{{let x=true;while {condition}{{return 5;}}}}fn Main(){{}}");
+            let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+                "case.n",
+                &source,
+                ReducedProfile::F5ControlInternal,
+                false,
+            ) else {
+                panic!("only literal true proves total return");
+            };
+            assert!(errors.iter().any(|d| d.code == "NX-E1317"));
+        }
+        assert!(ReducedProfile::from_id("f0-0005-b-v1").is_none());
+    }
+
+    #[test]
+    fn f5_internal_literal_loop_continue_and_break_clean_scopes() {
+        let source = "fn Main(){var n=0;while true{let r=MockOpen(n);if n==0{n=1;continue;}break;}AssertEq(n,1);}";
+        let program =
+            compile_scalar_with_profile("case.n", source, ReducedProfile::F5ControlInternal, true)
+                .expect("continue and break must retain valid ownership and CFG joins");
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::JNormal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(
+            execution.observations.events(),
+            ["open:0:0", "close:0:0", "open:1:1", "close:1:1"]
+        );
+
+        let consumed = "fn Main(){let r=MockOpen(1);while true{Drop(r);break;}Inspect(r);}";
+        let Err(CompileError::Rejected(errors)) = compile_scalar_with_profile(
+            "case.n",
+            consumed,
+            ReducedProfile::F5ControlInternal,
+            true,
+        ) else {
+            panic!("the break edge must carry its resource consumption");
+        };
+        assert!(errors.iter().any(|error| {
+            error.code == "NX-E0202" && error.subcause.as_deref() == Some("definitely_consumed")
+        }));
+
+        let joined = "fn Main(){let r=MockOpen(1);let b=true;while true{if b{Drop(r);break;}break;}Inspect(r);}";
+        let Err(CompileError::Rejected(errors)) =
+            compile_scalar_with_profile("case.n", joined, ReducedProfile::F5ControlInternal, true)
+        else {
+            panic!("distinct break edges must join their ownership states");
+        };
+        assert!(errors.iter().any(|error| {
+            error.code == "NX-E0202" && error.subcause.as_deref() == Some("maybe_consumed")
+        }));
+    }
+
+    fn hidden_f5_range_program(source: &str) -> Result<Program, CompileError> {
+        let ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let mut checked = crate::check::check_for_compilation("case.n", source, &ast, false);
+        assert!(checked.internal_error.is_none());
+        enum Node<'a> {
+            Block(&'a parse::Block),
+            Statement(&'a Statement),
+            Expr(&'a Expr),
+        }
+        let tokens = crate::frontend::lex::lex("case.n", source).unwrap();
+        let mut pending: Vec<_> = ast.functions.iter().map(|f| Node::Block(&f.body)).collect();
+        while let Some(node) = pending.pop() {
+            match node {
+                Node::Block(block) => pending.extend(block.statements.iter().map(Node::Statement)),
+                Node::Statement(statement) => match statement {
+                    Statement::Let {
+                        name, value, span, ..
+                    } => {
+                        if let Some(token) = tokens.iter().find(|token| {
+                            token.text == *name
+                                && token.span.start >= span.start
+                                && token.span.end <= span.end
+                        }) && let Expr::Call { target, .. } = value
+                            && matches!(target.as_ref(), Expr::Name(name, _) if name == "MockOpen")
+                        {
+                            checked.inferred.bindings.insert(
+                                token.span.start,
+                                crate::check::types::ResolvedType::Concrete(
+                                    parse::Type::MockResource,
+                                ),
+                            );
+                        }
+                        pending.push(Node::Expr(value));
+                    }
+                    Statement::If {
+                        condition,
+                        then_block,
+                        otherwise,
+                        ..
+                    } => {
+                        pending.push(Node::Expr(condition));
+                        pending.push(Node::Block(then_block));
+                        if let Some(otherwise) = otherwise {
+                            pending.push(Node::Statement(otherwise));
+                        }
+                    }
+                    Statement::For { iterable, body, .. }
+                    | Statement::While {
+                        condition: iterable,
+                        body,
+                        ..
+                    } => {
+                        pending.push(Node::Expr(iterable));
+                        pending.push(Node::Block(body));
+                    }
+                    Statement::Expr { value, .. } => pending.push(Node::Expr(value)),
+                    Statement::Assign { place, value, .. } => {
+                        pending.push(Node::Expr(place));
+                        pending.push(Node::Expr(value));
+                    }
+                    Statement::Return {
+                        value: Some(value), ..
+                    } => pending.push(Node::Expr(value)),
+                    Statement::Block(block) => pending.push(Node::Block(block)),
+                    _ => {}
+                },
+                Node::Expr(expr) => {
+                    let ty = match expr {
+                        Expr::Name(name, _) if name == "i" || name == "x" => Some(parse::Type::I64),
+                        Expr::Integer(..) => Some(parse::Type::I64),
+                        Expr::Bool(..) => Some(parse::Type::Bool),
+                        Expr::Index { target, index, .. } => {
+                            pending.push(Node::Expr(target));
+                            pending.push(Node::Expr(index));
+                            checked
+                                .inferred
+                                .expressions
+                                .get(&(expr.span().start, expr.span().end))
+                                .and_then(|resolved| match resolved {
+                                    crate::check::types::ResolvedType::Concrete(ty) => {
+                                        Some(ty.clone())
+                                    }
+                                    _ => None,
+                                })
+                        }
+                        Expr::Binary {
+                            op, left, right, ..
+                        } => {
+                            pending.push(Node::Expr(left));
+                            pending.push(Node::Expr(right));
+                            matches!(op.as_str(), "==" | "!=" | "<" | "<=" | ">" | ">=")
+                                .then_some(parse::Type::Bool)
+                        }
+                        Expr::Call { target, args, .. } => {
+                            pending.extend(args.iter().map(|arg| Node::Expr(&arg.value)));
+                            match target.as_ref() {
+                                Expr::Name(name, _) if name == "Print" => Some(parse::Type::Unit),
+                                Expr::Name(name, _) if name == "MockOpen" => {
+                                    Some(parse::Type::MockResource)
+                                }
+                                Expr::Name(name, _)
+                                    if name == "Lo" || name == "Hi" || name == "F" =>
+                                {
+                                    Some(parse::Type::I64)
+                                }
+                                _ => None,
+                            }
+                        }
+                        Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                            pending.push(Node::Expr(value));
+                            None
+                        }
+                        _ => None,
+                    };
+                    if let Some(ty) = ty {
+                        let span = expr.span();
+                        checked.inferred.expressions.insert(
+                            (span.start, span.end),
+                            crate::check::types::ResolvedType::Concrete(ty),
+                        );
+                    }
+                }
+            }
+        }
+        compile_ast_with_flow_limit(
+            &ast,
+            source,
+            &checked.inferred,
+            analysis_limits(ReducedProfile::F5ControlInternal),
+        )
+    }
+
+    #[test]
+    fn public_j_profile_keeps_array_iteration_out_of_lowering() {
+        let source = "fn Main(){var v2=[];let n=Len(v2);for x in v2{}v2[0]=7;}";
+        assert!(matches!(
+            compile_scalar_with_profile("case.n", source, ReducedProfile::JNormal, false),
+            Err(CompileError::InvalidIr("for iterable type"))
+        ));
+    }
+
+    #[test]
+    fn f5_internal_array_for_captures_length_and_charges_t03() {
+        let source = "fn Main(){for x in [1,2,3]{}}";
+        let result = hidden_f5_range_program(source);
+        assert!(result.is_ok(), "{result:?}");
+        let program = result.unwrap();
+        crate::ir::verify::verify_program(&program).unwrap();
+        let function = program
+            .functions
+            .entries
+            .iter()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        assert_eq!(
+            std::iter::once(&function.block)
+                .chain(&function.blocks)
+                .flat_map(|block| &block.instructions)
+                .filter(|ins| matches!(ins.op, Op::BeginArrayIteration(_)))
+                .count(),
+            1,
+        );
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(
+            execution.outcome,
+            crate::interp::Outcome::Unit,
+            "{execution:?}"
+        );
+        assert_eq!(execution.work_consumed, 20);
+    }
+
+    #[test]
+    fn f5_internal_array_for_borrow_move_and_control_edges() {
+        for (source, expected) in [
+            (
+                "fn Main(){let a=[1,2,3];for x in a{Print(x);}AssertEq(a,[1,2,3]);}",
+                vec!["1", "2", "3"],
+            ),
+            (
+                "fn Main(){var a=[1,2,3];for x in move a{if x==1{continue;}Print(x);if x==2{break;}}}",
+                vec!["2"],
+            ),
+            (
+                "fn F()->I64{for x in [4,5]{return x;}return -1;}fn Main(){Print(F());}",
+                vec!["4"],
+            ),
+            (
+                "fn Main(){let a:Array<I64>=[];for x in a{Print(x);}AssertEq(a,[]);}",
+                vec![],
+            ),
+            ("fn Main(){for x in [[1],[2]]{}}", vec![]),
+        ] {
+            let program =
+                super::super::ownership_flow::with_dense_oracle(|| hidden_f5_range_program(source))
+                    .expect("typed array for IR and sparse/dense ownership parity");
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(
+                execution.outcome,
+                crate::interp::Outcome::Unit,
+                "{source}: {execution:?}"
+            );
+            assert_eq!(execution.observations.stdout(), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_array_for_borrows_source_without_defensive_copy() {
+        let program = hidden_f5_range_program("fn Main(){let a=[1,2];for x in a{Print(x);}}")
+            .expect("typed borrowed array for");
+        let function = program
+            .functions
+            .entries
+            .iter()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let root = function
+            .locals
+            .iter()
+            .find(|local| local.name == "a")
+            .unwrap()
+            .id;
+        let instructions = std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|block| &block.instructions)
+            .collect::<Vec<_>>();
+        assert!(
+            !instructions
+                .iter()
+                .any(|ins| matches!(ins.op, Op::CopyValue(id) if id == root))
+        );
+        assert!(instructions.iter().any(|ins| matches!(ins.op, Op::BeginLoan { root: id, permission: LoanPermission::Read, .. } if id == root)));
+    }
+
+    #[test]
+    fn f5_array_for_indexed_place_keeps_original_root_borrowed() {
+        let source = "fn Main(){var rows=[[1,2]];for x in rows[0]{rows[0][1]=9;Print(x);}}";
+        let result = hidden_f5_range_program(source);
+        let Err(CompileError::Rejected(errors)) = result else {
+            panic!("indexed Array iterator was detached from rows: {result:?}");
+        };
+        assert!(
+            errors.iter().any(|error| {
+                error.code == "NX-E1105"
+                    && error.subcause.as_deref() == Some("active_borrow_conflict")
+                    && error
+                        .primary_span
+                        .as_ref()
+                        .is_some_and(|span| (span.start, span.end) == (44, 48))
+            }),
+            "{errors:?}"
+        );
+
+        for source in [
+            "fn Main(){var a=[1,2];for x in a{a[0]=9;return;}}",
+            "fn Main(){var rows=[[1,2]];for x in rows[0]{rows[0][1]=9;break;}}",
+            "fn Main(){var rows=[[1,2]];for x in rows[0]{rows[0][1]=9;return;}}",
+            "fn Main(){var rows=[[1,2]];return;for x in rows[0]{rows[0][1]=9;}}",
+            "fn Main(){var rows=[[1,2]];for x in rows[0]{continue;rows[0][1]=9;}}",
+            "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{cube[0][0][1]=9;}}",
+        ] {
+            let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+                panic!("indexed iterator mutation accepted: {source}");
+            };
+            assert!(
+                errors.iter().any(|error| {
+                    error.code == "NX-E1105"
+                        && error.subcause.as_deref() == Some("active_borrow_conflict")
+                }),
+                "{source}: {errors:?}"
+            );
+        }
+
+        for (source, expected) in [
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{Print(x);}rows[0][1]=9;AssertEq(rows,[[1,9]]);}",
+                vec!["1", "2"],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in (rows[0]){Print(x);}}",
+                vec!["1", "2"],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{break;}rows[0][1]=9;AssertEq(rows,[[1,9]]);}",
+                vec![],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{if x==1{continue;}Print(x);}}",
+                vec!["2"],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){for x in Make(){Print(x);}}",
+                vec!["4", "5"],
+            ),
+            (
+                "fn Main(){var rows=[[1,2]];for x in rows[0]{return;}}",
+                vec![],
+            ),
+            ("fn Main(){var a=[1,2];for x in a{return;}}", vec![]),
+            (
+                "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{Print(x);}}",
+                vec!["1", "2"],
+            ),
+            (
+                "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{break;}cube[0][0][1]=9;}",
+                vec![],
+            ),
+            (
+                "fn Main(){var cube=[[[1,2]]];for x in cube[0][0]{return;}}",
+                vec![],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){var a=[0];for x in Make(){a[0]=9;}AssertEq(a,[9]);}",
+                vec![],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){for x in Make(){break;}}",
+                vec![],
+            ),
+            (
+                "fn Make()->Array<I64>{return [4,5];}fn Main(){for x in Make(){return;}}",
+                vec![],
+            ),
+            ("fn Main(){var a=[1,2];for x in move a{break;}}", vec![]),
+            ("fn Main(){var a=[1,2];for x in move a{return;}}", vec![]),
+        ] {
+            let program = hidden_f5_range_program(source).expect(source);
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(
+                execution.outcome,
+                crate::interp::Outcome::Unit,
+                "{source}: {execution:?}"
+            );
+            assert_eq!(execution.observations.stdout(), expected, "{source}");
+        }
+
+        let source = "fn Main(){var rows=[[1,2]];for x in rows[0]{Print(x);}}";
+        let program = hidden_f5_range_program(source).expect("indexed Array IR");
+        let function = program
+            .functions
+            .entries
+            .iter()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let root = function
+            .locals
+            .iter()
+            .find(|local| local.name == "rows")
+            .unwrap()
+            .id;
+        let iterable = source.find("rows[0]").unwrap() as u64;
+        let instructions = std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|block| &block.instructions)
+            .collect::<Vec<_>>();
+        assert!(instructions.iter().any(|ins| {
+            matches!(ins.op, Op::BorrowIndex { local, .. } if local == root)
+                && ins.span.start == iterable
+        }));
+        assert!(instructions.iter().any(|ins| {
+            matches!(ins.op, Op::BeginLoan { root: id, permission: LoanPermission::Read, .. } if id == root)
+        }));
+        assert!(
+            !instructions.iter().any(|ins| {
+                matches!(ins.op, Op::ReadIndex { .. }) && ins.span.start == iterable
+            })
+        );
+
+        let mut malformed = program.clone();
+        let function = malformed
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        for block in std::iter::once(&mut function.block).chain(&mut function.blocks) {
+            for instruction in &mut block.instructions {
+                if let Op::BorrowArrayElement { source, .. } = &mut instruction.op {
+                    *source = TempId(usize::MAX);
+                }
+            }
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            super::super::verify::verify_program(&malformed),
+            Err("undefined temporary")
+        );
+    }
+
+    #[test]
+    fn f5_array_for_projected_sources_do_not_panic() {
+        for seed in 0..80 {
+            let selector = ["0", "1", "-1", "2"][seed % 4];
+            let body = [
+                "Print(x);",
+                "break;",
+                "continue;",
+                "return;",
+                "rows[0][1]=9;",
+            ][(seed / 4) % 5];
+            let source =
+                format!("fn Main(){{var rows=[[1,2],[3,4]];for x in rows[{selector}]{{{body}}}}}");
+            if let Ok(program) = hidden_f5_range_program(&source) {
+                let _ =
+                    crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            }
+        }
+    }
+
+    #[test]
+    fn f5_array_for_deep_projection_fits_small_stacks() {
+        let nested = format!("{}1{}", "[".repeat(126), "]".repeat(126));
+        let source = format!("fn Main(){{var rows={nested};for x in rows[0]{{}}}}");
+        for bytes in [204, 256] {
+            let source = source.clone();
+            std::thread::Builder::new()
+                .stack_size(bytes * 1024)
+                .spawn(move || {
+                    let program = hidden_f5_range_program(&source)
+                        .expect("deep indexed Array for remains within the type limit");
+                    let execution = crate::interp::run_scalar(
+                        &program,
+                        crate::interp::MockEnvironment::empty(),
+                    );
+                    assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+                })
+                .unwrap()
+                .join()
+                .unwrap();
+        }
+    }
+
+    #[test]
+    fn f5_array_for_move_consumes_source_binding() {
+        let source = "fn Main(){let a=[1];for x in move a{}Print(a);}";
+        let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+            panic!("moved Array remained available");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E0202");
+
+        let source = "fn Main(){var a=[1];for x in move a{a[0]=9;}}";
+        let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+            panic!("moved Array root remained available in loop body");
+        };
+        assert!(errors.iter().any(|error| error.code == "NX-E0202"));
+    }
+
+    #[test]
+    fn f5_internal_array_for_blocks_root_write_and_releases_after_break() {
+        let blocked = "fn Main(){var a=[1];for x in a{a[0]=2;}}";
+        let result = hidden_f5_range_program(blocked);
+        let Err(CompileError::Rejected(errors)) = result else {
+            panic!("{result:?}")
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(errors[0].code, "NX-E1105");
+        assert_eq!(
+            errors[0].subcause.as_deref(),
+            Some("active_borrow_conflict")
+        );
+        let primary = errors[0].primary_span.as_ref().unwrap();
+        assert_eq!((primary.start, primary.end), (31, 32));
+        assert_eq!(
+            errors[0].cause_chain[0].entity.as_ref().unwrap().id,
+            "loan:29:0"
+        );
+        let origin = errors[0]
+            .related_spans
+            .iter()
+            .find(|r| r.role == diagnostic::RelatedRole::Origin)
+            .unwrap();
+        assert_eq!((origin.span.start, origin.span.end), (29, 30));
+
+        let independent = "fn Main(){var a=[1];for x in [1]{a[0]=2;}}";
+        let program =
+            hidden_f5_range_program(independent).expect("temporary array does not loan a");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(
+            execution.outcome,
+            crate::interp::Outcome::Unit,
+            "{execution:?}"
+        );
+
+        let released = "fn Main(){var a=[1];for x in a{break;}a[0]=2;AssertEq(a,[2]);}";
+        let program = hidden_f5_range_program(released).expect("array loan ends on break");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(
+            execution.outcome,
+            crate::interp::Outcome::Unit,
+            "{execution:?}"
+        );
+    }
+
+    #[test]
+    fn f5_array_for_checks_borrow_in_dead_code() {
+        for source in [
+            "fn Main(){var a=[1];return;for x in a{a[0]=2;}}",
+            "fn Main(){var a=[1];while true{break;for x in a{a[0]=2;}}}",
+            "fn Main(){var a=[1];while true{continue;for x in a{a[0]=2;}}}",
+        ] {
+            let Err(CompileError::Rejected(errors)) = hidden_f5_range_program(source) else {
+                panic!("dead Array for lost its read loan: {source}");
+            };
+            assert!(
+                errors.iter().any(|error| {
+                    error.code == "NX-E1105"
+                        && error.subcause.as_deref() == Some("active_borrow_conflict")
+                        && error.primary_span.as_ref().is_some_and(|span| {
+                            span.start == source.rfind("a[0]").unwrap() as u64
+                                && span.end == span.start + 1
+                        })
+                }),
+                "{source}: {errors:?}"
+            );
+        }
+
+        hidden_f5_range_program("fn Main(){var a=[1];return;for x in a{}a[0]=2;}")
+            .expect("hypothetical Array loan ends after the dead loop");
+    }
+
+    #[test]
+    fn f5_array_iteration_verifier_checks_root_and_loan_cleanup() {
+        let source = "fn Main(){let a=[1];for x in a{Print(x);}}";
+        let program = hidden_f5_range_program(source).expect("typed array for IR");
+        let mut wrong_root = program.clone();
+        let function = wrong_root
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        for block in std::iter::once(&mut function.block).chain(&mut function.blocks) {
+            for instruction in &mut block.instructions {
+                if let Op::BeginArrayIteration(root) = &mut instruction.op {
+                    *root = TempId(usize::MAX);
+                }
+            }
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            super::super::verify::verify_program(&wrong_root),
+            Err("undefined temporary")
+        );
+
+        let mut missing_cleanup = program;
+        let function = missing_cleanup
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let guard = std::iter::once(&function.block)
+            .chain(&function.blocks)
+            .flat_map(|b| &b.instructions)
+            .find_map(|ins| {
+                matches!(ins.op, Op::BeginLoan { .. })
+                    .then_some(ins.output)
+                    .flatten()
+            })
+            .unwrap();
+        for block in std::iter::once(&mut function.block).chain(&mut function.blocks) {
+            block
+                .instructions
+                .retain(|ins| !matches!(ins.op, Op::DropValue(id) if id == guard));
+            for (position, instruction) in block.instructions.iter_mut().enumerate() {
+                instruction.origin = OriginId(position);
+            }
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert!(super::super::verify::verify_program(&missing_cleanup).is_err());
+    }
+
+    #[test]
+    fn f5_internal_range_ir_has_literal_exclusive_and_inclusive_ticks() {
+        for (source, ticks) in [
+            ("fn Main(){for i in 0..<3{}}", 19),
+            ("fn Main(){for i in 0..=2{}}", 20),
+        ] {
+            let program = hidden_f5_range_program(source).expect("typed range IR");
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(execution.outcome, crate::interp::Outcome::Unit, "{source}");
+            assert_eq!(execution.work_consumed, ticks, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_internal_range_limits_are_evaluated_once_and_max_never_advances() {
+        for (source, stdout) in [
+            (
+                "fn Lo()->I64{Print(1);return 0;}fn Hi()->I64{Print(2);return 2;}fn Main(){for i in Lo()..<Hi(){Print(i);}}",
+                vec!["1", "2", "0", "1"],
+            ),
+            (
+                "fn Main(){for i in 2..<2{Print(i);}for i in 3..=2{Print(i);}}",
+                vec![],
+            ),
+            (
+                "fn Main(){for i in 9223372036854775807..=9223372036854775807{Print(i);}}",
+                vec!["9223372036854775807"],
+            ),
+            (
+                "fn Main(){for i in -9223372036854775808..=-9223372036854775808{Print(i);}}",
+                vec!["-9223372036854775808"],
+            ),
+        ] {
+            let program = hidden_f5_range_program(source).expect("typed range IR");
+            let function = program.functions.function("Main").unwrap();
+            assert!(
+                std::iter::once(&function.block)
+                    .chain(&function.blocks)
+                    .all(|block| {
+                        block
+                            .instructions
+                            .iter()
+                            .all(|ins| !matches!(ins.op, Op::BuildArray(_)))
+                    })
+            );
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            assert_eq!(execution.outcome, crate::interp::Outcome::Unit, "{source}");
+            assert_eq!(execution.observations.stdout(), stdout, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_internal_range_values_match_independent_integer_oracle() {
+        for (lower, upper, inclusive) in [
+            (0_i64, 3_i64, false),
+            (0, 2, true),
+            (2, 2, false),
+            (2, 2, true),
+            (3, 2, true),
+            (i64::MIN, i64::MIN, true),
+            (i64::MAX, i64::MAX, true),
+        ] {
+            let operation = if inclusive { "..=" } else { "..<" };
+            let source = format!("fn Main(){{for i in {lower}{operation}{upper}{{Print(i);}}}}");
+            let program = hidden_f5_range_program(&source).expect("typed range IR");
+            let execution =
+                crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+            let expected: Vec<_> = if inclusive {
+                (lower..=upper).map(|value| value.to_string()).collect()
+            } else {
+                (lower..upper).map(|value| value.to_string()).collect()
+            };
+            assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+            assert_eq!(execution.observations.stdout(), expected, "{source}");
+        }
+    }
+
+    #[test]
+    fn f5_internal_range_verifier_rejects_invalid_final_test_and_cursor() {
+        let source = "fn Main(){for i in 0..=1{}}";
+        let mut final_test = hidden_f5_range_program(source).expect("typed range IR");
+        let function = final_test
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let instruction = std::iter::once(&mut function.block)
+            .chain(function.blocks.iter_mut())
+            .flat_map(|block| block.instructions.iter_mut())
+            .find(|ins| {
+                matches!(
+                    ins.op,
+                    Op::RangeTest {
+                        final_test: true,
+                        ..
+                    }
+                )
+            })
+            .unwrap();
+        if let Op::RangeTest { inclusive, .. } = &mut instruction.op {
+            *inclusive = false;
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            crate::ir::verify::verify_program(&final_test),
+            Err("exclusive range final test")
+        );
+
+        let mut advance = hidden_f5_range_program(source).expect("typed range IR");
+        let function = advance
+            .functions
+            .entries
+            .iter_mut()
+            .find(|f| f.name == "Main")
+            .unwrap();
+        let instruction = std::iter::once(&mut function.block)
+            .chain(function.blocks.iter_mut())
+            .flat_map(|block| block.instructions.iter_mut())
+            .find(|ins| matches!(ins.op, Op::RangeAdvance { .. }))
+            .unwrap();
+        if let Op::RangeAdvance { cursor, limit } = &mut instruction.op {
+            *cursor = *limit;
+        }
+        function.content_hash = super::super::model::content_hash(function);
+        assert_eq!(
+            crate::ir::verify::verify_program(&advance),
+            Err("range cursor write")
+        );
+    }
+
+    #[test]
+    fn f5_internal_range_binding_is_not_visible_after_loop() {
+        let source = "fn Main(){for i in 0..<1{}Print(i);}";
+        assert!(matches!(
+            hidden_f5_range_program(source),
+            Err(CompileError::InvalidIr("unresolved local"))
+        ));
+    }
+
+    #[test]
+    fn f5_internal_range_control_closes_each_body_before_advancing() {
+        let source = "fn Main(){for i in 0..<2{let r=MockOpen(i);if i==0{continue;}break;}}";
+        let program = hidden_f5_range_program(source).expect("typed range with control edges");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(
+            execution.observations.events(),
+            ["open:0:0", "close:0:0", "open:1:1", "close:1:1"]
+        );
+        let returning = "fn Main(){for i in 0..<2{let r=MockOpen(i);return;}}";
+        let program = hidden_f5_range_program(returning).expect("typed returning range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(execution.observations.events(), ["open:0:0", "close:0:0"]);
+        let max_continue =
+            "fn Main(){for i in 9223372036854775807..=9223372036854775807{continue;}}";
+        let program = hidden_f5_range_program(max_continue).expect("typed MAX continue range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        let early_break = "fn Main(){for i in 0..<3{if i==0{break;}Print(i);}}";
+        let program = hidden_f5_range_program(early_break).expect("typed early break range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert!(execution.observations.stdout().is_empty());
+        let return_value = "fn F()->I64{for i in 0..<2{return i;}return -1;}fn Main(){Print(F());}";
+        let program = hidden_f5_range_program(return_value).expect("typed returning value range");
+        let execution =
+            crate::interp::run_scalar(&program, crate::interp::MockEnvironment::empty());
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(execution.observations.stdout(), ["0"]);
+    }
+
     fn analyzed_lower<'a>(
         source: &str,
         signatures: &'a HashMap<String, FunctionSignature>,
@@ -9378,6 +11258,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 1,
             emission: EmissionMode::Analyze,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("flow_contract.n", source).unwrap()),
             defer_ownership: false,
@@ -9396,6 +11277,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         }
     }
 
@@ -9569,6 +11451,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 1,
             emission: EmissionMode::Analyze,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("bottom_flow.n", source).unwrap()),
             defer_ownership: false,
@@ -9587,6 +11470,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let Statement::Let {
             value: expression, ..
@@ -9645,6 +11529,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("orphan_call.n", source).unwrap()),
             defer_ownership: false,
@@ -9663,6 +11548,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let main = ast.functions.iter().find(|f| f.name == "Main").unwrap();
         lower
@@ -9726,6 +11612,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("scope_error.n", source).unwrap()),
             defer_ownership: false,
@@ -9744,6 +11631,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -9781,6 +11669,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("while_error_checkpoint.n", source).unwrap()),
             defer_ownership: false,
@@ -9799,6 +11688,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -9901,6 +11791,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("branch_scope.n", source).unwrap()),
             defer_ownership: false,
@@ -9919,6 +11810,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         lower
             .statement(&ast.functions[0].body.statements[0], 0, &mut Vec::new())
@@ -9955,6 +11847,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("loan_write.n", source).unwrap()),
             defer_ownership: false,
@@ -9973,6 +11866,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let statements = &ast.functions[0].body.statements;
         lower.statement(&statements[0], 0, &mut Vec::new()).unwrap();
@@ -10034,6 +11928,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("dead_state.n", source).unwrap()),
             defer_ownership: false,
@@ -10052,6 +11947,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -10120,6 +12016,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
@@ -10138,6 +12035,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower
@@ -10219,6 +12117,7 @@ mod tests {
             consumed_undo: Vec::new(),
             dead_depth: 0,
             emission: EmissionMode::Live,
+            literal_true_loops: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
@@ -10237,6 +12136,7 @@ mod tests {
             temp_block_entry: EdgeState::default(),
             temp_blocks: Vec::new(),
             deferred_return_locals: Vec::new(),
+            mode_candidates: Vec::new(),
         };
         let mut diagnostics = Vec::new();
         lower

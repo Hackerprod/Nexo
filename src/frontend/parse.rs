@@ -1,12 +1,14 @@
 //! Parser for F0-D15 B, building the shared normalized AST.
+use super::precedence::{self, EXPRESSION, OPERAND};
 use std::cell::RefCell;
 use std::collections::{BTreeMap, HashSet};
 use std::sync::mpsc::{self, Sender};
 #[cfg(test)]
 pub(crate) fn measure_parse_work(source: &str) -> (Result<Ast, Box<Diagnostic>>, u64) {
     let work = std::sync::Arc::new(std::sync::atomic::AtomicU64::new(0));
-    let result = parse_with_split_tokens_counted("scale.n", source, Some(work.clone()), false)
-        .map(|(ast, _)| ast);
+    let result =
+        parse_with_split_tokens_counted("scale.n", source, Some(work.clone()), false, false)
+            .map(|(ast, _)| ast);
     let units = work.load(std::sync::atomic::Ordering::Relaxed);
     (result, units)
 }
@@ -42,7 +44,7 @@ mod j16_parser_stack_probe {
         };
         std::thread::Builder::new()
             .stack_size(204 * 1024)
-            .spawn(move || parse_inner("probe.n", &source, None, true).unwrap())
+            .spawn(move || parse_inner("probe.n", &source, None, true, false).unwrap())
             .unwrap()
             .join()
             .unwrap();
@@ -60,7 +62,7 @@ mod j16_parser_stack_probe {
             .unwrap_or(204);
         let result = std::thread::Builder::new()
             .stack_size(kib * 1024)
-            .spawn(move || parse_inner("probe.n", &source, None, true))
+            .spawn(move || parse_inner("probe.n", &source, None, true, false))
             .unwrap()
             .join()
             .unwrap();
@@ -367,6 +369,7 @@ fn first(new_profile: bool, set: FirstSet) -> &'static [&'static str] {
 pub struct Ast {
     pub functions: Vec<Function>,
     pub span: Span,
+    pub(crate) f5_operators: bool,
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Function {
@@ -690,14 +693,31 @@ struct ParseJob {
     source: String,
     response: Sender<WorkerResult>,
     new_profile: bool,
+    f5_operators: bool,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
 }
+struct ParseWorker {
+    sender: Sender<ParseJob>,
+    handle: std::thread::JoinHandle<()>,
+    #[cfg(test)]
+    finished: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
 thread_local! {
-    static PARSE_WORKER: RefCell<Option<Sender<ParseJob>>> = const { RefCell::new(None) };
+    static PARSE_WORKER: RefCell<Option<ParseWorker>> = const { RefCell::new(None) };
 }
 #[cfg(test)]
 thread_local! {
     static PARSE_WORKER_SPAWNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Termina el trabajador del parser de este hilo antes de que empiece el teardown del proceso.
+#[doc(hidden)]
+pub fn shutdown_parse_worker() {
+    let worker = PARSE_WORKER.with(|slot| slot.borrow_mut().take());
+    if let Some(worker) = worker {
+        drop(worker.sender);
+        let _ = worker.handle.join();
+    }
 }
 
 pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
@@ -715,6 +735,7 @@ pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
         local_scopes: Vec::new(),
         work: None,
         new_profile: false,
+        f5_operators: false,
         pending_match: None,
         guard_context: 0,
         callable_count: 0,
@@ -733,14 +754,19 @@ pub fn parse(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
 }
 
 pub(crate) fn parse_new_profile(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
-    parse_with_split_tokens_counted(file, source, None, true).map(|(ast, _)| ast)
+    parse_with_split_tokens_counted(file, source, None, true, false).map(|(ast, _)| ast)
+}
+
+#[cfg(test)]
+pub(crate) fn parse_f5_hidden(file: &str, source: &str) -> Result<Ast, Box<Diagnostic>> {
+    parse_with_split_tokens_counted(file, source, None, true, true).map(|(ast, _)| ast)
 }
 
 pub(crate) fn parse_with_split_tokens(
     file: &str,
     source: &str,
 ) -> Result<(Ast, Vec<usize>), Box<Diagnostic>> {
-    parse_with_split_tokens_counted(file, source, None, false)
+    parse_with_split_tokens_counted(file, source, None, false, false)
 }
 
 fn parse_with_split_tokens_counted(
@@ -748,6 +774,7 @@ fn parse_with_split_tokens_counted(
     source: &str,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
+    f5_operators: bool,
 ) -> Result<(Ast, Vec<usize>), Box<Diagnostic>> {
     if source.len() > 1_048_576 {
         let parser = Parser {
@@ -763,6 +790,7 @@ fn parse_with_split_tokens_counted(
             local_scopes: Vec::new(),
             work: None,
             new_profile,
+            f5_operators,
             pending_match: None,
             guard_context: 0,
             callable_count: 0,
@@ -782,27 +810,45 @@ fn parse_with_split_tokens_counted(
         response,
         work,
         new_profile,
+        f5_operators,
     };
     let sent = PARSE_WORKER.with(|slot| {
         let mut worker = slot.borrow_mut();
         if worker.is_none() {
-            #[cfg(test)]
-            PARSE_WORKER_SPAWNS.with(|count| count.set(count.get() + 1));
             let (sender, jobs) = mpsc::channel::<ParseJob>();
-            std::thread::Builder::new()
+            #[cfg(test)]
+            let finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            #[cfg(test)]
+            let worker_finished = finished.clone();
+            let handle = std::thread::Builder::new()
                 .stack_size(crate::frontend_stack_size("PARSER"))
                 .spawn(move || {
                     for job in jobs {
                         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-                            parse_inner(&job.file, &job.source, job.work.clone(), job.new_profile)
+                            parse_inner(
+                                &job.file,
+                                &job.source,
+                                job.work.clone(),
+                                job.new_profile,
+                                job.f5_operators,
+                            )
                         }));
                         let _ = job.response.send(result);
                     }
+                    #[cfg(test)]
+                    worker_finished.store(true, std::sync::atomic::Ordering::Release);
                 })
                 .map_err(|_| ())?;
-            *worker = Some(sender);
+            #[cfg(test)]
+            PARSE_WORKER_SPAWNS.with(|count| count.set(count.get() + 1));
+            *worker = Some(ParseWorker {
+                sender,
+                handle,
+                #[cfg(test)]
+                finished,
+            });
         }
-        worker.as_ref().ok_or(())?.send(job).map_err(|_| ())
+        worker.as_ref().ok_or(())?.sender.send(job).map_err(|_| ())
     });
     if sent.is_err() {
         return Err(worker_unavailable(file, source));
@@ -819,10 +865,11 @@ fn parse_inner(
     source: &str,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
+    f5_operators: bool,
 ) -> ParseResult {
     #[cfg(test)]
     let _allocation_capture = crate::test_alloc::capture_for(file);
-    let tokens = lex::lex(file, source)?;
+    let tokens = lex::lex_with_compounds(file, source, f5_operators)?;
     // Terminators belong to the active statement. Preserve source gaps and
     // decide at its descent boundary; a token-only pre-pass cannot distinguish
     // a function suffix from an expression or a block inside parentheses.
@@ -848,6 +895,7 @@ fn parse_inner(
         local_scopes: Vec::new(),
         work,
         new_profile,
+        f5_operators,
         pending_match: None,
         guard_context: 0,
         callable_count: 0,
@@ -1178,7 +1226,7 @@ mod tests {
         let source = "fn F(){let x=1;}";
         let start = Instant::now();
         for _ in 0..COUNT {
-            std::hint::black_box(parse_inner("cost.n", source, None, false).unwrap());
+            std::hint::black_box(parse_inner("cost.n", source, None, false, false).unwrap());
         }
         let direct = start.elapsed();
         let before = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get);
@@ -1190,6 +1238,21 @@ mod tests {
         let spawns = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get) - before;
         eprintln!("small parses: direct {direct:?}, worker {worker:?}");
         assert!(spawns <= 1, "{spawns} worker spawns for repeated parses");
+    }
+
+    #[test]
+    fn parser_worker_shutdown_joins_and_allows_restart() {
+        shutdown_parse_worker();
+        let before = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get);
+        parse("shutdown.n", "fn Main(){}").unwrap();
+        let finished = PARSE_WORKER.with(|slot| slot.borrow().as_ref().unwrap().finished.clone());
+        assert_eq!(PARSE_WORKER_SPAWNS.with(std::cell::Cell::get), before + 1);
+        shutdown_parse_worker();
+        assert!(finished.load(std::sync::atomic::Ordering::Acquire));
+        shutdown_parse_worker();
+        parse("shutdown.n", "fn Main(){}").unwrap();
+        assert_eq!(PARSE_WORKER_SPAWNS.with(std::cell::Cell::get), before + 2);
+        shutdown_parse_worker();
     }
 
     #[test]
@@ -1929,6 +1992,7 @@ struct Parser<'a> {
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
     new_profile: bool,
     pending_match: Option<(&'static str, Span)>,
+    f5_operators: bool,
     guard_context: usize,
     callable_count: usize,
 }
@@ -2380,7 +2444,7 @@ impl Parser<'_> {
                         }
                         if token.text == "yield" {
                             tasks.push(Task::StatementGuard { start, token });
-                            tasks.push(Task::Enter(0));
+                            tasks.push(Task::Enter(EXPRESSION));
                         } else {
                             let end = self.terminator(
                                 start,
@@ -2430,7 +2494,7 @@ impl Parser<'_> {
                             name: name.text,
                             annotation,
                         });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     } else if choice == BlockChoice::Return {
                         self.eat("return");
                         if !self.starts_expr() || self.line_break_before_next() {
@@ -2442,7 +2506,7 @@ impl Parser<'_> {
                             });
                         } else {
                             tasks.push(Task::StatementReturn { start });
-                            tasks.push(Task::Enter(0));
+                            tasks.push(Task::Enter(EXPRESSION));
                         }
                     } else if self.word("value")
                         && self.tokens.get(self.at + 1).is_some_and(|x| x.text == ":")
@@ -2496,18 +2560,18 @@ impl Parser<'_> {
                             return Err(diagnostic);
                         }
                         tasks.push(Task::StatementValue { start, marker });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     } else if choice == BlockChoice::If {
                         self.take();
                         tasks.push(Task::StatementIfCondition {
                             branches: Vec::new(),
                             start,
                         });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     } else if choice == BlockChoice::While {
                         self.take();
                         tasks.push(Task::StatementWhileCondition { start });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     } else if choice == BlockChoice::For {
                         self.eat("for");
                         if self.at_text("edit") {
@@ -2524,7 +2588,7 @@ impl Parser<'_> {
                         let name = self.expect_name("grammar.ForBinding", &["Name"], start)?;
                         self.expect("in", "grammar.ForBinding", &["in"], start)?;
                         tasks.push(Task::StatementForIterable { start, name });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     } else if self.at_text("{") {
                         tasks.push(Task::StatementDirectBlock);
                         tasks.push(Task::BlockStart {
@@ -2532,7 +2596,7 @@ impl Parser<'_> {
                         });
                     } else {
                         tasks.push(Task::StatementExpr { start });
-                        tasks.push(Task::Enter(1));
+                        tasks.push(Task::Enter(OPERAND));
                     }
                 }
                 Task::StatementBinding {
@@ -2595,7 +2659,7 @@ impl Parser<'_> {
                             start,
                             place: expression,
                         });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     } else {
                         let end = self.terminator(
                             start,
@@ -2699,7 +2763,7 @@ impl Parser<'_> {
                                 branches,
                                 start: next_start,
                             });
-                            tasks.push(Task::Enter(0));
+                            tasks.push(Task::Enter(EXPRESSION));
                         } else {
                             tasks.push(Task::StatementIfElse { branches });
                             tasks.push(Task::BlockStart {
@@ -2733,7 +2797,7 @@ impl Parser<'_> {
                         mode,
                         mode_span,
                     });
-                    tasks.push(Task::Enter(0));
+                    tasks.push(Task::Enter(EXPRESSION));
                 }
                 Task::MatchAfterScrutinee {
                     keyword,
@@ -2797,7 +2861,7 @@ impl Parser<'_> {
                                 pattern,
                                 guard_span,
                             });
-                            tasks.push(Task::Enter(0));
+                            tasks.push(Task::Enter(EXPRESSION));
                         } else {
                             let expression = frame.expression;
                             self.expect(
@@ -2895,14 +2959,14 @@ impl Parser<'_> {
                     })));
                 }
                 Task::Enter(min) => {
-                    let logical_entry = min == 0;
+                    let logical_entry = min == EXPRESSION;
                     if logical_entry && self.depth == 128 {
                         return Err(self.nesting_error("syntax_nesting"));
                     }
                     if logical_entry {
                         self.depth += 1;
                     }
-                    if min > 0 && !self.starts_try() {
+                    if min > EXPRESSION && !self.starts_try() {
                         return Err(self.err(
                             "grammar.TryExpr",
                             first(self.new_profile, FirstSet::Try),
@@ -2924,7 +2988,7 @@ impl Parser<'_> {
                         tasks.push(Task::IfCondition {
                             start: token.span.start as usize,
                         });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     } else if self.select_primary_entry() == PrimaryChoice::Match {
                         tasks.push(Task::ExprAfterMatch);
                         tasks.push(Task::MatchStart { expression: true });
@@ -2953,7 +3017,7 @@ impl Parser<'_> {
                                 ));
                             }
                             tasks.push(Task::Group { start });
-                            tasks.push(Task::Enter(0));
+                            tasks.push(Task::Enter(EXPRESSION));
                         }
                     } else if self.eat("[") {
                         tasks.push(Task::Array {
@@ -2967,7 +3031,11 @@ impl Parser<'_> {
                             PrefixValue::Expr(expr) => result = Some(expr),
                             PrefixValue::Mode { mode, start } => {
                                 tasks.push(Task::ModeOperand { mode, start });
-                                tasks.push(Task::Enter(4));
+                                tasks.push(Task::Enter(if self.f5_operators {
+                                    precedence::F5.try_guard
+                                } else {
+                                    precedence::J.try_guard
+                                }));
                             }
                         }
                     }
@@ -3117,7 +3185,7 @@ impl Parser<'_> {
                             after_comma,
                             pending_element: true,
                         });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     }
                 }
                 Task::Call {
@@ -3218,7 +3286,7 @@ impl Parser<'_> {
                             after_comma,
                             pending_arg: Some((argument_start, label)),
                         });
-                        tasks.push(Task::Enter(0));
+                        tasks.push(Task::Enter(EXPRESSION));
                     }
                 }
                 Task::Index {
@@ -3266,7 +3334,7 @@ impl Parser<'_> {
                             ));
                         }
                         tasks.push(Task::IfThenExpr { start, condition });
-                        tasks.push(Task::Enter(1));
+                        tasks.push(Task::Enter(OPERAND));
                     }
                 }
                 Task::IfThenExpr { start, condition } => {
@@ -3314,7 +3382,7 @@ impl Parser<'_> {
                             condition,
                             then_block,
                         });
-                        tasks.push(Task::Enter(1));
+                        tasks.push(Task::Enter(OPERAND));
                     }
                 }
                 Task::IfElseExpr {
@@ -3418,11 +3486,17 @@ impl Parser<'_> {
                                 selector_start,
                                 index_start,
                             });
-                            tasks.push(Task::Enter(0));
+                            tasks.push(Task::Enter(EXPRESSION));
                             continue 'work;
                         }
                         if self.at_text("?") {
-                            if min == 4 {
+                            if min
+                                == if self.f5_operators {
+                                    precedence::F5.try_guard
+                                } else {
+                                    precedence::J.try_guard
+                                }
+                            {
                                 break;
                             }
                             if matches!(&lhs, Expr::If { .. }) {
@@ -3484,7 +3558,7 @@ impl Parser<'_> {
                                 lhs.span().start as usize,
                             ));
                         }
-                        if matches!(op, "..<" | "..=") {
+                        if matches!(op, "..<" | "..=") && !self.f5_operators {
                             return Err(self.feature("range", self.peek().span.clone()));
                         }
                         if op == "+=" {
@@ -3499,10 +3573,12 @@ impl Parser<'_> {
                         {
                             return Err(self.feature("traits_generics", self.peek().span.clone()));
                         }
-                        if matches!(
-                            op,
-                            "*" | "/" | "%" | "!=" | ">" | "<=" | ">=" | "and" | "or"
-                        ) {
+                        if !self.f5_operators
+                            && matches!(
+                                op,
+                                "*" | "/" | "%" | "!=" | ">" | "<=" | ">=" | "and" | "or"
+                            )
+                        {
                             let token = self.peek().clone();
                             return Err(self.syntax(
                                 &token,
@@ -3511,12 +3587,13 @@ impl Parser<'_> {
                                 self.statement_start,
                             ));
                         }
-                        let prec = match op {
-                            "==" | "<" => 1,
-                            "+" | "-" => 2,
-                            _ => 0,
+                        let levels = if self.f5_operators {
+                            precedence::F5
+                        } else {
+                            precedence::J
                         };
-                        if prec < min || prec == 0 {
+                        let prec = levels.binary(op);
+                        if prec < min || prec == EXPRESSION {
                             break;
                         }
                         if matches!(&lhs, Expr::If { .. }) {
@@ -3527,7 +3604,32 @@ impl Parser<'_> {
                                 None,
                             ));
                         }
-                        if prec == 1
+                        if prec == levels.comparison
+                            && self.f5_operators
+                            && matches!(&lhs, Expr::Binary { op, .. } if matches!(op.as_str(), "<" | "<=" | ">" | ">=" | "==" | "!="))
+                        {
+                            let token = self.peek().clone();
+                            return Err(self.syntax(
+                                &token,
+                                "grammar.CompareExpr",
+                                &[";", "and", "or"],
+                                lhs.span().start as usize,
+                            ));
+                        }
+                        if prec == levels.range
+                            && self.f5_operators
+                            && matches!(&lhs, Expr::Binary { op, .. } if matches!(op.as_str(), "..<" | "..="))
+                        {
+                            let token = self.peek().clone();
+                            return Err(self.syntax(
+                                &token,
+                                "grammar.RangeExpr",
+                                &["!=", ";", "<", "<=", "==", ">", ">=", "and", "or"],
+                                lhs.span().start as usize,
+                            ));
+                        }
+                        if prec == levels.comparison
+                            && !self.f5_operators
                             && matches!(&lhs, Expr::Binary { op, .. } if op == "<" || op == "==")
                         {
                             return Err(self.err(
@@ -3624,6 +3726,7 @@ impl Parser<'_> {
             Ast {
                 functions: fs,
                 span: self.span(start, self.source.len()),
+                f5_operators: self.f5_operators,
             },
             self.split_type_closes,
         ))
@@ -4412,7 +4515,7 @@ impl Parser<'_> {
                     op,
                 ));
             }
-            // The operand resumes in the same construct machine at precedence 4.
+            // The operand resumes above binary operators and the try suffix.
             return Ok(PrefixValue::Mode { mode: m, start: op });
         }
         if let Some(error) = self.deferred_in_state(GrammarState::Primary) {
@@ -5424,6 +5527,7 @@ mod b_tests {
             local_scopes: Vec::new(),
             work: None,
             new_profile: false,
+            f5_operators: false,
             pending_match: None,
             guard_context: 0,
             callable_count: 0,
@@ -5542,6 +5646,7 @@ mod b_tests {
                 local_scopes: Vec::new(),
                 work: None,
                 new_profile: false,
+                f5_operators: false,
                 pending_match: None,
                 guard_context: 0,
                 callable_count: 0,
@@ -5558,6 +5663,529 @@ mod b_tests {
                 );
             }
             assert_eq!(parser.statement_start, 97, "{source}");
+        }
+    }
+
+    #[test]
+    fn hidden_f5_binary_parser_preserves_public_j_and_rejects_chains() {
+        for source in [
+            "fn Main(){let x=1*2+3/4%5;}",
+            "fn Main(){let x=1!=2;}",
+            "fn Main(){let x=1>=2;}",
+            "fn Main(){let x=(1<2)==true;}",
+        ] {
+            assert!(parse_f5_hidden("case.n", source).is_ok(), "{source}");
+        }
+        for source in [
+            "fn Main(){let x=1*2+3;}",
+            "fn Main(){let x=1+2*3;}",
+            "fn Main(){let x=(1<2)==true;}",
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(parse_f5_hidden("case.n", &printed).is_ok(), "{printed}");
+        }
+        assert!(parse_new_profile("case.n", "fn Main(){let x=1*2;}").is_err());
+        let source = "fn Main(){let x=1<2<3;}";
+        let error = parse_f5_hidden("case.n", source).unwrap_err();
+        assert_eq!(error.code, "NX-E0002");
+        assert_eq!(error.parser_context.as_deref(), Some("grammar.CompareExpr"));
+        assert_eq!(error.expected_tokens, [";", "and", "or"]);
+        assert_eq!(
+            error.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some((19, 20))
+        );
+    }
+
+    #[test]
+    fn hidden_logical_precedence_roundtrips_without_opening_public_profile() {
+        for source in [
+            "fn Main(){let b=false and true;}",
+            "fn Main(){let b=true or false;}",
+            "fn Main(){let b=false or true and 1<2;}",
+            "fn Main(){let b=(false or true) and false;}",
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(parse_f5_hidden("case.n", &printed).is_ok(), "{printed}");
+        }
+        assert!(parse_new_profile("case.n", "fn Main(){let b=true and false;}").is_err());
+    }
+
+    #[test]
+    fn hidden_f5_postfix_binds_above_every_binary_level() {
+        // F5 §2.1: or < and < comparison < addition < multiplication
+        // < unary < try < call/index. The F5 unary spelling is opened in L01b.
+        for (left, op) in [
+            ("false", "or"),
+            ("false", "and"),
+            ("1", "<"),
+            ("1", "<="),
+            ("1", ">"),
+            ("1", ">="),
+            ("1", "=="),
+            ("1", "!="),
+            ("1", "+"),
+            ("1", "-"),
+            ("1", "*"),
+            ("1", "/"),
+            ("1", "%"),
+        ] {
+            for (operand, postfix) in [("F()?", "?"), ("F(1)", "call"), ("a[0]", "index")] {
+                for expression in [
+                    format!("{left} {op} {operand}"),
+                    format!("{operand} {op} {left}"),
+                ] {
+                    let source = format!("fn Main(){{let x={expression};}}");
+                    let ast = parse_f5_hidden("case.n", &source).unwrap();
+                    let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                    assert!(printed.contains(&expression), "{op} {postfix}: {printed}");
+                    let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                    assert_eq!(
+                        crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                        printed,
+                        "{op} {postfix}"
+                    );
+                }
+            }
+        }
+        for (source, expected) in [
+            ("fn Main(){let x=1/F()?%2;}", "1 / F()? % 2"),
+            ("fn Main(){let x=1*F()?;}", "1 * F()?"),
+        ] {
+            let printed = crate::frontend::print::print_canonical(
+                &parse_f5_hidden("case.n", source).unwrap(),
+            )
+            .unwrap();
+            assert!(printed.contains(expected), "{printed}");
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            assert_eq!(
+                crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                printed
+            );
+        }
+    }
+
+    #[test]
+    fn hidden_f5_multiplication_and_logical_precedence_prints_structure() {
+        for (source, expected) in [
+            ("fn Main(){let x=1+2*3;}", "1 + 2 * 3"),
+            ("fn Main(){let x=(1+2)*3;}", "(1 + 2) * 3"),
+            (
+                "fn Main(){let x=false or true and false;}",
+                "false or true and false",
+            ),
+            (
+                "fn Main(){let x=(false or true) and false;}",
+                "(false or true) and false",
+            ),
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(printed.contains(expected), "{source}: {printed}");
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            assert_eq!(
+                crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                printed
+            );
+        }
+    }
+
+    #[test]
+    fn hidden_f5_access_mode_operand_stops_before_try_and_binary() {
+        // D15 §3.2: move r? means (move r)?; F5 §2.1 places all
+        // binary operators below the access mode.
+        for mode in ["move"] {
+            for (source_expr, expected) in [
+                (format!("{mode} r?"), format!("({mode} r)?")),
+                (format!("{mode} v + 1"), format!("{mode} v + 1")),
+                (format!("{mode} v * 1"), format!("{mode} v * 1")),
+            ] {
+                let source = format!("fn Main(){{let x={source_expr};}}");
+                let ast = parse_f5_hidden("case.n", &source).unwrap();
+                let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                assert!(printed.contains(&expected), "{source_expr}: {printed}");
+                let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                assert_eq!(
+                    crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                    printed
+                );
+                let value = match &ast.functions[0].body.statements[0] {
+                    Statement::Let { value, .. } => value,
+                    _ => panic!("expected let"),
+                };
+                if source_expr.ends_with('?') {
+                    assert!(
+                        matches!(value, Expr::Unary { mode: Mode::Read, value, .. } if matches!(value.as_ref(), Expr::Unary { mode: Mode::Consume | Mode::Inout, .. }))
+                    );
+                } else {
+                    assert!(
+                        matches!(value, Expr::Binary { left, .. } if matches!(left.as_ref(), Expr::Unary { mode: Mode::Consume | Mode::Inout, .. }))
+                    );
+                }
+            }
+        }
+        let source = "fn Main(){let x=move r?;}";
+        let ast = parse_new_profile("case.n", source).unwrap();
+        let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+        assert!(printed.contains("move r?"), "{printed}");
+        for operand in ["r?", "v + 1", "v * 1"] {
+            let source = format!("fn Main(){{F(edit {operand});}}");
+            let error = parse_f5_hidden("case.n", &source).unwrap_err();
+            assert_eq!(error.code, "NX-E0002");
+            assert_eq!(error.parser_context.as_deref(), Some("inout_place"));
+            assert_eq!(
+                error.primary_span.as_ref().map(|s| (s.start, s.end)),
+                Some((12, 16))
+            );
+            assert_eq!(
+                error
+                    .unexpected_token
+                    .as_ref()
+                    .and_then(|t| t.text.as_deref()),
+                Some("edit")
+            );
+        }
+        let ast = parse_f5_hidden("case.n", "fn Main(){F(edit v);}").unwrap();
+        let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+        assert!(printed.contains("F(edit v)"), "{printed}");
+        let ast = parse_f5_hidden("case.n", "fn Main(){F(edit a[0]);}").unwrap();
+        let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+        assert!(printed.contains("F(edit a[0])"), "{printed}");
+        let error = parse_f5_hidden("case.n", "fn Main(){let x=move a[0];}").unwrap_err();
+        assert_eq!(error.feature_id.as_deref(), Some("partial_transfer"));
+    }
+
+    #[test]
+    fn hidden_f5_access_modes_cross_postfix_and_binary_table() {
+        // F5 §2.1 and D15 §3.2: every enabled binary operator follows
+        // the completed mode/postfix expression on either side.
+        let operators = [
+            "or", "and", "<", "<=", ">", ">=", "==", "!=", "+", "-", "*", "/", "%",
+        ];
+        for mode in ["move", "edit"] {
+            for (postfix, operand, canonical) in [
+                ("bare", "v", format!("{mode} v")),
+                ("try", "v?", format!("({mode} v)?")),
+                ("call", "F()", format!("{mode} F()")),
+                ("index", "a[0]", format!("{mode} a[0]")),
+            ] {
+                if mode == "move" && postfix == "index" {
+                    // D15 §3.2 rejects partial transfer from an indexed Place.
+                    continue;
+                }
+                for op in operators {
+                    for left_mode in [true, false] {
+                        let expression = if left_mode {
+                            format!("{mode} {operand} {op} 1")
+                        } else {
+                            format!("1 {op} {mode} {operand}")
+                        };
+                        if mode == "edit" && postfix != "call" {
+                            // D15 §3.2 permits edit only as an immediate
+                            // argument, not inside a binary/try expression.
+                            let source = format!("fn Main(){{F({expression});}}");
+                            let error = parse_f5_hidden("case.n", &source).unwrap_err();
+                            assert_eq!(error.code, "NX-E0002", "{expression}");
+                            assert_eq!(
+                                error.parser_context.as_deref(),
+                                Some("inout_place"),
+                                "{expression}"
+                            );
+                            assert_eq!(
+                                error
+                                    .unexpected_token
+                                    .as_ref()
+                                    .and_then(|t| t.text.as_deref()),
+                                Some("edit"),
+                                "{expression}"
+                            );
+                            continue;
+                        }
+                        let source = format!("fn Main(){{let x={expression};}}");
+                        let ast = parse_f5_hidden("case.n", &source).unwrap();
+                        let value = match &ast.functions[0].body.statements[0] {
+                            Statement::Let { value, .. } => value,
+                            _ => panic!("expected let"),
+                        };
+                        let prefixed = match value {
+                            Expr::Binary { left, .. } if left_mode => left.as_ref(),
+                            Expr::Binary { left: _, right, .. } => right.as_ref(),
+                            _ => panic!("expected outer binary: {expression}"),
+                        };
+                        let prefixed = if postfix == "try" {
+                            match prefixed {
+                                Expr::Unary {
+                                    mode: Mode::Read,
+                                    value,
+                                    ..
+                                } => value.as_ref(),
+                                _ => panic!("expected outer try: {expression}"),
+                            }
+                        } else {
+                            prefixed
+                        };
+                        assert!(
+                            matches!(
+                                prefixed,
+                                Expr::Unary {
+                                    mode: Mode::Consume | Mode::Inout,
+                                    ..
+                                }
+                            ),
+                            "{expression}"
+                        );
+                        let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                        assert!(printed.contains(&canonical), "{postfix} {op}: {printed}");
+                        let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                        assert_eq!(
+                            crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                            printed,
+                            "{expression}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn hidden_f5_arithmetic_and_comparison_precedence_has_adr_ast_shape() {
+        fn shape(expr: &Expr) -> String {
+            match expr {
+                Expr::Integer(value, _) => value.clone(),
+                Expr::Binary {
+                    op, left, right, ..
+                } => {
+                    format!("({op} {} {})", shape(left), shape(right))
+                }
+                _ => panic!("unexpected expression in precedence fixture: {expr:?}"),
+            }
+        }
+
+        // F5 §2.1: comparison < addition < multiplication, with the
+        // arithmetic operators left associative. The strings here encode
+        // the ADR tree independently of the parser and printer.
+        for add in ["+", "-"] {
+            for mul in ["*", "/", "%"] {
+                for (expression, expected_shape) in [
+                    (
+                        format!("1 {add} 2 {mul} 3"),
+                        format!("({add} 1 ({mul} 2 3))"),
+                    ),
+                    (
+                        format!("1 {mul} 2 {add} 3"),
+                        format!("({add} ({mul} 1 2) 3)"),
+                    ),
+                ] {
+                    let source = format!("fn Main(){{let x={expression};}}");
+                    let ast = parse_f5_hidden("case.n", &source).unwrap();
+                    let value = match &ast.functions[0].body.statements[0] {
+                        Statement::Let { value, .. } => value,
+                        _ => panic!("expected let"),
+                    };
+                    assert_eq!(shape(value), expected_shape, "{expression}");
+                    let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                    assert!(printed.contains(&expression), "{source}: {printed}");
+                    let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                    assert_eq!(
+                        crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                        printed
+                    );
+                }
+            }
+        }
+        for compare in ["<", "<=", ">", ">=", "==", "!="] {
+            for add in ["+", "-"] {
+                for mul in ["*", "/", "%"] {
+                    for (expression, expected_shape) in [
+                        (
+                            format!("1 {compare} 2 {add} 3 {mul} 4"),
+                            format!("({compare} 1 ({add} 2 ({mul} 3 4)))"),
+                        ),
+                        (
+                            format!("1 {add} 2 {mul} 3 {compare} 4"),
+                            format!("({compare} ({add} 1 ({mul} 2 3)) 4)"),
+                        ),
+                    ] {
+                        let source = format!("fn Main(){{let x={expression};}}");
+                        let ast = parse_f5_hidden("case.n", &source).unwrap();
+                        let value = match &ast.functions[0].body.statements[0] {
+                            Statement::Let { value, .. } => value,
+                            _ => panic!("expected let"),
+                        };
+                        assert_eq!(shape(value), expected_shape, "{expression}");
+                        let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+                        assert!(printed.contains(&expression), "{source}: {printed}");
+                        let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+                        assert_eq!(
+                            crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                            printed
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn hidden_f5_range_level_has_adr_ast_shape_across_both_sides() {
+        fn shape(expr: &Expr) -> String {
+            match expr {
+                Expr::Integer(value, _) => value.clone(),
+                Expr::Bool(value, _) => value.to_string(),
+                Expr::Name(name, _) => name.clone(),
+                Expr::Group(value, _) => format!("(group {})", shape(value)),
+                Expr::Unary {
+                    mode: Mode::Read,
+                    value,
+                    ..
+                } => {
+                    format!("(try {})", shape(value))
+                }
+                Expr::Binary {
+                    op, left, right, ..
+                } => {
+                    format!("({op} {} {})", shape(left), shape(right))
+                }
+                Expr::Call { target, .. } => format!("(call {})", shape(target)),
+                Expr::Index { target, index, .. } => {
+                    format!("(index {} {})", shape(target), shape(index))
+                }
+                _ => panic!("unexpected range fixture expression: {expr:?}"),
+            }
+        }
+        fn check(expression: &str, expected: &str) {
+            let source = format!("fn Main(){{let x={expression};}}");
+            let ast = parse_f5_hidden("case.n", &source).unwrap();
+            let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+                panic!("expected let")
+            };
+            assert_eq!(shape(value), expected, "{expression}");
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            let Statement::Let { value, .. } = &reparsed.functions[0].body.statements[0] else {
+                panic!("expected let")
+            };
+            assert_eq!(shape(value), expected, "{printed}");
+        }
+
+        // ADR §§2.1, 3.1: logical < comparison < range < addition
+        // < multiplication < postfix. Each adjacency is checked on both sides.
+        for range in ["..<", "..="] {
+            for op in ["<", "<=", ">", ">=", "==", "!="] {
+                check(
+                    &format!("1 {range} 2 {op} 3"),
+                    &format!("({op} ({range} 1 2) 3)"),
+                );
+                check(
+                    &format!("1 {op} 2 {range} 3"),
+                    &format!("({op} 1 ({range} 2 3))"),
+                );
+            }
+            for op in ["+", "-", "*", "/", "%"] {
+                check(
+                    &format!("1 {op} 2 {range} 3"),
+                    &format!("({range} ({op} 1 2) 3)"),
+                );
+                check(
+                    &format!("1 {range} 2 {op} 3"),
+                    &format!("({range} 1 ({op} 2 3))"),
+                );
+            }
+            for op in ["and", "or"] {
+                check(
+                    &format!("true {op} 1 {range} 2"),
+                    &format!("({op} true ({range} 1 2))"),
+                );
+                check(
+                    &format!("1 {range} 2 {op} true"),
+                    &format!("({op} ({range} 1 2) true)"),
+                );
+            }
+            for (postfix, expected) in [
+                ("F()?", "(try (call F))"),
+                ("F(1)", "(call F)"),
+                ("a[0]", "(index a 0)"),
+            ] {
+                check(
+                    &format!("1 {range} {postfix}"),
+                    &format!("({range} 1 {expected})"),
+                );
+                check(
+                    &format!("{postfix} {range} 1"),
+                    &format!("({range} {expected} 1)"),
+                );
+            }
+            let source = format!("fn Main(){{for i in (0{range}2){{}}}}");
+            let ast = parse_f5_hidden("case.n", &source).unwrap();
+            let Statement::For { iterable, .. } = &ast.functions[0].body.statements[0] else {
+                panic!("expected for")
+            };
+            assert_eq!(shape(iterable), format!("(group ({range} 0 2))"));
+        }
+    }
+
+    #[test]
+    fn hidden_f5_second_range_operator_has_s18_diagnostic() {
+        for first in ["..<", "..="] {
+            for second in ["..<", "..="] {
+                let source = format!("fn Main(){{let x=0{first}1{second}2;}}");
+                let error = parse_f5_hidden("case.n", &source).unwrap_err();
+                assert_eq!(error.code, "NX-E0002");
+                assert_eq!(error.stage, Stage::Parse);
+                assert_eq!(error.parser_context.as_deref(), Some("grammar.RangeExpr"));
+                assert_eq!(
+                    error.primary_span.as_ref().map(|s| (s.start, s.end)),
+                    Some((21, 24))
+                );
+                assert_eq!(
+                    error
+                        .unexpected_token
+                        .as_ref()
+                        .and_then(|t| t.text.as_deref()),
+                    Some(second)
+                );
+                assert_eq!(
+                    error.expected_tokens,
+                    ["!=", ";", "<", "<=", "==", ">", ">=", "and", "or"]
+                );
+                assert_eq!(
+                    error.recognized_prefix.as_ref().map(|s| (s.start, s.end)),
+                    Some((16, 21))
+                );
+            }
+        }
+        let historical = parse_new_profile("case.n", "fn Main(){for i in 0..<2{}}")
+            .expect_err("J keeps the range parser closed");
+        assert_eq!(historical.code, "NX-E0006");
+        assert_eq!(historical.feature_id.as_deref(), Some("range"));
+        let old_endpoint = parse_f5_hidden("case.n", "fn Main(){let x=0..1;}")
+            .expect_err("the removed bare range token keeps its own diagnostic");
+        assert_eq!(
+            old_endpoint.parser_context.as_deref(),
+            Some("range_endpoint")
+        );
+        assert_eq!(old_endpoint.expected_tokens, ["..<", "..="]);
+    }
+
+    #[test]
+    fn hidden_f5_range_token_mutations_never_panic() {
+        let atoms = [
+            "0", "1", "..<", "..=", "<", "==", "+", "-", "(", ")", "i", " ",
+        ];
+        let mut seed = 0x5f05_2026_u64;
+        for _ in 0..512 {
+            let mut expression = String::new();
+            for _ in 0..16 {
+                seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+                expression.push_str(atoms[((seed >> 32) as usize) % atoms.len()]);
+            }
+            let source = format!("fn Main(){{for i in {expression}{{}}}}");
+            assert!(
+                std::panic::catch_unwind(|| parse_f5_hidden("case.n", &source)).is_ok(),
+                "{source}"
+            );
         }
     }
 }

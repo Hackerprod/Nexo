@@ -3,6 +3,32 @@ use super::model::{
     ParameterMode, Program, TempId, Terminator, Ty, WorkCharge,
 };
 
+fn array_intrinsic_type(
+    intrinsic: Intrinsic,
+    first: Ty,
+    second: Option<Ty>,
+) -> Result<Ty, &'static str> {
+    let Ty::Array(element) = first else {
+        return Err("array intrinsic domain");
+    };
+    if !element.allowed_array_element() {
+        return Err("array element domain");
+    }
+    match intrinsic {
+        Intrinsic::Push if second.as_ref() == Some(element.as_ref()) => Ok(Ty::Unit),
+        Intrinsic::Pop if second.is_none() => Ok(Ty::option(element)),
+        Intrinsic::JoinArrays
+            if second
+                .as_ref()
+                .is_some_and(|ty| matches!(ty, Ty::Array(other) if other == &element)) =>
+        {
+            Ok(Ty::Array(element))
+        }
+        Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays => Err("array intrinsic type"),
+        _ => Err("array intrinsic opcode"),
+    }
+}
+
 fn valid_span(function: &Function, span: &crate::diagnostic::Span) -> bool {
     span.file == function.source_file
         && span.start <= span.end
@@ -37,14 +63,40 @@ fn valid_charges(function: &Function, charges: &[WorkCharge]) -> bool {
 
 fn index_site(op: &Op) -> Option<(&IndexSite, usize)> {
     match op {
-        Op::BeginLoan { site, indexes, .. }
-        | Op::ReadIndex { site, indexes, .. }
+        Op::BeginLoan { site, indexes, .. } => Some((site, indexes.len())),
+        Op::ReadIndex { site, indexes, .. }
         | Op::BorrowIndex { site, indexes, .. }
         | Op::CheckIndex { site, indexes, .. }
         | Op::WriteIndex { site, indexes, .. } => Some((site, indexes.len())),
         Op::IndexValue { site, .. } => Some((site, 1)),
+        Op::BorrowArrayElement { site, .. } => Some((site, 1)),
         _ => None,
     }
+}
+
+fn compound_loads(function: &Function) -> std::collections::HashMap<TempId, TempId> {
+    std::iter::once(&function.block)
+        .chain(&function.blocks)
+        .flat_map(|block| &block.instructions)
+        .filter_map(|ins| match (ins.output, &ins.op) {
+            (Some(output), Op::CompoundLoad { loan }) => Some((output, *loan)),
+            _ => None,
+        })
+        .collect()
+}
+
+fn output_positions(function: &Function) -> std::collections::HashMap<TempId, (usize, usize)> {
+    std::iter::once(&function.block)
+        .chain(&function.blocks)
+        .enumerate()
+        .flat_map(|(block, instructions)| {
+            instructions
+                .instructions
+                .iter()
+                .enumerate()
+                .filter_map(move |(position, ins)| ins.output.map(|id| (id, (block, position))))
+        })
+        .collect()
 }
 
 pub(crate) fn verify_program(program: &Program) -> Result<(), &'static str> {
@@ -359,6 +411,8 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
     if !function.blocks.is_empty() {
         return verify_cfg(function);
     }
+    let compound_loads = compound_loads(function);
+    let output_positions = output_positions(function);
     let mut temps = Vec::<Ty>::new();
     let mut live = Vec::<bool>::new();
     let mut borrowed = Vec::<bool>::new();
@@ -523,7 +577,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 let Some(Ty::Array(element)) = &ins.ty else {
                     return Err("array result type");
                 };
-                if !element.copyable() {
+                if !element.allowed_array_element() {
                     return Err("resource array");
                 }
                 for id in items {
@@ -800,6 +854,27 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 }
                 Some(ty)
             }
+            Op::BorrowArrayElement { source, index, .. } => {
+                if !live.get(source.0).copied().unwrap_or(false)
+                    || !borrowed.get(source.0).copied().unwrap_or(false)
+                {
+                    return Err("array iteration source loan");
+                }
+                if take(
+                    *index,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )? != Ty::I64
+                {
+                    return Err("array iteration index type");
+                }
+                let Ty::Array(item) = temps.get(source.0).ok_or("array iteration source")? else {
+                    return Err("array iteration source type");
+                };
+                Some(super::lower::clone_ty_iterative(item))
+            }
             Op::CheckIndex { local, indexes, .. } => {
                 let l = function.locals.get(local.0).ok_or("check index local")?;
                 if active_exclusive[local.0] != 0 {
@@ -853,7 +928,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 Some(*child)
             }
             Op::Binary { op, left, right } => {
-                if *op != Binary::Equal
+                if !matches!(op, Binary::Equal | Binary::NotEqual)
                     && (borrowed.get(left.0) == Some(&true) || borrowed.get(right.0) == Some(&true))
                 {
                     return Err("borrowed arithmetic operand");
@@ -875,18 +950,117 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 if l != r {
                     return Err("operand type");
                 }
-                match op {
-                    Binary::Add | Binary::Sub | Binary::Less if l == Ty::I64 => {
-                        Some(if *op == Binary::Less {
-                            Ty::Bool
-                        } else {
-                            Ty::I64
-                        })
-                    }
-                    Binary::Equal if l.copyable() => Some(Ty::Bool),
-                    Binary::And if l == Ty::Bool => Some(Ty::Bool),
-                    _ => return Err("binary domain"),
+                Some(op.result_type(&l).ok_or("binary domain")?)
+            }
+            Op::RangeTest {
+                cursor,
+                limit,
+                inclusive,
+                final_test,
+            } => {
+                if *final_test && !*inclusive {
+                    return Err("exclusive range final test");
                 }
+                for id in [cursor, limit] {
+                    let local = function.locals.get(id.0).ok_or("range slot")?;
+                    if local.ty != Ty::I64 || !initialized[id.0] || active_exclusive[id.0] != 0 {
+                        return Err("range slot type or state");
+                    }
+                }
+                Some(Ty::Bool)
+            }
+            Op::BeginArrayIteration(source) => {
+                if !live.get(source.0).copied().unwrap_or(false)
+                    || !borrowed.get(source.0).copied().unwrap_or(false)
+                    || !matches!(temps.get(source.0), Some(Ty::Array(_)))
+                {
+                    return Err("array iteration source state");
+                }
+                Some(Ty::I64)
+            }
+            Op::RangeAdvance { cursor, limit } => {
+                for id in [cursor, limit] {
+                    let local = function.locals.get(id.0).ok_or("range slot")?;
+                    if local.ty != Ty::I64 || !initialized[id.0] || active_exclusive[id.0] != 0 {
+                        return Err("range slot type or state");
+                    }
+                }
+                if !function.locals[cursor.0].mutable || cursor == limit {
+                    return Err("range cursor write");
+                }
+                None
+            }
+            Op::Unary { op, operand } => {
+                if borrowed.get(operand.0) == Some(&true) {
+                    return Err("borrowed arithmetic operand");
+                }
+                let value = take(
+                    *operand,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?;
+                Some(op.result_type(&value).ok_or("unary domain")?)
+            }
+            Op::CompoundLoad { loan } => {
+                if loan_permission.get(loan.0) != Some(&Some(LoanPermission::Inout))
+                    || peek(*loan, &temps, &live)? != Ty::I64
+                {
+                    return Err("compound loan domain");
+                }
+                Some(Ty::I64)
+            }
+            Op::CompoundStore { loan, old, rhs, op } => {
+                if compound_loads.get(old) != Some(loan)
+                    || op.result_type(&Ty::I64) != Some(Ty::I64)
+                    || loan_permission.get(loan.0) != Some(&Some(LoanPermission::Inout))
+                {
+                    return Err("compound place sequence");
+                }
+                let root = borrow_sources
+                    .get(loan.0)
+                    .and_then(|root| *root)
+                    .ok_or("compound loan root")?;
+                let loan_id = loan_id_by_temp[loan.0].ok_or("compound loan identity")?;
+                if !matches!((output_positions.get(old), output_positions.get(rhs)),
+                    (Some((0, load_at)), Some((0, rhs_at))) if load_at < rhs_at)
+                {
+                    return Err("compound evaluation order");
+                }
+                if !matches!(function.block.instructions.get(position + 1).map(|next| &next.op), Some(Op::EndLoan(id)) if *id == loan_id)
+                {
+                    return Err("compound loan end");
+                }
+                if take(
+                    *old,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )? != Ty::I64
+                    || take(
+                        *rhs,
+                        &temps,
+                        &mut live,
+                        &borrow_sources,
+                        &mut active_borrows,
+                    )? != Ty::I64
+                {
+                    return Err("compound operand domain");
+                }
+                active_exclusive[root.0] = active_exclusive[root.0]
+                    .checked_sub(1)
+                    .ok_or("exclusive loan count")?;
+                take(
+                    *loan,
+                    &temps,
+                    &mut live,
+                    &borrow_sources,
+                    &mut active_borrows,
+                )?;
+                pending_end.push(loan_id.0);
+                None
             }
             Op::WritePlace { local, value } => {
                 let l = function.locals.get(local.0).ok_or("write local")?;
@@ -964,17 +1138,22 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 None
             }
             Op::CallIntrinsic { intrinsic, args } => {
+                let mut array_result = None;
                 let arity = match intrinsic {
                     Intrinsic::Print
                     | Intrinsic::DropData
                     | Intrinsic::Len
+                    | Intrinsic::Pop
                     | Intrinsic::MockOpen
                     | Intrinsic::MockBlockingOpen
                     | Intrinsic::Inspect
                     | Intrinsic::MockReadRecords
                     | Intrinsic::MockWriteI64
                     | Intrinsic::MockReply => 1,
-                    Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+                    Intrinsic::AssertEq
+                    | Intrinsic::TryAdd
+                    | Intrinsic::Push
+                    | Intrinsic::JoinArrays => 2,
                     Intrinsic::MockRequest => 0,
                     Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                 };
@@ -1006,6 +1185,18 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     };
                     if *intrinsic == Intrinsic::Len && !matches!(first, Ty::Array(_)) {
                         return Err("len domain");
+                    }
+                    if matches!(intrinsic, Intrinsic::Push | Intrinsic::Pop) {
+                        if loan_permission.get(first_id.0) != Some(&Some(LoanPermission::Inout)) {
+                            return Err("array edit permission");
+                        }
+                        let root = borrow_sources
+                            .get(first_id.0)
+                            .and_then(|root| *root)
+                            .ok_or("array edit root")?;
+                        active_exclusive[root.0] = active_exclusive[root.0]
+                            .checked_sub(1)
+                            .ok_or("exclusive loan count")?;
                     }
                     if matches!(intrinsic, Intrinsic::MockOpen | Intrinsic::MockBlockingOpen)
                         && first != Ty::I64
@@ -1058,9 +1249,30 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     {
                         return Err("try_add argument type");
                     }
+                    if matches!(intrinsic, Intrinsic::Push | Intrinsic::JoinArrays) {
+                        if *intrinsic == Intrinsic::Push && borrowed.get(args[1].0) == Some(&true) {
+                            return Err("array borrowed element");
+                        }
+                        let second = take(
+                            args[1],
+                            &temps,
+                            &mut live,
+                            &borrow_sources,
+                            &mut active_borrows,
+                        )?;
+                        if let Some(Some(loan)) = loan_id_by_temp.get(args[1].0) {
+                            pending_end.push(loan.0);
+                        }
+                        array_result = Some(array_intrinsic_type(*intrinsic, first, Some(second))?);
+                    } else if *intrinsic == Intrinsic::Pop {
+                        array_result = Some(array_intrinsic_type(*intrinsic, first, None)?);
+                    }
                 }
                 Some(match intrinsic {
                     Intrinsic::Len => Ty::I64,
+                    Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays => {
+                        array_result.ok_or("array intrinsic result")?
+                    }
                     Intrinsic::MockOpen => Ty::MockResource,
                     Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
                     Intrinsic::TryAdd => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),
@@ -1272,15 +1484,20 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             | Op::BeginLoan { .. }
             | Op::ReadIndex { .. }
             | Op::BorrowIndex { .. }
+            | Op::BorrowArrayElement { .. }
             | Op::CheckIndex { .. }
             | Op::TestVariant { .. }
             | Op::TestLiteral { .. }
             | Op::ProjectPayload { .. } => Access::Read,
+            Op::RangeTest { .. } | Op::BeginArrayIteration(_) => Access::Read,
+            Op::CompoundLoad { .. } => Access::Read,
             Op::WritePlace { .. }
             | Op::WriteIndex { .. }
+            | Op::CompoundStore { .. }
             | Op::BindView { .. }
             | Op::BindEdit { .. }
             | Op::ExtractPayload { .. } => Access::Write,
+            Op::RangeAdvance { .. } => Access::Write,
             _ => Access::Own,
         };
         if ins.access != access {
@@ -1292,7 +1509,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                 return Err("temporary identity");
             }
             let scalar_snapshot = matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
-                && matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. });
+                && matches!(
+                    ins.op,
+                    Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                );
             temps.push(ty);
             live.push(true);
             borrowed.push(
@@ -1300,6 +1520,7 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     ins.op,
                     Op::BorrowValue(_)
                         | Op::BorrowIndex { .. }
+                        | Op::BorrowArrayElement { .. }
                         | Op::BeginLoan { .. }
                         | Op::ProjectPayload { .. }
                 ) && !scalar_snapshot,
@@ -1307,6 +1528,9 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
             let source = match ins.op {
                 Op::BorrowValue(id) => Some(id),
                 Op::BorrowIndex { local, .. } => Some(local),
+                Op::BorrowArrayElement { source, .. } => {
+                    borrow_sources.get(source.0).copied().flatten()
+                }
                 Op::BeginLoan { root, .. } => Some(root),
                 Op::ProjectPayload { local, .. } => Some(local),
                 _ => None,
@@ -1323,9 +1547,10 @@ pub(crate) fn verify_function(function: &Function) -> Result<(), &'static str> {
                     }
                     Some(permission)
                 }
-                Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::ProjectPayload { .. } => {
-                    Some(LoanPermission::Read)
-                }
+                Op::BorrowValue(_)
+                | Op::BorrowIndex { .. }
+                | Op::BorrowArrayElement { .. }
+                | Op::ProjectPayload { .. } => Some(LoanPermission::Read),
                 _ => None,
             };
             loan_permission.push(permission);
@@ -1569,6 +1794,11 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
             visit(*base);
             visit(*index);
         }
+        Op::BorrowArrayElement { source, index, .. } => {
+            visit(*source);
+            visit(*index);
+        }
+        Op::BeginArrayIteration(source) => visit(*source),
         Op::BuildVariant {
             payload: Some(payload),
             ..
@@ -1579,9 +1809,16 @@ fn visit_op_temps(op: &Op, mut visit: impl FnMut(TempId)) {
             visit(*left);
             visit(*right);
         }
-        Op::WritePlace { value, .. } | Op::BindView { value, .. } | Op::DropValue(value) => {
-            visit(*value)
+        Op::CompoundLoad { loan } => visit(*loan),
+        Op::CompoundStore { loan, old, rhs, .. } => {
+            visit(*loan);
+            visit(*old);
+            visit(*rhs);
         }
+        Op::Unary { operand: value, .. }
+        | Op::WritePlace { value, .. }
+        | Op::BindView { value, .. }
+        | Op::DropValue(value) => visit(*value),
         Op::WriteIndex { indexes, value, .. } => {
             for &id in indexes {
                 visit(id);
@@ -1864,6 +2101,8 @@ impl<'a> CfgTemps<'a> {
 
 fn verify_cfg(function: &Function) -> Result<(), &'static str> {
     use std::collections::{HashSet, VecDeque};
+    let compound_loads = compound_loads(function);
+    let output_positions = output_positions(function);
     let blocks: Vec<_> = std::iter::once(&function.block)
         .chain(&function.blocks)
         .collect();
@@ -2063,12 +2302,15 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 super::count_cfg_work(1);
             }
             if let (Some(id), Some(ty)) = (ins.output, ins.ty.clone()) {
-                let scalar_snapshot = matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                    && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit);
+                let scalar_snapshot = matches!(
+                    ins.op,
+                    Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit);
                 let is_borrowed = matches!(
                     ins.op,
                     Op::BorrowValue(_)
                         | Op::BorrowIndex { .. }
+                        | Op::BorrowArrayElement { .. }
                         | Op::BeginLoan {
                             permission: LoanPermission::Read,
                             ..
@@ -2076,6 +2318,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 ) && !scalar_snapshot;
                 let borrowed_from = match ins.op {
                     Op::BorrowValue(root) | Op::BorrowIndex { local: root, .. } => Some(root.0),
+                    Op::BorrowArrayElement { source, .. } => definitions
+                        .get(&source.0)
+                        .and_then(|(_, info)| info.borrowed_from),
                     Op::BeginLoan {
                         root,
                         permission: LoanPermission::Read,
@@ -2084,8 +2329,10 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     _ => None,
                 }
                 .filter(|_| {
-                    !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                        && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
+                    !(matches!(
+                        ins.op,
+                        Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                    ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
                 });
                 let exclusive_root = match ins.op {
                     Op::BeginLoan {
@@ -2354,6 +2601,9 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     let Some(Ty::Array(element)) = &ins.ty else {
                         return Err("array result type");
                     };
+                    if !element.allowed_array_element() {
+                        return Err("resource array");
+                    }
                     for id in items {
                         if temps.read(*id, true)? != **element {
                             return Err("array element type");
@@ -2577,6 +2827,18 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         Some(ty)
                     }
                 }
+                Op::BorrowArrayElement { source, index, .. } => {
+                    if !temps.info(*source)?.is_borrowed {
+                        return Err("array iteration source loan");
+                    }
+                    if temps.read(*index, true)? != Ty::I64 {
+                        return Err("array iteration index type");
+                    }
+                    let Ty::Array(item) = temps.read(*source, false)? else {
+                        return Err("array iteration source type");
+                    };
+                    Some(*item)
+                }
                 Op::IndexValue { base, index, .. } => {
                     let base = temps.read(*base, true)?;
                     if temps.read(*index, true)? != Ty::I64 {
@@ -2593,13 +2855,105 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     if left != right {
                         return Err("operand type");
                     }
-                    Some(match op {
-                        Binary::Add | Binary::Sub if left == Ty::I64 => Ty::I64,
-                        Binary::Less if left == Ty::I64 => Ty::Bool,
-                        Binary::Equal if left.copyable() => Ty::Bool,
-                        Binary::And if left == Ty::Bool => Ty::Bool,
-                        _ => return Err("binary domain"),
-                    })
+                    Some(op.result_type(&left).ok_or("binary domain")?)
+                }
+                Op::RangeTest {
+                    cursor,
+                    limit,
+                    inclusive,
+                    final_test,
+                } => {
+                    if *final_test && !*inclusive {
+                        return Err("exclusive range final test");
+                    }
+                    for id in [cursor, limit] {
+                        let local = function.locals.get(id.0).ok_or("range slot")?;
+                        if local.ty != Ty::I64
+                            || !tree.get(&initialized, id.0)
+                            || temps.exclusive(id.0) != 0
+                        {
+                            return Err("range slot type or state");
+                        }
+                    }
+                    Some(Ty::Bool)
+                }
+                Op::BeginArrayIteration(source) => {
+                    if !temps.info(*source)?.is_borrowed
+                        || !matches!(temps.read(*source, false)?, Ty::Array(_))
+                    {
+                        return Err("array iteration source state");
+                    }
+                    Some(Ty::I64)
+                }
+                Op::RangeAdvance { cursor, limit } => {
+                    for id in [cursor, limit] {
+                        let local = function.locals.get(id.0).ok_or("range slot")?;
+                        if local.ty != Ty::I64
+                            || !tree.get(&initialized, id.0)
+                            || temps.exclusive(id.0) != 0
+                        {
+                            return Err("range slot type or state");
+                        }
+                    }
+                    if !function.locals[cursor.0].mutable || cursor == limit {
+                        return Err("range cursor write");
+                    }
+                    None
+                }
+                Op::Unary { op, operand } => {
+                    if temps.info(*operand)?.is_borrowed {
+                        return Err("borrowed arithmetic operand");
+                    }
+                    Some(
+                        op.result_type(&temps.read(*operand, true)?)
+                            .ok_or("unary domain")?,
+                    )
+                }
+                Op::CompoundLoad { loan } => {
+                    let info = temps.info(*loan)?;
+                    if info.permission != Some(LoanPermission::Inout)
+                        || info.ty != Ty::I64
+                        || info.exclusive_root.is_none()
+                    {
+                        return Err("compound loan domain");
+                    }
+                    Some(Ty::I64)
+                }
+                Op::CompoundStore { loan, old, rhs, op } => {
+                    if compound_loads.get(old) != Some(loan)
+                        || op.result_type(&Ty::I64) != Some(Ty::I64)
+                    {
+                        return Err("compound place sequence");
+                    }
+                    let info = temps.info(*loan)?;
+                    let root = info.exclusive_root.ok_or("compound loan root")?;
+                    let loan_id = info.loan.ok_or("compound loan identity")?;
+                    let (load_block, load_at) = output_positions.get(old).ok_or("compound load")?;
+                    let (rhs_block, rhs_at) = output_positions.get(rhs).ok_or("compound rhs")?;
+                    if !((*load_block == *rhs_block && load_at < rhs_at)
+                        || (*load_block != *rhs_block
+                            && entered[*load_block] <= entered[*rhs_block]
+                            && exited[*rhs_block] <= exited[*load_block]))
+                    {
+                        return Err("compound evaluation order");
+                    }
+                    if !matches!(block.instructions.get(position + 1).map(|next| &next.op), Some(Op::EndLoan(id)) if *id == loan_id)
+                    {
+                        return Err("compound loan end");
+                    }
+                    if temps.read(*old, true)? != Ty::I64
+                        || temps.read(*rhs, true)? != Ty::I64
+                        || temps.read(*loan, true)? != Ty::I64
+                    {
+                        return Err("compound operand domain");
+                    }
+                    let count = temps
+                        .exclusive(root)
+                        .checked_sub(1)
+                        .ok_or("exclusive loan count")?;
+                    temps.exclusive.insert(root, count);
+                    temps.pending_end.push(loan_id);
+                    None
                 }
                 Op::WritePlace { local, value } => {
                     let local = function.locals.get(local.0).ok_or("write local")?;
@@ -2657,17 +3011,22 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     None
                 }
                 Op::CallIntrinsic { intrinsic, args } => {
+                    let mut array_result = None;
                     let arity = match intrinsic {
                         Intrinsic::Print
                         | Intrinsic::DropData
                         | Intrinsic::Len
+                        | Intrinsic::Pop
                         | Intrinsic::MockOpen
                         | Intrinsic::MockBlockingOpen
                         | Intrinsic::Inspect
                         | Intrinsic::MockReadRecords
                         | Intrinsic::MockWriteI64
                         | Intrinsic::MockReply => 1,
-                        Intrinsic::AssertEq | Intrinsic::TryAdd => 2,
+                        Intrinsic::AssertEq
+                        | Intrinsic::TryAdd
+                        | Intrinsic::Push
+                        | Intrinsic::JoinArrays => 2,
                         Intrinsic::MockRequest => 0,
                         Intrinsic::Fail | Intrinsic::MockUnknown => 0,
                     };
@@ -2675,6 +3034,18 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         return Err("intrinsic arity");
                     }
                     let first = if let Some(id) = args.first() {
+                        if matches!(intrinsic, Intrinsic::Push | Intrinsic::Pop) {
+                            let info = temps.info(*id)?;
+                            if info.permission != Some(LoanPermission::Inout) {
+                                return Err("array edit permission");
+                            }
+                            let root = info.exclusive_root.ok_or("array edit root")?;
+                            let remaining = temps
+                                .exclusive(root)
+                                .checked_sub(1)
+                                .ok_or("exclusive loan count")?;
+                            temps.exclusive.insert(root, remaining);
+                        }
                         if *intrinsic == Intrinsic::DropData && temps.info(*id)?.is_borrowed {
                             return Err("drop borrowed value");
                         }
@@ -2737,8 +3108,36 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     {
                         return Err("print resource");
                     }
+                    if matches!(
+                        intrinsic,
+                        Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays
+                    ) {
+                        let second = if matches!(intrinsic, Intrinsic::Push | Intrinsic::JoinArrays)
+                        {
+                            if *intrinsic == Intrinsic::Push {
+                                let info = temps.info(args[1])?;
+                                if info.is_borrowed || info.exclusive_root.is_some() {
+                                    return Err("array borrowed element");
+                                }
+                            }
+                            if let Some(loan) = temps.info(args[1])?.loan {
+                                temps.pending_end.push(loan);
+                            }
+                            Some(temps.read(args[1], true)?)
+                        } else {
+                            None
+                        };
+                        array_result = Some(array_intrinsic_type(
+                            *intrinsic,
+                            first.ok_or("array intrinsic argument")?,
+                            second,
+                        )?);
+                    }
                     Some(match intrinsic {
                         Intrinsic::Len => Ty::I64,
+                        Intrinsic::Push | Intrinsic::Pop | Intrinsic::JoinArrays => {
+                            array_result.ok_or("array intrinsic result")?
+                        }
                         Intrinsic::MockOpen => Ty::MockResource,
                         Intrinsic::MockBlockingOpen => Ty::MockBlockingResource,
                         Intrinsic::TryAdd => Ty::result(Box::new(Ty::I64), Box::new(Ty::I64)),
@@ -2956,15 +3355,20 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                 | Op::BeginLoan { .. }
                 | Op::ReadIndex { .. }
                 | Op::BorrowIndex { .. }
+                | Op::BorrowArrayElement { .. }
                 | Op::CheckIndex { .. }
                 | Op::TestVariant { .. }
                 | Op::TestLiteral { .. }
                 | Op::ProjectPayload { .. } => Access::Read,
+                Op::RangeTest { .. } | Op::BeginArrayIteration(_) => Access::Read,
+                Op::CompoundLoad { .. } => Access::Read,
                 Op::WritePlace { .. }
                 | Op::WriteIndex { .. }
+                | Op::CompoundStore { .. }
                 | Op::BindView { .. }
                 | Op::BindEdit { .. }
                 | Op::ExtractPayload { .. } => Access::Write,
+                Op::RangeAdvance { .. } => Access::Write,
                 _ => Access::Own,
             };
             if ins.access != access {
@@ -2997,6 +3401,7 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                     let borrowed_from = match ins.op {
                         Op::BorrowValue(root) => Some(root.0),
                         Op::BorrowIndex { local, .. } => Some(local.0),
+                        Op::BorrowArrayElement { source, .. } => temps.info(source)?.borrowed_from,
                         Op::BeginLoan {
                             root,
                             permission: LoanPermission::Read,
@@ -3006,14 +3411,24 @@ fn verify_cfg(function: &Function) -> Result<(), &'static str> {
                         _ => None,
                     };
                     let is_borrowed = borrowed_from.is_some()
-                        && !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                            && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit));
+                        && !(matches!(
+                            ins.op,
+                            Op::BorrowValue(_)
+                                | Op::BorrowIndex { .. }
+                                | Op::BorrowArrayElement { .. }
+                        ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit));
                     let borrowed_from = borrowed_from.filter(|_| {
-                        !(matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                            && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
+                        !(matches!(
+                            ins.op,
+                            Op::BorrowValue(_)
+                                | Op::BorrowIndex { .. }
+                                | Op::BorrowArrayElement { .. }
+                        ) && matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit))
                     });
-                    if (matches!(ins.op, Op::BorrowValue(_) | Op::BorrowIndex { .. })
-                        && !matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
+                    if (matches!(
+                        ins.op,
+                        Op::BorrowValue(_) | Op::BorrowIndex { .. } | Op::BorrowArrayElement { .. }
+                    ) && !matches!(ty, Ty::I64 | Ty::Bool | Ty::Unit)
                         || matches!(ins.op, Op::ProjectPayload { .. }))
                         && let Some(root) = borrowed_from
                     {
@@ -3427,6 +3842,37 @@ mod tests {
     use super::*;
     use crate::ir::compile_scalar;
     use crate::ir::{ReducedProfile, compile_scalar_with_profile};
+
+    #[test]
+    fn j16_forged_generator_yield_item_is_rejected() {
+        let source = "gen fn G()->I64{yield 1;}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),Some(1));}";
+        let program =
+            compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+        let mut body = program.functions.function("G").unwrap().clone();
+        assert_eq!(verify_function(&body), Ok(()));
+        body.generator_item = Some(Ty::Bool);
+        body.content_hash = super::super::model::content_hash(&body);
+        assert_eq!(verify_function(&body), Err("yield item type or ownership"));
+    }
+
+    #[test]
+    fn j16_forged_generator_resume_item_is_rejected() {
+        let source = "gen fn G()->I64{yield 1;}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),Some(1));}";
+        let program =
+            compile_scalar_with_profile("v.n", source, ReducedProfile::JNormal, true).unwrap();
+        let mut main = program.functions.function("Main").unwrap().clone();
+        assert_eq!(verify_function(&main), Ok(()));
+        let resume = std::iter::once(&mut main.block)
+            .chain(&mut main.blocks)
+            .flat_map(|block| &mut block.instructions)
+            .find(|instruction| matches!(instruction.op, Op::ResumeGenerator { .. }))
+            .unwrap();
+        if let Op::ResumeGenerator { item, .. } = &mut resume.op {
+            *item = Ty::Bool;
+        }
+        main.content_hash = super::super::model::content_hash(&main);
+        assert_eq!(verify_function(&main), Err("generator receiver type"));
+    }
 
     #[test]
     fn match_projection_requires_the_selected_variant_on_every_incoming_edge() {

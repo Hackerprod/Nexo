@@ -1,0 +1,139 @@
+{
+  "schema": 1,
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "nextest": "cargo-nextest 0.9.152",
+  "historical_selection": "git log --format=%H -- <archivo>; sha256(git show <commit>:<archivo>) == sha_initial; git archive <commit>",
+  "nextest_command": "cargo nextest run --locked --offline --profile default --retries 0 --message-format libtest-json (debug; --release solo si debug completo verde)",
+  "cargo_test_oracle_command": "cargo test --locked --offline (debug; --release si debug completo verde)",
+  "historical_mutants": [
+    {
+      "id": "P-block-depth",
+      "historical_commit": "eb0a32397759da2478d2a4d4802ee72aafe67bc2",
+      "patch": {
+        "file": "src/frontend/parse.rs",
+        "before": "if self.depth > 128 {",
+        "after": "if self.depth > 129 {",
+        "occurrence": 0,
+        "sha_initial": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c",
+        "sha_mutated": "51bd97fbab433f066d6caecefe242a5ddd0e8071b45d7caa16bc62efed007185",
+        "commit": "eb0a32397759da2478d2a4d4802ee72aafe67bc2"
+      },
+      "nextest": {
+        "verdict": "MUERTO",
+        "selection": "default completo; sin -E; retries 0; fail-fast",
+        "profiles": [
+          {
+            "profile": "debug",
+            "exit": 100,
+            "seconds": 50.78,
+            "verdict": "MUERTO",
+            "test": "nexo::nexo$frontend::migrated_parser_final::b_structural_budgets_have_literal_boundaries_and_diagnostic_fields",
+            "reason": "test fallido",
+            "stdout_sha256": "59b8a1281f0fa272b11f347298055d4fafd2c8f27bcf7f7e813a0d529fe36173",
+            "stderr_sha256": "fd148dac8472f2121160086c61e4df3609087f3ef3e0ade098f722aede860831"
+          }
+        ],
+        "mutated_tree_sha256": "805979cc178bc6a3590c83954d734ab4d60ae21ba18868658023a1d1d6d92ec6"
+      },
+      "cargo_test_oracle": [
+        {
+          "profile": "debug",
+          "exit": 101,
+          "seconds": 404.022,
+          "failed_tests": [
+            "frontend::migrated_parser_final::b_structural_budgets_have_literal_boundaries_and_diagnostic_fields",
+            "frontend::tests::structural_budget_boundaries_are_exact"
+          ],
+          "log_sha256": "9d0e31d742f699164f431fdabded65baf84702020e801781d84b96e12c293875"
+        }
+      ],
+      "sha_restored": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c"
+    },
+    {
+      "id": "T0-group-shape",
+      "historical_commit": "eb7a72dde038c2a3de842afe392b2b4e9ae0d48b",
+      "patch": {
+        "file": "src/check/types.rs",
+        "before": "Expr::Group(inner, _) => frames.push(Frame::Enter(inner)),",
+        "after": "Expr::Group(_, _) => result = ShapeHint::Unknown,",
+        "occurrence": 1,
+        "sha_initial": "c94de191b417698d61e1324d55a36061b01b27f36766b2d4068d6d6a7142be4b",
+        "sha_mutated": "c79cf6dc51fbd360845f305c7fb274d1a1a10414665c9d3d6f32f10986bc0e5b",
+        "commit": "eb7a72dde038c2a3de842afe392b2b4e9ae0d48b"
+      },
+      "nextest": {
+        "verdict": "SUPERVIVIENTE",
+        "selection": "default completo; sin -E; retries 0; fail-fast",
+        "profiles": [
+          {
+            "profile": "debug",
+            "exit": 0,
+            "seconds": 481.699,
+            "verdict": "VERDE",
+            "test": null,
+            "reason": "suite completa",
+            "stdout_sha256": "5569e5fb7b9cbd461f155bb31028f0738d1a5c5daea0f3ff8a08a5506a2e52ec",
+            "stderr_sha256": "a3eb22bc8ed91043c1b2a023b882b0fd38be7a0f7ee1bc9ce367064a62e36d5c"
+          },
+          {
+            "profile": "release",
+            "exit": 0,
+            "seconds": 427.254,
+            "verdict": "VERDE",
+            "test": null,
+            "reason": "suite completa",
+            "stdout_sha256": "019dc8d43649ce1f1d22415014a6f1a10e7f94c1fddf38a4c9296ac6f756ab0f",
+            "stderr_sha256": "11d26116213bd59ef8f8689da128453bd5ac2504b9dc85310793ee6a80014b8f"
+          }
+        ],
+        "mutated_tree_sha256": "4eee58b480ed9204f116c1978d74db19a752b46184cefb9ece3c261e3ccd2615"
+      },
+      "cargo_test_oracle": [
+        {
+          "profile": "debug",
+          "exit": 0,
+          "seconds": 982.207,
+          "executed": 1896,
+          "ignored": 72,
+          "log_sha256": "d19d481b77c01c942e105c4aedca6ab5aee74682179c4a3049cf709fcfa53a5a"
+        },
+        {
+          "profile": "release",
+          "exit": 0,
+          "seconds": 584.916,
+          "executed": 1898,
+          "ignored": 73,
+          "log_sha256": "db74c2aeb279f02b3f8cf62a5c0dfb44842a46c15840bd91518323afc5b08512"
+        }
+      ],
+      "sha_restored": "c94de191b417698d61e1324d55a36061b01b27f36766b2d4068d6d6a7142be4b"
+    }
+  ],
+  "discarded": [
+    {
+      "id": "O0003",
+      "file": "src/check/types.rs",
+      "sha_initial": "07540dd00c72b420fde8c6ce583eb8ab8430bfe06c95d4ee1e5ea99b7d43fe7c",
+      "commits_searched": 25,
+      "reason": "ningún blob del historial disponible coincide con sha_initial"
+    }
+  ],
+  "synthetic_timeout": {
+    "baseline": "1/1 passed con from_millis(10)",
+    "mutant": "from_millis(60000)",
+    "nextest_config": "slow-timeout = { period = \"1s\", terminate-after = 1 }",
+    "verdict": "INCONCLUSO",
+    "profile": {
+      "profile": "debug",
+      "exit": 100,
+      "seconds": 1.449,
+      "verdict": "INCONCLUSO",
+      "test": "nx-synthetic::nx_synthetic$clock_probe",
+      "reason": "timeout de test",
+      "stdout_sha256": "e50002119e1519299d9097bfc3ce1aea0eb819d2705320c3d3d490ec7f8e0210",
+      "stderr_sha256": "d95cf168c3c27065b40e2e8e589088bf7a68e251189797e4ced704abe1c1e8ed"
+    },
+    "sha_restored": "c901786a8c273e2db56ad5b82e98d94dc627045dd56986e546024fc36fede191"
+  },
+  "note": "La campaña I07c activa conserva su clasificador; este helper se usa de forma autónoma. Los logs temporales se eliminaron tras extraer hashes y recuentos."
+}

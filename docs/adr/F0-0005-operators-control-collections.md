@@ -94,6 +94,8 @@ Comparaciones y rangos no encadenan. `not a < b` es `(not a) < b`, no
 `&&`/`||`; no se introduce `!`. Los operadores no adquieren efectos alloc,
 block, suspend o io por sí solos; sus operandos y limpiezas sí pueden tenerlos.
 
+`CompareExpr = RangeExpr [("<" | "<=" | ">" | ">=" | "==" | "!=") RangeExpr]` y `RangeExpr = AddExpr [("..<" | "..=") AddExpr]` admiten a lo sumo un operador de su propio nivel sin agrupación, tal como D15 §3.5 y D14 §3.2. Los seis comparadores están en un **único nivel**, de modo que `==` no tiene menor precedencia que `<`. Se rechaza el segundo comparador de `1<2<3`, `a<b<c`, `a==b==c` y `a<b==c`, y el segundo rango de `0..<1..<2`: todos son inválidos. El rechazo es `NX-E0002`, subcause `null`, `parse/syntax.parse`, primario y `unexpected_token` sobre el segundo operador completo. §12.2 fija los contextos `grammar.CompareExpr` y `grammar.RangeExpr` para estas dos producciones. `expected_tokens_kind=admissible_set`; en el perfil F5, F5-S14–F5-S17 tienen siempre `expected_tokens=[";","and","or"]` y F5-S18 tiene siempre `expected_tokens=["!=",";","<","<=","==",">",">=","and","or"]`, con independencia del estado de las subtareas. El orden es por bytes UTF-8. Estos conjuntos describen continuaciones admisibles del prefijo completo de la expresión en un inicializador `let`; no admiten un segundo operador del mismo nivel. `recognized_prefix` empieza en el primer byte de la expresión comprometida y termina al inicio del segundo operador. `data={}`, sin relaciones ni cadena causal. El error sintáctico precede a nombres, tipos y al rechazo de rango almacenado. Los paréntesis cierran una expresión y permiten otra comparación, como `(1<2)==true`; un rango agrupado sigue siendo iterando directo de `for`, como `for i in (0..<2){}`. Una comparación única con rango en un operando se analiza por precedencia; su uso como valor o tipo recibe la regla de alcance existente.
+
 ### 2.2. Cortocircuito, propiedad y retorno
 
 Se evalúa la izquierda una vez. En and false y or true se omite la derecha
@@ -302,6 +304,8 @@ salidas reales. No se añade no_heap_alloc. La limpieza conserva orden inverso
 de inicialización/ámbitos/parámetros, reservas de cierres y cero ticks; no se
 interrumpe por cuota ni produce un segundo diagnóstico. No se promete limpieza
 ante aborto/OOM del anfitrión; se mantienen las garantías simuladas A2.
+
+`JoinArrays` conserva efecto intrínseco `alloc` incluso con dos arrays vacíos; una llamada directa dentro de `with no_alloc` da NX-E0412, subcause `null`, en `effects/intrinsic.call`, con primario sobre el nombre `JoinArrays`. `data` contiene exactamente `effect_model=f0-0005-sim-v1`, `effect_evidence=known_effect`, `required_effect=alloc` y `contract_origin` sobre el token escrito `no_alloc`. `related_spans` contiene `contract` sobre ese mismo token; `cause_chain` contiene una hoja `call/intrinsic.call` sobre el nombre, Entity `intrinsic/prelude:join_arrays`, evidencia `verified`. `Pop` y `Len` no aportan `alloc` intrínseco: se permiten bajo `no_alloc` con arrays ya preparados, cuando sus argumentos, copias y limpiezas tampoco lo aportan. Construcción/copia de Array y `Push` siguen teniendo su efecto `alloc` vigente. Se comprueba el resumen también después del lowering.
 
 ## 5. Constantes y evaluación acotada
 
@@ -630,6 +634,37 @@ sintaxis reales conservan su barrera anterior.
 | async, region, default_argument, traits_generics, float_literal, tuple, no_heap_alloc, function_value, inferred_non_unit_result, provenance_clauses | Identificador existente / later_adr | Sitio/etapa D15/J para su dominio todavía excluido. |
 | text, user_types, methods, modules_visibility, attributes, extensions | Identificador existente / later_adr | Formas excluidas de F0-0003 §2.2; Iterator.Next conserva su excepción intrínseca. F0-0004 definirá sus extensiones. |
 
+#### Barrera L08 para capacidades nuevas
+
+En `f0-0005-b-v1`, `check` y `run` aplican las filas L01–L07 de §8.2 en sus etapas públicas `types` u `ownership` mientras falte la subtarea respectiva. La barrera global L08 de §10 se consulta **solo si la fuente supera parse, names, types, ownership y effects y llega a lower** con una capacidad nueva; entonces emite `NX-E0006`, `feature_id=implementation_limit`, `pending_scope=L08`, `lower/ir.lower`, sobre el primer nodo fuente de esa capacidad. Así, el éxito del arnés interno no autoriza ejecución fuente antes de completar efectos, limpieza y cuotas, mientras los rechazos L01–L07 de §8.2 siguen siendo públicos. En particular, L01 pendiente impide aún comprobar el dominio de `*`: `true*2` recibe L01/types sobre `*`; con L01 completo recibe el error de tipos de F5-O06 y nunca L08. Un error real de sintaxis, nombres, tipos, propiedad o efectos, o una exclusión `later_adr`, conserva su etapa y precedencia antes de la barrera lower. Entre pendientes emitibles en la misma etapa se usa §8.2: menor offset, L numérico y bytes UTF-8. Al completar L08 desaparece la barrera; las capacidades incluidas deben aceptarse o recibir su diagnóstico semántico. Los perfiles anteriores conservan sus contratos.
+
+| Estado y clase | Fuente | Primario / resultado |
+|---|---|---|
+| L01 completo, L08 pendiente; salida pública de §8.2, fila «Cuotas nuevas aún pendientes», y §10 | `fn Main(){let x=1*2;}` | L08/lower `[16,19)` (`1*2`), JSON F5-H01. |
+| L01 pendiente; salida pública de §8.2, fila «Operadores nuevos pendientes», y §12.1, fila «F0-CODIGOS, párrafo previo» | `fn Main(){let x=1*2;}` | L01/types `[17,18)` (`*`), JSON F5-H02. |
+| L01 pendiente; la misma frontera para `!=` de F2-S28 | `fn Main(){let x=1!=2;}` | L01/types `[17,19)` (`!=`), JSON F5-H08. |
+| L01 pendiente; dominio todavía no comprobable | `fn Main(){let x=true*2;}` | L01/types `[20,21)` (`*`), JSON F5-H04. |
+| L01 completo, L08 pendiente; error semántico previo | `fn Main(){let x=true*2;}` | NX-E0102/types `[16,20)` (`true`), JSON F5-H05; F5-O06. |
+| L06 pendiente; salida pública de §8.2, fila «For Array pendiente», y §12.3, fila «§2.2: for_iteration: Array» | `fn Main(){for x in [1]{}}` | L06/types `[10,13)` (`for`), JSON F5-H06. |
+| L07 pendiente; salida pública de §8.2, fila «Push/Pop/JoinArrays pendiente» | `fn Main(){var a=[1];Push(edit a,2);}` | L07/types `[20,24)` (`Push`), JSON F5-H07. |
+| L05 completo, L08 pendiente; exclusión antes de lower | `fn Main(){let r=0..<3;}` | `[17,20)` (`..<`), JSON F5-H03; equivale a F5-D01. |
+| Positivo heredado | `fn Main(){let x=1+2;}` | `diagnostics=[]`; el programa no requiere capacidad nueva. |
+
+Cruce de las cuatro filas: §8.2, fila «Operadores nuevos pendientes» fija `implementation_limit/L01` en `types` sobre el operador para `*` y `!=` pendientes (`fn Main(){let x=1*2;}`, F5-H02; `fn Main(){let x=1!=2;}`, operador `[17,19)`, frontera F2-S28 de §12.1). §8.2, fila «Push/Pop/JoinArrays pendiente» fija L07/types sobre el destino resuelto de `Push`, `Pop` o `JoinArrays` pendientes (F5-H07; la firma de §4.1 y F5-B05 identifican `Push`). §12.1, fila «F0-CODIGOS, párrafo previo» fija **solo** L01 para `*`/`!=` antes de L01, no L08 (F5-H02 y F2-S28). §12.3, fila «§2.2: for_iteration: Array» fija L06 para `for` Array antes de L06 (F5-H06). La fila L06 de §8.2, fila «For Array pendiente» da la misma etapa/ancla. Estas son salidas de `check`/`run`, no diagnósticos privativos del arnés. L08 de §8.2, fila «Cuotas nuevas aún pendientes» y §10, párrafo inicial fija el rechazo posterior en lower para una fuente nueva que haya pasado esas etapas (F5-H01). El §10 habla de impedir **aceptación** de fuente antes de L08; su frase general `check/run mantienen implementation_limit/L08` se lee condicionada a llegar a lower.
+
+#### Const escalar antes de L09 y L10
+
+En el perfil F5 se reconoce la declaración superior `const` de D13 y §5 desde la apertura del perfil; no se clasifica su forma escalar incluida como `comptime/later_adr`. Mientras L09 no esté completa —incluido L09 en curso— la fuente escalar de la tabla recibe exclusivamente `NX-E0006/implementation_limit`, `pending_scope=L09`, `types/types.check` sobre el token `const`. Cuando L09 está completa, se comprueban nombres, tipos, dependencias, pureza y permisos con sus diagnósticos de §9; si no hay error previo y L08 está pendiente, la barrera L08 de §8.2/§10 se aplica en `lower/ir.lower` sobre `const`, primer nodo fuente de la capacidad nueva. Si L08 está completa y L10 pendiente, se usa `implementation_limit/L10`, `lower/ir.lower` sobre la expresión inicializadora escalar. L10 solo puede completarse después de L08 y L09 (§10), y entonces la fuente escalar válida se acepta. `comptime/later_adr` queda reservado a los casos excluidos de §8.2, como `comptime` fuera de const o const puro no escalar, con sus etapas y precedencias; los perfiles históricos conservan su rechazo parse. Ninguna rama ejecuta inicialización global antes de L10.
+
+| Estado y clase | Fuente | Primario / resultado |
+|---|---|---|
+| L09 pendiente, incluso en curso; L08 cualquiera | `const k:I64=comptime 1;fn Main(){}` | L09/types, `const` `[0,5)`, JSON F5-H09. |
+| L09 completa, L08 pendiente, L10 necesariamente pendiente | misma fuente | L08/lower, `const` `[0,5)`, JSON F5-H10. |
+| L09 y L08 completas, L10 pendiente | misma fuente | L10/lower, inicializador `1` `[21,22)`, JSON F5-H11. |
+| L10 completa, por dependencia L09 y L08 completas | misma fuente | `diagnostics=[]`, outcome unit. |
+
+La partición usa el estado **completada/pendiente**, no la fecha de inicio: L09 «en curso» pertenece únicamente a la primera fila. El estado L10 completa con L08 pendiente es imposible por §10. En cada fila negativa se emite un único diagnóstico público de `check`/`run`, con `data` exactamente `{"pending_scope":"L09"}`, `{"pending_scope":"L08"}` o `{"pending_scope":"L10"}`, respectivamente. Los errores anteriores, si ya son comprobables, conservan su precedencia; la tabla fija el caso escalar válido indicado.
+
 La frontera de valores const no escalares se registra como obligación pendiente durante
 types y solo se emite si effects termina sin impureza en ese inicializador;
 no se ejecuta código ni se abre una segunda pasada de tipos. Los otros errores
@@ -776,6 +811,132 @@ F5-B05 positivo no ejecuta F y no imprime nada; demuestra que la cota es el
 único atributo inválido. F5-B06 cambia exclusivamente el destino constante por
 un binding local nuevo. F5-B01/F5-B02 positivos deben permitir además escribir
 la raíz después de terminar el préstamo, sin liberación anticipada ficticia.
+
+#### Ejemplos exactos de efectos intrínsecos
+
+| Clase | Fuente | Offset / resultado |
+|---|---|---|
+| Negativo JoinArrays | `fn F(a:view Array<I64>) with no_alloc{let b=JoinArrays(a,a);}fn Main(){}` | nombre `[44,54)`, contrato `[29,37)`, JSON F5-B10. |
+| Positivo Pop/Len | `fn F(a:edit Array<I64>) with no_alloc{let x=Pop(edit a);let n=Len(a);}fn Main(){var a=[1];F(edit a);}` | Pop `[44,47)`, Len `[62,65)`; `diagnostics=[]`, `run` unit y sin observaciones. El Array `[1]` se crea fuera de F. |
+| Positivo JoinArrays fuera de no_alloc | `fn Main(){let a=[1];let b=JoinArrays(a,a);AssertEq(b,[1,1]);}` | JoinArrays `[26,36)`; `diagnostics=[]`, `run` unit y sin observaciones. |
+
+F5-B10:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0412","subcause":null,"rule":"NX-E0412","explanation_id":"NX-E0412","severity":"error","stage":"effects","message":"La función F infringe no_alloc.","operation":"intrinsic.call","primary_span":{"file":"case.n","start":44,"end":54},"related_spans":[{"role":"contract","span":{"file":"case.n","start":29,"end":37}}],"cause_chain":[{"kind":"call","operation":"intrinsic.call","span":{"file":"case.n","start":44,"end":54},"entity":{"kind":"intrinsic","id":"prelude:join_arrays"},"evidence":"verified"}],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"effect_model":"f0-0005-sim-v1","effect_evidence":"known_effect","required_effect":"alloc","contract_origin":{"file":"case.n","start":29,"end":37}}}
+```
+
+#### Ejemplos exactos de la barrera L08 y const escalar
+
+F5-H01:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"lower","message":"Capacidad pendiente de implementación en L08.","operation":"ir.lower","primary_span":{"file":"case.n","start":16,"end":19},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L08"}}
+```
+
+F5-H02:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L01.","operation":"types.check","primary_span":{"file":"case.n","start":17,"end":18},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L01"}}
+```
+
+F5-H03:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Recognized construct is outside the profile.","operation":"types.check","primary_span":{"file":"case.n","start":17,"end":20},"related_spans":[],"cause_chain":[],"feature_id":"range","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"later_adr"}}
+```
+
+F5-H04:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L01.","operation":"types.check","primary_span":{"file":"case.n","start":20,"end":21},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L01"}}
+```
+
+F5-H05:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0102","subcause":"type_mismatch","rule":"NX-E0102/type_mismatch","explanation_id":"NX-E0102/type_mismatch","severity":"error","stage":"types","message":"Invalid name, call or type in the proposed profile.","operation":"types.check","primary_span":{"file":"case.n","start":16,"end":20},"related_spans":[{"role":"found_type","span":{"file":"case.n","start":16,"end":20}}],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"expected_type":"I64","found_type":"Bool"}}
+```
+
+F5-H06:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L06.","operation":"types.check","primary_span":{"file":"case.n","start":10,"end":13},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L06"}}
+```
+
+F5-H07:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L07.","operation":"types.check","primary_span":{"file":"case.n","start":20,"end":24},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L07"}}
+```
+
+F5-H08:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L01.","operation":"types.check","primary_span":{"file":"case.n","start":17,"end":19},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L01"}}
+```
+
+F5-H09:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L09.","operation":"types.check","primary_span":{"file":"case.n","start":0,"end":5},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L09"}}
+```
+
+F5-H10:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"lower","message":"Capacidad pendiente de implementación en L08.","operation":"ir.lower","primary_span":{"file":"case.n","start":0,"end":5},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L08"}}
+```
+
+F5-H11:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"lower","message":"Capacidad pendiente de implementación en L10.","operation":"ir.lower","primary_span":{"file":"case.n","start":21,"end":22},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L10"}}
+```
+
+#### Ejemplos exactos de comparación y rango no asociativos
+
+F5-S14–F5-S18 y sus JSON fijan las listas admisibles del perfil F5 en cualquier estado de las subtareas. Los nombres `a`, `b`, `c` de las filas F5-S15–F5-S17 son bindings I64 declarados en la propia fuente. Todas las filas negativas llevan un único diagnóstico completo, sin error derivado de terminador.
+
+| ID | Fuente | Segundo operador / primario | JSON |
+|---|---|---|---|
+| F5-S14 | `fn Main(){let x=1<2<3;}` | `<` `[19,20)` | F5-S14 |
+| F5-S15 | `fn Main(){let a=1;let b=2;let c=3;let x=a<b<c;}` | `<` `[43,44)` | F5-S15 |
+| F5-S16 | `fn Main(){let a=1;let b=2;let c=3;let x=a==b==c;}` | `==` `[44,46)` | F5-S16 |
+| F5-S17 | `fn Main(){let a=1;let b=2;let c=3;let x=a<b==c;}` | `==` `[43,45)` | F5-S17 |
+| F5-S18 | `fn Main(){let x=0..<1..<2;}` | `..<` `[21,24)` | F5-S18 |
+| Positivo | `fn Main(){let x=(1<2)==true;}` | `diagnostics=[]`; x es Bool verdadero. | — |
+| Positivo | `fn Main(){for i in (0..<2){}}` | `diagnostics=[]`; dos iteraciones. | — |
+
+F5-S14:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0002","subcause":null,"rule":"NX-E0002","explanation_id":"NX-E0002","severity":"error","stage":"parse","message":"Syntax is not admitted by the grammar.","operation":"syntax.parse","primary_span":{"file":"case.n","start":19,"end":20},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"<","span":{"file":"case.n","start":19,"end":20}},"expected_tokens":[";","and","or"],"expected_tokens_kind":"admissible_set","parser_context":"grammar.CompareExpr","recognized_prefix":{"file":"case.n","start":16,"end":19},"repair":[],"data":{}}
+```
+
+F5-S15:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0002","subcause":null,"rule":"NX-E0002","explanation_id":"NX-E0002","severity":"error","stage":"parse","message":"Syntax is not admitted by the grammar.","operation":"syntax.parse","primary_span":{"file":"case.n","start":43,"end":44},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"<","span":{"file":"case.n","start":43,"end":44}},"expected_tokens":[";","and","or"],"expected_tokens_kind":"admissible_set","parser_context":"grammar.CompareExpr","recognized_prefix":{"file":"case.n","start":40,"end":43},"repair":[],"data":{}}
+```
+
+F5-S16:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0002","subcause":null,"rule":"NX-E0002","explanation_id":"NX-E0002","severity":"error","stage":"parse","message":"Syntax is not admitted by the grammar.","operation":"syntax.parse","primary_span":{"file":"case.n","start":44,"end":46},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"==","span":{"file":"case.n","start":44,"end":46}},"expected_tokens":[";","and","or"],"expected_tokens_kind":"admissible_set","parser_context":"grammar.CompareExpr","recognized_prefix":{"file":"case.n","start":40,"end":44},"repair":[],"data":{}}
+```
+
+F5-S17:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0002","subcause":null,"rule":"NX-E0002","explanation_id":"NX-E0002","severity":"error","stage":"parse","message":"Syntax is not admitted by the grammar.","operation":"syntax.parse","primary_span":{"file":"case.n","start":43,"end":45},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"==","span":{"file":"case.n","start":43,"end":45}},"expected_tokens":[";","and","or"],"expected_tokens_kind":"admissible_set","parser_context":"grammar.CompareExpr","recognized_prefix":{"file":"case.n","start":40,"end":43},"repair":[],"data":{}}
+```
+
+F5-S18:
+
+```json
+{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0002","subcause":null,"rule":"NX-E0002","explanation_id":"NX-E0002","severity":"error","stage":"parse","message":"Syntax is not admitted by the grammar.","operation":"syntax.parse","primary_span":{"file":"case.n","start":21,"end":24},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"symbol","text":"..<","span":{"file":"case.n","start":21,"end":24}},"expected_tokens":["!=",";","<","<=","==",">",">=","and","or"],"expected_tokens_kind":"admissible_set","parser_context":"grammar.RangeExpr","recognized_prefix":{"file":"case.n","start":16,"end":21},"repair":[],"data":{}}
+```
 
 ### 9.2.1. Pares de fronteras y constantes
 
@@ -1115,6 +1276,8 @@ ejecución fuente aceptada antes de F5-L08. Cada paso exige pares por
 regla, un negativo que llegue a su etapa correcta y mutación inversa que el
 par detecte. No se reescriben fixtures antiguas para ocultar una regresión.
 
+Según el bloque «Barrera L08 para capacidades nuevas» de §8.2, `implementation_limit/L08` actúa en `lower` para fuentes que superan parse, names, types, ownership y effects. L01, L06 y L07 siguen siendo salidas públicas de `check` y `run` en `types` mientras estén pendientes.
+
 | Paso | Dependencias | Entregable y criterio independiente |
 |---|---|---|
 | F5-L01 | A2/J completos | Operadores I64/orden/!=, tokens/AST/IR/fmt; todos los signos, MIN/MAX, cero y precedencias; cero panics anfitrión. |
@@ -1135,10 +1298,15 @@ La revisión no puede sustituirse por una demo ni por un conteo de tests.
 El implementador y el validador son distintos; este último recibe código y
 criterios y compara check/run con su propia batería sobre git archive HEAD.
 Los esperados se transcriben del ADR; no los genera el código bajo prueba.
-Mutaciones: una por regla, aislada, quitar/cambiar comprobación y comprobar
-que falla el par pertinente; restauración del archivo verificada por SHA-256.
-Se repiten las mutaciones supervivientes más un máximo de ocho nuevas, bloqueantes solo respecto de reglas explícitas. Una laguna real se
-registra, no se rellena con una exigencia no escrita ni se llama aprobada.
+Cada regla de núcleo tiene un negativo aislado y su positivo, con esperado transcrito de este ADR. La mutación inversa de esa regla se ejecuta aislada, debe hacer fallar el par pertinente y restaura el archivo comprobando SHA-256. Al final del corte, el implementador hace una única pasada adicional sobre archivos de núcleo: repite los supervivientes y añade como máximo ocho mutaciones nuevas. El validador no crea una población nueva por ronda. Un superviviente bloquea solo cuando se acompaña de un programa fuente reproducible, salida esperada por la regla explícita y salida obtenida que exhibe incumplimiento; entonces se corrige y deja regresión. Un superviviente sin ese repro se registra nominalmente en `Pending.md`, sin contarlo como PASS ni como defecto bloqueante. «Ninguna mutación de seguridad requerida sobrevive» se interpreta con ese criterio de defecto reproducible. Se conservan las puertas mecánicas y las revisiones independientes de §10.
+
+Una laguna real se registra, no se rellena con una exigencia no escrita ni se llama aprobada.
+
+| Ejemplo de decisión | Fuente / offset / diagnóstico | Resultado |
+|---|---|---|
+| Mutación inversa aislada de `<` I64 | Par de núcleo ya fijado por §9; offsets y JSON de esa fila | Debe distinguir negativo y positivo; restauración SHA-256. |
+| Superviviente sin contraejemplo | No hay fuente ni diagnóstico atribuible | Registro nominal en `Pending.md`; no bloquea. |
+| Superviviente con contraejemplo | Fuente ASCII, offset y JSON esperado/obtenido de la regla incumplida | Bloquea y exige regresión. |
 
 Oráculos independientes: enteros matemáticos de precisión arbitraria con
 división truncada implementada por signos (no // negativo de Python), tabla
@@ -1583,6 +1751,8 @@ esperado enumerados aquí, que deben conservar ambos contratos identificados.
 | A2 §4.6: «No se admite `<` sobre `bool`, unidad, arrays ni `Result`.» | `< <= > >=` solo admiten I64 en F0-0005. `== !=` admiten el mismo dominio estructural de datos A2/J, con Option de J y arrays transitivos; != niega una única comparación. | Tabla A2 §4.6 y S16–S21 con operadores ampliados, F5-O y familias. |
 | A2 §4.6: «Si ambos operandos aportan tipos concretos y estos difieren, corresponde `NX-E0102/type_mismatch` sobre el operando derecho.» | Se conserva literalmente para los seis operadores de comparación. expected_type y su relación proceden del izquierdo; si tipos iguales son inadmisibles, primario operador y found_type izquierdo. | A2 §§13.15/13.17; familias `1 OP true` y `true OP 1`. |
 
+`CompareExpr = RangeExpr [("<" | "<=" | ">" | ">=" | "==" | "!=") RangeExpr]` y `RangeExpr = AddExpr [("..<" | "..=") AddExpr]` admiten a lo sumo un operador de su propio nivel sin agrupación, tal como D15 §3.5 y D14 §3.2. Los seis comparadores están en un **único nivel**, de modo que `==` no tiene menor precedencia que `<`.
+
 Enmienda propuesta de D15 §3.1/§3.5: Assignment usa una sola alternativa
 `Place ("=" | "+=" | "-=" | "*=" | "/=" | "%=") Expr Terminator`.
 Expr usa la precedencia de §2 y la producción `NegExpr = ("not" | "-") NegExpr | TryExpr` de D15 §3.5; el reconocedor de rango almacenado no le
@@ -1695,6 +1865,8 @@ el prefijo reconocido de ForStmt; consumirlo conserva for_iteration/later_adr,
 no autoriza iteración exclusiva. El positivo elige la alternativa sin edit.
 Las filas de operadores ahora válidos no conservan expected_tokens como
 si fueran errores: producen diagnostics=[]; sus negativos son los de tipos.
+
+`grammar.CompareExpr` corresponde a `CompareExpr = RangeExpr [("<" | "<=" | ">" | ">=" | "==" | "!=") RangeExpr]`; `grammar.RangeExpr` corresponde a `RangeExpr = AddExpr [("..<" | "..=") AddExpr]`. `expected_tokens_kind=admissible_set`; en el perfil F5, F5-S14–F5-S17 tienen siempre `expected_tokens=[";","and","or"]` y F5-S18 tiene siempre `expected_tokens=["!=",";","<","<=","==",">",">=","and","or"]`, con independencia del estado de las subtareas. El orden es por bytes UTF-8. Estos conjuntos describen continuaciones admisibles del prefijo completo de la expresión en un inicializador `let`; no admiten un segundo operador del mismo nivel. `recognized_prefix` empieza en el primer byte de la expresión comprometida y termina al inicio del segundo operador. `data={}`, sin relaciones ni cadena causal.
 
 Las restantes filas negativas de D15 §6.3 conservan estos contratos;
 los spans y prefijos son bytes de sus fuentes literales, sin LF final:

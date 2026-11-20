@@ -1,0 +1,838 @@
+{
+  "mutations": [
+    {
+      "adr_rule": "F0-0003 §10.3",
+      "anchor": "if self.depth > 128 {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E0003",
+            "data": {
+              "budget_kind": "syntax_nesting",
+              "budget_scope": "compilation",
+              "incomplete_analysis": "parse",
+              "limit": 128,
+              "observed": 129
+            },
+            "primary": [
+              137,
+              138
+            ],
+            "subcause": null
+          }
+        ],
+        "exit": 1
+      },
+      "fixture": "mutation-block-129",
+      "id": "P-block-depth",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "checked",
+        "stdout": []
+      },
+      "paired_baseline": null,
+      "paired_expected": null,
+      "paired_fixture": "block-128 (same source with 127 nested blocks; accepted)",
+      "sha_initial": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c",
+      "sha_mutated": "51bd97fbab433f066d6caecefe242a5ddd0e8071b45d7caa16bc62efed007185",
+      "sha_restored": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c",
+      "site": "src/frontend/parse.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §10.3",
+      "anchor": "if self.depth > 128 {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E0003",
+            "data": {
+              "budget_kind": "syntax_nesting",
+              "budget_scope": "compilation",
+              "incomplete_analysis": "parse",
+              "limit": 128,
+              "observed": 129
+            },
+            "primary": [
+              780,
+              783
+            ],
+            "subcause": null
+          }
+        ],
+        "exit": 1
+      },
+      "fixture": "type-depth-129",
+      "id": "P-type-depth",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "checked",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "exit": 0
+      },
+      "paired_fixture": "type-depth-128",
+      "sha_initial": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c",
+      "sha_mutated": "7ce2ec79d81d95bca15263f9cfc88d4f76d6c0dab5692e90ac93aa5ba7b4aa99",
+      "sha_restored": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c",
+      "site": "src/frontend/parse.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §10.3",
+      "anchor": "if self.depth > 128 {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E0003",
+            "data": {
+              "budget_kind": "syntax_nesting",
+              "budget_scope": "compilation",
+              "incomplete_analysis": "parse",
+              "limit": 128,
+              "observed": 129
+            },
+            "primary": [
+              145,
+              146
+            ],
+            "subcause": null
+          }
+        ],
+        "exit": 1
+      },
+      "fixture": "mutation-pattern-129",
+      "id": "P-pattern-depth",
+      "mutated_observed": {
+        "diagnostics": [
+          {
+            "code": "NX-E0003",
+            "data": {
+              "budget_kind": "syntax_nesting",
+              "budget_scope": "compilation",
+              "incomplete_analysis": "parse",
+              "limit": 128,
+              "observed": 129
+            },
+            "feature_id": null,
+            "primary": [
+              146,
+              147
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "stdout": []
+      },
+      "paired_baseline": null,
+      "paired_expected": null,
+      "paired_fixture": "pattern-128 (same source with 127 nested groups; accepted)",
+      "sha_initial": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c",
+      "sha_mutated": "ae211e8952af10f0f7c184dedac6103c85640167261c8a626e6f0fd417cab109",
+      "sha_restored": "c18a257bb9634b79e23491154c5e71a7ffb8ad5a631e5043d01ddfa5ba89908c",
+      "site": "src/frontend/parse.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§3.3,9.2",
+      "anchor": "for arg in args.iter().rev() {\n                                    tasks.push(Walk::Pattern(arg));\n                                }",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [],
+        "exit": 0
+      },
+      "fixture": "mutation-pattern-binding",
+      "id": "N-pattern-binding",
+      "mutated_observed": {
+        "diagnostics": [
+          {
+            "code": "NX-E0101",
+            "data": {
+              "use_kind": "value"
+            },
+            "feature_id": null,
+            "primary": [
+              48,
+              49
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1304",
+            "data": {
+              "missing_pattern": "None"
+            },
+            "primary": [
+              36,
+              41
+            ],
+            "subcause": "non_exhaustive"
+          }
+        ],
+        "exit": 1
+      },
+      "paired_fixture": "F3-M01-negative",
+      "sha_initial": "898118be01cfa25f07f1ce2ce6242ed5f28bd24c8c2c96c4986c953fbcc24cc1",
+      "sha_mutated": "d1f10af3e182453b7d1654c5138e849eb2d4b06feb46f3444bb7724e6ade7f20",
+      "sha_restored": "898118be01cfa25f07f1ce2ce6242ed5f28bd24c8c2c96c4986c953fbcc24cc1",
+      "site": "src/check/names.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§3.3,9.1",
+      "anchor": "if args.len() != arity {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1325",
+            "data": {
+              "constructor": "prelude:Some",
+              "expected_arity": 1,
+              "found_arity": 2
+            },
+            "primary": [
+              44,
+              53
+            ],
+            "subcause": "constructor_arity"
+          }
+        ],
+        "exit": 1
+      },
+      "fixture": "F3-M04-negative",
+      "id": "T1-pattern-arity",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "checked",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "exit": 0
+      },
+      "paired_fixture": "F3-M04-positive",
+      "sha_initial": "c94de191b417698d61e1324d55a36061b01b27f36766b2d4068d6d6a7142be4b",
+      "sha_mutated": "d550885a893f7f1fce7d1798b0d635fc61d197372f91ce011690a4466102961c",
+      "sha_restored": "c94de191b417698d61e1324d55a36061b01b27f36766b2d4068d6d6a7142be4b",
+      "site": "src/check/types.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§3.3,9.2",
+      "anchor": "Expr::Group(inner, _) => frames.push(Frame::Enter(inner)),",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [],
+        "exit": 0
+      },
+      "fixture": "mutation-grouped-array",
+      "id": "T0-group-shape",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "checked",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1303",
+            "data": {
+              "expected_type": "I64",
+              "found_type": "Bool"
+            },
+            "primary": [
+              58,
+              63
+            ],
+            "subcause": null
+          }
+        ],
+        "exit": 1
+      },
+      "paired_fixture": "F3-M03-negative",
+      "sha_initial": "c94de191b417698d61e1324d55a36061b01b27f36766b2d4068d6d6a7142be4b",
+      "sha_mutated": "c79cf6dc51fbd360845f305c7fb274d1a1a10414665c9d3d6f32f10986bc0e5b",
+      "sha_restored": "c94de191b417698d61e1324d55a36061b01b27f36766b2d4068d6d6a7142be4b",
+      "site": "src/check/types.rs",
+      "status": "superviviente"
+    },
+    {
+      "adr_rule": "F0-0003 §§4.1,9.2",
+      "anchor": "visits.push(Visit::Block(&closure.body));",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "unit",
+        "stdout": []
+      },
+      "fixture": "mutation-nested-closure",
+      "id": "L-nested-closure",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 2,
+        "outcome": "driver_error",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1101",
+            "data": {},
+            "primary": [
+              44,
+              45
+            ],
+            "subcause": null
+          }
+        ],
+        "exit": 1
+      },
+      "paired_fixture": "F3-C01-negative",
+      "sha_initial": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "sha_mutated": "f7d3f3ad070b5b0e41dd6f362fc853dee4300c2205f793e226c20ad793bb83a8",
+      "sha_restored": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "site": "src/ir/lower.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-D15 §3; F0-0003 §13.1",
+      "anchor": "frames.push(Frame::Close(span.end as usize - 1));",
+      "baseline": "test exits 0",
+      "expected": "test exits 0",
+      "fixture": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--test",
+        "canonical_print",
+        "accepted_corpus_files_format_like_the_canonical_printer"
+      ],
+      "id": "F-pattern-close",
+      "mutated_observed": {
+        "test_exit": 0
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "exit": 0
+      },
+      "paired_fixture": "F3-M01-positive",
+      "sha_initial": "f74b067650bf149e86974c7af3f7bb9021f927213bd36731c236fde51db8ae25",
+      "sha_mutated": "4bb7ad863f0f159154a3a62f36a812baa49b7644a9cbf76ad47e5b3b077d9395",
+      "sha_restored": "f74b067650bf149e86974c7af3f7bb9021f927213bd36731c236fde51db8ae25",
+      "site": "src/frontend/print.rs",
+      "status": "superviviente"
+    },
+    {
+      "adr_rule": "F0-0003 §§5,9.2",
+      "anchor": "VariantTag(u8::from(output.is_some()))",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "unit",
+        "stdout": []
+      },
+      "fixture": "mutation-next-item",
+      "id": "Item-present-tag",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 2,
+        "outcome": "driver_error",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "unit",
+        "stdout": []
+      },
+      "paired_fixture": "generator-yields-0",
+      "sha_initial": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "sha_mutated": "185326d10fa84a206816a1595205eec8ff5b13d86ef94b8d418a911a7b28ded9",
+      "sha_restored": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "site": "src/interp/machine.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§4.2,9.2",
+      "anchor": "if mode_rank(receiver_mode) < mode_rank(required) {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1107",
+            "primary": [
+              58,
+              59
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "fixture": "callonce-mode-single-check",
+      "id": "CallOnce-mode",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 2,
+        "outcome": "driver_error",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "events": [
+          "open:0:1",
+          "close:0:1"
+        ],
+        "exit": 0,
+        "outcome": "unit",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "paired_fixture": "callonce-consumer-positive",
+      "sha_initial": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "sha_mutated": "a74fd88c2f65055bab6cd86cca477d7d509ea7b2829701fd909c5c4dbdbe7357",
+      "sha_restored": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "site": "src/ir/lower.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §7.2",
+      "anchor": "if self.frames >= self.limits.frames {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "R0002",
+            "data": {
+              "limit": 8,
+              "observed": 9,
+              "runtime_budget_kind": "call_frames"
+            },
+            "primary": [
+              64,
+              68
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "stdout": []
+      },
+      "fixture": "active-frames-9",
+      "id": "active-frame-eight",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "unit",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "unit",
+        "stdout": []
+      },
+      "paired_fixture": "active-frames-8",
+      "sha_initial": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "sha_mutated": "47039e06360dab5bcaba4bcd37304651d84050b18890efc6efb7a2b20652b1d6",
+      "sha_restored": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "site": "src/interp/machine.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §7.2",
+      "anchor": "if !self.charge_work(1, &ins.span) || !self.charge_work(1, &ins.span) {",
+      "baseline": "test exits 0",
+      "expected": "test exits 0",
+      "fixture": [
+        "cargo",
+        "test",
+        "--locked",
+        "--offline",
+        "--test",
+        "j16_integrated",
+        "adr_section_seven_ticks_and_check_run"
+      ],
+      "id": "cold-generator-work",
+      "mutated_observed": {
+        "test_exit": 101
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "events": [
+          "open:0:7",
+          "close:0:7"
+        ],
+        "exit": 0,
+        "outcome": "unit",
+        "stdout": []
+      },
+      "paired_fixture": "generator-cold",
+      "sha_initial": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "sha_mutated": "0e7af7155040161c20f4a7d092e3e83940a02b1ee8a5a484952478c13bf29ecc",
+      "sha_restored": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "site": "src/interp/machine.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§3.3,9.2",
+      "anchor": "let violations = guard_violations(guard);",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1305",
+            "data": {},
+            "primary": [
+              75,
+              79
+            ],
+            "subcause": "guard_transfer"
+          }
+        ],
+        "exit": 1
+      },
+      "fixture": "F3-Q03-negative",
+      "id": "guard-before-extraction",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "checked",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "events": [
+          "open:0:1",
+          "inspect:0:1",
+          "close:0:1"
+        ],
+        "exit": 0,
+        "outcome": "unit",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "paired_fixture": "guard-before-extraction-false",
+      "sha_initial": "8ebf9e2de0f736bd4f416c48fd5c843ebb42d1e92dcfa4e4ab707ea17fdff8e3",
+      "sha_mutated": "694e578fa0ab795db07b3f0863c9b4bcfe5a9450eb02159189152324f4594021",
+      "sha_restored": "8ebf9e2de0f736bd4f416c48fd5c843ebb42d1e92dcfa4e4ab707ea17fdff8e3",
+      "site": "src/ir/lower_match.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§4,9.2; A2 §12.1",
+      "anchor": "for id in &function.cleanup {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [],
+        "events": [
+          "open:0:7",
+          "read_records:0:err:10",
+          "close:0:7"
+        ],
+        "exit": 1,
+        "outcome": "err",
+        "outcome_detail": {
+          "error": "10",
+          "kind": "err"
+        },
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "fixture": "A2-EX01-read-error",
+      "id": "resource-close-on-error",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [
+          "open:0:7",
+          "read_records:0:err:10"
+        ],
+        "exit": 1,
+        "outcome": "err",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "events": [
+          "open:0:7",
+          "read_records:0:ok:3",
+          "write_i64:25:ok",
+          "close:0:7"
+        ],
+        "exit": 0,
+        "outcome": "ok",
+        "reserved_observation_bytes": 0,
+        "stdout": [
+          "25"
+        ]
+      },
+      "paired_fixture": "A2-EX01-sum25",
+      "sha_initial": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "sha_mutated": "bd33b8ace5f55db7563eecc6f2ed833f4e2b9429c2589c8f23e5c58be6594a5e",
+      "sha_restored": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "site": "src/interp/machine.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§7.2,9.2",
+      "anchor": "self.log.release_reservation(open_bytes)?;",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [],
+        "events": [
+          "open:0:4",
+          "close:0:4"
+        ],
+        "exit": 0,
+        "observation_bytes": 47,
+        "outcome": "unit",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "fixture": "reservation-retained-close",
+      "id": "observation-reservation",
+      "mutated_observed": {
+        "diagnostics": [
+          {
+            "code": "R0002",
+            "data": {
+              "limit": 64,
+              "observed": 70,
+              "runtime_budget_kind": "observation_bytes"
+            },
+            "feature_id": null,
+            "primary": [
+              54,
+              65
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "simulator_fault",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [
+          {
+            "code": "R0002",
+            "data": {
+              "limit": 64,
+              "observed": 94,
+              "runtime_budget_kind": "observation_bytes"
+            },
+            "subcause": null
+          }
+        ],
+        "events": [
+          "open:0:4",
+          "close:0:4"
+        ],
+        "exit": 1,
+        "observation_bytes": 47,
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "paired_fixture": "reservation-shared-limit",
+      "sha_initial": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "sha_mutated": "6632ce547ce8872aaaa6d4b50018cc82fff9be2036ddf3dda548d584fee2adb6",
+      "sha_restored": "b79c718724d1f6d8534ad90831f0c149f278ce4fd2decf3c8fb0dbcf6d5c445b",
+      "site": "src/interp/machine.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§4.1,9.1",
+      "anchor": "if !borrow && !ty.copyable() {",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E0201",
+            "primary": [
+              64,
+              65
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E1107",
+            "primary": [
+              66,
+              67
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E1107",
+            "primary": [
+              70,
+              71
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "fixture": "callonce-invalid-copy-check",
+      "id": "captured-resource-copy",
+      "mutated_observed": {
+        "diagnostics": [
+          {
+            "code": "NX-E1107",
+            "data": {
+              "requested_mode": "read",
+              "required_mode": "consume"
+            },
+            "feature_id": null,
+            "primary": [
+              66,
+              67
+            ],
+            "subcause": null
+          },
+          {
+            "code": "NX-E1107",
+            "data": {
+              "requested_mode": "read",
+              "required_mode": "consume"
+            },
+            "feature_id": null,
+            "primary": [
+              70,
+              71
+            ],
+            "subcause": null
+          }
+        ],
+        "events": [],
+        "exit": 1,
+        "outcome": "rejected",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "events": [
+          "open:0:1",
+          "close:0:1"
+        ],
+        "exit": 0,
+        "outcome": "unit",
+        "reserved_observation_bytes": 0,
+        "stdout": []
+      },
+      "paired_fixture": "callonce-consumer-positive",
+      "sha_initial": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "sha_mutated": "9072d059cf8e42cc9a499b418e37d65e6e6ef12b98f0357dcc3ad34cebc135b9",
+      "sha_restored": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "site": "src/ir/lower.rs",
+      "status": "muerto"
+    },
+    {
+      "adr_rule": "F0-0003 §§4.1,9.2",
+      "anchor": ".find(|loan| self.locals[loan.root.0].scope == self.scope)",
+      "baseline": "PASA",
+      "expected": {
+        "diagnostics": [
+          {
+            "code": "NX-E1104",
+            "primary": [
+              44,
+              79
+            ],
+            "subcause": null
+          }
+        ],
+        "exit": 1
+      },
+      "fixture": "escape-wrapped-closure",
+      "id": "escaping-closure-loan",
+      "mutated_observed": {
+        "diagnostics": [],
+        "events": [],
+        "exit": 0,
+        "outcome": "checked",
+        "stdout": []
+      },
+      "paired_baseline": "PASA",
+      "paired_expected": {
+        "diagnostics": [],
+        "exit": 0
+      },
+      "paired_fixture": "F3-C06-positive",
+      "sha_initial": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "sha_mutated": "4a0edbbbd53e10e4ee802d2d218fbc4f4c44bf9d22363663338334dc5f69a92e",
+      "sha_restored": "d9a474e9b2d2712c5c5b57b8b2e9ce8f9945e3140907e96b9d6f19c3072d0440",
+      "site": "src/ir/lower.rs",
+      "status": "muerto"
+    }
+  ],
+  "notes": [
+    {
+      "id": "V3-resume-match-proofs",
+      "reason": "verify_cfg ya valida el destino Yield→resume; la segunda arista se usa solo para propagar pruebas de variante y no añade hechos nuevos. No se halló programa fuente ni IR emitida válida cuyo veredicto cambie al suprimirla. La clasificación es provisional hasta hallar un testigo discriminante.",
+      "status": "equivalente probable para IR emitida"
+    }
+  ],
+  "schema_version": 1
+}

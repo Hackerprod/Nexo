@@ -83,6 +83,16 @@ contexto limpio.
 
 ## Reglas comunes
 
+- **Puertas NX-build.** C usa `sh scripts/validate-fast.sh` solo para iterar por commit y
+  `sh scripts/validate.sh` en clon limpio antes de D y al cerrar cada bloque. B, D, D' e
+  integración usan siempre la puerta completa. Toda mutación de núcleo, mutación inversa
+  por regla, diferencial debug/release o `check`/`run`, y medición citada para decidir si
+  un mutante muere o sobrevive usa `--profile default` explícito y todos los tests
+  ejecutables. El fallback es `cargo test` íntegro. La puerta rápida nunca fundamenta
+  PASS, supervivencia ni muerte de un mutante. Un timeout de nextest falla la puerta;
+  se repite el test aislado y se investiga como fallo no determinista, nunca se cuenta
+  como PASS ni se reintenta en silencio.
+
 - Implementador y validador siempre distintos. Al validador se le da el código y los
   criterios, no la opinión previa del coordinador.
 - Las observaciones de una revisión se clasifican según el contrato del corte, no según el número de
@@ -207,3 +217,32 @@ las decisiones.
   local se corrige localmente; solo varios fallos con una causa estructural común justifican rediseñar.
 - Una migración se hace en un solo corte: el código y las fixtures nuevas sustituyen a las antiguas, sin
   dejar rastro de la versión anterior salvo en documentos históricos.
+
+
+## Aceleración de puertas y máquina compartida (decisión del propietario, 2026-11-19)
+
+Origen: medición propia del atasco (puerta completa de ~27–33 min, repetida ~25 veces por bloque, 71 ejecutables de test, disco `D:` lento, dos carriles sobre la misma máquina) y un análisis independiente en `.scratch/analisis-fable.md` (informe de un agente sin acceso a nuestras propuestas). Estas reglas se aplican a TODO agente y brief; no se pierden por compactación de contexto. Principio rector: **un fallo es evidencia suficiente de fallo; solo la ejecución completa es evidencia de éxito.** Ninguna acelera ni muestrea una comprobación que hoy fundamente un PASS, un FAIL, la muerte o la supervivencia de un mutante.
+
+### Reglas de máquina (obligatorias, en todos los briefs)
+- Prohibido `taskkill /IM` y cualquier parada de procesos por nombre de imagen (incidente 2026-11-19: un D' mató `cargo.exe` y `python.exe` y con ello los 6 procesos de la campaña de mutación de la otra sesión). Cada agente mata solo los PID que lanzó y no deja procesos al terminar.
+- Todo el trabajo va en `C:` (NVMe): `CARGO_TARGET_DIR=C:/nexo-work/target`, clones y copias de validadores en `C:\nexo-work\val\<nombre>` o `C:\nexo-work\tmp` (borrar clon y `target` al terminar; ~25 GB libres compartidos: ≤ 8–10 GB por agente). `D:` (HDD USB) solo para archivo o resultados ya reconstruibles; nunca para compilar. Hasta 6 workers de cargo por agente (`CARGO_BUILD_JOBS=6`); `cargo-nextest` está instalado.
+- PATH de las tareas: toolchain `C:\Users\hackerprod\.rustup\toolchains\1.99.1-x86_64-pc-windows-msvc\bin` y `C:\Users\hackerprod\.cargo\bin`.
+- Antes de una puerta completa, compilación fría o campaña de seis procesos, cada carril usa `python -B scripts/heavy-lock.py run --session <id> -- <comando>`. El cerrojo exclusivo `C:/nexo-work/heavy.lock` identifica PID, hora, sesión y token; si está ocupado o parece viejo, se coordina con el dueño, sin borrar el archivo ni matar procesos ajenos. El segundo carril reduce temporalmente su campaña a dos procesos mientras C/D/D' tienen un bloque activo y vuelve a seis al liberarse. `gate.sh` toma el cerrojo automáticamente para una ejecución; `--verify` y `--cached-bin` solo leen.
+
+### Puerta por niveles (nextest; plan en `docs/correcciones/NX-build-r1.md`)
+- `scripts/validate.sh` es la puerta COMPLETA (fmt, clippy `-D warnings`, todos los tests ejecutables en debug y release, con `--profile default`). Es la única que fundamenta PASS: la usan D, D', la integración a main, el cierre de bloque y de corte, y todo diferencial o medición de mutante «muere/sobrevive».
+- Nivel rápido (`scripts/validate-fast.sh`, perfil `fast`): solo para el bucle de edición de C; excluye por nombre una lista versionada de tests pesados y NUNCA vale como evidencia de PASS ni de supervivencia (imprime el aviso). Un chequeo mecánico versionado comprueba que rápida ∪ pesados = completo y que cada nombre existe.
+- C trabaja con un `target` persistente por sesión (compilación incremental) y deja el clon limpio con `validate.sh` solo para la puerta final del commit publicado o del bloque. Mismo árbol y mismo `rustc` con registro verde no se repite: se cita el hash del árbol.
+- Veredicto de mutante: parada en el primer fallo (`cargo nextest run`) basta para declararlo MUERTO (se anota el test que lo mata); declarar SUPERVIVIENTE exige la suite completa en debug y release. Un timeout de test es «detectado por no terminación» solo si la suite correcta termina y el mutante no, y se repite con menos carga antes de contarlo.
+- Para un mutante histórico, buscar el commit cuyo blob tenga el `sha_initial` registrado (`git log --format=%H -- <archivo>` y `git show <commit>:<archivo>`); aplicar el parche exacto en `git archive` bajo `C:/nexo-work/tmp/`. `scripts/mutant-verdict.py --tree <copia> --patch <json> --id <id> --output <json>` restaura el archivo por SHA-256 y usa el universo default sin filtro ni reintentos. Un registro sin prehash reproducible se descarta con constancia; no se aplica sobre HEAD por semejanza textual. El helper no modifica la campaña I07c activa.
+- La verificación RD manual requiere el ejecutable: `python -B scripts/i07c_rd_conformidad.py --verify C:/nexo-work/target/debug/nexo.exe` (o la ruta del target aislado correspondiente). Un fallo terminal de mutante se repite aislado en mutante y base antes de llamarlo MUERTO.
+
+### Cola de mejoras acordadas (ordenadas; cada una por Flujo B con medición antes/después)
+1. Un único binario de integración (`tests/suite.rs` con `#[path]`, `autotests = false`; el `#[global_allocator]` de `i07c_mutant_projection_scale` queda aparte): medido por el análisis independiente 269 → 73 s en frío debug, 4,3 → 1,2 GB, mismos 1.979/1.981 tests; cada corte nuevo añade una línea, no un binario.
+2. Selección por etapa en el nivel rápido (tests de la etapa en curso + guardas globales baratas) y release solo al cierre de bloque.
+3. `scripts/gate.sh <commit>` lanzado por el coordinador, con registro (hash del árbol, versión de `rustc`, salida, recuentos por perfil, SHA-256 del log) que D reutiliza; D' ejecuta su propia puerta en frío. Caché de `nexo.exe` de cada commit con registro para los diferenciales.
+   D comprueba que el SHA-256 de `scripts/validate.sh` del registro corresponde al blob del commit y lo compara con `origin/main:scripts/validate.sh`; toda diferencia se revisa para descartar una puerta debilitada. D verifica el registro con `sh scripts/gate.sh <commit> --verify` y coteja sus recuentos con el log. Un registro de otro árbol, herramientas o entorno no se reutiliza.
+   El log lleva identidad, hash del archivo del commit, comandos, exits y resúmenes; `--verify` y `--cached-bin` los cotejan con el JSON. Esto detecta corrupción o edición accidental; quien pueda modificar tanto JSON como log puede falsificar ambos, por lo que el registro no es una firma de seguridad.
+   Para diferenciales de commits con registro GREEN, `sh scripts/gate.sh <commit> --cached-bin debug|release` devuelve solo un binario cuyo SHA-256 coincide con el manifiesto y la identidad del registro. La caché nunca se usa para árboles mutados; `NEXO_MUTANT=1` la rechaza. El límite de 4 GB elimina solo entradas propias reconstruibles.
+4. Reglas de turno para trabajos pesados entre sesiones (bloqueo de archivo o límite de procesos de la campaña de mutación mientras haya un bloque en C, D o D').
+5. Solo con prueba de que no cambian los marcos de pila medidos en debug (puertas de 204/256 KiB): `debug = "line-tables-only"` y `rust-lld`; sin esa prueba no se adoptan.

@@ -2,6 +2,7 @@
 use super::cst::Cst;
 use super::emit::{Role, SourceToken, Writer};
 use super::parse::*;
+use super::precedence::{self, EXPRESSION};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PrintWorkerUnavailable;
@@ -144,7 +145,7 @@ fn print_inner(ast: &Ast, cst: Option<&Cst>) -> Writer {
                 }
             }
         }
-        block(&function.body, &mut out, true);
+        block(&function.body, &mut out, true, ast.f5_operators);
     }
     out.line();
     out
@@ -183,8 +184,8 @@ fn ty(value: &Type, out: &mut Writer, bound: usize) -> usize {
         Type::Generator { .. } => after(out, "Generator", Role::Word, bound),
     }
 }
-fn block(value: &Block, out: &mut Writer, structural: bool) {
-    run_print_frames(Frame::Block(value, structural), out);
+fn block(value: &Block, out: &mut Writer, structural: bool, f5_operators: bool) {
+    run_print_frames(Frame::Block(value, structural), out, f5_operators);
 }
 enum Frame<'a> {
     Visit(&'a Expr, u8),
@@ -206,7 +207,12 @@ enum Frame<'a> {
     GroupEnd,
 }
 
-fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
+fn run_print_frames(root: Frame<'_>, out: &mut Writer, f5_operators: bool) {
+    let levels = if f5_operators {
+        precedence::F5
+    } else {
+        precedence::J
+    };
     let mut frames = vec![root];
     while let Some(frame) = frames.pop() {
         let (value, parent) = match frame {
@@ -216,7 +222,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     let end = after(out, label, Role::Word, argument.span.start as usize);
                     after(out, ":", Role::Colon, end);
                 }
-                frames.push(Frame::Visit(&argument.value, 0));
+                frames.push(Frame::Visit(&argument.value, EXPRESSION));
                 continue;
             }
             Frame::Else(value) => {
@@ -225,7 +231,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     Else::If(value) => {
                         inserted(out, "(", Role::Open);
                         frames.push(Frame::Inserted(")", Role::Close));
-                        frames.push(Frame::Visit(value, 0));
+                        frames.push(Frame::Visit(value, EXPRESSION));
                     }
                 }
                 continue;
@@ -255,7 +261,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                             inserted(out, "(", Role::Open);
                             frames.push(Frame::Inserted(")", Role::Close));
                         }
-                        frames.push(Frame::Visit(value, 0));
+                        frames.push(Frame::Visit(value, EXPRESSION));
                         continue;
                     }
                 }
@@ -287,7 +293,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     Role::BlockOpen,
                     selection.scrutinee.span().end as usize,
                 ));
-                frames.push(Frame::Visit(&selection.scrutinee, 0));
+                frames.push(Frame::Visit(&selection.scrutinee, EXPRESSION));
                 continue;
             }
             Frame::Arm(arm, comma) => {
@@ -309,7 +315,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                         span.start as usize,
                         span.end as usize,
                     );
-                    frames.push(Frame::Visit(guard, 0));
+                    frames.push(Frame::Visit(guard, EXPRESSION));
                 }
                 continue;
             }
@@ -361,7 +367,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                             ty(annotation, out, colon_end);
                         }
                         frames.push(Frame::Terminator(span.end as usize));
-                        frames.push(Frame::Visit(value, 0));
+                        frames.push(Frame::Visit(value, EXPRESSION));
                         frames.push(Frame::Before(
                             "=",
                             Role::Binary,
@@ -370,16 +376,16 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     }
                     Statement::Assign { place, value, span } => {
                         frames.push(Frame::Terminator(span.end as usize));
-                        frames.push(Frame::Visit(value, 0));
+                        frames.push(Frame::Visit(value, EXPRESSION));
                         frames.push(Frame::After("=", Role::Binary, place.span().end as usize));
-                        frames.push(Frame::Visit(place, 0));
+                        frames.push(Frame::Visit(place, EXPRESSION));
                     }
                     Statement::Return { value, span } => {
                         let start = span.start as usize;
                         at(out, "return", Role::Word, start, start + 6);
                         frames.push(Frame::Terminator(span.end as usize));
                         if let Some(value) = value {
-                            frames.push(Frame::Visit(value, 0));
+                            frames.push(Frame::Visit(value, EXPRESSION));
                         }
                     }
                     Statement::GuardControl {
@@ -398,7 +404,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                         );
                         frames.push(Frame::Terminator(span.end as usize));
                         if let Some(value) = value {
-                            frames.push(Frame::Visit(value, 0));
+                            frames.push(Frame::Visit(value, EXPRESSION));
                         }
                     }
                     Statement::Value {
@@ -414,7 +420,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                         }
                         frames.push(Frame::Terminator(span.end as usize));
                         if let Some(value) = value {
-                            frames.push(Frame::Visit(value, 0));
+                            frames.push(Frame::Visit(value, EXPRESSION));
                         }
                     }
                     Statement::Expr { value, span } => {
@@ -431,7 +437,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                         let start = statement_span(statement).start as usize;
                         at(out, "while", Role::Word, start, start + 5);
                         frames.push(Frame::Block(body, true));
-                        frames.push(Frame::Visit(condition, 0));
+                        frames.push(Frame::Visit(condition, EXPRESSION));
                     }
                     Statement::For {
                         name,
@@ -451,7 +457,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                         );
                         after(out, "in", Role::Word, name_span.end as usize);
                         frames.push(Frame::Block(body, true));
-                        frames.push(Frame::Visit(iterable, 0));
+                        frames.push(Frame::Visit(iterable, EXPRESSION));
                     }
                     Statement::If {
                         condition,
@@ -470,7 +476,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                             ));
                         }
                         frames.push(Frame::Block(then_block, true));
-                        frames.push(Frame::Visit(condition, 0));
+                        frames.push(Frame::Visit(condition, EXPRESSION));
                     }
                     Statement::Match(selection) => frames.push(Frame::Match(selection)),
                 }
@@ -483,7 +489,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                         value: value @ Expr::If { .. },
                         ..
                     } => frames.push(Frame::StmtIf(value)),
-                    Statement::Expr { value, .. } => frames.push(Frame::Visit(value, 0)),
+                    Statement::Expr { value, .. } => frames.push(Frame::Visit(value, EXPRESSION)),
                     other => frames.push(Frame::Stmt(other)),
                 }
                 continue;
@@ -510,7 +516,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                         ));
                     }
                     frames.push(Frame::Block(then_block, true));
-                    frames.push(Frame::Visit(condition, 0));
+                    frames.push(Frame::Visit(condition, EXPRESSION));
                 }
                 continue;
             }
@@ -648,7 +654,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     frames.push(Frame::At("]", Role::Close, end - 1, end));
                 }
                 for index in (0..elements.len()).rev() {
-                    frames.push(Frame::Visit(&elements[index], 0));
+                    frames.push(Frame::Visit(&elements[index], EXPRESSION));
                     if index > 0 {
                         frames.push(Frame::After(
                             ",",
@@ -673,7 +679,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                 for &(_, end) in &groups {
                     frames.push(Frame::At(")", Role::Close, end - 1, end));
                 }
-                frames.push(Frame::Visit(item, 0));
+                frames.push(Frame::Visit(item, EXPRESSION));
             }
             Expr::Unary {
                 mode: Mode::Read,
@@ -682,7 +688,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
             } => {
                 let end = span.end as usize;
                 frames.push(Frame::At("?", Role::Suffix, end - 1, end));
-                frames.push(Frame::Visit(value, 3));
+                frames.push(Frame::Visit(value, levels.try_guard));
             }
             Expr::Unary {
                 mode: prefix,
@@ -691,13 +697,17 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
             } => {
                 let text = mode(*prefix);
                 let start = span.start as usize;
+                if f5_operators && parent == levels.try_guard {
+                    inserted(out, "(", Role::Open);
+                    frames.push(Frame::Inserted(")", Role::Close));
+                }
                 at(out, text, Role::Word, start, start + text.len());
-                frames.push(Frame::Visit(value, 3));
+                frames.push(Frame::Visit(value, levels.postfix));
             }
             Expr::Binary {
                 op, left, right, ..
             } => {
-                let p = if op == "+" || op == "-" { 2 } else { 1 };
+                let p = levels.binary(op);
                 let wrap = p < parent;
                 if wrap {
                     inserted(out, "(", Role::Open);
@@ -705,7 +715,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                 }
                 frames.push(Frame::Visit(right, p + 1));
                 frames.push(Frame::After(op, Role::Binary, left.span().end as usize));
-                frames.push(Frame::Visit(left, p + u8::from(p == 1)));
+                frames.push(Frame::Visit(left, p + u8::from(p == levels.comparison)));
             }
             Expr::Call { target, args, span } => {
                 let end = span.end as usize;
@@ -725,7 +735,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     Role::AttachedOpen,
                     target.span().end as usize,
                 ));
-                frames.push(Frame::Visit(target, 3));
+                frames.push(Frame::Visit(target, levels.postfix));
             }
             Expr::Index {
                 target,
@@ -735,13 +745,13 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
             } => {
                 let end = span.end as usize;
                 frames.push(Frame::At("]", Role::Close, end - 1, end));
-                frames.push(Frame::Visit(index, 0));
+                frames.push(Frame::Visit(index, EXPRESSION));
                 frames.push(Frame::After(
                     "[",
                     Role::AttachedOpen,
                     target.span().end as usize,
                 ));
-                frames.push(Frame::Visit(target, 3));
+                frames.push(Frame::Visit(target, levels.postfix));
             }
             Expr::If {
                 condition,
@@ -769,7 +779,7 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer) {
                     Role::Word,
                     condition.span().end as usize,
                 ));
-                frames.push(Frame::Visit(condition, 0));
+                frames.push(Frame::Visit(condition, EXPRESSION));
             }
             Expr::Match(selection) => {
                 if parent > 0 {
