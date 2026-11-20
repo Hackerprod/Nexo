@@ -142,7 +142,7 @@ def log_evidence(data):
             inventory_labels = [label + '-0', label + '-1']
         evidence = []
         for item in inventory_labels:
-            matches = re.findall(r'^INVENTORY (\w+) (\{.*\})$', '\n'.join(sections[item]['body']), re.M)
+            matches = re.findall(r'^INVENTORY ([\w-]+) (\{.*\})$', '\n'.join(sections[item]['body']), re.M)
             if len(matches) != 1 or matches[0][0] != item:
                 raise SystemExit('inventario ausente en log')
             evidence.append(json.loads(matches[0][1]))
