@@ -592,7 +592,7 @@ Pendiente de F0-0005: B1b/B2b/B3b (tipado en `src/check/operators.rs` con enganc
 
 ## I07c — cierre de los Bloques I y II (rama `i07c-estructural`, registro de límites y deuda)
 
-Estado: S1 (grafo único de obligaciones), S2 (patrón constructor sobre raíz abierta, subcausa `constructor_shape`) y S3 (solver iterativo por continuaciones explícitas, sin recursión por profundidad de tipo) implementados, con PASS de D y D' independiente sobre la producción de S3. La mutación normativa se acotó a lo nuevo del corte (decisión revisable del coordinador) y está registrada en `docs/validation/i07c-mutations-ccf/RESULTADO.md`. Lo siguiente son los límites y la deuda que quedan, no defectos conocidos con programa discriminante.
+Estado: S1 (grafo único de obligaciones), S2 (patrón constructor sobre raíz abierta, subcausa `constructor_shape`) y S3 (solver iterativo por continuaciones explícitas, sin recursión por profundidad de tipo) implementados. Validación: D (D1) dio PASS a S3; un primer D' independiente sobre `6c59a15` dio FAIL acotado (mutante M00436 con programa distinguidor, solo pruebas/evidencia); corregido en el lote 6 y confirmado por un segundo D' con PASS sobre `0324a72` (2026-11-20); integrado en `main`. La mutación normativa se acotó a lo nuevo del corte (decisión revisable del coordinador) y está registrada en `docs/validation/i07c-mutations-ccf/RESULTADO.md`. Lo siguiente son los límites y la deuda que quedan, no defectos conocidos con programa discriminante.
 
 | Fila | Qué queda | Origen / evidencia | Dueño |
 |---|---|---|---|
