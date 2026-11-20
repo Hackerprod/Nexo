@@ -696,12 +696,28 @@ struct ParseJob {
     f5_operators: bool,
     work: Option<std::sync::Arc<std::sync::atomic::AtomicU64>>,
 }
+struct ParseWorker {
+    sender: Sender<ParseJob>,
+    handle: std::thread::JoinHandle<()>,
+    #[cfg(test)]
+    finished: std::sync::Arc<std::sync::atomic::AtomicBool>,
+}
 thread_local! {
-    static PARSE_WORKER: RefCell<Option<Sender<ParseJob>>> = const { RefCell::new(None) };
+    static PARSE_WORKER: RefCell<Option<ParseWorker>> = const { RefCell::new(None) };
 }
 #[cfg(test)]
 thread_local! {
     static PARSE_WORKER_SPAWNS: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
+}
+
+/// Termina el trabajador del parser de este hilo antes de que empiece el teardown del proceso.
+#[doc(hidden)]
+pub fn shutdown_parse_worker() {
+    let worker = PARSE_WORKER.with(|slot| slot.borrow_mut().take());
+    if let Some(worker) = worker {
+        drop(worker.sender);
+        let _ = worker.handle.join();
+    }
 }
 
 pub(crate) fn worker_unavailable(file: &str, source: &str) -> Box<Diagnostic> {
@@ -799,10 +815,12 @@ fn parse_with_split_tokens_counted(
     let sent = PARSE_WORKER.with(|slot| {
         let mut worker = slot.borrow_mut();
         if worker.is_none() {
-            #[cfg(test)]
-            PARSE_WORKER_SPAWNS.with(|count| count.set(count.get() + 1));
             let (sender, jobs) = mpsc::channel::<ParseJob>();
-            std::thread::Builder::new()
+            #[cfg(test)]
+            let finished = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+            #[cfg(test)]
+            let worker_finished = finished.clone();
+            let handle = std::thread::Builder::new()
                 .stack_size(crate::frontend_stack_size("PARSER"))
                 .spawn(move || {
                     for job in jobs {
@@ -817,11 +835,20 @@ fn parse_with_split_tokens_counted(
                         }));
                         let _ = job.response.send(result);
                     }
+                    #[cfg(test)]
+                    worker_finished.store(true, std::sync::atomic::Ordering::Release);
                 })
                 .map_err(|_| ())?;
-            *worker = Some(sender);
+            #[cfg(test)]
+            PARSE_WORKER_SPAWNS.with(|count| count.set(count.get() + 1));
+            *worker = Some(ParseWorker {
+                sender,
+                handle,
+                #[cfg(test)]
+                finished,
+            });
         }
-        worker.as_ref().ok_or(())?.send(job).map_err(|_| ())
+        worker.as_ref().ok_or(())?.sender.send(job).map_err(|_| ())
     });
     if sent.is_err() {
         return Err(worker_unavailable(file, source));
@@ -1211,6 +1238,21 @@ mod tests {
         let spawns = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get) - before;
         eprintln!("small parses: direct {direct:?}, worker {worker:?}");
         assert!(spawns <= 1, "{spawns} worker spawns for repeated parses");
+    }
+
+    #[test]
+    fn parser_worker_shutdown_joins_and_allows_restart() {
+        shutdown_parse_worker();
+        let before = PARSE_WORKER_SPAWNS.with(std::cell::Cell::get);
+        parse("shutdown.n", "fn Main(){}").unwrap();
+        let finished = PARSE_WORKER.with(|slot| slot.borrow().as_ref().unwrap().finished.clone());
+        assert_eq!(PARSE_WORKER_SPAWNS.with(std::cell::Cell::get), before + 1);
+        shutdown_parse_worker();
+        assert!(finished.load(std::sync::atomic::Ordering::Acquire));
+        shutdown_parse_worker();
+        parse("shutdown.n", "fn Main(){}").unwrap();
+        assert_eq!(PARSE_WORKER_SPAWNS.with(std::cell::Cell::get), before + 2);
+        shutdown_parse_worker();
     }
 
     #[test]

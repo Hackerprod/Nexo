@@ -243,3 +243,23 @@ Una corrida adicional de `libtest-json` registró la llegada de los eventos `sta
 | `nexo::run_argv_matrix` | 0.0 | 54.0 | 0.0 | 160.2 |
 | `nexo::run_cli_diagnostics_and_cells` | 0.0 | 7.6 | 0.0 | 56.3 |
 | `nexo::runtime_profiles_and_resource_limits` | 263.1 | 168.8 | 92.7 | 287.0 |
+## Cuelgue en la salida (2026-11-19)
+
+La sonda previa del coordinador (`nexo.exe check`, 16 hilos, 40.000 procesos) observó 2 cuelgues; los controles `whoami.exe` y un Rust trivial no observaron ninguno en 40.000. Tres pilas de procesos colgados en debug y release mostraron el destructor del `Sender<ParseJob>` del thread-local principal esperando el mutex del canal. El trabajador persistente podía ser detenido por `ExitProcess` antes de ese destructor. La corrección guarda el `JoinHandle`, cierra el canal y espera al trabajador desde `main()` antes del teardown. La regresión comprueba terminación, segunda llamada y recreación en el mismo hilo.
+
+Auditoría de `thread_local!` en `src/`: el parser era el único thread-local de producción con un `Sender` y un trabajador persistente. Los de `frontend/lex.rs`, `ir/mod.rs`, `ir/ownership_flow.rs` e `interp/machine.rs` son `cfg(test)` y guardan valores sin canales ni mutex. `test_alloc.rs` también es solo de tests; su `MutexGuard` libera el mutex al salir del hilo de test, sin tomar otro lock ni depender de un trabajador que `ExitProcess` detenga.
+
+La primera adaptación usó `nexo-valid` (`fn Main(){}`), que activa un camino distinto al de la fuente original de la sonda. Se conserva como control de programas aceptados; la medición de la carrera usa `nexo` con la fuente exacta de `hangprobe/probe.py`: `fn Main(){match 1{(1,2)=>{},_=>{}}}`, cuyo rechazo con exit 1 es esperado. Comando: `python -B scripts/spawn-stress.py <binario> 200000 16 25 <modo>`. La sonda imprime JSON y solo mata sus PID. Las 29 fuentes objetivo se comparan con `check` y `run` entre la base `15883d9` y la corrección, incluyendo exit, stdout y stderr.
+
+| Binario | Lanzamientos | Cuelgues | Salidas fallidas | Pared (s) | p50 (s) | Máximo (s) |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| Corregido debug, `nexo-valid` | 200.000 | 0 | 0 | 356,2 | 0,025 | 0,979 |
+| Corregido release, `nexo-valid` | 200.000 | 0 | 0 | 496,4 | 0,034 | 14,218 |
+| Base debug, `nexo-valid` | 200.000 | 0 | 0 | 372,0 | 0,024 | 11,194 |
+| Base debug, `nexo` | 200.000 | 14 | 0 | 222,0 | 0,013 | 1,096 |
+| Corregido debug, `nexo` | 200.000 | 0 | 0 | 334,8 | 0,019 | 2,347 |
+| Corregido release, `nexo` | 200.000 | 0 | 0 | 272,7 | 0,019 | 1,549 |
+
+Con la tasa preliminar 2/40.000 se esperaban aproximadamente 10 cuelgues por 200.000 lanzamientos de la base; la serie de control con el fixture original observó 14. En los dos binarios corregidos se observaron 0/200.000. La sonda empírica no sustituye la regresión determinista de cierre y `join()`.
+
+Diferencial de base `15883d9` frente a la corrección: 29 fuentes objetivo × `check`/`run` = 58 invocaciones por binario en debug y 58 en release; en cada perfil hubo 0 diferencias en exit, stdout y stderr byte a byte. Se usaron los mismos archivos de fuente y `.env.json` cuando correspondía.
