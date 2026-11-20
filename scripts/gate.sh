@@ -123,11 +123,13 @@ def log_evidence(data):
     for label, step in record['steps'].items():
         if sections[label]['exit'] != step['exit'] or step['exit'] != 0:
             raise SystemExit('exit distinto en log')
-    for label in ('validate', 'objetivo', 'rd'):
+    for label in ('selection', 'validate', 'objetivo', 'rd'):
         if label not in sections or not sections[label]['command'].startswith('COMMAND ' + label + ': '):
             raise SystemExit('paso obligatorio ausente')
     if 'sh scripts/validate.sh' not in sections['validate']['command']:
         raise SystemExit('comando validate distinto')
+    if 'python -B scripts/check-nextest-selection.py' not in sections['selection']['command']:
+        raise SystemExit('comando de selección distinto')
     obj = re.findall(r'Programas que ejecutan:\s*(\d+)/(\d+)', '\n'.join(sections['objetivo']['body']))
     rd_rows = re.findall(r'RD normative:\s*(\d+)/(\d+) check/run pairs', '\n'.join(sections['rd']['body']))
     if len(obj) != 1 or len(rd_rows) != 1:
@@ -328,6 +330,10 @@ try:
     for name, expected in source_hashes.items():
         if not blob_equivalent((copy / name).read_bytes(), expected):
             raise RuntimeError(f'copia distinta: {name}')
+    selection = ['python', '-B', 'scripts/check-nextest-selection.py']
+    if nextest is None:
+        selection.append('--cargo-test')
+    run('selection', selection)
     run('validate', ['sh', 'scripts/validate.sh'])
     run('objetivo', ['python', '-B', 'scripts/objetivo.py'])
     run('rd', ['python', '-B', 'scripts/i07c_rd_conformidad.py', '--verify',

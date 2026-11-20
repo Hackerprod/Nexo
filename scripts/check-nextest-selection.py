@@ -74,37 +74,136 @@ def filter_pairs(pairs):
         fail("el filtro fast no coincide exactamente con los pares de la tabla")
 
 
+def rust_without_inert_text(source, *, strings=True):
+    """Enmascara comentarios anidados y, opcionalmente, cadenas Rust sin mover líneas."""
+    out = list(source)
+    pos = 0
+    while pos < len(source):
+        start = pos
+        if source.startswith("//", pos):
+            end = source.find("\n", pos)
+            pos = len(source) if end < 0 else end
+        elif source.startswith("/*", pos):
+            pos += 2
+            depth = 1
+            while pos < len(source) and depth:
+                if source.startswith("/*", pos):
+                    depth += 1
+                    pos += 2
+                elif source.startswith("*/", pos):
+                    depth -= 1
+                    pos += 2
+                else:
+                    pos += 1
+        else:
+            raw = re.match(r'(?:br|r)(#+)?"', source[pos:])
+            if raw:
+                suffix = '"' + (raw[1] or "")
+                end = source.find(suffix, pos + len(raw[0]))
+                pos = len(source) if end < 0 else end + len(suffix)
+            elif source[pos] == '"' or source.startswith('b"', pos):
+                pos += 2 if source.startswith('b"', pos) else 1
+                while pos < len(source):
+                    if source[pos] == "\\":
+                        pos += 2
+                    elif source[pos] == '"':
+                        pos += 1
+                        break
+                    else:
+                        pos += 1
+            else:
+                pos += 1
+                continue
+            if not strings:
+                continue
+        for index in range(start, min(pos, len(source))):
+            if source[index] != "\n":
+                out[index] = " "
+    return "".join(out)
+
+
+def test_sources():
+    paths = sorted((ROOT / "tests").glob("*.rs"))
+    paths += sorted((ROOT / "tests").glob("*/main.rs"))
+    return paths
+
+
 def suite_sources():
     manifest = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
     if manifest["package"].get("autotests") is not False:
         fail("Cargo debe declarar autotests = false")
     targets = {(test.get("name"), test.get("path")) for test in manifest.get("test", [])}
-    if targets != {("suite", "tests/suite.rs"),
-                   ("i07c_mutant_projection_scale", "tests/i07c_mutant_projection_scale.rs")}:
-        fail("los destinos de integración deben ser suite y el asignador global aparte")
-    content = SUITE.read_text(encoding="utf-8")
-    declarations = re.findall(r'^#\[path = "([A-Za-z0-9_]+)\.rs"\]\nmod ([A-Za-z0-9_]+);$',
-                              content, re.MULTILINE)
+    required = {("suite", "tests/suite.rs"),
+                ("i07c_mutant_projection_scale", "tests/i07c_mutant_projection_scale.rs")}
+    if not required <= targets or any(not isinstance(name, str) or not isinstance(path, str)
+                                      or not path.startswith("tests/") for name, path in targets):
+        fail("faltan los destinos suite/asignador o hay un [[test]] inválido")
+    content = rust_without_inert_text(SUITE.read_text(encoding="utf-8"), strings=False)
+    active = rust_without_inert_text(content)
+    declaration_pattern = (r'^#\[path = "([A-Za-z0-9_]+)\.rs"\]\n'
+                           r'(?:#\[[^\n]+\]\n)*mod ([A-Za-z0-9_]+);$')
+    declarations = [(match[1], match[2]) for match in re.finditer(declaration_pattern, content, re.MULTILINE)
+                    if active[match.start():].startswith("#[path")]
     if any(source != module for source, module in declarations):
         fail("la declaración #[path] debe conservar el nombre de su fuente")
     ordinary = [source for source, _ in declarations]
     sources = {path.stem for path in (ROOT / "tests").glob("*.rs")}
     special = {"suite", "j14_frontend_stack", "j16_frontend_stack",
                "i07c_mutant_projection_scale"}
-    if len(ordinary) != len(set(ordinary)) or set(ordinary) != sources - special:
+    separate = {Path(path).stem for _, path in targets if path.endswith(".rs")}
+    if len(ordinary) != len(set(ordinary)) or set(ordinary) != sources - special - separate:
         fail("suite.rs omite o duplica una fuente de tests")
     if sources & special != special:
         fail("falta una de las fuentes especiales de tests")
-    if set(re.findall(r'include!\("([A-Za-z0-9_]+)\.rs"\);', content)) != {
+    includes = [match[1] for match in re.finditer(r'include!\("([A-Za-z0-9_]+)\.rs"\);', content)
+                if active[match.start():].startswith("include!")]
+    if set(includes) != {
             "j14_frontend_stack", "j16_frontend_stack"}:
         fail("J14 y J16 deben conservar sus inclusiones especiales")
-    if content.count("#[test]\nfn measured_stack_child()") != 1:
+    if active.count("#[test]\nfn measured_stack_child()") != 1:
         fail("falta el único alias raíz de measured_stack_child")
     common = {path.stem for path in (ROOT / "tests").glob("*.rs")
               if re.search(r"(?m)^mod common;", path.read_text(encoding="utf-8"))}
     if not common <= set(ordinary) | {"j14_frontend_stack", "j16_frontend_stack"}:
         fail("una fuente con mod common quedó fuera de suite")
+    nested = [path.relative_to(ROOT).as_posix() for path in test_sources()
+              if path.name == "main.rs" and path.parent.name != "common"
+              and path.relative_to(ROOT).as_posix() not in {target for _, target in targets}]
+    if nested:
+        fail(f"fuente tests/<x>/main.rs sin destino [[test]]: {nested}")
     print(f"suite: {len(ordinary)} módulos ordinarios, {len(common)} con mod common; J14/J16 y asignador aparte")
+
+
+def verify_source_inventory(all_cases, build):
+    manifest = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+    separate = {test["path"]: test["name"] for test in manifest.get("test", [])}
+    for path in test_sources():
+        relative = path.relative_to(ROOT).as_posix()
+        if path == SUITE or relative.startswith("tests/common/"):
+            continue
+        source = rust_without_inert_text(path.read_text(encoding="utf-8"))
+        count = len(re.findall(r"#\s*\[\s*test\s*\]", source))
+        if count == 0:
+            continue
+        if relative in separate:
+            binary, prefix = "nexo::" + separate[relative], ""
+        elif path.stem == "j16_frontend_stack":
+            binary, prefix = "nexo::suite", ""
+        else:
+            binary, prefix = "nexo::suite", path.stem + "::"
+        if path.stem == "j16_frontend_stack":
+            # J16 se incluye en la raíz: identificar sus funciones, no todo suite.
+            names = re.findall(r"#\s*\[\s*test\s*\]\s*(?:pub\s+)?fn\s+(\w+)", source)
+            listed = sum(case_binary == binary and name in names for case_binary, name in all_cases)
+        else:
+            listed = sum(case_binary == binary and name.startswith(prefix)
+                         for case_binary, name in all_cases)
+        if listed == 0:
+            fail(f"{relative}: ningún test en nextest {build} ({binary}/{prefix}); "
+                 "posible archivo no registrado, cfg anulador, #[path] cruzado o declaración comentada")
+        if listed != count:
+            print(f"AVISO {relative} {build}: {count} atributos #[test], {listed} tests listados "
+                  "(cfg legítimo o pruebas generadas); solo cero es fatal")
 
 
 def inventory(build, profile):
@@ -136,13 +235,44 @@ def inventory(build, profile):
     return all_cases, ignored, selected
 
 
+def cargo_test_inventory(build):
+    """Inventario del runner clásico cuando nextest no está instalado."""
+    manifest = tomllib.loads((ROOT / "Cargo.toml").read_text(encoding="utf-8"))
+    cases = set()
+    for target in manifest.get("test", []):
+        command = ["cargo", "test", "--locked", "--offline", "--test", target["name"]]
+        if build == "release":
+            command.append("--release")
+        command += ["--", "--list"]
+        result = subprocess.run(command, cwd=ROOT, capture_output=True, text=True,
+                                encoding="utf-8", errors="replace")
+        if result.returncode:
+            fail(f"cargo test --list {build}/{target['name']} terminó {result.returncode}: "
+                 f"{result.stderr[-1000:]}")
+        for line in result.stdout.splitlines():
+            if line.endswith(": test"):
+                pair = ("nexo::" + target["name"], line[:-len(": test")])
+                if pair in cases:
+                    fail(f"test duplicado en cargo test --list {build}: {pair}")
+                cases.add(pair)
+    return cases
+
+
 def check():
     suite_sources()
+    if sys.argv[1:] == ["--cargo-test"]:
+        for build in ("debug", "release"):
+            verify_source_inventory(cargo_test_inventory(build), build)
+        print("selección de fuentes comprobada con cargo test --list (nextest no instalado)")
+        return
+    if len(sys.argv) != 1:
+        fail("uso: check-nextest-selection.py [--cargo-test]")
     pairs = table_pairs()
     filter_pairs(pairs)
     heavy = set(pairs)
     for build in ("debug", "release"):
         all_default, ignored_default, universe = inventory(build, "default")
+        verify_source_inventory(all_default, build)
         all_fast, ignored_fast, fast = inventory(build, "fast")
         if all_default != all_fast or ignored_default != ignored_fast:
             fail(f"descubrimiento o ignorados difieren entre default y fast en {build}")
