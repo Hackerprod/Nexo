@@ -103,6 +103,9 @@ def main():
     parser.add_argument("--timeout", type=int, default=2400)
     args = parser.parse_args()
     tree = args.tree.resolve(strict=True)
+    allowed = [Path('C:/nexo-work/tmp').resolve(), Path('C:/nexo-work/val').resolve()]
+    if not any(tree.is_relative_to(root) and tree != root for root in allowed):
+        parser.error('--tree debe ser una copia bajo C:/nexo-work/tmp o C:/nexo-work/val')
     patch = json.loads(args.patch.read_text(encoding="utf-8"))
     relative = Path(patch["file"])
     if relative.is_absolute() or ".." in relative.parts:
@@ -148,6 +151,25 @@ def main():
                                     "log": str(log_path),
                                     "stdout_sha256": digest(result["stdout"].encode()),
                                     "stderr_sha256": digest(result["stderr"].encode())})
+            if verdict == "MUERTO":
+                test_name = test.split('$', 1)[-1]
+                isolated = argv + ['-E', 'test(=' + test_name + ')']
+                again = command(isolated, tree, env, args.timeout)
+                again_verdict, again_test, _ = classify(again)
+                source_path.write_bytes(original)
+                baseline = command(isolated, tree, env, args.timeout)
+                base_verdict, _, _ = classify(baseline)
+                source_path.write_bytes(mutated)
+                row['profiles'][-1]['confirmation'] = {
+                    'selection': isolated, 'mutated_verdict': again_verdict,
+                    'mutated_test': again_test, 'mutated_exit': again['exit'],
+                    'baseline_verdict': base_verdict, 'baseline_exit': baseline['exit'],
+                    'mutated_stdout_sha256': digest(again['stdout'].encode()),
+                    'baseline_stdout_sha256': digest(baseline['stdout'].encode())}
+                if again_verdict != 'MUERTO' or again_test != test or base_verdict != 'VERDE':
+                    verdict = 'INCONCLUSO'
+                    row['profiles'][-1]['verdict'] = verdict
+                    row['profiles'][-1]['reason'] = 'fallo no reproducido aisladamente en mutante y base'
             if verdict != "VERDE":
                 row["verdict"] = verdict
                 break

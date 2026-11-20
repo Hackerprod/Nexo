@@ -2,6 +2,7 @@
 """Coordina trabajo pesado entre carriles mediante creación exclusiva en C:."""
 
 import argparse
+import ctypes
 import json
 import os
 from pathlib import Path
@@ -9,6 +10,7 @@ import secrets
 import subprocess
 import sys
 from datetime import datetime, timezone
+import time
 
 
 LOCK = Path('C:/nexo-work/heavy.lock')
@@ -16,7 +18,32 @@ LOCK = Path('C:/nexo-work/heavy.lock')
 
 def owner():
     try:
-        return json.loads(LOCK.read_text(encoding='utf-8'))
+        data = json.loads(LOCK.read_text(encoding='utf-8'))
+        pid = data.get('pid')
+        if isinstance(pid, int) and pid > 0:
+            try:
+                if os.name == 'nt':
+                    kernel = ctypes.windll.kernel32
+                    handle = kernel.OpenProcess(0x1000, False, pid)
+                    if not handle:
+                        data['pid_exists'] = False
+                    else:
+                        exit_code = ctypes.c_ulong()
+                        queried = kernel.GetExitCodeProcess(handle, ctypes.byref(exit_code))
+                        kernel.CloseHandle(handle)
+                        data['pid_exists'] = exit_code.value == 259 if queried else None
+                else:
+                    os.kill(pid, 0)
+                    data['pid_exists'] = True
+            except ProcessLookupError:
+                data['pid_exists'] = False
+            except (PermissionError, OSError):
+                data['pid_exists'] = None
+        try:
+            data['age_seconds'] = max(0, round(time.time() - datetime.fromisoformat(data['time_utc']).timestamp()))
+        except (KeyError, ValueError, TypeError):
+            data['age_seconds'] = None
+        return data
     except FileNotFoundError:
         return None
     except (OSError, json.JSONDecodeError):
@@ -64,6 +91,7 @@ def main():
     except RuntimeError as error:
         print(error, file=sys.stderr)
         raise SystemExit(75)
+    code = 1
     try:
         env = os.environ.copy()
         env['CARGO_BUILD_JOBS'] = '6'
@@ -79,9 +107,14 @@ def main():
                 process.terminate()
             process.wait()
             raise
-        raise SystemExit(code)
     finally:
-        release(token)
+        try:
+            release(token)
+        except (OSError, RuntimeError) as error:
+            print(f'no se pudo liberar el cerrojo: {error}', file=sys.stderr)
+            if code == 0:
+                code = 1
+    raise SystemExit(code)
 
 
 if __name__ == '__main__':

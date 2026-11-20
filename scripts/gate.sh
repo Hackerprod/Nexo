@@ -85,6 +85,90 @@ record_file = root / (commit + '-' + identity_tag + '.json')
 log_file = root / (commit + '-' + identity_tag + '.log')
 
 cache_dir = Path('C:/nexo-work/cache') / tree / sha(rustc.encode())[:16]
+
+
+def log_evidence(data):
+    """Reparsea el log ligado al commit; detecta edición accidental del registro.
+
+    Quien controle a la vez JSON y log puede falsificar ambos: no es una firma.
+    """
+    lines = data.decode('utf-8', 'replace').splitlines()
+    if not lines or not lines[0].startswith('GATE-IDENTITY '):
+        raise SystemExit('cabecera de identidad ausente')
+    header = json.loads(lines[0][len('GATE-IDENTITY '):])
+    if header != {'identity': identity, 'archive_sha256': sha(git('archive', commit))}:
+        raise SystemExit('identidad o archivo del log distinto')
+    sections = {}
+    current = None
+    for line in lines[1:]:
+        if line.startswith('COMMAND '):
+            label = line.split(':', 1)[0][len('COMMAND '):]
+            if label in sections:
+                raise SystemExit('comando duplicado en log')
+            sections[label] = {'command': line, 'body': []}
+            current = label
+        elif line.startswith('RESULT '):
+            match = re.fullmatch(r'RESULT ([\w-]+) exit=(-?\d+)', line)
+            if not match or match[1] != current or 'exit' in sections[current]:
+                raise SystemExit('resultado de comando inválido')
+            sections[current]['exit'] = int(match[2])
+            current = None
+        elif current is not None:
+            sections[current]['body'].append(line)
+        elif line.strip():
+            raise SystemExit('texto fuera de comando en log')
+    expected = set(record['steps'])
+    if set(sections) != expected or any('exit' not in part for part in sections.values()):
+        raise SystemExit('comandos o resultados incompletos')
+    for label, step in record['steps'].items():
+        if sections[label]['exit'] != step['exit'] or step['exit'] != 0:
+            raise SystemExit('exit distinto en log')
+    for label in ('validate', 'objetivo', 'rd'):
+        if label not in sections or not sections[label]['command'].startswith('COMMAND ' + label + ': '):
+            raise SystemExit('paso obligatorio ausente')
+    if 'sh scripts/validate.sh' not in sections['validate']['command']:
+        raise SystemExit('comando validate distinto')
+    obj = re.findall(r'Programas que ejecutan:\s*(\d+)/(\d+)', '\n'.join(sections['objetivo']['body']))
+    rd_rows = re.findall(r'RD normative:\s*(\d+)/(\d+) check/run pairs', '\n'.join(sections['rd']['body']))
+    if len(obj) != 1 or len(rd_rows) != 1:
+        raise SystemExit('objetivo o RD ausente/duplicado en log')
+    if record['objective'] != dict(zip(('executing', 'total'), map(int, obj[0]))) or record['rd'] != dict(zip(('matched', 'total'), map(int, rd_rows[0]))):
+        raise SystemExit('objetivo o RD distinto del log')
+    for profile in ('debug', 'release'):
+        label = ('list-' if runner == 'nextest' else 'cargo-list-') + profile
+        if runner == 'nextest':
+            inventory_labels = [label]
+        else:
+            inventory_labels = [label + '-0', label + '-1']
+        evidence = []
+        for item in inventory_labels:
+            matches = re.findall(r'^INVENTORY (\w+) (\{.*\})$', '\n'.join(sections[item]['body']), re.M)
+            if len(matches) != 1 or matches[0][0] != item:
+                raise SystemExit('inventario ausente en log')
+            evidence.append(json.loads(matches[0][1]))
+        inv = evidence[0] if runner == 'nextest' else {'discovered': evidence[0]['count'], 'ignored': evidence[1]['count']}
+        if runner != 'nextest':
+            inv['runnable'] = inv['discovered'] - inv['ignored']
+        body = '\n'.join(sections['validate']['body'])
+        if runner == 'nextest':
+            summaries = re.findall(r'Summary\s+\[[^\]]+\]\s+(\d+) tests? run: (\d+) passed[^\n]*?(\d+) skipped', body)
+            if len(summaries) != 2:
+                raise SystemExit('Summary debug/release ausente en log')
+            ran, passed, skipped = map(int, summaries[('debug', 'release').index(profile)])
+        else:
+            boundary = body.find('Finished `release` profile')
+            if boundary < 0:
+                raise SystemExit('sección release ausente en log')
+            section = body[:boundary] if profile == 'debug' else body[boundary:]
+            summaries = re.findall(r'test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored;', section)
+            if not summaries or any(int(row[1]) for row in summaries):
+                raise SystemExit('Summary cargo test ausente o fallido')
+            ran = passed = sum(int(row[0]) for row in summaries)
+            skipped = sum(int(row[2]) for row in summaries)
+        expected_counts = {**inv, 'executed': ran, 'passed': passed}
+        if record['counts'][profile] != expected_counts or ran != inv['runnable'] or skipped != inv['ignored']:
+            raise SystemExit('recuentos distintos del log')
+
 if mode in ('verify', 'cached-bin'):
     if not record_file.exists() or not log_file.exists():
         raise SystemExit('registro ausente para esta identidad de árbol, herramientas y entorno')
@@ -93,6 +177,8 @@ if mode in ('verify', 'cached-bin'):
         raise SystemExit('registro ausente o identidad distinta')
     if sha(log_file.read_bytes()) != record.get('log_sha256'):
         raise SystemExit('SHA-256 del log distinto')
+    if record.get('archive_sha256') != sha(git('archive', commit)):
+        raise SystemExit('SHA-256 del archivo distinto')
     if any(step.get('exit') != 0 for step in record.get('steps', {}).values()):
         raise SystemExit('registro con paso fallido')
     if set(record.get('counts', {})) != {'debug', 'release'}:
@@ -106,6 +192,7 @@ if mode in ('verify', 'cached-bin'):
         raise SystemExit('RD incompleto')
     if not record.get('objective'):
         raise SystemExit('objetivo ausente')
+    log_evidence(log_file.read_bytes())
     if mode == 'cached-bin':
         if env.get('NEXO_MUTANT') == '1':
             raise SystemExit('caché prohibida para árbol mutado')
@@ -141,6 +228,7 @@ def run(label, command):
         step_start = time.monotonic()
         done = subprocess.run(command, cwd=copy, env=env, stdout=stream,
                               stderr=subprocess.STDOUT, check=False)
+        stream.write((f'\nRESULT {label} exit={done.returncode}\n').encode())
     record['steps'][label] = {'exit': done.returncode,
                               'seconds': round(time.monotonic() - step_start, 3)}
     if done.returncode:
@@ -156,9 +244,6 @@ def inventory(profile):
     done = subprocess.run(command, cwd=copy, env=env, capture_output=True, check=False)
     record['steps']['list-' + profile] = {'exit': done.returncode,
                                          'seconds': round(time.monotonic() - start, 3)}
-    with run_log.open('ab') as stream:
-        stream.write(('\nCOMMAND list-' + profile + ': ' + ' '.join(command) + '\n').encode())
-        stream.write(done.stderr)
     if done.returncode:
         raise RuntimeError(f'nextest list {profile} falló')
     data = json.loads(done.stdout)
@@ -167,6 +252,12 @@ def inventory(profile):
     if len(tests) != data['test-count']:
         raise RuntimeError('inventario nextest truncado')
     ignored = sum(bool(item['ignored']) for item in tests)
+    with run_log.open('ab') as stream:
+        stream.write(('\nCOMMAND list-' + profile + ': ' + ' '.join(command) + '\n').encode())
+        stream.write(done.stderr)
+        if done.returncode == 0:
+            stream.write(('\nINVENTORY list-' + profile + ' ' + json.dumps({'discovered': len(tests), 'ignored': ignored, 'runnable': len(tests) - ignored}) + '\n').encode())
+        stream.write((f'RESULT list-{profile} exit={done.returncode}\n').encode())
     return {'discovered': len(tests), 'ignored': ignored,
             'runnable': len(tests) - ignored}
 
@@ -183,8 +274,12 @@ def cargo_inventory(profile):
         record['steps']['cargo-list-' + profile + '-' + str(len(counts))] = {
             'exit': done.returncode, 'seconds': round(time.monotonic() - start, 3)}
         with run_log.open('ab') as stream:
-            stream.write(('\nCOMMAND cargo-list-' + profile + ': ' + ' '.join(command) + '\n').encode())
+            stream.write(('\nCOMMAND cargo-list-' + profile + '-' + str(len(counts)) + ': ' + ' '.join(command) + '\n').encode())
             stream.write(done.stderr)
+            if done.returncode == 0:
+                count = sum(line.endswith(': test') for line in done.stdout.decode('utf-8', 'replace').splitlines())
+                stream.write(('\nINVENTORY cargo-list-' + profile + '-' + str(len(counts)) + ' ' + json.dumps({'count': count}) + '\n').encode())
+            stream.write((f'RESULT cargo-list-{profile}-{len(counts)} exit={done.returncode}\n').encode())
         if done.returncode:
             raise RuntimeError(f'cargo list {profile} falló')
         counts.append(sum(line.endswith(': test') for line in done.stdout.decode('utf-8', 'replace').splitlines()))
@@ -227,6 +322,7 @@ def publish_cache():
 try:
     archive = git('archive', commit)
     record['archive_sha256'] = sha(archive)
+    run_log.write_text('GATE-IDENTITY ' + json.dumps({'identity': identity, 'archive_sha256': record['archive_sha256']}, sort_keys=True) + '\n', encoding='utf-8')
     with tarfile.open(fileobj=io.BytesIO(archive)) as bundle:
         bundle.extractall(copy, filter='data')
     for name, expected in source_hashes.items():

@@ -115,7 +115,7 @@
       "file": "src/check/types.rs",
       "sha_initial": "07540dd00c72b420fde8c6ce583eb8ab8430bfe06c95d4ee1e5ea99b7d43fe7c",
       "commits_searched": 25,
-      "reason": "ning?n blob del historial disponible coincide con sha_initial"
+      "reason": "ningún blob del historial disponible coincide con sha_initial"
     }
   ],
   "synthetic_timeout": {
@@ -135,5 +135,5 @@
     },
     "sha_restored": "c901786a8c273e2db56ad5b82e98d94dc627045dd56986e546024fc36fede191"
   },
-  "note": "La campa?a I07c activa conserva su clasificador; este helper se usa de forma aut?noma. Los logs temporales se eliminaron tras extraer hashes y recuentos."
+  "note": "La campaña I07c activa conserva su clasificador; este helper se usa de forma aut?noma. Los logs temporales se eliminaron tras extraer hashes y recuentos."
 }
