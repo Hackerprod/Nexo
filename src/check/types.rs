@@ -18280,4 +18280,1131 @@ mod quota_tests {
         );
         assert_eq!(diagnostic.related_spans[0].span, site(7));
     }
+
+    #[test]
+    fn i07c_survivor3_shape_walk_checks_later_result_payload() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let ok = checker.new_variable(&site(2)).unwrap();
+        let err = checker.new_variable(&site(3)).unwrap();
+        let nested = checker.new_variable(&site(4)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&root)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::result(ok, err));
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&err)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(nested));
+        let expected = Type::result(Arc::new(Type::I64), Arc::new(Type::Bool));
+        assert!(checker.result_shape_conflict(root, &expected, 0));
+        let unrelated = checker.new_variable(&site(8)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&ok)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(unrelated));
+        checker.graph.register(ObligationKind::PatternConstructor {
+            union: err,
+            span: site(5),
+        });
+        let diagnostic = checker
+            .pattern_shape_mismatch(root, &expected, &site(6), &site(7))
+            .unwrap();
+        assert_eq!(diagnostic.code, "NX-E0102");
+        assert_eq!(diagnostic.subcause.as_deref(), Some("constructor_shape"));
+        assert_eq!(diagnostic.related_spans[0].span, site(5));
+    }
+
+    #[test]
+    fn i07c_survivor3_require_union_moves_concrete_payloads_to_children() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((
+            Type::result(Arc::new(Type::I64), Arc::new(Type::Bool)),
+            site(2),
+        ));
+        let children = checker
+            .require_union(root, UnionKind::Result, &site(3))
+            .unwrap();
+        assert!(checker.graph.type_nodes[&root].concrete.is_none());
+        assert_eq!(
+            checker.concrete(root).map(|(ty, _)| ty),
+            Some(Type::result(Arc::new(Type::I64), Arc::new(Type::Bool)))
+        );
+        assert_eq!(
+            checker.graph.type_nodes[&root].variant_origin,
+            Some(site(3))
+        );
+        let payloads: Vec<_> = children.variants.iter().filter_map(|v| v.payload).collect();
+        assert_eq!(payloads.len(), 2);
+        assert_eq!(
+            checker.concrete(payloads[0]).map(|(ty, _)| ty),
+            Some(Type::I64)
+        );
+        assert_eq!(
+            checker.concrete(payloads[1]).map(|(ty, _)| ty),
+            Some(Type::Bool)
+        );
+    }
+
+    #[test]
+    fn i07c_survivor3_union_transfers_single_sided_shape_and_origin() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let shaped = checker.new_variable(&site(1)).unwrap();
+        let plain = checker.new_variable(&site(2)).unwrap();
+        let payload = checker.new_variable(&site(3)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&shaped)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(payload));
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&shaped)
+            .unwrap()
+            .variant_constructed = true;
+        let concrete_origin = site(4);
+        checker.graph.type_nodes.get_mut(&plain).unwrap().concrete =
+            Some((Type::option(Arc::new(Type::I64)), concrete_origin.clone()));
+        checker.union(shaped, plain, site(5)).unwrap();
+        let root = checker.root(shaped);
+        assert_eq!(root, checker.root(plain));
+        assert!(checker.graph.type_nodes[&root].variant_constructed);
+        assert_eq!(
+            checker.graph.type_nodes[&root].variant_origin,
+            Some(concrete_origin)
+        );
+        assert_eq!(checker.concrete(payload).map(|(ty, _)| ty), Some(Type::I64));
+        assert_eq!(
+            checker.concrete(root).map(|(ty, _)| ty),
+            Some(Type::option(Arc::new(Type::I64)))
+        );
+    }
+
+    #[test]
+    fn i07c_survivor3_failed_union_restores_both_constructor_roots() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = checker.new_variable(&site(1)).unwrap();
+        let right = checker.new_variable(&site(2)).unwrap();
+        let left_payload = checker.new_variable(&site(3)).unwrap();
+        let right_payload = checker.new_variable(&site(4)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&left)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(left_payload));
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&right)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(right_payload));
+        checker
+            .bind(
+                &VisitCursor::default(),
+                left_payload,
+                Type::I64,
+                site(5),
+                site(5),
+                false,
+            )
+            .unwrap();
+        checker
+            .bind(
+                &VisitCursor::default(),
+                right_payload,
+                Type::Bool,
+                site(6),
+                site(6),
+                false,
+            )
+            .unwrap();
+        let before_steps = checker.solver_steps;
+        let error = checker.union(left, right, site(7)).unwrap_err();
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(checker.root(left), left);
+        assert_eq!(checker.root(right), right);
+        assert_eq!(
+            checker.concrete(left_payload).map(|(ty, _)| ty),
+            Some(Type::I64)
+        );
+        assert_eq!(
+            checker.concrete(right_payload).map(|(ty, _)| ty),
+            Some(Type::Bool)
+        );
+        assert!(checker.solver_steps > before_steps);
+    }
+
+    #[test]
+    fn i07c_survivor3_unify_concrete_union_kinds_and_payloads() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let visit = VisitCursor::default();
+        let option_i64 = Type::option(Arc::new(Type::I64));
+        let result_i64 = Type::result(Arc::new(Type::I64), Arc::new(Type::Bool));
+        let mismatch = checker
+            .unify(
+                &visit,
+                option_i64.clone(),
+                result_i64,
+                site(1),
+                site(2),
+                site(3),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(mismatch.code, "NX-E0102");
+        assert_eq!(
+            mismatch.data.get("expected_type"),
+            Some(&DataValue::String("Option<I64>".into()))
+        );
+        assert_eq!(
+            mismatch.data.get("found_type"),
+            Some(&DataValue::String("Result<I64,Bool>".into()))
+        );
+        let nested_kind = checker
+            .unify(
+                &visit,
+                Type::Array(Arc::new(option_i64.clone())),
+                Type::Array(Arc::new(Type::result(
+                    Arc::new(Type::I64),
+                    Arc::new(Type::Bool),
+                ))),
+                site(10),
+                site(11),
+                site(12),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(
+            nested_kind.data.get("expected_type"),
+            Some(&DataValue::String("Array<Option<I64>>".into()))
+        );
+        assert_eq!(
+            nested_kind.data.get("found_type"),
+            Some(&DataValue::String("Array<Result<I64,Bool>>".into()))
+        );
+        let same = checker
+            .unify(
+                &visit,
+                option_i64.clone(),
+                option_i64.clone(),
+                site(4),
+                site(5),
+                site(6),
+                false,
+            )
+            .unwrap();
+        assert_eq!(same, option_i64);
+        let nested = checker
+            .unify(
+                &visit,
+                Type::option(Arc::new(Type::option(Arc::new(Type::I64)))),
+                Type::option(Arc::new(Type::option(Arc::new(Type::Bool)))),
+                site(7),
+                site(8),
+                site(9),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(nested.code, "NX-E0102");
+        assert!(nested.related_spans.iter().any(|related| {
+            related.role == RelatedRole::ExpectedType && related.span == site(7)
+        }));
+    }
+
+    #[test]
+    fn i07c_survivor3_shape_requirements_reject_incompatible_roots() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let array = checker.new_variable(&site(1)).unwrap();
+        checker.require_array(array, &site(2)).unwrap();
+        assert_eq!(
+            checker
+                .require_union(array, UnionKind::Option, &site(3))
+                .unwrap_err()
+                .code,
+            "NX-E0103"
+        );
+        let scalar = checker.new_variable(&site(4)).unwrap();
+        checker
+            .bind(
+                &VisitCursor::default(),
+                scalar,
+                Type::Bool,
+                site(5),
+                site(5),
+                false,
+            )
+            .unwrap();
+        assert_eq!(
+            checker
+                .require_union(scalar, UnionKind::Result, &site(6))
+                .unwrap_err()
+                .code,
+            "NX-E0103"
+        );
+        let option = checker.new_variable(&site(7)).unwrap();
+        checker
+            .require_union(option, UnionKind::Option, &site(8))
+            .unwrap();
+        assert_eq!(
+            checker
+                .bind(
+                    &VisitCursor::default(),
+                    option,
+                    Type::I64,
+                    site(9),
+                    site(9),
+                    false
+                )
+                .unwrap_err()
+                .code,
+            "NX-E0103"
+        );
+    }
+
+    #[test]
+    fn i07c_survivor3_failed_single_sided_union_keeps_preexisting_shape() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let shaped = checker.new_variable(&site(1)).unwrap();
+        let plain = checker.new_variable(&site(2)).unwrap();
+        let child = checker.new_variable(&site(3)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&shaped)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(child));
+        checker
+            .bind(
+                &VisitCursor::default(),
+                child,
+                Type::Bool,
+                site(4),
+                site(4),
+                false,
+            )
+            .unwrap();
+        checker.graph.type_nodes.get_mut(&plain).unwrap().concrete =
+            Some((Type::option(Arc::new(Type::I64)), site(5)));
+        let error = checker.union(shaped, plain, site(6)).unwrap_err();
+        assert_eq!(error.code, "NX-E0102");
+        assert_eq!(checker.root(shaped), shaped);
+        assert_eq!(checker.root(plain), plain);
+        assert_eq!(checker.concrete(child).map(|(ty, _)| ty), Some(Type::Bool));
+    }
+
+    #[test]
+    fn i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let shaped = checker.new_variable(&site(1)).unwrap();
+        let plain = checker.new_variable(&site(2)).unwrap();
+        let first = checker.new_variable(&site(3)).unwrap();
+        let second = checker.new_variable(&site(4)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&shaped)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::result(first, second));
+        checker
+            .bind(
+                &VisitCursor::default(),
+                second,
+                Type::I64,
+                site(5),
+                site(5),
+                false,
+            )
+            .unwrap();
+        checker.graph.type_nodes.get_mut(&plain).unwrap().concrete = Some((
+            Type::result(Arc::new(Type::I64), Arc::new(Type::Bool)),
+            site(6),
+        ));
+        assert_eq!(
+            checker.union(shaped, plain, site(7)).unwrap_err().code,
+            "NX-E0102"
+        );
+        assert!(checker.concrete(first).is_none());
+        assert_eq!(checker.concrete(second).map(|(ty, _)| ty), Some(Type::I64));
+        assert_eq!(checker.root(shaped), shaped);
+        assert_eq!(checker.root(plain), plain);
+    }
+
+    #[test]
+    fn i07c_survivor3_union_prefers_larger_component_before_id() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let smaller_id = checker.new_variable(&site(1)).unwrap();
+        let larger_id = checker.new_variable(&site(2)).unwrap();
+        checker.graph.type_nodes.get_mut(&larger_id).unwrap().size = 3;
+        checker.union(smaller_id, larger_id, site(3)).unwrap();
+        assert_eq!(checker.root(smaller_id), larger_id);
+        assert_eq!(checker.graph.type_nodes[&larger_id].size, 4);
+    }
+
+    #[test]
+    fn i07c_survivor3_never_payload_keeps_later_result_bind() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let children = checker
+            .require_union(root, UnionKind::Result, &site(2))
+            .unwrap();
+        checker
+            .bind(
+                &VisitCursor::default(),
+                root,
+                Type::result(Arc::new(Type::Never), Arc::new(Type::I64)),
+                site(3),
+                site(3),
+                false,
+            )
+            .unwrap();
+        let payloads: Vec<_> = children.variants.iter().filter_map(|v| v.payload).collect();
+        assert_eq!(
+            checker.concrete(payloads[1]).map(|(ty, _)| ty),
+            Some(Type::I64)
+        );
+    }
+
+    #[test]
+    fn i07c_survivor3_cached_array_child_rebuilds_outer_shape() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = Type::Array(Arc::new(Type::I64));
+        let right = Type::Array(Arc::new(Type::I64));
+        let visit = VisitCursor::default();
+        checker
+            .unify(
+                &visit,
+                left.clone(),
+                right.clone(),
+                site(1),
+                site(2),
+                site(3),
+                false,
+            )
+            .unwrap();
+        let left_outer = Type::Array(Arc::new(left));
+        let right_outer = Type::Array(Arc::new(right));
+        let joined = checker
+            .unify(
+                &visit,
+                left_outer.clone(),
+                right_outer,
+                site(4),
+                site(5),
+                site(6),
+                false,
+            )
+            .unwrap();
+        assert_eq!(joined, left_outer);
+    }
+
+    #[test]
+    fn i07c_survivor3_failed_atomic_union_preserves_quota_error() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let shaped = checker.new_variable(&site(1)).unwrap();
+        let plain = checker.new_variable(&site(2)).unwrap();
+        let payload = checker.new_variable(&site(3)).unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&shaped)
+            .unwrap()
+            .variant_children = Some(UnionDescriptor::option(payload));
+        checker.solver_limit = checker.solver_steps;
+        let error = checker.union(shaped, plain, site(4)).unwrap_err();
+        assert_eq!(error.operation, Operation::AnalysisLimit);
+        assert!(checker.quota_error.is_some());
+        assert_eq!(checker.solver_steps, checker.solver_limit);
+    }
+
+    #[test]
+    fn i07c_survivor3_completed_option_uses_binding_origin() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        checker
+            .require_union(root, UnionKind::Option, &site(2))
+            .unwrap();
+        checker
+            .bind(
+                &VisitCursor::default(),
+                root,
+                Type::option(Arc::new(Type::I64)),
+                site(3),
+                site(4),
+                false,
+            )
+            .unwrap();
+        assert_eq!(
+            checker.graph.type_nodes[&root].variant_origin,
+            Some(site(3))
+        );
+        assert_eq!(
+            checker.concrete(root).map(|(ty, _)| ty),
+            Some(Type::option(Arc::new(Type::I64)))
+        );
+    }
+
+    #[test]
+    fn i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let pending = checker.new_variable(&site(1)).unwrap();
+        let left = Type::result(Arc::new(Type::Deferred(pending)), Arc::new(Type::Bool));
+        let right = Type::result(Arc::new(Type::I64), Arc::new(Type::I64));
+        assert_eq!(
+            checker
+                .unify(
+                    &VisitCursor::default(),
+                    left,
+                    right,
+                    site(2),
+                    site(3),
+                    site(4),
+                    false
+                )
+                .unwrap_err()
+                .code,
+            "NX-E0102"
+        );
+        assert!(checker.concrete(pending).is_none());
+    }
+
+    #[test]
+    fn i07c_survivor3_union_rejects_variant_against_array_in_both_orders() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        for reversed in [false, true] {
+            let mut checker = empty_checker(&resolved);
+            let variant = checker.new_variable(&site(1)).unwrap();
+            let array = checker.new_variable(&site(2)).unwrap();
+            checker
+                .require_union(variant, UnionKind::Option, &site(3))
+                .unwrap();
+            checker.require_array(array, &site(4)).unwrap();
+            let (left, right) = if reversed {
+                (array, variant)
+            } else {
+                (variant, array)
+            };
+            assert_eq!(
+                checker.union(left, right, site(5)).unwrap_err().code,
+                "NX-E0103"
+            );
+            assert_eq!(checker.root(variant), variant);
+            assert_eq!(checker.root(array), array);
+        }
+    }
+
+    #[test]
+    fn i07c_survivor3_require_union_quota_propagates_through_bind() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        checker
+            .require_union(root, UnionKind::Option, &site(2))
+            .unwrap();
+        checker.solver_limit = checker.solver_steps;
+        let error = checker
+            .bind(
+                &VisitCursor::default(),
+                root,
+                Type::option(Arc::new(Type::I64)),
+                site(3),
+                site(4),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(error.operation, Operation::AnalysisLimit);
+        assert!(checker.quota_error.is_some());
+    }
+
+    #[test]
+    fn i07c_survivor3_rebinding_known_union_keeps_first_shape_origin() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let ty = Type::option(Arc::new(Type::I64));
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete = Some((ty.clone(), site(2)));
+        checker
+            .require_union(root, UnionKind::Option, &site(3))
+            .unwrap();
+        checker
+            .bind(&VisitCursor::default(), root, ty, site(4), site(5), false)
+            .unwrap();
+        assert_eq!(
+            checker.graph.type_nodes[&root].variant_origin,
+            Some(site(3))
+        );
+    }
+
+    #[test]
+    fn i07c_survivor3_failed_result_bind_restores_first_payload() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let children = checker
+            .require_union(root, UnionKind::Result, &site(2))
+            .unwrap();
+        let payloads: Vec<_> = children.variants.iter().filter_map(|v| v.payload).collect();
+        checker
+            .require_union(payloads[1], UnionKind::Option, &site(3))
+            .unwrap();
+        assert_eq!(
+            checker
+                .bind(
+                    &VisitCursor::default(),
+                    root,
+                    Type::result(Arc::new(Type::I64), Arc::new(Type::Bool)),
+                    site(4),
+                    site(5),
+                    false,
+                )
+                .unwrap_err()
+                .code,
+            "NX-E0103"
+        );
+        assert!(checker.concrete(payloads[0]).is_none());
+    }
+
+    #[test]
+    fn i07c_survivor3_noncopyable_second_payload_restores_first_bind() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let children = checker
+            .require_union(root, UnionKind::Result, &site(2))
+            .unwrap();
+        let payloads: Vec<_> = children.variants.iter().filter_map(|v| v.payload).collect();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&payloads[1])
+            .unwrap()
+            .copyable_origin = Some(site(3));
+        assert_eq!(
+            checker
+                .bind(
+                    &VisitCursor::default(),
+                    root,
+                    Type::result(Arc::new(Type::I64), Arc::new(Type::MockResource)),
+                    site(4),
+                    site(5),
+                    false,
+                )
+                .unwrap_err()
+                .code,
+            "NX-E0102"
+        );
+        assert!(checker.concrete(payloads[0]).is_none());
+    }
+
+    #[test]
+    fn i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = checker.new_variable(&site(1)).unwrap();
+        let right = checker.new_variable(&site(2)).unwrap();
+        let first = Span {
+            file: "quota.n".into(),
+            start: 10,
+            end: 11,
+        };
+        let second = Span {
+            file: "quota.n".into(),
+            start: 10,
+            end: 12,
+        };
+        checker.graph.type_nodes.get_mut(&left).unwrap().concrete =
+            Some((Type::I64, first.clone()));
+        checker.graph.type_nodes.get_mut(&right).unwrap().concrete = Some((Type::I64, second));
+        checker.union(left, right, site(13)).unwrap();
+        let error = checker
+            .bind(
+                &VisitCursor::default(),
+                left,
+                Type::Bool,
+                site(14),
+                site(15),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(error.code, "NX-E0102");
+        assert!(
+            error
+                .related_spans
+                .iter()
+                .any(|r| r.role == RelatedRole::ExpectedType && r.span == first)
+        );
+    }
+
+    #[test]
+    fn i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let variant = checker.new_variable(&site(1)).unwrap();
+        let array = checker.new_variable(&site(2)).unwrap();
+        checker
+            .require_union(variant, UnionKind::Option, &site(3))
+            .unwrap();
+        checker.require_array(array, &site(4)).unwrap();
+        let joined = checker
+            .unify(
+                &VisitCursor::default(),
+                Type::Deferred(variant),
+                Type::Deferred(array),
+                site(5),
+                site(6),
+                site(7),
+                false,
+            )
+            .unwrap();
+        assert_eq!(joined, Type::Deferred(variant));
+        assert_eq!(checker.root(variant), variant);
+        assert_eq!(checker.root(array), array);
+        assert!(!checker.graph.type_nodes[&variant].recursive_join);
+        assert_eq!(checker.pending_join_count(), 1);
+    }
+
+    #[test]
+    fn i07c_survivor3_union_child_allocation_propagates_quota_errors() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        for (kind, allowance) in [(UnionKind::Option, 1), (UnionKind::Result, 2)] {
+            let mut checker = empty_checker(&resolved);
+            let root = checker.new_variable(&site(1)).unwrap();
+            checker.solver_limit = checker.solver_steps + allowance;
+            let error = checker.require_union(root, kind, &site(2)).unwrap_err();
+            assert_eq!(error.operation, Operation::AnalysisLimit);
+            assert!(checker.quota_error.is_some());
+            assert!(checker.graph.type_nodes[&root].variant_children.is_none());
+        }
+    }
+
+    #[test]
+    fn i07c_survivor3_late_result_payload_quota_rolls_back_first_bind() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let pending = checker.new_variable(&site(1)).unwrap();
+        checker.solver_limit = checker.solver_steps + 3;
+        let left = Type::result(Arc::new(Type::Deferred(pending)), Arc::new(Type::Bool));
+        let right = Type::result(Arc::new(Type::I64), Arc::new(Type::Bool));
+        let error = checker
+            .unify(
+                &VisitCursor::default(),
+                left,
+                right,
+                site(2),
+                site(3),
+                site(4),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(error.operation, Operation::AnalysisLimit);
+        assert!(checker.concrete(pending).is_none());
+        assert!(checker.quota_error.is_some());
+    }
+
+    #[test]
+    fn i07c_survivor3_partial_union_allocation_rolls_back_on_quota() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let pending = checker.new_variable(&site(2)).unwrap();
+        let before_nodes = checker.graph.next_variable;
+        checker.solver_limit = checker.solver_steps + 2;
+        let error = checker
+            .bind(
+                &VisitCursor::default(),
+                root,
+                Type::result(Arc::new(Type::Deferred(pending)), Arc::new(Type::I64)),
+                site(3),
+                site(4),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(error.operation, Operation::AnalysisLimit);
+        assert_eq!(checker.graph.next_variable, before_nodes);
+        assert!(checker.graph.type_nodes[&root].variant_children.is_none());
+        assert!(checker.quota_error.is_some());
+    }
+
+    #[test]
+    fn i07c_survivor3_equal_start_array_origins_choose_left_diagnostic_span() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let left = checker.new_variable(&site(1)).unwrap();
+        let right = checker.new_variable(&site(2)).unwrap();
+        let first = Span {
+            file: "quota.n".into(),
+            start: 10,
+            end: 11,
+        };
+        let second = Span {
+            file: "quota.n".into(),
+            start: 10,
+            end: 12,
+        };
+        checker.require_array(left, &first).unwrap();
+        checker.require_array(right, &second).unwrap();
+        checker.union(left, right, site(3)).unwrap();
+        let root = checker.root(left);
+        let error = checker.unresolved_constructor_diagnostic(root, site(4));
+        assert_eq!(error.code, "NX-E0103");
+        assert_eq!(error.primary_span, Some(first));
+    }
+
+    #[test]
+    fn i07c_survivor3_failed_concrete_union_expansion_restores_root() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let pending = checker.new_variable(&site(2)).unwrap();
+        let concrete = Type::result(Arc::new(Type::I64), Arc::new(Type::Bool));
+        checker.graph.type_nodes.get_mut(&root).unwrap().concrete =
+            Some((concrete.clone(), site(3)));
+        checker.solver_limit = checker.solver_steps + 4;
+        let error = checker
+            .bind(
+                &VisitCursor::default(),
+                root,
+                Type::result(Arc::new(Type::Deferred(pending)), Arc::new(Type::Bool)),
+                site(4),
+                site(5),
+                false,
+            )
+            .unwrap_err();
+        assert_eq!(error.operation, Operation::AnalysisLimit);
+        assert_eq!(
+            checker.graph.type_nodes[&root].concrete,
+            Some((concrete, site(3)))
+        );
+        assert!(checker.graph.type_nodes[&root].variant_children.is_none());
+    }
+
+    #[test]
+    fn i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        checker.graph.preseeded_children.insert(child);
+        let joined = checker
+            .unify(
+                &VisitCursor::default(),
+                Type::Deferred(root),
+                Type::I64,
+                site(3),
+                site(4),
+                site(5),
+                false,
+            )
+            .unwrap();
+        assert_eq!(joined, Type::Deferred(root));
+        let pending = checker.pending_joins().next().unwrap();
+        assert_eq!(pending.left, Type::Deferred(root));
+        assert_eq!(pending.right, Type::I64);
+        assert_eq!(pending.left_origin, site(3));
+        assert!(!pending.branch);
+        assert!(pending.related_expected);
+    }
+
+    #[test]
+    fn i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let shaped = checker.new_variable(&site(1)).unwrap();
+        let concrete = checker.new_variable(&site(2)).unwrap();
+        let child = checker.require_array(shaped, &site(3)).unwrap();
+        let grandchild = checker.require_array(child, &site(4)).unwrap();
+        checker.graph.preseeded_children.insert(grandchild);
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&concrete)
+            .unwrap()
+            .concrete = Some((Type::Array(Arc::new(Type::I64)), site(5)));
+        let joined = checker
+            .unify_with_expected_origin(
+                &VisitCursor::default(),
+                Type::Deferred(shaped),
+                Type::Deferred(concrete),
+                site(6),
+                site(7),
+                site(8),
+                UnifyPolicy {
+                    branch: true,
+                    related_expected: false,
+                },
+            )
+            .unwrap();
+        assert_eq!(joined, Type::Deferred(shaped));
+        let pending = checker.pending_joins().next().unwrap();
+        assert_eq!(pending.left, Type::Deferred(shaped));
+        assert_eq!(pending.right, Type::Deferred(concrete));
+        assert_eq!(pending.left_origin, site(6));
+        assert!(pending.branch);
+        assert!(!pending.related_expected);
+    }
+
+    #[test]
+    fn i07c_survivor3_partial_result_conflict_defers_join() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let partial = checker.new_variable(&site(1)).unwrap();
+        let concrete = checker.new_variable(&site(2)).unwrap();
+        let children = checker
+            .require_union(partial, UnionKind::Result, &site(3))
+            .unwrap();
+        let payloads: Vec<_> = children.variants.iter().filter_map(|v| v.payload).collect();
+        checker
+            .bind(
+                &VisitCursor::default(),
+                payloads[1],
+                Type::Bool,
+                site(4),
+                site(4),
+                false,
+            )
+            .unwrap();
+        checker
+            .graph
+            .type_nodes
+            .get_mut(&concrete)
+            .unwrap()
+            .concrete = Some((
+            Type::result(Arc::new(Type::I64), Arc::new(Type::I64)),
+            site(5),
+        ));
+        let joined = checker
+            .unify(
+                &VisitCursor::default(),
+                Type::Deferred(partial),
+                Type::Deferred(concrete),
+                site(6),
+                site(7),
+                site(8),
+                false,
+            )
+            .unwrap();
+        assert_eq!(joined, Type::Deferred(partial));
+        assert!(checker.concrete(payloads[0]).is_none());
+        assert_eq!(checker.pending_join_count(), 1);
+    }
+
+    #[test]
+    fn i07c_survivor3_array_join_wraps_pending_operand_shapes() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        checker.graph.preseeded_children.insert(child);
+        let left = Type::Array(Arc::new(Type::Deferred(root)));
+        let right = Type::Array(Arc::new(Type::I64));
+        let joined = checker
+            .unify(
+                &VisitCursor::default(),
+                left.clone(),
+                right.clone(),
+                site(3),
+                site(4),
+                site(5),
+                false,
+            )
+            .unwrap();
+        assert_eq!(joined, left);
+        let pending = checker.pending_joins().next().unwrap();
+        assert_eq!(pending.left, Type::Array(Arc::new(Type::Deferred(root))));
+        assert_eq!(pending.right, right);
+    }
+
+    #[test]
+    fn i07c_survivor3_nested_partial_result_deferral_keeps_array_shape() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        for deferred_right in [false, true] {
+            let mut checker = empty_checker(&resolved);
+            let partial = checker.new_variable(&site(1)).unwrap();
+            let other = checker.new_variable(&site(2)).unwrap();
+            let children = checker
+                .require_union(partial, UnionKind::Result, &site(3))
+                .unwrap();
+            let payloads: Vec<_> = children.variants.iter().filter_map(|v| v.payload).collect();
+            checker
+                .bind(
+                    &VisitCursor::default(),
+                    payloads[1],
+                    Type::Bool,
+                    site(4),
+                    site(4),
+                    false,
+                )
+                .unwrap();
+            let concrete = Type::result(Arc::new(Type::I64), Arc::new(Type::I64));
+            if deferred_right {
+                checker.graph.type_nodes.get_mut(&other).unwrap().concrete =
+                    Some((concrete.clone(), site(5)));
+            }
+            let right = if deferred_right {
+                Type::Deferred(other)
+            } else {
+                concrete
+            };
+            let joined = checker
+                .unify(
+                    &VisitCursor::default(),
+                    Type::Array(Arc::new(Type::Deferred(partial))),
+                    Type::Array(Arc::new(right)),
+                    site(6),
+                    site(7),
+                    site(8),
+                    false,
+                )
+                .unwrap();
+            assert_eq!(joined, Type::Array(Arc::new(Type::Deferred(partial))));
+            assert_eq!(checker.pending_join_count(), 1);
+        }
+    }
 }
