@@ -6,6 +6,12 @@ use nexo::diagnostic::{
 };
 
 fn main() -> ExitCode {
+    let code = run();
+    nexo::frontend::shutdown_parse_worker();
+    code
+}
+
+fn run() -> ExitCode {
     let args_os: Vec<_> = env::args_os().skip(1).collect();
     if args_os
         .first()
