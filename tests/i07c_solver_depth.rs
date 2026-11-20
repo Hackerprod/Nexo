@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use nexo::diagnostic::{DataValue, Diagnostic, Operation, RelatedRole, Stage};
+use nexo::diagnostic::{DataValue, Diagnostic, Namespace, Operation, RelatedRole, Severity, Stage};
 use nexo::ir::{CompileError, ReducedProfile, compile_scalar_with_profile};
 
 const FILE: &str = "solver_depth.n";
@@ -89,6 +89,80 @@ fn accepts(source: &str) {
             compile_scalar_with_profile(FILE, source, ReducedProfile::JNormal, run_entry).is_ok(),
             "{source}"
         );
+    }
+}
+
+struct ExpectedDiagnostic<'a> {
+    code: &'a str,
+    subcause: Option<&'a str>,
+    operation: Operation,
+    primary: (u64, u64),
+    token: &'a str,
+    related: &'a [(RelatedRole, u64, u64)],
+    data: BTreeMap<String, DataValue>,
+}
+
+// The rows below are literal check results from ccf6df1 or validated Block I.
+fn exact_check_diagnostics(source: &str, expected: &[ExpectedDiagnostic<'_>]) {
+    let profile = ReducedProfile::from_id("f0-0003-b-v1").unwrap();
+    let result = compile_scalar_with_profile(FILE, source, profile, false);
+    let CompileError::Rejected(errors) = result.unwrap_err() else {
+        panic!("expected source rejection: {source}");
+    };
+    let errors: Vec<Diagnostic> = errors
+        .into_iter()
+        .map(|mut error| {
+            error.publish(FILE, source).unwrap();
+            *error
+        })
+        .collect();
+    assert_eq!(errors.len(), expected.len(), "{source}: {errors:?}");
+    for (error, wanted) in errors.iter().zip(expected) {
+        assert_eq!(error.schema_version, 1);
+        assert_eq!(error.diagnostic_namespace, Namespace::NexoProposedV1);
+        assert_eq!(error.profile_id, "f0-0003-b-v1");
+        assert_eq!(error.code, wanted.code);
+        assert_eq!(error.subcause.as_deref(), wanted.subcause);
+        let rule = wanted.subcause.map_or_else(
+            || wanted.code.to_owned(),
+            |subcause| format!("{}/{subcause}", wanted.code),
+        );
+        assert_eq!(error.rule, rule);
+        assert_eq!(error.explanation_id.as_deref(), Some(rule.as_str()));
+        assert_eq!(error.severity, Severity::Error);
+        assert_eq!(error.stage, Stage::Types);
+        assert_eq!(
+            error.message,
+            "Invalid name, call or type in the proposed profile."
+        );
+        assert_eq!(error.operation, wanted.operation);
+        let span = error.primary_span.as_ref().unwrap();
+        assert_eq!(span.file, FILE);
+        assert_eq!((span.start, span.end), wanted.primary);
+        assert_eq!(
+            &source[span.start as usize..span.end as usize],
+            wanted.token
+        );
+        assert_eq!(
+            error
+                .related_spans
+                .iter()
+                .map(|r| {
+                    assert_eq!(r.span.file, FILE);
+                    (r.role, r.span.start, r.span.end)
+                })
+                .collect::<Vec<_>>(),
+            wanted.related,
+        );
+        assert_eq!(error.data, wanted.data);
+        assert!(error.cause_chain.is_empty());
+        assert!(error.repair.is_empty());
+        assert!(error.feature_id.is_none());
+        assert!(error.unexpected_token.is_none());
+        assert!(error.expected_tokens.is_empty());
+        assert!(error.expected_tokens_kind.is_none());
+        assert!(error.parser_context.is_none());
+        assert!(error.recognized_prefix.is_none());
     }
 }
 
@@ -514,4 +588,474 @@ fn constructor_arity_errors_do_not_repeat_pattern_walk() {
     );
     accepts("fn Main(){let x:Option<I64>=Some(1);match x{Some(y)=>{},_=>{}}}");
     accepts("fn Main(){let x:Option<I64>=None;match x{None=>{},_=>{}}}");
+}
+
+// I07c survivor regressions, transcribed from the frozen reference check output.
+fn check_m00436() {
+    let source = "fn Main(){let p=true;var r=Some(1);var q=r;r=(if p then 1 else (if true then 1 else (Some(r)==q)));}";
+    exact_check_diagnostics(
+        source,
+        &[
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (56, 57),
+                token: "1",
+                related: &[
+                    (RelatedRole::ExpectedType, 27, 34),
+                    (RelatedRole::FoundType, 56, 57),
+                ],
+                data: data(&[
+                    ("expected_type", string("Option<I64>")),
+                    ("found_type", string("I64")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (77, 78),
+                token: "1",
+                related: &[
+                    (RelatedRole::ExpectedType, 27, 34),
+                    (RelatedRole::FoundType, 77, 78),
+                ],
+                data: data(&[
+                    ("expected_type", string("Option<I64>")),
+                    ("found_type", string("I64")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (94, 95),
+                token: "q",
+                related: &[(RelatedRole::FoundType, 94, 95)],
+                data: data(&[
+                    ("expected_type", string("Option<I64>")),
+                    ("found_type", string("I64")),
+                ]),
+            },
+        ],
+    );
+}
+#[test]
+fn survivor_m00436_check_diagnostics() {
+    check_m00436();
+}
+fn check_m00466() {
+    let source = "fn Main(){var b0=(if true then {return;} else {return;});b0[Some((if true then {return;} else {return;}))]=(1==(if [[1]] then ([[]]+[1]) else b0));match ((if Some([[1]]) then None else [b0,(if true then {return;} else {return;})])<(if true then {return;} else {return;})){Some(v)=>{let k=v;},_=>{}}match b0{Some(v)=>{let k=v;},_=>{}}}";
+    exact_check_diagnostics(
+        source,
+        &[
+            ExpectedDiagnostic {
+                code: "NX-E0113",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (60, 105),
+                token: "Some((if true then {return;} else {return;}))",
+                related: &[],
+                data: data(&[(
+                    "unresolved_components",
+                    DataValue::Array(vec![string("$.some")]),
+                )]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (115, 120),
+                token: "[[1]]",
+                related: &[(RelatedRole::FoundType, 115, 120)],
+                data: data(&[
+                    ("expected_type", string("Bool")),
+                    ("found_type", string("Array<Array<I64>>")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (128, 130),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (158, 169),
+                token: "Some([[1]])",
+                related: &[(RelatedRole::FoundType, 158, 169)],
+                data: data(&[
+                    ("expected_type", string("Bool")),
+                    ("found_type", string("Option<Array<Array<I64>>>")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0113",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (175, 179),
+                token: "None",
+                related: &[],
+                data: data(&[(
+                    "unresolved_components",
+                    DataValue::Array(vec![string("$.some")]),
+                )]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (185, 229),
+                token: "[b0,(if true then {return;} else {return;})]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E1325",
+                subcause: Some("constructor_type"),
+                operation: Operation::TypesCheck,
+                primary: (272, 279),
+                token: "Some(v)",
+                related: &[],
+                data: data(&[
+                    ("constructor", string("prelude:Some")),
+                    ("scrutinee_type", string("Bool")),
+                ]),
+            },
+        ],
+    );
+}
+#[test]
+fn survivor_m00466_check_diagnostics() {
+    check_m00466();
+}
+fn check_m00474_m00475() {
+    let source = "fn Main(){match [[]]{Some(x)=>{let k:Array<I64>=x;},_=>{}}let l1=(([[]]<[[]])-(if true then {return;} else {return;}));l1[l1]=l1;var b3=[l1[Some([])]];var q4=(if true then {return;} else {return;});}";
+    exact_check_diagnostics(
+        source,
+        &[
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (17, 19),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (67, 76),
+                token: "[[]]<[[]]",
+                related: &[(RelatedRole::FoundType, 67, 76)],
+                data: data(&[
+                    ("expected_type", string("I64")),
+                    ("found_type", string("Bool")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (68, 70),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (73, 75),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (145, 147),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+        ],
+    );
+}
+#[test]
+fn survivor_m00474_check_diagnostics() {
+    check_m00474_m00475();
+}
+#[test]
+fn survivor_m00475_check_diagnostics() {
+    check_m00474_m00475();
+}
+fn check_m00494() {
+    let source = "fn Main(){var b0=([1]==(([[]]==[[]])==Some([1])));b0=b0[[[true,(if true then {return;} else {return;})],(if true then {return;} else {return;})]];}";
+    exact_check_diagnostics(
+        source,
+        &[
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (26, 28),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (32, 34),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+        ],
+    );
+}
+#[test]
+fn survivor_m00494_check_diagnostics() {
+    check_m00494();
+}
+fn check_m00588() {
+    let source = "fn Main(){match (if (if [None,[[1]]] then (if Some([]) then [[1]] else [(if true then {return;} else {return;})]) else Len(None)) then (if true then {return;} else {return;}) else [Some([[1]]),(if true then {return;} else {return;})]){Some(x)=>{},_=>{}}match (if true then {return;} else {return;}){Some(v)=>{let k:Array<I64>=v;},_=>{}}}";
+    exact_check_diagnostics(
+        source,
+        &[
+            ExpectedDiagnostic {
+                code: "NX-E0113",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (25, 29),
+                token: "None",
+                related: &[],
+                data: data(&[(
+                    "unresolved_components",
+                    DataValue::Array(vec![string("$.some")]),
+                )]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (51, 53),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (60, 65),
+                token: "[[1]]",
+                related: &[(RelatedRole::FoundType, 60, 65)],
+                data: data(&[
+                    ("expected_type", string("Bool")),
+                    ("found_type", string("Array<Array<I64>>")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (71, 112),
+                token: "[(if true then {return;} else {return;})]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (119, 128),
+                token: "Len(None)",
+                related: &[(RelatedRole::FoundType, 119, 128)],
+                data: data(&[
+                    ("expected_type", string("Bool")),
+                    ("found_type", string("I64")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0113",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (123, 127),
+                token: "None",
+                related: &[],
+                data: data(&[(
+                    "unresolved_components",
+                    DataValue::Array(vec![string("$.some")]),
+                )]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E1325",
+                subcause: Some("constructor_type"),
+                operation: Operation::TypesCheck,
+                primary: (235, 242),
+                token: "Some(x)",
+                related: &[],
+                data: data(&[
+                    ("constructor", string("prelude:Some")),
+                    ("scrutinee_type", string("Array<Option<Array<Array<I64>>>>")),
+                ]),
+            },
+        ],
+    );
+}
+#[test]
+fn survivor_m00588_check_diagnostics() {
+    check_m00588();
+}
+fn check_m00655() {
+    let source = "fn Main(){match (if (if true then {return;} else {return;}) then (if true then {return;} else {return;}) else ((if true then {return;} else {return;})<Len(Some([1])))){Some(v)=>{let k=v;},_=>{}}var a1=[[1]];a1[Len([a1,Some([])])]=a1[Some((if [] then a1 else [[1]]))];var a3=Some([]);}";
+    exact_check_diagnostics(
+        source,
+        &[
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("not_indexable"),
+                operation: Operation::TypesCheck,
+                primary: (155, 164),
+                token: "Some([1])",
+                related: &[(RelatedRole::FoundType, 155, 164)],
+                data: data(&[
+                    ("expected_type", string("domain:array")),
+                    ("found_type", string("Option<Array<I64>>")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (223, 225),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (242, 244),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (279, 281),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+        ],
+    );
+}
+#[test]
+fn survivor_m00655_check_diagnostics() {
+    check_m00655();
+}
+fn check_m00701_m00702_m00703() {
+    let source = "fn Main(){var b0=Some([(if true then {return;} else {return;})]);match (if true then {return;} else {return;}){Some(x)=>{},_=>{}}let l2:Array<I64>=((if [1,[]] then Len(Some([])) else [b0])+(if [] then ([true]-b0) else Some([1])));b0[l2]=(if true then {return;} else {return;});}";
+    exact_check_diagnostics(
+        source,
+        &[
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (22, 63),
+                token: "[(if true then {return;} else {return;})]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (155, 157),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (173, 175),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (183, 187),
+                token: "[b0]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0103",
+                subcause: None,
+                operation: Operation::TypesInfer,
+                primary: (193, 195),
+                token: "[]",
+                related: &[],
+                data: data(&[]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (202, 208),
+                token: "[true]",
+                related: &[(RelatedRole::FoundType, 202, 208)],
+                data: data(&[
+                    ("expected_type", string("I64")),
+                    ("found_type", string("Array<Bool>")),
+                ]),
+            },
+            ExpectedDiagnostic {
+                code: "NX-E0102",
+                subcause: Some("type_mismatch"),
+                operation: Operation::TypesCheck,
+                primary: (218, 227),
+                token: "Some([1])",
+                related: &[(RelatedRole::FoundType, 218, 227)],
+                data: data(&[
+                    ("expected_type", string("I64")),
+                    ("found_type", string("Option<Array<I64>>")),
+                ]),
+            },
+        ],
+    );
+}
+#[test]
+fn survivor_m00701_check_diagnostics() {
+    check_m00701_m00702_m00703();
+}
+#[test]
+fn survivor_m00702_check_diagnostics() {
+    check_m00701_m00702_m00703();
+}
+#[test]
+fn survivor_m00703_check_diagnostics() {
+    check_m00701_m00702_m00703();
 }
