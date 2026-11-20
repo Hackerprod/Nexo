@@ -130,9 +130,9 @@ Cada fila lleva rango debug/release (`—` si queda fuera del top 60), mediana y
 | `nexo` | `check::tests::valid_generated_names_shadowing_and_comparisons_have_no_diagnostics` | 115.6 | 106.7 | fuentes generadas de nombres; duplicate_binding_and_inner_shadowing_are_lexical y comparisons_use_right_operand_for_mismatch_and_operator_for_domain | 2026-11-19 / `ae9130f` código |
 | `nexo` | `ir::effects::witness_differential_tests::dynamic_witness_matches_reference_with_variable_leaf_chains_and_sccs` | 86.9 | 77.2 | cadenas/SCC de testigos; dynamic_witness_matches_simple_path_enumerator_on_small_graphs | 2026-11-19 / `ae9130f` código |
 | `nexo` | `ir::i07c_tests::generated_monomorphic_constraints_match_independent_graph_oracle` | 34.2 | 34.6 | grafo monomórfico generado; statement_permutations_match_independent_constraint_oracle | 2026-11-19 / `ae9130f` código |
-| `nexo::j04_match_fuzz` | `nested_option_match_resource_and_mode_sweep` | 25.2 | 24.7 | barrido de match Option; j04_match_semantics::temporary_scrutinee_uses_its_resolved_nominal_type_and_plan | 2026-11-19 / `ae9130f` código |
-| `nexo::j05_match_fuzz` | `nested_guarded_match_resource_and_copy_sweep` | 33.6 | 28.2 | barrido de guardas; j05_match_guards::guard_fallthrough_and_body_states_join_after_selection | 2026-11-19 / `ae9130f` código |
-| `nexo::j09_closure_fuzz` | `nested_capture_permissions_and_union_carriers_cross_product` | 53.4 | 51.7 | producto de capturas/union; j09_effects::nested_owned_closure_drop_is_visible_in_outer_contract | 2026-11-19 / `ae9130f` código |
+| `nexo::suite` | `j04_match_fuzz::nested_option_match_resource_and_mode_sweep` | 25.2 | 24.7 | barrido de match Option; j04_match_semantics::temporary_scrutinee_uses_its_resolved_nominal_type_and_plan | 2026-11-19 / `ae9130f` código |
+| `nexo::suite` | `j05_match_fuzz::nested_guarded_match_resource_and_copy_sweep` | 33.6 | 28.2 | barrido de guardas; j05_match_guards::guard_fallthrough_and_body_states_join_after_selection | 2026-11-19 / `ae9130f` código |
+| `nexo::suite` | `j09_closure_fuzz::nested_capture_permissions_and_union_carriers_cross_product` | 53.4 | 51.7 | producto de capturas/union; j09_effects::nested_owned_closure_drop_is_visible_in_outer_contract | 2026-11-19 / `ae9130f` código |
 <!-- NX-BUILD-EXCLUSIONS-END -->
 
 La tabla usa valores literales únicos. Para actualizarla: medir tres corridas debug/release, leer los flujos normativos y los casos cortos, registrar el par exacto, repetir `cargo nextest list` en ambos perfiles y ejecutar `python -B scripts/check-nextest-selection.py`. Un test nuevo entra en fast por defecto. Los excluidos se ejecutan con resultado terminal en `--profile default`.
@@ -297,7 +297,7 @@ En un repo sintético, tras construir ambos binarios, la puerta publicó GREEN y
 
 Control sintético: un dueño mantuvo el cerrojo 30 s; el segundo intento mostró su PID y sesión y no ejecutó el comando. Una liberación con token incorrecto fue rechazada y el archivo siguió presente. Tras salir el dueño, `status` devolvió `null`. No se paró ningún PID ajeno. La mejora de contención queda NO EVALUADA hasta que ambos carriles usen el mismo protocolo en bloques reales; esta prueba solo demuestra exclusión y liberación.
 
-## NX-B2-P1 — evaluación final y no adopción (2026-11-19)
+## NX-B2-P1 — primer intento interrumpido (2026-11-19)
 
 Base `e3802dce6150ec8abae71c9d52e503b7b15bba13`, árbol `431287b8f796fefb68e83e3b7e490401998d81e1`, Rust 1.99.1 MSVC, nextest 0.9.152, Python 3.13.1, seis workers, `--locked --offline`. Cada variante se creó con `git archive` bajo `C:/nexo-work/tmp/` y target nuevo propio. El prototipo P1 conservó 66 módulos ordinarios bajo `tests/suite.rs`, J16 en raíz, J14 con un alias raíz y el test con `#[global_allocator]` aparte. La excepción autorizada `#![allow(clippy::duplicate_mod)]` se limitó al nuevo `suite.rs`; Clippy mantuvo `-D warnings`. No se editó ningún test existente ni `src/`.
 
@@ -313,7 +313,51 @@ Los relojes son pared, no suma de tests. La carga incluye otros carriles; el cer
 
 La primera puerta fría P1 agotó el timeout default en `j14_semantic_boundaries::closure_literals_count_as_invocables_at_their_fn_token`: exit 100, **1.979 pasados y 1 timeout de 1.980** debug, 72 ignorados, sin llegar a release, 2.002,818 s. El mismo test aislado pasó con `suite.exe` en 1,809 s y con nextest default `--retries 0` en 2,475 s; la misma CLI aislada resolvió el programa en 0,044 s. Se repitió la puerta desde otro clon/target y cerró exit 0 en 662,066 s: **1.980/1.980 debug, 1.982/1.982 release**, 72/73 ignorados. En la puerta caliente siguiente, debug terminó 1.980/1.980, pero `j01_profile::j01_malformed_option_and_some_keep_syntax_priority` dejó otro `nexo.exe check` hijo sin CPU. El mismo test y comando aislados terminaron en 0,02 s y 0,006 s. Tras observar este segundo cuelgue se detuvieron solo sus PID propios; nextest informó exit 100, 1.981 pasados y 1 abortado de 1.982 release. Esta corrida **no** se cuenta como timeout natural ni como verde. Había además dos procesos ajenos antiguos detenidos en `nexo-j14-semantic-*`; no se intervinieron. Los dos bloqueos corresponden al síntoma de hijo `nexo.exe` sin CPU observado antes en NX-B1, pero impiden fundamentar una puerta nueva completa por tres réplicas. Windows retuvo el ejecutable del segundo hijo aun después de informar que el PID había terminado; la limpieza liberó el resto de la copia y dejó unos 8 MB bloqueados hasta que el sistema libere ese objeto.
 
-N1-A: el inventario nextest previo de ambas variantes conservó por nombre normalizado los 2.051/2.054 tests originales, añadió solo `measured_stack_child` (2.052/2.055 descubiertos) y mantuvo 72/73 ignorados. `cargo test --test suite` debug pasó con 786 ejecutables y 18 ignorados; `cargo test --test suite -- --list` descubrió 804. Los 14 módulos con `mod common;` no mostraron colisión de rutas temporales bajo el proceso clásico debug. N1-B: las 1.488 sondas de pila antes/después conservaron máximos idénticos; los tres hijos `--exact` dieron un test seleccionado y los negativos deliberados fallaron. La lectura de páginas comprometidas de CHECKER debug fue 233.472 bytes en ambos diseños, por encima del margen de 209.715 bytes previo a P1; no mide el pico de marcos y queda como observación para el propietario. N1-C y N1-D: **INCONCLUSOS** por falta de tres parejas verdes y medianas; la comprobación clásica release y las puertas rápidas adicionales quedaron **NO EVALUADAS** en esta continuación. Como N1 exige A–D simultáneamente, **P1 no se adopta**: se restauraron `Cargo.toml`, `.config/nextest.toml`, `scripts/check-nextest-selection.py` y la tabla de pesados, y se retiró el nuevo `tests/suite.rs`. No hay commit de código P1 ni cambio de la puerta completa.
+N1-A: el inventario nextest previo de ambas variantes conservó por nombre normalizado los 2.051/2.054 tests originales, añadió solo `measured_stack_child` (2.052/2.055 descubiertos) y mantuvo 72/73 ignorados. `cargo test --test suite` debug pasó con 786 ejecutables y 18 ignorados; `cargo test --test suite -- --list` descubrió 804. Los 14 módulos con `mod common;` no mostraron colisión de rutas temporales bajo el proceso clásico debug. N1-B: las 1.488 sondas de pila antes/después conservaron máximos idénticos; los tres hijos `--exact` dieron un test seleccionado y los negativos deliberados fallaron. La lectura de páginas comprometidas de CHECKER debug fue 233.472 bytes en ambos diseños, por encima del margen de 209.715 bytes previo a P1; no mide el pico de marcos y queda como observación para el propietario. N1-C y N1-D quedaron **INCONCLUSOS** en este intento por falta de tres parejas verdes y medianas; la comprobación clásica release y las puertas rápidas adicionales quedaron **NO EVALUADAS**. P1 quedó sin adoptar entonces: se restauraron los archivos experimentales. La evaluación posterior figura a continuación.
+
+## NX-B2-P1 — evaluación final tras corregir el cuelgue (2026-11-20)
+
+Base `d0746028b68076bcd1258d12a993d93efa4cd353`, árbol `2fe1fef0247f30e39f90d155061acb24782f0c49`; Rust/Cargo 1.99.1 MSVC, nextest 0.9.152, Python 3.13.1, seis workers, `--locked --offline`, perfil `default` explícito para las puertas completas. La base incluye la corrección de cierre del trabajador del parser. Cada réplica usó un archivo de `git archive` del mismo commit y targets nuevos en `C:`. El orden de cada par fue antes y después, y cada puerta caliente siguió a su fría en la misma copia. Las cifras son segundos de pared; la carga máxima cuenta procesos de toda la máquina (Cargo, `rustc`, `link`), incluidos otros carriles. No apareció ningún timeout ni cambio de resultado.
+
+| Par | Operación | Antes (s) | P1 (s) | Target antes/P1 (GB decimales) | Carga máxima Cargo,rustc,link antes/P1 |
+| ---: | --- | ---: | ---: | ---: | --- |
+| 1 | compilación fría debug | 54,893 | 31,615 | 3,98/1,19 | 5,26,4 / 5,26,5 |
+| 1 | compilación fría release tras debug | 175,135 | 102,713 | 5,08/1,70 | 5,26,6 / 5,3,0 |
+| 1 | completa fría | 695,860 | 590,398 | 5,22/1,81 | 5,30,7 / 5,25,5 |
+| 1 | completa caliente | 423,355 | 407,240 | 5,22/1,81 | 4,25,9 / 4,24,1 |
+| 1 | rápida fría | 341,099 | 300,983 | 5,22/1,81 | 4,6,2 / 3,3,0 |
+| 1 | rápida caliente | 203,844 | 201,390 | 5,22/1,81 | 2,0,0 / 2,0,0 |
+| 2 | compilación fría debug | 46,780 | 37,948 | 3,98/1,19 | 5,31,10 / 5,26,3 |
+| 2 | compilación fría release tras debug | 230,619 | 106,431 | 5,08/1,70 | 5,31,6 / 5,4,1 |
+| 2 | completa fría | 569,696 | 511,037 | 5,22/1,81 | 5,29,5 / 5,24,3 |
+| 2 | completa caliente | 380,588 | 425,053 | 5,22/1,81 | 4,23,2 / 4,23,2 |
+| 2 | rápida fría | 374,449 | 354,355 | 5,22/1,81 | 3,24,4 / 3,26,6 |
+| 2 | rápida caliente | 253,807 | 250,340 | 5,22/1,81 | 2,24,4 / 2,24,3 |
+| 3 | compilación fría debug | 48,043 | 35,610 | 3,98/1,19 | 5,7,2 / 5,13,8 |
+| 3 | compilación fría release tras debug | 97,008 | 100,565 | 5,08/1,70 | 5,26,5 / 5,6,3 |
+| 3 | completa fría | 527,803 | 356,393 | 5,22/1,81 | 5,29,11 / 3,2,1 |
+| 3 | completa caliente | 271,935 | 265,660 | 5,22/1,81 | 2,0,0 / 2,0,0 |
+| 3 | rápida fría | 410,335 | 326,160 | 5,22/1,81 | 3,23,4 / 3,26,7 |
+| 3 | rápida caliente | 267,611 | 198,586 | 5,22/1,81 | 2,1,1 / 1,0,0 |
+
+| Mediana de tres parejas | Antes (s) | P1 (s) | Cambio |
+| --- | ---: | ---: | ---: |
+| Compilación fría debug | 48,043 | 35,610 | −25,88 % |
+| Compilación fría release tras debug | 175,135 | 102,713 | −41,35 % |
+| Puerta completa fría | 569,696 | 511,037 | −10,30 % |
+| Puerta completa caliente | 380,588 | 407,240 | +7,00 % |
+| Puerta rápida fría | 374,449 | 326,160 | −12,90 % |
+| Puerta rápida caliente | 253,807 | 201,390 | −20,65 % |
+
+El target debug de compilación tuvo medianas **3.976.126.370 → 1.187.785.994 bytes** (−70,13 %); tras debug y release, **5.083.632.869 → 1.697.380.018 bytes** (−66,61 %). El target de la puerta completa fría quedó en mediana **5.216.451.510 → 1.809.012.639 bytes**. La pareja 3 de puerta completa tuvo menos `rustc` durante P1; también la pareja 2, con carga comparable, bajó 569,696 → 511,037 s. La compilación debug supera por 0,88 puntos porcentuales el umbral de N1-C; esta holgura estrecha y la variación de carga quedan visibles para revisión independiente. Las recompilaciones tras cambiar un token previstas en el plan original siguen NO EVALUADAS en esta continuación; no fundamentan N1 A–D.
+
+N1-A: `cargo nextest list --profile default` y `cargo test -- --list` descubrieron 2.052/2.055 tests antes y 2.053/2.056 con P1 en debug/release. El diferencial por `(binary_id, nombre, ignored)`, normalizado por el prefijo del módulo, encontró **cero originales ausentes, un alias adicional** `measured_stack_child` y 72/73 ignorados idénticos. Los ejecutables de la puerta completa fueron 1.980/1.982 antes y 1.981/1.983 después. El checker de selección confirmó `fast ∪ pesados = completo` y contabilizó por separado 1.980/1.982 originales más un alias. N1-B: las 1.488 sondas previas de pila dieron máximos idénticos antes/después para CHECKER, PARSER y tipos; los tres hijos exactos fueron seleccionados y sus negativos deliberados fallaron. La suite consolidada pasó con `cargo test --test suite` en debug y release (786 ejecutables, 18 ignorados en cada perfil), además de nextest; los 14 módulos con `mod common;` no mostraron colisión de rutas temporales bajo el proceso clásico. El test ignorado del asignador global pasó al forzarlo con `cargo test -- --ignored` y nextest `--run-ignored all`, en debug/release antes y después. La lectura previa de 233.472 bytes de páginas comprometidas en CHECKER debug fue idéntica entre diseños y supera el margen de 209.715 bytes previo a P1; no mide el máximo de marcos y queda como observación, sin alterar la equivalencia de P1.
+
+N1-C: la compilación fría debug mejoró 25,88 % y el target debug bajó 70,13 %. N1-D: la puerta completa fría, que incluye compilación debug y release y ejecución, mejoró 10,30 % de mediana; la caliente subió 7,00 % y queda registrada. Se cumplen A–D, por lo que **P1 se adopta**. El snapshot propuesto pasó `sh scripts/validate.sh` en copia limpia (1.981/1.983, 72/73 ignorados), `scripts/check-nextest-selection.py` exit 0, `scripts/objetivo.py` 15/29 y RD 152/152 en debug y release. No se cambió `src/`, una fuente existente de tests ni `scripts/validate.sh`.
+
+Repetición independiente de D' sobre compilación fría debug, con carga ajena variable y orden alternado: base/P1 **127/109 s** y **166/140 s**, mejoras de **14 %** y **16 %**. Ambas quedan bajo el umbral temporal de 25 % de N1-C y muestran dispersión frente al **25,88 %** de la serie anterior; la dirección de la mejora se confirma. El target **3.753 → 1.084 MB** (−71 %) coincide con la reducción anterior de ~70 %. El coordinador mantiene P1 adoptado considerando además release −41 %, target −70 %, puerta rápida −13 % fría/−21 % caliente y puerta completa fría −10 %; estas mediciones no convierten las dos repeticiones de D' en cumplimiento del umbral temporal.
+
+Corrección NX-B2-fix3: la puerta completa comprueba la selección antes de ejecutar pruebas. El chequeo compara, en debug y release, cada archivo `tests/*.rs` y `tests/*/main.rs` con `cargo nextest list` (o `cargo test --list` si nextest no está instalado); un archivo con `#[test]` y **cero** pruebas descubiertas en su módulo o binario falla. El conteo de atributos `#[test]` omite comentarios y cadenas y es deliberadamente grueso: diferencias positivas se avisan, sin bloquear, porque `#[cfg]` legítimos y pruebas generadas pueden cambiar la cardinalidad; cero bloquea porque demuestra pérdida total del archivo. Las inclusiones especiales J14/J16 y los destinos `[[test]]` se comprueban por su módulo o binario real.
 
 ## Cuelgue en la salida (2026-11-19)
 
