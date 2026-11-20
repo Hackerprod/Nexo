@@ -1,9 +1,18 @@
 [package]
+autotests = false
 name = "nexo"
 version = "0.0.1"
 edition = "2024"
 rust-version = "1.99"
 license = "Apache-2.0"
 description = "Nexo F0 semantic exploration: not a production compiler"
+
+[[test]]
+name = "suite"
+path = "tests/suite.rs"
+
+[[test]]
+name = "i07c_mutant_projection_scale"
+path = "tests/i07c_mutant_projection_scale.rs"
 
 [dependencies]

@@ -371,3 +371,12 @@ F0-0005 Bloque B1a integrado (2026-11-18, hasta `76b6f60`). Siguiente: B2a (L04a
 F0-0005 Bloque B2a integrado (2026-11-18, hasta `98ff91d`). Siguiente: B3a (L07a→L06a, en `i07c-robustez` desde `8cd60e1`, aún sin validar), tipado B1b/B2b/B3b tras el Bloque II de I07c en main, luego B4 (L08), B5 y B6 según `docs/correcciones/F5-r1.md` r6.
 
 F0-0005 Bloque B3a integrado (2026-11-19, hasta `dad10f0`). Siguiente: tipado B1b/B2b/B3b tras el Bloque II de I07c en main (rama propia basada en `origin/i07c-estructural-r2`), luego B4 (L08), B5 (const) y B6 según `docs/correcciones/F5-r1.md` r6. Entorno: todo en `C:\nexo-work` (NVMe), `cargo-nextest` instalado y usado por `scripts/validate.sh`.
+
+
+## I07c — recuperación de los Bloques I y II
+
+Plan y registros de corrección: `docs/correcciones/I07c-plan.md` (r2 a r17; S3 es r13 a r17). Informes de C y de D: `docs/correcciones/I07c-C-*.md` e `I07c-D1-*.md`. Mecanismo de S3: `Checker::solve` es el único despachador de `bind`, `require_union`, `union_inner` y `unify`; los recorridos de tipos usan marcos locales y el criterio estructural es cero ciclos de llamadas por profundidad de tipo.
+
+Para reproducir la puerta del corte: `sh scripts/validate.sh` en una copia limpia (o `scripts/gate.sh <commit>`), `python scripts/i07c_rd_conformidad.py --verify <nexo.exe>` (RD 152/152), `scripts/i07c_stack_probe/probe.py` (ocho filas `J16-S1C-*` a 204 KiB en debug y a 256 KiB en debug y release) y `tests/i07c_solver_depth.rs`. Los ficheros de prueba de I07c se registran en `tests/suite.rs`.
+
+Para reproducir la mutación acotada: la población congelada y su hash están en `docs/validation/i07c-mutations-ccf/` (`population.json`, `FREEZE.md`); el enumerador es `scripts/i07c_mutaciones.py --base ccf6df1` con `I07C_MUT_DIR=docs/validation/i07c-mutations-ccf`. Resultados, clasificación y caza con generador: `RESULTADO.md`, `results.jsonl`, `clasificacion.json`, `caza/` y `andamiaje/` en ese directorio.

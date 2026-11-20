@@ -471,3 +471,10 @@ Se integra a main el Bloque B2a hasta `98ff91d` en `i07c-robustez`: L04a (`while
 ## F0-0005 — Bloque B3a integrado (2026-11-19)
 
 Se integra a main el Bloque B3a hasta `dad10f0` en `i07c-robustez`: L07a (Array dinámico: Push/Pop/JoinArrays internos, preámbulo en `src/prelude.rs`) y L06a (`for` interno sobre Array prestado, temporal y movido, con el perfil interno acotado para no alterar J/A2) más las correcciones de M1–M4 tras el FAIL de D. D' dio PASS; objetivo 15/29, `validate.sh` exit 0. Ninguna fuente nueva se acepta antes de F5-L08. Filas `F5-B3A-*` en `Pending.md`. Siguen el tipado B1b/B2b/B3b (tras el Bloque II de I07c en main), B4 (L08), B5 (const) y B6.
+
+
+## I07c — Bloques I y II (rama `i07c-estructural`, estado de entrega)
+
+Implementados y publicados en `origin/i07c-estructural-r2`: S1 (grafo único de obligaciones por ocurrencia), S2 (patrón constructor sobre raíz abierta con la subcausa `constructor_shape` de `NX-E0102` y de `NX-E1325`), los cursores de visita de `tainted` y `numeric_domain_owner` y S3 (solver iterativo por continuaciones explícitas en `Checker::solve`, sin recursión por profundidad de tipo). La producción de S3 no cambia desde `11a70ec`; todo lo posterior en `src/` son pruebas dentro de `#[cfg(test)]`. D validó las rondas de los Bloques I y II; un D' independiente revisó la producción de S3 y su único bloqueante (el mutante M00436, que sí tenía programa discriminante) quedó corregido con una regresión en el lote 6. Falta el D' sobre el delta final y la integración a `main`.
+
+Evidencia de la mutación acotada a lo nuevo del corte (739 sustituciones respecto de `ccf6df1`, población congelada): `docs/validation/i07c-mutations-ccf/RESULTADO.md`. La campaña extendida contra `b506d7d` sigue pausada (fila `I07C-MUT-EXT` de `Pending.md`). Límites y deuda del corte: filas `I07C-*` de `Pending.md`.
