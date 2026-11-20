@@ -19407,4 +19407,63 @@ mod quota_tests {
             assert_eq!(checker.pending_join_count(), 1);
         }
     }
+
+    #[test]
+    fn i07c_survivor4_deferred_bind_keeps_branch_policy() {
+        let resolved = Resolved {
+            signatures: HashMap::new(),
+            uses: HashMap::new(),
+            calls: HashMap::new(),
+        };
+        let mut checker = empty_checker(&resolved);
+        let root = checker.new_variable(&site(1)).unwrap();
+        let child = checker.require_array(root, &site(2)).unwrap();
+        checker.graph.preseeded_children.insert(child);
+        let joined = checker
+            .unify_with_expected_origin(
+                &VisitCursor::default(),
+                Type::Deferred(root),
+                Type::I64,
+                site(3),
+                site(4),
+                site(5),
+                UnifyPolicy {
+                    branch: true,
+                    related_expected: false,
+                },
+            )
+            .unwrap();
+        assert_eq!(joined, Type::Deferred(root));
+        let pending = checker.pending_joins().next().unwrap();
+        assert_eq!(pending.left, Type::Deferred(root));
+        assert_eq!(pending.right, Type::I64);
+        assert_eq!(pending.left_origin, site(3));
+        assert!(pending.branch);
+        assert!(!pending.related_expected);
+    }
+
+    #[test]
+    fn i07c_survivor4_invalid_control_condition_taints_visit() {
+        for (source, condition) in [("fn Main(){if 1{}}", "1"), ("fn Main(){while 1{}}", "1")] {
+            let ast = parse::parse_new_profile("control.n", source).unwrap();
+            let resolved = names::resolve_with_option("control.n", source, &ast, true).unwrap();
+            let mut checker = empty_checker(&resolved);
+            let (_, visit) = checker.drive(DriveStart::Block(&ast.functions[0].body));
+            assert!(visit.tainted, "{source}");
+            assert_eq!(checker.errors.len(), 1, "{source}");
+            let error = &checker.errors[0];
+            assert_eq!(error.code, "NX-E0102");
+            assert_eq!(error.subcause.as_deref(), Some("type_mismatch"));
+            let span = error.primary_span.as_ref().unwrap();
+            assert_eq!(&source[span.start as usize..span.end as usize], condition);
+        }
+        for source in ["fn Main(){if true{}}", "fn Main(){while false{}}"] {
+            let ast = parse::parse_new_profile("control.n", source).unwrap();
+            let resolved = names::resolve_with_option("control.n", source, &ast, true).unwrap();
+            let mut checker = empty_checker(&resolved);
+            let (_, visit) = checker.drive(DriveStart::Block(&ast.functions[0].body));
+            assert!(!visit.tainted, "{source}");
+            assert!(checker.errors.is_empty(), "{source}");
+        }
+    }
 }

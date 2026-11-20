@@ -416,3 +416,102 @@ fn closure_inferred_returns_keep_type_mismatch_diagnostic() {
         ]),
     );
 }
+
+#[test]
+fn partial_constructor_shape_uses_canonical_message() {
+    // F0-0003 §8.2 fixes this message for a partial constructor conflict.
+    let source = "fn Main(){let x=(if true then {return;} else {return;});match x{Some(Some(y))=>{},Some(Ok(z))=>{},_=>{}}}";
+    for run_entry in [false, true] {
+        let result = compile_scalar_with_profile(FILE, source, ReducedProfile::JNormal, run_entry);
+        let CompileError::Rejected(errors) = result.unwrap_err() else {
+            panic!("expected constructor shape rejection")
+        };
+        assert_eq!(errors.len(), 1);
+        let mut error = errors.into_iter().next().unwrap();
+        error.publish(FILE, source).unwrap();
+        assert_eq!(error.code, "NX-E1325");
+        assert_eq!(error.subcause.as_deref(), Some("constructor_shape"));
+        assert_eq!(error.rule, "NX-E1325/constructor_shape");
+        assert_eq!(
+            error.explanation_id.as_deref(),
+            Some("NX-E1325/constructor_shape")
+        );
+        assert_eq!(error.stage, Stage::Types);
+        assert_eq!(error.operation, Operation::TypesCheck);
+        assert_eq!(
+            error.primary_span.as_ref().map(|s| (s.start, s.end)),
+            Some((87, 92))
+        );
+        assert_eq!(&source[87..92], "Ok(z)");
+        assert_eq!(
+            error.message,
+            "Constructor incompatible con la forma seleccionada."
+        );
+        assert_eq!(
+            error.data,
+            data(&[
+                ("constructor", string("prelude:Ok")),
+                ("scrutinee_constructor", string("Option")),
+            ])
+        );
+        assert!(error.related_spans.is_empty());
+        assert!(error.cause_chain.is_empty());
+        assert!(error.repair.is_empty());
+    }
+    accepts(
+        "fn Main(){let x=(if true then {return;} else {return;});match x{Some(Some(y))=>{},_=>{}}}",
+    );
+}
+
+#[test]
+fn unresolved_array_match_does_not_loop_on_option_pattern() {
+    // F0-0002 §4.1.2.2: the empty array still owns its NX-E0103 when a
+    // later Option pattern cannot determine its element.
+    exact(
+        "fn Main(){var q=[];match q{Some(x)=>{},_=>{}}}",
+        "NX-E0103",
+        None,
+        Operation::TypesInfer,
+        (16, 18),
+        "[]",
+        &[],
+        BTreeMap::new(),
+    );
+    accepts("fn Main(){let q:Option<I64>=Some(1);match q{Some(x)=>{},_=>{}}}");
+}
+
+#[test]
+fn constructor_arity_errors_do_not_repeat_pattern_walk() {
+    // F0-0003 §8.2: both a missing and an extra payload reject at the
+    // constructor, before a nested pattern walk can loop.
+    exact(
+        "fn Main(){let x:Option<I64>=None;match x{Some()=>{},_=>{}}}",
+        "NX-E1325",
+        Some("constructor_arity"),
+        Operation::TypesCheck,
+        (41, 47),
+        "Some()",
+        &[],
+        data(&[
+            ("constructor", string("prelude:Some")),
+            ("expected_arity", DataValue::UInt(1)),
+            ("found_arity", DataValue::UInt(0)),
+        ]),
+    );
+    exact(
+        "fn Main(){let x:Option<I64>=None;match x{None(y)=>{},_=>{}}}",
+        "NX-E1325",
+        Some("constructor_arity"),
+        Operation::TypesCheck,
+        (41, 48),
+        "None(y)",
+        &[],
+        data(&[
+            ("constructor", string("prelude:None")),
+            ("expected_arity", DataValue::UInt(0)),
+            ("found_arity", DataValue::UInt(1)),
+        ]),
+    );
+    accepts("fn Main(){let x:Option<I64>=Some(1);match x{Some(y)=>{},_=>{}}}");
+    accepts("fn Main(){let x:Option<I64>=None;match x{None=>{},_=>{}}}");
+}
