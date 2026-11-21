@@ -16,7 +16,7 @@ from typing import Any, Iterator
 
 from .generate import Case, audit_seed, cases, minimize_case
 from .diagnostics import missing_main, semantic
-from .model import ModelFault, SourceSyntaxFault, SourceVM, lex_source, parse_source
+from .model import ModelFault, SourceDuplicateConstant, SourceSyntaxFault, SourceVM, lex_source, parse_source
 
 ROOT = Path(__file__).resolve().parents[2]
 ADR = ROOT / "docs/adr/F0-0005-operators-control-collections.md"
@@ -111,7 +111,7 @@ def requirement_sites(case: Case) -> list[tuple[int, int, int, str]]:
             add("L10", token.start, 5)
     try:
         program = parse_source(case.source)
-    except SourceSyntaxFault:
+    except (SourceSyntaxFault, SourceDuplicateConstant):
         return sites
     for function in program.functions.values():
         if function.return_type == "()" or (function.body and function.body[-1].kind == "return"):
@@ -636,6 +636,13 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                                 difference == "$.diagnostics[0].code" and
                                 actual_diags and actual_diags[0].get("code") == "NX-E0101" and
                                 actual_diags[0].get("stage") == "names" else None)
+                            if (known_issue is None and case.family == "const.duplicate_name"
+                                    and difference is not None and len(actual_diags) == 2
+                                    and all(diag.get("code") == "NX-E0006" and
+                                            diag.get("stage") == "types" and
+                                            diag.get("data") == {"pending_scope": "L09"}
+                                            for diag in actual_diags)):
+                                known_issue = "F5-const-duplicate-name"
                             observations[probe_key] = {
                                 "difference": difference, "command": invocation.command,
                                 "known_issue": known_issue,
@@ -652,7 +659,8 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                         observations[key]["difference"] for key in
                         ("debug.check", "debug.run", "release.check", "release.run")))
                     if (any(signature[1]) and signature not in minimized_signatures and
-                            case.family not in ("range.stored", "const.scalar")):
+                            case.family not in ("range.stored", "const.scalar",
+                                                "const.duplicate_name")):
                         minimized_signatures.add(signature)
 
                         def discrepancy(candidate: Case):

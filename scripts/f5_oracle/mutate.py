@@ -124,6 +124,25 @@ MUTANTS = {
     ],
 }
 
+# Directed fourth-round mutants with ADR-backed discriminatory programs.
+MUTANTS["F5-O7"] = [
+    ("cli.py", 'return 1 if result["failures"] else 0', 'return 0',
+     "check_harness_contract"),
+    ("model.py", 'for value in reversed(list(scope.values())):',
+     'for value in list(scope.values()):', "check_model_pairs"),
+    ("model.py", 'format_value(value[1])', 'str(value[1])',
+     "check_model_pairs"),
+    ("runner.py", 'return {"exit": 1, "outcome": "simulator_fault",',
+     'return {"exit": 1, "outcome": "rejected",', "check_runner"),
+    ("runner.py", 'static["stage"] in ("parse", "names")',
+     'static["stage"] in ("parse",)', "check_runner"),
+    ("runner.py", 'if not isinstance(actual, dict):\n            return path',
+     'if not isinstance(actual, dict):\n            return None', "check_harness_contract"),
+    ("model.py", 'current += 1\n                return\n            array = self.eval(iterable)',
+     'current += 2\n                return\n            array = self.eval(iterable)',
+     "check_model_pairs"),
+]
+
 # D's exact patch files were not delivered with its report. These 24 isolated
 # reconstructions cover the reported fault families; the four last cases
 # intentionally demonstrate observational equivalence at this CLI surface.

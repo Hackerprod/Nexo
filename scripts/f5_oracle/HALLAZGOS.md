@@ -61,3 +61,21 @@ En G1b, semillas 0:7, 100+100 por semilla, el arnés conserva 160 diferencias
 de esta familia (40 fuentes × dos verbos × debug/release) como
 `known_issue=F5-const-name-use` en el JSONL; no cambia el esperado del ADR.
 El coordinador puede trasladar esta repro al carril B1b.
+
+## F5-N02: nombre duplicado antes de L09
+
+Fuente ASCII sin LF final:
+
+```nexo
+const k:I64=comptime 1;const k:I64=comptime 2;fn Main(){}
+```
+
+F5 §9.2.1, fila F5-N02, fija NX-E0104 en `names/names.declare`, primario
+`[29,30)`, `declaration_kind=constant`, relacionado
+`previous_declaration=[6,7)`. El binario `d86cd26` debug con `check`,
+`--profile f0-0005-b-v1 --format json`, devuelve exit 1/rejected y dos
+NX-E0006/types con `pending_scope=L09` en `[0,5)` y `[23,28)`; no emite
+NX-E0104. El arnés registra solo esa respuesta exacta como
+`known_issue=F5-const-duplicate-name` para la familia generada. Esta familia
+comienza después de los primeros 100 índices, de modo que la tanda G1b
+100+100 conserva las 160 observaciones previas de `const.scalar`.

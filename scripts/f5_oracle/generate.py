@@ -183,6 +183,10 @@ def _make_extended_valid(seed: int, index: int, unique: int, family: int,
              "Print(Pop(edit a));Print(Pop(edit a));}", ("L07b",)),
     }
     label, source, caps = variants[family]
+    if family == 17 and (index // 18) % 3:
+        # F5 §4.1 admits Array/Option payloads transitively inside Option.
+        payload = f"[{u}]" if (index // 18) % 3 == 1 else f"Some([{u}])"
+        source = f"fn Main(){{var a=[{payload}];Print(Pop(edit a));Print(Pop(edit a));}}"
     parsed = parse_source(source)
     SourceChecker(parsed).check()
     state = SourceVM(parsed).run()
@@ -385,6 +389,21 @@ def _legacy_context(seed: int, index: int) -> Expr:
 def _special_invalid(seed: int, index: int, family: int) -> Case:
     context = "let context=" + render_expr(_legacy_context(seed, index)) + ";"
     if family == 10:
+        if index >= 100 and (index // 14) % 2:
+            # F5-N02 fixes names/NX-E0104 before the pending L09 barrier.
+            prefix = "const k:I64=comptime 1;const k:I64=comptime 2;"
+            source = prefix + "fn Main(){" + context + "}"
+            repaired = prefix.replace("const k:I64=comptime 2;",
+                                      "const j:I64=comptime 2;") + "fn Main(){" + context + "}"
+            expected = {"code": "NX-E0104", "subcause": None,
+                        "stage": "names", "operation": "names.declare",
+                        "primary": [29, 30],
+                        "data": {"declaration_kind": "constant"},
+                        "feature_id": None,
+                        "related": [["previous_declaration", 6, 7]]}
+            SourceChecker(parse_source(repaired)).check()
+            return Case(seed, index, "invalid", "const.duplicate_name",
+                        Program(()), source, None, "NX-E0104", repaired, expected)
         label, code = "const.cycle", "NX-E1323"
         prefix = "const a:I64=comptime b;const b:I64=comptime a;"
         repair_prefix = "const a:I64=comptime b;const b:I64=comptime 1;"

@@ -14,7 +14,7 @@ import tempfile
 from .charges import Charges, Limits, BudgetFault, scalar_loop_total, short_circuit_total
 from .diagnostics import RuleViolation, SourceChecker, missing_main, pending, syntax
 from .diagnostics import check_source
-from .generate import audit_seed, cases, corpus_sha, make_invalid, make_valid, minimize_case, render_expr
+from .generate import Case, audit_seed, cases, corpus_sha, make_invalid, make_valid, minimize_case, render_expr
 from .model import (
     Array, Expr, MAX_I64, MIN_I64, ModelFault, Program, Stmt, binary,
     SourceSyntaxFault, SourceVM, copy_value, evaluate, execute, parse_source, quotient,
@@ -185,7 +185,7 @@ def check_charge_literals() -> int:
 
 def check_generator() -> int:
     checksum = corpus_sha(0, 100, 100)
-    assert checksum == "4c9e5f35d8c399728ba262c8e69d289f2f16d11b243b88591fc519d99ac26b14"
+    assert checksum == "f995263ed33a8a61c6d0ecd66002430dabfce4e49f7dc5c2b2fe4c5388698fd3"
     assert "for i in 0..<1" in make_valid(0, 220).source
     for index in range(100):
         valid = make_valid(0, index)
@@ -255,7 +255,17 @@ def check_generator() -> int:
                                       seconds=1)
     assert attempts >= 1 and len(smaller.source) < len(original.source)
     assert execute(smaller.program).env["answer"] == smaller.expected_value
-    return 202
+    duplicate = make_invalid(0, 108)
+    assert duplicate.family == "const.duplicate_name"
+    assert duplicate.expected_issue == {
+        "code": "NX-E0104", "subcause": None, "stage": "names",
+        "operation": "names.declare", "primary": [29, 30],
+        "data": {"declaration_kind": "constant"},
+        "feature_id": None, "related": [["previous_declaration", 6, 7]]}
+    issue = check_source(duplicate.source)
+    assert issue is not None and issue.code == "NX-E0104"
+    SourceChecker(parse_source(duplicate.positive_source)).check()
+    return 203
 
 
 def check_source_programs() -> int:
@@ -395,6 +405,40 @@ def check_runner() -> int:
     assert requirements(make_invalid(0, 5)) == set()
     assert requirements(make_invalid(0, 6)) == set()
     assert projection(make_invalid(0, 6), "check", complete)["diagnostics"][0]["code"] == "NX-E1326"
+    # F5 §9.1 and F5-O02: R errors have a valid check and a faulting run.
+    fault_case = Case(0, 0, "invalid", "F5-O02", Program(()),
+                      "fn Main(){let a=1/0;}", None, "R0502")
+    fault_expected = {
+        "exit": 1, "outcome": "simulator_fault",
+        "diagnostics": [{"code": "R0502", "subcause": None,
+                         "stage": "runtime", "operation": "value.div",
+                         "primary": [16, 19], "data": {}, "feature_id": None}],
+        "stdout": [], "events": [], "observations": [],
+        "observation_bytes": 0, "reserved_observation_bytes": 0}
+    fault_projection = projection(fault_case, "run", CAPABILITIES[:8])
+    assert fault_projection["exit"] == fault_expected["exit"]
+    assert fault_projection["outcome"] == fault_expected["outcome"]
+    assert all(fault_projection[key] == fault_expected[key] for key in
+               ("stdout", "events", "observations", "observation_bytes",
+                "reserved_observation_bytes"))
+    assert all(fault_projection["diagnostics"][0][key] == value for key, value in
+               fault_expected["diagnostics"][0].items())
+    # F5-N02 and §8.2: a name collision precedes pending const capabilities.
+    duplicate = Case(0, 0, "invalid", "F5-N02", Program(()),
+                     "const k:I64=comptime 1;const k:I64=comptime 2;fn Main(){}",
+                     None, "NX-E0104", expected_issue={
+                         "code": "NX-E0104", "subcause": None,
+                         "stage": "names", "operation": "names.declare",
+                         "primary": [29, 30],
+                         "data": {"declaration_kind": "constant"},
+                         "feature_id": None,
+                         "related": [["previous_declaration", 6, 7]]})
+    assert projection(duplicate, "check", complete) == {
+        "exit": 1, "outcome": "rejected",
+        "diagnostics": [duplicate.expected_issue]}
+    assert make_invalid(0, 108).family == "const.duplicate_name"
+    assert projection(make_invalid(0, 108), "check", complete)["diagnostics"][0][
+        "code"] == "NX-E0104"
     assert normalize_files({"x": [{"file": "C:/tmp/a.n", "text": "C:/tmp/a.n"}]}) == \
         {"x": [{"file": "case.n", "text": "C:/tmp/a.n"}]}
     assert list(seed_range("0:2")) == [0, 1, 2]
@@ -403,7 +447,7 @@ def check_runner() -> int:
     assert not any(identifier == "F5-S08-positive" for identifier, *_ in literals)
     assert {identifier for identifier, *_ in phase_h_cases(complete)} == {
         "F5-H01", "F5-H05", "F5-H06", "F5-H07", "F5-H09"}
-    return 15
+    return 18
 
 
 def check_batch() -> int:
@@ -461,7 +505,7 @@ def check_model_pairs() -> int:
         else:
             assert "fault" not in row, row["id"]
         assert observed.stdout == row["stdout"], row["id"]
-        assert observed.events == [], row["id"]
+        assert observed.events == row.get("events", []), row["id"]
     return len(rows)
 
 
@@ -604,6 +648,26 @@ def check_full_compare_mock() -> dict[str, int]:
             assert fields == wanted, (mode, fields)
             assert (summary["differences"] == 0) == (mode == "faithful")
             results[mode] = summary["differences"]
+    # F5 §9.1 and F5-O02: this mock is literal, not built from projection().
+    fault = Case(0, 0, "invalid", "F5-O02", Program(()),
+                 "fn Main(){let a=1/0;}", None, "R0502")
+    literal = {"exit": 1, "outcome": "simulator_fault", "stdout": [],
+               "events": [], "observations": [], "observation_bytes": 0,
+               "reserved_observation_bytes": 0,
+               "diagnostics": [{"code": "R0502", "subcause": None,
+                                "stage": "runtime", "operation": "value.div",
+                                "primary": [16, 19], "data": {},
+                                "profile_id": profile, "rule": "R0502",
+                                "diagnostic_namespace": "F0-0002-sim",
+                                "severity": "error", "expected_tokens": []}]}
+    response = document(literal)
+    invocation = runner.Invocation(["literal-mock"], 1, response, "", None, 0.0)
+    difference, expected = runner.compare_invocation(invocation, fault, "run", complete, profile)
+    assert difference is None, (difference, expected, response)
+    response["outcome"]["kind"] = "rejected"
+    assert runner.compare_invocation(invocation, fault, "run", complete, profile)[0] == \
+        "$.outcome"
+    results["runtime_literal"] = 1
     return results
 
 
@@ -614,6 +678,9 @@ def check_harness_contract() -> int:
                                     {"diagnostics": [1, 2]}) == "$.diagnostics"
     assert runner._first_difference({"stdout": ["1", "2"]},
                                     {"stdout": ["1"]}) == "$.stdout"
+    assert runner._first_difference({"data": {"pending_scope": "L07"}},
+                                    {"data": "x"}) == "$.data"
+    assert runner._first_difference({"a": 1}, "x") == "$"
     repeated = make_valid(0, 10)
     barrier = runner.projection(repeated, "check", runner.CAPABILITIES[:3])
     assert barrier["diagnostics_cardinality"] == "unspecified"
@@ -640,6 +707,31 @@ def check_harness_contract() -> int:
                 patch.object(cli, "run_compare", return_value={"differences": differences}):
             with redirect_stdout(io.StringIO()):
                 assert cli.main() == (1 if differences else 0)
+    fuzz_args = ["f5-oracle", "fuzz", "--binary-debug", "debug.exe",
+                 "--binary-release", "release.exe", "--profile", "f0-0005-b-v1",
+                 "--phase", "G4", "--complete", ",".join(runner.CAPABILITIES[:8]),
+                 "--seeds", "0", "--output", "C:/nexo-work/tmp/mock-fuzz.jsonl"]
+    for failures in (0, 1):
+        with patch.object(sys, "argv", fuzz_args), \
+                patch.object(cli, "run_fuzz", return_value={"failures": failures}):
+            with redirect_stdout(io.StringIO()):
+                assert cli.main() == (1 if failures else 0)
+    # Execute the fuzz path with panic and confirmed timeout stand-ins.
+    for error in ("panic", "timeout_confirmed"):
+        bad_probe = runner.Invocation(["mock"], 2, None, "", error, 0.0)
+        with patch.object(sys, "argv", fuzz_args + ["--cases-per-seed", "1"]), \
+                patch.object(runner, "invoke", return_value=bad_probe) as invoke_mock:
+            with redirect_stdout(io.StringIO()):
+                assert cli.main() == 1
+            assert invoke_mock.call_count == 4
+    for differences in (0, 1):
+        gate_args = arguments.copy()
+        gate_args[1] = "gate"
+        with patch.object(sys, "argv", gate_args), \
+                patch.object(cli.selftest, "run", return_value={}), \
+                patch.object(cli, "run_compare", return_value={"differences": differences}):
+            with redirect_stdout(io.StringIO()):
+                assert cli.main() == (1 if differences else 0)
     response = subprocess.CompletedProcess(["mock"], 0,
         stdout=b'{"outcome":{"kind":"unit"}}', stderr=b"")
     timeout = subprocess.TimeoutExpired(["mock"], 0.01)
@@ -651,7 +743,7 @@ def check_harness_contract() -> int:
         confirmed = runner.invoke(Path("mock.exe"), "run", Path("case.n"), profile="default")
         assert confirmed.error == "timeout_confirmed" and confirmed.timeout_retried
         assert execute_mock.call_count == 2
-    return 8
+    return 16
 
 
 def check_scale_hashes() -> dict[str, dict[str, int]]:

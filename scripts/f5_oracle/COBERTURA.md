@@ -44,3 +44,39 @@ positivo por F5 §§3.2, 4.1 y 5.
 La frontera de cuota storage-96 ±1 se comprueba en `check_charge_literals`
 según F5 §9.4. La generación CLI de cuotas sigue pendiente del perfil de
 prueba activado por L08; no se atribuye esa cobertura al corpus G1b.
+
+## Corrección O7: repros dirigidos
+
+`model_pairs` fija el cierre inverso de dos recursos (F5 §4.2), `Some([1])`
+y `Some(Some([1]))` para payloads transitivos (F5 §4.1). La familia válida
+`array.pop_option` alterna escalares, Array y Option<Array>; la inválida
+`const.duplicate_name` reproduce F5-N02 y fija NX-E0104/names antes de L09
+(F5 §8.2 y §9.2.1). Una respuesta JSON literal de F5-O02 fija
+`simulator_fault`/exit 1/R0502 para `run` (F5 §9.1); el mock no la construye
+con `projection`. El contrato de CLI exige exit no cero ante fallos de `fuzz`
+y divergencias de `gate`, y el comparador rechaza tipos JSON distintos.
+La familia F5-N02 comienza después del índice 100 porque el binario
+`d86cd26` aún emite dos barreras L09 en lugar de NX-E0104; el hallazgo y
+la clasificación exacta están en `HALLAZGOS.md`.
+
+Los mutantes de D N07, N18, N19, N20 y N24 son equivalentes dentro del
+subconjunto generado y del contrato observable actual:
+
+- N07 elimina una copia de parámetro `view`; los casos generados no mutan el
+  objeto original a través de otro alias mientras la vista está viva, por lo
+  que stdout y eventos son iguales.
+- N18 cambia la etapa de la barrera L10. Los manifiestos son prefijos y L09
+  debe estar completa antes de L10; antes prevalece otra barrera.
+- N19 cambia la rama de `while` para una condición Bool no literal. Las
+  fuentes generadas de `while` usan condición literal o no requieren L04;
+  el mutante no cambia su proyección.
+- N20 omite la comprobación de aridad de una llamada en la VM. Los programas
+  generados y los pares positivos tienen aridad válida; la comprobación es
+  inalcanzable en ese conjunto.
+- N24 elimina control sin efecto sobre la proyección de ese conjunto. El
+  test dirigido no distingue salida, diagnóstico ni eventos en esos casos.
+
+N04, avance de rango `+1` a `+2`, se aplica ahora con un parche único en la
+rama `for` de `SourceVM` y se contrasta con `range_bounds_left_to_right`.
+Los mutantes equivalentes quedan como brecha conocida de observación del
+subconjunto, no como afirmación sobre programas Nexo fuera de él.

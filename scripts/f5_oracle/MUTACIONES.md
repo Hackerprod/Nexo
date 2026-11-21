@@ -36,3 +36,12 @@ implementación de Nexo: son equivalencia o falta de observación del arnés en
 esta superficie. M07, M10, M16, M17 y M23 sí tienen repro discriminante y
 mueren en O6. Las respuestas esperadas vienen de F5 §§2.1, 3.1, 3.3, 4.1 y
 9.3, no de `nexo.exe`.
+
+## O7, ronda dirigida final
+
+`F5-O7` aplica los seis supervivientes con programa discriminante de D
+(M17b, N05, N10, N14, N12, N23) y N04 con parche único: 7 muertos,
+0 supervivientes. `selftest.py` contiene los esperados de F5 §§4.1, 4.2,
+8.2, 9.1, 9.2.1 y F5-O02/F5-N02. Se ejecutaron nuevamente O1–O6:
+48 muertos, 0 supervivientes. Cada copia temporal se restauró y su SHA-256
+se cotejó con el archivo original mediante `mutate.py`.
