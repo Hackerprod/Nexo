@@ -404,14 +404,24 @@ def corpus_sha(seed: int, valid_count: int, invalid_count: int) -> str:
 def audit_seed(seed: int, valid_count: int, invalid_count: int) -> dict[str, object]:
     digest = hashlib.sha256()
     forms: dict[str, set[tuple[str, ...]]] = {"valid": set(), "invalid": set()}
+    max_valid_nodes = 0
     for case in cases(seed, valid_count, invalid_count):
         forms[case.lane].add(normalized_source(case.source))
+        if case.lane == "valid":
+            parsed = parse_source(case.source)
+            def size(node) -> int:
+                return 1 + sum(size(child) for child in node.children)
+            nodes = sum(size(stmt) for fn in parsed.functions.values()
+                        for stmt in fn.body)
+            nodes += sum(size(expr) for _, _, expr in parsed.constants)
+            max_valid_nodes = max(max_valid_nodes, nodes)
         digest.update(json.dumps(case.record(), ensure_ascii=False,
                                  sort_keys=True, separators=(",", ":")).encode("utf-8"))
         digest.update(b"\n")
     return {"sha256": digest.hexdigest(),
             "valid_distinct": len(forms["valid"]),
-            "invalid_distinct": len(forms["invalid"])}
+            "invalid_distinct": len(forms["invalid"]),
+            "max_valid_nodes": max_valid_nodes}
 
 
 def _rederive(case: Case, program: Program) -> Case | None:

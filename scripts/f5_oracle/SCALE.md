@@ -51,7 +51,8 @@ normaliza espacios e identificadores, deduplica por esa forma y registra en
 1000 inválidas distintas para cada semilla 0…31**. El denominador comprobado
 es 32.000 + 32.000 dentro de cada semilla; las coincidencias entre semillas
 no se usan para inflar ese dato. Los SHA-256 se recalcularon sobre los casos
-con observaciones. La versión Python queda fijada por el fixture.
+con observaciones. El máximo verificado es 30 nodos por fuente válida,
+por debajo de los 32 de F5 §10. La versión Python queda fijada por el fixture.
 
 Las 18 familias válidas incluyen Push/Pop anidado, orden de For Array,
 break/continue, cortocircuito con efectos, función de usuario y const.

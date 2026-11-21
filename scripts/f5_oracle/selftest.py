@@ -471,8 +471,10 @@ def check_scale_hashes() -> dict[str, dict[str, int]]:
         assert audit["sha256"] == fixture["hashes"][str(seed)]
         assert audit["valid_distinct"] >= 1000, seed
         assert audit["invalid_distinct"] >= 1000, seed
+        assert audit["max_valid_nodes"] <= 32, seed
         report[str(seed)] = {"valid": audit["valid_distinct"],
-                             "invalid": audit["invalid_distinct"]}
+                             "invalid": audit["invalid_distinct"],
+                             "max_nodes": audit["max_valid_nodes"]}
     return report
 
 
