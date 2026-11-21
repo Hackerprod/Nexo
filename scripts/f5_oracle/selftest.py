@@ -6,6 +6,7 @@ import hashlib
 import json
 from pathlib import Path
 import subprocess
+import sys
 
 from .charges import Charges, Limits, BudgetFault, scalar_loop_total, short_circuit_total
 from .diagnostics import RuleViolation, SourceChecker, missing_main, pending, syntax
@@ -324,7 +325,7 @@ def check_syntax_pairs() -> dict[str, int]:
 
 def check_runner() -> int:
     from .runner import (_first_difference, literal_cases, manifest, normalize_files,
-                         projection, requirements, seed_range)
+                         phase_h_cases, projection, requirements, seed_range)
     complete = manifest("G1b", "L01b,L02b,L03b")
     assert complete == ("L01b", "L02b", "L03b")
     for bad in ("L01b,L03b", "L01b,L02b,L03b,L04b"):
@@ -353,7 +354,61 @@ def check_runner() -> int:
     literals = list(literal_cases("f0-0005-b-v1"))
     assert len(literals) == 302
     assert not any(identifier == "F5-S08-positive" for identifier, *_ in literals)
-    return 14
+    assert {identifier for identifier, *_ in phase_h_cases(complete)} == {
+        "F5-H01", "F5-H05", "F5-H06", "F5-H07", "F5-H09"}
+    return 15
+
+
+def check_batch() -> int:
+    from .batch import make_batches, validate_scale
+    from .runner import CAPABILITIES
+    assert make_batches("0:4", 2) == [[0, 1], [2, 3], [4]]
+    assert make_batches("2:2", 4) == [[2]]
+    assert validate_scale("G1b", "L01b,L02b,L03b", 75,
+                          Path("C:/nexo-work/tmp")) == CAPABILITIES[:3]
+    assert validate_scale("G6", ",".join(CAPABILITIES), 75,
+                          Path("C:/nexo-work/tmp")) == CAPABILITIES
+    for phase, complete, gap, path in [
+        ("G6", "L01b,L02b,L03b", 75, Path("C:/nexo-work/tmp")),
+        ("G1b", "L01b,L02b,L03b", 59, Path("C:/nexo-work/tmp")),
+        ("G1b", "L01b,L02b,L03b", 75, Path("D:/tmp")),
+    ]:
+        try:
+            validate_scale(phase, complete, gap, path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError((phase, complete, gap, path))
+    return 7
+
+
+def check_regressions() -> int:
+    path = ROOT / "tests/fixtures/f5_oracle_regressions.jsonl"
+    records = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines()]
+    assert len(records) == 1
+    row = records[0]
+    assert row["id"] == "F5-H03-range-stored"
+    assert row["source"] == "fn Main(){let r=0..<3;}"
+    assert row["source_encoding"] == "ASCII-no-LF"
+    assert row["expected"]["diagnostic"] == {
+        "code": "NX-E0006", "subcause": None, "stage": "types",
+        "operation": "types.check", "primary": [17, 20],
+        "feature_id": "range", "data": {"pending_scope": "later_adr"}}
+    assert row["observed"] == {"exit": 2, "outcome": "driver_error",
+                               "reason": "internal_error"}
+    return 1
+
+
+def check_scale_hashes() -> int:
+    fixture = json.loads((ROOT / "tests/fixtures/f5_oracle_corpus_sha.json")
+                         .read_text(encoding="utf-8"))
+    assert sys.version.split()[0] == fixture["python"] == "3.13.1"
+    assert fixture["seeds"] == list(range(32))
+    assert fixture["counts"]["valid"] == fixture["counts"]["invalid"] == 32000
+    for seed in fixture["seeds"]:
+        assert corpus_sha(seed, fixture["valid_per_seed"],
+                          fixture["invalid_per_seed"]) == fixture["hashes"][str(seed)]
+    return 64000
 
 
 def run() -> dict[str, int]:
@@ -372,4 +427,7 @@ def run() -> dict[str, int]:
     }
     result.update(check_syntax_pairs())
     result["runner_contracts"] = check_runner()
+    result["batch_contracts"] = check_batch()
+    result["regression_records"] = check_regressions()
+    result["scale_cases_hashed"] = check_scale_hashes()
     return result

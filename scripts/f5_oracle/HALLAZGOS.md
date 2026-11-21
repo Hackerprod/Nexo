@@ -30,3 +30,10 @@ F5-D01, exige en `check` y `run` `rejected`, exit 1 y un único diagnóstico
 incluye los demás campos contractuales. El arnés debe registrar la diferencia
 como divergencia conocida hasta que B2b corrija la causa; nunca convertir
 `internal_error` en esperado ni excluir silenciosamente el caso.
+
+El piloto del oráculo sobre `9af7d08` reprodujo la misma familia con la fuente
+generada `fn Main(){let answer=0..<1;}` (sin LF). Ambos verbos en debug y
+release dieron `driver_error/internal_error`; los otros 19 casos del lote
+0 (10 válidos y 9 negativos aislados) coincidieron con su proyección G1b.
+El reporte JSONL es reconstruible con el comando de `README.md`; el fixture versionado es
+`tests/fixtures/f5_oracle_regressions.jsonl`.

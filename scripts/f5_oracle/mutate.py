@@ -70,6 +70,21 @@ MUTANTS = {
         ("runner.py", 'return range(start, end + 1)',
          'return range(start, end)', "check_runner"),
     ],
+    "F5-O4": [
+        ("batch.py", 'seeds = list(seed_range(spec))',
+         'seeds = list(reversed(list(seed_range(spec))))', "check_batch"),
+        ("batch.py", 'range(0, len(seeds), width)',
+         'range(1, len(seeds), width)', "check_batch"),
+        ("batch.py", 'seeds[offset:offset + width]',
+         'seeds[offset:offset + width - 1]', "check_batch"),
+        ("batch.py", 'len(active) != len(CAPABILITIES)',
+         'len(active) < 0', "check_batch"),
+        ("batch.py", 'gap_seconds < 60', 'gap_seconds < 50', "check_batch"),
+        ("batch.py", '!= "C:"', '!= "D:"', "check_batch"),
+        ("batch.py", 'return active', 'return ()', "check_batch"),
+        ("batch.py", 'return [seeds[offset:offset + width] for offset in range(0, len(seeds), width)]',
+         'return [seeds]', "check_batch"),
+    ],
 }
 
 

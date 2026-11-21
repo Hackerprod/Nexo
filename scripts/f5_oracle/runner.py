@@ -14,7 +14,7 @@ import tempfile
 import time
 from typing import Any, Iterator
 
-from .generate import Case, cases
+from .generate import Case, cases, minimize_case
 from .diagnostics import missing_main, semantic
 from .model import Expr, ModelFault, SourceVM, Stmt, parse_source
 
@@ -25,6 +25,19 @@ CAPABILITIES = ("L01b", "L02b", "L03b", "L04b", "L05b", "L07b",
                 "L06b", "L08", "L09", "L10", "L11", "L12")
 PHASE_LIMIT = {"G1b": 3, "G2b": 5, "G3b": 7, "G4": 8,
                "G5": 10, "G6": 12}
+H_SOURCES = {
+    "F5-H01": "fn Main(){let x=1*2;}",
+    "F5-H02": "fn Main(){let x=1*2;}",
+    "F5-H03": "fn Main(){let r=0..<3;}",
+    "F5-H04": "fn Main(){let x=true*2;}",
+    "F5-H05": "fn Main(){let x=true*2;}",
+    "F5-H06": "fn Main(){for x in [1]{}}",
+    "F5-H07": "fn Main(){var a=[1];Push(edit a,2);}",
+    "F5-H08": "fn Main(){let x=1!=2;}",
+    "F5-H09": "const k:I64=comptime 1;fn Main(){}",
+    "F5-H10": "const k:I64=comptime 1;fn Main(){}",
+    "F5-H11": "const k:I64=comptime 1;fn Main(){}",
+}
 
 
 def sha(path: Path) -> str:
@@ -169,33 +182,36 @@ class Invocation:
     document: dict[str, Any] | None
     stderr: str
     error: str | None
+    elapsed_ms: float
 
 
 def invoke(binary: Path, verb: str, source: Path, profile: str,
            *, timeout: float = 10.0) -> Invocation:
     command = [str(binary), verb, str(source), "--profile", profile,
                "--format", "json"]
+    started = time.perf_counter()
     try:
-        result = subprocess.run(command, capture_output=True, text=True,
-                                encoding="utf-8", timeout=timeout)
+        result = subprocess.run(command, capture_output=True, timeout=timeout)
     except subprocess.TimeoutExpired:
-        return Invocation(command, -1, None, "", "timeout")
+        return Invocation(command, -1, None, "", "timeout",
+                          (time.perf_counter() - started) * 1000)
+    stderr = result.stderr.decode("utf-8", "replace")
     try:
-        document = json.loads(result.stdout)
+        document = json.loads(result.stdout.decode("utf-8"))
         if not isinstance(document, dict):
             raise ValueError("JSON root is not an object")
-    except (ValueError, json.JSONDecodeError):
-        return Invocation(command, result.returncode, None, result.stderr,
-                          "non_json_output")
+    except (ValueError, UnicodeDecodeError):
+        return Invocation(command, result.returncode, None, stderr,
+                          "non_json_output", (time.perf_counter() - started) * 1000)
     outcome = document.get("outcome", {})
     if outcome.get("kind") == "driver_error" and outcome.get("reason") == "internal_error":
-        return Invocation(command, result.returncode, normalize_files(document), result.stderr,
-                          "internal_error")
-    if "InvalidIr" in result.stderr or "panicked at" in result.stderr:
-        return Invocation(command, result.returncode, normalize_files(document), result.stderr,
-                          "panic_or_invalid_ir")
+        return Invocation(command, result.returncode, normalize_files(document), stderr,
+                          "internal_error", (time.perf_counter() - started) * 1000)
+    if "InvalidIr" in stderr or "panicked at" in stderr:
+        return Invocation(command, result.returncode, normalize_files(document), stderr,
+                          "panic_or_invalid_ir", (time.perf_counter() - started) * 1000)
     return Invocation(command, result.returncode, normalize_files(document),
-                      result.stderr, None)
+                      stderr, None, (time.perf_counter() - started) * 1000)
 
 
 def observed(invocation: Invocation, profile: str) -> dict[str, Any]:
@@ -327,6 +343,33 @@ def literal_cases(profile: str) -> Iterator[tuple[str, str, str, dict[str, Any]]
                 observation_bytes=0 if verb == "check" else len(output.encode("utf-8")))
 
 
+def phase_h_cases(complete: tuple[str, ...]) -> Iterator[tuple[str, str, dict[str, Any]]]:
+    """Select only the literal H diagnostic applicable to a declared stage."""
+    fixture = json.loads((ROOT / "tests/fixtures/f5_oracle_literals.json")
+                         .read_text(encoding="utf-8"))
+    selected = []
+    if "L01b" not in complete:
+        selected += ["F5-H02", "F5-H04", "F5-H08"]
+    else:
+        selected += ["F5-H05"]
+        if "L08" not in complete:
+            selected += ["F5-H01"]
+    if "L05b" in complete:
+        selected += ["F5-H03"]
+    if "L06b" not in complete:
+        selected += ["F5-H06"]
+    if "L07b" not in complete:
+        selected += ["F5-H07"]
+    if "L09" not in complete:
+        selected += ["F5-H09"]
+    elif "L08" not in complete:
+        selected += ["F5-H10"]
+    elif "L10" not in complete:
+        selected += ["F5-H11"]
+    for identifier in selected:
+        yield identifier, H_SOURCES[identifier], fixture["json_literals"][identifier]
+
+
 def seed_range(value: str) -> range:
     left, colon, right = value.partition(":")
     if not colon:
@@ -339,8 +382,10 @@ def seed_range(value: str) -> range:
 
 def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                 phase: str, complete: str, seeds: str, valid_per_seed: int,
-                invalid_per_seed: int, output: Path, timeout: float = 10.0) -> dict[str, Any]:
+                invalid_per_seed: int, output: Path, timeout: float = 10.0,
+                include_literals: bool = True) -> dict[str, Any]:
     active = manifest(phase, complete)
+    campaign_started = time.perf_counter()
     if valid_per_seed < 0 or invalid_per_seed < 0:
         raise ValueError("negative case count")
     for binary in (binary_debug, binary_release):
@@ -350,6 +395,7 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
     output.parent.mkdir(parents=True, exist_ok=True)
     metadata = {"python": sys.version.split()[0], "phase": phase, "complete": list(active),
                 "profile": profile, "adr_sha256": sha(ADR),
+                "include_literals": include_literals,
                 "oracle_sha256": oracle_sha(),
                 "binary_debug_sha256": sha(binary_debug),
                 "binary_release_sha256": sha(binary_release)}
@@ -357,6 +403,7 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
     completed: set[tuple[int, str, int]] = set()
     s08_completed = False
     literal_done: set[tuple[str, str]] = set()
+    phase_done: set[str] = set()
     prior_differences = 0
     if output.exists():
         for line in output.read_text(encoding="utf-8").splitlines():
@@ -373,9 +420,16 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                 literal_done.add((record["id"], record["verb"]))
                 prior_differences += sum(bool(probe["difference"]) for probe in
                                          record["probes"].values())
+            elif record.get("kind") == "phase_literal":
+                phase_done.add(record["id"])
+                prior_differences += sum(bool(probe["difference"]) for probe in
+                                         record["probes"].values())
             elif record.get("kind") == "metadata" and record["metadata"] != metadata:
                 raise ValueError("resume metadata differs from current binaries or oracle")
     total, differences = 0, prior_differences
+    cached_cases = physical_invocations = 0
+    durations: list[float] = []
+    minimized_signatures: set[tuple[str, tuple[str | None, ...]]] = set()
     with tempfile.TemporaryDirectory(prefix="f5-oracle-", dir=TMP) as temporary:
         tree = Path(temporary)
         binaries = {}
@@ -385,6 +439,7 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
             assert sha(copied) == metadata[f"binary_{label}_sha256"]
             binaries[label] = copied
         source_path = tree / "case.n"
+        response_cache: dict[str, dict[str, Invocation]] = {}
         with output.open("a", encoding="utf-8", newline="\n") as log:
             if fresh:
                 log.write(json.dumps({"kind": "metadata", "metadata": metadata},
@@ -401,6 +456,8 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                     for verb in ("check", "run"):
                         invocation = invoke(binary, verb, source_path, profile,
                                             timeout=timeout)
+                        durations.append(invocation.elapsed_ms)
+                        physical_invocations += 1
                         expected = {
                             "exit": 0 if verb == "check" else 1,
                             "schema_version": 1, "profile_id": profile,
@@ -424,7 +481,40 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                                       "source": source, "checks": checks},
                                      ensure_ascii=False, sort_keys=True) + "\n")
                 log.flush()
-            if phase == "G6" and len(active) == len(CAPABILITIES):
+            if include_literals:
+                for identifier, source, diagnostic in phase_h_cases(active):
+                    if identifier in phase_done:
+                        continue
+                    source_path.write_bytes(source.encode("utf-8"))
+                    expected = {"schema_version": 1, "profile_id": profile,
+                                "outcome": {"kind": "rejected"}, "stdout": [],
+                                "events": [], "observations": [],
+                                "observation_bytes": 0,
+                                "reserved_observation_bytes": 0,
+                                "diagnostics": [diagnostic]}
+                    probes = {}
+                    for label, binary in binaries.items():
+                        for verb in ("check", "run"):
+                            invocation = invoke(binary, verb, source_path, profile,
+                                                timeout=timeout)
+                            durations.append(invocation.elapsed_ms)
+                            physical_invocations += 1
+                            difference = invocation.error or _first_difference(
+                                expected, invocation.document)
+                            if invocation.exit != 1 and difference is None:
+                                difference = "$.exit"
+                            differences += difference is not None
+                            probes[f"{label}.{verb}"] = {
+                                "difference": difference, "exit": invocation.exit,
+                                "command": invocation.command,
+                                "obtained": invocation.document,
+                                "error": invocation.error}
+                    log.write(json.dumps({"kind": "phase_literal", "id": identifier,
+                                          "source": source, "expected": expected,
+                                          "probes": probes}, ensure_ascii=False,
+                                         sort_keys=True) + "\n")
+                    log.flush()
+            if include_literals and phase == "G6" and len(active) == len(CAPABILITIES):
                 for identifier, source, verb, expected in literal_cases(profile):
                     if (identifier, verb) in literal_done:
                         continue
@@ -433,6 +523,8 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                     for label, binary in binaries.items():
                         invocation = invoke(binary, verb, source_path, profile,
                                             timeout=timeout)
+                        durations.append(invocation.elapsed_ms)
+                        physical_invocations += 1
                         difference = invocation.error or _first_difference(
                             expected, observed(invocation, profile))
                         differences += difference is not None
@@ -451,15 +543,28 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                     key = (seed, case.lane, case.index)
                     if key in completed:
                         continue
-                    source_path.write_bytes(case.source.encode("utf-8"))
+                    source_hash = hashlib.sha256(case.source.encode("utf-8")).hexdigest()
+                    cached = source_hash in response_cache
+                    if cached:
+                        cached_cases += 1
+                    else:
+                        source_path.write_bytes(case.source.encode("utf-8"))
+                        response_cache[source_hash] = {}
                     observations = {}
                     for label, binary in binaries.items():
                         for verb in ("check", "run"):
-                            invocation = invoke(binary, verb, source_path, profile,
-                                                timeout=timeout)
+                            probe_key = f"{label}.{verb}"
+                            if cached:
+                                invocation = response_cache[source_hash][probe_key]
+                            else:
+                                invocation = invoke(binary, verb, source_path, profile,
+                                                    timeout=timeout)
+                                response_cache[source_hash][probe_key] = invocation
+                                physical_invocations += 1
+                                durations.append(invocation.elapsed_ms)
                             difference, expected = compare_invocation(
                                 invocation, case, verb, active, profile)
-                            observations[f"{label}.{verb}"] = {
+                            observations[probe_key] = {
                                 "difference": difference, "command": invocation.command,
                                 "error": invocation.error, "exit": invocation.exit,
                                 "expected": expected, "obtained": invocation.document,
@@ -467,13 +572,51 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                                 "known_h03": case.family == "range.stored" and
                                 difference == "internal_error"}
                             differences += difference is not None
-                    record = {**case.record(), "kind": "case",
+                    record = {**case.record(), "kind": "case", "cached": cached,
                               "observations": observations}
+                    signature = (case.family, tuple(
+                        observations[key]["difference"] for key in
+                        ("debug.check", "debug.run", "release.check", "release.run")))
+                    if (any(signature[1]) and signature not in minimized_signatures and
+                            case.family != "range.stored"):
+                        minimized_signatures.add(signature)
+
+                        def discrepancy(candidate: Case):
+                            nonlocal physical_invocations
+                            source_path.write_bytes(candidate.source.encode("utf-8"))
+                            parts = []
+                            for label, binary in binaries.items():
+                                for verb in ("check", "run"):
+                                    probe = invoke(binary, verb, source_path, profile,
+                                                   timeout=timeout)
+                                    physical_invocations += 1
+                                    durations.append(probe.elapsed_ms)
+                                    difference, _ = compare_invocation(
+                                        probe, candidate, verb, active, profile)
+                                    diagnostic = (probe.document or {}).get("diagnostics", [])
+                                    head = diagnostic[0] if diagnostic else {}
+                                    parts.append((difference, head.get("code"),
+                                                  head.get("subcause"), head.get("stage")))
+                            return tuple(parts)
+
+                        reduced, attempts = minimize_case(case, discrepancy, seconds=60)
+                        record["minimization"] = {
+                            "source": reduced.source, "attempts": attempts,
+                            "same_family": reduced.family == case.family}
                     log.write(json.dumps(record, ensure_ascii=False,
                                          sort_keys=True, separators=(",", ":")) + "\n")
                     log.flush()
                     total += 1
+    durations.sort()
+    def percentile(q: float) -> float | None:
+        return round(durations[min(len(durations) - 1, int((len(durations) - 1) * q))], 3) \
+            if durations else None
     return {"cases_executed": total, "cases_resumed": len(completed),
+            "cached_cases": cached_cases,
+            "physical_invocations": physical_invocations,
+            "wall_seconds": round(time.perf_counter() - campaign_started, 3),
+            "latency_ms": {"p50": percentile(.5), "p95": percentile(.95),
+                           "p99": percentile(.99)},
             "differences": differences, "metadata": metadata, "output": str(output)}
 
 

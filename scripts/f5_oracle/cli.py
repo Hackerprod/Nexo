@@ -30,10 +30,12 @@ def main() -> int:
     _arguments(compare)
     compare.add_argument("--valid-per-seed", type=int, default=1000)
     compare.add_argument("--invalid-per-seed", type=int, default=1000)
+    compare.add_argument("--no-literals", action="store_true")
     gate = commands.add_parser("gate", help="run selftest before a differential")
     _arguments(gate)
     gate.add_argument("--valid-per-seed", type=int, default=1000)
     gate.add_argument("--invalid-per-seed", type=int, default=1000)
+    gate.add_argument("--no-literals", action="store_true")
     fuzz = commands.add_parser("fuzz", help="probe malformed bytes and prefixes")
     _arguments(fuzz)
     fuzz.add_argument("--cases-per-seed", type=int, default=100)
@@ -57,7 +59,8 @@ def main() -> int:
                              complete=args.complete, seeds=args.seeds,
                              valid_per_seed=args.valid_per_seed,
                              invalid_per_seed=args.invalid_per_seed,
-                             output=args.output, timeout=args.timeout)
+                             output=args.output, timeout=args.timeout,
+                             include_literals=not args.no_literals)
         print(json.dumps(result, sort_keys=True))
         return 1 if result["differences"] else 0
     if args.command == "fuzz":
