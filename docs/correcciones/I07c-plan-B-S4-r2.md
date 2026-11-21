@@ -1,0 +1,18 @@
+# Validador B - plan I07c S4, revision r2 (137 lineas) - base 6b08c07 (blob SHA 572dca78... verificado)
+
+Veredicto: PASS. Los 4 motivos bloqueantes de r1 estan corregidos y no encuentro contradicciones nuevas bloqueantes.
+
+## Motivos de r1
+1. Reentrada: CORREGIDO. §3 define pila de generaciones, cierre solo de la superior, cuota sin fusion, recuento cero solo en la visita mas externa; la pila forma parte del snapshot de AtomicEnd y el reloj (Rc<Cell<u64>>) no se rebobina (precedente solver_steps/quota_error 5876-5882, verificado). §8 instrumenta resolve_pending_projections desde Frame::Block 8646 y closure_body_advance 2629/2674/2749 con RD114/RD117. Coherente con el codigo (la reentrada es real: 8646 -> 3488/3530).
+2. Mapa/regex: CORREGIDO. Ejecutada sobre HEAD: 522 lineas coincidentes; 29 en solve 4887-6308 (4966 4973 4974 4991 5023 5024 5039 5099 5138 5187 5257 5343 5371 5390 5408 5451 5468 5523 5540 5584 5780 5845 5912 6011 6021 6154 6173 6223 6308). Cubre 5099, 5371, 5468, 5523, 5540, 5912; los inicios de llamada 5098/5467/5539/5911 son correctos. InheritedPayload 5885-5921/5911-5919, cuatro push_bind (5792/5803/5816/5831) y RequireUnion 5256-5264 correctos; 5023-5039 declarado Ordinary (correcto).
+3. Lugar del hijo vacio: CORREGIDO. §4 fija el despacho de Frame::Enter(Bind) (4962-4968) como unico lugar; SolverBind::child/push_bind solo encolan ID+sitio; RequireUnion incluido; filas de §5 y tabla fila 41 coherentes entre si.
+4. Tabla de politica por frontera: CORREGIDA. Contrastada con el codigo en unas 35 citas (Block/StatementSite 8640-8663, 9609-9618, 7762-7765, 7773-7804; Asignacion 7967/8078/8117; Array 8704, 9893-9894, 11541, 11580-11585; Index 8721 restaura antes del selector y condicion de separacion 8776-8779 con deferred_child/divergent_target, 8821-8822; Binary 8837, 8852/8854, 8928/8930, 9049-9187, 9122/9173; Call 9200-9209, 9226-9227, 10013-10015; payload 9381-9383, 10069-10071; CallTarget 9251/9269/9325-9349/10170; TryAdd 10125/9434-9471 sin take; IntrinsicOne 10154/9409/9425 sin take; AssertEq 10095/9499/13714-13747 (OR condicionado) y 13907; If 10195-10196, 12788-12790, 13142-13185; check_against_context_one 10573-10578/10671). Todas coinciden. Las fronteras que limpian owner sin separar taint (TryAdd, IntrinsicOne, CallTarget) y la separacion condicional del Index estan ahora explicitas, y RD71 queda ligado a la arista If/selector -> AssertEq.
+
+## No bloqueantes de r1
+Literal `fn main` (corregido), size_of bajo cfg(test) = 64 bytes (corregido, aritmetica correcta), solve sin lecturas de taint (recogido en fila 41), retirada de hechos de solver por marco (§3), reloj (concretado), justificacion del registro (§7.1): todos atendidos. Sigue sin tratar el riesgo de un unico commit (aceptable).
+
+## No bloquean (observaciones nuevas)
+- `Rc<Cell<u64>>` hace InferenceGraph/Checker !Send; hoy cada Checker se construye dentro del hilo (types.rs 14704-14748), asi que compila; si no, usar el contador fuera del grafo (como solver_steps) o Arc<AtomicU64>.
+- §3 llama "OR, recuperacion de vista local o ninguna fusion" a las politicas de merge; el caso "taint compartido + owner limpio" (TryAdd/IntrinsicOne/CallTarget/comprobacion de Array) se realiza con la vista de owner restaurada, pero el plan no dice si es el mismo FactId con vista o instantanea+OR. Ambas son equivalentes salvo asignaciones planas (p. ej. 7803), que la tabla ya cubre; C lo decide y el diferencial lo comprueba.
+- Los literales `InferenceGraph {` de 14257 y 15987 (produccion y tests) tambien necesitan el nuevo registro; cubiertos por la fila "grafo 2084-2118".
+- La verificacion de la tabla fue por muestreo (~35 citas), no exhaustiva por cada una de las 522 lineas; la regex y el cotejo B/D de §5 siguen siendo la red.
