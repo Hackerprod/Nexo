@@ -557,6 +557,22 @@ fn f5_effect_contracts_publish_the_profile_model() {
             113,
             "suspend",
         ),
+        (
+            "gen fn G(r:move MockBlockingResource)->I64 with {resume(unrestricted),drop(no_block)}{}fn Main(){}",
+            "NX-E0413",
+            "value.drop",
+            7,
+            8,
+            "block",
+        ),
+        (
+            "fn Main() with no_io{Print(1);}",
+            "NX-E0415",
+            "intrinsic.call",
+            21,
+            26,
+            "io",
+        ),
     ];
     for (source, code, operation, start, end, effect) in cases {
         for verb in ["check", "run"] {
