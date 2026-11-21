@@ -82,3 +82,13 @@ la proyección corregida dio **0 divergencias sin clasificar** y conservó
 por semilla tanto los distintos normalizados como los estructurales. El
 oráculo no deduce el esperado de esos binarios. El reintento único de timeout
 se registra; un segundo timeout sigue siendo fallo.
+
+## Tercera corrección F5-O7
+
+Con payloads Array/Option de Pop y la familia `const.duplicate_name`, el
+fixture recalculado mantiene 1.000+1.000 fuentes distintas por semilla 0…31.
+Las formas estructurales son 564–569 válidas y 899 inválidas, con máximo
+32 nodos válidos. Hay 18 etiquetas de familia válida y 15 inválida; ocho
+de las válidas aportan una sola forma estructural y varían sus literales.
+El mínimo de 400 se cumple por las otras formas; no se atribuye a esas ocho
+familias una diversidad estructural que no aportan.

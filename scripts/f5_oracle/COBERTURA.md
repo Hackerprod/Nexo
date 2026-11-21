@@ -28,7 +28,7 @@ también se prueba cardinalidad y exit por separado. Detalle en `MUTACIONES.md`.
 | For Array ordenado; For rango con break y continue | §§3.1–3.2; §9.3 | Secuencia de Print distingue inversión, break anulado y continue. |
 | `and`/`or` con Right que imprime; función de usuario | §2.2; §9.3 | La salida prueba evaluación omitida/tomada y retorno. |
 | Const escalar | §5; §8.2 H2 | Print del valor desde L10; antes se exige L09 o L10 pendiente según manifiesto. |
-| Catorce familias inválidas aisladas | §§2–5, 8–9, 12.2 | Incluyen ciclo const, impureza const, préstamo vivo y truncamiento FIRST. Cada una tiene reparación positiva; el contexto heredado no introduce un `for` pendiente en `types`. |
+| Quince familias inválidas aisladas | §§2–5, 8–9, 12.2 | Incluyen ciclo y nombre duplicado const, impureza const, préstamo vivo y truncamiento FIRST. Cada una tiene reparación positiva; el contexto heredado no introduce un `for` pendiente en `types`. |
 
 Huecos actuales: la distribución aleatoria no fuerza MIN/MAX, tamaños
 0/1/2/3/4/7/8/9/1024 ni profundidades 32/127/128/129 de F5 §10; esos
