@@ -792,7 +792,9 @@ impl Resolver {
                             }
                         }
                         Expr::Group(x, _) => tasks.push(Walk::Expr(x, call_target)),
-                        Expr::Neg { value, .. } => tasks.push(Walk::Expr(value, false)),
+                        Expr::Neg { value, .. } | Expr::Not { value, .. } => {
+                            tasks.push(Walk::Expr(value, false));
+                        }
                         Expr::Unary { mode, value, span } => {
                             tasks.push(Walk::CheckUnary {
                                 mode: *mode,

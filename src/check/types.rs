@@ -305,7 +305,8 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                     }
                     Expr::Group(inner, _)
                     | Expr::Unary { value: inner, .. }
-                    | Expr::Neg { value: inner, .. } => {
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => {
                         work.push(Work::EnterExpr(inner));
                     }
                     Expr::Binary { left, right, .. } => {
@@ -360,6 +361,10 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                         span: span.clone(),
                     },
                     Expr::Neg { span, .. } => Expr::Neg {
+                        value: Box::new(expr(&mut values)),
+                        span: span.clone(),
+                    },
+                    Expr::Not { span, .. } => Expr::Not {
                         value: Box::new(expr(&mut values)),
                         span: span.clone(),
                     },
@@ -1447,7 +1452,9 @@ fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> 
                         },
                     ));
                 }
-                Expr::Neg { value, .. } => pending.push(Node::Expr(value, requested)),
+                Expr::Neg { value, .. } | Expr::Not { value, .. } => {
+                    pending.push(Node::Expr(value, requested));
+                }
                 Expr::Group(inner, _) => pending.push(Node::Expr(inner, requested)),
                 Expr::Array(items, _) => {
                     pending.extend(items.iter().rev().map(|item| Node::Expr(item, Mode::Read)));
@@ -1646,7 +1653,8 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
                     }
                     Expr::Group(inner, _)
                     | Expr::Unary { value: inner, .. }
-                    | Expr::Neg { value: inner, .. } => {
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => {
                         pending.push(Node::Expression(inner));
                     }
                     Expr::Binary { left, right, .. }
@@ -3888,7 +3896,8 @@ impl Checker<'_> {
             Expr::Array(items, _) => children.extend(items),
             Expr::Group(inner, _)
             | Expr::Unary { value: inner, .. }
-            | Expr::Neg { value: inner, .. } => children.push(inner),
+            | Expr::Neg { value: inner, .. }
+            | Expr::Not { value: inner, .. } => children.push(inner),
             Expr::Binary { left, right, .. } => children.extend([left.as_ref(), right.as_ref()]),
             Expr::Call { target, args, .. } => {
                 children.push(target);
@@ -6545,7 +6554,8 @@ impl Checker<'_> {
                     Expr::Array(items, _) => pending.extend(items.iter().rev().map(Node::Expr)),
                     Expr::Group(inner, _)
                     | Expr::Unary { value: inner, .. }
-                    | Expr::Neg { value: inner, .. } => pending.push(Node::Expr(inner)),
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => pending.push(Node::Expr(inner)),
                     Expr::Binary { left, right, .. }
                     | Expr::Index {
                         target: left,
@@ -6748,6 +6758,7 @@ impl Checker<'_> {
                 | Expr::Call { .. }
                 | Expr::Unary { .. }
                 | Expr::Neg { .. }
+                | Expr::Not { .. }
                 | Expr::Match(..)
                 | Expr::Closure(..) => return false,
             }
@@ -8456,6 +8467,11 @@ impl Checker<'_> {
             Statement(&'a Statement),
             Block(&'a Block),
         }
+        struct LogicalRightProgress<'a> {
+            expr: &'a Expr,
+            context: OwnedCheckContext,
+            left: Result<Type, Box<Diagnostic>>,
+        }
         enum Frame<'a> {
             StatementSite(&'a Statement, bool),
             StatementExpr,
@@ -8486,6 +8502,8 @@ impl Checker<'_> {
             BinaryDeferredRight(Box<BinaryDeferredProgress<'a>>),
             BinaryIndependentLeftError(Box<BinaryLeftErrorProgress<'a>>),
             BinaryIndependentRight(Box<BinaryIndependentProgress<'a>>),
+            LogicalLeft(Box<(&'a Expr, OwnedCheckContext)>),
+            LogicalRight(Box<LogicalRightProgress<'a>>),
             Call(Box<CallProgress<'a>>),
             CallTarget(Box<OwnedExpressionFrame<'a>>),
             ClosureCall(Box<ClosureCallFrameState<'a>>),
@@ -8713,6 +8731,46 @@ impl Checker<'_> {
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::Whole(result)),
+                    );
+                }
+                Frame::LogicalLeft(progress) => {
+                    let (expr, context) = *progress;
+                    let Expr::Binary { right, .. } = expr else {
+                        unreachable!("logical frame owns a binary expression")
+                    };
+                    frames.push(Frame::LogicalRight(Box::new(LogicalRightProgress {
+                        expr,
+                        context,
+                        left: result,
+                    })));
+                    *inner = right;
+                    *inner_context = OwnedCheckContext::new(CheckContext {
+                        expected: Some(&Type::Bool),
+                        expected_span: None,
+                        check_here: true,
+                        anchor: None,
+                        outer_compare: false,
+                        related_expected: false,
+                        deferred_element: false,
+                    });
+                    return Resume::Evaluate;
+                }
+                Frame::LogicalRight(progress) => {
+                    let LogicalRightProgress {
+                        expr,
+                        context,
+                        left,
+                    } = *progress;
+                    let combined = match (left, result) {
+                        (Err(error), _) | (_, Err(error)) => Err(error),
+                        (Ok(Type::Tainted), _) | (_, Ok(Type::Tainted)) => Ok(Type::Tainted),
+                        (Ok(_), Ok(_)) => Ok(Type::Bool),
+                    };
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(combined)),
                     );
                 }
                 Frame::Array(progress) => {
@@ -9988,6 +10046,19 @@ impl Checker<'_> {
                                 deferred_element: false,
                             });
                         }
+                        Expr::Not { value, .. } => {
+                            frames.push(Frame::Unary(Box::new((inner, inner_context))));
+                            inner = value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::Bool),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
                         Expr::Unary {
                             mode: Mode::Read,
                             value,
@@ -10019,15 +10090,20 @@ impl Checker<'_> {
                             inner = value;
                             inner_context = child_context;
                         }
-                        Expr::Binary { op, left, right, .. } => {
+                        Expr::Binary { op, left, .. } => {
                             if self.f5 && matches!(op.as_str(), "and" | "or") {
-                                computed_leaf = Some(PrecomputedType::Whole(Err(
-                                    super::pending_f5::diagnostic(
-                                        "L02",
-                                        self.operator_span(left.span(), right.span(), op),
-                                    ),
-                                )));
-                                break;
+                                frames.push(Frame::LogicalLeft(Box::new((inner, inner_context))));
+                                inner = left;
+                                inner_context = OwnedCheckContext::new(CheckContext {
+                                    expected: Some(&Type::Bool),
+                                    expected_span: None,
+                                    check_here: true,
+                                    anchor: None,
+                                    outer_compare: false,
+                                    related_expected: false,
+                                    deferred_element: false,
+                                });
+                                continue;
                             }
                             let previous_owner = visit.numeric_domain_owner;
                             visit.numeric_domain_owner = None;
@@ -10933,6 +11009,19 @@ impl Checker<'_> {
                     ));
                 }
                 Ok(Type::I64)
+            }
+            Expr::Not { value, .. } => {
+                let got = unary_operand.expect("not operand is scheduled by driver")?;
+                if got != Type::Bool {
+                    return Err(mismatch(
+                        Self::primary_span(value),
+                        Self::primary_span(value),
+                        None,
+                        "Bool",
+                        &got,
+                    ));
+                }
+                Ok(Type::Bool)
             }
             Expr::Unit(..) => Ok(Type::Unit),
             Expr::Name(name, span) => match self.resolved.uses.get(&span.start) {
@@ -14210,7 +14299,8 @@ fn cyclic_generator<'a>(ast: &'a Ast, resolved: &Resolved) -> Option<&'a Functio
                     }
                     Expr::Group(inner, _)
                     | Expr::Unary { value: inner, .. }
-                    | Expr::Neg { value: inner, .. } => {
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => {
                         pending.push(Node::Expr(inner));
                     }
                     Expr::Binary { left, right, .. }

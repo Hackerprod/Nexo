@@ -302,21 +302,61 @@ fn f5_first_sets_keep_block_and_negation_boundaries() {
 }
 
 #[test]
-fn f5_logical_operators_wait_at_their_types_boundary() {
-    for (op, start, end) in [("and", 21, 24), ("or", 21, 23)] {
-        let source = format!("fn Main(){{let x=true {op} false;}}");
+fn f5_logical_operators_check_both_bool_domains_before_lower() {
+    for (source, start, end) in [
+        ("fn Main(){let x=not 1;}", 20, 21),
+        ("fn Main(){let x=true and 1;}", 25, 26),
+        ("fn Main(){let x=1 and false;}", 16, 17),
+        ("fn Main(){let x=1 or false;}", 16, 17),
+    ] {
+        let diagnostic = format!(
+            r#"{{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0102","subcause":"type_mismatch","rule":"NX-E0102/type_mismatch","explanation_id":"NX-E0102/type_mismatch","severity":"error","stage":"types","message":"Invalid name, call or type in the proposed profile.","operation":"types.check","primary_span":{{"file":"case.n","start":{start},"end":{end}}},"related_spans":[{{"role":"found_type","span":{{"file":"case.n","start":{start},"end":{end}}}}}],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{{"expected_type":"Bool","found_type":"I64"}}}}"#
+        );
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert_eq!(output, rejected(&diagnostic), "{verb}: {source}");
+        }
+    }
+    for source in [
+        "fn Main(){let x=not true;}",
+        "fn Main(){let x=false and true;}",
+        "fn Main(){let x=true or false;}",
+    ] {
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert!(output.contains("\"stage\":\"lower\""), "{source}: {output}");
+            assert!(
+                output.contains("\"pending_scope\":\"L08\""),
+                "{source}: {output}"
+            );
+        }
+    }
+}
+
+#[test]
+fn f5_incomplete_not_uses_neg_expr_first_set() {
+    let source = "fn Main(){let a=not";
+    let diagnostic = r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0002","subcause":null,"rule":"NX-E0002","explanation_id":"NX-E0002","severity":"error","stage":"parse","message":"Syntax is not admitted by the grammar.","operation":"syntax.parse","primary_span":{"file":"case.n","start":19,"end":19},"related_spans":[],"cause_chain":[],"feature_id":null,"unexpected_token":{"kind":"eof","text":"","span":{"file":"case.n","start":19,"end":19}},"expected_tokens":["(","-","IntLiteral","Name","[","edit","false","fn","move","not","true"],"expected_tokens_kind":"admissible_set","parser_context":"grammar.NegExpr","recognized_prefix":{"file":"case.n","start":16,"end":19},"repair":[],"data":{}}"#;
+    for verb in ["check", "run"] {
+        let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+        assert_eq!(status, 1, "{verb}: {output}");
+        assert_eq!(output, rejected(diagnostic), "{verb}");
+    }
+}
+
+#[test]
+fn f5_short_circuit_still_checks_static_rhs_effects() {
+    for operator in ["false and", "true or"] {
+        let source = format!(
+            "fn Dirty()->Bool{{Print(9);return true;}}fn Main() with no_io{{let x={operator} Dirty();}}"
+        );
         for verb in ["check", "run"] {
             let (status, output) = invoke(verb, &source, "f0-0005-b-v1");
             assert_eq!(status, 1, "{verb} {source}: {output}");
-            assert!(output.contains("\"stage\":\"types\""), "{source}: {output}");
-            assert!(
-                output.contains("\"pending_scope\":\"L02\""),
-                "{source}: {output}"
-            );
-            assert!(
-                output.contains(&format!("\"start\":{start},\"end\":{end}")),
-                "{source}: {output}"
-            );
+            assert!(output.contains("\"code\":\"NX-E0415\""), "{verb}: {output}");
+            assert!(output.contains("\"stage\":\"effects\""), "{verb}: {output}");
         }
     }
 }

@@ -728,6 +728,10 @@ pub enum Expr {
         value: Box<Expr>,
         span: Span,
     },
+    Not {
+        value: Box<Expr>,
+        span: Span,
+    },
     Binary {
         op: String,
         left: Box<Expr>,
@@ -776,6 +780,7 @@ impl Expr {
             | Self::Group(_, s)
             | Self::Unary { span: s, .. }
             | Self::Neg { span: s, .. }
+            | Self::Not { span: s, .. }
             | Self::Binary { span: s, .. }
             | Self::Call { span: s, .. }
             | Self::Index { span: s, .. }
@@ -1891,7 +1896,10 @@ fn unadmitted_edit_walk(root: EditNode<'_>) -> Option<Span> {
                 } if !immediate_argument && !matches!(&**value, Expr::Call { .. }) => {
                     return Some(span.clone());
                 }
-                Expr::Unary { value, .. } | Expr::Neg { value, .. } | Expr::Group(value, _) => {
+                Expr::Unary { value, .. }
+                | Expr::Neg { value, .. }
+                | Expr::Not { value, .. }
+                | Expr::Group(value, _) => {
                     pending.push(EditNode::Expr(value, false));
                 }
                 Expr::Array(items, _) => {
@@ -2030,7 +2038,10 @@ fn non_unit_return(statement: &Statement) -> Option<Span> {
                     pending.push(Node::Block(then_block));
                     pending.push(Node::Expr(condition));
                 }
-                Expr::Group(value, _) | Expr::Unary { value, .. } | Expr::Neg { value, .. } => {
+                Expr::Group(value, _)
+                | Expr::Unary { value, .. }
+                | Expr::Neg { value, .. }
+                | Expr::Not { value, .. } => {
                     pending.push(Node::Expr(value));
                 }
                 Expr::Binary { left, right, .. }
@@ -2297,6 +2308,9 @@ impl Parser<'_> {
                 start: usize,
             },
             Neg {
+                start: usize,
+            },
+            Not {
                 start: usize,
             },
             Continue {
@@ -3116,13 +3130,15 @@ impl Parser<'_> {
                 }
                 Task::Prefix => {
                     let token = self.peek().clone();
-                    if self.f5_operators
+                    let f5_neg = self.f5_operators
                         && token.text == "-"
                         && self
                             .tokens
                             .get(self.at + 1)
-                            .is_some_and(|next| next.kind != Kind::Integer)
-                    {
+                            .is_some_and(|next| next.kind != Kind::Integer);
+                    let f5_not =
+                        self.f5_operators && self.select_primary_entry() == PrimaryChoice::Not;
+                    if f5_neg || f5_not {
                         self.take();
                         if !self.starts_try()
                             || matches!(
@@ -3138,8 +3154,14 @@ impl Parser<'_> {
                                 token.span.start as usize,
                             ));
                         }
-                        tasks.push(Task::Neg {
-                            start: token.span.start as usize,
+                        tasks.push(if f5_neg {
+                            Task::Neg {
+                                start: token.span.start as usize,
+                            }
+                        } else {
+                            Task::Not {
+                                start: token.span.start as usize,
+                            }
                         });
                         tasks.push(Task::Enter(precedence::F5.unary));
                     } else if self.select_primary_entry() == PrimaryChoice::If {
@@ -3203,6 +3225,14 @@ impl Parser<'_> {
                     let value = result.take().expect("negated operand has a result");
                     let span = self.span(start, value.span().end as usize);
                     result = Some(self.checked_expression(Expr::Neg {
+                        value: Box::new(value),
+                        span,
+                    })?);
+                }
+                Task::Not { start } => {
+                    let value = result.take().expect("not operand has a result");
+                    let span = self.span(start, value.span().end as usize);
+                    result = Some(self.checked_expression(Expr::Not {
                         value: Box::new(value),
                         span,
                     })?);
@@ -5449,7 +5479,8 @@ fn drop_partial_expression(expr: Expr) {
                 Expr::Array(elements, _) => pending.extend(elements.into_iter().map(Node::Expr)),
                 Expr::Group(inner, _)
                 | Expr::Unary { value: inner, .. }
-                | Expr::Neg { value: inner, .. } => {
+                | Expr::Neg { value: inner, .. }
+                | Expr::Not { value: inner, .. } => {
                     pending.push(Node::Expr(*inner));
                 }
                 Expr::Binary { left, right, .. } => {
@@ -5595,7 +5626,9 @@ fn height_walk(root: HeightNode<'_>) -> usize {
                             children.extend(elements.iter().map(HeightNode::Expr));
                             1
                         }
-                        Expr::Unary { value, .. } | Expr::Neg { value, .. } => {
+                        Expr::Unary { value, .. }
+                        | Expr::Neg { value, .. }
+                        | Expr::Not { value, .. } => {
                             children.push(HeightNode::Expr(value));
                             1
                         }
@@ -6444,6 +6477,68 @@ mod b_tests {
                 "{source}"
             );
         }
+    }
+
+    #[test]
+    fn f5_not_binds_above_comparison_and_below_try_and_index() {
+        for (source, postfix) in [
+            ("fn Main(){let x=not F()? and true;}", "try"),
+            ("fn Main(){let x=not a[0] and true;}", "index"),
+        ] {
+            let ast = parse_f5_hidden("case.n", source).unwrap();
+            let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+                panic!("binding")
+            };
+            let Expr::Binary { op, left, .. } = value else {
+                panic!("outer conjunction: {source}")
+            };
+            assert_eq!(op, "and");
+            let Expr::Not { value, .. } = left.as_ref() else {
+                panic!("not precedes conjunction: {source}")
+            };
+            assert!(
+                match postfix {
+                    "try" =>
+                        matches!(value.as_ref(), Expr::Unary { mode: Mode::Read, value, .. } if matches!(value.as_ref(), Expr::Call { .. })),
+                    "index" => matches!(value.as_ref(), Expr::Index { .. }),
+                    _ => unreachable!(),
+                },
+                "{source}"
+            );
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(printed.contains("not "), "{printed}");
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            assert_eq!(
+                crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                printed
+            );
+        }
+        let ast = parse_f5_hidden("case.n", "fn Main(){let x=not a<b;}").unwrap();
+        let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+            panic!("binding")
+        };
+        assert!(
+            matches!(value, Expr::Binary { op, left, .. } if op == "<" && matches!(left.as_ref(), Expr::Not { .. }))
+        );
+        let ast = parse_f5_hidden("case.n", "fn Main(){let x=not a*b;}").unwrap();
+        let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+            panic!("binding")
+        };
+        assert!(
+            matches!(value, Expr::Binary { op, left, .. } if op == "*" && matches!(left.as_ref(), Expr::Not { .. }))
+        );
+        let ast =
+            parse_f5_hidden("case.n", "fn Main(){let x=not false and false or true;}").unwrap();
+        let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+            panic!("binding")
+        };
+        let Expr::Binary { op, left, .. } = value else {
+            panic!("or is outermost")
+        };
+        assert_eq!(op, "or");
+        assert!(
+            matches!(left.as_ref(), Expr::Binary { op, left, .. } if op == "and" && matches!(left.as_ref(), Expr::Not { .. }))
+        );
     }
 
     #[test]

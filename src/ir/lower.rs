@@ -856,7 +856,8 @@ pub(super) fn collect_closures(ast: &Ast) -> Vec<&parse::Closure> {
                 }
                 Expr::Group(inner, _)
                 | Expr::Unary { value: inner, .. }
-                | Expr::Neg { value: inner, .. } => {
+                | Expr::Neg { value: inner, .. }
+                | Expr::Not { value: inner, .. } => {
                     visits.push(Visit::Expr(inner));
                 }
                 Expr::Binary { left, right, .. }
@@ -1544,7 +1545,7 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
                 }
                 Expr::Closure(closure) => pending.push(Node::Block(&closure.body)),
                 Expr::Array(items, _) => pending.extend(items.iter().map(Node::Expr)),
-                Expr::Neg { value, span } => {
+                Expr::Neg { value, span } | Expr::Not { value, span } => {
                     if first.as_ref().is_none_or(|prior| span.start < prior.start) {
                         first = Some(span.clone());
                     }
@@ -4978,6 +4979,21 @@ impl Lower<'_> {
             left_flow: Option<Flow>,
             left_root: Option<LocalId>,
         }
+        struct LogicalState<'a> {
+            op: &'a str,
+            right: &'a Expr,
+            span: &'a Span,
+            depth: usize,
+            inferred: Ty,
+            branch_mode: EmissionMode,
+            skip_end: Option<BlockId>,
+            skip_state: HashMap<LocalId, Availability>,
+            checkpoint: usize,
+            temp_checkpoint: usize,
+            prior_locals: usize,
+            slot: Option<LocalId>,
+            left_diverges: bool,
+        }
         enum IndexKind<'a> {
             Place {
                 root: &'a Expr,
@@ -5159,6 +5175,8 @@ impl Lower<'_> {
             },
             BinaryLeft(Box<BinaryState<'a>>),
             BinaryRight(Box<BinaryState<'a>>),
+            LogicalLeft(Box<LogicalState<'a>>),
+            LogicalRight(Box<LogicalState<'a>>),
             ArrayNext(Box<ArrayState<'a>>),
             ArrayAfterItem(Box<ArrayState<'a>>),
             IndexNext(Box<IndexState<'a>>),
@@ -5235,9 +5253,10 @@ impl Lower<'_> {
                 span: &'a Span,
                 inferred: Ty,
             },
-            NegAfter {
+            OperatorUnaryAfter {
                 span: &'a Span,
                 inferred: Ty,
+                op: Unary,
             },
             UserCallNext(Box<UserCallState<'a>>),
             UserCallAfterArgument {
@@ -6332,6 +6351,198 @@ impl Lower<'_> {
                             }
                         };
                     }
+                    Some(Task::LogicalLeft(_)) => {
+                        let Some(Task::LogicalLeft(mut state)) = tasks.pop() else {
+                            unreachable!()
+                        };
+                        completed_value = match result {
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => Some(Err(CompileError::InvalidIr("logical left flow"))),
+                            Ok(Some(left)) => {
+                                if left.ty() != Some(&Ty::Bool) && !left.diverged() {
+                                    Some(Err(CompileError::InvalidIr("logical left type")))
+                                } else {
+                                    state.left_diverges = left.diverged();
+                                    if state.left_diverges {
+                                        self.emission = EmissionMode::Analyze;
+                                        self.terminated = None;
+                                    }
+                                    state.branch_mode = self.emission;
+                                    state.temp_checkpoint = self.temp_undo.len();
+                                    state.checkpoint = self.consumed_undo.len();
+                                    state.prior_locals = self.locals.len();
+                                    if state.branch_mode == EmissionMode::Live {
+                                        let condition = left
+                                            .temp()
+                                            .ok_or(CompileError::InvalidIr("logical condition"))?;
+                                        let branch = self.finish_block(Terminator::BranchBool {
+                                            condition,
+                                            yes: BlockId(usize::MAX),
+                                            no: BlockId(usize::MAX),
+                                            span: state.span.clone(),
+                                            charges: vec![],
+                                        });
+                                        let skip_edge = usize::from(state.op == "and");
+                                        self.enter_edge(branch, skip_edge)?;
+                                        let skip_start = BlockId(self.blocks.len());
+                                        if let Terminator::BranchBool { yes, no, .. } =
+                                            &mut self.blocks[branch.0].terminator
+                                        {
+                                            if skip_edge == 0 {
+                                                *yes = skip_start;
+                                            } else {
+                                                *no = skip_start;
+                                            }
+                                        }
+                                        let skip_value = self.emitted(
+                                            Op::ConstBool(state.op == "or"),
+                                            Ty::Bool,
+                                            state.span.clone(),
+                                            Access::Own,
+                                            false,
+                                        );
+                                        let skip_temp = skip_value
+                                            .temp()
+                                            .ok_or(CompileError::InvalidIr("logical skip value"))?;
+                                        self.union_slot(
+                                            &mut state.slot,
+                                            skip_temp,
+                                            Ty::Bool,
+                                            &state.inferred,
+                                            state.span,
+                                        )?;
+                                        state.skip_end =
+                                            Some(self.finish_block(Terminator::Jump {
+                                                target: BlockId(usize::MAX),
+                                                span: state.span.clone(),
+                                                charges: vec![],
+                                            }));
+                                        state.skip_state =
+                                            self.restore_availability(state.checkpoint);
+                                        self.restore_temps(state.temp_checkpoint);
+                                        let rhs_edge = 1 - skip_edge;
+                                        self.enter_edge(branch, rhs_edge)?;
+                                        let rhs_start = BlockId(self.blocks.len());
+                                        if let Terminator::BranchBool { yes, no, .. } =
+                                            &mut self.blocks[branch.0].terminator
+                                        {
+                                            if rhs_edge == 0 {
+                                                *yes = rhs_start;
+                                            } else {
+                                                *no = rhs_start;
+                                            }
+                                        }
+                                        self.dead_depth += 1;
+                                    }
+                                    let right = state.right;
+                                    let depth = state.depth;
+                                    tasks.push(Task::LogicalRight(state));
+                                    tasks.push(Task::Expr {
+                                        value: right,
+                                        expected: Some(Ty::Bool),
+                                        depth: depth + 1,
+                                        borrow: false,
+                                    });
+                                    None
+                                }
+                            }
+                        };
+                    }
+                    Some(Task::LogicalRight(_)) => {
+                        let Some(Task::LogicalRight(mut state)) = tasks.pop() else {
+                            unreachable!()
+                        };
+                        completed_value = Some(result.and_then(|value| {
+                            let right =
+                                value.ok_or(CompileError::InvalidIr("logical right flow"))?;
+                            if right.ty() != Some(&Ty::Bool) && !right.diverged() {
+                                return Err(CompileError::InvalidIr("logical right type"));
+                            }
+                            if state.branch_mode == EmissionMode::Analyze {
+                                if state.left_diverges {
+                                    self.terminated = Some(Termination::Diverged);
+                                    return Ok(Some(Flow::Diverged {
+                                        ty: Some(state.inferred),
+                                    }));
+                                }
+                                return Ok(Some(Flow::Value {
+                                    temp: None,
+                                    ty: state.inferred,
+                                }));
+                            }
+                            self.emission = state.branch_mode;
+                            if let Some(temp) = right.temp() {
+                                self.union_slot(
+                                    &mut state.slot,
+                                    temp,
+                                    Ty::Bool,
+                                    &state.inferred,
+                                    state.span,
+                                )?;
+                            }
+                            let rhs_continues = !right.diverged() && self.terminated.is_none();
+                            let terminated = self.terminated.take();
+                            let rhs_end =
+                                if right.diverged() || terminated == Some(Termination::Diverged) {
+                                    None
+                                } else {
+                                    Some(self.finish_block(
+                                        if let Some(Termination::Return(value)) = terminated {
+                                            Terminator::Return {
+                                                value: Some(value),
+                                                span: state.span.clone(),
+                                                charges: vec![],
+                                            }
+                                        } else {
+                                            Terminator::Jump {
+                                                target: BlockId(usize::MAX),
+                                                span: state.span.clone(),
+                                                charges: vec![],
+                                            }
+                                        },
+                                    ))
+                                };
+                            let rhs_state = self.restore_availability(state.checkpoint);
+                            self.restore_temps(state.temp_checkpoint);
+                            self.enter_edge(
+                                state
+                                    .skip_end
+                                    .ok_or(CompileError::InvalidIr("logical skip edge"))?,
+                                0,
+                            )?;
+                            self.dead_depth -= 1;
+                            let join = BlockId(self.blocks.len());
+                            if let Some(skip_end) = state.skip_end
+                                && let Terminator::Jump { target, .. } =
+                                    &mut self.blocks[skip_end.0].terminator
+                            {
+                                *target = join;
+                            }
+                            if let Some(rhs_end) = rhs_end
+                                && let Terminator::Jump { target, .. } =
+                                    &mut self.blocks[rhs_end.0].terminator
+                            {
+                                *target = join;
+                            }
+                            self.merge_availability(
+                                state.skip_state,
+                                rhs_state,
+                                true,
+                                rhs_continues,
+                                state.prior_locals,
+                            );
+                            let slot = state
+                                .slot
+                                .ok_or(CompileError::InvalidIr("logical branch value slot"))?;
+                            Ok(Some(self.emitted(
+                                Op::TransferValue(slot),
+                                state.inferred,
+                                state.span.clone(),
+                                Access::Own,
+                                false,
+                            )))
+                        }));
+                    }
                     Some(Task::BinaryLeft(_)) => {
                         let Some(Task::BinaryLeft(mut state)) = tasks.pop() else {
                             return Err(CompileError::InvalidIr("binary left continuation"));
@@ -6802,13 +7013,14 @@ impl Lower<'_> {
                             )))
                         }));
                     }
-                    Some(Task::NegAfter { .. }) => {
-                        let Some(Task::NegAfter { span, inferred }) = tasks.pop() else {
+                    Some(Task::OperatorUnaryAfter { .. }) => {
+                        let Some(Task::OperatorUnaryAfter { span, inferred, op }) = tasks.pop()
+                        else {
                             unreachable!()
                         };
                         completed_value = Some(result.and_then(|value| {
                             let operand =
-                                value.ok_or(CompileError::InvalidIr("negation operand flow"))?;
+                                value.ok_or(CompileError::InvalidIr("unary operand flow"))?;
                             if operand.diverged() {
                                 return Ok(Some(Flow::Diverged { ty: Some(inferred) }));
                             }
@@ -6820,12 +7032,9 @@ impl Lower<'_> {
                             }
                             let operand = operand
                                 .temp()
-                                .ok_or(CompileError::InvalidIr("negation operand"))?;
+                                .ok_or(CompileError::InvalidIr("unary operand"))?;
                             Ok(Some(self.emitted(
-                                Op::Unary {
-                                    op: Unary::Neg,
-                                    operand,
-                                },
+                                Op::Unary { op, operand },
                                 inferred,
                                 span.clone(),
                                 Access::Own,
@@ -7208,8 +7417,8 @@ impl Lower<'_> {
                     Some(Task::UnaryReadAfter { .. }) => {
                         return Err(CompileError::InvalidIr("propagation unit result"));
                     }
-                    Some(Task::NegAfter { .. }) => {
-                        return Err(CompileError::InvalidIr("negation unit result"));
+                    Some(Task::OperatorUnaryAfter { .. }) => {
+                        return Err(CompileError::InvalidIr("unary operation unit result"));
                     }
                     _ => return Err(CompileError::InvalidIr("lower task continuation")),
                 }
@@ -7876,19 +8085,38 @@ impl Lower<'_> {
                         {
                             match self.prepare_expr(inner) {
                                 Ok(inferred) => {
-                                    tasks.push(Task::BinaryLeft(Box::new(BinaryState {
-                                        op,
-                                        left,
-                                        right,
-                                        span,
-                                        inferred,
-                                        depth: inner_depth,
-                                        left_flow: None,
-                                        left_root: None,
-                                    })));
+                                    if matches!(op.as_str(), "and" | "or") {
+                                        tasks.push(Task::LogicalLeft(Box::new(LogicalState {
+                                            op,
+                                            right,
+                                            span,
+                                            depth: inner_depth,
+                                            inferred,
+                                            branch_mode: EmissionMode::Analyze,
+                                            skip_end: None,
+                                            skip_state: HashMap::new(),
+                                            checkpoint: 0,
+                                            temp_checkpoint: 0,
+                                            prior_locals: 0,
+                                            slot: None,
+                                            left_diverges: false,
+                                        })));
+                                    } else {
+                                        tasks.push(Task::BinaryLeft(Box::new(BinaryState {
+                                            op,
+                                            left,
+                                            right,
+                                            span,
+                                            inferred,
+                                            depth: inner_depth,
+                                            left_flow: None,
+                                            left_root: None,
+                                        })));
+                                    }
                                     tasks.push(Task::Expr {
                                         value: left,
-                                        expected: None,
+                                        expected: matches!(op.as_str(), "and" | "or")
+                                            .then_some(Ty::Bool),
                                         depth: inner_depth + 1,
                                         borrow: true,
                                     });
@@ -8051,13 +8279,23 @@ impl Lower<'_> {
                                     });
                                 }
                             }
-                        } else if let Expr::Neg { value, span } = inner {
+                        } else if let Expr::Neg { value, span } | Expr::Not { value, span } = inner
+                        {
                             match self.prepare_expr(inner) {
                                 Ok(inferred) => {
-                                    tasks.push(Task::NegAfter { span, inferred });
+                                    let op = if matches!(inner, Expr::Neg { .. }) {
+                                        Unary::Neg
+                                    } else {
+                                        Unary::Not
+                                    };
+                                    tasks.push(Task::OperatorUnaryAfter { span, inferred, op });
                                     tasks.push(Task::Expr {
                                         value,
-                                        expected: Some(Ty::I64),
+                                        expected: Some(if op == Unary::Neg {
+                                            Ty::I64
+                                        } else {
+                                            Ty::Bool
+                                        }),
                                         depth: inner_depth + 1,
                                         borrow: false,
                                     });
@@ -9378,6 +9616,8 @@ impl Lower<'_> {
                     | Task::MatchGuardAfter { .. }
                     | Task::BinaryLeft(_)
                     | Task::BinaryRight(_)
+                    | Task::LogicalLeft(_)
+                    | Task::LogicalRight(_)
                     | Task::ArrayAfterItem(_)
                     | Task::IndexAfterSelector(_)
                     | Task::IndexAfterBase(_)
@@ -9391,7 +9631,7 @@ impl Lower<'_> {
                     | Task::UserCallAfterArgument { .. }
                     | Task::VariantAfter { .. }
                     | Task::UnaryReadAfter { .. }
-                    | Task::NegAfter { .. }
+                    | Task::OperatorUnaryAfter { .. }
                     | Task::MatchRestore(_)
                     | Task::IfAfterThen { .. }
                     | Task::IfAfterElse { .. }
@@ -9859,11 +10099,11 @@ impl Lower<'_> {
                     }
                 }
                 Expr::Group(..) => {}
-                Expr::Neg { span, .. } => own.push(span.clone()),
+                Expr::Neg { span, .. } | Expr::Not { span, .. } => own.push(span.clone()),
                 Expr::Match(selection) => own.push(selection.span.clone()),
                 Expr::Closure(closure) => own.push(closure.fn_span.clone()),
             }
-            let event = if matches!(e, Expr::Binary { .. } | Expr::Neg { .. }) {
+            let event = if matches!(e, Expr::Binary { .. } | Expr::Neg { .. } | Expr::Not { .. }) {
                 WorkEvent::OperatorExpression
             } else {
                 WorkEvent::IfExpression
@@ -10635,6 +10875,28 @@ mod tests {
     }
 
     #[test]
+    fn f5_source_logical_cfg_skips_only_untaken_rhs() {
+        let source = "fn Right()->Bool{Print(9);return true;}fn Main(){AssertEq(not false,true);AssertEq(not true,false);AssertEq(false and Right(),false);AssertEq(true or Right(),true);AssertEq(true and Right(),true);AssertEq(false or Right(),true);}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        // L08 remains the public boundary; this unit test exercises the
+        // already verified CFG of L02 before that later quota work is wired.
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(execution.observations.stdout(), vec!["9", "9"]);
+        assert!(execution.observations.events().is_empty());
+        assert_eq!(execution.observations.bytes(), 4);
+        assert_eq!(execution.observations.reserved_bytes(), 0);
+    }
+
+    #[test]
     fn f5_internal_literal_loop_continue_and_break_clean_scopes() {
         let source = "fn Main(){var n=0;while true{let r=MockOpen(n);if n==0{n=1;continue;}break;}AssertEq(n,1);}";
         let program =
@@ -10785,7 +11047,8 @@ mod tests {
                         }
                         Expr::Group(value, _)
                         | Expr::Unary { value, .. }
-                        | Expr::Neg { value, .. } => {
+                        | Expr::Neg { value, .. }
+                        | Expr::Not { value, .. } => {
                             pending.push(Node::Expr(value));
                             None
                         }

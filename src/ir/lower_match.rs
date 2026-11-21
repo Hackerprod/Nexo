@@ -228,9 +228,9 @@ fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
                         frames.push(Frame::Expr(item));
                     }
                 }
-                parse::Expr::Group(inner, _) | parse::Expr::Neg { value: inner, .. } => {
-                    frames.push(Frame::Expr(inner))
-                }
+                parse::Expr::Group(inner, _)
+                | parse::Expr::Neg { value: inner, .. }
+                | parse::Expr::Not { value: inner, .. } => frames.push(Frame::Expr(inner)),
                 parse::Expr::Binary { left, right, .. } => {
                     frames.push(Frame::Expr(right));
                     frames.push(Frame::Expr(left));

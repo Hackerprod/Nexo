@@ -1049,7 +1049,8 @@ fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
                 }
                 Expr::Group(inner, _)
                 | Expr::Unary { value: inner, .. }
-                | Expr::Neg { value: inner, .. } => {
+                | Expr::Neg { value: inner, .. }
+                | Expr::Not { value: inner, .. } => {
                     frames.push(Frame::Expr(inner));
                 }
                 Expr::Binary { left, right, .. } => {

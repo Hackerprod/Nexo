@@ -741,6 +741,16 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer, f5_operators: bool) {
                 );
                 frames.push(Frame::Visit(value, levels.unary));
             }
+            Expr::Not { value, span } => {
+                at(
+                    out,
+                    "not",
+                    Role::Word,
+                    span.start as usize,
+                    span.start as usize + 3,
+                );
+                frames.push(Frame::Visit(value, levels.unary));
+            }
             Expr::Unary {
                 mode: prefix,
                 value,
