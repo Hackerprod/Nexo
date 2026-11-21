@@ -498,11 +498,12 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                         value: expr(&mut values),
                         span: span.clone(),
                     },
-                    Statement::Assign { span, .. } => {
+                    Statement::Assign { op, span, .. } => {
                         let value = expr(&mut values);
                         let place = expr(&mut values);
                         Statement::Assign {
                             place,
+                            op: *op,
                             value,
                             span: span.clone(),
                         }
@@ -1245,6 +1246,14 @@ struct ClosureDraft {
 struct PreparedLet {
     annotation_span: Option<Span>,
     written: Option<Type>,
+}
+
+fn compound_operand_type(op: parse::AssignOp) -> Option<Type> {
+    let base = op.text().strip_suffix('=')?;
+    super::operators::binary(base).map(|(domain, result)| {
+        debug_assert_eq!(domain, super::operators::Domain::Integer);
+        Type::from(&result)
+    })
 }
 
 struct AssignmentProgress<'a> {
@@ -8583,11 +8592,20 @@ impl Checker<'_> {
                             return Resume::Next(result);
                         }
                     };
-                    let Statement::Assign { place, value, .. } = statement else {
+                    let Statement::Assign {
+                        place, op, value, ..
+                    } = statement
+                    else {
                         unreachable!("assignment frame owns an assignment")
                     };
-                    let (context, progress) =
+                    let (mut context, progress) =
                         checker.prepare_assignment_rhs(visit, place, value, lhs);
+                    if let Some(required) = compound_operand_type(*op) {
+                        context.expected = Some(required);
+                        context.expected_span = None;
+                        context.check_here = true;
+                        context.related_expected = false;
+                    }
                     frames.push(Frame::AssignmentValue(Box::new(progress)));
                     *inner = value;
                     *inner_context = context;
@@ -9702,12 +9720,14 @@ impl Checker<'_> {
                         }
                     }
                     Task::Statement(statement) => match statement {
-                        Statement::Assign { place, value, .. } => {
+                        Statement::Assign {
+                            place, op, value, ..
+                        } => {
                             self.prepare_assignment_plan(place, value);
                             frames.push(Frame::AssignmentPlace(statement));
                             inner = place;
                             inner_context = OwnedCheckContext {
-                                expected: None,
+                                expected: compound_operand_type(*op),
                                 expected_span: None,
                                 check_here: true,
                                 anchor: None,

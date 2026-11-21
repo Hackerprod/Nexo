@@ -1483,7 +1483,16 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
                 Statement::Let { value, .. } | Statement::Expr { value, .. } => {
                     pending.push(Node::Expr(value))
                 }
-                Statement::Assign { place, value, .. } => {
+                Statement::Assign {
+                    place, op, value, ..
+                } => {
+                    if *op != parse::AssignOp::Set
+                        && first
+                            .as_ref()
+                            .is_none_or(|prior| place.span().start < prior.start)
+                    {
+                        first = Some(place.span().clone());
+                    }
                     pending.push(Node::Expr(value));
                     pending.push(Node::Expr(place));
                 }
@@ -1983,6 +1992,7 @@ struct ActiveLoan {
     span: Span,
     loan: LoanId,
     parent: Option<LocalId>,
+    compound_assignment: bool,
 }
 #[derive(Clone)]
 struct RetainedLoan {
@@ -2404,6 +2414,11 @@ impl Lower<'_> {
             Op::Binary { left, right, .. } => {
                 self.temp_live(*left, false);
                 self.temp_live(*right, false);
+            }
+            Op::CompoundStore { loan, old, rhs, .. } => {
+                self.temp_live(*loan, false);
+                self.temp_live(*old, false);
+                self.temp_live(*rhs, false);
             }
             Op::WritePlace { value, .. } | Op::DropValue(value) => self.temp_live(*value, false),
             Op::BindView { value, hold, .. } => self.temp_live(*value, *hold),
@@ -3022,6 +3037,7 @@ impl Lower<'_> {
                     span: iterable.span().clone(),
                     loan: LoanId(iterable.span().start as usize),
                     parent: None,
+                    compound_assignment: false,
                 });
             }
             let saved = self.scope;
@@ -3117,6 +3133,7 @@ impl Lower<'_> {
             loan,
             parent: (self.locals[root.0].parameter_mode == Some(ParameterMode::Inout))
                 .then_some(root),
+            compound_assignment: false,
         });
         let cursor = self.hidden_range_slot(iterable.span(), true);
         let limit = self.hidden_range_slot(iterable.span(), false);
@@ -4492,7 +4509,19 @@ impl Lower<'_> {
         if indexed || requested != "write" {
             self.check_available(id, root.span().clone())?;
         }
-        self.conflict(id, place.span().clone(), requested)
+        let access_span = if indexed
+            && requested == "read"
+            && self
+                .active_loans
+                .get(&id)
+                .and_then(|loans| loans.first())
+                .is_some_and(|loan| loan.compound_assignment)
+        {
+            root.span().clone()
+        } else {
+            place.span().clone()
+        };
+        self.conflict(id, access_span, requested)
     }
     fn copy_error(&self, id: LocalId, span: Span) -> CompileError {
         self.ownership_error(
@@ -5055,6 +5084,7 @@ impl Lower<'_> {
             place: &'a Expr,
             root: &'a Expr,
             value: &'a Expr,
+            op: parse::AssignOp,
             local: LocalId,
             selectors: Vec<&'a Expr>,
             selector_spans: Vec<Span>,
@@ -5063,6 +5093,7 @@ impl Lower<'_> {
             target_ty: Ty,
             base_unresolved: bool,
             diverged: bool,
+            compound: Option<(LoanId, TempId, TempId)>,
         }
         struct ClosureCallState<'a> {
             args: &'a [parse::Argument],
@@ -5614,6 +5645,7 @@ impl Lower<'_> {
                 span: target.span().clone(),
                 loan,
                 parent,
+                compound_assignment: false,
             };
             let flow = lower.emitted(
                 Op::BeginLoan {
@@ -6171,6 +6203,9 @@ impl Lower<'_> {
                         let Some(Task::AssignAfterValue(state)) = tasks.pop() else {
                             return Err(CompileError::InvalidIr("assignment value continuation"));
                         };
+                        let acquired = state.compound.as_ref().map(|(loan, _, _)| {
+                            vec![(state.local, *loan, state.place.span().clone())]
+                        });
                         completed = Some(result.and_then(|value| {
                             let flow =
                                 value.ok_or(CompileError::InvalidIr("assignment value flow"))?;
@@ -6189,6 +6224,59 @@ impl Lower<'_> {
                                 return Ok(());
                             }
                             if flow.diverged() {
+                                if let Some((loan, _, _)) = state.compound {
+                                    self.statement_op(
+                                        Op::EndLoan(loan),
+                                        state.place.span().clone(),
+                                        Access::Own,
+                                        false,
+                                    );
+                                }
+                                return Ok(());
+                            }
+                            if let Some((loan, loan_temp, old)) = state.compound {
+                                if self.emission == EmissionMode::Analyze {
+                                    return Ok(());
+                                }
+                                let rhs = flow
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("compound rhs flow"))?;
+                                if flow.ty() != Some(&Ty::I64) {
+                                    return Err(CompileError::InvalidIr(
+                                        "compound rhs type passed checker",
+                                    ));
+                                }
+                                let op = match state.op {
+                                    parse::AssignOp::Add => Binary::Add,
+                                    parse::AssignOp::Sub => Binary::Sub,
+                                    parse::AssignOp::Mul => Binary::Mul,
+                                    parse::AssignOp::Div => Binary::Div,
+                                    parse::AssignOp::Rem => Binary::Rem,
+                                    parse::AssignOp::Set => {
+                                        unreachable!("plain assignment has no loan")
+                                    }
+                                };
+                                self.statement_op(
+                                    Op::CompoundStore {
+                                        loan: loan_temp,
+                                        old,
+                                        rhs,
+                                        op,
+                                    },
+                                    Span {
+                                        file: state.place.span().file.clone(),
+                                        start: state.place.span().start,
+                                        end: state.value.span().end,
+                                    },
+                                    Access::Write,
+                                    false,
+                                );
+                                self.statement_op(
+                                    Op::EndLoan(loan),
+                                    state.place.span().clone(),
+                                    Access::Own,
+                                    false,
+                                );
                                 return Ok(());
                             }
                             self.check_place_access(
@@ -6236,6 +6324,9 @@ impl Lower<'_> {
                             );
                             Ok(())
                         }));
+                        if let Some(acquired) = acquired {
+                            self.release_call_loans(&acquired);
+                        }
                     }
                     Some(Task::StatementExprAfter(_)) => {
                         let Some(Task::StatementExprAfter(state)) = tasks.pop() else {
@@ -6581,6 +6672,7 @@ impl Lower<'_> {
                                                     span: state.left.span().clone(),
                                                     loan: LoanId(state.left.span().start as usize),
                                                     parent: None,
+                                                    compound_assignment: false,
                                                 },
                                             );
                                         }
@@ -7594,7 +7686,10 @@ impl Lower<'_> {
                         }
                     }
                     Task::AssignEnter(statement) => {
-                        let Statement::Assign { place, value, .. } = statement else {
+                        let Statement::Assign {
+                            place, op, value, ..
+                        } = statement
+                        else {
                             return Err(CompileError::InvalidIr("assignment task"));
                         };
                         if self.emission == EmissionMode::Live {
@@ -7631,6 +7726,7 @@ impl Lower<'_> {
                                 place,
                                 root,
                                 value,
+                                op: *op,
                                 local,
                                 ids: Vec::with_capacity(selectors.len()),
                                 selectors,
@@ -7639,6 +7735,7 @@ impl Lower<'_> {
                                 target_ty,
                                 base_unresolved,
                                 diverged: false,
+                                compound: None,
                             })
                         })();
                         match prepared {
@@ -7646,7 +7743,7 @@ impl Lower<'_> {
                             Err(error) => completed = Some(Err(error)),
                         }
                     }
-                    Task::AssignNextSelector(state) => {
+                    Task::AssignNextSelector(mut state) => {
                         if state.next < state.selectors.len() {
                             if state.diverged {
                                 self.terminated = None;
@@ -7670,16 +7767,93 @@ impl Lower<'_> {
                             if state.diverged {
                                 self.terminated = None;
                             }
-                            let value = state.value;
-                            let expected =
-                                (state.target_ty != Ty::Never).then_some(state.target_ty.clone());
-                            tasks.push(Task::AssignAfterValue(state));
-                            tasks.push(Task::Expr {
-                                value,
-                                expected,
-                                depth: 0,
-                                borrow: false,
-                            });
+                            let prepared = (|| -> Result<(), CompileError> {
+                                if state.op == parse::AssignOp::Set
+                                    || state.diverged
+                                    || self.emission == EmissionMode::Analyze
+                                {
+                                    return Ok(());
+                                }
+                                if state.target_ty != Ty::I64 {
+                                    return Err(CompileError::InvalidIr(
+                                        "compound place type passed checker",
+                                    ));
+                                }
+                                let indexed = !state.selectors.is_empty();
+                                if !self.locals[state.local.0].mutable
+                                    && !(self.defer_ownership
+                                        && self.emission == EmissionMode::Live)
+                                {
+                                    return Err(self.immutable_write(state.root, state.local));
+                                }
+                                self.check_place_access(
+                                    state.local,
+                                    state.root,
+                                    state.place,
+                                    "borrow_inout",
+                                    indexed,
+                                )?;
+                                let loan = LoanId(state.place.span().start as usize);
+                                let parent = (self.locals[state.local.0].parameter_mode
+                                    == Some(ParameterMode::Inout))
+                                .then_some(state.local);
+                                let loan_temp = self
+                                    .emitted(
+                                        Op::BeginLoan {
+                                            root: state.local,
+                                            indexes: state.ids.clone(),
+                                            site: index_site(
+                                                state.place,
+                                                state.place.span().clone(),
+                                            ),
+                                            loan,
+                                            origin_span: state.place.span().clone(),
+                                            permission: LoanPermission::Inout,
+                                            parent,
+                                        },
+                                        Ty::I64,
+                                        state.place.span().clone(),
+                                        Access::Read,
+                                        false,
+                                    )
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("compound place loan"))?;
+                                self.active_loans.entry(state.local).or_default().push(
+                                    ActiveLoan {
+                                        permission: LoanPermission::Inout,
+                                        span: state.place.span().clone(),
+                                        loan,
+                                        parent,
+                                        compound_assignment: true,
+                                    },
+                                );
+                                let old = self
+                                    .emitted(
+                                        Op::CompoundLoad { loan: loan_temp },
+                                        Ty::I64,
+                                        state.place.span().clone(),
+                                        Access::Read,
+                                        false,
+                                    )
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("compound old value"))?;
+                                state.compound = Some((loan, loan_temp, old));
+                                Ok(())
+                            })();
+                            if let Err(error) = prepared {
+                                completed = Some(Err(error));
+                            } else {
+                                let value = state.value;
+                                let expected = (state.target_ty != Ty::Never)
+                                    .then_some(state.target_ty.clone());
+                                tasks.push(Task::AssignAfterValue(state));
+                                tasks.push(Task::Expr {
+                                    value,
+                                    expected,
+                                    depth: 0,
+                                    borrow: false,
+                                });
+                            }
                         }
                     }
                     Task::ArgumentEnter {
@@ -7906,6 +8080,7 @@ impl Lower<'_> {
                                 span: state.arg.span.clone(),
                                 loan,
                                 parent,
+                                compound_assignment: false,
                             });
                         match tasks.last_mut() {
                             Some(Task::UserCallAfterArgument { loan_root, .. }) => {
@@ -10251,6 +10426,7 @@ impl Lower<'_> {
                             span: capture.capture_span.clone(),
                             loan,
                             parent,
+                            compound_assignment: false,
                         };
                         self.active_loans
                             .entry(id)
@@ -10894,6 +11070,105 @@ mod tests {
         assert!(execution.observations.events().is_empty());
         assert_eq!(execution.observations.bytes(), 4);
         assert_eq!(execution.observations.reserved_bytes(), 0);
+    }
+
+    #[test]
+    fn f5_source_compound_assignment_reuses_prepared_scalar_place() {
+        let source = "fn Main(){var x=7;x+=3;x-=2;x*=3;x/=5;x%=3;AssertEq(x,1);}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert!(execution.observations.stdout().is_empty());
+        assert!(execution.observations.events().is_empty());
+    }
+
+    #[test]
+    fn f5_source_compound_index_evaluates_selector_before_rhs_once() {
+        for (index, rhs, expected_code, expected_stdout) in [
+            (0, "2", None, vec!["1", "2", "[12]"]),
+            (2, "2", Some("R0102"), vec!["1"]),
+            (0, "7/0", Some("R0502"), vec!["1", "2"]),
+        ] {
+            let source = format!(
+                "fn Index()->I64{{Print(1);return {index};}}fn Rhs()->I64{{Print(2);return {rhs};}}fn Main(){{var a=[10];a[Index()]+=Rhs();Print(a);}}"
+            );
+            let mut ast = parse::parse_f5_hidden("case.n", &source).unwrap();
+            let checked = crate::check::check_for_compilation("case.n", &source, &ast, true);
+            assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+            ast.f5_operators = false;
+            let program = compile_ast_with_inference(&ast, &source, &checked.inferred).unwrap();
+            let execution = crate::interp::run_with_limits(
+                &program,
+                crate::interp::MockEnvironment::empty(),
+                crate::interp::ReducedExecutionProfile::F5Normal,
+            );
+            assert_eq!(
+                execution.diagnostics.first().map(|d| d.code.as_str()),
+                expected_code
+            );
+            assert_eq!(execution.observations.stdout(), expected_stdout, "{source}");
+            assert!(execution.observations.events().is_empty());
+            if rhs == "7/0" {
+                let (_, snapshots) = crate::interp::Execution::run_with_fault_snapshots(
+                    &program,
+                    crate::interp::MockEnvironment::empty(),
+                );
+                assert!(
+                    snapshots
+                        .iter()
+                        .any(|frame| frame.iter().any(|local| local.as_deref() == Some("[10]")))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn f5_source_compound_division_fault_has_operator_statement_span() {
+        let source = "fn Main(){var x=7;x/=0;}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::SimulatorFault);
+        assert_eq!(execution.diagnostics[0].code, "R0502");
+        assert_eq!(
+            execution.diagnostics[0]
+                .primary_span
+                .as_ref()
+                .map(|span| (span.start, span.end)),
+            Some((18, 22))
+        );
+    }
+
+    #[test]
+    fn f5_source_compound_rhs_return_ends_exclusive_loan() {
+        let source = "fn F()->I64{var x=1;x+=if true then {return 2;} else 3;return x;}fn Main(){AssertEq(F(),2);}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert!(execution.diagnostics.is_empty());
     }
 
     #[test]
@@ -12364,6 +12639,7 @@ mod tests {
                 },
                 loan: LoanId(18),
                 parent: None,
+                compound_assignment: false,
             }],
         );
         let CompileError::Rejected(errors) = lower

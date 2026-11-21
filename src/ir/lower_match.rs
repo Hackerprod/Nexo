@@ -508,6 +508,7 @@ impl Lower<'_> {
                 span: origin,
                 loan,
                 parent: None,
+                compound_assignment: false,
             });
             held
         } else {

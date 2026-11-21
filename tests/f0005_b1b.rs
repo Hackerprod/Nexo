@@ -360,3 +360,81 @@ fn f5_short_circuit_still_checks_static_rhs_effects() {
         }
     }
 }
+
+#[test]
+fn f5_compound_assignment_types_and_permission_precede_l08() {
+    for (source, code, start, end) in [
+        ("fn Main(){let x=1;x+=2;}", "NX-E0105", 18, 19),
+        ("fn Main(){var x=1;x+=true;}", "NX-E0102", 21, 25),
+        ("fn Main(){var x=true;x+=1;}", "NX-E0102", 21, 22),
+    ] {
+        let diagnostic = if code == "NX-E0105" {
+            r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0105","subcause":null,"rule":"NX-E0105","explanation_id":"NX-E0105","severity":"error","stage":"ownership","message":"La raíz no admite escritura.","operation":"place.write","primary_span":{"file":"case.n","start":18,"end":19},"related_spans":[{"role":"declaration","span":{"file":"case.n","start":14,"end":15}}],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{}}"#.to_owned()
+        } else {
+            format!(
+                r#"{{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0102","subcause":"type_mismatch","rule":"NX-E0102/type_mismatch","explanation_id":"NX-E0102/type_mismatch","severity":"error","stage":"types","message":"Invalid name, call or type in the proposed profile.","operation":"types.check","primary_span":{{"file":"case.n","start":{start},"end":{end}}},"related_spans":[{{"role":"found_type","span":{{"file":"case.n","start":{start},"end":{end}}}}}],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{{"expected_type":"I64","found_type":"Bool"}}}}"#
+            )
+        };
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert_eq!(output, rejected(&diagnostic), "{verb} {source}");
+        }
+    }
+    for verb in ["check", "run"] {
+        let (status, output) = invoke(verb, "fn Main(){var x=1;x+=2;}", "f0-0005-b-v1");
+        assert_eq!(status, 1, "{verb}: {output}");
+        assert!(output.contains("\"stage\":\"lower\""), "{output}");
+        assert!(output.contains("\"pending_scope\":\"L08\""), "{output}");
+    }
+    for symbol in ["-=", "*=", "/=", "%="] {
+        let bad_rhs = format!("fn Main(){{var x=1;x{symbol}true;}}");
+        let bad_place = format!("fn Main(){{var x=true;x{symbol}1;}}");
+        for (source, start, end) in [(&bad_rhs, 21, 25), (&bad_place, 21, 22)] {
+            let (status, output) = invoke("check", source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{source}: {output}");
+            assert!(output.contains("\"code\":\"NX-E0102\""), "{output}");
+            assert!(
+                output.contains(&format!("\"start\":{start},\"end\":{end}")),
+                "{output}"
+            );
+        }
+    }
+}
+
+#[test]
+fn f5_compound_assignment_holds_exclusive_loan_through_rhs() {
+    for (source, start, end, declaration_end, origin_start, origin_end) in [
+        ("fn Main(){var x=1;x+=x;}", 21, 22, 15, 18, 19),
+        ("fn Main(){var a=[1];a[0]+=a[0];}", 26, 27, 15, 20, 24),
+        (
+            "fn Main(){var a=[1,2];let i=1;a[i]+=a[i-1];}",
+            36,
+            37,
+            15,
+            30,
+            34,
+        ),
+        ("fn Main(){var sum=4;sum+=sum/2;}", 25, 28, 17, 20, 23),
+    ] {
+        let diagnostic = format!(
+            r#"{{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E1105","subcause":"active_borrow_conflict","rule":"NX-E1105/active_borrow_conflict","explanation_id":"NX-E1105/active_borrow_conflict","severity":"error","stage":"ownership","message":"active_borrow_conflict: acceso incompatible con préstamo vivo; permission_escalation: derivar permiso más fuerte del recibido; overlapping_mutable_borrows: crear segundo préstamo mutable solapado.","operation":"ownership.access","primary_span":{{"file":"case.n","start":{start},"end":{end}}},"related_spans":[{{"role":"declaration","span":{{"file":"case.n","start":14,"end":{declaration_end}}}}},{{"role":"origin","span":{{"file":"case.n","start":{origin_start},"end":{origin_end}}}}}],"cause_chain":[{{"kind":"borrow","operation":"borrow.inout","span":{{"file":"case.n","start":{origin_start},"end":{origin_end}}},"entity":{{"kind":"loan","id":"loan:{origin_start}:0"}},"evidence":"verified"}}],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{{"active_permission":"inout","binding":{{"id":"binding:14","kind":"binding"}},"loan":{{"id":"loan:{origin_start}:0","kind":"loan"}},"origin":{{"id":"binding:14","kind":"binding"}},"requested_access":"read"}}}}"#
+        );
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert_eq!(output, rejected(&diagnostic), "{verb} {source}");
+        }
+    }
+    for source in [
+        "fn Main(){var x=1;let rhs=x;x+=rhs;}",
+        "fn Main(){var a=[1,2];let i=1;let rhs=a[i-1];a[i]+=rhs;}",
+        "fn Main(){var sum=4;let rhs=sum/2;sum+=rhs;}",
+    ] {
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert!(output.contains("\"pending_scope\":\"L08\""), "{output}");
+        }
+    }
+}

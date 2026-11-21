@@ -415,10 +415,20 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer, f5_operators: bool) {
                             value.span().start as usize,
                         ));
                     }
-                    Statement::Assign { place, value, span } => {
+                    Statement::Assign {
+                        place,
+                        op,
+                        value,
+                        span,
+                        ..
+                    } => {
                         frames.push(Frame::Terminator(span.end as usize));
                         frames.push(Frame::Visit(value, EXPRESSION));
-                        frames.push(Frame::After("=", Role::Binary, place.span().end as usize));
+                        frames.push(Frame::After(
+                            op.text(),
+                            Role::Binary,
+                            place.span().end as usize,
+                        ));
                         frames.push(Frame::Visit(place, EXPRESSION));
                     }
                     Statement::Return { value, span } => {

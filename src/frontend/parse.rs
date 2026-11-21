@@ -655,6 +655,29 @@ fn collect_pattern_bindings(pattern: &Pattern, bindings: &mut HashSet<String>) {
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum AssignOp {
+    Set,
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Rem,
+}
+
+impl AssignOp {
+    pub fn text(self) -> &'static str {
+        match self {
+            Self::Set => "=",
+            Self::Add => "+=",
+            Self::Sub => "-=",
+            Self::Mul => "*=",
+            Self::Div => "/=",
+            Self::Rem => "%=",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Statement {
     Let {
@@ -666,6 +689,7 @@ pub enum Statement {
     },
     Assign {
         place: Expr,
+        op: AssignOp,
         value: Expr,
         span: Span,
     },
@@ -2241,6 +2265,7 @@ impl Parser<'_> {
             StatementAssign {
                 start: usize,
                 place: Expr,
+                op: AssignOp,
             },
             StatementWhileCondition {
                 start: usize,
@@ -2801,10 +2826,23 @@ impl Parser<'_> {
                 }
                 Task::StatementExpr { start } => {
                     let expression = result.take().expect("statement expression");
-                    if is_place_expr(&expression) && self.eat("=") {
+                    let op = match self.peek().text.as_str() {
+                        "=" => Some(AssignOp::Set),
+                        "+=" if self.f5_operators => Some(AssignOp::Add),
+                        "-=" if self.f5_operators => Some(AssignOp::Sub),
+                        "*=" if self.f5_operators => Some(AssignOp::Mul),
+                        "/=" if self.f5_operators => Some(AssignOp::Div),
+                        "%=" if self.f5_operators => Some(AssignOp::Rem),
+                        _ => None,
+                    };
+                    if is_place_expr(&expression)
+                        && let Some(op) = op
+                    {
+                        self.take();
                         tasks.push(Task::StatementAssign {
                             start,
                             place: expression,
+                            op,
                         });
                         tasks.push(Task::Enter(EXPRESSION));
                     } else {
@@ -2820,13 +2858,14 @@ impl Parser<'_> {
                         });
                     }
                 }
-                Task::StatementAssign { start, place } => {
+                Task::StatementAssign { start, place, op } => {
                     let value = result.take().expect("assignment value");
                     self.reject_function_value(&value)?;
                     let end =
                         self.terminator(start, value.span().clone(), TerminatedStatement::Other)?;
                     statement_result = Some(Statement::Assign {
                         place,
+                        op,
                         value,
                         span: self.span(start, end),
                     });
@@ -3758,7 +3797,7 @@ impl Parser<'_> {
                         if matches!(op, "..<" | "..=") && !self.f5_operators {
                             return Err(self.feature("range", self.peek().span.clone()));
                         }
-                        if op == "+=" {
+                        if op == "+=" && !self.f5_operators {
                             return Err(
                                 self.feature("compound_assignment", self.peek().span.clone())
                             );
@@ -6539,6 +6578,32 @@ mod b_tests {
         assert!(
             matches!(left.as_ref(), Expr::Binary { op, left, .. } if op == "and" && matches!(left.as_ref(), Expr::Not { .. }))
         );
+    }
+
+    #[test]
+    fn f5_assignment_uses_one_operator_enum_and_preserves_printed_form() {
+        for (symbol, expected) in [
+            ("=", AssignOp::Set),
+            ("+=", AssignOp::Add),
+            ("-=", AssignOp::Sub),
+            ("*=", AssignOp::Mul),
+            ("/=", AssignOp::Div),
+            ("%=", AssignOp::Rem),
+        ] {
+            let source = format!("fn Main(){{var x=7;x{symbol}2;}}");
+            let ast = parse_f5_hidden("case.n", &source).unwrap();
+            assert!(matches!(
+                &ast.functions[0].body.statements[1],
+                Statement::Assign { op, .. } if *op == expected
+            ));
+            let printed = crate::frontend::print::print_canonical(&ast).unwrap();
+            assert!(printed.contains(&format!("x {symbol} 2")), "{printed}");
+            let reparsed = parse_f5_hidden("case.n", &printed).unwrap();
+            assert_eq!(
+                crate::frontend::print::print_canonical(&reparsed).unwrap(),
+                printed
+            );
+        }
     }
 
     #[test]

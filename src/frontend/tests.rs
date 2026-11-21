@@ -339,7 +339,9 @@ fn assert_simple_terminators(block: &super::parse::Block, source: &str) {
                 assert_eq!(source.as_bytes()[span.end as usize - 1], b';');
                 expression(value, source);
             }
-            Statement::Assign { place, value, span } => {
+            Statement::Assign {
+                place, value, span, ..
+            } => {
                 assert_eq!(source.as_bytes()[span.end as usize - 1], b';');
                 expression(place, source);
                 expression(value, source);
