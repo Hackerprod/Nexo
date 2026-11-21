@@ -143,6 +143,18 @@ MUTANTS["F5-O7"] = [
      "check_model_pairs"),
 ]
 
+# D's N19 and the three reported ways to lose its structural L04 boundary.
+MUTANTS["F5-O8"] = [
+    ("runner.py", 'condition.kind == "bool" and condition.value is True and',
+     'condition.kind == "bool" and', "check_runner"),
+    ("runner.py", 'condition.kind == "bool" and condition.value is True and',
+     'condition.kind == "bool" and condition.value is False and', "check_runner"),
+    ("runner.py", 'while condition.kind == "group":\n                    condition = condition.children[0]',
+     'while False:\n                    condition = condition.children[0]', "check_runner"),
+    ("runner.py", 'if function.return_type == "()" or (function.body and function.body[-1].kind == "return"):',
+     'if function.return_type == "()":', "check_runner"),
+]
+
 # D's exact patch files were not delivered with its report. These 24 isolated
 # reconstructions cover the reported fault families; the four last cases
 # intentionally demonstrate observational equivalence at this CLI surface.

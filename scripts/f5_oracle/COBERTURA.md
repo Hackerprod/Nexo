@@ -59,7 +59,7 @@ La familia F5-N02 comienza después del índice 100 porque el binario
 `d86cd26` aún emite dos barreras L09 en lugar de NX-E0104; el hallazgo y
 la clasificación exacta están en `HALLAZGOS.md`.
 
-Los mutantes de D N07, N18, N19, N20 y N24 son equivalentes dentro del
+Los mutantes de D N07, N18, N20 y N24 son equivalentes dentro del
 subconjunto generado y del contrato observable actual:
 
 - N07 elimina una copia de parámetro `view`; los casos generados no mutan el
@@ -67,9 +67,6 @@ subconjunto generado y del contrato observable actual:
   que stdout y eventos son iguales.
 - N18 cambia la etapa de la barrera L10. Los manifiestos son prefijos y L09
   debe estar completa antes de L10; antes prevalece otra barrera.
-- N19 cambia la rama de `while` para una condición Bool no literal. Las
-  fuentes generadas de `while` usan condición literal o no requieren L04;
-  el mutante no cambia su proyección.
 - N20 omite la comprobación de aridad de una llamada en la VM. Los programas
   generados y los pares positivos tienen aridad válida; la comprobación es
   inalcanzable en ese conjunto.
@@ -80,3 +77,26 @@ N04, avance de rango `+1` a `+2`, se aplica ahora con un parche único en la
 rama `for` de `SourceVM` y se contrasta con `range_bounds_left_to_right`.
 Los mutantes equivalentes quedan como brecha conocida de observación del
 subconjunto, no como afirmación sobre programas Nexo fuera de él.
+
+## Corrección O8: `while` en función no unitaria
+
+El par literal `fn F()->I64{while false{}}fn Main(){}` fija
+NX-E1317/ownership/flow.return en el cierre de `F`, con `expected_type`
+en `I64` (F5 §2.2 y §9.2.1). La familia `control.while_return` genera
+condiciones `false`, `true`, nombre Bool y `((true))`; `selftest` comprueba
+también que un `return` final evita L04. N19 y sus tres variantes descritas
+por D quedan discriminados por estos casos.
+
+### Brechas conocidas, sin bloqueo
+
+- N14b: el cambio `simulator_fault` → `rejected` en otras filas runtime de
+  `literal_cases` no tiene todavía un esperado independiente; F5-O02 sí lo tiene.
+- D6b/D6c: `_first_difference` carece de casos dirigidos para lista esperada
+  frente a cadena de la misma longitud y para escalar `1` frente a `true` o
+  `"1"`; el caso de diccionario sí está fijado.
+- N18b: falta un par para la operación `ir.lower` de L10; requiere G5 con
+  `--complete` hasta L09.
+- DX-1..4: los cuatro mutantes ya clasificados como no observables en la
+  superficie actual permanecen pendientes.
+- No comprobado por D: G4+/L08 con binario real, `charges.py`, semillas fuera
+  de 0:7 y captura independiente del exit literal de `sh validate.sh`.

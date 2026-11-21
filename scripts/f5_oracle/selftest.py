@@ -185,7 +185,7 @@ def check_charge_literals() -> int:
 
 def check_generator() -> int:
     checksum = corpus_sha(0, 100, 100)
-    assert checksum == "f995263ed33a8a61c6d0ecd66002430dabfce4e49f7dc5c2b2fe4c5388698fd3"
+    assert checksum == "c40ab3c7cfb0d0c13252d52ff21faa370e8d290804b79d1a54947b5facad668c"
     assert "for i in 0..<1" in make_valid(0, 220).source
     for index in range(100):
         valid = make_valid(0, index)
@@ -400,6 +400,39 @@ def check_runner() -> int:
     assert requirements(replace(make_valid(0, 15), source="fn Main(){let x=1<=2;}")) == {"L01b"}
     assert requirements(replace(make_valid(0, 15), source="fn Main(){let x=1<2;}")) == set()
     assert requirements(replace(make_valid(0, 15), source="fn F()->I64{while true{return 1;}}fn Main(){}")) == {"L04b"}
+    # F5 §2.2, §8.2 and F5-C02: only literal true removes the false CFG edge.
+    # The code, stage, operation, closing-brace span and return-type link
+    # follow the ADR's NX-E1317 contract, independently of nexo.exe.
+    false_source = "fn F()->I64{while false{}}fn Main(){}"
+    false_expected = {"code": "NX-E1317", "subcause": None,
+                      "stage": "ownership", "operation": "flow.return",
+                      "primary": [25, 26], "data": {}, "feature_id": None,
+                      "related": [["expected_type", 8, 11]]}
+    assert false_source[25:26] == "}" and false_source[8:11] == "I64"
+    issue = check_source(false_source)
+    assert issue is not None
+    assert {"code": issue.code, "subcause": issue.subcause,
+            "stage": issue.stage, "operation": issue.operation,
+            "primary": [issue.start, issue.end], "data": issue.data,
+            "feature_id": issue.feature_id,
+            "related": [list(item) for item in issue.related]} == false_expected
+    false_case = replace(make_valid(0, 15), source=false_source,
+                         expected_issue=false_expected)
+    assert requirements(false_case) == set()
+    assert projection(false_case, "check", complete) == {
+        "exit": 1, "outcome": "rejected", "diagnostics": [false_expected]}
+    for source, expected_caps in (
+            ("fn F()->I64{while true{break;}}fn Main(){}", set()),
+            ("fn F()->I64{while ((true)){break;}}fn Main(){}", set()),
+            ("fn F()->I64{while ((true)){return 1;}}fn Main(){}", {"L04b"}),
+            ("fn F()->I64{let b=false;while b{}}fn Main(){}", set()),
+            ("fn F()->I64{while true{return 1;}return 2;}fn Main(){}", set())):
+        assert requirements(replace(false_case, source=source)) == expected_caps, source
+    for index in (27, 41, 55, 69):
+        case = make_invalid(0, index)
+        assert case.family == "control.while_return"
+        assert case.expected_issue["code"] == "NX-E1317"
+        assert requirements(case) == set()
     assert projection(make_valid(0, 10), "check", complete)["diagnostics_cardinality"] == "unspecified"
     assert projection(make_invalid(0, 10), "check", complete)["diagnostics_cardinality"] == "unspecified"
     assert requirements(make_invalid(0, 5)) == set()

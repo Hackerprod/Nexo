@@ -45,3 +45,12 @@ mueren en O6. Las respuestas esperadas vienen de F5 §§2.1, 3.1, 3.3, 4.1 y
 8.2, 9.1, 9.2.1 y F5-O02/F5-N02. Se ejecutaron nuevamente O1–O6:
 48 muertos, 0 supervivientes. Cada copia temporal se restauró y su SHA-256
 se cotejó con el archivo original mediante `mutate.py`.
+
+## O8, N19 y tres variantes
+
+`F5-O8` reaplica N19 sin `value is True`, la prueba invertida de `True`,
+la pérdida de grupos y la omisión del filtro por `return` final: 4/4
+muertos en `check_runner`. En copias aisladas, `cli selftest` y `cli gate`
+terminan ambos en esa aserción para cada variante; los SHA-256 del origen
+permanecen intactos. El esperado `while false`/NX-E1317 procede de F5
+§2.2 y F5-C02 (§9.2.1), no de una salida del binario.

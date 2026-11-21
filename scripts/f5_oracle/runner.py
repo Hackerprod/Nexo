@@ -116,12 +116,19 @@ def requirement_sites(case: Case) -> list[tuple[int, int, int, str]]:
     for function in program.functions.values():
         if function.return_type == "()" or (function.body and function.body[-1].kind == "return"):
             continue
+        def exits_loop(node):
+            if node.kind == "break":
+                return True
+            if node.kind in ("while", "for"):
+                return False  # A nested break exits its own loop.
+            return any(exits_loop(child) for child in node.children)
         def visit(node):
             if node.kind == "while":
                 condition = node.children[0]
                 while condition.kind == "group":
                     condition = condition.children[0]
-                if condition.kind == "bool" and condition.value is True:
+                if (condition.kind == "bool" and condition.value is True and
+                        not exits_loop(node.children[1])):
                     add("L04b", node.start, 3)
             for child in node.children:
                 visit(child)

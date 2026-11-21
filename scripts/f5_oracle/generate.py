@@ -388,6 +388,30 @@ def _legacy_context(seed: int, index: int) -> Expr:
 
 def _special_invalid(seed: int, index: int, family: int) -> Case:
     context = "let context=" + render_expr(_legacy_context(seed, index)) + ";"
+    if family == 13 and index >= 27:
+        # F5 §2.2: a reachable break restores a normal exit, even for true.
+        variant = (index // 14) % 4
+        condition = ("false", "true", "b", "((true))")[variant]
+        prefix = "let b=false;" if condition == "b" else ""
+        body = "break;" if variant in (1, 3) else ""
+        loop = f"{prefix}while {condition}{{{body}}}"
+        source = f"fn F()->I64{{{loop}}}fn Main(){{{context}}}"
+        repaired = f"fn F()->I64{{{loop}return 1;}}fn Main(){{{context}}}"
+        try:
+            SourceChecker(parse_source(source)).check()
+        except RuleViolation as failure:
+            issue = failure.issue
+            assert issue.code == "NX-E1317", (condition, issue.code)
+            expected = {"code": issue.code, "subcause": issue.subcause,
+                        "stage": issue.stage, "operation": issue.operation,
+                        "primary": [issue.start, issue.end], "data": issue.data,
+                        "feature_id": issue.feature_id,
+                        "related": [list(item) for item in issue.related]}
+        else:
+            raise AssertionError((condition, "missing return accepted"))
+        SourceChecker(parse_source(repaired)).check()
+        return Case(seed, index, "invalid", "control.while_return",
+                    Program(()), source, None, "NX-E1317", repaired, expected)
     if family == 10:
         if index >= 100 and (index // 14) % 2:
             # F5-N02 fixes names/NX-E0104 before the pending L09 barrier.
