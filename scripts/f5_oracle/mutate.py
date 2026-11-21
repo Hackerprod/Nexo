@@ -37,6 +37,23 @@ MUTANTS = {
         ("diagnostics.py", 'offset = len(source.encode("utf-8"))',
          'offset = len(source.encode("utf-8")) - 1', "check_syntax_pairs"),
     ],
+    "F5-O2": [
+        ("generate.py", '"+": 5, "-": 5,', '"+": 6, "-": 5,', "check_generator"),
+        ("generate.py", 'rng.randint(-50, 50)', 'rng.randint(-49, 49)', "check_generator"),
+        ("generate.py", 'family = index % 10\n    if family == 0:',
+         'family = index % 9\n    if family == 0:', "check_generator"),
+        ("generate.py", 'for _ in range(rng.randrange(1, 5))',
+         'for _ in range(rng.randrange(1, 4))', "check_generator"),
+        ("generate.py", 'hi = rng.randrange(5)', 'hi = rng.randrange(6)',
+         "check_generator"),
+        ("generate.py", 'value = execute(program).env["answer"]',
+         'value = 0', "check_generator"),
+        ("generate.py", 'code, name = "R0502", "div.zero"',
+         'code, name = "R0504", "div.zero"', "check_generator"),
+        ("generate.py", 'return best, attempts', 'return case, attempts',
+         "check_generator"),
+    ],
+
 }
 
 

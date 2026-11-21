@@ -8,9 +8,9 @@ from pathlib import Path
 import subprocess
 
 from .charges import Charges, Limits, BudgetFault, scalar_loop_total, short_circuit_total
-from .diagnostics import SourceChecker, missing_main, pending, syntax
+from .diagnostics import RuleViolation, SourceChecker, missing_main, pending, syntax
 from .diagnostics import check_source
-from .generate import corpus_sha, make_invalid, make_valid, render_expr
+from .generate import corpus_sha, make_invalid, make_valid, minimize_case, render_expr
 from .model import (
     Array, Expr, MAX_I64, MIN_I64, ModelFault, Program, Stmt, binary,
     SourceSyntaxFault, SourceVM, copy_value, evaluate, execute, parse_source, quotient,
@@ -171,22 +171,57 @@ def check_charge_literals() -> int:
 
 def check_generator() -> int:
     checksum = corpus_sha(0, 100, 100)
-    assert checksum == "a41247a47d2643a0d722146a369f1fd67844b6fc8c2214770a6593b5c28fc929"
+    assert checksum == "64724973ccc6ad002ee040966854061e0ff51392627536a8d005a41cbd93303d"
     for index in range(100):
         valid = make_valid(0, index)
         assert execute(valid.program).env["answer"] == valid.expected_value
+        parsed = parse_source(valid.source)
+        SourceChecker(parsed).check()
+        observed = SourceVM(parsed).run()
+        assert observed.stdout == [] and observed.events == []
         invalid = make_invalid(0, index)
-        try:
-            execute(invalid.program)
-        except ModelFault as fault:
-            assert fault.code == invalid.expected_fault
+        parsed = parse_source(invalid.source)
+        if invalid.expected_issue is None:
+            try:
+                execute(invalid.program)
+            except ModelFault as fault:
+                assert fault.code == invalid.expected_fault
+            else:
+                raise AssertionError((index, invalid.family))
+            SourceChecker(parsed).check()
+            try:
+                SourceVM(parsed).run()
+            except ModelFault as fault:
+                assert fault.code == invalid.expected_fault
+            else:
+                raise AssertionError((index, invalid.family, "source accepted"))
         else:
-            raise AssertionError((index, invalid.family))
+            try:
+                SourceChecker(parsed).check()
+            except RuleViolation as failure:
+                issue = failure.issue
+                assert {"code": issue.code, "subcause": issue.subcause,
+                        "stage": issue.stage, "operation": issue.operation,
+                        "primary": [issue.start, issue.end], "data": issue.data,
+                        "feature_id": issue.feature_id,
+                        "related": [list(item) for item in issue.related]} == \
+                    invalid.expected_issue
+            else:
+                raise AssertionError((index, invalid.family, "negative accepted"))
+        assert invalid.positive_source is not None
+        repair = parse_source(invalid.positive_source)
+        SourceChecker(repair).check()
+        SourceVM(repair).run()
     assert render_expr(Expr("binary", "I64", (
         Expr("int", "I64", value=2),
         Expr("binary", "I64", (Expr("int", "I64", value=3),
                                  Expr("int", "I64", value=4)), "*")), "+")) == "2+3*4"
-    return 201
+    original = make_valid(0, 4)
+    smaller, attempts = minimize_case(original, lambda case: "same_fault_path",
+                                      seconds=1)
+    assert attempts >= 1 and len(smaller.source) < len(original.source)
+    assert execute(smaller.program).env["answer"] == smaller.expected_value
+    return 202
 
 
 def check_source_programs() -> int:
