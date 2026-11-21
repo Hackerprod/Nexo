@@ -10029,7 +10029,18 @@ impl Checker<'_> {
                             (inner, inner_context) = self.array_next(&mut visit, &mut state);
                             frames.push(Frame::Array(Box::new(state)));
                         }
-                        Expr::Index { target, .. } => {
+                        Expr::Index {
+                            target,
+                            index,
+                            selector,
+                            ..
+                        } => {
+                            if self.f5 && super::pending_f5::range_for(index) {
+                                ready_result = Some(Err(super::pending_f5::range_outside_for(
+                                    selector.clone(),
+                                )));
+                                continue 'evaluate;
+                            }
                             let previous_owner = visit.numeric_domain_owner;
                             visit.numeric_domain_owner = None;
                             frames.push(Frame::Index(Box::new((
@@ -10111,6 +10122,15 @@ impl Checker<'_> {
                             inner_context = child_context;
                         }
                         Expr::Binary { op, left, .. } => {
+                            if self.f5 && matches!(op.as_str(), "..<" | "..=") {
+                                let Expr::Binary { right, .. } = inner else {
+                                    unreachable!()
+                                };
+                                ready_result = Some(Err(super::pending_f5::range_outside_for(
+                                    self.operator_span(left.span(), right.span(), op),
+                                )));
+                                continue 'evaluate;
+                            }
                             if self.f5 && matches!(op.as_str(), "and" | "or") {
                                 frames.push(Frame::LogicalLeft(Box::new((inner, inner_context))));
                                 inner = left;

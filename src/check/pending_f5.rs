@@ -22,6 +22,16 @@ pub(crate) fn range_for(iterable: &Expr) -> bool {
     matches!(node, Expr::Binary { op, .. } if op == "..<" || op == "..=")
 }
 
+pub(crate) fn range_outside_for(span: Span) -> Box<Diagnostic> {
+    let mut error = names::diagnostic("NX-E0006", None, Stage::Types, Operation::TypesCheck, span);
+    error.feature_id = Some("range".into());
+    error.message = "Recognized construct is outside the profile.".into();
+    error
+        .data
+        .insert("pending_scope".into(), DataValue::String("later_adr".into()));
+    error
+}
+
 pub(crate) fn intrinsic_scope(identity: &str) -> Option<&'static str> {
     crate::prelude::f5_array_intrinsic(identity).map(|_| "L07")
 }

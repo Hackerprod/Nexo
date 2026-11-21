@@ -12,6 +12,11 @@ pub const SCHEMA_VERSION: u8 = 1;
 pub const PROFILE_ID: &str = "f0-0002-b-v2";
 pub const SOURCE_LIMIT: usize = 1_048_576;
 
+// F5 extends J's language rules; the test profiles remain J-only.
+fn profile_has_j_rules(profile_id: &str) -> bool {
+    profile_id.starts_with("f0-0003-") || profile_id == "f0-0005-b-v1"
+}
+
 macro_rules! vocabulary {
     ($name:ident { $($variant:ident => $text:literal),+ $(,)? }) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
@@ -933,29 +938,30 @@ impl Diagnostic {
             match f {
                 "function_value" => ("names", "names.resolve"),
                 "closure"
-                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Types =>
+                    if profile_has_j_rules(&self.profile_id) && self.stage == Stage::Types =>
                 {
                     ("types", "types.check")
                 }
                 "generator"
-                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Types =>
+                    if profile_has_j_rules(&self.profile_id) && self.stage == Stage::Types =>
                 {
                     ("types", "types.check")
                 }
                 "for_iteration"
-                    if (self.profile_id.starts_with("f0-0003-")
-                        || self.profile_id.starts_with("f0-0005-"))
-                        && self.stage == Stage::Types =>
+                    if profile_has_j_rules(&self.profile_id) && self.stage == Stage::Types =>
                 {
                     ("types", "types.check")
                 }
-                "receiver_mode" if self.profile_id.starts_with("f0-0003-") => {
+                "receiver_mode" if profile_has_j_rules(&self.profile_id) => {
                     ("names", "names.resolve")
                 }
                 "methods"
-                    if self.profile_id.starts_with("f0-0003-") && self.stage == Stage::Names =>
+                    if profile_has_j_rules(&self.profile_id) && self.stage == Stage::Names =>
                 {
                     ("names", "names.resolve")
+                }
+                "range" if self.profile_id == "f0-0005-b-v1" && self.stage == Stage::Types => {
+                    ("types", "types.check")
                 }
                 "implementation_limit" if self.stage == Stage::Lower => ("lower", "ir.lower"),
                 "implementation_limit" => ("types", "types.check"),
@@ -1312,7 +1318,7 @@ impl Diagnostic {
         }
         if self.code == "NX-E0003"
             && (self.profile_id.starts_with("f0-0002-b-")
-                || self.profile_id.starts_with("f0-0003-b-"))
+                || profile_has_j_rules(&self.profile_id))
         {
             for key in ["budget_scope", "incomplete_analysis"] {
                 if !has(key) {
@@ -1536,7 +1542,7 @@ impl Diagnostic {
         if self.code == "NX-E0006" {
             let expected = if self.feature_id.as_deref() == Some("implementation_limit") {
                 None
-            } else if self.profile_id.starts_with("f0-0003-")
+            } else if profile_has_j_rules(&self.profile_id)
                 && matches!(self.feature_id.as_deref(), Some("closure" | "generator"))
             {
                 Some("later_adr")

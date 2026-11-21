@@ -30,6 +30,55 @@ fn rejected(diag: &str) -> String {
 }
 
 #[test]
+fn f5_ranges_outside_direct_for_report_adr_boundary() {
+    // F5-H03, F5-D01/D02 and F5 §3.1: an ordinary range has no Bool type.
+    let cases = [
+        ("fn Main(){let r=0..<3;}", 17, 20, "fn Main(){let r=0+3;}"),
+        ("fn Main(){let r=0..=3;}", 17, 20, "fn Main(){let r=0+3;}"),
+        ("fn Main(){let r=(0..<3);}", 18, 21, "fn Main(){let r=(0+3);}"),
+        ("fn Main(){if 0..<3{}}", 14, 17, "fn Main(){if true{}}"),
+        (
+            "fn Main(){var a=[1];let b=a[0..<1];}",
+            27,
+            34,
+            "fn Main(){var a=[1];let b=a[0];}",
+        ),
+        (
+            "fn F()->I64{return 0..<3;}fn Main(){}",
+            20,
+            23,
+            "fn F()->I64{return 0+3;}fn Main(){}",
+        ),
+    ];
+    for (source, start, end, positive) in cases {
+        let diagnostic = format!(
+            r#"{{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Recognized construct is outside the profile.","operation":"types.check","primary_span":{{"file":"case.n","start":{start},"end":{end}}},"related_spans":[],"cause_chain":[],"feature_id":"range","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{{"pending_scope":"later_adr"}}}}"#
+        );
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert_eq!(output, rejected(&diagnostic), "{verb} {source}");
+            let (status, output) = invoke(verb, positive, "f0-0005-b-v1");
+            assert_eq!(status, 0, "{verb} {positive}: {output}");
+        }
+    }
+}
+
+#[test]
+fn f5_field_access_uses_j_names_boundary() {
+    // F5 §8.2 retains J's methods/later_adr rule.
+    let source = "fn Main(){var x=1;x.f=1;}";
+    let diagnostic = r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"names","message":"Recognized construct is outside the profile.","operation":"names.resolve","primary_span":{"file":"case.n","start":19,"end":20},"related_spans":[],"cause_chain":[],"feature_id":"methods","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"later_adr"}}"#;
+    for verb in ["check", "run"] {
+        let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+        assert_eq!(status, 1, "{verb}: {output}");
+        assert_eq!(output, rejected(diagnostic), "{verb}");
+        let (status, output) = invoke(verb, "fn Main(){var x=1;x=1;}", "f0-0005-b-v1");
+        assert_eq!(status, 0, "{verb}: {output}");
+    }
+}
+
+#[test]
 fn pending_f5_destinations_and_const_have_exact_public_diagnostics() {
     let cases = [
         (
