@@ -512,3 +512,49 @@ fn f5_compound_assignment_holds_exclusive_loan_through_rhs() {
         }
     }
 }
+
+#[test]
+fn f5_effect_contracts_publish_the_profile_model() {
+    // F5 §7.1/F5-B05 retain J's effect rule, operation and source site.
+    let cases = [
+        ("fn Main(){let a=[1];let f=fn [copy a]() with {create(no_alloc),call(unrestricted)}{};}", "NX-E0412", "closure.create", 26, 28, "alloc"),
+        ("fn Main(){let a=[1];let f=fn [move a]() with {copy(no_alloc),call(unrestricted)}{};}", "NX-E0412", "value.copy", 26, 28, "alloc"),
+        ("fn Main(){let r=MockBlockingOpen(1);let f=fn [move r]() with {drop(no_block),call(unrestricted)}{};}", "NX-E0413", "value.drop", 42, 44, "block"),
+        ("fn Main(){let r=MockOpen(1);let f=fn [move r]() with {drop(no_io),call(unrestricted)}{};}", "NX-E0415", "value.drop", 34, 36, "io"),
+        ("gen fn G()->I64{yield 1;}fn Main(){let g=G();let f=fn [move g]() with no_suspend{var h=move g;let n=Iterator.Next(edit h);};}", "NX-E0414", "generator.next", 109, 113, "suspend"),
+    ];
+    for (source, code, operation, start, end, effect) in cases {
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert_eq!(output.matches("\"diagnostic_namespace\"").count(), 1, "{output}");
+            assert!(output.contains(&format!("\"code\":\"{code}\"")), "{output}");
+            assert!(output.contains(&format!("\"operation\":\"{operation}\"")), "{output}");
+            assert!(output.contains(&format!("\"primary_span\":{{\"file\":\"case.n\",\"start\":{start},\"end\":{end}}}")), "{output}");
+            assert!(output.contains("\"effect_model\":\"f0-0005-sim-v1\""), "{output}");
+            assert!(output.contains("\"effect_evidence\":\"known_effect\""), "{output}");
+            assert!(output.contains(&format!("\"required_effect\":\"{effect}\"")), "{output}");
+            let (j_status, j_output) = invoke(verb, source, "f0-0003-b-v1");
+            assert_eq!(j_status, 1, "{j_output}");
+            assert_eq!(
+                output,
+                j_output
+                    .replace("f0-0003-b-v1", "f0-0005-b-v1")
+                    .replace("f0-0003-sim-v1", "f0-0005-sim-v1"),
+                "{verb} {source}"
+            );
+        }
+    }
+}
+
+#[test]
+fn f5_match_guard_effect_uses_the_same_model() {
+    let source = "fn Main(){match true{true if MockUnknown()==()=>{},_=>{}}}";
+    for verb in ["check", "run"] {
+        let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+        assert_eq!(status, 1, "{output}");
+        assert_eq!(output.matches("\"diagnostic_namespace\"").count(), 1, "{output}");
+        assert!(output.contains("\"code\":\"NX-E1305\""), "{output}");
+        assert!(output.contains("\"effect_model\":\"f0-0005-sim-v1\""), "{output}");
+    }
+}
