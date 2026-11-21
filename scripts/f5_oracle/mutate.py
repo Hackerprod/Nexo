@@ -53,7 +53,23 @@ MUTANTS = {
         ("generate.py", 'return best, attempts', 'return case, attempts',
          "check_generator"),
     ],
-
+    "F5-O3": [
+        ("runner.py", '"G1b": 3, "G2b": 5', '"G1b": 4, "G2b": 5',
+         "check_runner"),
+        ("runner.py", '"*", "/", "%", "<", "<=", ">", ">=", "!="',
+         '"/", "%", "<", "<=", ">", ">=", "!="', "check_runner"),
+        ("runner.py", 'required.add("L03b")', 'required.add("L04b")',
+         "check_runner"),
+        ("runner.py", 'stage = "ownership" if missing == "L04b" else "types"',
+         'stage = "ownership"', "check_runner"),
+        ("runner.py", 'if required and "L08" not in complete:',
+         'if False and "L08" not in complete:', "check_runner"),
+        ("runner.py", 'return None if expected == actual else path',
+         'return None if expected != actual else path', "check_runner"),
+        ("runner.py", 'key == "file"', 'key == "source"', "check_runner"),
+        ("runner.py", 'return range(start, end + 1)',
+         'return range(start, end)', "check_runner"),
+    ],
 }
 
 

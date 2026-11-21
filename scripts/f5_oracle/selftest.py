@@ -322,6 +322,40 @@ def check_syntax_pairs() -> dict[str, int]:
             "syntax_repairs_run_missing_main": missing_main_count}
 
 
+def check_runner() -> int:
+    from .runner import (_first_difference, literal_cases, manifest, normalize_files,
+                         projection, requirements, seed_range)
+    complete = manifest("G1b", "L01b,L02b,L03b")
+    assert complete == ("L01b", "L02b", "L03b")
+    for bad in ("L01b,L03b", "L01b,L02b,L03b,L04b"):
+        try:
+            manifest("G1b", bad)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError(bad)
+    loop = make_valid(0, 4)
+    assert requirements(loop) == {"L03b", "L05b"}
+    assert requirements(make_invalid(0, 1)) == {"L01b"}
+    assert projection(loop, "check", complete)["diagnostics"][0]["data"] == \
+        {"pending_scope": "L05"}
+    assert projection(loop, "check", complete)["diagnostics"][0]["stage"] == "types"
+    assert projection(loop, "run", manifest("G3b",
+        "L01b,L02b,L03b,L04b,L05b,L07b,L06b"))["diagnostics"][0]["data"] == \
+        {"pending_scope": "L08"}
+    assert projection(make_valid(0, 2), "check", complete)["outcome"] == "checked"
+    assert projection(make_invalid(0, 4), "check", complete)["diagnostics"][0][
+        "code"] == "NX-E0102"
+    assert _first_difference({"a": [1, 2]}, {"a": [1, 3]}) == "$.a[1]"
+    assert normalize_files({"x": [{"file": "C:/tmp/a.n", "text": "C:/tmp/a.n"}]}) == \
+        {"x": [{"file": "case.n", "text": "C:/tmp/a.n"}]}
+    assert list(seed_range("0:2")) == [0, 1, 2]
+    literals = list(literal_cases("f0-0005-b-v1"))
+    assert len(literals) == 302
+    assert not any(identifier == "F5-S08-positive" for identifier, *_ in literals)
+    return 14
+
+
 def run() -> dict[str, int]:
     rows, syntax_rows = check_literal_integrity()
     result = {
@@ -337,4 +371,5 @@ def run() -> dict[str, int]:
         "positive_literal_repairs_modeled": check_positive_repairs(),
     }
     result.update(check_syntax_pairs())
+    result["runner_contracts"] = check_runner()
     return result
