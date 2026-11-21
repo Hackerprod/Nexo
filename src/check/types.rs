@@ -303,7 +303,10 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                             work.push(Work::EnterExpr(item));
                         }
                     }
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => {
                         work.push(Work::EnterExpr(inner));
                     }
                     Expr::Binary { left, right, .. } => {
@@ -354,6 +357,14 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                     Expr::Group(_, span) => Expr::Group(Box::new(expr(&mut values)), span.clone()),
                     Expr::Unary { mode, span, .. } => Expr::Unary {
                         mode: *mode,
+                        value: Box::new(expr(&mut values)),
+                        span: span.clone(),
+                    },
+                    Expr::Neg { span, .. } => Expr::Neg {
+                        value: Box::new(expr(&mut values)),
+                        span: span.clone(),
+                    },
+                    Expr::Not { span, .. } => Expr::Not {
                         value: Box::new(expr(&mut values)),
                         span: span.clone(),
                     },
@@ -487,11 +498,12 @@ fn clone_projection_selector(value: &Expr) -> Expr {
                         value: expr(&mut values),
                         span: span.clone(),
                     },
-                    Statement::Assign { span, .. } => {
+                    Statement::Assign { op, span, .. } => {
                         let value = expr(&mut values);
                         let place = expr(&mut values);
                         Statement::Assign {
                             place,
+                            op: *op,
                             value,
                             span: span.clone(),
                         }
@@ -1236,6 +1248,14 @@ struct PreparedLet {
     written: Option<Type>,
 }
 
+fn compound_operand_type(op: parse::AssignOp) -> Option<Type> {
+    let base = op.text().strip_suffix('=')?;
+    super::operators::binary(base).map(|(domain, result)| {
+        debug_assert_eq!(domain, super::operators::Domain::Integer);
+        Type::from(&result)
+    })
+}
+
 struct AssignmentProgress<'a> {
     place: &'a Expr,
     value: &'a Expr,
@@ -1441,6 +1461,9 @@ fn capture_usage(closure: &parse::Closure, source: u64, resolved: &Resolved) -> 
                         },
                     ));
                 }
+                Expr::Neg { value, .. } | Expr::Not { value, .. } => {
+                    pending.push(Node::Expr(value, requested));
+                }
                 Expr::Group(inner, _) => pending.push(Node::Expr(inner, requested)),
                 Expr::Array(items, _) => {
                     pending.extend(items.iter().rev().map(|item| Node::Expr(item, Mode::Read)));
@@ -1637,7 +1660,10 @@ fn record_unresolved_sites(ast: &Ast, inferred: &mut InferredTypes) {
                     Expr::Array(items, _) => {
                         pending.extend(items.iter().rev().map(Node::Expression))
                     }
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => {
                         pending.push(Node::Expression(inner));
                     }
                     Expr::Binary { left, right, .. }
@@ -2258,6 +2284,7 @@ struct Checker<'a> {
     file: &'a str,
     tokens: Vec<Token>,
     resolved: &'a Resolved,
+    f5: bool,
     graph: InferenceGraph,
     closures: HashMap<u64, ClosureDraft>,
     saved_closures: HashMap<u64, ClosureDraft>,
@@ -3876,7 +3903,10 @@ impl Checker<'_> {
                 }
             }
             Expr::Array(items, _) => children.extend(items),
-            Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => children.push(inner),
+            Expr::Group(inner, _)
+            | Expr::Unary { value: inner, .. }
+            | Expr::Neg { value: inner, .. }
+            | Expr::Not { value: inner, .. } => children.push(inner),
             Expr::Binary { left, right, .. } => children.extend([left.as_ref(), right.as_ref()]),
             Expr::Call { target, args, .. } => {
                 children.push(target);
@@ -6531,9 +6561,10 @@ impl Checker<'_> {
                         }
                     }
                     Expr::Array(items, _) => pending.extend(items.iter().rev().map(Node::Expr)),
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
-                        pending.push(Node::Expr(inner))
-                    }
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => pending.push(Node::Expr(inner)),
                     Expr::Binary { left, right, .. }
                     | Expr::Index {
                         target: left,
@@ -6735,6 +6766,8 @@ impl Checker<'_> {
                 | Expr::Index { .. }
                 | Expr::Call { .. }
                 | Expr::Unary { .. }
+                | Expr::Neg { .. }
+                | Expr::Not { .. }
                 | Expr::Match(..)
                 | Expr::Closure(..) => return false,
             }
@@ -7843,6 +7876,7 @@ impl Checker<'_> {
 
     fn prepare_for_type(
         &mut self,
+        for_span: &Span,
         name_span: &Span,
         iterable: &Expr,
         got: Type,
@@ -7857,6 +7891,16 @@ impl Checker<'_> {
         let item = match got {
             Type::Generator { item, .. } => (*item).clone(),
             Type::Array(_) => {
+                if self.f5 {
+                    return Err(super::pending_f5::diagnostic(
+                        "L06",
+                        Span {
+                            file: for_span.file.clone(),
+                            start: for_span.start,
+                            end: for_span.start + 3,
+                        },
+                    ));
+                }
                 let mut error = names::diagnostic(
                     "NX-E0006",
                     None,
@@ -8432,6 +8476,11 @@ impl Checker<'_> {
             Statement(&'a Statement),
             Block(&'a Block),
         }
+        struct LogicalRightProgress<'a> {
+            expr: &'a Expr,
+            context: OwnedCheckContext,
+            left: Result<Type, Box<Diagnostic>>,
+        }
         enum Frame<'a> {
             StatementSite(&'a Statement, bool),
             StatementExpr,
@@ -8462,6 +8511,8 @@ impl Checker<'_> {
             BinaryDeferredRight(Box<BinaryDeferredProgress<'a>>),
             BinaryIndependentLeftError(Box<BinaryLeftErrorProgress<'a>>),
             BinaryIndependentRight(Box<BinaryIndependentProgress<'a>>),
+            LogicalLeft(Box<(&'a Expr, OwnedCheckContext)>),
+            LogicalRight(Box<LogicalRightProgress<'a>>),
             Call(Box<CallProgress<'a>>),
             CallTarget(Box<OwnedExpressionFrame<'a>>),
             ClosureCall(Box<ClosureCallFrameState<'a>>),
@@ -8541,11 +8592,20 @@ impl Checker<'_> {
                             return Resume::Next(result);
                         }
                     };
-                    let Statement::Assign { place, value, .. } = statement else {
+                    let Statement::Assign {
+                        place, op, value, ..
+                    } = statement
+                    else {
                         unreachable!("assignment frame owns an assignment")
                     };
-                    let (context, progress) =
+                    let (mut context, progress) =
                         checker.prepare_assignment_rhs(visit, place, value, lhs);
+                    if let Some(required) = compound_operand_type(*op) {
+                        context.expected = Some(required);
+                        context.expected_span = None;
+                        context.check_here = true;
+                        context.related_expected = false;
+                    }
                     frames.push(Frame::AssignmentValue(Box::new(progress)));
                     *inner = value;
                     *inner_context = context;
@@ -8617,6 +8677,7 @@ impl Checker<'_> {
                             name_span,
                             iterable,
                             body,
+                            span: for_span,
                             ..
                         } = statement
                         else {
@@ -8624,7 +8685,7 @@ impl Checker<'_> {
                         };
                         result = result.and_then(|got| {
                             checker
-                                .prepare_for_type(name_span, iterable, got)
+                                .prepare_for_type(for_span, name_span, iterable, got)
                                 .map(|_| Type::Unit)
                         });
                         if result.is_err() {
@@ -8688,6 +8749,46 @@ impl Checker<'_> {
                         expr,
                         context.borrowed(),
                         Some(PrecomputedType::Whole(result)),
+                    );
+                }
+                Frame::LogicalLeft(progress) => {
+                    let (expr, context) = *progress;
+                    let Expr::Binary { right, .. } = expr else {
+                        unreachable!("logical frame owns a binary expression")
+                    };
+                    frames.push(Frame::LogicalRight(Box::new(LogicalRightProgress {
+                        expr,
+                        context,
+                        left: result,
+                    })));
+                    *inner = right;
+                    *inner_context = OwnedCheckContext::new(CheckContext {
+                        expected: Some(&Type::Bool),
+                        expected_span: None,
+                        check_here: true,
+                        anchor: None,
+                        outer_compare: false,
+                        related_expected: false,
+                        deferred_element: false,
+                    });
+                    return Resume::Evaluate;
+                }
+                Frame::LogicalRight(progress) => {
+                    let LogicalRightProgress {
+                        expr,
+                        context,
+                        left,
+                    } = *progress;
+                    let combined = match (left, result) {
+                        (Err(error), _) | (_, Err(error)) => Err(error),
+                        (Ok(Type::Tainted), _) | (_, Ok(Type::Tainted)) => Ok(Type::Tainted),
+                        (Ok(_), Ok(_)) => Ok(Type::Bool),
+                    };
+                    result = checker.check_against_context_one(
+                        visit,
+                        expr,
+                        context.borrowed(),
+                        Some(PrecomputedType::Whole(combined)),
                     );
                 }
                 Frame::Array(progress) => {
@@ -8844,7 +8945,7 @@ impl Checker<'_> {
                         else {
                             unreachable!("binary frame owns a binary")
                         };
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         let left_domain_failed = numeric
                             && error.primary_span.as_ref() == Some(&Checker::primary_span(left))
                             && error.data.get("expected_type")
@@ -8883,7 +8984,7 @@ impl Checker<'_> {
                         Ok(left_type),
                     ) = (expr, &result)
                     {
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         let pending_domain = checker.graph.has(
                             &span_key(&Checker::primary_span(left)),
                             OccurrenceFlag::PendingDomain,
@@ -8964,7 +9065,7 @@ impl Checker<'_> {
                             .graph
                             .has(&span_key(left.span()), OccurrenceFlag::Deferred)
                     {
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         let pending_before_operator = checker.pending_join_count();
                         frames.push(Frame::BinaryDeferredRight(Box::new(
                             BinaryDeferredProgress {
@@ -8995,7 +9096,7 @@ impl Checker<'_> {
                         Ok(left_type),
                     ) = (expr, &result)
                     {
-                        let numeric = matches!(op.as_str(), "+" | "-");
+                        let numeric = super::operators::is_arithmetic(op, checker.f5);
                         if !checker.graph.has(
                             &span_key(&Checker::primary_span(left)),
                             OccurrenceFlag::PendingDomain,
@@ -9619,12 +9720,14 @@ impl Checker<'_> {
                         }
                     }
                     Task::Statement(statement) => match statement {
-                        Statement::Assign { place, value, .. } => {
+                        Statement::Assign {
+                            place, op, value, ..
+                        } => {
                             self.prepare_assignment_plan(place, value);
                             frames.push(Frame::AssignmentPlace(statement));
                             inner = place;
                             inner_context = OwnedCheckContext {
-                                expected: None,
+                                expected: compound_operand_type(*op),
                                 expected_span: None,
                                 check_here: true,
                                 anchor: None,
@@ -9765,6 +9868,20 @@ impl Checker<'_> {
                             continue 'evaluate;
                         }
                         Statement::For { iterable, .. } => {
+                            if self.f5 && super::pending_f5::range_for(iterable) {
+                                let Statement::For { span, .. } = statement else {
+                                    unreachable!()
+                                };
+                                ready_result = Some(Err(super::pending_f5::diagnostic(
+                                    "L05",
+                                    Span {
+                                        file: span.file.clone(),
+                                        start: span.start,
+                                        end: span.start + 3,
+                                    },
+                                )));
+                                continue 'evaluate;
+                            }
                             frames.push(Frame::StatementFor(statement, 0));
                             inner = iterable;
                             inner_context = OwnedCheckContext {
@@ -9912,7 +10029,18 @@ impl Checker<'_> {
                             (inner, inner_context) = self.array_next(&mut visit, &mut state);
                             frames.push(Frame::Array(Box::new(state)));
                         }
-                        Expr::Index { target, .. } => {
+                        Expr::Index {
+                            target,
+                            index,
+                            selector,
+                            ..
+                        } => {
+                            if self.f5 && super::pending_f5::range_for(index) {
+                                ready_result = Some(Err(super::pending_f5::range_outside_for(
+                                    selector.clone(),
+                                )));
+                                continue 'evaluate;
+                            }
                             let previous_owner = visit.numeric_domain_owner;
                             visit.numeric_domain_owner = None;
                             frames.push(Frame::Index(Box::new((
@@ -9935,6 +10063,32 @@ impl Checker<'_> {
                             if self.generator_item.is_some() =>
                         {
                             break;
+                        }
+                        Expr::Neg { value, .. } => {
+                            frames.push(Frame::Unary(Box::new((inner, inner_context))));
+                            inner = value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::I64),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
+                        }
+                        Expr::Not { value, .. } => {
+                            frames.push(Frame::Unary(Box::new((inner, inner_context))));
+                            inner = value;
+                            inner_context = OwnedCheckContext::new(CheckContext {
+                                expected: Some(&Type::Bool),
+                                expected_span: None,
+                                check_here: true,
+                                anchor: None,
+                                outer_compare: false,
+                                related_expected: false,
+                                deferred_element: false,
+                            });
                         }
                         Expr::Unary {
                             mode: Mode::Read,
@@ -9968,10 +10122,33 @@ impl Checker<'_> {
                             inner_context = child_context;
                         }
                         Expr::Binary { op, left, .. } => {
+                            if self.f5 && matches!(op.as_str(), "..<" | "..=") {
+                                let Expr::Binary { right, .. } = inner else {
+                                    unreachable!()
+                                };
+                                ready_result = Some(Err(super::pending_f5::range_outside_for(
+                                    self.operator_span(left.span(), right.span(), op),
+                                )));
+                                continue 'evaluate;
+                            }
+                            if self.f5 && matches!(op.as_str(), "and" | "or") {
+                                frames.push(Frame::LogicalLeft(Box::new((inner, inner_context))));
+                                inner = left;
+                                inner_context = OwnedCheckContext::new(CheckContext {
+                                    expected: Some(&Type::Bool),
+                                    expected_span: None,
+                                    check_here: true,
+                                    anchor: None,
+                                    outer_compare: false,
+                                    related_expected: false,
+                                    deferred_element: false,
+                                });
+                                continue;
+                            }
                             let previous_owner = visit.numeric_domain_owner;
                             visit.numeric_domain_owner = None;
                             let pending_before = self.pending_join_count();
-                            let numeric = matches!(op.as_str(), "+" | "-");
+                            let numeric = super::operators::is_arithmetic(op, self.f5);
                             if numeric {
                                 visit.numeric_domain_owner = Some(span_key(inner.span()));
                                 #[cfg(test)]
@@ -10682,7 +10859,7 @@ impl Checker<'_> {
             // only after this function's pending obligations have closed.
             self.graph.set_conditional_result(
                 span_key(e.span()),
-                if matches!(op.as_str(), "<" | "==") {
+                if super::operators::is_comparison(op, self.f5) {
                     Type::Bool
                 } else {
                     Type::I64
@@ -10860,8 +11037,41 @@ impl Checker<'_> {
                 Ok(Type::I64)
             }
             Expr::Bool(..) => Ok(Type::Bool),
+            Expr::Neg { value, .. } => {
+                let got = unary_operand.expect("negated operand is scheduled by driver")?;
+                if got == Type::Tainted {
+                    return Ok(Type::Tainted);
+                }
+                if got != Type::I64 {
+                    return Err(mismatch(
+                        Self::primary_span(value),
+                        Self::primary_span(value),
+                        None,
+                        "I64",
+                        &got,
+                    ));
+                }
+                Ok(Type::I64)
+            }
+            Expr::Not { value, .. } => {
+                let got = unary_operand.expect("not operand is scheduled by driver")?;
+                if got == Type::Tainted {
+                    return Ok(Type::Tainted);
+                }
+                if got != Type::Bool {
+                    return Err(mismatch(
+                        Self::primary_span(value),
+                        Self::primary_span(value),
+                        None,
+                        "Bool",
+                        &got,
+                    ));
+                }
+                Ok(Type::Bool)
+            }
             Expr::Unit(..) => Ok(Type::Unit),
             Expr::Name(name, span) => match self.resolved.uses.get(&span.start) {
+                Some(ResolvedUse::Constant(_)) => Ok(Type::Tainted),
                 Some(ResolvedUse::Intrinsic(intrinsic)) if intrinsic == "None" => {
                     self.option_none(span, expected)
                 }
@@ -11122,7 +11332,7 @@ impl Checker<'_> {
                         visit.tainted = true;
                         return Ok(Type::Tainted);
                     }
-                    if matches!(op.as_str(), "<" | "==")
+                    if super::operators::is_comparison(op, self.f5)
                         && !right_tainted
                         && let Some(found) = self.pending_operation_type(right)
                         && let Some((variable, domain)) = self.pending_operation_guard(left)
@@ -11153,7 +11363,7 @@ impl Checker<'_> {
                                 },
                             )));
                     }
-                    if matches!(op.as_str(), "+" | "-")
+                    if super::operators::is_arithmetic(op, self.f5)
                         && let Some((variable, domain)) = self.pending_operation_guard(left)
                     {
                         self.defer_nominal_domain(
@@ -11175,13 +11385,13 @@ impl Checker<'_> {
                         // for a later assignment or an outer consumer.
                         return Ok(Type::Tainted);
                     }
-                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                    return Ok(if super::operators::is_comparison(op, self.f5) {
                         Type::Bool
                     } else {
                         Type::I64
                     });
                 }
-                if matches!(op.as_str(), "+" | "-")
+                if super::operators::is_arithmetic(op, self.f5)
                     && self.pending_join_count() > pending_before_left
                 {
                     // ADR §4.1.2.4-5: an internal failed join contaminates
@@ -11201,7 +11411,7 @@ impl Checker<'_> {
                     self.graph
                         .mark(span_key(e.span()), OccurrenceFlag::FailedJoin);
                     visit.tainted = true;
-                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                    return Ok(if super::operators::is_comparison(op, self.f5) {
                         Type::Bool
                     } else {
                         Type::I64
@@ -11215,13 +11425,13 @@ impl Checker<'_> {
                     visit.tainted = true;
                     self.graph
                         .mark(span_key(e.span()), OccurrenceFlag::Deferred);
-                    return Ok(if matches!(op.as_str(), "<" | "==") {
+                    return Ok(if super::operators::is_comparison(op, self.f5) {
                         Type::Bool
                     } else {
                         Type::I64
                     });
                 }
-                if matches!(op.as_str(), "+" | "-") && l != Type::I64 {
+                if super::operators::is_arithmetic(op, self.f5) && l != Type::I64 {
                     independent_right.expect("independent binary right operand");
                     return Err(mismatch(
                         Self::primary_span(left),
@@ -11895,7 +12105,7 @@ impl Checker<'_> {
         &mut self,
         visit: &mut VisitCursor,
         e: &Expr,
-        op: &String,
+        op: &str,
         left: &Expr,
         right: &Expr,
         l: Type,
@@ -11910,7 +12120,7 @@ impl Checker<'_> {
             Err(error) if error.operation == Operation::AnalysisLimit => {
                 return Err(error);
             }
-            Err(error) if matches!(op.as_str(), "<" | "==") => {
+            Err(error) if super::operators::is_comparison(op, self.f5) => {
                 self.record_error(error);
                 if let Some(domain_error) =
                     self.comparison_domain_error(visit, op, left, right, &l)?
@@ -11926,7 +12136,7 @@ impl Checker<'_> {
             &span_key(&Self::primary_span(right)),
             OccurrenceFlag::PendingDomain,
         ) {
-            if matches!(op.as_str(), "<" | "==") {
+            if super::operators::is_comparison(op, self.f5) {
                 if let Some(domain_error) =
                     self.comparison_domain_error(visit, op, left, right, &l)?
                 {
@@ -11958,7 +12168,7 @@ impl Checker<'_> {
                         )));
                 }
             }
-            if matches!(op.as_str(), "+" | "-")
+            if super::operators::is_arithmetic(op, self.f5)
                 && let Some((variable, domain)) = self.pending_operation_guard(right)
             {
                 self.defer_nominal_domain(
@@ -11974,7 +12184,7 @@ impl Checker<'_> {
             self.graph
                 .mark(span_key(e.span()), OccurrenceFlag::PendingDomain);
             if !visit.tainted && self.pending_nominal_available(right) {
-                return Ok(if matches!(op.as_str(), "<" | "==") {
+                return Ok(if super::operators::is_comparison(op, self.f5) {
                     Type::Bool
                 } else {
                     Type::I64
@@ -11987,7 +12197,7 @@ impl Checker<'_> {
                 .graph
                 .has(&span_key(right.span()), OccurrenceFlag::FailedJoin)
         {
-            if matches!(op.as_str(), "<" | "==")
+            if super::operators::is_comparison(op, self.f5)
                 && let Some(domain_error) =
                     self.comparison_domain_error(visit, op, left, right, &l)?
             {
@@ -11995,7 +12205,7 @@ impl Checker<'_> {
             }
             return Ok(Type::Tainted);
         }
-        if matches!(op.as_str(), "<" | "==") {
+        if super::operators::is_comparison(op, self.f5) {
             // ADR §4.1.2.4: both operands are synthesized before
             // equality; only then is the common domain tested.
             let right_variable = self.expression_variable(right);
@@ -12029,13 +12239,13 @@ impl Checker<'_> {
             let complete = variable
                 .and_then(|id| self.concrete(id).map(|(ty, _)| ty))
                 .or_else(|| (internal_state(&common).is_none()).then_some(common));
-            let domain = if op == "<" {
+            let domain = if super::operators::is_relational(op, self.f5) {
                 "I64"
             } else {
                 "domain:copyable_data"
             };
             if let Some(ty) = complete {
-                let valid = if op == "<" {
+                let valid = if super::operators::is_relational(op, self.f5) {
                     ty == Type::I64
                 } else {
                     comparable_data(&ty)
@@ -12045,7 +12255,9 @@ impl Checker<'_> {
                 }
             } else if let Some(id) = variable {
                 let root = self.root(id);
-                if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
+                if super::operators::is_relational(op, self.f5)
+                    && self.graph.type_nodes[&root].array_child.is_none()
+                {
                     self.unify_with_expected_origin(
                         visit,
                         Type::I64,
@@ -12115,7 +12327,7 @@ impl Checker<'_> {
         expected: Option<&Type>,
         expected_span: Option<&Span>,
     ) -> Result<Type, Box<Diagnostic>> {
-        if matches!(op, "+" | "-") {
+        if super::operators::is_arithmetic(op, self.f5) {
             right_result?;
             if visit.tainted {
                 return Ok(Type::Tainted);
@@ -12210,7 +12422,7 @@ impl Checker<'_> {
                         .unwrap_or_else(|| left_type.clone()),
                     operator: self.operator_span(left.span(), right.span(), op),
                     found: Self::primary_span(left),
-                    domain: if op == "<" {
+                    domain: if super::operators::is_relational(op, self.f5) {
                         "I64"
                     } else {
                         "domain:copyable_data"
@@ -13439,7 +13651,7 @@ impl Checker<'_> {
                 return Ok(None);
             }
         }
-        let domain = if op == "<" {
+        let domain = if super::operators::is_relational(op, self.f5) {
             "I64"
         } else {
             "domain:copyable_data"
@@ -13449,7 +13661,7 @@ impl Checker<'_> {
             .and_then(|id| self.concrete(id).map(|(resolved, _)| resolved))
             .or_else(|| (internal_state(ty).is_none()).then_some(ty.clone()));
         if let Some(complete) = complete {
-            let invalid = if op == "<" {
+            let invalid = if super::operators::is_relational(op, self.f5) {
                 complete != Type::I64
             } else {
                 !comparable_data(&complete)
@@ -13468,7 +13680,9 @@ impl Checker<'_> {
             // §4.1.2.4–5, RD95: the independent valid operand retains its
             // domain site while its deferred type is completed later.
             let root = self.root(id);
-            if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
+            if super::operators::is_relational(op, self.f5)
+                && self.graph.type_nodes[&root].array_child.is_none()
+            {
                 let operator = self.operator_span(left.span(), right.span(), op);
                 self.unify_with_expected_origin(
                     visit,
@@ -13511,7 +13725,7 @@ impl Checker<'_> {
         result: Result<Type, Box<Diagnostic>>,
         right_tainted: bool,
     ) -> Result<bool, Box<Diagnostic>> {
-        let numeric = matches!(op, "+" | "-");
+        let numeric = super::operators::is_arithmetic(op, self.f5);
         let right_failed = result.is_err();
         match result {
             Ok(ty) if numeric && left_domain_failed && !right_tainted => {
@@ -13534,7 +13748,7 @@ impl Checker<'_> {
                 }
             }
             Ok(ty) if !right_tainted && !numeric => {
-                let wanted = if op == "<" {
+                let wanted = if super::operators::is_relational(op, self.f5) {
                     "I64"
                 } else {
                     "domain:copyable_data"
@@ -13544,7 +13758,7 @@ impl Checker<'_> {
                     .and_then(|id| self.concrete(id).map(|(resolved, _)| resolved))
                     .or_else(|| (internal_state(&ty).is_none()).then_some(ty));
                 if let Some(complete) = complete {
-                    let invalid = if op == "<" {
+                    let invalid = if super::operators::is_relational(op, self.f5) {
                         complete != Type::I64
                     } else {
                         !copyable(&complete)
@@ -13563,7 +13777,9 @@ impl Checker<'_> {
                     // intrinsic domain when its sibling is contaminated.
                     // A later type completes the same operator site.
                     let root = self.root(id);
-                    if op == "<" && self.graph.type_nodes[&root].array_child.is_none() {
+                    if super::operators::is_relational(op, self.f5)
+                        && self.graph.type_nodes[&root].array_child.is_none()
+                    {
                         let operator = self.operator_span(left.span(), right.span(), op);
                         self.unify_with_expected_origin(
                             &VisitCursor::default(),
@@ -13919,6 +14135,17 @@ impl Checker<'_> {
         expected_span: Option<&Span>,
         prepared: Option<Result<Type, Box<Diagnostic>>>,
     ) -> Result<Type, Box<Diagnostic>> {
+        if self.f5 && super::pending_f5::intrinsic_scope(name).is_some() {
+            let spelling = crate::prelude::f5_array_intrinsic(name)
+                .expect("sealed F5 intrinsic")
+                .spelling;
+            let span = Span {
+                file: call_span.file.clone(),
+                start: call_span.start,
+                end: call_span.start + spelling.len() as u64,
+            };
+            return Err(super::pending_f5::diagnostic("L07", span));
+        }
         let mut prepared = prepared;
         let declared = names::intrinsic(name).expect("intrinsic resolved from closed manifest");
         let declared_result = Type::from(&declared.result);
@@ -14117,7 +14344,10 @@ fn cyclic_generator<'a>(ast: &'a Ast, resolved: &Resolved) -> Option<&'a Functio
                     Expr::Array(items, _) => {
                         pending.extend(items.iter().rev().map(Node::Expr));
                     }
-                    Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                    Expr::Group(inner, _)
+                    | Expr::Unary { value: inner, .. }
+                    | Expr::Neg { value: inner, .. }
+                    | Expr::Not { value: inner, .. } => {
                         pending.push(Node::Expr(inner));
                     }
                     Expr::Binary { left, right, .. }
@@ -14234,6 +14464,7 @@ pub(crate) fn check_with_partial_limit(
         file,
         tokens,
         resolved,
+        f5: ast.f5_operators,
         closures: HashMap::new(),
         saved_closures: HashMap::new(),
         generator_slots: HashMap::new(),
@@ -14511,6 +14742,18 @@ pub(crate) fn check_with_partial_limit(
         {
             checker.record_error(error);
         }
+    }
+    if ast.f5_operators {
+        if !ast.consts.is_empty() {
+            // Before L09, the module's constant capability is pending. Other
+            // temporary capability reports do not add actionable information.
+            checker
+                .errors
+                .retain(|error| error.feature_id.as_deref() != Some("implementation_limit"));
+        }
+        checker
+            .errors
+            .extend(ast.consts.iter().map(super::pending_f5::const_pending));
     }
     names::sort_diagnostics(&mut checker.errors);
     if !checker.errors.is_empty() {
@@ -15056,6 +15299,7 @@ mod quota_tests {
     fn operand_evidence_survives_nested_pending_repartition() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15104,6 +15348,7 @@ mod quota_tests {
     fn solver_states_and_representatives_keep_their_distinct_rules() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15173,6 +15418,7 @@ mod quota_tests {
         // right operand contaminates the equality without a derived error.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15213,6 +15459,7 @@ mod quota_tests {
         // the branch-specific diagnostic when their values are joined.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15266,6 +15513,7 @@ mod quota_tests {
         // origin; a copyable obligation rejects a resource on the other root.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15340,6 +15588,7 @@ mod quota_tests {
         // current charge site at the operand passed to unify.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15401,6 +15650,7 @@ mod quota_tests {
         // source origin starts. A later start can lie inside the earlier span.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15455,6 +15705,7 @@ mod quota_tests {
         // type to its child and does not charge a second wrapper pair.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15494,6 +15745,7 @@ mod quota_tests {
         // would let the second independent I64 element escape validation.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15606,6 +15858,7 @@ mod quota_tests {
     fn conflicting_union_reports_the_earliest_concrete_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15653,6 +15906,7 @@ mod quota_tests {
     fn inferred_array_depth_accepts_127_and_128_and_rejects_129() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15695,6 +15949,7 @@ mod quota_tests {
     fn inferred_array_root_retains_depth_origin_after_later_constraint() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15714,6 +15969,7 @@ mod quota_tests {
     fn deferred_visible_conversion_and_constructor_walk_stop_at_their_boundaries() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15754,6 +16010,7 @@ mod quota_tests {
     fn constructor_walk_keeps_exact_depth_boundaries() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15801,6 +16058,7 @@ mod quota_tests {
     fn visible_conversion_keeps_internal_states_out_of_diagnostics() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15862,6 +16120,7 @@ mod quota_tests {
     fn deferred_result_components_and_structural_array_elements_resolve_separately() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15964,6 +16223,7 @@ mod quota_tests {
             file: "quota.n",
             tokens: Vec::new(),
             resolved,
+            f5: false,
             solver_steps: 0,
             solver_limit: 1_000_000,
             planning: false,
@@ -16019,6 +16279,7 @@ mod quota_tests {
     fn solver_child_frames_keep_each_cursor_boundary() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16150,6 +16411,7 @@ mod quota_tests {
         }
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16215,6 +16477,7 @@ mod quota_tests {
     fn malformed_generator_state_cycle_is_bounded() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16231,6 +16494,7 @@ mod quota_tests {
     fn inferred_array_path_keeps_array_depth_priority_over_value_depth() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16326,6 +16590,7 @@ mod quota_tests {
         // F0-0002 §4.1.1 permits a pending constructor to be fixed later.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16351,6 +16616,7 @@ mod quota_tests {
     fn non_result_try_is_rejected_at_the_expression_boundary() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16369,6 +16635,7 @@ mod quota_tests {
     fn union_reports_resolved_array_constructor_in_both_root_orders() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16446,6 +16713,7 @@ mod quota_tests {
         // one of its nested values can overlap without sharing a type.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16500,6 +16768,7 @@ mod quota_tests {
     fn concrete_array_cache_keys_both_operands_and_charges_a_cached_constraint() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16599,6 +16868,7 @@ mod quota_tests {
         // be cached only when both operands were fully concrete at entry.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16659,6 +16929,7 @@ mod quota_tests {
         // the 33 logical pairs for Array^32<I64>.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16709,6 +16980,7 @@ mod quota_tests {
         // pairs in a union; neither may bypass the exhausted global budget.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16737,6 +17009,7 @@ mod quota_tests {
         // (adr_gap_union_charge); §11.1 does not specify union cost.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16767,6 +17040,7 @@ mod quota_tests {
         // constructor obligation through union regardless of root rank.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16794,6 +17068,7 @@ mod quota_tests {
         // One fewer granted unit rejects the final link with limit+1.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16825,6 +17100,7 @@ mod quota_tests {
     fn solver_charges_the_final_granted_unit_and_reports_one_rejected_unit() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16971,6 +17247,7 @@ mod quota_tests {
     fn nested_unification_charges_each_array_pair_at_the_reduced_boundary() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17426,6 +17703,7 @@ mod quota_tests {
     fn monomorphic_solution_is_invariant_under_constraint_permutations() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17486,6 +17764,7 @@ mod quota_tests {
     fn generated_constraint_orders_have_the_same_acceptance() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17701,6 +17980,7 @@ mod quota_tests {
     fn i07c_survivor2_pending_operation_types_match_their_sites() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17757,6 +18037,7 @@ mod quota_tests {
     fn i07c_survivor2_pending_nominal_requires_live_domain() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17800,6 +18081,7 @@ mod quota_tests {
     fn i07c_survivor2_solver_preserves_constructor_identity() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17840,6 +18122,7 @@ mod quota_tests {
     fn i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17998,6 +18281,7 @@ mod quota_tests {
     fn i07c_survivor2_selection_depth_keeps_the_current_type() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18011,6 +18295,7 @@ mod quota_tests {
     fn i07c_survivor2_resolved_join_rebuilds_option_payload() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18055,6 +18340,7 @@ mod quota_tests {
         }
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18132,6 +18418,7 @@ mod quota_tests {
     fn i07c_survivor2_root_compresses_the_entire_parent_chain() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18149,6 +18436,7 @@ mod quota_tests {
     fn i07c_survivor2_result_shape_conflict_keeps_payload_identity() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18183,6 +18471,7 @@ mod quota_tests {
     fn i07c_survivor2_shape_conflicts_continue_past_irrelevant_children() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18237,6 +18526,7 @@ mod quota_tests {
     fn i07c_survivor2_pattern_shape_chooses_first_conflicting_child() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18285,6 +18575,7 @@ mod quota_tests {
     fn i07c_survivor3_shape_walk_checks_later_result_payload() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18330,6 +18621,7 @@ mod quota_tests {
     fn i07c_survivor3_require_union_moves_concrete_payloads_to_children() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18367,6 +18659,7 @@ mod quota_tests {
     fn i07c_survivor3_union_transfers_single_sided_shape_and_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18408,6 +18701,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_union_restores_both_constructor_roots() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18468,6 +18762,7 @@ mod quota_tests {
     fn i07c_survivor3_unify_concrete_union_kinds_and_payloads() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18550,6 +18845,7 @@ mod quota_tests {
     fn i07c_survivor3_shape_requirements_reject_incompatible_roots() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18605,6 +18901,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_single_sided_union_keeps_preexisting_shape() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18641,6 +18938,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18683,6 +18981,7 @@ mod quota_tests {
     fn i07c_survivor3_union_prefers_larger_component_before_id() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18699,6 +18998,7 @@ mod quota_tests {
     fn i07c_survivor3_never_payload_keeps_later_result_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18728,6 +19028,7 @@ mod quota_tests {
     fn i07c_survivor3_cached_array_child_rebuilds_outer_shape() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18766,6 +19067,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_atomic_union_preserves_quota_error() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18790,6 +19092,7 @@ mod quota_tests {
     fn i07c_survivor3_completed_option_uses_binding_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18822,6 +19125,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18851,6 +19155,7 @@ mod quota_tests {
     fn i07c_survivor3_union_rejects_variant_against_array_in_both_orders() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18880,6 +19185,7 @@ mod quota_tests {
     fn i07c_survivor3_require_union_quota_propagates_through_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18907,6 +19213,7 @@ mod quota_tests {
     fn i07c_survivor3_rebinding_known_union_keeps_first_shape_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18930,6 +19237,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_result_bind_restores_first_payload() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18963,6 +19271,7 @@ mod quota_tests {
     fn i07c_survivor3_noncopyable_second_payload_restores_first_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18999,6 +19308,7 @@ mod quota_tests {
     fn i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19042,6 +19352,7 @@ mod quota_tests {
     fn i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19074,6 +19385,7 @@ mod quota_tests {
     fn i07c_survivor3_union_child_allocation_propagates_quota_errors() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19092,6 +19404,7 @@ mod quota_tests {
     fn i07c_survivor3_late_result_payload_quota_rolls_back_first_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19120,6 +19433,7 @@ mod quota_tests {
     fn i07c_survivor3_partial_union_allocation_rolls_back_on_quota() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19148,6 +19462,7 @@ mod quota_tests {
     fn i07c_survivor3_equal_start_array_origins_choose_left_diagnostic_span() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19177,6 +19492,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_concrete_union_expansion_restores_root() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19209,6 +19525,7 @@ mod quota_tests {
     fn i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19240,6 +19557,7 @@ mod quota_tests {
     fn i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19282,6 +19600,7 @@ mod quota_tests {
     fn i07c_survivor3_partial_result_conflict_defers_join() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19331,6 +19650,7 @@ mod quota_tests {
     fn i07c_survivor3_array_join_wraps_pending_operand_shapes() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19361,6 +19681,7 @@ mod quota_tests {
     fn i07c_survivor3_nested_partial_result_deferral_keeps_array_shape() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19412,6 +19733,7 @@ mod quota_tests {
     fn i07c_survivor4_deferred_bind_keeps_branch_policy() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };

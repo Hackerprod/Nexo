@@ -5,7 +5,7 @@ use std::sync::Arc;
 use super::model::{
     self, Access, BasicBlock, Binary, BlockId, CaptureKind, Function, FunctionId, FunctionTable,
     IndexSite, Instruction, Intrinsic, LoanId, LoanPermission, Local, LocalId, Op, OriginId,
-    Parameter, ParameterMode, Program, ScopeId, TempId, Terminator, Ty, WorkCharge,
+    Parameter, ParameterMode, Program, ScopeId, TempId, Terminator, Ty, Unary, WorkCharge,
 };
 #[path = "lower_match.rs"]
 mod lower_match;
@@ -409,6 +409,7 @@ impl AnalysisLimits {
 pub enum ReducedProfile {
     Normal,
     JNormal,
+    F5Normal,
     /// Internal F5 control flow probe; deliberately absent from `from_id`.
     F5ControlInternal,
     Types32,
@@ -441,6 +442,7 @@ impl ReducedProfile {
             "f0-0002-b-test-cells-64-v2" => Self::Cells64,
             "f0-0002-b-test-observations-64-v2" => Self::Observations64,
             "f0-0003-b-v1" => Self::JNormal,
+            "f0-0005-b-v1" => Self::F5Normal,
             "f0-0003-b-test-types-32-v1" => Self::JTypes32,
             "f0-0003-b-test-flow-32-v1" => Self::JFlowFunction32,
             "f0-0003-b-test-flow-global-32-v1" => Self::JFlowCompilation32,
@@ -459,6 +461,10 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
         ReducedProfile::Normal => AnalysisLimits::NORMAL,
         ReducedProfile::JNormal => AnalysisLimits {
             profile_id: "f0-0003-b-v1",
+            ..AnalysisLimits::NORMAL
+        },
+        ReducedProfile::F5Normal => AnalysisLimits {
+            profile_id: "f0-0005-b-v1",
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::F5ControlInternal => AnalysisLimits {
@@ -642,7 +648,9 @@ fn compile_scalar_with_analysis_limits_unchecked(
     run_entry: bool,
     limits: AnalysisLimits,
 ) -> Result<Program, CompileError> {
-    let ast = if limits.profile_id.starts_with("f0-0003-") {
+    let ast = if limits.profile_id.starts_with("f0-0005-") {
+        parse::parse_f5_hidden(file, source)
+    } else if limits.profile_id.starts_with("f0-0003-") {
         parse::parse_new_profile(file, source)
     } else {
         parse::parse(file, source)
@@ -846,7 +854,10 @@ pub(super) fn collect_closures(ast: &Ast) -> Vec<&parse::Closure> {
                         visits.push(Visit::Expr(item));
                     }
                 }
-                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                Expr::Group(inner, _)
+                | Expr::Unary { value: inner, .. }
+                | Expr::Neg { value: inner, .. }
+                | Expr::Not { value: inner, .. } => {
                     visits.push(Visit::Expr(inner));
                 }
                 Expr::Binary { left, right, .. }
@@ -1435,7 +1446,152 @@ fn compile_ast_with_flow_limit<'a>(
     if !isolate_lowering {
         super::verify::verify_program(&program).map_err(CompileError::InvalidIr)?;
     }
+    if ast.f5_operators
+        && let Some(span) = first_f5_capability(ast)
+    {
+        let mut diagnostic = crate::check::names::diagnostic(
+            "NX-E0006",
+            None,
+            diagnostic::Stage::Lower,
+            diagnostic::Operation::IrLower,
+            span,
+        );
+        diagnostic.feature_id = Some("implementation_limit".into());
+        diagnostic.message = "Capacidad pendiente de implementación en L08.".into();
+        diagnostic.data.insert(
+            "pending_scope".into(),
+            diagnostic::DataValue::String("L08".into()),
+        );
+        return Err(CompileError::Rejected(vec![diagnostic]));
+    }
     Ok(program)
+}
+
+fn first_f5_capability(ast: &Ast) -> Option<Span> {
+    enum Node<'a> {
+        Expr(&'a Expr),
+        Statement(&'a Statement),
+        Block(&'a parse::Block),
+        Match(&'a parse::Match),
+    }
+    let mut pending: Vec<_> = ast.functions.iter().map(|f| Node::Block(&f.body)).collect();
+    let mut first: Option<Span> = None;
+    while let Some(node) = pending.pop() {
+        match node {
+            Node::Block(block) => pending.extend(block.statements.iter().map(Node::Statement)),
+            Node::Statement(statement) => match statement {
+                Statement::Let { value, .. } | Statement::Expr { value, .. } => {
+                    pending.push(Node::Expr(value))
+                }
+                Statement::Assign {
+                    place, op, value, ..
+                } => {
+                    if *op != parse::AssignOp::Set
+                        && first
+                            .as_ref()
+                            .is_none_or(|prior| place.span().start < prior.start)
+                    {
+                        first = Some(place.span().clone());
+                    }
+                    pending.push(Node::Expr(value));
+                    pending.push(Node::Expr(place));
+                }
+                Statement::Return { value, .. }
+                | Statement::GuardControl { value, .. }
+                | Statement::Value { value, .. } => {
+                    if let Some(value) = value {
+                        pending.push(Node::Expr(value));
+                    }
+                }
+                Statement::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(then_block));
+                    if let Some(otherwise) = otherwise {
+                        pending.push(Node::Statement(otherwise));
+                    }
+                }
+                Statement::While {
+                    condition, body, ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(body));
+                }
+                Statement::For { iterable, body, .. } => {
+                    pending.push(Node::Expr(iterable));
+                    pending.push(Node::Block(body));
+                }
+                Statement::Match(selection) => pending.push(Node::Match(selection)),
+                Statement::Block(block) => pending.push(Node::Block(block)),
+            },
+            Node::Match(selection) => {
+                pending.push(Node::Expr(&selection.scrutinee));
+                for arm in &selection.arms {
+                    if let Some(guard) = &arm.guard {
+                        pending.push(Node::Expr(guard));
+                    }
+                    pending.push(Node::Block(&arm.body));
+                }
+            }
+            Node::Expr(expr) => match expr {
+                Expr::Binary {
+                    op,
+                    left,
+                    right,
+                    span,
+                } => {
+                    if crate::check::operators::needs_f5(op)
+                        && first.as_ref().is_none_or(|prior| span.start < prior.start)
+                    {
+                        first = Some(span.clone());
+                    }
+                    pending.push(Node::Expr(left));
+                    pending.push(Node::Expr(right));
+                }
+                Expr::Closure(closure) => pending.push(Node::Block(&closure.body)),
+                Expr::Array(items, _) => pending.extend(items.iter().map(Node::Expr)),
+                Expr::Neg { value, span } | Expr::Not { value, span } => {
+                    if first.as_ref().is_none_or(|prior| span.start < prior.start) {
+                        first = Some(span.clone());
+                    }
+                    pending.push(Node::Expr(value));
+                }
+                Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                    pending.push(Node::Expr(value))
+                }
+                Expr::Call { target, args, .. } => {
+                    pending.push(Node::Expr(target));
+                    pending.extend(args.iter().map(|arg| Node::Expr(&arg.value)));
+                }
+                Expr::Index { target, index, .. } => {
+                    pending.push(Node::Expr(target));
+                    pending.push(Node::Expr(index));
+                }
+                Expr::If {
+                    condition,
+                    then_block,
+                    otherwise,
+                    ..
+                } => {
+                    pending.push(Node::Expr(condition));
+                    pending.push(Node::Block(then_block));
+                    if let Some(otherwise) = otherwise {
+                        match otherwise.as_ref() {
+                            parse::Else::Block(block) => pending.push(Node::Block(block)),
+                            parse::Else::If(expr) => pending.push(Node::Expr(expr)),
+                        }
+                    }
+                }
+                Expr::Match(selection) => pending.push(Node::Match(selection)),
+                Expr::Name(..) | Expr::Integer(..) | Expr::Bool(..) | Expr::Unit(..) => {}
+            },
+        }
+    }
+    first
 }
 
 fn ir_operand_count(op: &Op) -> u64 {
@@ -1836,6 +1992,7 @@ struct ActiveLoan {
     span: Span,
     loan: LoanId,
     parent: Option<LocalId>,
+    compound_assignment: bool,
 }
 #[derive(Clone)]
 struct RetainedLoan {
@@ -2253,9 +2410,15 @@ impl Lower<'_> {
             } => self.temp_live(*id, false),
             Op::BuildVariant { payload: None, .. } => {}
             Op::BranchVariant { value, .. } => self.temp_live(*value, false),
+            Op::Unary { operand, .. } => self.temp_live(*operand, false),
             Op::Binary { left, right, .. } => {
                 self.temp_live(*left, false);
                 self.temp_live(*right, false);
+            }
+            Op::CompoundStore { loan, old, rhs, .. } => {
+                self.temp_live(*loan, false);
+                self.temp_live(*old, false);
+                self.temp_live(*rhs, false);
             }
             Op::WritePlace { value, .. } | Op::DropValue(value) => self.temp_live(*value, false),
             Op::BindView { value, hold, .. } => self.temp_live(*value, *hold),
@@ -2874,6 +3037,7 @@ impl Lower<'_> {
                     span: iterable.span().clone(),
                     loan: LoanId(iterable.span().start as usize),
                     parent: None,
+                    compound_assignment: false,
                 });
             }
             let saved = self.scope;
@@ -2969,6 +3133,7 @@ impl Lower<'_> {
             loan,
             parent: (self.locals[root.0].parameter_mode == Some(ParameterMode::Inout))
                 .then_some(root),
+            compound_assignment: false,
         });
         let cursor = self.hidden_range_slot(iterable.span(), true);
         let limit = self.hidden_range_slot(iterable.span(), false);
@@ -4344,7 +4509,19 @@ impl Lower<'_> {
         if indexed || requested != "write" {
             self.check_available(id, root.span().clone())?;
         }
-        self.conflict(id, place.span().clone(), requested)
+        let access_span = if indexed
+            && requested == "read"
+            && self
+                .active_loans
+                .get(&id)
+                .and_then(|loans| loans.first())
+                .is_some_and(|loan| loan.compound_assignment)
+        {
+            root.span().clone()
+        } else {
+            place.span().clone()
+        };
+        self.conflict(id, access_span, requested)
     }
     fn copy_error(&self, id: LocalId, span: Span) -> CompileError {
         self.ownership_error(
@@ -4831,6 +5008,21 @@ impl Lower<'_> {
             left_flow: Option<Flow>,
             left_root: Option<LocalId>,
         }
+        struct LogicalState<'a> {
+            op: &'a str,
+            right: &'a Expr,
+            span: &'a Span,
+            depth: usize,
+            inferred: Ty,
+            branch_mode: EmissionMode,
+            skip_end: Option<BlockId>,
+            skip_state: HashMap<LocalId, Availability>,
+            checkpoint: usize,
+            temp_checkpoint: usize,
+            prior_locals: usize,
+            slot: Option<LocalId>,
+            left_diverges: bool,
+        }
         enum IndexKind<'a> {
             Place {
                 root: &'a Expr,
@@ -4892,6 +5084,7 @@ impl Lower<'_> {
             place: &'a Expr,
             root: &'a Expr,
             value: &'a Expr,
+            op: parse::AssignOp,
             local: LocalId,
             selectors: Vec<&'a Expr>,
             selector_spans: Vec<Span>,
@@ -4900,6 +5093,7 @@ impl Lower<'_> {
             target_ty: Ty,
             base_unresolved: bool,
             diverged: bool,
+            compound: Option<(LoanId, TempId, TempId)>,
         }
         struct ClosureCallState<'a> {
             args: &'a [parse::Argument],
@@ -5012,6 +5206,8 @@ impl Lower<'_> {
             },
             BinaryLeft(Box<BinaryState<'a>>),
             BinaryRight(Box<BinaryState<'a>>),
+            LogicalLeft(Box<LogicalState<'a>>),
+            LogicalRight(Box<LogicalState<'a>>),
             ArrayNext(Box<ArrayState<'a>>),
             ArrayAfterItem(Box<ArrayState<'a>>),
             IndexNext(Box<IndexState<'a>>),
@@ -5087,6 +5283,11 @@ impl Lower<'_> {
             UnaryReadAfter {
                 span: &'a Span,
                 inferred: Ty,
+            },
+            OperatorUnaryAfter {
+                span: &'a Span,
+                inferred: Ty,
+                op: Unary,
             },
             UserCallNext(Box<UserCallState<'a>>),
             UserCallAfterArgument {
@@ -5444,6 +5645,7 @@ impl Lower<'_> {
                 span: target.span().clone(),
                 loan,
                 parent,
+                compound_assignment: false,
             };
             let flow = lower.emitted(
                 Op::BeginLoan {
@@ -6001,6 +6203,9 @@ impl Lower<'_> {
                         let Some(Task::AssignAfterValue(state)) = tasks.pop() else {
                             return Err(CompileError::InvalidIr("assignment value continuation"));
                         };
+                        let acquired = state.compound.as_ref().map(|(loan, _, _)| {
+                            vec![(state.local, *loan, state.place.span().clone())]
+                        });
                         completed = Some(result.and_then(|value| {
                             let flow =
                                 value.ok_or(CompileError::InvalidIr("assignment value flow"))?;
@@ -6019,6 +6224,59 @@ impl Lower<'_> {
                                 return Ok(());
                             }
                             if flow.diverged() {
+                                if let Some((loan, _, _)) = state.compound {
+                                    self.statement_op(
+                                        Op::EndLoan(loan),
+                                        state.place.span().clone(),
+                                        Access::Own,
+                                        false,
+                                    );
+                                }
+                                return Ok(());
+                            }
+                            if let Some((loan, loan_temp, old)) = state.compound {
+                                if self.emission == EmissionMode::Analyze {
+                                    return Ok(());
+                                }
+                                let rhs = flow
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("compound rhs flow"))?;
+                                if flow.ty() != Some(&Ty::I64) {
+                                    return Err(CompileError::InvalidIr(
+                                        "compound rhs type passed checker",
+                                    ));
+                                }
+                                let op = match state.op {
+                                    parse::AssignOp::Add => Binary::Add,
+                                    parse::AssignOp::Sub => Binary::Sub,
+                                    parse::AssignOp::Mul => Binary::Mul,
+                                    parse::AssignOp::Div => Binary::Div,
+                                    parse::AssignOp::Rem => Binary::Rem,
+                                    parse::AssignOp::Set => {
+                                        unreachable!("plain assignment has no loan")
+                                    }
+                                };
+                                self.statement_op(
+                                    Op::CompoundStore {
+                                        loan: loan_temp,
+                                        old,
+                                        rhs,
+                                        op,
+                                    },
+                                    Span {
+                                        file: state.place.span().file.clone(),
+                                        start: state.place.span().start,
+                                        end: state.value.span().end,
+                                    },
+                                    Access::Write,
+                                    false,
+                                );
+                                self.statement_op(
+                                    Op::EndLoan(loan),
+                                    state.place.span().clone(),
+                                    Access::Own,
+                                    false,
+                                );
                                 return Ok(());
                             }
                             self.check_place_access(
@@ -6066,6 +6324,9 @@ impl Lower<'_> {
                             );
                             Ok(())
                         }));
+                        if let Some(acquired) = acquired {
+                            self.release_call_loans(&acquired);
+                        }
                     }
                     Some(Task::StatementExprAfter(_)) => {
                         let Some(Task::StatementExprAfter(state)) = tasks.pop() else {
@@ -6181,6 +6442,198 @@ impl Lower<'_> {
                             }
                         };
                     }
+                    Some(Task::LogicalLeft(_)) => {
+                        let Some(Task::LogicalLeft(mut state)) = tasks.pop() else {
+                            unreachable!()
+                        };
+                        completed_value = match result {
+                            Err(error) => Some(Err(error)),
+                            Ok(None) => Some(Err(CompileError::InvalidIr("logical left flow"))),
+                            Ok(Some(left)) => {
+                                if left.ty() != Some(&Ty::Bool) && !left.diverged() {
+                                    Some(Err(CompileError::InvalidIr("logical left type")))
+                                } else {
+                                    state.left_diverges = left.diverged();
+                                    if state.left_diverges {
+                                        self.emission = EmissionMode::Analyze;
+                                        self.terminated = None;
+                                    }
+                                    state.branch_mode = self.emission;
+                                    state.temp_checkpoint = self.temp_undo.len();
+                                    state.checkpoint = self.consumed_undo.len();
+                                    state.prior_locals = self.locals.len();
+                                    if state.branch_mode == EmissionMode::Live {
+                                        let condition = left
+                                            .temp()
+                                            .ok_or(CompileError::InvalidIr("logical condition"))?;
+                                        let branch = self.finish_block(Terminator::BranchBool {
+                                            condition,
+                                            yes: BlockId(usize::MAX),
+                                            no: BlockId(usize::MAX),
+                                            span: state.span.clone(),
+                                            charges: vec![],
+                                        });
+                                        let skip_edge = usize::from(state.op == "and");
+                                        self.enter_edge(branch, skip_edge)?;
+                                        let skip_start = BlockId(self.blocks.len());
+                                        if let Terminator::BranchBool { yes, no, .. } =
+                                            &mut self.blocks[branch.0].terminator
+                                        {
+                                            if skip_edge == 0 {
+                                                *yes = skip_start;
+                                            } else {
+                                                *no = skip_start;
+                                            }
+                                        }
+                                        let skip_value = self.emitted(
+                                            Op::ConstBool(state.op == "or"),
+                                            Ty::Bool,
+                                            state.span.clone(),
+                                            Access::Own,
+                                            false,
+                                        );
+                                        let skip_temp = skip_value
+                                            .temp()
+                                            .ok_or(CompileError::InvalidIr("logical skip value"))?;
+                                        self.union_slot(
+                                            &mut state.slot,
+                                            skip_temp,
+                                            Ty::Bool,
+                                            &state.inferred,
+                                            state.span,
+                                        )?;
+                                        state.skip_end =
+                                            Some(self.finish_block(Terminator::Jump {
+                                                target: BlockId(usize::MAX),
+                                                span: state.span.clone(),
+                                                charges: vec![],
+                                            }));
+                                        state.skip_state =
+                                            self.restore_availability(state.checkpoint);
+                                        self.restore_temps(state.temp_checkpoint);
+                                        let rhs_edge = 1 - skip_edge;
+                                        self.enter_edge(branch, rhs_edge)?;
+                                        let rhs_start = BlockId(self.blocks.len());
+                                        if let Terminator::BranchBool { yes, no, .. } =
+                                            &mut self.blocks[branch.0].terminator
+                                        {
+                                            if rhs_edge == 0 {
+                                                *yes = rhs_start;
+                                            } else {
+                                                *no = rhs_start;
+                                            }
+                                        }
+                                        self.dead_depth += 1;
+                                    }
+                                    let right = state.right;
+                                    let depth = state.depth;
+                                    tasks.push(Task::LogicalRight(state));
+                                    tasks.push(Task::Expr {
+                                        value: right,
+                                        expected: Some(Ty::Bool),
+                                        depth: depth + 1,
+                                        borrow: false,
+                                    });
+                                    None
+                                }
+                            }
+                        };
+                    }
+                    Some(Task::LogicalRight(_)) => {
+                        let Some(Task::LogicalRight(mut state)) = tasks.pop() else {
+                            unreachable!()
+                        };
+                        completed_value = Some(result.and_then(|value| {
+                            let right =
+                                value.ok_or(CompileError::InvalidIr("logical right flow"))?;
+                            if right.ty() != Some(&Ty::Bool) && !right.diverged() {
+                                return Err(CompileError::InvalidIr("logical right type"));
+                            }
+                            if state.branch_mode == EmissionMode::Analyze {
+                                if state.left_diverges {
+                                    self.terminated = Some(Termination::Diverged);
+                                    return Ok(Some(Flow::Diverged {
+                                        ty: Some(state.inferred),
+                                    }));
+                                }
+                                return Ok(Some(Flow::Value {
+                                    temp: None,
+                                    ty: state.inferred,
+                                }));
+                            }
+                            self.emission = state.branch_mode;
+                            if let Some(temp) = right.temp() {
+                                self.union_slot(
+                                    &mut state.slot,
+                                    temp,
+                                    Ty::Bool,
+                                    &state.inferred,
+                                    state.span,
+                                )?;
+                            }
+                            let rhs_continues = !right.diverged() && self.terminated.is_none();
+                            let terminated = self.terminated.take();
+                            let rhs_end =
+                                if right.diverged() || terminated == Some(Termination::Diverged) {
+                                    None
+                                } else {
+                                    Some(self.finish_block(
+                                        if let Some(Termination::Return(value)) = terminated {
+                                            Terminator::Return {
+                                                value: Some(value),
+                                                span: state.span.clone(),
+                                                charges: vec![],
+                                            }
+                                        } else {
+                                            Terminator::Jump {
+                                                target: BlockId(usize::MAX),
+                                                span: state.span.clone(),
+                                                charges: vec![],
+                                            }
+                                        },
+                                    ))
+                                };
+                            let rhs_state = self.restore_availability(state.checkpoint);
+                            self.restore_temps(state.temp_checkpoint);
+                            self.enter_edge(
+                                state
+                                    .skip_end
+                                    .ok_or(CompileError::InvalidIr("logical skip edge"))?,
+                                0,
+                            )?;
+                            self.dead_depth -= 1;
+                            let join = BlockId(self.blocks.len());
+                            if let Some(skip_end) = state.skip_end
+                                && let Terminator::Jump { target, .. } =
+                                    &mut self.blocks[skip_end.0].terminator
+                            {
+                                *target = join;
+                            }
+                            if let Some(rhs_end) = rhs_end
+                                && let Terminator::Jump { target, .. } =
+                                    &mut self.blocks[rhs_end.0].terminator
+                            {
+                                *target = join;
+                            }
+                            self.merge_availability(
+                                state.skip_state,
+                                rhs_state,
+                                true,
+                                rhs_continues,
+                                state.prior_locals,
+                            );
+                            let slot = state
+                                .slot
+                                .ok_or(CompileError::InvalidIr("logical branch value slot"))?;
+                            Ok(Some(self.emitted(
+                                Op::TransferValue(slot),
+                                state.inferred,
+                                state.span.clone(),
+                                Access::Own,
+                                false,
+                            )))
+                        }));
+                    }
                     Some(Task::BinaryLeft(_)) => {
                         let Some(Task::BinaryLeft(mut state)) = tasks.pop() else {
                             return Err(CompileError::InvalidIr("binary left continuation"));
@@ -6219,6 +6672,7 @@ impl Lower<'_> {
                                                     span: state.left.span().clone(),
                                                     loan: LoanId(state.left.span().start as usize),
                                                     parent: None,
+                                                    compound_assignment: false,
                                                 },
                                             );
                                         }
@@ -6651,6 +7105,35 @@ impl Lower<'_> {
                             )))
                         }));
                     }
+                    Some(Task::OperatorUnaryAfter { .. }) => {
+                        let Some(Task::OperatorUnaryAfter { span, inferred, op }) = tasks.pop()
+                        else {
+                            unreachable!()
+                        };
+                        completed_value = Some(result.and_then(|value| {
+                            let operand =
+                                value.ok_or(CompileError::InvalidIr("unary operand flow"))?;
+                            if operand.diverged() {
+                                return Ok(Some(Flow::Diverged { ty: Some(inferred) }));
+                            }
+                            if self.emission == EmissionMode::Analyze {
+                                return Ok(Some(Flow::Value {
+                                    temp: None,
+                                    ty: inferred,
+                                }));
+                            }
+                            let operand = operand
+                                .temp()
+                                .ok_or(CompileError::InvalidIr("unary operand"))?;
+                            Ok(Some(self.emitted(
+                                Op::Unary { op, operand },
+                                inferred,
+                                span.clone(),
+                                Access::Own,
+                                false,
+                            )))
+                        }));
+                    }
                     Some(Task::UnaryReadAfter { .. }) => {
                         let Some(Task::UnaryReadAfter { span, inferred }) = tasks.pop() else {
                             return Err(CompileError::InvalidIr("propagation continuation"));
@@ -7026,6 +7509,9 @@ impl Lower<'_> {
                     Some(Task::UnaryReadAfter { .. }) => {
                         return Err(CompileError::InvalidIr("propagation unit result"));
                     }
+                    Some(Task::OperatorUnaryAfter { .. }) => {
+                        return Err(CompileError::InvalidIr("unary operation unit result"));
+                    }
                     _ => return Err(CompileError::InvalidIr("lower task continuation")),
                 }
                 continue;
@@ -7200,7 +7686,10 @@ impl Lower<'_> {
                         }
                     }
                     Task::AssignEnter(statement) => {
-                        let Statement::Assign { place, value, .. } = statement else {
+                        let Statement::Assign {
+                            place, op, value, ..
+                        } = statement
+                        else {
                             return Err(CompileError::InvalidIr("assignment task"));
                         };
                         if self.emission == EmissionMode::Live {
@@ -7237,6 +7726,7 @@ impl Lower<'_> {
                                 place,
                                 root,
                                 value,
+                                op: *op,
                                 local,
                                 ids: Vec::with_capacity(selectors.len()),
                                 selectors,
@@ -7245,6 +7735,7 @@ impl Lower<'_> {
                                 target_ty,
                                 base_unresolved,
                                 diverged: false,
+                                compound: None,
                             })
                         })();
                         match prepared {
@@ -7252,7 +7743,7 @@ impl Lower<'_> {
                             Err(error) => completed = Some(Err(error)),
                         }
                     }
-                    Task::AssignNextSelector(state) => {
+                    Task::AssignNextSelector(mut state) => {
                         if state.next < state.selectors.len() {
                             if state.diverged {
                                 self.terminated = None;
@@ -7276,16 +7767,93 @@ impl Lower<'_> {
                             if state.diverged {
                                 self.terminated = None;
                             }
-                            let value = state.value;
-                            let expected =
-                                (state.target_ty != Ty::Never).then_some(state.target_ty.clone());
-                            tasks.push(Task::AssignAfterValue(state));
-                            tasks.push(Task::Expr {
-                                value,
-                                expected,
-                                depth: 0,
-                                borrow: false,
-                            });
+                            let prepared = (|| -> Result<(), CompileError> {
+                                if state.op == parse::AssignOp::Set
+                                    || state.diverged
+                                    || self.emission == EmissionMode::Analyze
+                                {
+                                    return Ok(());
+                                }
+                                if state.target_ty != Ty::I64 {
+                                    return Err(CompileError::InvalidIr(
+                                        "compound place type passed checker",
+                                    ));
+                                }
+                                let indexed = !state.selectors.is_empty();
+                                if !self.locals[state.local.0].mutable
+                                    && !(self.defer_ownership
+                                        && self.emission == EmissionMode::Live)
+                                {
+                                    return Err(self.immutable_write(state.root, state.local));
+                                }
+                                self.check_place_access(
+                                    state.local,
+                                    state.root,
+                                    state.place,
+                                    "borrow_inout",
+                                    indexed,
+                                )?;
+                                let loan = LoanId(state.place.span().start as usize);
+                                let parent = (self.locals[state.local.0].parameter_mode
+                                    == Some(ParameterMode::Inout))
+                                .then_some(state.local);
+                                let loan_temp = self
+                                    .emitted(
+                                        Op::BeginLoan {
+                                            root: state.local,
+                                            indexes: state.ids.clone(),
+                                            site: index_site(
+                                                state.place,
+                                                state.place.span().clone(),
+                                            ),
+                                            loan,
+                                            origin_span: state.place.span().clone(),
+                                            permission: LoanPermission::Inout,
+                                            parent,
+                                        },
+                                        Ty::I64,
+                                        state.place.span().clone(),
+                                        Access::Read,
+                                        false,
+                                    )
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("compound place loan"))?;
+                                self.active_loans.entry(state.local).or_default().push(
+                                    ActiveLoan {
+                                        permission: LoanPermission::Inout,
+                                        span: state.place.span().clone(),
+                                        loan,
+                                        parent,
+                                        compound_assignment: true,
+                                    },
+                                );
+                                let old = self
+                                    .emitted(
+                                        Op::CompoundLoad { loan: loan_temp },
+                                        Ty::I64,
+                                        state.place.span().clone(),
+                                        Access::Read,
+                                        false,
+                                    )
+                                    .temp()
+                                    .ok_or(CompileError::InvalidIr("compound old value"))?;
+                                state.compound = Some((loan, loan_temp, old));
+                                Ok(())
+                            })();
+                            if let Err(error) = prepared {
+                                completed = Some(Err(error));
+                            } else {
+                                let value = state.value;
+                                let expected = (state.target_ty != Ty::Never)
+                                    .then_some(state.target_ty.clone());
+                                tasks.push(Task::AssignAfterValue(state));
+                                tasks.push(Task::Expr {
+                                    value,
+                                    expected,
+                                    depth: 0,
+                                    borrow: false,
+                                });
+                            }
                         }
                     }
                     Task::ArgumentEnter {
@@ -7512,6 +8080,7 @@ impl Lower<'_> {
                                 span: state.arg.span.clone(),
                                 loan,
                                 parent,
+                                compound_assignment: false,
                             });
                         match tasks.last_mut() {
                             Some(Task::UserCallAfterArgument { loan_root, .. }) => {
@@ -7691,19 +8260,38 @@ impl Lower<'_> {
                         {
                             match self.prepare_expr(inner) {
                                 Ok(inferred) => {
-                                    tasks.push(Task::BinaryLeft(Box::new(BinaryState {
-                                        op,
-                                        left,
-                                        right,
-                                        span,
-                                        inferred,
-                                        depth: inner_depth,
-                                        left_flow: None,
-                                        left_root: None,
-                                    })));
+                                    if matches!(op.as_str(), "and" | "or") {
+                                        tasks.push(Task::LogicalLeft(Box::new(LogicalState {
+                                            op,
+                                            right,
+                                            span,
+                                            depth: inner_depth,
+                                            inferred,
+                                            branch_mode: EmissionMode::Analyze,
+                                            skip_end: None,
+                                            skip_state: HashMap::new(),
+                                            checkpoint: 0,
+                                            temp_checkpoint: 0,
+                                            prior_locals: 0,
+                                            slot: None,
+                                            left_diverges: false,
+                                        })));
+                                    } else {
+                                        tasks.push(Task::BinaryLeft(Box::new(BinaryState {
+                                            op,
+                                            left,
+                                            right,
+                                            span,
+                                            inferred,
+                                            depth: inner_depth,
+                                            left_flow: None,
+                                            left_root: None,
+                                        })));
+                                    }
                                     tasks.push(Task::Expr {
                                         value: left,
-                                        expected: None,
+                                        expected: matches!(op.as_str(), "and" | "or")
+                                            .then_some(Ty::Bool),
                                         depth: inner_depth + 1,
                                         borrow: true,
                                     });
@@ -7865,6 +8453,29 @@ impl Lower<'_> {
                                         borrow: false,
                                     });
                                 }
+                            }
+                        } else if let Expr::Neg { value, span } | Expr::Not { value, span } = inner
+                        {
+                            match self.prepare_expr(inner) {
+                                Ok(inferred) => {
+                                    let op = if matches!(inner, Expr::Neg { .. }) {
+                                        Unary::Neg
+                                    } else {
+                                        Unary::Not
+                                    };
+                                    tasks.push(Task::OperatorUnaryAfter { span, inferred, op });
+                                    tasks.push(Task::Expr {
+                                        value,
+                                        expected: Some(if op == Unary::Neg {
+                                            Ty::I64
+                                        } else {
+                                            Ty::Bool
+                                        }),
+                                        depth: inner_depth + 1,
+                                        borrow: false,
+                                    });
+                                }
+                                Err(error) => completed_value = Some(Err(error)),
                             }
                         } else if let Expr::Unary {
                             mode: Mode::Read,
@@ -9180,6 +9791,8 @@ impl Lower<'_> {
                     | Task::MatchGuardAfter { .. }
                     | Task::BinaryLeft(_)
                     | Task::BinaryRight(_)
+                    | Task::LogicalLeft(_)
+                    | Task::LogicalRight(_)
                     | Task::ArrayAfterItem(_)
                     | Task::IndexAfterSelector(_)
                     | Task::IndexAfterBase(_)
@@ -9193,6 +9806,7 @@ impl Lower<'_> {
                     | Task::UserCallAfterArgument { .. }
                     | Task::VariantAfter { .. }
                     | Task::UnaryReadAfter { .. }
+                    | Task::OperatorUnaryAfter { .. }
                     | Task::MatchRestore(_)
                     | Task::IfAfterThen { .. }
                     | Task::IfAfterElse { .. }
@@ -9660,10 +10274,11 @@ impl Lower<'_> {
                     }
                 }
                 Expr::Group(..) => {}
+                Expr::Neg { span, .. } | Expr::Not { span, .. } => own.push(span.clone()),
                 Expr::Match(selection) => own.push(selection.span.clone()),
                 Expr::Closure(closure) => own.push(closure.fn_span.clone()),
             }
-            let event = if matches!(e, Expr::Binary { .. }) {
+            let event = if matches!(e, Expr::Binary { .. } | Expr::Neg { .. } | Expr::Not { .. }) {
                 WorkEvent::OperatorExpression
             } else {
                 WorkEvent::IfExpression
@@ -9811,6 +10426,7 @@ impl Lower<'_> {
                             span: capture.capture_span.clone(),
                             loan,
                             parent,
+                            compound_assignment: false,
                         };
                         self.active_loans
                             .entry(id)
@@ -10413,7 +11029,146 @@ mod tests {
             };
             assert!(errors.iter().any(|d| d.code == "NX-E1317"));
         }
-        assert!(ReducedProfile::from_id("f0-0005-b-v1").is_none());
+        assert!(ReducedProfile::from_id("f0-0005-b-v1").is_some());
+    }
+
+    #[test]
+    fn f5_neg_reaches_lowering_boundary() {
+        let result = compile_scalar_with_profile(
+            "case.n",
+            "fn Main(){let x=1;let y=-x;}",
+            ReducedProfile::F5Normal,
+            false,
+        );
+        let Err(CompileError::Rejected(errors)) = result else {
+            panic!("expected L08, got {result:?}");
+        };
+        assert_eq!(errors.len(), 1);
+        assert_eq!(
+            errors[0].data.get("pending_scope"),
+            Some(&diagnostic::DataValue::String("L08".into()))
+        );
+    }
+
+    #[test]
+    fn f5_source_logical_cfg_skips_only_untaken_rhs() {
+        let source = "fn Right()->Bool{Print(9);return true;}fn Main(){AssertEq(not false,true);AssertEq(not true,false);AssertEq(false and Right(),false);AssertEq(true or Right(),true);AssertEq(true and Right(),true);AssertEq(false or Right(),true);}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        // L08 remains the public boundary; this unit test exercises the
+        // already verified CFG of L02 before that later quota work is wired.
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert_eq!(execution.observations.stdout(), vec!["9", "9"]);
+        assert!(execution.observations.events().is_empty());
+        assert_eq!(execution.observations.bytes(), 4);
+        assert_eq!(execution.observations.reserved_bytes(), 0);
+    }
+
+    #[test]
+    fn f5_source_compound_assignment_reuses_prepared_scalar_place() {
+        let source = "fn Main(){var x=7;x+=3;x-=2;x*=3;x/=5;x%=3;AssertEq(x,1);}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert!(execution.observations.stdout().is_empty());
+        assert!(execution.observations.events().is_empty());
+    }
+
+    #[test]
+    fn f5_source_compound_index_evaluates_selector_before_rhs_once() {
+        for (index, rhs, expected_code, expected_stdout) in [
+            (0, "2", None, vec!["1", "2", "[12]"]),
+            (2, "2", Some("R0102"), vec!["1"]),
+            (0, "7/0", Some("R0502"), vec!["1", "2"]),
+        ] {
+            let source = format!(
+                "fn Index()->I64{{Print(1);return {index};}}fn Rhs()->I64{{Print(2);return {rhs};}}fn Main(){{var a=[10];a[Index()]+=Rhs();Print(a);}}"
+            );
+            let mut ast = parse::parse_f5_hidden("case.n", &source).unwrap();
+            let checked = crate::check::check_for_compilation("case.n", &source, &ast, true);
+            assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+            ast.f5_operators = false;
+            let program = compile_ast_with_inference(&ast, &source, &checked.inferred).unwrap();
+            let execution = crate::interp::run_with_limits(
+                &program,
+                crate::interp::MockEnvironment::empty(),
+                crate::interp::ReducedExecutionProfile::F5Normal,
+            );
+            assert_eq!(
+                execution.diagnostics.first().map(|d| d.code.as_str()),
+                expected_code
+            );
+            assert_eq!(execution.observations.stdout(), expected_stdout, "{source}");
+            assert!(execution.observations.events().is_empty());
+            if rhs == "7/0" {
+                let (_, snapshots) = crate::interp::Execution::run_with_fault_snapshots(
+                    &program,
+                    crate::interp::MockEnvironment::empty(),
+                );
+                assert!(
+                    snapshots
+                        .iter()
+                        .any(|frame| frame.iter().any(|local| local.as_deref() == Some("[10]")))
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn f5_source_compound_division_fault_has_operator_statement_span() {
+        let source = "fn Main(){var x=7;x/=0;}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::SimulatorFault);
+        assert_eq!(execution.diagnostics[0].code, "R0502");
+        assert_eq!(
+            execution.diagnostics[0]
+                .primary_span
+                .as_ref()
+                .map(|span| (span.start, span.end)),
+            Some((18, 22))
+        );
+    }
+
+    #[test]
+    fn f5_source_compound_rhs_return_ends_exclusive_loan() {
+        let source = "fn F()->I64{var x=1;x+=if true then {return 2;} else 3;return x;}fn Main(){AssertEq(F(),2);}";
+        let mut ast = parse::parse_f5_hidden("case.n", source).unwrap();
+        let checked = crate::check::check_for_compilation("case.n", source, &ast, true);
+        assert!(checked.errors.is_empty(), "{:?}", checked.errors);
+        ast.f5_operators = false;
+        let program = compile_ast_with_inference(&ast, source, &checked.inferred).unwrap();
+        let execution = crate::interp::run_with_limits(
+            &program,
+            crate::interp::MockEnvironment::empty(),
+            crate::interp::ReducedExecutionProfile::F5Normal,
+        );
+        assert_eq!(execution.outcome, crate::interp::Outcome::Unit);
+        assert!(execution.diagnostics.is_empty());
     }
 
     #[test]
@@ -10565,7 +11320,10 @@ mod tests {
                                 _ => None,
                             }
                         }
-                        Expr::Group(value, _) | Expr::Unary { value, .. } => {
+                        Expr::Group(value, _)
+                        | Expr::Unary { value, .. }
+                        | Expr::Neg { value, .. }
+                        | Expr::Not { value, .. } => {
                             pending.push(Node::Expr(value));
                             None
                         }
@@ -11881,6 +12639,7 @@ mod tests {
                 },
                 loan: LoanId(18),
                 parent: None,
+                compound_assignment: false,
             }],
         );
         let CompileError::Rejected(errors) = lower

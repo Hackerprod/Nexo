@@ -1,5 +1,7 @@
 mod match_coverage;
 pub mod names;
+pub(crate) mod operators;
+mod pending_f5;
 #[cfg(test)]
 mod tests;
 pub mod types;
@@ -132,7 +134,7 @@ pub(crate) fn check_for_compilation_with_type_limit(
             source,
             ast,
             type_steps_limit,
-            profile_id.starts_with("f0-0003-"),
+            profile_id.starts_with("f0-0003-") || profile_id.starts_with("f0-0005-"),
         ),
     );
     for error in &mut report.errors {
