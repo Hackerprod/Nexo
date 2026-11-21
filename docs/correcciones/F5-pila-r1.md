@@ -60,9 +60,9 @@ Inversión **aislada por extracción**: (1) omitir llamada de `resume_logical`/a
 
 Riesgos que el diff y diferencial deben cerrar: mismo orden izquierda/derecha y error prioritario; ningún diagnóstico duplicado, omitido o reordenado; no mover apertura/cierre/fusión de hechos, owner numérico ni taint de S4; `PendingDeferredJoin.numeric_domain_owner` duradero permanece intacto. `check_against_context_one` conserva el cierre temprano del hecho de S4. Los `ready_result` de rango salen antes de crear hijos; `StatementSite`, cuotas y salidas `Err` cierran exactamente una vez. El `retain` global de `implementation_limit` en `check_with_partial_limit` sigue donde está; no moverlo al grafo ni al helper. No usar parche por texto de fuente, constante de sonda, ruta duplicada, `#[inline(never)]` en helper ya fuera de línea sin efecto, ni modificar el límite de hilo. Si aparece defecto de núcleo, C deja regresión y sigue Flujo B; una laguna de ADR vuelve a A.
 
-## Pregunta al coordinador
+## Decisión del coordinador (respuesta a la pregunta de A)
 
-La meta de S3 exige reducir **4.752 B** desde S4 (tabla). Si una copia de las extracciones cerradas demuestra 65 KiB 5/5 pero no ≤63.848 B, ¿autoriza una excepción **solo tras recibir la tabla de reserva y margen concreto** y antes de que C implemente ese resultado en la rama, o exige volver a A/B para ampliar el mecanismo? Sin cifra concreta aún no hay excepción aprobada; C usa la meta estricta.
+La meta de S3 exige reducir **4.752 B** desde S4 (tabla). Decisión (coordinador, 2026-11-21): la que MANDA es la sonda (65 KiB 5/5 por fila, más 129/204/256 KiB), no la cifra de reserva. Si las extracciones cerradas dan 65 KiB 5/5 pero la pareja `drive`+`resume_non_match` queda por encima de 63.848 B, se **autoriza de antemano** una excepción con esta condición cerrada: margen de reserva `66.560 − suma` **≥ 1.000 B** (para que B2b/B3b/B4 no reabran el problema con el primer ayudante) y tabla completa de marcos registrada en el informe de C. Sin ese margen (< 1.000 B) o sin 65 KiB 5/5, C se detiene y vuelve a A/B para ampliar el mecanismo (p. ej. partir más brazos por familia); no hay excepción mayor sin nueva decisión del coordinador. La excepción, de usarse, se anota en `Pending.md` con la cifra medida.
 
 ## Fuera de alcance
 
