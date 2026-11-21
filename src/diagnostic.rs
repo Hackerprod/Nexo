@@ -1396,7 +1396,14 @@ impl Diagnostic {
             "incomplete_analysis",
             &["input", "parse", "types", "ownership", "effects", "lower"],
         )?;
-        enum_value("declaration_kind", &["binding", "function", "parameter"])?;
+        enum_value(
+            "declaration_kind",
+            if self.profile_id == "f0-0005-b-v1" {
+                &["binding", "function", "parameter", "constant"]
+            } else {
+                &["binding", "function", "parameter"]
+            },
+        )?;
         enum_value("use_kind", &["value", "call_target"])?;
         enum_value(
             "pending_scope",

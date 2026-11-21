@@ -11039,6 +11039,9 @@ impl Checker<'_> {
             Expr::Bool(..) => Ok(Type::Bool),
             Expr::Neg { value, .. } => {
                 let got = unary_operand.expect("negated operand is scheduled by driver")?;
+                if got == Type::Tainted {
+                    return Ok(Type::Tainted);
+                }
                 if got != Type::I64 {
                     return Err(mismatch(
                         Self::primary_span(value),
@@ -11052,6 +11055,9 @@ impl Checker<'_> {
             }
             Expr::Not { value, .. } => {
                 let got = unary_operand.expect("not operand is scheduled by driver")?;
+                if got == Type::Tainted {
+                    return Ok(Type::Tainted);
+                }
                 if got != Type::Bool {
                     return Err(mismatch(
                         Self::primary_span(value),
@@ -11065,6 +11071,7 @@ impl Checker<'_> {
             }
             Expr::Unit(..) => Ok(Type::Unit),
             Expr::Name(name, span) => match self.resolved.uses.get(&span.start) {
+                Some(ResolvedUse::Constant(_)) => Ok(Type::Tainted),
                 Some(ResolvedUse::Intrinsic(intrinsic)) if intrinsic == "None" => {
                     self.option_none(span, expected)
                 }
@@ -14737,6 +14744,13 @@ pub(crate) fn check_with_partial_limit(
         }
     }
     if ast.f5_operators {
+        if !ast.consts.is_empty() {
+            // Before L09, the module's constant capability is pending. Other
+            // temporary capability reports do not add actionable information.
+            checker
+                .errors
+                .retain(|error| error.feature_id.as_deref() != Some("implementation_limit"));
+        }
         checker
             .errors
             .extend(ast.consts.iter().map(super::pending_f5::const_pending));
@@ -15285,6 +15299,7 @@ mod quota_tests {
     fn operand_evidence_survives_nested_pending_repartition() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15333,6 +15348,7 @@ mod quota_tests {
     fn solver_states_and_representatives_keep_their_distinct_rules() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15402,6 +15418,7 @@ mod quota_tests {
         // right operand contaminates the equality without a derived error.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15442,6 +15459,7 @@ mod quota_tests {
         // the branch-specific diagnostic when their values are joined.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15495,6 +15513,7 @@ mod quota_tests {
         // origin; a copyable obligation rejects a resource on the other root.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15569,6 +15588,7 @@ mod quota_tests {
         // current charge site at the operand passed to unify.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15630,6 +15650,7 @@ mod quota_tests {
         // source origin starts. A later start can lie inside the earlier span.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15684,6 +15705,7 @@ mod quota_tests {
         // type to its child and does not charge a second wrapper pair.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15723,6 +15745,7 @@ mod quota_tests {
         // would let the second independent I64 element escape validation.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15835,6 +15858,7 @@ mod quota_tests {
     fn conflicting_union_reports_the_earliest_concrete_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15882,6 +15906,7 @@ mod quota_tests {
     fn inferred_array_depth_accepts_127_and_128_and_rejects_129() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15924,6 +15949,7 @@ mod quota_tests {
     fn inferred_array_root_retains_depth_origin_after_later_constraint() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15943,6 +15969,7 @@ mod quota_tests {
     fn deferred_visible_conversion_and_constructor_walk_stop_at_their_boundaries() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -15983,6 +16010,7 @@ mod quota_tests {
     fn constructor_walk_keeps_exact_depth_boundaries() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16030,6 +16058,7 @@ mod quota_tests {
     fn visible_conversion_keeps_internal_states_out_of_diagnostics() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16091,6 +16120,7 @@ mod quota_tests {
     fn deferred_result_components_and_structural_array_elements_resolve_separately() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16249,6 +16279,7 @@ mod quota_tests {
     fn solver_child_frames_keep_each_cursor_boundary() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16380,6 +16411,7 @@ mod quota_tests {
         }
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16445,6 +16477,7 @@ mod quota_tests {
     fn malformed_generator_state_cycle_is_bounded() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16461,6 +16494,7 @@ mod quota_tests {
     fn inferred_array_path_keeps_array_depth_priority_over_value_depth() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16556,6 +16590,7 @@ mod quota_tests {
         // F0-0002 §4.1.1 permits a pending constructor to be fixed later.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16581,6 +16616,7 @@ mod quota_tests {
     fn non_result_try_is_rejected_at_the_expression_boundary() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16599,6 +16635,7 @@ mod quota_tests {
     fn union_reports_resolved_array_constructor_in_both_root_orders() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16676,6 +16713,7 @@ mod quota_tests {
         // one of its nested values can overlap without sharing a type.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16730,6 +16768,7 @@ mod quota_tests {
     fn concrete_array_cache_keys_both_operands_and_charges_a_cached_constraint() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16829,6 +16868,7 @@ mod quota_tests {
         // be cached only when both operands were fully concrete at entry.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16889,6 +16929,7 @@ mod quota_tests {
         // the 33 logical pairs for Array^32<I64>.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16939,6 +16980,7 @@ mod quota_tests {
         // pairs in a union; neither may bypass the exhausted global budget.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16967,6 +17009,7 @@ mod quota_tests {
         // (adr_gap_union_charge); §11.1 does not specify union cost.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -16997,6 +17040,7 @@ mod quota_tests {
         // constructor obligation through union regardless of root rank.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17024,6 +17068,7 @@ mod quota_tests {
         // One fewer granted unit rejects the final link with limit+1.
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17055,6 +17100,7 @@ mod quota_tests {
     fn solver_charges_the_final_granted_unit_and_reports_one_rejected_unit() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17201,6 +17247,7 @@ mod quota_tests {
     fn nested_unification_charges_each_array_pair_at_the_reduced_boundary() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17656,6 +17703,7 @@ mod quota_tests {
     fn monomorphic_solution_is_invariant_under_constraint_permutations() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17716,6 +17764,7 @@ mod quota_tests {
     fn generated_constraint_orders_have_the_same_acceptance() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17931,6 +17980,7 @@ mod quota_tests {
     fn i07c_survivor2_pending_operation_types_match_their_sites() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -17987,6 +18037,7 @@ mod quota_tests {
     fn i07c_survivor2_pending_nominal_requires_live_domain() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18030,6 +18081,7 @@ mod quota_tests {
     fn i07c_survivor2_solver_preserves_constructor_identity() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18070,6 +18122,7 @@ mod quota_tests {
     fn i07c_survivor2_seeded_array_child_starts_clean_and_keeps_existing_leaf() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18228,6 +18281,7 @@ mod quota_tests {
     fn i07c_survivor2_selection_depth_keeps_the_current_type() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18241,6 +18295,7 @@ mod quota_tests {
     fn i07c_survivor2_resolved_join_rebuilds_option_payload() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18285,6 +18340,7 @@ mod quota_tests {
         }
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18362,6 +18418,7 @@ mod quota_tests {
     fn i07c_survivor2_root_compresses_the_entire_parent_chain() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18379,6 +18436,7 @@ mod quota_tests {
     fn i07c_survivor2_result_shape_conflict_keeps_payload_identity() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18413,6 +18471,7 @@ mod quota_tests {
     fn i07c_survivor2_shape_conflicts_continue_past_irrelevant_children() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18467,6 +18526,7 @@ mod quota_tests {
     fn i07c_survivor2_pattern_shape_chooses_first_conflicting_child() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18515,6 +18575,7 @@ mod quota_tests {
     fn i07c_survivor3_shape_walk_checks_later_result_payload() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18560,6 +18621,7 @@ mod quota_tests {
     fn i07c_survivor3_require_union_moves_concrete_payloads_to_children() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18597,6 +18659,7 @@ mod quota_tests {
     fn i07c_survivor3_union_transfers_single_sided_shape_and_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18638,6 +18701,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_union_restores_both_constructor_roots() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18698,6 +18762,7 @@ mod quota_tests {
     fn i07c_survivor3_unify_concrete_union_kinds_and_payloads() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18780,6 +18845,7 @@ mod quota_tests {
     fn i07c_survivor3_shape_requirements_reject_incompatible_roots() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18835,6 +18901,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_single_sided_union_keeps_preexisting_shape() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18871,6 +18938,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_result_union_rolls_back_earlier_payload_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18913,6 +18981,7 @@ mod quota_tests {
     fn i07c_survivor3_union_prefers_larger_component_before_id() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18929,6 +18998,7 @@ mod quota_tests {
     fn i07c_survivor3_never_payload_keeps_later_result_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18958,6 +19028,7 @@ mod quota_tests {
     fn i07c_survivor3_cached_array_child_rebuilds_outer_shape() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -18996,6 +19067,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_atomic_union_preserves_quota_error() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19020,6 +19092,7 @@ mod quota_tests {
     fn i07c_survivor3_completed_option_uses_binding_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19052,6 +19125,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_result_payload_restores_earlier_deferred_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19081,6 +19155,7 @@ mod quota_tests {
     fn i07c_survivor3_union_rejects_variant_against_array_in_both_orders() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19110,6 +19185,7 @@ mod quota_tests {
     fn i07c_survivor3_require_union_quota_propagates_through_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19137,6 +19213,7 @@ mod quota_tests {
     fn i07c_survivor3_rebinding_known_union_keeps_first_shape_origin() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19160,6 +19237,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_result_bind_restores_first_payload() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19193,6 +19271,7 @@ mod quota_tests {
     fn i07c_survivor3_noncopyable_second_payload_restores_first_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19229,6 +19308,7 @@ mod quota_tests {
     fn i07c_survivor3_equal_start_concrete_origins_choose_left_diagnostic_span() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19272,6 +19352,7 @@ mod quota_tests {
     fn i07c_survivor3_incompatible_deferred_shapes_defer_without_recursion() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19304,6 +19385,7 @@ mod quota_tests {
     fn i07c_survivor3_union_child_allocation_propagates_quota_errors() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19322,6 +19404,7 @@ mod quota_tests {
     fn i07c_survivor3_late_result_payload_quota_rolls_back_first_bind() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19350,6 +19433,7 @@ mod quota_tests {
     fn i07c_survivor3_partial_union_allocation_rolls_back_on_quota() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19378,6 +19462,7 @@ mod quota_tests {
     fn i07c_survivor3_equal_start_array_origins_choose_left_diagnostic_span() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19407,6 +19492,7 @@ mod quota_tests {
     fn i07c_survivor3_failed_concrete_union_expansion_restores_root() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19439,6 +19525,7 @@ mod quota_tests {
     fn i07c_survivor3_deferred_bind_rewrites_pending_join_to_source_operands() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19470,6 +19557,7 @@ mod quota_tests {
     fn i07c_survivor3_deferred_union_rewrites_child_join_to_parent_operands() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19512,6 +19600,7 @@ mod quota_tests {
     fn i07c_survivor3_partial_result_conflict_defers_join() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19561,6 +19650,7 @@ mod quota_tests {
     fn i07c_survivor3_array_join_wraps_pending_operand_shapes() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19591,6 +19681,7 @@ mod quota_tests {
     fn i07c_survivor3_nested_partial_result_deferral_keeps_array_shape() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };
@@ -19642,6 +19733,7 @@ mod quota_tests {
     fn i07c_survivor4_deferred_bind_keeps_branch_policy() {
         let resolved = Resolved {
             signatures: HashMap::new(),
+            constants: HashMap::new(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         };

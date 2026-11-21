@@ -622,3 +622,105 @@ fn f5_match_guard_effect_uses_the_same_model() {
     }
 }
 
+#[test]
+fn f5_declared_constants_remain_pending_at_every_use_site() {
+    // F5-H09 and the coordinator's pre-L09 decision: one diagnostic on const.
+    let expected = r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L09.","operation":"types.check","primary_span":{"file":"case.n","start":0,"end":5},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L09"}}"#;
+    let cases = [
+        "const k:I64=comptime 1;fn Main(){let x=k;}",
+        "const k:I64=comptime 1;fn Main(){Print(k);}",
+        "const k:I64=comptime 1;fn Main(){let x=Len(k);}",
+        "const k:I64=comptime 1;fn Main(){if k<2{}}",
+        "const k:I64=comptime 1;fn Main(){let a=[1];let x=a[k];}",
+        "const k:I64=comptime 1;fn Main(){for i in 0..<k{}}",
+        "const k:I64=comptime 1;fn Main(){var x=1;x+=k;}",
+        "const k:I64=comptime 1;fn Main(){let x=-k;}",
+        "const k:I64=comptime 1;fn Main(){let x=not k;}",
+        "const k:I64=comptime 1;fn Main(){let x=k+1;}",
+    ];
+    for source in cases {
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert_eq!(output, rejected(expected), "{verb} {source}");
+        }
+    }
+}
+
+#[test]
+fn f5_public_constant_programs_stop_once_at_l09() {
+    let cases = [
+        (include_str!("../corpus/objetivo/16_primos.n"), 71, 76),
+        (include_str!("../corpus/objetivo/17_criba.n"), 67, 72),
+        (include_str!("../corpus/objetivo/18_collatz.n"), 61, 66),
+    ];
+    for (source, start, end) in cases {
+        let source = source.trim_end_matches('\n');
+        let expected = format!(
+            r#"{{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L09.","operation":"types.check","primary_span":{{"file":"case.n","start":{start},"end":{end}}},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{{"pending_scope":"L09"}}}}"#
+        );
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb}: {output}");
+            assert_eq!(output, rejected(&expected), "{verb}");
+        }
+    }
+}
+
+#[test]
+fn f5_constant_names_share_module_scope_and_allow_local_shadowing() {
+    for (source, kind, start, end) in [
+        (
+            "const k:I64=comptime 1;const k:I64=comptime 2;fn Main(){}",
+            "constant",
+            29,
+            30,
+        ),
+        (
+            "const F:I64=comptime 1;fn F(){}fn Main(){}",
+            "function",
+            26,
+            27,
+        ),
+        (
+            "fn F(){}const F:I64=comptime 1;fn Main(){}",
+            "constant",
+            14,
+            15,
+        ),
+    ] {
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{output}");
+            assert_eq!(
+                output.matches("\"diagnostic_namespace\"").count(),
+                1,
+                "{output}"
+            );
+            assert!(output.contains("\"code\":\"NX-E0104\""), "{output}");
+            assert!(
+                output.contains(&format!("\"start\":{start},\"end\":{end}")),
+                "{output}"
+            );
+            assert!(
+                output.contains(&format!("\"declaration_kind\":\"{kind}\"")),
+                "{output}"
+            );
+        }
+    }
+    for source in [
+        "const k:I64=comptime 1;fn Main(){let k=2;Print(k);}",
+        "fn Main(){let x=k;}const k:I64=comptime 1;",
+    ] {
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{output}");
+            assert_eq!(
+                output.matches("\"diagnostic_namespace\"").count(),
+                1,
+                "{output}"
+            );
+            assert!(output.contains("\"pending_scope\":\"L09\""), "{output}");
+        }
+    }
+}
