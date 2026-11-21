@@ -15,3 +15,7 @@ Se descartó como causa suficiente la comprobación adicional de parentesco aña
 Los cambios sin commit están solo en `src/check/types.rs` y `tests/i07c_deferred_constraints.rs`. Se migraron los cursores a hechos con `FactId` y generaciones del `InferenceGraph`; las regresiones internas de reentrada, seis sitios de `Bind`, rollback y causas independientes pasan individualmente. El binario S4 dio RD **152/152** en debug y release. El diferencial versionado de **369 fuentes** frente a `C:/nexo-work/bin/3100a29/{debug,release}/nexo.exe` dio cero diferencias en `check`/`run`; SHA-256 de referencias: debug `6edf41c63b45fbd00bd7d0acf43901f5539d463a60fa5cfd10f2c68ae0930169`, release `e8aabcf7b94d3948cdad0d15ae74e8d847f8df68899b52c41bab58f9a9d6b112`.
 
 No se ejecutó la puerta final ni se realizó mutación inversa/campaña: el incumplimiento de pila bloquea la entrega. El código queda en el worktree para inspección de A/B; no se hizo commit, push ni operación mutante de git.
+
+## Resolución (2026-11-21)
+
+El diagnóstico medido (`I07c-C-S4-diagnostico-pila.md`) muestra que, a perfil idéntico, `be8c47c` y S4 tienen el mismo umbral; el plan se enmendó (registro r4 de `I07c-S4-plan.md`, validado por B en `I07c-plan-B-S4-r4.md`) para fijar el perfil de referencia y declarar el crecimiento de marcos como coste medido. Este hallazgo queda como historial; C reanuda la puerta final.
