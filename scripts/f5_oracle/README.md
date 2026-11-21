@@ -13,6 +13,7 @@ python -B -m scripts.f5_oracle.mutate F5-O1
 python -B -m scripts.f5_oracle.mutate F5-O2
 python -B -m scripts.f5_oracle.mutate F5-O3
 python -B -m scripts.f5_oracle.mutate F5-O4
+python -B -m scripts.f5_oracle.mutate F5-O5
 ```
 
 La CLI recibe **rutas de dos ejecutables inmutables** y perfil explícito. El
@@ -43,7 +44,13 @@ python -B -m scripts.f5_oracle.batch --binary-debug C:/nexo-work/tmp/f5-bin/debu
 
 `compare`/`gate` ejecutan hasta cuatro invocaciones por fuente, pero reutilizan
 respuestas de fuentes idénticas dentro de una tanda, conservando los 64.000
-casos lógicos antes de deduplicar. El informe separa casos, invocaciones
+casos distintos por semilla antes de deduplicar entre semillas. `selftest`
+imprime el recuento normalizado y el máximo de nodos por semilla; también
+comprueba con dos ejecutables ficticios que `run` rechaza un resultado
+incorrecto de `47%1`. Desde G4/L08, el diferencial compara el stdout, los
+eventos, las observaciones y sus bytes calculados por el modelo. Antes de
+L08 exige solo el diagnóstico pendiente correspondiente a F5 §8.2.
+El informe separa casos, invocaciones
 físicas y percentiles de latencia. `fuzz` prueba bytes arbitrarios y prefijos
 truncados buscando pánico, `internal_error`, `InvalidIr` o timeout; no presume
 semántica de bytes arbitrarios. El timeout es fallo, no se reintenta en silencio.
