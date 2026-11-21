@@ -1,0 +1,2749 @@
+{
+  "acceptance_observation_bytes": {
+    "F5-P01": 41,
+    "F5-P02": 37,
+    "F5-P03": 12,
+    "F5-P04": 38,
+    "F5-P05": 42,
+    "F5-P06": 16,
+    "F5-P07": 30,
+    "F5-P08": 36,
+    "F5-P09": 22
+  },
+  "acceptance_programs": {
+    "F5-P01": "const limit:I64=comptime 30;\nfn Prime(n:view I64)->Bool{\n    if n<2{\n        return false;\n    }\n    var d=2;\n    while d<=n/d{\n        if n%d==0{\n            return false;\n        }\n        d+=1;\n    }\n    return true;\n}\nfn Main(){\n    var primes:Array<I64>=[];\n    for n in 0..=limit{\n        if not Prime(n){\n            continue;\n        }\n        Push(edit primes,n);\n    }\n    AssertEq(Len(primes),10);\n    AssertEq(primes[0],2);\n    AssertEq(primes[9],29);\n    var sum=0;\n    for p in primes{\n        sum+=p;\n    }\n    Print(primes);\n    Print(sum);\n}\n",
+    "F5-P02": "const limit:I64=comptime 30;\nfn Main(){\n    var composite:Array<Bool>=[];\n    for i in 0..=limit{\n        Push(edit composite,false);\n    }\n    composite[0]=true;\n    composite[1]=true;\n    var p=2;\n    while p<=limit/p{\n        if composite[p]{\n            p+=1;\n            continue;\n        }\n        var multiple=p*p;\n        while multiple<=limit{\n            composite[multiple]=true;\n            multiple+=p;\n        }\n        p+=1;\n    }\n    var primes:Array<I64>=[];\n    for n in 2..=limit{\n        if not composite[n]{\n            Push(edit primes,n);\n        }\n    }\n    AssertEq(Len(primes),10);\n    AssertEq(composite[25],true);\n    Print(primes);\n}\n",
+    "F5-P03": "const start:I64=comptime 27;\nfn Step(n:view I64)->I64{\n    if n%2==0{\n        return n/2;\n    }\n    return 3*n+1;\n}\nfn Main(){\n    var n=start;\n    var steps=0;\n    var peak=n;\n    var odd=0;\n    while true{\n        if n==1{\n            break;\n        }\n        if n%2!=0{\n            odd+=1;\n        }\n        n=Step(n);\n        steps+=1;\n        if n>peak{\n            peak=n;\n        }\n    }\n    AssertEq(n,1);\n    AssertEq(odd,41);\n    Print(steps);\n    Print(peak);\n    Print(odd);\n}\n",
+    "F5-P04": "fn Sort(a:edit Array<I64>){\n    let size=Len(a);\n    for i in 1..<size{\n        let value=a[i];\n        var j=i;\n        while j>0 and a[j-1]>value{\n            a[j]=a[j-1];\n            j-=1;\n        }\n        a[j]=value;\n    }\n}\nfn Main(){\n    var values:Array<I64>=[];\n    Push(edit values,5);\n    Push(edit values,2);\n    Push(edit values,4);\n    Push(edit values,2);\n    Push(edit values,1);\n    let original=values;\n    Sort(edit values);\n    AssertEq(original,[5,2,4,2,1]);\n    AssertEq(values,[1,2,2,4,5]);\n    let largest=Pop(edit values);\n    AssertEq(largest,Some(5));\n    Push(edit values,5);\n    let joined=JoinArrays(values,[8,9]);\n    AssertEq(Len(joined),7);\n    Print(values);\n    Print(joined);\n}\n",
+    "F5-P05": "fn Search(a:view Array<I64>,key:view I64)->I64{\n    var lo=0;\n    var hi=Len(a);\n    while lo<hi{\n        let mid=lo+(hi-lo)/2;\n        if a[mid]==key{\n            return mid;\n        }\n        if a[mid]<key{\n            lo=mid+1;\n        }else{\n            hi=mid;\n        }\n    }\n    return -1;\n}\nfn Main(){\n    var squares:Array<I64>=[];\n    for n in 0..<10{\n        Push(edit squares,n*n);\n    }\n    AssertEq(Len(squares),10);\n    AssertEq(Search(squares,0),0);\n    AssertEq(Search(squares,81),9);\n    AssertEq(Search(squares,82),-1);\n    let empty:Array<I64>=[];\n    AssertEq(Search(empty,1),-1);\n    Print(Search(squares,49));\n    Print(Search(squares,50));\n    Print(squares);\n}\n",
+    "F5-P06": "fn Gcd(a:view I64,b:view I64)->I64{\n    var x=a;\n    var y=b;\n    while y!=0{\n        let remainder=x%y;\n        x=y;\n        y=remainder;\n    }\n    return x;\n}\nfn Lcm(a:view I64,b:view I64)->I64{\n    if a==0 or b==0{\n        return 0;\n    }\n    return (a/Gcd(a,b))*b;\n}\nfn Main(){\n    CheckZeros();\n    var results:Array<I64>=[];\n    Push(edit results,Gcd(48,18));\n    Push(edit results,Gcd(270,192));\n    Push(edit results,Gcd(0,7));\n    Push(edit results,Gcd(7,0));\n    AssertEq(results,[6,6,7,7]);\n    Print(results);\n    Print(Lcm(21,6));\n}\nfn CheckZeros(){\n    AssertEq(Lcm(0,7),0);\n    AssertEq(Gcd(1,1),1);\n}\n",
+    "F5-P07": "const modulus:I64=comptime 1000;\nfn PowMod(base:view I64,exponent:view I64)->I64{\n    var b=base%modulus;\n    var e=exponent;\n    var result=1;\n    while e>0{\n        if e%2!=0{\n            result=(result*b)%modulus;\n        }\n        e/=2;\n        if e==0{\n            break;\n        }\n        b=(b*b)%modulus;\n    }\n    return result;\n}\nfn Main(){\n    AssertEq(PowMod(2,0),1);\n    AssertEq(PowMod(2,10),24);\n    AssertEq(PowMod(7,8),801);\n    var powers:Array<I64>=[];\n    for exponent in 0..=5{\n        Push(edit powers,PowMod(3,exponent));\n    }\n    AssertEq(Len(powers),6);\n    AssertEq(powers[5],243);\n    Print(PowMod(2,10));\n    Print(PowMod(7,8));\n    Print(powers);\n}\n",
+    "F5-P08": "const size:I64=comptime 3;\nfn Identity()->Array<Array<I64>>{\n    var matrix:Array<Array<I64>>=[];\n    for rowIndex in 0..<size{\n        var row:Array<I64>=[];\n        for column in 0..<size{\n            let cell=if rowIndex==column then{\n                value:1;\n            }else{\n                value:0;\n            };\n            Push(edit row,cell);\n        }\n        Push(edit matrix,move row);\n    }\n    return move matrix;\n}\nfn Main(){\n    let matrix=Identity();\n    var copy=matrix;\n    copy[0][0]=9;\n    AssertEq(matrix[0][0],1);\n    AssertEq(copy[0][0],9);\n    var trace=0;\n    for i in 0..<size{\n        trace+=matrix[i][i];\n    }\n    AssertEq(trace,size);\n    Print(matrix);\n    Print(trace);\n}\n",
+    "F5-P09": "const buckets:I64=comptime 5;\nfn Main(){\n    let values=[0,1,1,4,2,4,4,3,0,-1,5];\n    var counts:Array<I64>=[];\n    for bucket in 0..<buckets{\n        Push(edit counts,0);\n    }\n    var rejected=0;\n    for value in values{\n        if value<0 or value>=buckets{\n            rejected+=1;\n            continue;\n        }\n        counts[value]+=1;\n    }\n    var total=0;\n    var maximum=0;\n    for count in counts{\n        total+=count;\n        if count>maximum{\n            maximum=count;\n        }\n    }\n    AssertEq(total+rejected,Len(values));\n    AssertEq(counts,[2,2,1,1,3]);\n    AssertEq(maximum,3);\n    Print(counts);\n    Print(total);\n    Print(rejected);\n    Print(maximum);\n}\n"
+  },
+  "acceptance_stdout": {
+    "F5-P01": "[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]\n129\n",
+    "F5-P02": "[2, 3, 5, 7, 11, 13, 17, 19, 23, 29]\n",
+    "F5-P03": "111\n9232\n41\n",
+    "F5-P04": "[1, 2, 2, 4, 5]\n[1, 2, 2, 4, 5, 8, 9]\n",
+    "F5-P05": "7\n-1\n[0, 1, 4, 9, 16, 25, 36, 49, 64, 81]\n",
+    "F5-P06": "[6, 6, 7, 7]\n42\n",
+    "F5-P07": "24\n801\n[1, 3, 9, 27, 81, 243]\n",
+    "F5-P08": "[[1, 0, 0], [0, 1, 0], [0, 0, 1]]\n3\n",
+    "F5-P09": "[2, 2, 1, 1, 3]\n9\n2\n3\n"
+  },
+  "adr_blob_sha256": "16823a5c7aa4f2dbeec2cf3af78eec22b70f2e61b20f006fafb0a9a8135c8ac2",
+  "authority": "F5 ??9.2?9.5, 11, 12.2",
+  "behavior_programs": [
+    "fn Main(){\n    AssertEq(-7/3,-2);\n    AssertEq(-7%3,-1);\n    AssertEq(7/-3,-2);\n    AssertEq(7%-3,1);\n    AssertEq(-9223372036854775808%-1,0);\n    AssertEq(2+3*4,14);\n    AssertEq(20/3/2,3);\n    AssertEq(not false and false or true,true);\n    AssertEq(2<=2,true);\n    AssertEq(2>=2,true);\n    AssertEq(3>2,true);\n    AssertEq([1]!=[2],true);\n}\n",
+    "fn Right()->Bool{Print(9);return true;}\nfn Main(){\n    AssertEq(false and Right(),false);\n    AssertEq(true or Right(),true);\n    AssertEq(true and Right(),true);\n    AssertEq(false or Right(),true);\n}\n",
+    "fn Main(){\n    var a:Array<I64>=[];\n    Push(edit a,1);\n    var b=a;\n    Push(edit b,2);\n    AssertEq(a,[1]);\n    AssertEq(b,[1,2]);\n    AssertEq(Pop(edit b),Some(2));\n    AssertEq(Pop(edit b),Some(1));\n    let empty:Option<I64>=Pop(edit b);\n    AssertEq(empty,None);\n    AssertEq(JoinArrays(a,b),[1]);\n    var count=0;\n    for i in 9223372036854775807..=9223372036854775807{\n        AssertEq(i,9223372036854775807);\n        count+=1;\n    }\n    AssertEq(count,1);\n    for i in 2..<2{count+=1;}\n    for i in 3..=2{count+=1;}\n    AssertEq(count,1);\n}\n"
+  ],
+  "behavior_stdout": [
+    "",
+    "9\n9\n",
+    ""
+  ],
+  "intrinsic_effect_positives": [
+    "fn F(a:edit Array<I64>) with no_alloc{let x=Pop(edit a);let n=Len(a);}fn Main(){var a=[1];F(edit a);}",
+    "fn Main(){let a=[1];let b=JoinArrays(a,a);AssertEq(b,[1,1]);}"
+  ],
+  "json_literals": {
+    "F5-B10": {
+      "cause_chain": [
+        {
+          "entity": {
+            "id": "prelude:join_arrays",
+            "kind": "intrinsic"
+          },
+          "evidence": "verified",
+          "kind": "call",
+          "operation": "intrinsic.call",
+          "span": {
+            "end": 54,
+            "file": "case.n",
+            "start": 44
+          }
+        }
+      ],
+      "code": "NX-E0412",
+      "data": {
+        "contract_origin": {
+          "end": 37,
+          "file": "case.n",
+          "start": 29
+        },
+        "effect_evidence": "known_effect",
+        "effect_model": "f0-0005-sim-v1",
+        "required_effect": "alloc"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0412",
+      "feature_id": null,
+      "message": "La función F infringe no_alloc.",
+      "operation": "intrinsic.call",
+      "parser_context": null,
+      "primary_span": {
+        "end": 54,
+        "file": "case.n",
+        "start": 44
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [
+        {
+          "role": "contract",
+          "span": {
+            "end": 37,
+            "file": "case.n",
+            "start": 29
+          }
+        }
+      ],
+      "repair": [],
+      "rule": "NX-E0412",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "effects",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H01": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L08"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L08.",
+      "operation": "ir.lower",
+      "parser_context": null,
+      "primary_span": {
+        "end": 19,
+        "file": "case.n",
+        "start": 16
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "lower",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H02": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L01"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L01.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 18,
+        "file": "case.n",
+        "start": 17
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H03": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "later_adr"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "range",
+      "message": "Recognized construct is outside the profile.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 20,
+        "file": "case.n",
+        "start": 17
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H04": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L01"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L01.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 21,
+        "file": "case.n",
+        "start": 20
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H05": {
+      "cause_chain": [],
+      "code": "NX-E0102",
+      "data": {
+        "expected_type": "I64",
+        "found_type": "Bool"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0102/type_mismatch",
+      "feature_id": null,
+      "message": "Invalid name, call or type in the proposed profile.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 20,
+        "file": "case.n",
+        "start": 16
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [
+        {
+          "role": "found_type",
+          "span": {
+            "end": 20,
+            "file": "case.n",
+            "start": 16
+          }
+        }
+      ],
+      "repair": [],
+      "rule": "NX-E0102/type_mismatch",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": "type_mismatch",
+      "unexpected_token": null
+    },
+    "F5-H06": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L06"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L06.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 13,
+        "file": "case.n",
+        "start": 10
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H07": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L07"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L07.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 24,
+        "file": "case.n",
+        "start": 20
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H08": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L01"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L01.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 19,
+        "file": "case.n",
+        "start": 17
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H09": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L09"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L09.",
+      "operation": "types.check",
+      "parser_context": null,
+      "primary_span": {
+        "end": 5,
+        "file": "case.n",
+        "start": 0
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "types",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H10": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L08"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L08.",
+      "operation": "ir.lower",
+      "parser_context": null,
+      "primary_span": {
+        "end": 5,
+        "file": "case.n",
+        "start": 0
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "lower",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-H11": {
+      "cause_chain": [],
+      "code": "NX-E0006",
+      "data": {
+        "pending_scope": "L10"
+      },
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [],
+      "expected_tokens_kind": null,
+      "explanation_id": "NX-E0006",
+      "feature_id": "implementation_limit",
+      "message": "Capacidad pendiente de implementación en L10.",
+      "operation": "ir.lower",
+      "parser_context": null,
+      "primary_span": {
+        "end": 22,
+        "file": "case.n",
+        "start": 21
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": null,
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0006",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "lower",
+      "subcause": null,
+      "unexpected_token": null
+    },
+    "F5-S14": {
+      "cause_chain": [],
+      "code": "NX-E0002",
+      "data": {},
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [
+        ";",
+        "and",
+        "or"
+      ],
+      "expected_tokens_kind": "admissible_set",
+      "explanation_id": "NX-E0002",
+      "feature_id": null,
+      "message": "Syntax is not admitted by the grammar.",
+      "operation": "syntax.parse",
+      "parser_context": "grammar.CompareExpr",
+      "primary_span": {
+        "end": 20,
+        "file": "case.n",
+        "start": 19
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": {
+        "end": 19,
+        "file": "case.n",
+        "start": 16
+      },
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0002",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "parse",
+      "subcause": null,
+      "unexpected_token": {
+        "kind": "symbol",
+        "span": {
+          "end": 20,
+          "file": "case.n",
+          "start": 19
+        },
+        "text": "<"
+      }
+    },
+    "F5-S15": {
+      "cause_chain": [],
+      "code": "NX-E0002",
+      "data": {},
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [
+        ";",
+        "and",
+        "or"
+      ],
+      "expected_tokens_kind": "admissible_set",
+      "explanation_id": "NX-E0002",
+      "feature_id": null,
+      "message": "Syntax is not admitted by the grammar.",
+      "operation": "syntax.parse",
+      "parser_context": "grammar.CompareExpr",
+      "primary_span": {
+        "end": 44,
+        "file": "case.n",
+        "start": 43
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": {
+        "end": 43,
+        "file": "case.n",
+        "start": 40
+      },
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0002",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "parse",
+      "subcause": null,
+      "unexpected_token": {
+        "kind": "symbol",
+        "span": {
+          "end": 44,
+          "file": "case.n",
+          "start": 43
+        },
+        "text": "<"
+      }
+    },
+    "F5-S16": {
+      "cause_chain": [],
+      "code": "NX-E0002",
+      "data": {},
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [
+        ";",
+        "and",
+        "or"
+      ],
+      "expected_tokens_kind": "admissible_set",
+      "explanation_id": "NX-E0002",
+      "feature_id": null,
+      "message": "Syntax is not admitted by the grammar.",
+      "operation": "syntax.parse",
+      "parser_context": "grammar.CompareExpr",
+      "primary_span": {
+        "end": 46,
+        "file": "case.n",
+        "start": 44
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": {
+        "end": 44,
+        "file": "case.n",
+        "start": 40
+      },
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0002",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "parse",
+      "subcause": null,
+      "unexpected_token": {
+        "kind": "symbol",
+        "span": {
+          "end": 46,
+          "file": "case.n",
+          "start": 44
+        },
+        "text": "=="
+      }
+    },
+    "F5-S17": {
+      "cause_chain": [],
+      "code": "NX-E0002",
+      "data": {},
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [
+        ";",
+        "and",
+        "or"
+      ],
+      "expected_tokens_kind": "admissible_set",
+      "explanation_id": "NX-E0002",
+      "feature_id": null,
+      "message": "Syntax is not admitted by the grammar.",
+      "operation": "syntax.parse",
+      "parser_context": "grammar.CompareExpr",
+      "primary_span": {
+        "end": 45,
+        "file": "case.n",
+        "start": 43
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": {
+        "end": 43,
+        "file": "case.n",
+        "start": 40
+      },
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0002",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "parse",
+      "subcause": null,
+      "unexpected_token": {
+        "kind": "symbol",
+        "span": {
+          "end": 45,
+          "file": "case.n",
+          "start": 43
+        },
+        "text": "=="
+      }
+    },
+    "F5-S18": {
+      "cause_chain": [],
+      "code": "NX-E0002",
+      "data": {},
+      "diagnostic_namespace": "Nexo-proposed-v1",
+      "expected_tokens": [
+        "!=",
+        ";",
+        "<",
+        "<=",
+        "==",
+        ">",
+        ">=",
+        "and",
+        "or"
+      ],
+      "expected_tokens_kind": "admissible_set",
+      "explanation_id": "NX-E0002",
+      "feature_id": null,
+      "message": "Syntax is not admitted by the grammar.",
+      "operation": "syntax.parse",
+      "parser_context": "grammar.RangeExpr",
+      "primary_span": {
+        "end": 24,
+        "file": "case.n",
+        "start": 21
+      },
+      "profile_id": "f0-0005-b-v1",
+      "recognized_prefix": {
+        "end": 21,
+        "file": "case.n",
+        "start": 16
+      },
+      "related_spans": [],
+      "repair": [],
+      "rule": "NX-E0002",
+      "schema_version": 1,
+      "severity": "error",
+      "stage": "parse",
+      "subcause": null,
+      "unexpected_token": {
+        "kind": "symbol",
+        "span": {
+          "end": 24,
+          "file": "case.n",
+          "start": 21
+        },
+        "text": "..<"
+      }
+    }
+  },
+  "rows": {
+    "F5-A01": {
+      "code": "NX-E0103",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "types.infer",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-A01 | `fn Main(){let a=[];}` | NX-E0103; [16,18), `[]` | {}; types/types.infer; insertar :Array<I64> después de a. |",
+      "positive_instruction": "{}; types/types.infer; insertar :Array<I64> después de a.",
+      "positive_source": "fn Main(){let a:Array<I64>=[];}",
+      "primary": [
+        16,
+        18
+      ],
+      "source": "fn Main(){let a=[];}",
+      "subcause": null
+    },
+    "F5-A02": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "expected_type",
+            17,
+            18
+          ],
+          [
+            "found_type",
+            32,
+            36
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-A02 | `fn Main(){var a=[1];Push(edit a,true);}` | NX-E0102/type_mismatch; [32,36), `true` | expected_type I64, found_type Bool; expected_type [17,18), found_type [32,36); cambiar true por 2. |",
+      "positive_instruction": "expected_type I64, found_type Bool; expected_type [17,18), found_type [32,36); cambiar true por 2.",
+      "positive_source": "fn Main(){var a=[1];Push(edit a,2);}",
+      "primary": [
+        32,
+        36
+      ],
+      "source": "fn Main(){var a=[1];Push(edit a,true);}",
+      "subcause": "type_mismatch"
+    },
+    "F5-A03": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "expected_type",
+            31,
+            32
+          ],
+          [
+            "found_type",
+            46,
+            50
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-A03 | `fn Main(){var a=[];Push(edit a,1);Push(edit a,true);}` | NX-E0102/type_mismatch; [46,50), `true` | expected_type=I64, found_type=Bool; expected_type [31,32), found_type [46,50); sustituir true por 2. El primer Push fija T=I64 por uso posterior al literal [] [16,18); no se emite NX-E0103. |",
+      "positive_instruction": "expected_type=I64, found_type=Bool; expected_type [31,32), found_type [46,50); sustituir true por 2. El primer Push fija T=I64 por uso posterior al literal [] [16,18); no se emite NX-E0103.",
+      "positive_source": "fn Main(){var a=[];Push(edit a,1);Push(edit a,2);}",
+      "primary": [
+        46,
+        50
+      ],
+      "source": "fn Main(){var a=[];Push(edit a,1);Push(edit a,true);}",
+      "subcause": "type_mismatch"
+    },
+    "F5-B01": {
+      "code": "NX-E1105",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "loan:29:0",
+              "kind": "loan"
+            },
+            "evidence": "verified",
+            "kind": "borrow",
+            "operation": "borrow.read",
+            "span": {
+              "end": 30,
+              "file": "case.n",
+              "start": 29
+            }
+          }
+        ],
+        "data": {
+          "active_permission": "read",
+          "binding": "binding:14",
+          "loan": "loan:29:0",
+          "origin": "binding:14",
+          "requested_access": "write"
+        },
+        "feature_id": null,
+        "operation": "ownership.access",
+        "related": [
+          [
+            "declaration",
+            14,
+            15
+          ],
+          [
+            "origin",
+            29,
+            30
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-B01 | `fn Main(){var a=[1];for x in a{a[0]=2;}}` | NX-E1105/active_borrow_conflict; [31,32), `a` | Sustituir solo el iterando a por [1]. |",
+      "positive_instruction": "Sustituir solo el iterando a por [1].",
+      "positive_source": "fn Main(){var a=[1];for x in [1]{a[0]=2;}}",
+      "primary": [
+        31,
+        32
+      ],
+      "source": "fn Main(){var a=[1];for x in a{a[0]=2;}}",
+      "subcause": "active_borrow_conflict"
+    },
+    "F5-B02": {
+      "code": "NX-E1105",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "loan:20:0",
+              "kind": "loan"
+            },
+            "evidence": "verified",
+            "kind": "borrow",
+            "operation": "borrow.inout",
+            "span": {
+              "end": 24,
+              "file": "case.n",
+              "start": 20
+            }
+          }
+        ],
+        "data": {
+          "active_permission": "inout",
+          "binding": "binding:14",
+          "loan": "loan:20:0",
+          "origin": "binding:14",
+          "requested_access": "read"
+        },
+        "feature_id": null,
+        "operation": "ownership.access",
+        "related": [
+          [
+            "declaration",
+            14,
+            15
+          ],
+          [
+            "origin",
+            20,
+            24
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-B02 | `fn Main(){var a=[1];a[0]+=a[0];}` | NX-E1105/active_borrow_conflict; [26,27), `a` | Sustituir RHS a[0] por 2. |",
+      "positive_instruction": "Sustituir RHS a[0] por 2.",
+      "positive_source": "fn Main(){var a=[1];a[0]+=2;}",
+      "primary": [
+        26,
+        27
+      ],
+      "source": "fn Main(){var a=[1];a[0]+=a[0];}",
+      "subcause": "active_borrow_conflict"
+    },
+    "F5-B03": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            19,
+            23
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-B03 | `fn Main(){for i in true..<3{}}` | NX-E0102/type_mismatch; [19,23), `true` | true→0. |",
+      "positive_instruction": "true→0.",
+      "positive_source": "fn Main(){for i in 0..<3{}}",
+      "primary": [
+        19,
+        23
+      ],
+      "source": "fn Main(){for i in true..<3{}}",
+      "subcause": "type_mismatch"
+    },
+    "F5-B04": {
+      "code": "NX-E0105",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "place.write",
+        "related": [
+          [
+            "declaration",
+            14,
+            15
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-B04 | `fn Main(){let a=[1];Pop(edit a);}` | NX-E0105; [29,30), `a` | let→var. |",
+      "positive_instruction": "let→var.",
+      "positive_source": "fn Main(){var a=[1];Pop(edit a);}",
+      "primary": [
+        29,
+        30
+      ],
+      "source": "fn Main(){let a=[1];Pop(edit a);}",
+      "subcause": null
+    },
+    "F5-B05": {
+      "code": "NX-E0412",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "prelude:push",
+              "kind": "intrinsic"
+            },
+            "evidence": "verified",
+            "kind": "call",
+            "operation": "intrinsic.call",
+            "span": {
+              "end": 42,
+              "file": "case.n",
+              "start": 38
+            }
+          }
+        ],
+        "data": {
+          "contract_origin": {
+            "end": 37,
+            "file": "case.n",
+            "start": 29
+          },
+          "effect_evidence": "known_effect",
+          "effect_model": "f0-0005-sim-v1",
+          "required_effect": "alloc"
+        },
+        "feature_id": null,
+        "operation": "intrinsic.call",
+        "related": [
+          [
+            "contract",
+            29,
+            37
+          ]
+        ],
+        "stage": "effects"
+      },
+      "normative_row": "| F5-B05 | `fn F(a:edit Array<I64>) with no_alloc{Push(edit a,1);}fn Main(){}` | NX-E0412; [38,42), `Push` | Quitar solo with no_alloc. |",
+      "positive_instruction": "Quitar solo with no_alloc.",
+      "positive_source": "fn F(a:edit Array<I64>){Push(edit a,1);}fn Main(){}",
+      "primary": [
+        38,
+        42
+      ],
+      "source": "fn F(a:edit Array<I64>) with no_alloc{Push(edit a,1);}fn Main(){}",
+      "subcause": null
+    },
+    "F5-B06": {
+      "code": "NX-E0105",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "place.write",
+        "related": [
+          [
+            "declaration",
+            6,
+            7
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-B06 | `const a:I64=comptime 1;fn Main(){a=2;}` | NX-E0105; [33,34), `a` | Sustituir a=2 por let x=2. |",
+      "positive_instruction": "Sustituir a=2 por let x=2.",
+      "positive_source": "const a:I64=comptime 1;fn Main(){let x=2;}",
+      "primary": [
+        33,
+        34
+      ],
+      "source": "const a:I64=comptime 1;fn Main(){a=2;}",
+      "subcause": null
+    },
+    "F5-B07": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "resource_array",
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-B07 | `fn Main(){let a:Array<MockResource>=[];}` | NX-E0006; [16,35), `Array<MockResource>` | MockResource→I64. |",
+      "positive_instruction": "MockResource→I64.",
+      "positive_source": "fn Main(){let a:Array<I64>=[];}",
+      "primary": [
+        16,
+        35
+      ],
+      "source": "fn Main(){let a:Array<MockResource>=[];}",
+      "subcause": null
+    },
+    "F5-B08": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "for_iteration",
+        "operation": "syntax.parse",
+        "related": [],
+        "stage": "parse"
+      },
+      "normative_row": "| F5-B08 | `fn Main(){for edit x in [1]{}}` | NX-E0006; [14,18), `edit` | Quitar edit. |",
+      "positive_instruction": "Quitar edit.",
+      "positive_source": "fn Main(){for x in [1]{}}",
+      "primary": [
+        14,
+        18
+      ],
+      "source": "fn Main(){for edit x in [1]{}}",
+      "subcause": null
+    },
+    "F5-B09": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            23,
+            27
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-B09 | `fn Main(){for i in 1..<true{}}` | NX-E0102/type_mismatch; [23,27), `true` | true→3. |",
+      "positive_instruction": "true→3.",
+      "positive_source": "fn Main(){for i in 1..<3{}}",
+      "primary": [
+        23,
+        27
+      ],
+      "source": "fn Main(){for i in 1..<true{}}",
+      "subcause": "type_mismatch"
+    },
+    "F5-B10": {
+      "code": "NX-E0412",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "prelude:join_arrays",
+              "kind": "intrinsic"
+            },
+            "evidence": "verified",
+            "kind": "call",
+            "operation": "intrinsic.call",
+            "span": {
+              "end": 54,
+              "file": "case.n",
+              "start": 44
+            }
+          }
+        ],
+        "data": {
+          "contract_origin": {
+            "end": 37,
+            "file": "case.n",
+            "start": 29
+          },
+          "effect_evidence": "known_effect",
+          "effect_model": "f0-0005-sim-v1",
+          "required_effect": "alloc"
+        },
+        "feature_id": null,
+        "operation": "intrinsic.call",
+        "related": [
+          [
+            "contract",
+            29,
+            37
+          ]
+        ],
+        "stage": "effects"
+      },
+      "normative_row": "| Negativo JoinArrays | `fn F(a:view Array<I64>) with no_alloc{let b=JoinArrays(a,a);}fn Main(){}` | nombre `[44,54)`, contrato `[29,37)`, JSON F5-B10. |",
+      "positive_instruction": "Quitar with no_alloc; conservar JoinArrays.",
+      "positive_source": "fn F(a:view Array<I64>){let b=JoinArrays(a,a);}fn Main(){}",
+      "primary": [
+        44,
+        54
+      ],
+      "source": "fn F(a:view Array<I64>) with no_alloc{let b=JoinArrays(a,a);}fn Main(){}",
+      "subcause": null
+    },
+    "F5-C01": {
+      "code": "NX-E0105",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "place.write",
+        "related": [
+          [
+            "declaration",
+            14,
+            15
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-C01 | `fn Main(){let x=1;x+=2;}` | NX-E0105; [18,19), `x` | {}; declaration [14,15); ownership/place.write; cambiar let por var. |",
+      "positive_instruction": "{}; declaration [14,15); ownership/place.write; cambiar let por var.",
+      "positive_source": "fn Main(){var x=1;x+=2;}",
+      "primary": [
+        18,
+        19
+      ],
+      "source": "fn Main(){let x=1;x+=2;}",
+      "subcause": null
+    },
+    "F5-C02": {
+      "code": "NX-E1317",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "flow.return",
+        "related": [
+          [
+            "expected_type",
+            8,
+            11
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-C02 | `fn F()->I64{while true{break;}}fn Main(){}` | NX-E1317; [30,31), `}` | {}; expected_type [8,11); ownership/flow.return; cambiar break por return 5. |",
+      "positive_instruction": "{}; expected_type [8,11); ownership/flow.return; cambiar break por return 5.",
+      "positive_source": "fn F()->I64{while true{return 5;}}fn Main(){}",
+      "primary": [
+        30,
+        31
+      ],
+      "source": "fn F()->I64{while true{break;}}fn Main(){}",
+      "subcause": null
+    },
+    "F5-C03": {
+      "code": "NX-E1326",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-C03 | `fn Main(){break;}` | NX-E1326/break_outside_loop; [10,15), `break` | {}; types/types.check; envolver break; en while true{break;}. |",
+      "positive_instruction": "{}; types/types.check; envolver break; en while true{break;}.",
+      "positive_source": "fn Main(){while true{break;}}",
+      "primary": [
+        10,
+        15
+      ],
+      "source": "fn Main(){break;}",
+      "subcause": "break_outside_loop"
+    },
+    "F5-C04": {
+      "code": "NX-E1326",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-C04 | `fn Main(){continue;}` | NX-E1326/continue_outside_loop; [10,18), `continue` | {}; types/types.check; envolver continue; en while false{continue;}. |",
+      "positive_instruction": "{}; types/types.check; envolver continue; en while false{continue;}.",
+      "positive_source": "fn Main(){while false{continue;}}",
+      "primary": [
+        10,
+        18
+      ],
+      "source": "fn Main(){continue;}",
+      "subcause": "continue_outside_loop"
+    },
+    "F5-C05": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            21,
+            25
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-C05 | `fn Main(){var x=1;x+=true;}` | NX-E0102/type_mismatch; [21,25), `true` | expected_type=I64, found_type=Bool; found_type [21,25); sustituir true por 2. |",
+      "positive_instruction": "expected_type=I64, found_type=Bool; found_type [21,25); sustituir true por 2.",
+      "positive_source": "fn Main(){var x=1;x+=2;}",
+      "primary": [
+        21,
+        25
+      ],
+      "source": "fn Main(){var x=1;x+=true;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-C06": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            21,
+            22
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-C06 | `fn Main(){var x=true;x+=1;}` | NX-E0102/type_mismatch; [21,22), `x` | expected_type=I64, found_type=Bool; found_type [21,22); sustituir el inicializador true por 0. |",
+      "positive_instruction": "expected_type=I64, found_type=Bool; found_type [21,22); sustituir el inicializador true por 0.",
+      "positive_source": "fn Main(){var x=0;x+=1;}",
+      "primary": [
+        21,
+        22
+      ],
+      "source": "fn Main(){var x=true;x+=1;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-D01": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "range",
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-D01 | `fn Main(){let r=0..<3;}` | NX-E0006; [17,20), `..<` | feature_id range, pending_scope later_adr; types/types.check; sustituir 0..<3 por 0+3. |",
+      "positive_instruction": "feature_id range, pending_scope later_adr; types/types.check; sustituir 0..<3 por 0+3.",
+      "positive_source": "fn Main(){let r=0+3;}",
+      "primary": [
+        17,
+        20
+      ],
+      "source": "fn Main(){let r=0..<3;}",
+      "subcause": null
+    },
+    "F5-D02": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "range",
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-D02 | `fn Main(){var a=[1];let b=a[0..<1];}` | NX-E0006; [27,34), `[0..<1]` | feature_id range, pending_scope later_adr; types/types.check; sustituir 0..<1 por 0. |",
+      "positive_instruction": "feature_id range, pending_scope later_adr; types/types.check; sustituir 0..<1 por 0.",
+      "positive_source": "fn Main(){var a=[1];let b=a[0];}",
+      "primary": [
+        27,
+        34
+      ],
+      "source": "fn Main(){var a=[1];let b=a[0..<1];}",
+      "subcause": null
+    },
+    "F5-K01": {
+      "code": "NX-E1327",
+      "contract": {
+        "cause": [],
+        "data": {
+          "simulator_code": "R0502"
+        },
+        "feature_id": null,
+        "operation": "const.evaluate",
+        "related": [],
+        "stage": "lower"
+      },
+      "normative_row": "| F5-K01 | `const k:I64=comptime 7/0;fn Main(){}` | NX-E1327/arithmetic_fault; [21,24), `7/0` | simulator_code R0502; lower/const.evaluate; cambiar 0 por 1. |",
+      "positive_instruction": "simulator_code R0502; lower/const.evaluate; cambiar 0 por 1.",
+      "positive_source": "const k:I64=comptime 7/1;fn Main(){}",
+      "primary": [
+        21,
+        24
+      ],
+      "source": "const k:I64=comptime 7/0;fn Main(){}",
+      "subcause": "arithmetic_fault"
+    },
+    "F5-K02": {
+      "code": "NX-E1316",
+      "contract": {
+        "cause": [],
+        "data": {
+          "reason": "impure_operation"
+        },
+        "feature_id": null,
+        "operation": "const.check",
+        "related": [
+          [
+            "constant",
+            6,
+            7
+          ]
+        ],
+        "stage": "effects"
+      },
+      "normative_row": "| F5-K02 | `const k:()=comptime Print(1);fn Main(){}` | NX-E1316; [20,25), `Print` | reason impure_operation; constant [6,7); effects/const.check; sustituir Print(1) por (). |",
+      "positive_instruction": "reason impure_operation; constant [6,7); effects/const.check; sustituir Print(1) por ().",
+      "positive_source": "const k:()=comptime ();fn Main(){}",
+      "primary": [
+        20,
+        25
+      ],
+      "source": "const k:()=comptime Print(1);fn Main(){}",
+      "subcause": null
+    },
+    "F5-K03": {
+      "code": "NX-E1323",
+      "contract": {
+        "cause": [],
+        "data": {
+          "cycle": [
+            "a",
+            "b",
+            "a"
+          ]
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "dependency",
+            29,
+            30
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-K03 | `const a:I64=comptime b;const b:I64=comptime a;fn Main(){}` | NX-E1323/constant_cycle; [6,7), `a` | cycle [\"a\",\"b\",\"a\"]; dependency [29,30); types/types.check; sustituir el último a por 1. |",
+      "positive_instruction": "cycle [\"a\",\"b\",\"a\"]; dependency [29,30); types/types.check; sustituir el último a por 1.",
+      "positive_source": "const a:I64=comptime b;const b:I64=comptime 1;fn Main(){}",
+      "primary": [
+        6,
+        7
+      ],
+      "source": "const a:I64=comptime b;const b:I64=comptime a;fn Main(){}",
+      "subcause": "constant_cycle"
+    },
+    "F5-K04": {
+      "code": "NX-E1323",
+      "contract": {
+        "cause": [],
+        "data": {
+          "cycle": [
+            "a",
+            "a"
+          ]
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-K04 | `const a:I64=comptime F();fn F()->I64{return a;}fn Main(){}` | NX-E1323/constant_cycle; [6,7), `a` | types/types.check; data={\"cycle\":[\"a\",\"a\"]}, related_spans=[], cause_chain=[]; sustituir solo a [44,45) en return por 1. El primario a [6,7) es el nombre declarado de la constante cíclica. La llamada F [21,22) alcanza la referencia a [44,45) e induce la arista a→a; F [28,29) es el nombre en la declaración de la función, no el sitio de llamada. Ninguno de esos F es nodo constante, primario ni relación dependency. |",
+      "positive_instruction": "types/types.check; data={\"cycle\":[\"a\",\"a\"]}, related_spans=[], cause_chain=[]; sustituir solo a [44,45) en return por 1. El primario a [6,7) es el nombre declarado de la constante cíclica. La llamada F [21,22) alcanza la referencia a [44,45) e induce la arista a→a; F [28,29) es el nombre en la declaración de la función, no el sitio de llamada. Ninguno de esos F es nodo constante, primario ni relación dependency.",
+      "positive_source": "const a:I64=comptime F();fn F()->I64{return 1;}fn Main(){}",
+      "primary": [
+        6,
+        7
+      ],
+      "source": "const a:I64=comptime F();fn F()->I64{return a;}fn Main(){}",
+      "subcause": "constant_cycle"
+    },
+    "F5-N01": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "domain:iterable",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            19,
+            23
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-N01 | `fn Main(){for x in true{}}` | NX-E0102/type_mismatch; [19,23), `true` | types/types.check; expected_type=domain:iterable, found_type=Bool; found_type [19,23); positivo true→[true]. |",
+      "positive_instruction": "types/types.check; expected_type=domain:iterable, found_type=Bool; found_type [19,23); positivo true→[true].",
+      "positive_source": "fn Main(){for x in [true]{}}",
+      "primary": [
+        19,
+        23
+      ],
+      "source": "fn Main(){for x in true{}}",
+      "subcause": "type_mismatch"
+    },
+    "F5-N02": {
+      "code": "NX-E0104",
+      "contract": {
+        "cause": [],
+        "data": {
+          "declaration_kind": "constant"
+        },
+        "feature_id": null,
+        "operation": "names.declare",
+        "related": [
+          [
+            "previous_declaration",
+            6,
+            7
+          ]
+        ],
+        "stage": "names"
+      },
+      "normative_row": "| F5-N02 | `const k:I64=comptime 1;const k:I64=comptime 2;fn Main(){}` | NX-E0104; [29,30), `k` | names/names.declare; declaration_kind=constant; previous_declaration [6,7); positivo segundo k→j. |",
+      "positive_instruction": "names/names.declare; declaration_kind=constant; previous_declaration [6,7); positivo segundo k→j.",
+      "positive_source": "const k:I64=comptime 1;const j:I64=comptime 2;fn Main(){}",
+      "primary": [
+        29,
+        30
+      ],
+      "source": "const k:I64=comptime 1;const k:I64=comptime 2;fn Main(){}",
+      "subcause": null
+    },
+    "F5-N03": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "comptime",
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-N03 | `const k:Option<I64>=comptime Some(1);fn Main(){}` | NX-E0006; [8,19), `Option<I64>` | types/types.check; feature_id=comptime, data={\"pending_scope\":\"later_adr\"}; positivo cambiar tipo a I64 e inicializador a 1 (misma restricción de representación escalar). |",
+      "positive_instruction": "types/types.check; feature_id=comptime, data={\"pending_scope\":\"later_adr\"}; positivo cambiar tipo a I64 e inicializador a 1 (misma restricción de representación escalar).",
+      "positive_source": "const k:I64=comptime 1;fn Main(){}",
+      "primary": [
+        8,
+        19
+      ],
+      "source": "const k:Option<I64>=comptime Some(1);fn Main(){}",
+      "subcause": null
+    },
+    "F5-N04": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "comptime",
+        "operation": "syntax.parse",
+        "related": [],
+        "stage": "parse"
+      },
+      "normative_row": "| F5-N04 | `fn Main(){let x=comptime 1;}` | NX-E0006; [16,24), `comptime` | parse/syntax.parse; feature_id=comptime, data={\"pending_scope\":\"later_adr\"}; positivo quitar comptime y su espacio. |",
+      "positive_instruction": "parse/syntax.parse; feature_id=comptime, data={\"pending_scope\":\"later_adr\"}; positivo quitar comptime y su espacio.",
+      "positive_source": "fn Main(){let x=1;}",
+      "primary": [
+        16,
+        24
+      ],
+      "source": "fn Main(){let x=comptime 1;}",
+      "subcause": null
+    },
+    "F5-N05": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "closure",
+        "operation": "types.check",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-N05 | `fn Main(){let f=fn [](){};let a=[f];}` | NX-E0006; [32,35), `[f]` | types/types.check; feature_id=closure, data={\"pending_scope\":\"later_adr\"}; positivo [f]→Some(f), como J L02. |",
+      "positive_instruction": "types/types.check; feature_id=closure, data={\"pending_scope\":\"later_adr\"}; positivo [f]→Some(f), como J L02.",
+      "positive_source": "fn Main(){let f=fn [](){};let a=Some(f);}",
+      "primary": [
+        32,
+        35
+      ],
+      "source": "fn Main(){let f=fn [](){};let a=[f];}",
+      "subcause": null
+    },
+    "F5-N06": {
+      "code": "NX-E0006",
+      "contract": {
+        "cause": [],
+        "data": {
+          "pending_scope": "later_adr"
+        },
+        "feature_id": "modules_visibility",
+        "operation": "syntax.parse",
+        "related": [],
+        "stage": "parse"
+      },
+      "normative_row": "| F5-N06 | `pub const k:I64=comptime 1;fn Main(){}` | NX-E0006; [0,3), `pub` | parse/syntax.parse; feature_id=modules_visibility, data={\"pending_scope\":\"later_adr\"}; positivo quitar pub y su espacio. |",
+      "positive_instruction": "parse/syntax.parse; feature_id=modules_visibility, data={\"pending_scope\":\"later_adr\"}; positivo quitar pub y su espacio.",
+      "positive_source": "const k:I64=comptime 1;fn Main(){}",
+      "primary": [
+        0,
+        3
+      ],
+      "source": "pub const k:I64=comptime 1;fn Main(){}",
+      "subcause": null
+    },
+    "F5-N07": {
+      "code": "NX-E1316",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "function:27",
+              "kind": "function"
+            },
+            "evidence": "verified",
+            "kind": "call",
+            "operation": "function.call",
+            "span": {
+              "end": 21,
+              "file": "case.n",
+              "start": 20
+            }
+          },
+          {
+            "entity": {
+              "id": "function:39",
+              "kind": "function"
+            },
+            "evidence": "verified",
+            "kind": "call",
+            "operation": "function.call",
+            "span": {
+              "end": 32,
+              "file": "case.n",
+              "start": 31
+            }
+          },
+          {
+            "entity": {
+              "id": "prelude:print",
+              "kind": "intrinsic"
+            },
+            "evidence": "verified",
+            "kind": "call",
+            "operation": "intrinsic.call",
+            "span": {
+              "end": 48,
+              "file": "case.n",
+              "start": 43
+            }
+          }
+        ],
+        "data": {
+          "reason": "impure_operation"
+        },
+        "feature_id": null,
+        "operation": "const.check",
+        "related": [
+          [
+            "constant",
+            6,
+            7
+          ]
+        ],
+        "stage": "effects"
+      },
+      "normative_row": "| F5-N07 | `const k:()=comptime F();fn F(){G();}fn G(){Print(1);}fn Main(){}` | NX-E1316; [20,21), `F` | effects/const.check; reason=impure_operation; constant [6,7); cadena F5-N07 abajo; positivo Print(1)→() en G, conservando ambas llamadas transitivas. |",
+      "positive_instruction": "effects/const.check; reason=impure_operation; constant [6,7); cadena F5-N07 abajo; positivo Print(1)→() en G, conservando ambas llamadas transitivas.",
+      "positive_source": "const k:()=comptime F();fn F(){G();}fn G(){();}fn Main(){}",
+      "primary": [
+        20,
+        21
+      ],
+      "source": "const k:()=comptime F();fn F(){G();}fn G(){Print(1);}fn Main(){}",
+      "subcause": null
+    },
+    "F5-N08": {
+      "code": "NX-E0105",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "place.write",
+        "related": [
+          [
+            "declaration",
+            6,
+            7
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-N08 | `const k:I64=comptime 1;fn Main(){let x=move k;}` | NX-E0105; [44,45), `k` | ownership/place.write; data={}; declaration [6,7); positivo quitar move y su espacio; leer la constante copia su valor. |",
+      "positive_instruction": "ownership/place.write; data={}; declaration [6,7); positivo quitar move y su espacio; leer la constante copia su valor.",
+      "positive_source": "const k:I64=comptime 1;fn Main(){let x=k;}",
+      "primary": [
+        44,
+        45
+      ],
+      "source": "const k:I64=comptime 1;fn Main(){let x=move k;}",
+      "subcause": null
+    },
+    "F5-N09": {
+      "code": "NX-E0105",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "place.write",
+        "related": [
+          [
+            "declaration",
+            24,
+            25
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-N09 | `fn F(x:edit I64){}const k:I64=comptime 1;fn Main(){var v=k;F(edit k);}` | NX-E0105; [66,67), `k` | ownership/place.write; data={}; declaration [24,25); positivo cambiar solo el argumento k por v. |",
+      "positive_instruction": "ownership/place.write; data={}; declaration [24,25); positivo cambiar solo el argumento k por v.",
+      "positive_source": "fn F(x:edit I64){}const k:I64=comptime 1;fn Main(){var v=k;F(edit v);}",
+      "primary": [
+        66,
+        67
+      ],
+      "source": "fn F(x:edit I64){}const k:I64=comptime 1;fn Main(){var v=k;F(edit k);}",
+      "subcause": null
+    },
+    "F5-N10": {
+      "code": "R0502",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "value.div",
+        "related": [],
+        "stage": "runtime"
+      },
+      "normative_row": "| F5-N10 | `fn Main(){var x=7;x/=0;}` | R0502; [18,22), `x/=0` | runtime/value.div; data={}; positivo divisor 0→2. |",
+      "positive_instruction": "runtime/value.div; data={}; positivo divisor 0→2.",
+      "positive_source": "fn Main(){var x=7;x/=2;}",
+      "primary": [
+        18,
+        22
+      ],
+      "source": "fn Main(){var x=7;x/=0;}",
+      "subcause": null
+    },
+    "F5-N11": {
+      "code": "NX-E1105",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "loan:18:0",
+              "kind": "loan"
+            },
+            "evidence": "verified",
+            "kind": "borrow",
+            "operation": "borrow.inout",
+            "span": {
+              "end": 19,
+              "file": "case.n",
+              "start": 18
+            }
+          }
+        ],
+        "data": {
+          "active_permission": "inout",
+          "binding": "binding:14",
+          "loan": "loan:18:0",
+          "origin": "binding:14",
+          "requested_access": "read"
+        },
+        "feature_id": null,
+        "operation": "ownership.access",
+        "related": [
+          [
+            "declaration",
+            14,
+            15
+          ],
+          [
+            "origin",
+            18,
+            19
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-N11 | `fn Main(){var x=1;x+=x;}` | NX-E1105/active_borrow_conflict; [21,22), `x` | origin=binding:14, binding=binding:14, loan=loan:18:0, active_permission=inout, requested_access=read; declaration [14,15), origin [18,19); un borrow/borrow.inout [18,19), Entity loan/loan:18:0, evidence=verified. |",
+      "positive_instruction": "origin=binding:14, binding=binding:14, loan=loan:18:0, active_permission=inout, requested_access=read; declaration [14,15), origin [18,19); un borrow/borrow.inout [18,19), Entity loan/loan:18:0, evidence=verified.",
+      "positive_source": "fn Main(){var x=1;let rhs=x;x+=rhs;}",
+      "primary": [
+        21,
+        22
+      ],
+      "source": "fn Main(){var x=1;x+=x;}",
+      "subcause": "active_borrow_conflict"
+    },
+    "F5-N12": {
+      "code": "NX-E1105",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "loan:30:0",
+              "kind": "loan"
+            },
+            "evidence": "verified",
+            "kind": "borrow",
+            "operation": "borrow.inout",
+            "span": {
+              "end": 34,
+              "file": "case.n",
+              "start": 30
+            }
+          }
+        ],
+        "data": {
+          "active_permission": "inout",
+          "binding": "binding:14",
+          "loan": "loan:30:0",
+          "origin": "binding:14",
+          "requested_access": "read"
+        },
+        "feature_id": null,
+        "operation": "ownership.access",
+        "related": [
+          [
+            "declaration",
+            14,
+            15
+          ],
+          [
+            "origin",
+            30,
+            34
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-N12 | `fn Main(){var a=[1,2];let i=1;a[i]+=a[i-1];}` | NX-E1105/active_borrow_conflict; [36,37), `a` | origin=binding:14, binding=binding:14, loan=loan:30:0, active_permission=inout, requested_access=read; declaration [14,15), origin [30,34); un borrow/borrow.inout [30,34), Entity loan/loan:30:0, evidence=verified. |",
+      "positive_instruction": "origin=binding:14, binding=binding:14, loan=loan:30:0, active_permission=inout, requested_access=read; declaration [14,15), origin [30,34); un borrow/borrow.inout [30,34), Entity loan/loan:30:0, evidence=verified.",
+      "positive_source": "fn Main(){var a=[1,2];let i=1;let rhs=a[i-1];a[i]+=rhs;}",
+      "primary": [
+        36,
+        37
+      ],
+      "source": "fn Main(){var a=[1,2];let i=1;a[i]+=a[i-1];}",
+      "subcause": "active_borrow_conflict"
+    },
+    "F5-N13": {
+      "code": "NX-E1105",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "loan:20:0",
+              "kind": "loan"
+            },
+            "evidence": "verified",
+            "kind": "borrow",
+            "operation": "borrow.inout",
+            "span": {
+              "end": 23,
+              "file": "case.n",
+              "start": 20
+            }
+          }
+        ],
+        "data": {
+          "active_permission": "inout",
+          "binding": "binding:14",
+          "loan": "loan:20:0",
+          "origin": "binding:14",
+          "requested_access": "read"
+        },
+        "feature_id": null,
+        "operation": "ownership.access",
+        "related": [
+          [
+            "declaration",
+            14,
+            17
+          ],
+          [
+            "origin",
+            20,
+            23
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-N13 | `fn Main(){var sum=4;sum+=sum/2;}` | NX-E1105/active_borrow_conflict; [25,28), `sum` | origin=binding:14, binding=binding:14, loan=loan:20:0, active_permission=inout, requested_access=read; declaration [14,17), origin [20,23); un borrow/borrow.inout [20,23), Entity loan/loan:20:0, evidence=verified. |",
+      "positive_instruction": "origin=binding:14, binding=binding:14, loan=loan:20:0, active_permission=inout, requested_access=read; declaration [14,17), origin [20,23); un borrow/borrow.inout [20,23), Entity loan/loan:20:0, evidence=verified.",
+      "positive_source": "fn Main(){var sum=4;let rhs=sum/2;sum+=rhs;}",
+      "primary": [
+        25,
+        28
+      ],
+      "source": "fn Main(){var sum=4;sum+=sum/2;}",
+      "subcause": "active_borrow_conflict"
+    },
+    "F5-N14": {
+      "code": "NX-E1105",
+      "contract": {
+        "cause": [
+          {
+            "entity": {
+              "id": "loan:25:0",
+              "kind": "loan"
+            },
+            "evidence": "verified",
+            "kind": "borrow",
+            "operation": "borrow.inout",
+            "span": {
+              "end": 31,
+              "file": "case.n",
+              "start": 25
+            }
+          }
+        ],
+        "data": {
+          "active_permission": "inout",
+          "binding": "binding:14",
+          "loan": "loan:25:0",
+          "origin": "binding:14",
+          "requested_access": "read"
+        },
+        "feature_id": null,
+        "operation": "ownership.access",
+        "related": [
+          [
+            "declaration",
+            14,
+            15
+          ],
+          [
+            "origin",
+            25,
+            31
+          ]
+        ],
+        "stage": "ownership"
+      },
+      "normative_row": "| F5-N14 | `fn Main(){var a=[1];Push(edit a,Len(a));}` | NX-E1105/active_borrow_conflict; [36,37), `a` | origin=binding:14, binding=binding:14, loan=loan:25:0, active_permission=inout, requested_access=read; declaration [14,15), origin [25,31); un borrow/borrow.inout [25,31), Entity loan/loan:25:0, evidence=verified. |",
+      "positive_instruction": "origin=binding:14, binding=binding:14, loan=loan:25:0, active_permission=inout, requested_access=read; declaration [14,15), origin [25,31); un borrow/borrow.inout [25,31), Entity loan/loan:25:0, evidence=verified.",
+      "positive_source": "fn Main(){var a=[1];let n=Len(a);Push(edit a,n);}",
+      "primary": [
+        36,
+        37
+      ],
+      "source": "fn Main(){var a=[1];Push(edit a,Len(a));}",
+      "subcause": "active_borrow_conflict"
+    },
+    "F5-O01": {
+      "code": "R0501",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "value.mul",
+        "related": [],
+        "stage": "runtime"
+      },
+      "normative_row": "| F5-O01 | `fn Main(){let x=9223372036854775807*2;}` | R0501; [16,37), `9223372036854775807*2` | {}; cambiar 2 por 1. |",
+      "positive_instruction": "{}; cambiar 2 por 1.",
+      "positive_source": "fn Main(){let x=9223372036854775807*1;}",
+      "primary": [
+        16,
+        37
+      ],
+      "source": "fn Main(){let x=9223372036854775807*2;}",
+      "subcause": null
+    },
+    "F5-O02": {
+      "code": "R0502",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "value.div",
+        "related": [],
+        "stage": "runtime"
+      },
+      "normative_row": "| F5-O02 | `fn Main(){let x=7/0;}` | R0502; [16,19), `7/0` | {}; cambiar 0 por 2. |",
+      "positive_instruction": "{}; cambiar 0 por 2.",
+      "positive_source": "fn Main(){let x=7/2;}",
+      "primary": [
+        16,
+        19
+      ],
+      "source": "fn Main(){let x=7/0;}",
+      "subcause": null
+    },
+    "F5-O03": {
+      "code": "R0503",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "value.div",
+        "related": [],
+        "stage": "runtime"
+      },
+      "normative_row": "| F5-O03 | `fn Main(){let x=-9223372036854775808/-1;}` | R0503; [16,39), `-9223372036854775808/-1` | {}; cambiar divisor -1 por 1. |",
+      "positive_instruction": "{}; cambiar divisor -1 por 1.",
+      "positive_source": "fn Main(){let x=-9223372036854775808/1;}",
+      "primary": [
+        16,
+        39
+      ],
+      "source": "fn Main(){let x=-9223372036854775808/-1;}",
+      "subcause": null
+    },
+    "F5-O04": {
+      "code": "R0504",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "value.rem",
+        "related": [],
+        "stage": "runtime"
+      },
+      "normative_row": "| F5-O04 | `fn Main(){let x=7%0;}` | R0504; [16,19), `7%0` | {}; cambiar 0 por 2. |",
+      "positive_instruction": "{}; cambiar 0 por 2.",
+      "positive_source": "fn Main(){let x=7%2;}",
+      "primary": [
+        16,
+        19
+      ],
+      "source": "fn Main(){let x=7%0;}",
+      "subcause": null
+    },
+    "F5-O05": {
+      "code": "R0505",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "value.neg",
+        "related": [],
+        "stage": "runtime"
+      },
+      "normative_row": "| F5-O05 | `fn Main(){let x=-9223372036854775808;let y=-x;}` | R0505; [43,45), `-x` | {}; cambiar inicializador x por -1. |",
+      "positive_instruction": "{}; cambiar inicializador x por -1.",
+      "positive_source": "fn Main(){let x=-1;let y=-x;}",
+      "primary": [
+        43,
+        45
+      ],
+      "source": "fn Main(){let x=-9223372036854775808;let y=-x;}",
+      "subcause": null
+    },
+    "F5-O06": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            16,
+            20
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O06 | `fn Main(){let x=true*2;}` | NX-E0102/type_mismatch; [16,20), `true` | expected_type I64, found_type Bool; found_type [16,20), sin expected_type fuente; cambiar true por 1. |",
+      "positive_instruction": "expected_type I64, found_type Bool; found_type [16,20), sin expected_type fuente; cambiar true por 1.",
+      "positive_source": "fn Main(){let x=1*2;}",
+      "primary": [
+        16,
+        20
+      ],
+      "source": "fn Main(){let x=true*2;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-O07": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "Bool",
+          "found_type": "I64"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            20,
+            21
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O07 | `fn Main(){let x=not 1;}` | NX-E0102/type_mismatch; [20,21), `1` | expected_type Bool, found_type I64; found_type [20,21); cambiar 1 por true. |",
+      "positive_instruction": "expected_type Bool, found_type I64; found_type [20,21); cambiar 1 por true.",
+      "positive_source": "fn Main(){let x=not true;}",
+      "primary": [
+        20,
+        21
+      ],
+      "source": "fn Main(){let x=not 1;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-O08": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "Bool",
+          "found_type": "I64"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            25,
+            26
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O08 | `fn Main(){let x=true and 1;}` | NX-E0102/type_mismatch; [25,26), `1` | expected_type Bool, found_type I64; found_type [25,26); cambiar 1 por false. |",
+      "positive_instruction": "expected_type Bool, found_type I64; found_type [25,26); cambiar 1 por false.",
+      "positive_source": "fn Main(){let x=true and false;}",
+      "primary": [
+        25,
+        26
+      ],
+      "source": "fn Main(){let x=true and 1;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-O09": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            16,
+            20
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O09 | `fn Main(){let x=true<false;}` | NX-E0102/type_mismatch; [20,21), `<` | expected_type=I64, found_type=Bool; found_type [16,20); sustituir ambos operandos Bool por 0 y 1, preservando la igualdad de tipos y reparando solo el dominio común. |",
+      "positive_instruction": "expected_type=I64, found_type=Bool; found_type [16,20); sustituir ambos operandos Bool por 0 y 1, preservando la igualdad de tipos y reparando solo el dominio común.",
+      "positive_source": "fn Main(){let x=0<1;}",
+      "primary": [
+        20,
+        21
+      ],
+      "source": "fn Main(){let x=true<false;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-O10": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "Bool",
+          "found_type": "I64"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            16,
+            17
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O10 | `fn Main(){let x=1 and false;}` | NX-E0102/type_mismatch; [16,17), `1` | expected_type=Bool, found_type=I64; found_type [16,17); sustituir 1 por true. |",
+      "positive_instruction": "expected_type=Bool, found_type=I64; found_type [16,17); sustituir 1 por true.",
+      "positive_source": "fn Main(){let x=true and false;}",
+      "primary": [
+        16,
+        17
+      ],
+      "source": "fn Main(){let x=1 and false;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-O11": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "Bool",
+          "found_type": "I64"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            16,
+            17
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O11 | `fn Main(){let x=1 or false;}` | NX-E0102/type_mismatch; [16,17), `1` | expected_type=Bool, found_type=I64; found_type [16,17); sustituir 1 por true. |",
+      "positive_instruction": "expected_type=Bool, found_type=I64; found_type [16,17); sustituir 1 por true.",
+      "positive_source": "fn Main(){let x=true or false;}",
+      "primary": [
+        16,
+        17
+      ],
+      "source": "fn Main(){let x=1 or false;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-O12": {
+      "code": "NX-E0102",
+      "contract": {
+        "cause": [],
+        "data": {
+          "expected_type": "I64",
+          "found_type": "Bool"
+        },
+        "feature_id": null,
+        "operation": "types.check",
+        "related": [
+          [
+            "found_type",
+            17,
+            21
+          ]
+        ],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O12 | `fn Main(){let x=-true;}` | NX-E0102/type_mismatch; [17,21), `true` | expected_type=I64, found_type=Bool; found_type [17,21); sustituir true por 1. |",
+      "positive_instruction": "expected_type=I64, found_type=Bool; found_type [17,21); sustituir true por 1.",
+      "positive_source": "fn Main(){let x=-1;}",
+      "primary": [
+        17,
+        21
+      ],
+      "source": "fn Main(){let x=-true;}",
+      "subcause": "type_mismatch"
+    },
+    "F5-O13": {
+      "code": "NX-E0107",
+      "contract": {
+        "cause": [],
+        "data": {},
+        "feature_id": null,
+        "operation": "value.literal",
+        "related": [],
+        "stage": "types"
+      },
+      "normative_row": "| F5-O13 | `fn Main(){let x=-(9223372036854775808);}` | NX-E0107; [18,37), `9223372036854775808` | types/value.literal; data={}, related_spans=[], cause_chain=[]; sustituir el último dígito 8 por 7, manteniendo paréntesis y negación unaria. |",
+      "positive_instruction": "types/value.literal; data={}, related_spans=[], cause_chain=[]; sustituir el último dígito 8 por 7, manteniendo paréntesis y negación unaria.",
+      "positive_source": "fn Main(){let x=-(9223372036854775807);}",
+      "primary": [
+        18,
+        37
+      ],
+      "source": "fn Main(){let x=-(9223372036854775808);}",
+      "subcause": null
+    }
+  },
+  "syntax": {
+    "F5-S01": {
+      "contract": {
+        "context": "block_item",
+        "expected_tokens": [
+          "(",
+          "-",
+          "IntLiteral",
+          "Name",
+          "[",
+          "break",
+          "continue",
+          "edit",
+          "false",
+          "fn",
+          "for",
+          "if",
+          "let",
+          "match",
+          "move",
+          "not",
+          "return",
+          "true",
+          "var",
+          "while",
+          "yield",
+          "{",
+          "}"
+        ],
+        "prefix": [
+          9,
+          10
+        ],
+        "primary": [
+          10,
+          10
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S01, `fn Main(){` | eof [10,10) | block_item | `[\"(\",\"-\",\"IntLiteral\",\"Name\",\"[\",\"break\",\"continue\",\"edit\",\"false\",\"fn\",\"for\",\"if\",\"let\",\"match\",\"move\",\"not\",\"return\",\"true\",\"var\",\"while\",\"yield\",\"{\",\"}\"]` | [9,10) |",
+      "positive_source": "fn Main(){}",
+      "source": "fn Main(){"
+    },
+    "F5-S02": {
+      "contract": {
+        "context": "binding_initializer",
+        "expected_tokens": [
+          "(",
+          "-",
+          "IntLiteral",
+          "Name",
+          "[",
+          "edit",
+          "false",
+          "fn",
+          "if",
+          "match",
+          "move",
+          "not",
+          "true"
+        ],
+        "prefix": [
+          10,
+          16
+        ],
+        "primary": [
+          16,
+          16
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S02, `fn Main(){let a=` | eof [16,16) | binding_initializer | `[\"(\",\"-\",\"IntLiteral\",\"Name\",\"[\",\"edit\",\"false\",\"fn\",\"if\",\"match\",\"move\",\"not\",\"true\"]` | [10,16) |",
+      "positive_source": "fn Main(){let a=0;}",
+      "source": "fn Main(){let a="
+    },
+    "F5-S03": {
+      "contract": {
+        "context": "array_element",
+        "expected_tokens": [
+          "(",
+          "-",
+          "IntLiteral",
+          "Name",
+          "[",
+          "edit",
+          "false",
+          "fn",
+          "if",
+          "match",
+          "move",
+          "not",
+          "true"
+        ],
+        "prefix": [
+          16,
+          19
+        ],
+        "primary": [
+          19,
+          19
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S03, `fn Main(){let a=[1,` | eof [19,19) | array_element | `[\"(\",\"-\",\"IntLiteral\",\"Name\",\"[\",\"edit\",\"false\",\"fn\",\"if\",\"match\",\"move\",\"not\",\"true\"]` | [16,19) |",
+      "positive_source": "fn Main(){let a=[1,2];}",
+      "source": "fn Main(){let a=[1,"
+    },
+    "F5-S04": {
+      "contract": {
+        "context": "grammar.NegExpr",
+        "expected_tokens": [
+          "(",
+          "-",
+          "IntLiteral",
+          "Name",
+          "[",
+          "edit",
+          "false",
+          "fn",
+          "move",
+          "not",
+          "true"
+        ],
+        "prefix": [
+          16,
+          17
+        ],
+        "primary": [
+          17,
+          17
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S04, `fn Main(){let a=-` | eof [17,17) | grammar.NegExpr | `[\"(\",\"-\",\"IntLiteral\",\"Name\",\"[\",\"edit\",\"false\",\"fn\",\"move\",\"not\",\"true\"]` | [16,17) |",
+      "positive_source": "fn Main(){let a=-1;}",
+      "source": "fn Main(){let a=-"
+    },
+    "F5-S05": {
+      "contract": {
+        "context": "module_item",
+        "expected_tokens": [
+          "EOF",
+          "const",
+          "fn",
+          "gen"
+        ],
+        "prefix": [
+          0,
+          20
+        ],
+        "primary": [
+          20,
+          27
+        ],
+        "token_kind": "name",
+        "token_text": "garbage"
+      },
+      "normative_row": "| F5-S05, `fn Main(){let a=1;} garbage` | name garbage [20,27) | module_item | [\"EOF\",\"const\",\"fn\",\"gen\"] | [0,20) |",
+      "positive_source": "fn Main(){let a=1;}",
+      "source": "fn Main(){let a=1;} garbage"
+    },
+    "F5-S06": {
+      "contract": {
+        "context": "module_item",
+        "expected_tokens": [
+          "EOF",
+          "const",
+          "fn",
+          "gen"
+        ],
+        "prefix": [
+          0,
+          33
+        ],
+        "primary": [
+          33,
+          40
+        ],
+        "token_kind": "name",
+        "token_text": "ignored"
+      },
+      "normative_row": "| F5-S06, `// expect: NX-E0002` + LF + `fn Main() {} ignored` | name ignored [33,40) | module_item | [\"EOF\",\"const\",\"fn\",\"gen\"] | [0,33) |",
+      "positive_source": "// expect: NX-E0002\nfn Main() {}",
+      "source": "// expect: NX-E0002\nfn Main() {} ignored"
+    },
+    "F5-S07": {
+      "contract": {
+        "context": "module_item",
+        "expected_tokens": [
+          "EOF",
+          "const",
+          "fn",
+          "gen"
+        ],
+        "prefix": [
+          0,
+          34
+        ],
+        "primary": [
+          34,
+          41
+        ],
+        "token_kind": "name",
+        "token_text": "ignored"
+      },
+      "normative_row": "| F5-S07, misma fuente CRLF | name ignored [34,41) | module_item | [\"EOF\",\"const\",\"fn\",\"gen\"] | [0,34) |",
+      "positive_source": "// expect: NX-E0002\r\nfn Main() {}",
+      "source": "// expect: NX-E0002\r\nfn Main() {} ignored"
+    },
+    "F5-S08": {
+      "contract": {
+        "context": "grammar.Type",
+        "expected_tokens": [
+          "(",
+          "Array",
+          "Bool",
+          "I64",
+          "MockBlockingResource",
+          "MockResource",
+          "Option",
+          "Result"
+        ],
+        "prefix": [
+          11,
+          11
+        ],
+        "primary": [
+          11,
+          12
+        ],
+        "token_kind": "symbol",
+        "token_text": ")"
+      },
+      "normative_row": "| F5-S08, `fn F(x:view){}` | symbol ) [11,12) | grammar.Type | `[\"(\",\"Array\",\"Bool\",\"I64\",\"MockBlockingResource\",\"MockResource\",\"Option\",\"Result\"]` | [11,11) |",
+      "positive_source": "fn F(x:view I64){}",
+      "source": "fn F(x:view){}"
+    },
+    "F5-S09": {
+      "contract": {
+        "context": "grammar.AddExpr",
+        "expected_tokens": [
+          "(",
+          "-",
+          "IntLiteral",
+          "Name",
+          "[",
+          "edit",
+          "false",
+          "fn",
+          "move",
+          "not",
+          "true"
+        ],
+        "prefix": [
+          16,
+          18
+        ],
+        "primary": [
+          18,
+          18
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S09, `fn Main(){let a=1+` | eof [18,18) | grammar.AddExpr | `[\"(\",\"-\",\"IntLiteral\",\"Name\",\"[\",\"edit\",\"false\",\"fn\",\"move\",\"not\",\"true\"]` | [16,18) |",
+      "positive_source": "fn Main(){let a=1+1;}",
+      "source": "fn Main(){let a=1+"
+    },
+    "F5-S10": {
+      "contract": {
+        "context": "grammar.NegExpr",
+        "expected_tokens": [
+          "(",
+          "-",
+          "IntLiteral",
+          "Name",
+          "[",
+          "edit",
+          "false",
+          "fn",
+          "move",
+          "not",
+          "true"
+        ],
+        "prefix": [
+          16,
+          19
+        ],
+        "primary": [
+          19,
+          19
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S10, `fn Main(){let a=not` | eof [19,19) | grammar.NegExpr | `[\"(\",\"-\",\"IntLiteral\",\"Name\",\"[\",\"edit\",\"false\",\"fn\",\"move\",\"not\",\"true\"]` | [16,19) |",
+      "positive_source": "fn Main(){let a=not true;}",
+      "source": "fn Main(){let a=not"
+    },
+    "F5-S11": {
+      "contract": {
+        "context": "grammar.ForStmt",
+        "expected_tokens": [
+          "Name",
+          "edit"
+        ],
+        "prefix": [
+          10,
+          13
+        ],
+        "primary": [
+          13,
+          13
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S11, `fn Main(){for` | eof [13,13) | grammar.ForStmt | [\"Name\",\"edit\"] | [10,13) |",
+      "positive_source": "fn Main(){for i in 0..<1{}}",
+      "source": "fn Main(){for"
+    },
+    "F5-S12": {
+      "contract": {
+        "context": "grammar.Assignment",
+        "expected_tokens": [
+          "(",
+          "-",
+          "IntLiteral",
+          "Name",
+          "[",
+          "edit",
+          "false",
+          "fn",
+          "if",
+          "match",
+          "move",
+          "not",
+          "true"
+        ],
+        "prefix": [
+          18,
+          21
+        ],
+        "primary": [
+          21,
+          21
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S12, `fn Main(){var x=1;x+=` | eof [21,21) | grammar.Assignment | `[\"(\",\"-\",\"IntLiteral\",\"Name\",\"[\",\"edit\",\"false\",\"fn\",\"if\",\"match\",\"move\",\"not\",\"true\"]` | [18,21) |",
+      "positive_source": "fn Main(){var x=1;x+=1;}",
+      "source": "fn Main(){var x=1;x+="
+    },
+    "F5-S13": {
+      "contract": {
+        "context": "grammar.ConstDecl",
+        "expected_tokens": [
+          "Name"
+        ],
+        "prefix": [
+          0,
+          5
+        ],
+        "primary": [
+          5,
+          5
+        ],
+        "token_kind": "eof",
+        "token_text": ""
+      },
+      "normative_row": "| F5-S13, `const` | eof [5,5) | grammar.ConstDecl | [\"Name\"] | [0,5) |",
+      "positive_source": "const k:I64=comptime 1;fn Main(){}",
+      "source": "const"
+    },
+    "F5-S14": {
+      "contract": {
+        "context": "grammar.CompareExpr",
+        "expected_tokens": [
+          ";",
+          "and",
+          "or"
+        ],
+        "prefix": [
+          16,
+          19
+        ],
+        "primary": [
+          19,
+          20
+        ],
+        "token_kind": "symbol",
+        "token_text": "<"
+      },
+      "normative_row": "| F5-S14 | `fn Main(){let x=1<2<3;}` | `<` `[19,20)` | F5-S14 |",
+      "positive_source": "fn Main(){let x=(1<2)==true;}",
+      "source": "fn Main(){let x=1<2<3;}"
+    },
+    "F5-S15": {
+      "contract": {
+        "context": "grammar.CompareExpr",
+        "expected_tokens": [
+          ";",
+          "and",
+          "or"
+        ],
+        "prefix": [
+          40,
+          43
+        ],
+        "primary": [
+          43,
+          44
+        ],
+        "token_kind": "symbol",
+        "token_text": "<"
+      },
+      "normative_row": "| F5-S15 | `fn Main(){let a=1;let b=2;let c=3;let x=a<b<c;}` | `<` `[43,44)` | F5-S15 |",
+      "positive_source": "fn Main(){let x=(1<2)==true;}",
+      "source": "fn Main(){let a=1;let b=2;let c=3;let x=a<b<c;}"
+    },
+    "F5-S16": {
+      "contract": {
+        "context": "grammar.CompareExpr",
+        "expected_tokens": [
+          ";",
+          "and",
+          "or"
+        ],
+        "prefix": [
+          40,
+          44
+        ],
+        "primary": [
+          44,
+          46
+        ],
+        "token_kind": "symbol",
+        "token_text": "=="
+      },
+      "normative_row": "| F5-S16 | `fn Main(){let a=1;let b=2;let c=3;let x=a==b==c;}` | `==` `[44,46)` | F5-S16 |",
+      "positive_source": "fn Main(){let x=(1<2)==true;}",
+      "source": "fn Main(){let a=1;let b=2;let c=3;let x=a==b==c;}"
+    },
+    "F5-S17": {
+      "contract": {
+        "context": "grammar.CompareExpr",
+        "expected_tokens": [
+          ";",
+          "and",
+          "or"
+        ],
+        "prefix": [
+          40,
+          43
+        ],
+        "primary": [
+          43,
+          45
+        ],
+        "token_kind": "symbol",
+        "token_text": "=="
+      },
+      "normative_row": "| F5-S17 | `fn Main(){let a=1;let b=2;let c=3;let x=a<b==c;}` | `==` `[43,45)` | F5-S17 |",
+      "positive_source": "fn Main(){let x=(1<2)==true;}",
+      "source": "fn Main(){let a=1;let b=2;let c=3;let x=a<b==c;}"
+    },
+    "F5-S18": {
+      "contract": {
+        "context": "grammar.RangeExpr",
+        "expected_tokens": [
+          "!=",
+          ";",
+          "<",
+          "<=",
+          "==",
+          ">",
+          ">=",
+          "and",
+          "or"
+        ],
+        "prefix": [
+          16,
+          21
+        ],
+        "primary": [
+          21,
+          24
+        ],
+        "token_kind": "symbol",
+        "token_text": "..<"
+      },
+      "normative_row": "| F5-S18 | `fn Main(){let x=0..<1..<2;}` | `..<` `[21,24)` | F5-S18 |",
+      "positive_source": "fn Main(){for i in (0..<2){}}",
+      "source": "fn Main(){let x=0..<1..<2;}"
+    }
+  }
+}
