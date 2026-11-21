@@ -5,6 +5,122 @@ use nexo::ir::{CompileError, check_scalar, compile_scalar};
 const DV: &str = "(if true then {return;} else {return;})";
 
 #[test]
+fn independent_numeric_causes_survive_a_contaminated_binding() {
+    // F0-0002 §4.1.2: each source occurrence owns its C; reading x adds none.
+    let source = "fn main(){let x=true+1;let y=x;let z=false+1;}";
+    let errors = check_proposed("independent.n", source, false).unwrap_err();
+    assert_eq!(errors.len(), 2, "{errors:?}");
+    for (mut error, (expected_span, token)) in errors
+        .into_iter()
+        .zip([((16, 20), "true"), ((37, 42), "false")])
+    {
+        error.publish("independent.n", source).unwrap();
+        assert_eq!(
+            (error.code.as_str(), error.subcause.as_deref()),
+            ("NX-E0102", Some("type_mismatch"))
+        );
+        assert_eq!(
+            (error.stage, error.operation),
+            (Stage::Types, Operation::TypesCheck)
+        );
+        let primary = error.primary_span.as_ref().unwrap();
+        assert_eq!((primary.start, primary.end), expected_span);
+        assert_eq!(&source[primary.start as usize..primary.end as usize], token);
+        assert_eq!(
+            error.data.get("expected_type"),
+            Some(&DataValue::String("I64".into()))
+        );
+        assert_eq!(
+            error.data.get("found_type"),
+            Some(&DataValue::String("Bool".into()))
+        );
+        assert_eq!(error.related_spans.len(), 1);
+        assert_eq!(error.related_spans[0].role, RelatedRole::FoundType);
+        assert_eq!(
+            (
+                error.related_spans[0].span.start,
+                error.related_spans[0].span.end
+            ),
+            expected_span
+        );
+    }
+    for repaired in [
+        "fn main(){let x=1+1;let y=x;let z=false+1;}",
+        "fn main(){let x=true+1;let y=x;let z=1+1;}",
+    ] {
+        assert_eq!(
+            check_proposed("independent.n", repaired, false)
+                .unwrap_err()
+                .len(),
+            1
+        );
+    }
+    assert!(
+        check_proposed(
+            "independent.n",
+            "fn main(){let x=1+1;let y=x;let z=1+1;}",
+            false
+        )
+        .is_ok()
+    );
+}
+
+#[test]
+fn unresolved_constructor_keeps_its_own_site_and_accepts_a_finite_element() {
+    // F0-0002 §4.1.2.2: the constructor closes at its original occurrence.
+    let source = "fn Main(){var r=[];r=[r];}";
+    let errors = check_proposed("constructor.n", source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let error = &errors[0];
+    assert_eq!(error.code, "NX-E0103");
+    let primary = error.primary_span.as_ref().unwrap();
+    assert_eq!((primary.start, primary.end), (16, 18));
+    assert_eq!(&source[primary.start as usize..primary.end as usize], "[]");
+    assert!(check_proposed("constructor.n", "fn Main(){var r=[];r=[1];}", false).is_ok());
+}
+
+#[test]
+fn deferred_array_reports_its_first_incompatible_element() {
+    // F0-0002 §4.1.2.2: the later incompatible element does not move its C.
+    let source = "fn Main(){var r=[];r=[(r==r)==true];r=[1];}";
+    let errors = check_proposed("array.n", source, false).unwrap_err();
+    assert_eq!(errors.len(), 1, "{errors:?}");
+    let mut error = errors.into_iter().next().unwrap();
+    error.publish("array.n", source).unwrap();
+    assert_eq!(
+        (error.code.as_str(), error.subcause.as_deref()),
+        ("NX-E0102", Some("type_mismatch"))
+    );
+    assert_eq!(
+        (error.stage, error.operation),
+        (Stage::Types, Operation::TypesCheck)
+    );
+    let primary = error.primary_span.as_ref().unwrap();
+    assert_eq!((primary.start, primary.end), (39, 40));
+    assert_eq!(&source[primary.start as usize..primary.end as usize], "1");
+    assert_eq!(
+        error.data.get("expected_type"),
+        Some(&DataValue::String("Bool".into()))
+    );
+    assert_eq!(
+        error.data.get("found_type"),
+        Some(&DataValue::String("I64".into()))
+    );
+    assert!(error.related_spans.iter().any(|related| {
+        related.role == RelatedRole::ExpectedType
+            && (related.span.start, related.span.end) == (21, 35)
+    }));
+    assert!(
+        check_proposed(
+            "array.n",
+            "fn Main(){var r=[];r=[(r==r)==true];r=[true];}",
+            false
+        )
+        .is_ok()
+    );
+}
+
+#[test]
 fn pattern_shape_conflicts_belong_to_later_equality() {
     for (body, expected, primary, expected_span, origin_span) in [
         (
