@@ -26,9 +26,10 @@ pub(crate) fn range_outside_for(span: Span) -> Box<Diagnostic> {
     let mut error = names::diagnostic("NX-E0006", None, Stage::Types, Operation::TypesCheck, span);
     error.feature_id = Some("range".into());
     error.message = "Recognized construct is outside the profile.".into();
-    error
-        .data
-        .insert("pending_scope".into(), DataValue::String("later_adr".into()));
+    error.data.insert(
+        "pending_scope".into(),
+        DataValue::String("later_adr".into()),
+    );
     error
 }
 

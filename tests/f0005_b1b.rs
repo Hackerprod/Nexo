@@ -35,7 +35,12 @@ fn f5_ranges_outside_direct_for_report_adr_boundary() {
     let cases = [
         ("fn Main(){let r=0..<3;}", 17, 20, "fn Main(){let r=0+3;}"),
         ("fn Main(){let r=0..=3;}", 17, 20, "fn Main(){let r=0+3;}"),
-        ("fn Main(){let r=(0..<3);}", 18, 21, "fn Main(){let r=(0+3);}"),
+        (
+            "fn Main(){let r=(0..<3);}",
+            18,
+            21,
+            "fn Main(){let r=(0+3);}",
+        ),
         ("fn Main(){if 0..<3{}}", 14, 17, "fn Main(){if true{}}"),
         (
             "fn Main(){var a=[1];let b=a[0..<1];}",
@@ -75,6 +80,26 @@ fn f5_field_access_uses_j_names_boundary() {
         assert_eq!(output, rejected(diagnostic), "{verb}");
         let (status, output) = invoke(verb, "fn Main(){var x=1;x=1;}", "f0-0005-b-v1");
         assert_eq!(status, 0, "{verb}: {output}");
+    }
+}
+
+#[test]
+fn f5_both_direct_for_ranges_keep_l05_at_for() {
+    // The ..= alternative is essential: D's M04 used to survive the suite.
+    let diagnostic = r#"{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0006","subcause":null,"rule":"NX-E0006","explanation_id":"NX-E0006","severity":"error","stage":"types","message":"Capacidad pendiente de implementación en L05.","operation":"types.check","primary_span":{"file":"case.n","start":10,"end":13},"related_spans":[],"cause_chain":[],"feature_id":"implementation_limit","unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"pending_scope":"L05"}}"#;
+    for source in [
+        "fn Main(){for i in 0..<2{}}",
+        "fn Main(){for i in 0..=2{}}",
+        "fn Main(){for i in (0..<0){}}",
+        "fn Main(){for i in (0..=0){}}",
+        "fn Main(){for i in 3..<2{}}",
+        "fn Main(){for i in 3..=2{}}",
+    ] {
+        for verb in ["check", "run"] {
+            let (status, output) = invoke(verb, source, "f0-0005-b-v1");
+            assert_eq!(status, 1, "{verb} {source}: {output}");
+            assert_eq!(output, rejected(diagnostic), "{verb} {source}");
+        }
     }
 }
 

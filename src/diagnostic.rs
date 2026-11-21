@@ -1317,8 +1317,7 @@ impl Diagnostic {
             }
         }
         if self.code == "NX-E0003"
-            && (self.profile_id.starts_with("f0-0002-b-")
-                || profile_has_j_rules(&self.profile_id))
+            && (self.profile_id.starts_with("f0-0002-b-") || profile_has_j_rules(&self.profile_id))
         {
             for key in ["budget_scope", "incomplete_analysis"] {
                 if !has(key) {
