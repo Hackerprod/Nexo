@@ -40,8 +40,8 @@ MUTANTS = {
     "F5-O2": [
         ("generate.py", '"+": 5, "-": 5,', '"+": 6, "-": 5,', "check_generator"),
         ("generate.py", 'rng.randint(-50, 50)', 'rng.randint(-49, 49)', "check_generator"),
-        ("generate.py", 'family = index % 10\n    if family == 0:',
-         'family = index % 9\n    if family == 0:', "check_generator"),
+        ("generate.py", 'family = index % 14\n    if family >= 10:',
+         'family = index % 13\n    if family >= 10:', "check_generator"),
         ("generate.py", 'for _ in range(rng.randrange(1, 5))',
          'for _ in range(rng.randrange(1, 4))', "check_generator"),
         ("generate.py", 'hi = rng.randrange(5)', 'hi = rng.randrange(6)',
@@ -56,9 +56,9 @@ MUTANTS = {
     "F5-O3": [
         ("runner.py", '"G1b": 3, "G2b": 5', '"G1b": 4, "G2b": 5',
          "check_runner"),
-        ("runner.py", '"*", "/", "%", "<", "<=", ">", ">=", "!="',
-         '"/", "%", "<", "<=", ">", ">=", "!="', "check_runner"),
-        ("runner.py", 'required.add("L03b")', 'required.add("L04b")',
+        ("runner.py", '"*", "/", "%", "<=", ">", ">=", "!="',
+         '"/", "%", "<=", ">", ">=", "!="', "check_runner"),
+        ("runner.py", 'add("L03b", token.start)', 'add("L04b", token.start)',
          "check_runner"),
         ("runner.py", '"lower" if missing == "L10" else "types"',
          '"types" if missing == "L10" else "types"', "check_runner"),
@@ -104,7 +104,43 @@ MUTANTS = {
          'return {"stdout": ["0"] * len(vm.stdout), "events": vm.events,',
          "check_differential_sensitivity"),
     ],
+    "F5-O6": [
+        ("model.py", "target = self.reference(node.children[0])\n            old = target.read() if node.value != \"=\" else None\n            rhs = self.eval(node.children[1])",
+         "rhs = self.eval(node.children[1])\n            target = self.reference(node.children[0])\n            old = target.read() if node.value != \"=\" else None", "check_model_pairs"),
+        ("model.py", "lo = self.eval(iterable.children[0])\n                hi = self.eval(iterable.children[1])",
+         "hi = self.eval(iterable.children[1])\n                lo = self.eval(iterable.children[0])", "check_model_pairs"),
+        ("model.py", "return len(a.items) == len(b.items) and all(",
+         "return all(", "check_model_pairs"),
+        ("runner.py", "or len(expected) != len(actual):",
+         "or len(expected) > len(actual):", "check_harness_contract"),
+        ("cli.py", 'return 1 if result["differences"] else 0',
+         'return 0', "check_harness_contract"),
+        ("runner.py", 'if word in ("*", "/", "%", "<=", ">", ">=", "!="):',
+         'if word in ("*", "/", "%", "<", ">", ">=", "!="):', "check_runner"),
+        ("runner.py", '"L05b" if range_source else "L06b"',
+         '"L06b" if range_source else "L05b"', "check_runner"),
+        ("runner.py", 'result["diagnostics_cardinality"] = "unspecified"',
+         'result["diagnostics_cardinality"] = "specified"', "check_runner"),
+    ],
 }
+
+# D's exact patch files were not delivered with its report. These 24 isolated
+# reconstructions cover the reported fault families; the four last cases
+# intentionally demonstrate observational equivalence at this CLI surface.
+MUTANTS["F5-D-described"] = (
+    MUTANTS["F5-O1"][:5] + MUTANTS["F5-O2"][:5] +
+    MUTANTS["F5-O3"][:5] + MUTANTS["F5-O6"][:5] + [
+        ("model.py", "items = [copy_value(x) for x in args[0].items + args[1].items]",
+         "items = args[0].items + args[1].items", "check_model_pairs"),
+        ("model.py", "array.capacity = max(1, 2 * array.capacity)",
+         "array.capacity = array.capacity + 1", "check_model_pairs"),
+        ("model.py", 'if iterable.value == "..=" and current == hi:\n                        break',
+         'if False and current == hi:\n                        break', "check_model_pairs"),
+        ("model.py", 'if kind == "int" and not MIN_I64 <= node.value <= MAX_I64:\n                raise ModelFault("NX-E0107", "value.literal")',
+         'if False:\n                raise ModelFault("NX-E0107", "value.literal")',
+         "check_negative_literals"),
+    ]
+)
 
 
 def sha(path: Path) -> str:

@@ -62,3 +62,23 @@ profundidades; el generador de hasta 32 nodos no cubre por sí solo las
 recetas largas de F5 §§9.4–9.5. Se enumeran brechas y pruebas dirigidas en
 `COBERTURA.md`. La campaña CLI G6 queda pendiente de una base con L08–L12
 activas; la proyección anterior conserva los pendientes de F5 §8.2.
+
+## Segunda corrección F5-O6
+
+`selftest` recalcula 32 SHA-256 del corpus con Python 3.13.1. En cada semilla
+0…31 cuenta 1.000 fuentes válidas y 1.000 inválidas distintas después de
+normalizar espacios y nombres. Abstrayendo también cada literal entero,
+resultan **562–567 formas válidas y 896 inválidas** por semilla. El máximo
+es 32 nodos válidos. Son 18 familias válidas y 14 inválidas; el incremento
+de estructura incluye identidades aritméticas/lógicas en distintos árboles,
+contextos heredados, ciclos e impureza const, préstamo vivo y FIRST truncado.
+La frontera de cuota ±1 es dirigida (`check_charge_literals`, F5 §9.4), pues
+el perfil reducido de L08 aún no está activo en G1b.
+
+El contraste G1b con `d86cd26` debug y release, semillas 0:7 y 100+100,
+ejecutó 1.600 casos. La primera versión de O5 había dado 594 divergencias;
+la proyección corregida dio **0 divergencias sin clasificar** y conservó
+160 observaciones del defecto `const k` como hallazgo conocido. `gate` publica
+por semilla tanto los distintos normalizados como los estructurales. El
+oráculo no deduce el esperado de esos binarios. El reintento único de timeout
+se registra; un segundo timeout sigue siendo fallo.

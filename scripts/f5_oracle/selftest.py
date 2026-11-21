@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
+from contextlib import redirect_stdout
 from pathlib import Path
 import subprocess
 import sys
@@ -12,7 +14,7 @@ import tempfile
 from .charges import Charges, Limits, BudgetFault, scalar_loop_total, short_circuit_total
 from .diagnostics import RuleViolation, SourceChecker, missing_main, pending, syntax
 from .diagnostics import check_source
-from .generate import audit_seed, corpus_sha, make_invalid, make_valid, minimize_case, render_expr
+from .generate import audit_seed, cases, corpus_sha, make_invalid, make_valid, minimize_case, render_expr
 from .model import (
     Array, Expr, MAX_I64, MIN_I64, ModelFault, Program, Stmt, binary,
     SourceSyntaxFault, SourceVM, copy_value, evaluate, execute, parse_source, quotient,
@@ -168,12 +170,22 @@ def check_charge_literals() -> int:
     else:
         raise AssertionError("storage growth boundary")
     assert charges.storage_bytes == 64 and charges.allocation_bytes == 96
-    return 8
+    # F5 §9.4 storage-96: the same first growth fails at the adjacent 95.
+    lower = Charges(Limits(storage_bytes=95, allocation_bytes=96))
+    lower.allocate_array(1)
+    try:
+        lower.grow_array(1, 1)
+    except BudgetFault as fault:
+        assert fault.kind == "array_storage_bytes" and fault.observed == 96
+    else:
+        raise AssertionError("storage limit minus one")
+    assert lower.storage_bytes == 32
+    return 10
 
 
 def check_generator() -> int:
     checksum = corpus_sha(0, 100, 100)
-    assert checksum == "6eea5d276377afc36b3e2f312f2c8f5c3cbe6c3dea4ef4ebc7cbd01d3e7e93c7"
+    assert checksum == "4c9e5f35d8c399728ba262c8e69d289f2f16d11b243b88591fc519d99ac26b14"
     assert "for i in 0..<1" in make_valid(0, 220).source
     for index in range(100):
         valid = make_valid(0, index)
@@ -189,6 +201,19 @@ def check_generator() -> int:
         else:
             assert observed.stdout == valid.expected_value
         invalid = make_invalid(0, index)
+        if invalid.expected_issue is not None and invalid.expected_issue["stage"] == "parse":
+            try:
+                parse_source(invalid.source)
+            except SourceSyntaxFault as fault:
+                assert [fault.token.start, fault.token.end] == invalid.expected_issue["primary"]
+                assert fault.expected == invalid.expected_issue["expected_tokens"]
+                assert fault.context == invalid.expected_issue["parser_context"]
+                assert [fault.prefix_start, fault.prefix_end] == \
+                    invalid.expected_issue["recognized_prefix"]
+            else:
+                raise AssertionError((index, "truncation accepted"))
+            SourceChecker(parse_source(invalid.positive_source)).check()
+            continue
         parsed = parse_source(invalid.source)
         if invalid.expected_issue is None:
             try:
@@ -359,6 +384,17 @@ def check_runner() -> int:
     assert projection(make_valid(0, 16), "check", CAPABILITIES[:9])["diagnostics"][0][
         "stage"] == "lower"
     assert _first_difference({"a": [1, 2]}, {"a": [1, 3]}) == "$.a[1]"
+    assert requirements(make_valid(0, 11)) == {"L06b"}
+    assert requirements(make_valid(0, 15)) == set()
+    from dataclasses import replace
+    assert requirements(replace(make_valid(0, 15), source="fn Main(){let x=1<=2;}")) == {"L01b"}
+    assert requirements(replace(make_valid(0, 15), source="fn Main(){let x=1<2;}")) == set()
+    assert requirements(replace(make_valid(0, 15), source="fn F()->I64{while true{return 1;}}fn Main(){}")) == {"L04b"}
+    assert projection(make_valid(0, 10), "check", complete)["diagnostics_cardinality"] == "unspecified"
+    assert projection(make_invalid(0, 10), "check", complete)["diagnostics_cardinality"] == "unspecified"
+    assert requirements(make_invalid(0, 5)) == set()
+    assert requirements(make_invalid(0, 6)) == set()
+    assert projection(make_invalid(0, 6), "check", complete)["diagnostics"][0]["code"] == "NX-E1326"
     assert normalize_files({"x": [{"file": "C:/tmp/a.n", "text": "C:/tmp/a.n"}]}) == \
         {"x": [{"file": "case.n", "text": "C:/tmp/a.n"}]}
     assert list(seed_range("0:2")) == [0, 1, 2]
@@ -416,7 +452,14 @@ def check_model_pairs() -> int:
     for row in rows:
         parsed = parse_source(row["source"])
         SourceChecker(parsed).check()
-        observed = SourceVM(parsed).run()
+        vm = SourceVM(parsed)
+        try:
+            observed = vm.run()
+        except ModelFault as fault:
+            assert row.get("fault") == fault.code, row["id"]
+            observed = vm
+        else:
+            assert "fault" not in row, row["id"]
         assert observed.stdout == row["stdout"], row["id"]
         assert observed.events == [], row["id"]
     return len(rows)
@@ -458,6 +501,159 @@ def check_differential_sensitivity() -> int:
     return 2
 
 
+def check_full_compare_mock() -> dict[str, int]:
+    """Exercise run_compare in G4 with independent stand-in responses."""
+    from unittest.mock import patch
+    from . import runner
+
+    profile = "f0-0005-b-v1"
+    complete = runner.manifest("G4", ",".join(runner.CAPABILITIES[:8]))
+    generated = list(cases(0, 18, 14))
+    by_source = {case.source: case for case in generated}
+    results = {}
+    temp_root = Path("C:/nexo-work/tmp")
+    temp_root.mkdir(parents=True, exist_ok=True)
+
+    def document(expected: dict) -> dict:
+        diagnostics = []
+        for row in expected.get("diagnostics", []):
+            primary = row.get("primary", [0, 0])
+            token = row.get("unexpected_token")
+            prefix = row.get("recognized_prefix")
+            diagnostics.append({
+                "code": row["code"], "subcause": row.get("subcause"),
+                "stage": row["stage"], "operation": row["operation"],
+                "feature_id": row.get("feature_id"), "data": row.get("data", {}),
+                "profile_id": row.get("profile_id"), "rule": row.get("rule"),
+                "explanation_id": row.get("explanation_id"),
+                "diagnostic_namespace": row.get("diagnostic_namespace"),
+                "severity": row.get("severity"),
+                "expected_tokens": row.get("expected_tokens"),
+                "expected_tokens_kind": row.get("expected_tokens_kind"),
+                "parser_context": row.get("parser_context"),
+                "unexpected_token": None if token is None else {
+                    "kind": token["kind"], "text": token["text"],
+                    "span": {"file": "case.n", "start": token["span"][0],
+                             "end": token["span"][1]}},
+                "recognized_prefix": None if prefix is None else {
+                    "file": "case.n", "start": prefix[0], "end": prefix[1]},
+                "primary_span": {"file": "case.n", "start": primary[0], "end": primary[1]},
+                "related_spans": [{"role": item[0], "span": {"file": "case.n",
+                    "start": item[1], "end": item[2]}} for item in row.get("related", [])],
+                "cause_chain": row.get("cause", []),
+            })
+        return {"schema_version": 1, "profile_id": profile,
+                "outcome": {"kind": expected["outcome"]},
+                "stdout": list(expected.get("stdout", [])),
+                "events": list(expected.get("events", [])),
+                "observations": list(expected.get("observations", [])),
+                "observation_bytes": expected.get("observation_bytes", 0),
+                "reserved_observation_bytes": expected.get("reserved_observation_bytes", 0),
+                "diagnostics": diagnostics}
+
+    with tempfile.TemporaryDirectory(prefix="f5-oracle-contract-", dir=temp_root) as temp:
+        tree = Path(temp)
+        debug, release = tree / "debug.exe", tree / "release.exe"
+        debug.write_bytes(b"mock-debug")
+        release.write_bytes(b"mock-release")
+        for mode in ("faithful", "value", "line", "code", "exit", "check"):
+            def mock_invoke(binary: Path, verb: str, source: Path,
+                            requested_profile: str, *, timeout: float = 10.0):
+                assert requested_profile == profile
+                program = source.read_text(encoding="ascii")
+                if program == "fn F(x:view I64){}":
+                    expected = {"exit": 0 if verb == "check" else 1,
+                                "outcome": "checked" if verb == "check" else "rejected",
+                                "diagnostics": [] if verb == "check" else [{
+                                    "code": "NX-E0112", "subcause": "missing_main",
+                                    "stage": "entry", "operation": "entry.check",
+                                    "primary": [18, 18], "data": {"entry": "Main"}}]}
+                else:
+                    expected = runner.projection(by_source[program], verb, complete)
+                response = document(expected)
+                exit_code = expected["exit"]
+                if program in by_source:
+                    if mode == "value" and verb == "run" and response["stdout"]:
+                        response["stdout"][0] += "!"
+                    elif mode == "line" and verb == "run" and response["stdout"]:
+                        response["stdout"].pop()
+                    elif mode == "code" and response["diagnostics"]:
+                        response["diagnostics"][0]["code"] = "NX-E9999"
+                    elif mode == "exit" and exit_code == 1:
+                        exit_code = 0
+                    elif mode == "check" and verb == "check" and exit_code == 0:
+                        response["outcome"]["kind"] = "unit"
+                return runner.Invocation([str(binary), verb], exit_code, response,
+                                         "", None, 0.0)
+
+            output = tree / f"{mode}.jsonl"
+            with patch.object(runner, "invoke", side_effect=mock_invoke), \
+                    patch.object(runner, "minimize_case", side_effect=lambda c, *_args, **_kw: (c, 0)):
+                summary = runner.run_compare(binary_debug=debug, binary_release=release,
+                    profile=profile, phase="G4", complete=",".join(complete),
+                    seeds="0", valid_per_seed=18, invalid_per_seed=14,
+                    output=output, include_literals=False)
+            records = [json.loads(line) for line in output.read_text(encoding="utf-8").splitlines()]
+            rows = [row for row in records if row["kind"] == "case"]
+            assert len(rows) == 32
+            fields = {probe["difference"] for row in rows
+                      for probe in row["observations"].values() if probe["difference"]}
+            wanted = {"faithful": set(), "value": {"$.stdout[0]"},
+                      "line": {"$.stdout"}, "code": {"$.diagnostics[0].code"},
+                      "exit": {"$.exit"}, "check": {"$.outcome"}}[mode]
+            assert fields == wanted, (mode, fields)
+            assert (summary["differences"] == 0) == (mode == "faithful")
+            results[mode] = summary["differences"]
+    return results
+
+
+def check_harness_contract() -> int:
+    from unittest.mock import patch
+    from . import cli, runner
+    assert runner._first_difference({"diagnostics": [1]},
+                                    {"diagnostics": [1, 2]}) == "$.diagnostics"
+    assert runner._first_difference({"stdout": ["1", "2"]},
+                                    {"stdout": ["1"]}) == "$.stdout"
+    repeated = make_valid(0, 10)
+    barrier = runner.projection(repeated, "check", runner.CAPABILITIES[:3])
+    assert barrier["diagnostics_cardinality"] == "unspecified"
+    required = barrier["diagnostics"][0]
+    diagnostic = {key: required[key] for key in
+                  ("code", "subcause", "stage", "operation", "feature_id", "data")}
+    response = {"schema_version": 1, "profile_id": "f0-0005-b-v1",
+                "outcome": {"kind": "rejected"}, "stdout": [], "events": [],
+                "observations": [], "observation_bytes": 0,
+                "reserved_observation_bytes": 0,
+                "diagnostics": [diagnostic, diagnostic]}
+    invocation = runner.Invocation(["mock"], 1, response, "", None, 0.0)
+    assert runner.compare_invocation(invocation, repeated, "check",
+        runner.CAPABILITIES[:3], "f0-0005-b-v1")[0] is None
+    response["diagnostics"] = []
+    assert runner.compare_invocation(invocation, repeated, "check",
+        runner.CAPABILITIES[:3], "f0-0005-b-v1")[0] == "$.diagnostics"
+    arguments = ["f5-oracle", "compare", "--binary-debug", "debug.exe",
+                 "--binary-release", "release.exe", "--profile", "f0-0005-b-v1",
+                 "--phase", "G4", "--complete", ",".join(runner.CAPABILITIES[:8]),
+                 "--seeds", "0", "--output", "C:/nexo-work/tmp/mock.jsonl"]
+    for differences in (0, 1):
+        with patch.object(sys, "argv", arguments), \
+                patch.object(cli, "run_compare", return_value={"differences": differences}):
+            with redirect_stdout(io.StringIO()):
+                assert cli.main() == (1 if differences else 0)
+    response = subprocess.CompletedProcess(["mock"], 0,
+        stdout=b'{"outcome":{"kind":"unit"}}', stderr=b"")
+    timeout = subprocess.TimeoutExpired(["mock"], 0.01)
+    with patch.object(runner.subprocess, "run", side_effect=[timeout, response]) as execute_mock:
+        recovered = runner.invoke(Path("mock.exe"), "run", Path("case.n"), profile="default")
+        assert recovered.error is None and recovered.timeout_retried
+        assert execute_mock.call_count == 2
+    with patch.object(runner.subprocess, "run", side_effect=[timeout, timeout]) as execute_mock:
+        confirmed = runner.invoke(Path("mock.exe"), "run", Path("case.n"), profile="default")
+        assert confirmed.error == "timeout_confirmed" and confirmed.timeout_retried
+        assert execute_mock.call_count == 2
+    return 8
+
+
 def check_scale_hashes() -> dict[str, dict[str, int]]:
     fixture = json.loads((ROOT / "tests/fixtures/f5_oracle_corpus_sha.json")
                          .read_text(encoding="utf-8"))
@@ -472,8 +668,12 @@ def check_scale_hashes() -> dict[str, dict[str, int]]:
         assert audit["valid_distinct"] >= 1000, seed
         assert audit["invalid_distinct"] >= 1000, seed
         assert audit["max_valid_nodes"] <= 32, seed
+        assert audit["valid_structural"] >= 400, seed
+        assert audit["invalid_structural"] >= 400, seed
         report[str(seed)] = {"valid": audit["valid_distinct"],
                              "invalid": audit["invalid_distinct"],
+                             "valid_structural": audit["valid_structural"],
+                             "invalid_structural": audit["invalid_structural"],
                              "max_nodes": audit["max_valid_nodes"]}
     return report
 
@@ -498,5 +698,7 @@ def run() -> dict[str, int]:
     result["regression_records"] = check_regressions()
     result["model_pairs"] = check_model_pairs()
     result["differential_sensitivity"] = check_differential_sensitivity()
+    result["full_compare_mock"] = check_full_compare_mock()
+    result["harness_contract"] = check_harness_contract()
     result["distinct_by_seed"] = check_scale_hashes()
     return result

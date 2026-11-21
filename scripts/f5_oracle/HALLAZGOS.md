@@ -37,3 +37,27 @@ release dieron `driver_error/internal_error`; los otros 19 casos del lote
 0 (10 válidos y 9 negativos aislados) coincidieron con su proyección G1b.
 El reporte JSONL es reconstruible con el comando de `README.md`; el fixture versionado es
 `tests/fixtures/f5_oracle_regressions.jsonl`.
+
+## Const escalar reconocido pero nombre no resuelto en `d86cd26`
+
+Fuente ASCII sin LF final (43 bytes):
+
+```nexo
+const k:I64=comptime 1;fn Main(){Print(k);}
+```
+
+Con `C:/nexo-work/bin/d86cd26/debug/nexo.exe` y el release del mismo commit,
+`check` y `run`, `--profile f0-0005-b-v1 --format json`, devuelven exit 1,
+`rejected` y un único `NX-E0101`, `names/names.resolve`, primario `[39,40)`
+(`k`), `data={"use_kind":"value"}`. F5 §8.2, «Const escalar antes de L09 y
+L10», dice que mientras L09 esté pendiente la forma escalar incluida recibe
+**exclusivamente** `NX-E0006/implementation_limit`, `types/types.check`,
+`pending_scope=L09` sobre `const` `[0,5)`. La fuente contiene esa forma y
+no usa ninguna regla excluida. La misma falla de nombres se reprodujo con
+`fn Main(){let x=k;Print(x);}` tras la declaración const, así que el hallazgo
+alcanza al uso de const como valor, no solo a argumentos de llamada.
+
+En G1b, semillas 0:7, 100+100 por semilla, el arnés conserva 160 diferencias
+de esta familia (40 fuentes × dos verbos × debug/release) como
+`known_issue=F5-const-name-use` en el JSONL; no cambia el esperado del ADR.
+El coordinador puede trasladar esta repro al carril B1b.

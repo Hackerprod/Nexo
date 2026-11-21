@@ -12,6 +12,18 @@
 - Las combinaciones de errores de distintas etapas o sin precedencia total
   publicada en F5 se excluyen del generador de negativos. Cada negativo
   generado debe romper una sola regla y derivar su esperado del ADR.
+- F5 §8.2 ordena barreras simultáneas por etapa, offset y número L, pero no
+  fija cuántos NX-E0006/L07 se emiten si hay dos llamadas pendientes a
+  `Push` o `Pop`. El arnés marca `diagnostics_cardinality=unspecified`: exige
+  al menos un diagnóstico y que todos los emitidos tengan el código, etapa,
+  operación y `pending_scope` L07 del ADR, sin usar el número de repeticiones
+  observado en `d86cd26` como regla normativa. Las listas con cardinalidad
+  publicada conservan comparación estricta de longitud y orden.
+- Dos declaraciones escalares `const` pendientes de L09 presentan la misma
+  laguna de cardinalidad: §8.2 fija un diagnóstico para su ejemplo de una
+  sola declaración, pero no el número para dos declaraciones. El arnés exige
+  al menos uno y verifica cada diagnóstico L09; mantiene el ciclo const
+  `F5-K03` como negativo de núcleo cuando L09 esté completa.
 - Antes de completar L04b, F5-r1 §«Alcance, clasificación y secuencia» y
   «Puertas por bloque» conserva el diagnóstico NX-E1317/ownership/flow.return
   para `fn F()->I64{while true{return 5;}}fn Main(){}` y sus pares. El

@@ -13,7 +13,7 @@ import re
 import time
 from typing import Iterator
 
-from .model import Expr, Program, SourceVM, Stmt, evaluate, execute, lex_source, parse_source, type_check
+from .model import Expr, Program, SourceSyntaxFault, SourceVM, Stmt, evaluate, execute, lex_source, parse_source, type_check
 from .diagnostics import RuleViolation, SourceChecker
 
 PRECEDENCE = {
@@ -51,6 +51,10 @@ def render_expr(expr: Expr, parent: int = 0, right: bool = False) -> str:
         op = str(expr.value)
         prec = PRECEDENCE[op]
         left = render_expr(expr.args[0], prec)
+        if op in ("<", "<=", ">", ">=", "==", "!=") and \
+                expr.args[0].kind == "binary" and expr.args[0].value in \
+                ("<", "<=", ">", ">=", "==", "!="):
+            left = "(" + left + ")"
         # Arithmetic/logical operators associate left; preserve a right child
         # of the same precedence by grouping it.
         right_text = render_expr(expr.args[1], prec, True)
@@ -162,17 +166,17 @@ def _make_extended_valid(seed: int, index: int, unique: int, family: int,
         10: ("array.push_copy", f"fn Main(){{var a=[[1]];var b=[{u}];"
              "Push(edit a,b);Push(edit b,3);Print(a);}", ("L07b",)),
         11: ("control.for_array_order", f"fn Main(){{for x in [{u},{u+1},{u+2}]"
-             "{Print(x);}}", ("L06b", "L07b")),
+             "{Print(x);}}", ("L06b",)),
         12: ("control.for_range_break", f"fn Main(){{for i in 0..<3{{"
-             f"if i==1{{break;}}Print(i+{u});}}}}", ("L04b", "L05b")),
+             f"if i==1{{break;}}Print(i+{u});}}}}", ("L05b",)),
         13: ("control.for_range_continue", f"fn Main(){{for i in 0..<3{{"
-             f"if i==1{{continue;}}Print(i+{u});}}}}", ("L04b", "L05b")),
+             f"if i==1{{continue;}}Print(i+{u});}}}}", ("L05b",)),
         14: ("control.short_circuit_effect",
              f"fn Right()->Bool{{Print({u});return true;}}fn Main(){{"
              "AssertEq(false and Right(),false);AssertEq(true or Right(),true);"
-             "AssertEq(true and Right(),true);}", ("L02b", "L04b")),
+             "AssertEq(true and Right(),true);}", ("L02b",)),
         15: ("function.user", f"fn Add(x:view I64)->I64{{return x+{u};}}"
-             "fn Main(){Print(Add(3));}", ("L04b",)),
+             "fn Main(){Print(Add(3));}", ()),
         16: ("const.scalar", f"const k:I64=comptime {u};fn Main(){{Print(k);}}",
              ("L09", "L10")),
         17: ("array.pop_option", f"fn Main(){{var a=[{u}];"
@@ -196,7 +200,7 @@ def make_valid(seed: int, index: int) -> Case:
         return _make_extended_valid(seed, index, unique, family, rng)
     if family in (0, 1, 9):
         ty = "I64" if family == 0 else "Bool"
-        expr = scalar(rng, 1 + index % 3, ty)
+        expr = scalar(rng, 1 + (index % 2 if ty == "I64" else 0), ty)
         program = Program((Stmt("let", "answer", expr),))
         label = "scalar." + ty
     elif family == 2:
@@ -251,6 +255,19 @@ def make_valid(seed: int, index: int) -> Case:
               if answer_ty == "I64" else
               Expr("binary", "Bool", (answer, Expr("binary", "Bool",
                   (integer(unique), integer(unique + 1)), "<")), "=="))
+    # Three independently selected identity operators make 64 source shapes
+    # per family after integer literals and identifiers are abstracted.
+    variant = index // 18
+    for _ in range(3):
+        choice = variant % 4
+        variant //= 4
+        if answer_ty == "I64":
+            op, identity = (("+", 0), ("-", 0), ("*", 1), ("/", 1))[choice]
+            sample = Expr("binary", "I64", (sample, integer(identity)), op)
+        else:
+            op, identity = (("and", True), ("or", False),
+                            ("==", True), ("!=", False))[choice]
+            sample = Expr("binary", "Bool", (sample, Expr("bool", "Bool", value=identity)), op)
     program = Program(program.body + (
         Stmt("let", "sample", sample),
         Stmt("print", expr=answer),
@@ -263,7 +280,9 @@ def make_valid(seed: int, index: int) -> Case:
 
 def make_invalid(seed: int, index: int) -> Case:
     rng = random.Random((seed << 32) | index)
-    family = index % 10
+    family = index % 14
+    if family >= 10:
+        return _special_invalid(seed, index, family)
     if family == 0:
         expr = Expr("binary", "I64", (Expr("int", "I64", value=rng.randint(1, 100)),
                                        Expr("int", "I64", value=0)), "/")
@@ -323,10 +342,9 @@ def make_invalid(seed: int, index: int) -> Case:
 
 def _contextual_invalid(seed: int, index: int, name: str, code: str,
                         program: Program, repair_program: Program) -> Case:
-    # The faulty statement mutates a valid, varying context. A nested block
-    # keeps the base binding independent of the binding under test.
-    context = make_valid(seed, index % 10 + 18 * (index // 10))
-    prefix = (Stmt("block", body=context.program.body[:-2]),)
+    # The context uses only inherited arithmetic. A pending types barrier in
+    # the context would combine with the deliberately isolated negative.
+    prefix = (Stmt("block", body=(Stmt("let", "context", _legacy_context(seed, index)),)),)
     program = Program(prefix + program.body)
     repair_program = Program(prefix + repair_program.body)
     source = render_program(program)
@@ -350,6 +368,75 @@ def _contextual_invalid(seed: int, index: int, name: str, code: str,
         raise AssertionError((name, "negative accepted by reference checker"))
     return Case(seed, index, "invalid", name, program, source, None, code,
                 repaired_source, expected)
+
+
+def _legacy_context(seed: int, index: int) -> Expr:
+    integer = lambda value: Expr("int", "I64", value=value)
+    result = integer(seed * 100_000 + index + 1)
+    variant = index // 14
+    for _ in range(3):
+        choice = variant % 4
+        variant //= 4
+        unit = integer(0) if choice < 2 else Expr("binary", "I64", (integer(1), integer(1)), "-")
+        result = Expr("binary", "I64", (result, unit), "+" if choice % 2 == 0 else "-")
+    return result
+
+
+def _special_invalid(seed: int, index: int, family: int) -> Case:
+    context = "let context=" + render_expr(_legacy_context(seed, index)) + ";"
+    if family == 10:
+        label, code = "const.cycle", "NX-E1323"
+        prefix = "const a:I64=comptime b;const b:I64=comptime a;"
+        repair_prefix = "const a:I64=comptime b;const b:I64=comptime 1;"
+        source = prefix + "fn Main(){" + context + "}"
+        repaired = repair_prefix + "fn Main(){" + context + "}"
+    elif family == 11:
+        label, code = "const.impure", "NX-E1316"
+        prefix = "const k:()=comptime Print(1);"
+        repair_prefix = "const k:()=comptime ();"
+        source = prefix + "fn Main(){" + context + "}"
+        repaired = repair_prefix + "fn Main(){" + context + "}"
+    elif family == 12:
+        label, code = "borrow.live", "NX-E1105"
+        source = "fn Main(){" + context + "var a=[1];Push(edit a,Len(a));}"
+        repaired = "fn Main(){" + context + "var a=[1];let n=Len(a);Push(edit a,n);}"
+    else:
+        label, code = "syntax.first_truncation", "NX-E0002"
+        source = "fn Main(){" + context + "let a="
+        repaired = source + "0;}"
+        try:
+            parse_source(source)
+        except SourceSyntaxFault as fault:
+            token = fault.token
+            expected = {"code": code, "subcause": None, "stage": "parse",
+                        "operation": "syntax.parse", "primary": [token.start, token.end],
+                        "data": {}, "feature_id": None,
+                        "unexpected_token": {"kind": "eof", "text": "",
+                                             "span": [token.start, token.end]},
+                        "expected_tokens": fault.expected,
+                        "expected_tokens_kind": "admissible_set",
+                        "parser_context": fault.context,
+                        "recognized_prefix": [fault.prefix_start, fault.prefix_end]}
+        else:
+            raise AssertionError((label, "truncated source accepted"))
+        SourceChecker(parse_source(repaired)).check()
+        return Case(seed, index, "invalid", label, Program(()), source, None,
+                    code, repaired, expected)
+    try:
+        SourceChecker(parse_source(source)).check()
+    except RuleViolation as failure:
+        issue = failure.issue
+        assert issue.code == code, (label, issue.code)
+        expected = {"code": issue.code, "subcause": issue.subcause,
+                    "stage": issue.stage, "operation": issue.operation,
+                    "primary": [issue.start, issue.end], "data": issue.data,
+                    "feature_id": issue.feature_id,
+                    "related": [list(item) for item in issue.related]}
+    else:
+        raise AssertionError((label, "negative accepted by reference checker"))
+    SourceChecker(parse_source(repaired)).check()
+    return Case(seed, index, "invalid", label, Program(()), source, None, code,
+                repaired, expected)
 
 
 def cases(seed: int, valid_count: int, invalid_count: int) -> Iterator[Case]:
@@ -390,6 +477,12 @@ def normalized_source(source: str) -> tuple[str, ...]:
     return tuple(result)
 
 
+def structural_source(source: str) -> tuple[str, ...]:
+    """Count syntax shapes without obtaining credit for changed integers."""
+    return tuple("IntLiteral" if word.isdecimal() else word
+                 for word in normalized_source(source))
+
+
 def distinct_counts(seed: int, valid_count: int, invalid_count: int) -> dict[str, int]:
     forms = {"valid": set(), "invalid": set()}
     for case in cases(seed, valid_count, invalid_count):
@@ -404,9 +497,11 @@ def corpus_sha(seed: int, valid_count: int, invalid_count: int) -> str:
 def audit_seed(seed: int, valid_count: int, invalid_count: int) -> dict[str, object]:
     digest = hashlib.sha256()
     forms: dict[str, set[tuple[str, ...]]] = {"valid": set(), "invalid": set()}
+    structures: dict[str, set[tuple[str, ...]]] = {"valid": set(), "invalid": set()}
     max_valid_nodes = 0
     for case in cases(seed, valid_count, invalid_count):
         forms[case.lane].add(normalized_source(case.source))
+        structures[case.lane].add(structural_source(case.source))
         if case.lane == "valid":
             parsed = parse_source(case.source)
             def size(node) -> int:
@@ -421,6 +516,8 @@ def audit_seed(seed: int, valid_count: int, invalid_count: int) -> dict[str, obj
     return {"sha256": digest.hexdigest(),
             "valid_distinct": len(forms["valid"]),
             "invalid_distinct": len(forms["invalid"]),
+            "valid_structural": len(structures["valid"]),
+            "invalid_structural": len(structures["invalid"]),
             "max_valid_nodes": max_valid_nodes}
 
 

@@ -14,9 +14,9 @@ import tempfile
 import time
 from typing import Any, Iterator
 
-from .generate import Case, cases, minimize_case
+from .generate import Case, audit_seed, cases, minimize_case
 from .diagnostics import missing_main, semantic
-from .model import Expr, ModelFault, SourceVM, Stmt, parse_source
+from .model import ModelFault, SourceSyntaxFault, SourceVM, lex_source, parse_source
 
 ROOT = Path(__file__).resolve().parents[2]
 ADR = ROOT / "docs/adr/F0-0005-operators-control-collections.md"
@@ -73,55 +73,72 @@ def manifest(phase: str, complete: str) -> tuple[str, ...]:
     return declared
 
 
-def _expr_requirements(expr: Expr) -> set[str]:
-    required = set()
-    if expr.kind == "binary":
-        if expr.value in ("*", "/", "%", "<", "<=", ">", ">=", "!="):
-            required.add("L01b")
-        if expr.value in ("and", "or"):
-            required.add("L02b")
-    elif expr.kind in ("neg", "not"):
-        if expr.kind == "neg":
-            required.add("L01b")
-        else:
-            required.add("L02b")
-    elif expr.kind == "join":
-        required.add("L07b")
-    for child in expr.args:
-        required.update(_expr_requirements(child))
-    return required
+def requirement_sites(case: Case) -> list[tuple[int, int, int, str]]:
+    """F5 §8.2 public barriers, ordered by stage then source offset.
 
+    The source is the generated, already serialized program. In particular,
+    inherited `<`, `==`, return and loop-control never create a new barrier.
+    """
+    tokens = lex_source(case.source)[:-1]
+    sites: list[tuple[int, int, int, str]] = []
+    numbers = {cap: int(cap[1:3]) for cap in CAPABILITIES}
 
-def _stmt_requirements(stmt: Stmt) -> set[str]:
-    required = set()
-    if stmt.kind == "compound":
-        required.add("L03b")
-    elif stmt.kind == "for_range":
-        required.add("L05b")
-    elif stmt.kind == "for_array":
-        required.add("L06b")
-    elif stmt.kind in ("break", "continue", "return"):
-        required.add("L04b")
-    if stmt.expr is not None:
-        required.update(_expr_requirements(stmt.expr))
-    if stmt.upper is not None:
-        required.update(_expr_requirements(stmt.upper))
-    for child in stmt.body + stmt.otherwise:
-        required.update(_stmt_requirements(child))
-    return required
+    def add(cap: str, offset: int, stage: int = 2) -> None:
+        sites.append((stage, offset, numbers[cap], cap))
+
+    for i, token in enumerate(tokens):
+        word = token.text
+        if word in ("*", "/", "%", "<=", ">", ">=", "!="):
+            add("L01b", token.start)
+        elif word == "-" and not (i + 1 < len(tokens) and tokens[i + 1].text.isdecimal()):
+            prev = tokens[i - 1].text if i else ""
+            if prev in ("", "(", "[", ",", "=", "+=", "-=", "*=", "/=", "%=",
+                        "+", "-", "*", "/", "%", "<", "<=", ">", ">=", "==",
+                        "!=", "and", "or", "return", "in"):
+                add("L01b", token.start)
+        elif word in ("and", "or", "not"):
+            add("L02b", token.start)
+        elif word in ("+=", "-=", "*=", "/=", "%="):
+            add("L03b", token.start)
+        elif word == "for":
+            end = next((j for j in range(i + 1, len(tokens)) if tokens[j].text == "{"), len(tokens))
+            range_source = any(t.text in ("..<", "..=") for t in tokens[i + 1:end])
+            add("L05b" if range_source else "L06b", token.start)
+        elif word in ("Push", "Pop", "JoinArrays") and i + 1 < len(tokens) and tokens[i + 1].text == "(":
+            add("L07b", token.start)
+        elif word == "const":
+            add("L09", token.start)
+            add("L10", token.start, 5)
+    try:
+        program = parse_source(case.source)
+    except SourceSyntaxFault:
+        return sites
+    for function in program.functions.values():
+        if function.return_type == "()" or (function.body and function.body[-1].kind == "return"):
+            continue
+        def visit(node):
+            if node.kind == "while":
+                condition = node.children[0]
+                while condition.kind == "group":
+                    condition = condition.children[0]
+                if condition.kind == "bool" and condition.value is True:
+                    add("L04b", node.start, 3)
+            for child in node.children:
+                visit(child)
+        for statement in function.body:
+            visit(statement)
+    return sites
 
 
 def requirements(case: Case) -> set[str]:
-    result = set(case.required_caps)
-    for statement in case.program.body:
-        result.update(_stmt_requirements(statement))
-    return result
+    return {cap for _, _, _, cap in requirement_sites(case)}
 
 
 def projection(case: Case, verb: str, complete: tuple[str, ...]) -> dict[str, Any]:
     """Expected observable fields; no value is read from the Nexo binary."""
     required = requirements(case)
-    missing = next((cap for cap in CAPABILITIES if cap in required and cap not in complete), None)
+    pending = [site for site in requirement_sites(case) if site[3] not in complete]
+    missing = min(pending)[3] if pending else None
     static = case.expected_issue
     if static is not None and static["stage"] in ("parse", "names"):
         missing = None
@@ -129,11 +146,14 @@ def projection(case: Case, verb: str, complete: tuple[str, ...]) -> dict[str, An
         scope = missing.removesuffix("b")
         stage = ("ownership" if missing == "L04b" else
                  "lower" if missing == "L10" else "types")
-        return {"exit": 1, "outcome": "rejected", "diagnostics": [{
+        result = {"exit": 1, "outcome": "rejected", "diagnostics": [{
             "code": "NX-E0006", "subcause": None, "stage": stage,
             "operation": {"ownership": "ownership.check", "types": "types.check",
                           "lower": "ir.lower"}[stage],
             "feature_id": "implementation_limit", "data": {"pending_scope": scope}}]}
+        if missing in ("L07b", "L09") and sum(site[3] == missing for site in pending) > 1:
+            result["diagnostics_cardinality"] = "unspecified"
+        return result
     if static is not None:
         return {"exit": 1, "outcome": "rejected", "diagnostics": [static]}
     if required and "L08" not in complete:
@@ -199,6 +219,7 @@ class Invocation:
     stderr: str
     error: str | None
     elapsed_ms: float
+    timeout_retried: bool = False
 
 
 def invoke(binary: Path, verb: str, source: Path, profile: str,
@@ -207,11 +228,17 @@ def invoke(binary: Path, verb: str, source: Path, profile: str,
                else [str(binary)]) + [verb, str(source), "--profile", profile,
                "--format", "json"]
     started = time.perf_counter()
-    try:
-        result = subprocess.run(command, capture_output=True, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        return Invocation(command, -1, None, "", "timeout",
-                          (time.perf_counter() - started) * 1000)
+    retried = False
+    for attempt in range(2):
+        try:
+            result = subprocess.run(command, capture_output=True, timeout=timeout)
+            break
+        except subprocess.TimeoutExpired:
+            if attempt == 0:
+                retried = True
+                continue
+            return Invocation(command, -1, None, "", "timeout_confirmed",
+                              (time.perf_counter() - started) * 1000, True)
     stderr = result.stderr.decode("utf-8", "replace")
     try:
         document = json.loads(result.stdout.decode("utf-8"))
@@ -219,16 +246,19 @@ def invoke(binary: Path, verb: str, source: Path, profile: str,
             raise ValueError("JSON root is not an object")
     except (ValueError, UnicodeDecodeError):
         return Invocation(command, result.returncode, None, stderr,
-                          "non_json_output", (time.perf_counter() - started) * 1000)
+                          "non_json_output", (time.perf_counter() - started) * 1000,
+                          retried)
     outcome = document.get("outcome", {})
     if outcome.get("kind") == "driver_error" and outcome.get("reason") == "internal_error":
         return Invocation(command, result.returncode, normalize_files(document), stderr,
-                          "internal_error", (time.perf_counter() - started) * 1000)
+                          "internal_error", (time.perf_counter() - started) * 1000,
+                          retried)
     if "InvalidIr" in stderr or "panicked at" in stderr:
         return Invocation(command, result.returncode, normalize_files(document), stderr,
-                          "panic_or_invalid_ir", (time.perf_counter() - started) * 1000)
+                          "panic_or_invalid_ir", (time.perf_counter() - started) * 1000,
+                          retried)
     return Invocation(command, result.returncode, normalize_files(document),
-                      stderr, None, (time.perf_counter() - started) * 1000)
+                      stderr, None, (time.perf_counter() - started) * 1000, retried)
 
 
 def observed(invocation: Invocation, profile: str) -> dict[str, Any]:
@@ -278,6 +308,7 @@ def project_diagnostic(diag: dict[str, Any]) -> dict[str, Any]:
 def compare_invocation(invocation: Invocation, case: Case, verb: str,
                        complete: tuple[str, ...], profile: str) -> tuple[str | None, dict[str, Any]]:
     expected = projection(case, verb, complete)
+    cardinality = expected.pop("diagnostics_cardinality", None)
     expected.update({"schema_version": 1, "profile_id": profile})
     for key, value in (("stdout", []), ("events", []), ("observations", []),
                        ("observation_bytes", 0), ("reserved_observation_bytes", 0)):
@@ -285,6 +316,21 @@ def compare_invocation(invocation: Invocation, case: Case, verb: str,
     if invocation.error:
         return invocation.error, expected
     actual = observed(invocation, profile)
+    if cardinality == "unspecified":
+        actual_diagnostics = actual.pop("diagnostics", [])
+        reference = expected.pop("diagnostics")[0]
+        difference = _first_difference(expected, actual)
+        if difference is None and not actual_diagnostics:
+            difference = "$.diagnostics"
+        if difference is None:
+            for index, diagnostic in enumerate(actual_diagnostics):
+                difference = _first_difference(reference, diagnostic,
+                                               f"$.diagnostics[{index}]")
+                if difference is not None:
+                    break
+        expected["diagnostics"] = [reference]
+        expected["diagnostics_cardinality"] = "unspecified"
+        return difference, expected
     return _first_difference(expected, actual), expected
 
 
@@ -422,14 +468,16 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
     s08_completed = False
     literal_done: set[tuple[str, str]] = set()
     phase_done: set[str] = set()
-    prior_differences = 0
+    prior_differences = prior_known = 0
     if output.exists():
         for line in output.read_text(encoding="utf-8").splitlines():
             record = json.loads(line)
             if record.get("kind") == "case":
                 completed.add((record["seed"], record["lane"], record["index"]))
-                prior_differences += sum(bool(probe["difference"]) for probe in
-                                         record["observations"].values())
+                prior_differences += sum(bool(probe["difference"]) and not probe.get("known_issue")
+                                         for probe in record["observations"].values())
+                prior_known += sum(bool(probe["difference"]) and bool(probe.get("known_issue"))
+                                   for probe in record["observations"].values())
             elif record.get("kind") == "literal" and record.get("id") == "F5-S08-positive":
                 s08_completed = True
                 prior_differences += sum(bool(probe["difference"]) for probe in
@@ -444,7 +492,7 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                                          record["probes"].values())
             elif record.get("kind") == "metadata" and record["metadata"] != metadata:
                 raise ValueError("resume metadata differs from current binaries or oracle")
-    total, differences = 0, prior_differences
+    total, differences, known_differences = 0, prior_differences, prior_known
     cached_cases = physical_invocations = 0
     durations: list[float] = []
     minimized_signatures: set[tuple[str, tuple[str | None, ...]]] = set()
@@ -582,21 +630,29 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
                                 durations.append(invocation.elapsed_ms)
                             difference, expected = compare_invocation(
                                 invocation, case, verb, active, profile)
+                            actual_diags = (invocation.document or {}).get("diagnostics", [])
+                            known_issue = ("F5-const-name-use" if
+                                case.family == "const.scalar" and
+                                difference == "$.diagnostics[0].code" and
+                                actual_diags and actual_diags[0].get("code") == "NX-E0101" and
+                                actual_diags[0].get("stage") == "names" else None)
                             observations[probe_key] = {
                                 "difference": difference, "command": invocation.command,
+                                "known_issue": known_issue,
                                 "error": invocation.error, "exit": invocation.exit,
                                 "expected": expected, "obtained": invocation.document,
                                 "stderr": invocation.stderr,
                                 "known_h03": case.family == "range.stored" and
                                 difference == "internal_error"}
-                            differences += difference is not None
+                            differences += difference is not None and known_issue is None
+                            known_differences += difference is not None and known_issue is not None
                     record = {**case.record(), "kind": "case", "cached": cached,
                               "observations": observations}
                     signature = (case.family, tuple(
                         observations[key]["difference"] for key in
                         ("debug.check", "debug.run", "release.check", "release.run")))
                     if (any(signature[1]) and signature not in minimized_signatures and
-                            case.family != "range.stored"):
+                            case.family not in ("range.stored", "const.scalar")):
                         minimized_signatures.add(signature)
 
                         def discrepancy(candidate: Case):
@@ -629,13 +685,18 @@ def run_compare(*, binary_debug: Path, binary_release: Path, profile: str,
     def percentile(q: float) -> float | None:
         return round(durations[min(len(durations) - 1, int((len(durations) - 1) * q))], 3) \
             if durations else None
+    scale = {str(seed): {key: value for key, value in
+             audit_seed(seed, valid_per_seed, invalid_per_seed).items()
+             if key.endswith("distinct") or key.endswith("structural")}
+             for seed in seed_range(seeds)}
     return {"cases_executed": total, "cases_resumed": len(completed),
             "cached_cases": cached_cases,
             "physical_invocations": physical_invocations,
             "wall_seconds": round(time.perf_counter() - campaign_started, 3),
             "latency_ms": {"p50": percentile(.5), "p95": percentile(.95),
                            "p99": percentile(.99)},
-            "differences": differences, "metadata": metadata, "output": str(output)}
+            "differences": differences, "known_differences": known_differences,
+            "scale_by_seed": scale, "metadata": metadata, "output": str(output)}
 
 
 def run_fuzz(*, binary_debug: Path, binary_release: Path, profile: str,
