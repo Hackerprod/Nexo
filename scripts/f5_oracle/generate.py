@@ -9,10 +9,11 @@ from dataclasses import dataclass, replace
 import hashlib
 import json
 import random
+import re
 import time
 from typing import Iterator
 
-from .model import Expr, Program, Stmt, evaluate, execute, parse_source, type_check
+from .model import Expr, Program, SourceVM, Stmt, evaluate, execute, lex_source, parse_source, type_check
 from .diagnostics import RuleViolation, SourceChecker
 
 PRECEDENCE = {
@@ -65,6 +66,11 @@ def render_stmt(stmt: Stmt) -> str:
     if kind in ("let", "var"):
         assert stmt.expr is not None
         return f"{kind} {stmt.name}={render_expr(stmt.expr)};"
+    if kind == "print":
+        assert stmt.expr is not None
+        return "Print(" + render_expr(stmt.expr) + ");"
+    if kind == "block":
+        return "{" + "".join(render_stmt(child) for child in stmt.body) + "}"
     if kind in ("assign", "compound"):
         assert stmt.expr is not None
         op = "=" if kind == "assign" else stmt.op + "="
@@ -112,6 +118,7 @@ class Case:
     expected_fault: str | None
     positive_source: str | None = None
     expected_issue: dict[str, object] | None = None
+    required_caps: tuple[str, ...] = ()
 
     def record(self) -> dict[str, object]:
         return {
@@ -122,6 +129,7 @@ class Case:
             "expected_fault": self.expected_fault,
             "positive_source": self.positive_source,
             "expected_issue": self.expected_issue,
+            "required_caps": self.required_caps,
         }
 
 
@@ -146,11 +154,46 @@ def scalar(rng: random.Random, depth: int, ty: str) -> Expr:
     return Expr("binary", "Bool", args, op)
 
 
+def _make_extended_valid(seed: int, index: int, unique: int, family: int,
+                         rng: random.Random) -> Case:
+    """Additional F5 source families interpreted by the independent SourceVM."""
+    u = unique
+    variants = {
+        10: ("array.push_copy", f"fn Main(){{var a=[[1]];var b=[{u}];"
+             "Push(edit a,b);Push(edit b,3);Print(a);}", ("L07b",)),
+        11: ("control.for_array_order", f"fn Main(){{for x in [{u},{u+1},{u+2}]"
+             "{Print(x);}}", ("L06b", "L07b")),
+        12: ("control.for_range_break", f"fn Main(){{for i in 0..<3{{"
+             f"if i==1{{break;}}Print(i+{u});}}}}", ("L04b", "L05b")),
+        13: ("control.for_range_continue", f"fn Main(){{for i in 0..<3{{"
+             f"if i==1{{continue;}}Print(i+{u});}}}}", ("L04b", "L05b")),
+        14: ("control.short_circuit_effect",
+             f"fn Right()->Bool{{Print({u});return true;}}fn Main(){{"
+             "AssertEq(false and Right(),false);AssertEq(true or Right(),true);"
+             "AssertEq(true and Right(),true);}", ("L02b", "L04b")),
+        15: ("function.user", f"fn Add(x:view I64)->I64{{return x+{u};}}"
+             "fn Main(){Print(Add(3));}", ("L04b",)),
+        16: ("const.scalar", f"const k:I64=comptime {u};fn Main(){{Print(k);}}",
+             ("L09", "L10")),
+        17: ("array.pop_option", f"fn Main(){{var a=[{u}];"
+             "Print(Pop(edit a));Print(Pop(edit a));}", ("L07b",)),
+    }
+    label, source, caps = variants[family]
+    parsed = parse_source(source)
+    SourceChecker(parsed).check()
+    state = SourceVM(parsed).run()
+    return Case(seed, index, "valid", label, Program(()), source,
+                state.stdout, None, required_caps=caps)
+
+
 def make_valid(seed: int, index: int) -> Case:
     rng = random.Random((seed << 32) | index)
-    family = index % 10
+    family = index % 18
+    unique = seed * 100_000 + index + 1
     integer = lambda value: Expr("int", "I64", value=value)
     name = lambda label: Expr("name", "I64", value=label)
+    if family >= 10:
+        return _make_extended_valid(seed, index, unique, family, rng)
     if family in (0, 1, 9):
         ty = "I64" if family == 0 else "Bool"
         expr = scalar(rng, 1 + index % 3, ty)
@@ -200,6 +243,19 @@ def make_valid(seed: int, index: int) -> Case:
                            Stmt("while", expr=condition,
                                 body=(Stmt("compound", "answer", integer(1), op="+"),))))
         label = "control.while"
+    # The extra expression consumes the family's computed answer. Its operand
+    # varies per source and remains visible after identifier normalization.
+    answer_ty = "Bool" if family in (1, 9) else "I64"
+    answer = Expr("name", answer_ty, value="answer")
+    sample = (Expr("binary", "I64", (answer, integer(unique)), "+")
+              if answer_ty == "I64" else
+              Expr("binary", "Bool", (answer, Expr("binary", "Bool",
+                  (integer(unique), integer(unique + 1)), "<")), "=="))
+    program = Program(program.body + (
+        Stmt("let", "sample", sample),
+        Stmt("print", expr=answer),
+        Stmt("print", expr=Expr("name", sample.ty, value="sample")),
+    ))
     value = execute(program).env["answer"]
     return Case(seed, index, "valid", label,
                 program, render_program(program), value, None)
@@ -230,8 +286,7 @@ def make_invalid(seed: int, index: int) -> Case:
     if family < 4:
         program = Program((Stmt("let", "answer", expr),))
         repair_program = Program((Stmt("let", "answer", repaired),))
-        return Case(seed, index, "invalid", name, program, render_program(program), None,
-                    code, render_program(repair_program))
+        return _contextual_invalid(seed, index, name, code, program, repair_program)
     one = Expr("int", "I64", value=1)
     zero = Expr("int", "I64", value=0)
     if family == 4:
@@ -263,7 +318,24 @@ def make_invalid(seed: int, index: int) -> Case:
         repair_program = Program((Stmt("let", "answer", Expr("int", "I64",
                                                       value=(1 << 63) - 1)),))
         name, code = "literal.out_of_range", "NX-E0107"
+    return _contextual_invalid(seed, index, name, code, program, repair_program)
+
+
+def _contextual_invalid(seed: int, index: int, name: str, code: str,
+                        program: Program, repair_program: Program) -> Case:
+    # The faulty statement mutates a valid, varying context. A nested block
+    # keeps the base binding independent of the binding under test.
+    context = make_valid(seed, index % 10 + 18 * (index // 10))
+    prefix = (Stmt("block", body=context.program.body[:-2]),)
+    program = Program(prefix + program.body)
+    repair_program = Program(prefix + repair_program.body)
     source = render_program(program)
+    repaired_source = render_program(repair_program)
+    if code.startswith("R"):
+        SourceChecker(parse_source(source)).check()
+        SourceChecker(parse_source(repaired_source)).check()
+        return Case(seed, index, "invalid", name, program, source, None, code,
+                    repaired_source)
     try:
         SourceChecker(parse_source(source)).check()
     except RuleViolation as failure:
@@ -277,23 +349,69 @@ def make_invalid(seed: int, index: int) -> Case:
     else:
         raise AssertionError((name, "negative accepted by reference checker"))
     return Case(seed, index, "invalid", name, program, source, None, code,
-                render_program(repair_program), expected)
+                repaired_source, expected)
 
 
 def cases(seed: int, valid_count: int, invalid_count: int) -> Iterator[Case]:
-    for index in range(valid_count):
-        yield make_valid(seed, index)
-    for index in range(invalid_count):
-        yield make_invalid(seed, index)
+    for lane, count, factory in (("valid", valid_count, make_valid),
+                                 ("invalid", invalid_count, make_invalid)):
+        seen: set[tuple[str, ...]] = set()
+        for index in range(count):
+            candidate_index = index
+            while True:
+                case = factory(seed, candidate_index)
+                normal = normalized_source(case.source)
+                if normal not in seen:
+                    seen.add(normal)
+                    yield replace(case, index=index)
+                    break
+                candidate_index += count
+                if candidate_index > index + count * 8:
+                    raise AssertionError((seed, lane, index, "distinct corpus exhausted"))
+
+
+_NAMES_KEPT = {"fn", "Main", "let", "var", "const", "comptime", "I64", "Bool",
+               "Array", "Option", "view", "edit", "move", "if", "else", "while",
+               "for", "in", "break", "continue", "return", "true", "false",
+               "and", "or", "not", "Print", "AssertEq", "Len", "JoinArrays",
+               "Push", "Pop", "Some", "None", "with", "no_alloc"}
+
+
+def normalized_source(source: str) -> tuple[str, ...]:
+    """Ignore spacing and alpha-renaming while retaining operators and literals."""
+    names: dict[str, str] = {}
+    result = []
+    for token in lex_source(source)[:-1]:
+        word = token.text
+        if re.fullmatch(r"[A-Za-z_][A-Za-z_0-9]*", word) and word not in _NAMES_KEPT:
+            names.setdefault(word, f"id{len(names)}")
+            word = names[word]
+        result.append(word)
+    return tuple(result)
+
+
+def distinct_counts(seed: int, valid_count: int, invalid_count: int) -> dict[str, int]:
+    forms = {"valid": set(), "invalid": set()}
+    for case in cases(seed, valid_count, invalid_count):
+        forms[case.lane].add(normalized_source(case.source))
+    return {lane: len(values) for lane, values in forms.items()}
 
 
 def corpus_sha(seed: int, valid_count: int, invalid_count: int) -> str:
+    return audit_seed(seed, valid_count, invalid_count)["sha256"]
+
+
+def audit_seed(seed: int, valid_count: int, invalid_count: int) -> dict[str, object]:
     digest = hashlib.sha256()
+    forms: dict[str, set[tuple[str, ...]]] = {"valid": set(), "invalid": set()}
     for case in cases(seed, valid_count, invalid_count):
+        forms[case.lane].add(normalized_source(case.source))
         digest.update(json.dumps(case.record(), ensure_ascii=False,
                                  sort_keys=True, separators=(",", ":")).encode("utf-8"))
         digest.update(b"\n")
-    return digest.hexdigest()
+    return {"sha256": digest.hexdigest(),
+            "valid_distinct": len(forms["valid"]),
+            "invalid_distinct": len(forms["invalid"])}
 
 
 def _rederive(case: Case, program: Program) -> Case | None:

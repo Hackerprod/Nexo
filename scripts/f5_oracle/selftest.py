@@ -7,11 +7,12 @@ import json
 from pathlib import Path
 import subprocess
 import sys
+import tempfile
 
 from .charges import Charges, Limits, BudgetFault, scalar_loop_total, short_circuit_total
 from .diagnostics import RuleViolation, SourceChecker, missing_main, pending, syntax
 from .diagnostics import check_source
-from .generate import corpus_sha, make_invalid, make_valid, minimize_case, render_expr
+from .generate import audit_seed, corpus_sha, make_invalid, make_valid, minimize_case, render_expr
 from .model import (
     Array, Expr, MAX_I64, MIN_I64, ModelFault, Program, Stmt, binary,
     SourceSyntaxFault, SourceVM, copy_value, evaluate, execute, parse_source, quotient,
@@ -172,14 +173,21 @@ def check_charge_literals() -> int:
 
 def check_generator() -> int:
     checksum = corpus_sha(0, 100, 100)
-    assert checksum == "64724973ccc6ad002ee040966854061e0ff51392627536a8d005a41cbd93303d"
+    assert checksum == "6eea5d276377afc36b3e2f312f2c8f5c3cbe6c3dea4ef4ebc7cbd01d3e7e93c7"
+    assert "for i in 0..<1" in make_valid(0, 220).source
     for index in range(100):
         valid = make_valid(0, index)
-        assert execute(valid.program).env["answer"] == valid.expected_value
+        if valid.program.body:
+            state = execute(valid.program)
+            assert state.env["answer"] == valid.expected_value
         parsed = parse_source(valid.source)
         SourceChecker(parsed).check()
         observed = SourceVM(parsed).run()
-        assert observed.stdout == [] and observed.events == []
+        assert observed.stdout and observed.events == []
+        if valid.program.body:
+            assert observed.stdout == state.stdout
+        else:
+            assert observed.stdout == valid.expected_value
         invalid = make_invalid(0, index)
         parsed = parse_source(invalid.source)
         if invalid.expected_issue is None:
@@ -324,7 +332,7 @@ def check_syntax_pairs() -> dict[str, int]:
 
 
 def check_runner() -> int:
-    from .runner import (_first_difference, literal_cases, manifest, normalize_files,
+    from .runner import (CAPABILITIES, _first_difference, literal_cases, manifest, normalize_files,
                          phase_h_cases, projection, requirements, seed_range)
     complete = manifest("G1b", "L01b,L02b,L03b")
     assert complete == ("L01b", "L02b", "L03b")
@@ -336,8 +344,9 @@ def check_runner() -> int:
         else:
             raise AssertionError(bad)
     loop = make_valid(0, 4)
+    assert requirements(make_valid(0, 36)) == {"L01b"}
     assert requirements(loop) == {"L03b", "L05b"}
-    assert requirements(make_invalid(0, 1)) == {"L01b"}
+    assert "L01b" in requirements(make_invalid(0, 1))
     assert projection(loop, "check", complete)["diagnostics"][0]["data"] == \
         {"pending_scope": "L05"}
     assert projection(loop, "check", complete)["diagnostics"][0]["stage"] == "types"
@@ -345,8 +354,10 @@ def check_runner() -> int:
         "L01b,L02b,L03b,L04b,L05b,L07b,L06b"))["diagnostics"][0]["data"] == \
         {"pending_scope": "L08"}
     assert projection(make_valid(0, 2), "check", complete)["outcome"] == "checked"
-    assert projection(make_invalid(0, 4), "check", complete)["diagnostics"][0][
+    assert projection(make_invalid(0, 4), "check", CAPABILITIES)["diagnostics"][0][
         "code"] == "NX-E0102"
+    assert projection(make_valid(0, 16), "check", CAPABILITIES[:9])["diagnostics"][0][
+        "stage"] == "lower"
     assert _first_difference({"a": [1, 2]}, {"a": [1, 3]}) == "$.a[1]"
     assert normalize_files({"x": [{"file": "C:/tmp/a.n", "text": "C:/tmp/a.n"}]}) == \
         {"x": [{"file": "case.n", "text": "C:/tmp/a.n"}]}
@@ -399,16 +410,70 @@ def check_regressions() -> int:
     return 1
 
 
-def check_scale_hashes() -> int:
+def check_model_pairs() -> int:
+    rows = json.loads((ROOT / "tests/fixtures/f5_oracle_model_pairs.json")
+                      .read_text(encoding="utf-8"))
+    for row in rows:
+        parsed = parse_source(row["source"])
+        SourceChecker(parsed).check()
+        observed = SourceVM(parsed).run()
+        assert observed.stdout == row["stdout"], row["id"]
+        assert observed.events == [], row["id"]
+    return len(rows)
+
+
+def check_differential_sensitivity() -> int:
+    """Two executable stand-ins prove the run comparison checks actual values."""
+    from .runner import CAPABILITIES, compare_invocation, invoke
+    case = make_valid(0, 0)
+    assert "47%1" in case.source
+    profile = "f0-0005-b-v1"
+    good = SourceVM(parse_source(case.source)).run()
+    assert good.stdout[0] == "0"
+    base = {"schema_version": 1, "profile_id": profile,
+            "outcome": {"kind": "unit"}, "stdout": good.stdout,
+            "events": good.events,
+            "observations": [{"channel": "stdout", "text": line}
+                             for line in good.stdout],
+            "observation_bytes": good.observation_bytes,
+            "reserved_observation_bytes": 0, "diagnostics": []}
+    temp_root = Path("C:/nexo-work/tmp")
+    temp_root.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="f5-oracle-mock-", dir=temp_root) as temp:
+        root = Path(temp)
+        source = root / "case.n"
+        source.write_bytes(case.source.encode("ascii"))
+        for wrong in (False, True):
+            document = json.loads(json.dumps(base))
+            if wrong:
+                document["stdout"][0] = "1"
+                document["observations"][0]["text"] = "1"
+            executable = root / ("bad.py" if wrong else "good.py")
+            executable.write_text("import sys\nprint(" + repr(json.dumps(document)) +
+                                  ")\n", encoding="utf-8")
+            invocation = invoke(executable, "run", source, profile)
+            difference, _ = compare_invocation(invocation, case, "run",
+                                                CAPABILITIES[:8], profile)
+            assert difference == ("$.stdout[0]" if wrong else None), difference
+    return 2
+
+
+def check_scale_hashes() -> dict[str, dict[str, int]]:
     fixture = json.loads((ROOT / "tests/fixtures/f5_oracle_corpus_sha.json")
                          .read_text(encoding="utf-8"))
     assert sys.version.split()[0] == fixture["python"] == "3.13.1"
     assert fixture["seeds"] == list(range(32))
     assert fixture["counts"]["valid"] == fixture["counts"]["invalid"] == 32000
+    report = {}
     for seed in fixture["seeds"]:
-        assert corpus_sha(seed, fixture["valid_per_seed"],
-                          fixture["invalid_per_seed"]) == fixture["hashes"][str(seed)]
-    return 64000
+        audit = audit_seed(seed, fixture["valid_per_seed"],
+                           fixture["invalid_per_seed"])
+        assert audit["sha256"] == fixture["hashes"][str(seed)]
+        assert audit["valid_distinct"] >= 1000, seed
+        assert audit["invalid_distinct"] >= 1000, seed
+        report[str(seed)] = {"valid": audit["valid_distinct"],
+                             "invalid": audit["invalid_distinct"]}
+    return report
 
 
 def run() -> dict[str, int]:
@@ -429,5 +494,7 @@ def run() -> dict[str, int]:
     result["runner_contracts"] = check_runner()
     result["batch_contracts"] = check_batch()
     result["regression_records"] = check_regressions()
-    result["scale_cases_hashed"] = check_scale_hashes()
+    result["model_pairs"] = check_model_pairs()
+    result["differential_sensitivity"] = check_differential_sensitivity()
+    result["distinct_by_seed"] = check_scale_hashes()
     return result

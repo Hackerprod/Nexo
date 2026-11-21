@@ -1,60 +1,198 @@
 {
   "counts": {
-    "array.join_len": 3200,
-    "array.len": 3200,
+    "array.join_len": 1792,
+    "array.len": 1792,
+    "array.pop_option": 1760,
+    "array.push_copy": 1760,
+    "const.scalar": 1760,
     "control.break": 3200,
     "control.continue": 3200,
-    "control.for_array": 3200,
-    "control.for_range": 3200,
-    "control.if": 3200,
-    "control.while": 3200,
+    "control.for_array": 1792,
+    "control.for_array_order": 1760,
+    "control.for_range": 1792,
+    "control.for_range_break": 1760,
+    "control.for_range_continue": 1760,
+    "control.if": 1792,
+    "control.short_circuit_effect": 1760,
+    "control.while": 1792,
     "div.zero": 3200,
+    "function.user": 1760,
     "invalid": 32000,
     "literal.out_of_range": 3200,
     "mul.overflow": 3200,
     "neg.overflow": 3200,
-    "place.compound": 3200,
+    "place.compound": 1792,
     "place.immutable": 3200,
     "range.stored": 3200,
     "rem.zero": 3200,
-    "scalar.Bool": 6400,
-    "scalar.I64": 3200,
+    "scalar.Bool": 3584,
+    "scalar.I64": 1792,
     "types.operator": 3200,
     "valid": 32000
   },
+  "distinct_by_seed": {
+    "0": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "1": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "10": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "11": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "12": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "13": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "14": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "15": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "16": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "17": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "18": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "19": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "2": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "20": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "21": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "22": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "23": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "24": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "25": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "26": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "27": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "28": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "29": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "3": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "30": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "31": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "4": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "5": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "6": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "7": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "8": {
+      "invalid": 1000,
+      "valid": 1000
+    },
+    "9": {
+      "invalid": 1000,
+      "valid": 1000
+    }
+  },
   "hashes": {
-    "0": "d29ccbb0ffbb3f3f434eadaaae6ff5856215dcb0cc065c06941f79e6ac968ddf",
-    "1": "59360692afa1c8fadc6a0f87dbd95cfeeb49090a090d316352058902f0c686fc",
-    "10": "ea228be355813913265b480918e627d7b5f9d0c138a3e812ae7432825dd73c04",
-    "11": "68ee741897b8ddada54e871350347b54c4103a610450ea1212a56165ea59cb03",
-    "12": "30aa3f2e8b88f397afbc50d25c5375b17b9b9a921e0c9b419e5e42af85f5caa5",
-    "13": "ddf3fdf7f3c50f84b0f577347debff7d26d428568ac4edc51ccb5413cd4ab567",
-    "14": "d833d1411eb839de3867e9fca468db70dca7498c420b984d3c56fcac77ab170b",
-    "15": "646cdef0b242ebfdb565aa1964aa17f5053c012b63e478f05a2613312fb0e724",
-    "16": "0b38d5e0bc363f88a41c9e7596f0a9df3fabd8bc4cbbc06fe96a292cccd0d5dd",
-    "17": "5269a1cbb999c9cc538be40b62142ed848e7073e17bbb2f3f8b01043e0257f40",
-    "18": "54d045c74c17eda0a62cb9bd4869aef191dc7b3607fe42e13255fdf48d24b41c",
-    "19": "ddef66209a9881de53e1e3c359099ca8371bcf519b8fe277269ab05809447c3d",
-    "2": "62fa755dcf4c57dc7a6a1a4a74a7a2047447c850d93713cbf1585b3bd7aa5bec",
-    "20": "d32768be6db2c05d8a2c8deb32ec9dfedf0f63dfd442e2c9cf128b6a9fc158ca",
-    "21": "2343e2dce571665c4db0ab507835af3dfad10c008e8f9839d89bbbeb03c5fe33",
-    "22": "b6b85cb5f511e5c5ecea140fd58bfd52a4c93f4491ee4c68c9bdf203a2c64ee4",
-    "23": "0741648651249a12fe057979ec8f3c4e1a05791bed25c1c367781863be256678",
-    "24": "9790811a2330914cdc6a3f2fe5148fb81897a25dde630d017717627c2aa30ef6",
-    "25": "2ce46659c51b5f7f58a48b7f6c0d65542b4b10c28a9d229821e1d9a6d6accf44",
-    "26": "33867c8407b6e3ad067296f094c0819c389caefe44420eec15ca456c057b726f",
-    "27": "92f7bc95380ca98d0aeea861b46443b80a37c31c58d96fce272f4752ca616be6",
-    "28": "f074b74152a7c0f7ae1e5e6ecbb1bcc133abaf88d3a06c2a5a14559462780331",
-    "29": "9ab9d6211fa0df309064d1b546d8b67a864c884347efd5ae0491ff17026dcaa9",
-    "3": "1c68d97208f3a94cfbf1b00bfe33a424a3277fd293d3d40b0e666c38da8ac6ea",
-    "30": "b01d06517a594024fbda22eaaf339fd478dfccc02dc409ccbf0fb21bb52e98e8",
-    "31": "7ac81a332f9fc5142c413c325915c1714a554555c682b226a4a71749f880a207",
-    "4": "646aa4ce50904c8b13fe0da39aa624e4f10defdd0d49584581ba3b7b0c7e1d72",
-    "5": "18ce1417c93d14ecdcb1b84e5c265597d66dd27b53680b56eacb2f4a11d818f6",
-    "6": "448c0f10ed1dc7c21ee0a51b4de6e399ac8316d35179052ec502ba9deaa135a8",
-    "7": "5aba4a8d3db80c97c0468a71541b105e661b92ceaab0dee5ccf891dad87e3527",
-    "8": "b737285be53f245930af176ebb361891e31e89eb6797890429f561d11a2b9920",
-    "9": "23125219cf2c7100611280a1d0d09409a93616bcf98e7c034d7546b9f8b4636e"
+    "0": "bf5b872aea3ecf91dfcbfb8c03ea9dea89eb67b14e693a883bce8ff374443d88",
+    "1": "a9e53c52d3f35dc636fd52bb41d2f4b218d5e3dcef543613a51178530a0e48df",
+    "10": "867454329df10f807661e28835b7980ec8f3229b27bc856ffe1839a4ded6f1d2",
+    "11": "1d3eb7cc7c3f55c00ed3c5ab621a5fe164752797b2146cbde9596ec755582294",
+    "12": "4d5fafe6969e245fd642ab383a99e1553fb2ed8869a83324c5817de6febb43dd",
+    "13": "d3961c7d81ff322e477f15608fd55d969b66131428449efc9aaa831bbb16e8a5",
+    "14": "87e1d5a4c001d7bb974585ba75eb41b6e0b3ede582ed4f69d78ee7bb8130036a",
+    "15": "6af6c688594400fcb2937ec189c44e9fa08334555f8f69ea9346535da3121f2c",
+    "16": "cf4f34649951964e3c58665fb0d2df00e63d3c91c56be504b5b28ea01bb44c62",
+    "17": "ba75d965b2ba6f51a2ded474a02ce326656c4948c33ee730af04df79458e95ed",
+    "18": "1529fd4e0620a99002e21460235539d9d2dfec7578e8355e3d6de8a781991cd8",
+    "19": "82b058906da825abbf5ece52c29c1d45c9b5a4547ca880996c9d1191932bbdf6",
+    "2": "3fcc0648c6aaa28a68c4e85270c7ccf04f7f78123d1547293a4530337117b375",
+    "20": "26d5a52bbbc014bc3d77b6d35f0d80e1f8d64febd437b0f684cb6fd03793157b",
+    "21": "d54d0cb0c5bc8d90cdbf8843d8a109ecb0516067ef408ef29861cb2770220e23",
+    "22": "d4844a3f949b18199de7d6aac34e645f9a1993641a89ff227427501eb5b75c39",
+    "23": "18e42f45cffef31f54fb0693b8e1df7d5f6c71d984fcc944f94a7f7f6d3e3781",
+    "24": "dc2c2535e5c9bc079afd427e49c43bb4b0bb47edc916fa2f1ea38f33fcf20b45",
+    "25": "0a20a2dd21420b7e49655203aac0fec0a3506ef2e019aa85dd24fd16727c7ce0",
+    "26": "68cf8e8042747eaf617b2eb6913b6f7967139eeebe9c825cd73ca285e0f3f022",
+    "27": "a46440b7b9759254ef4991fb506920c00420a2ffbb06fa5ac7a086ab8cebfa67",
+    "28": "9c8b1c4cda7eb3e07446808ba7427c58514b9c421e9383e0012f5a5684ee4b77",
+    "29": "49b4221c0603f514f2245dd459a6a541f16b941ddb91c46f3e468aac47e0a610",
+    "3": "3ec1882ccf5869e132f0cb5a55b51b1112fa17ee544a7791501d313ab29e3868",
+    "30": "f8c73ef0ae9d8a6a990015a678df8d4d6ac3866d40c6955aaada99d331aeb5e0",
+    "31": "7038c79428367f77762f1bf0f91c9a8443f18f1c52075ab34f85b427a1f5afab",
+    "4": "27a29f82a34f02732934ec9e11240610250b908bebed2316f285793cb825b848",
+    "5": "377dc6dba037fdf5c8793e0fc2a7376e0938ccc95290d76f616c83d678eb4dee",
+    "6": "be84f5e006107fe262de2203f2c8dfe875e536c1865cbbfbbf7d8dcad6d205a2",
+    "7": "8360c5fb6813985db18effb4bc096fa9e6f01f13081469db0069b63d35f6cb63",
+    "8": "c7c704e457753829a9efc6373e34675e59c4f950fa5d676448b3a1214426cd09",
+    "9": "75729c3d8b8ca3c014ca993730b9167979e76a0677fb3ef18e7d6aaa51256de7"
   },
   "invalid_per_seed": 1000,
   "python": "3.13.1",

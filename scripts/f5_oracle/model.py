@@ -237,6 +237,7 @@ class State:
     types: dict[str, str] = field(default_factory=dict)
     mutable: set[str] = field(default_factory=set)
     journal: list[str] = field(default_factory=list)
+    stdout: list[str] = field(default_factory=list)
     steps: int = 0
     max_steps: int = 16_000_000
 
@@ -259,6 +260,14 @@ class _Return(Exception):
 
 
 def execute_statement(stmt: Stmt, state: State) -> None:
+    if stmt.kind == "block":
+        execute_block(stmt.body, state)
+        return
+    if stmt.kind == "print":
+        assert stmt.expr is not None
+        type_check(stmt.expr, state.types)
+        state.stdout.append(format_value(evaluate(stmt.expr, state.env, state.journal)))
+        return
     if stmt.kind in ("let", "var"):
         assert stmt.expr is not None
         ty = type_check(stmt.expr, state.types)

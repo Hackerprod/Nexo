@@ -60,8 +60,8 @@ MUTANTS = {
          '"/", "%", "<", "<=", ">", ">=", "!="', "check_runner"),
         ("runner.py", 'required.add("L03b")', 'required.add("L04b")',
          "check_runner"),
-        ("runner.py", 'stage = "ownership" if missing == "L04b" else "types"',
-         'stage = "ownership"', "check_runner"),
+        ("runner.py", '"lower" if missing == "L10" else "types"',
+         '"types" if missing == "L10" else "types"', "check_runner"),
         ("runner.py", 'if required and "L08" not in complete:',
          'if False and "L08" not in complete:', "check_runner"),
         ("runner.py", 'return None if expected == actual else path',
@@ -85,6 +85,25 @@ MUTANTS = {
         ("batch.py", 'return [seeds[offset:offset + width] for offset in range(0, len(seeds), width)]',
          'return [seeds]', "check_batch"),
     ],
+    "F5-O5": [
+        ("model.py", "array.items.append(copy_value(value))",
+         "array.items.append(value)", "check_model_pairs"),
+        ("model.py", "for item in array.items[:]:",
+         "for item in reversed(array.items[:]):", "check_model_pairs"),
+        ("model.py", "except _Break:\n                        break\n                    finally:\n                        self.cleanup_scope()\n                    if iterable.value",
+         "except _Break:\n                        pass\n                    finally:\n                        self.cleanup_scope()\n                    if iterable.value", "check_model_pairs"),
+        ("model.py", 'return ("Some", array.items.pop()) if array.items else ("None",)',
+         'return ("Some", array.items[0]) if array.items else ("None",)', "check_model_pairs"),
+        ("model.py", "self.stdout.append(line)",
+         'self.stdout.append("0")', "check_model_pairs"),
+        ("model.py", "return self.call(name, args)",
+         "return None", "check_model_pairs"),
+        ("model.py", "self.scopes[0][name] = copy_value(value)",
+         "self.scopes[0][name] = 0", "check_model_pairs"),
+        ("runner.py", 'return {"stdout": vm.stdout, "events": vm.events,',
+         'return {"stdout": ["0"] * len(vm.stdout), "events": vm.events,',
+         "check_differential_sensitivity"),
+    ],
 }
 
 
@@ -104,6 +123,7 @@ def run(piece: str) -> dict[str, object]:
             fixture_dir = tree / "tests/fixtures"
             fixture_dir.mkdir(parents=True)
             shutil.copy2(ROOT / "tests/fixtures/f5_oracle_literals.json", fixture_dir)
+            shutil.copy2(ROOT / "tests/fixtures/f5_oracle_model_pairs.json", fixture_dir)
             target = tree / "scripts/f5_oracle" / name
             base_sha = sha(target)
             source = target.read_text(encoding="utf-8")

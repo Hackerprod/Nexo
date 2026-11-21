@@ -5,7 +5,7 @@ Base de implementación de `nexo.exe`: `9af7d08`, etapa G1b con
 Rust 1.99.1 MSVC y `CARGO_TARGET_DIR=C:/nexo-work/target-oracle`; cada
 invocación lleva `--profile f0-0005-b-v1 --format json`.
 
-- La construcción y ejecución **interna del modelo** con semillas 0..31,
+- La construcción y ejecución **histórica, anterior a F5-O5, del modelo** con semillas 0..31,
   1000 válidos y 1000 negativos por semilla procesó 64.000 casos lógicos
   (32.000 + 32.000), 19 familias, en 17,3 s. La lista de SHA-256 por semilla
   está versionada en `tests/fixtures/f5_oracle_corpus_sha.json` y se comprueba
@@ -30,7 +30,7 @@ invocación lleva `--profile f0-0005-b-v1 --format json`.
   entregue esa base, correr el comando de `README.md` y registrar aquí
   casos, descartes, diferencias, invocaciones físicas y percentiles.
 
-Las 19 familias aleatorias actuales cubren escalares, control simple,
+Las 19 familias aleatorias anteriores a F5-O5 cubrían escalares, control simple,
 Array/Len/Join, fallos aritméticos y seis negativos estáticos aislados.
 Const, efectos, préstamos complejos y fronteras de cuota están hoy en los
 literales dirigidos y el modelo, sin generación aleatoria amplia. Esta brecha
@@ -38,6 +38,26 @@ de cobertura queda visible para la validación; el conteo 64.000 no la oculta.
 
 La deduplicación del ejecutor reutiliza respuestas solo para bytes de fuente
 idénticos, mismo perfil y mismos SHA-256 de binarios dentro de cada tanda. El
-denominador sigue siendo 64.000 casos lógicos antes de deduplicación. La
+denominador anterior era 64.000 casos lógicos antes de deduplicación. La
 puerta de pila 256/512 KiB es externa y sigue F5-r1; este documento no la
 acredita.
+
+## Corrección F5-O5
+
+F5 §10 («Escala determinista», líneas 1317–1319) exige 32 semillas × 1000
+fuentes válidas y 1000 mutaciones fuente por semilla. El generador actual
+normaliza espacios e identificadores, deduplica por esa forma y registra en
+`selftest` y `tests/fixtures/f5_oracle_corpus_sha.json` **1000 válidas y
+1000 inválidas distintas para cada semilla 0…31**. El denominador comprobado
+es 32.000 + 32.000 dentro de cada semilla; las coincidencias entre semillas
+no se usan para inflar ese dato. Los SHA-256 se recalcularon sobre los casos
+con observaciones. La versión Python queda fijada por el fixture.
+
+Las 18 familias válidas incluyen Push/Pop anidado, orden de For Array,
+break/continue, cortocircuito con efectos, función de usuario y const.
+Las 10 familias inválidas incorporan una fuente válida variable antes de
+mutar una sola regla. F5 §10 y el plan r2 §3 exigen además extremos y
+profundidades; el generador de hasta 32 nodos no cubre por sí solo las
+recetas largas de F5 §§9.4–9.5. Se enumeran brechas y pruebas dirigidas en
+`COBERTURA.md`. La campaña CLI G6 queda pendiente de una base con L08–L12
+activas; la proyección anterior conserva los pendientes de F5 §8.2.

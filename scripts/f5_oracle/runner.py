@@ -100,6 +100,8 @@ def _stmt_requirements(stmt: Stmt) -> set[str]:
         required.add("L05b")
     elif stmt.kind == "for_array":
         required.add("L06b")
+    elif stmt.kind in ("break", "continue", "return"):
+        required.add("L04b")
     if stmt.expr is not None:
         required.update(_expr_requirements(stmt.expr))
     if stmt.upper is not None:
@@ -110,7 +112,7 @@ def _stmt_requirements(stmt: Stmt) -> set[str]:
 
 
 def requirements(case: Case) -> set[str]:
-    result = set()
+    result = set(case.required_caps)
     for statement in case.program.body:
         result.update(_stmt_requirements(statement))
     return result
@@ -125,10 +127,12 @@ def projection(case: Case, verb: str, complete: tuple[str, ...]) -> dict[str, An
         missing = None
     if missing is not None:
         scope = missing.removesuffix("b")
-        stage = "ownership" if missing == "L04b" else "types"
+        stage = ("ownership" if missing == "L04b" else
+                 "lower" if missing == "L10" else "types")
         return {"exit": 1, "outcome": "rejected", "diagnostics": [{
             "code": "NX-E0006", "subcause": None, "stage": stage,
-            "operation": {"ownership": "ownership.check", "types": "types.check"}[stage],
+            "operation": {"ownership": "ownership.check", "types": "types.check",
+                          "lower": "ir.lower"}[stage],
             "feature_id": "implementation_limit", "data": {"pending_scope": scope}}]}
     if static is not None:
         return {"exit": 1, "outcome": "rejected", "diagnostics": [static]}
@@ -138,8 +142,9 @@ def projection(case: Case, verb: str, complete: tuple[str, ...]) -> dict[str, An
             "operation": "ir.lower", "feature_id": "implementation_limit",
             "data": {"pending_scope": "L08"}}]}
     if case.expected_fault is not None and verb == "run":
+        vm = SourceVM(parse_source(case.source))
         try:
-            SourceVM(parse_source(case.source)).run()
+            vm.run()
         except ModelFault as fault:
             assert fault.code == case.expected_fault
             diagnostic = semantic(fault.code, "runtime", fault.operation,
@@ -148,9 +153,20 @@ def projection(case: Case, verb: str, complete: tuple[str, ...]) -> dict[str, An
         else:
             raise AssertionError((case.family, "reference runtime fault absent"))
         return {"exit": 1, "outcome": "simulator_fault",
-                "diagnostics": [expected_diag]}
-    return {"exit": 0, "outcome": "checked" if verb == "check" else "unit",
-            "diagnostics": []}
+                "diagnostics": [expected_diag], **_observations(vm)}
+    if verb == "run":
+        vm = SourceVM(parse_source(case.source)).run()
+        return {"exit": 0, "outcome": "unit", "diagnostics": [],
+                **_observations(vm)}
+    return {"exit": 0, "outcome": "checked", "diagnostics": []}
+
+
+def _observations(vm: SourceVM) -> dict[str, Any]:
+    return {"stdout": vm.stdout, "events": vm.events,
+            "observations": [{"channel": "stdout", "text": line}
+                             for line in vm.stdout],
+            "observation_bytes": vm.observation_bytes,
+            "reserved_observation_bytes": 0}
 
 
 def _first_difference(expected: Any, actual: Any, path: str = "$") -> str | None:
@@ -187,7 +203,8 @@ class Invocation:
 
 def invoke(binary: Path, verb: str, source: Path, profile: str,
            *, timeout: float = 10.0) -> Invocation:
-    command = [str(binary), verb, str(source), "--profile", profile,
+    command = ([sys.executable, "-B", str(binary)] if binary.suffix == ".py"
+               else [str(binary)]) + [verb, str(source), "--profile", profile,
                "--format", "json"]
     started = time.perf_counter()
     try:
@@ -261,9 +278,10 @@ def project_diagnostic(diag: dict[str, Any]) -> dict[str, Any]:
 def compare_invocation(invocation: Invocation, case: Case, verb: str,
                        complete: tuple[str, ...], profile: str) -> tuple[str | None, dict[str, Any]]:
     expected = projection(case, verb, complete)
-    expected.update({"schema_version": 1, "profile_id": profile,
-                     "stdout": [], "events": [], "observations": [],
-                     "observation_bytes": 0, "reserved_observation_bytes": 0})
+    expected.update({"schema_version": 1, "profile_id": profile})
+    for key, value in (("stdout", []), ("events", []), ("observations", []),
+                       ("observation_bytes", 0), ("reserved_observation_bytes", 0)):
+        expected.setdefault(key, value)
     if invocation.error:
         return invocation.error, expected
     actual = observed(invocation, profile)

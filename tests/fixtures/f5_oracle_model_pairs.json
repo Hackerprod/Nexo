@@ -1,0 +1,10 @@
+[
+  {"id":"push_copy_nested","adr":"§9.3, Push/Pop/JoinArrays; §4.1, copy by value","source":"fn Main(){var a=[[1]];var b=[2];Push(edit a,b);Push(edit b,3);Print(a);}","stdout":["[[1], [2]]"]},
+  {"id":"for_array_order","adr":"§3.2, array iteration; §9.3","source":"fn Main(){for x in [1,2,3]{Print(x);}}","stdout":["1","2","3"]},
+  {"id":"for_range_break","adr":"§3.1, range iteration and break; §9.3","source":"fn Main(){for i in 0..<3{if i==1{break;}Print(i);}}","stdout":["0"]},
+  {"id":"for_range_continue","adr":"§3.1, range iteration and continue; §9.3","source":"fn Main(){for i in 0..<3{if i==1{continue;}Print(i);}}","stdout":["0","2"]},
+  {"id":"short_circuit_effect","adr":"§2.2; §9.3, Right","source":"fn Right()->Bool{Print(9);return true;}fn Main(){AssertEq(false and Right(),false);AssertEq(true or Right(),true);AssertEq(true and Right(),true);AssertEq(false or Right(),true);}","stdout":["9","9"]},
+  {"id":"pop_option","adr":"§4.1; §9.3, Pop","source":"fn Main(){var a=[2];Print(Pop(edit a));Print(Pop(edit a));}","stdout":["Some(2)","None"]},
+  {"id":"user_function","adr":"§9.3, Right; §12.2","source":"fn Add(x:view I64)->I64{return x+2;}fn Main(){Print(Add(3));}","stdout":["5"]},
+  {"id":"const_scalar","adr":"§5; §8.2, H2","source":"const k:I64=comptime 3;fn Main(){Print(k);Print(k);}","stdout":["3","3"]}
+]
