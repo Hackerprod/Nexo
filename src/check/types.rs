@@ -2588,6 +2588,11 @@ enum SolverValue {
 #[derive(Clone, Copy)]
 struct SolverBindTrace {
     site: SolverBindSite,
+    parent: FactId,
+    child: FactId,
+    parent_generation: u64,
+    child_generation: u64,
+    child_parent: Option<FactId>,
     parent_tainted: bool,
     parent_owner: Option<(u64, u64)>,
     child_tainted: bool,
@@ -2601,16 +2606,26 @@ thread_local! {
 }
 
 #[cfg(test)]
-fn record_solver_bind_entry(graph: &InferenceGraph, request: &SolverBind) {
+fn record_solver_bind_entry(
+    graph: &InferenceGraph,
+    site: SolverBindSite,
+    parent: FactId,
+    child: FactId,
+) {
     SOLVER_BIND_TRACE_ENABLED.with(|enabled| {
         if enabled.get() {
             SOLVER_BIND_TRACE.with(|trace| {
                 trace.borrow_mut().push(SolverBindTrace {
-                    site: request.site,
-                    parent_tainted: graph.fact(request.parent_fact).tainted,
-                    parent_owner: graph.fact(request.parent_fact).numeric_domain_owner,
-                    child_tainted: graph.fact(request.fact).tainted,
-                    child_owner: graph.fact(request.fact).numeric_domain_owner,
+                    site,
+                    parent,
+                    child,
+                    parent_generation: graph.fact(parent).generation,
+                    child_generation: graph.fact(child).generation,
+                    child_parent: graph.fact(child).parent,
+                    parent_tainted: graph.fact(parent).tainted,
+                    parent_owner: graph.fact(parent).numeric_domain_owner,
+                    child_tainted: graph.fact(child).tainted,
+                    child_owner: graph.fact(child).numeric_domain_owner,
                 });
             });
         }
@@ -5259,18 +5274,18 @@ impl Checker<'_> {
                                 inheritance,
                             );
                             frames.push(Frame::EndFact(request.fact));
-                            #[cfg(test)]
-                            record_solver_bind_entry(&self.graph, &request);
                             let SolverBind {
                                 fact: visit,
                                 parent_fact,
-                                site: _,
+                                site: _site,
                                 id,
                                 ty,
                                 origin,
                                 found,
                                 intrinsic,
                             } = request;
+                            #[cfg(test)]
+                            record_solver_bind_entry(&self.graph, _site, parent_fact, visit);
                             if matches!(ty, Type::Never) {
                                 outcome = Ok(SolverValue::Unit);
                                 continue;
@@ -16756,6 +16771,9 @@ mod quota_tests {
             let entries: Vec<_> = traces.iter().filter(|entry| entry.site == site).collect();
             assert_eq!(entries.len(), 1, "{site:?} must enter one child bind");
             let entry = entries[0];
+            assert_ne!(entry.parent, entry.child, "{site:?}");
+            assert_eq!(entry.parent_generation, entry.child_generation, "{site:?}");
+            assert_eq!(entry.child_parent, Some(entry.parent), "{site:?}");
             assert!(entry.parent_tainted, "{site:?}");
             assert_eq!(entry.parent_owner, Some((1, 2)), "{site:?}");
             assert!(!entry.child_tainted, "{site:?}");
@@ -16766,6 +16784,12 @@ mod quota_tests {
             .filter(|entry| entry.site == SolverBindSite::InheritedPayload)
             .collect();
         assert_eq!(inherited.len(), 1);
+        assert_ne!(inherited[0].parent, inherited[0].child);
+        assert_eq!(inherited[0].child_parent, Some(inherited[0].parent));
+        assert_eq!(
+            inherited[0].parent_generation,
+            inherited[0].child_generation
+        );
         assert!(inherited[0].child_tainted);
         assert_eq!(inherited[0].child_owner, Some((1, 2)));
     }
