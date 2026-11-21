@@ -42,6 +42,7 @@ pub struct Local {
 pub enum ResolvedUse {
     Local(Local),
     Function(String),
+    Constant(String),
     Intrinsic(String),
 }
 
@@ -55,6 +56,7 @@ pub struct CallBinding {
 #[derive(Clone, Debug)]
 pub struct Resolved {
     pub signatures: HashMap<String, Signature>,
+    pub constants: HashMap<String, Span>,
     pub uses: HashMap<u64, ResolvedUse>,
     pub calls: HashMap<(u64, u64), CallBinding>,
 }
@@ -195,14 +197,29 @@ pub fn register(file: &str, source: &str, ast: &Ast) -> Result<Registered, Vec<B
     let tokens = lex::lex(file, source).map_err(|d| vec![d])?;
     let mut signatures = HashMap::with_capacity(ast.functions.len());
     let mut errors = Vec::new();
+    let mut declarations: Vec<(&str, &Span, &str)> = ast
+        .functions
+        .iter()
+        .map(|function| (function.name.as_str(), &function.name_span, "function"))
+        .collect();
+    if ast.f5_operators {
+        declarations.extend(
+            ast.consts
+                .iter()
+                .map(|constant| (constant.name.as_str(), &constant.name_span, "constant")),
+        );
+    }
+    declarations.sort_by_key(|(_, span, _)| span.start);
+    let mut first_declarations = HashMap::<&str, &Span>::new();
+    for (name, span, kind) in declarations {
+        if let Some(previous) = first_declarations.get(name) {
+            errors.push(duplicate(span.clone(), (*previous).clone(), kind));
+        } else {
+            first_declarations.insert(name, span);
+        }
+    }
     for function in &ast.functions {
-        if let Some(previous) = signatures.get(&function.name) {
-            let previous: &Signature = previous;
-            errors.push(duplicate(
-                function.name_span.clone(),
-                previous.name_span.clone(),
-                "function",
-            ));
+        if signatures.contains_key(&function.name) {
             continue;
         }
         let mut seen = HashMap::<&str, Span>::with_capacity(function.params.len());
@@ -267,6 +284,11 @@ pub fn register(file: &str, source: &str, ast: &Ast) -> Result<Registered, Vec<B
     Ok((
         Resolved {
             signatures,
+            constants: ast
+                .consts
+                .iter()
+                .map(|constant| (constant.name.clone(), constant.name_span.clone()))
+                .collect(),
             uses: HashMap::new(),
             calls: HashMap::new(),
         },
@@ -345,14 +367,44 @@ pub(crate) fn intrinsic(name: &str) -> Option<Signature> {
     })
 }
 
+fn f5_intrinsic(name: &str) -> Option<Signature> {
+    let entry = crate::prelude::f5_array_intrinsic(name)?;
+    let prelude_span = Span {
+        file: "<prelude>".into(),
+        start: 0,
+        end: 0,
+    };
+    let params = (0..entry.arity)
+        .map(|index| ParameterSig {
+            name: format!("arg{index}"),
+            name_span: prelude_span.clone(),
+            type_span: prelude_span.clone(),
+            mode: if index == 0 && entry.inout_first {
+                Mode::Inout
+            } else {
+                Mode::Read
+            },
+            ty: Type::Unit,
+        })
+        .collect();
+    Some(Signature {
+        name_span: prelude_span,
+        params,
+        result: Type::Unit,
+        intrinsic: true,
+    })
+}
+
 pub(crate) fn signature<'a>(
     resolved: &'a Resolved,
     target: &ResolvedUse,
 ) -> Option<Cow<'a, Signature>> {
     match target {
         ResolvedUse::Function(name) => resolved.signatures.get(name).map(Cow::Borrowed),
-        ResolvedUse::Intrinsic(name) => intrinsic(name).map(Cow::Owned),
-        ResolvedUse::Local(_) => None,
+        ResolvedUse::Intrinsic(name) => intrinsic(name)
+            .or_else(|| f5_intrinsic(name))
+            .map(Cow::Owned),
+        ResolvedUse::Local(_) | ResolvedUse::Constant(_) => None,
     }
 }
 
@@ -383,6 +435,7 @@ struct Resolver {
     phase: Stage,
     errors: Vec<Box<Diagnostic>>,
     allow_option: bool,
+    allow_f5: bool,
     /// Scope index and whether the current closure has an exhaustive capture list.
     closure_boundaries: Vec<(usize, bool)>,
 }
@@ -548,10 +601,16 @@ impl Resolver {
                 return Some(ResolvedUse::Local(local.clone()));
             }
         }
-        if self.resolved.signatures.contains_key(name) {
+        if self.resolved.constants.contains_key(name) {
+            Some(ResolvedUse::Constant(name.into()))
+        } else if self.resolved.signatures.contains_key(name) {
             Some(ResolvedUse::Function(name.into()))
         } else if matches!(name, "Some" | "None") && !self.allow_option {
             None
+        } else if self.allow_f5
+            && let Some(entry) = crate::prelude::f5_array_intrinsic(name)
+        {
+            Some(ResolvedUse::Intrinsic(entry.identity.into()))
         } else {
             intrinsic(name).map(|_| ResolvedUse::Intrinsic(name.into()))
         }
@@ -757,6 +816,9 @@ impl Resolver {
                             }
                         }
                         Expr::Group(x, _) => tasks.push(Walk::Expr(x, call_target)),
+                        Expr::Neg { value, .. } | Expr::Not { value, .. } => {
+                            tasks.push(Walk::Expr(value, false));
+                        }
                         Expr::Unary { mode, value, span } => {
                             tasks.push(Walk::CheckUnary {
                                 mode: *mode,
@@ -998,7 +1060,7 @@ impl Resolver {
         let Some(target_use) = target_use else {
             return Ok(());
         };
-        if matches!(target_use, ResolvedUse::Local(_)) {
+        if matches!(target_use, ResolvedUse::Local(_) | ResolvedUse::Constant(_)) {
             return Ok(());
         }
         if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "None") {
@@ -1206,6 +1268,7 @@ pub(crate) fn resolve_with_option(
         phase: Stage::Names,
         errors: registration_errors,
         allow_option,
+        allow_f5: ast.f5_operators,
         closure_boundaries: Vec::new(),
     };
     let mut seen_functions = HashSet::new();
@@ -1487,6 +1550,7 @@ mod tests {
             phase: Stage::Names,
             errors: Vec::new(),
             allow_option: false,
+            allow_f5: false,
             closure_boundaries: Vec::new(),
         };
         resolver.function(&ast.functions[0]).unwrap();

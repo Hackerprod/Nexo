@@ -20,6 +20,16 @@ const EFFECTS: [(u8, &str, &str); 4] = [
     (SUSPEND, "suspend", "NX-E0414"),
     (IO, "io", "NX-E0415"),
 ];
+
+fn effect_model(profile_id: &str) -> &'static str {
+    if profile_id.starts_with("f0-0003-") {
+        "f0-0003-sim-v1"
+    } else if profile_id == "f0-0005-b-v1" {
+        "f0-0005-sim-v1"
+    } else {
+        "f0-0002-sim-v1"
+    }
+}
 fn charge_effect(
     used: &mut u64,
     span: &Span,
@@ -1047,7 +1057,10 @@ fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
                         frames.push(Frame::Expr(item));
                     }
                 }
-                Expr::Group(inner, _) | Expr::Unary { value: inner, .. } => {
+                Expr::Group(inner, _)
+                | Expr::Unary { value: inner, .. }
+                | Expr::Neg { value: inner, .. }
+                | Expr::Not { value: inner, .. } => {
                     frames.push(Frame::Expr(inner));
                 }
                 Expr::Binary { left, right, .. } => {
@@ -1457,7 +1470,7 @@ pub(super) fn analyze(
                 });
                 error.data.insert(
                     "effect_model".into(),
-                    DataValue::String("f0-0003-sim-v1".into()),
+                    DataValue::String(effect_model(profile_id).into()),
                 );
                 error.data.insert(
                     "effect_evidence".into(),
@@ -1571,7 +1584,7 @@ pub(super) fn analyze(
             });
             error.data.insert(
                 "effect_model".into(),
-                DataValue::String("f0-0003-sim-v1".into()),
+                DataValue::String(effect_model(profile_id).into()),
             );
             error.data.insert(
                 "effect_evidence".into(),
@@ -1740,7 +1753,7 @@ pub(super) fn analyze(
                 d.cause_chain = witness.chain;
                 d.data.insert(
                     "effect_model".into(),
-                    DataValue::String("f0-0003-sim-v1".into()),
+                    DataValue::String(effect_model(profile_id).into()),
                 );
                 d.data.insert(
                     "effect_evidence".into(),
@@ -1808,14 +1821,7 @@ pub(super) fn analyze(
             });
             d.data.insert(
                 "effect_model".into(),
-                DataValue::String(
-                    if profile_id.starts_with("f0-0003-") {
-                        "f0-0003-sim-v1"
-                    } else {
-                        "f0-0002-sim-v1"
-                    }
-                    .into(),
-                ),
+                DataValue::String(effect_model(profile_id).into()),
             );
             d.data.insert(
                 "contract_origin".into(),

@@ -79,7 +79,48 @@ fn print_inner(ast: &Ast, cst: Option<&Cst>) -> Writer {
     } else {
         Writer::default()
     };
-    for function in &ast.functions {
+    enum ModuleItem<'a> {
+        Function(&'a Function),
+        Constant(&'a ConstDecl),
+    }
+    let mut items: Vec<_> = ast.functions.iter().map(ModuleItem::Function).collect();
+    items.extend(ast.consts.iter().map(ModuleItem::Constant));
+    items.sort_by_key(|item| match item {
+        ModuleItem::Function(function) => function.span.start,
+        ModuleItem::Constant(constant) => constant.span.start,
+    });
+    for item in items {
+        let function = match item {
+            ModuleItem::Function(function) => function,
+            ModuleItem::Constant(constant) => {
+                at(
+                    &mut out,
+                    "const",
+                    Role::Word,
+                    constant.const_span.start as usize,
+                    constant.const_span.end as usize,
+                );
+                word_at(
+                    &mut out,
+                    &constant.name,
+                    constant.name_span.start as usize,
+                    constant.name_span.end as usize,
+                );
+                let end = after(&mut out, ":", Role::Colon, constant.name_span.end as usize);
+                let end = ty(&constant.ty, &mut out, end);
+                after(&mut out, "=", Role::Binary, end);
+                at(
+                    &mut out,
+                    "comptime",
+                    Role::Word,
+                    constant.comptime_span.start as usize,
+                    constant.comptime_span.end as usize,
+                );
+                run_print_frames(Frame::Visit(&constant.value, EXPRESSION), &mut out, true);
+                out.terminator(constant.span.end as usize);
+                continue;
+            }
+        };
         let start = function.span.start as usize;
         let fn_start = if function.is_generator {
             at(&mut out, "gen", Role::Word, start, start + 3);
@@ -374,10 +415,20 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer, f5_operators: bool) {
                             value.span().start as usize,
                         ));
                     }
-                    Statement::Assign { place, value, span } => {
+                    Statement::Assign {
+                        place,
+                        op,
+                        value,
+                        span,
+                        ..
+                    } => {
                         frames.push(Frame::Terminator(span.end as usize));
                         frames.push(Frame::Visit(value, EXPRESSION));
-                        frames.push(Frame::After("=", Role::Binary, place.span().end as usize));
+                        frames.push(Frame::After(
+                            op.text(),
+                            Role::Binary,
+                            place.span().end as usize,
+                        ));
                         frames.push(Frame::Visit(place, EXPRESSION));
                     }
                     Statement::Return { value, span } => {
@@ -689,6 +740,26 @@ fn run_print_frames(root: Frame<'_>, out: &mut Writer, f5_operators: bool) {
                 let end = span.end as usize;
                 frames.push(Frame::At("?", Role::Suffix, end - 1, end));
                 frames.push(Frame::Visit(value, levels.try_guard));
+            }
+            Expr::Neg { value, span } => {
+                at(
+                    out,
+                    "-",
+                    Role::Word,
+                    span.start as usize,
+                    span.start as usize + 1,
+                );
+                frames.push(Frame::Visit(value, levels.unary));
+            }
+            Expr::Not { value, span } => {
+                at(
+                    out,
+                    "not",
+                    Role::Word,
+                    span.start as usize,
+                    span.start as usize + 3,
+                );
+                frames.push(Frame::Visit(value, levels.unary));
             }
             Expr::Unary {
                 mode: prefix,
