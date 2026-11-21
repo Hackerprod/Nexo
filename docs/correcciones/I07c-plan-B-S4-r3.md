@@ -1,0 +1,19 @@
+# Validador B - plan I07c S4, ampliacion r3 (142 lineas) - base HEAD 8aba06f (merge be8c47c)
+
+Veredicto: FAIL por un unico motivo (cifra erronea). El resto del delta es correcto.
+
+## Motivo bloqueante
+1. SHA-256 del blob base incorrecto. §1 declara `fa39c36979a49af304a485cbb782247f089f4f13695ff23f6528622f593b253f` y manda comprobarlo con `git show HEAD:src/check/types.rs | sha256sum`. Resultado real en 8aba06f (identico en be8c47c y en el fichero de trabajo): `aad0c50fc49c219f4d08a22e40bb36513de203644725b4a14ea405700e1079e3`. El mutante/campana de §9 congela y restaura por este SHA; una base mal citada invalida la restauracion. Accion: sustituir por aad0c50f...79e3 (o rehacer la medicion).
+
+## Comprobado (sin defectos)
+(a) Regex del plan sobre HEAD: 523 lineas (522 en 6b08c07). El diff 6b08c07..HEAD de types.rs anade una sola coincidencia nueva: `visit,` en Frame::LogicalRight (8788), asignada en filas 39/78. En solve 4917-6338 siguen 29 lineas (4996 5003 5004 5021 5053 5054 5069 5129 5168 5217 5287 5373 5401 5420 5438 5481 5498 5553 5570 5614 5810 5875 5942 6041 6051 6184 6203 6253 6338), incluidas 5129/5401/5498/5553/5570/5942. `src/check/operators.rs` y `src/check/pending_f5.rs`: cero referencias a visit/tainted/owner/Checker. `Checker.f5` es configuracion, no estado de visita (nota: el grep "alias de bool en Checker" no debe marcarlo; conviene decirlo).
+ - `Neg`/`Not` (11040-11070) devuelven `Type::Tainted` del operando y entran por `Frame::Unary` (8735-8742), que solo llama a check_against_context_one sin tocar owner/taint: coincide con filas 35/50/82.
+ - `ResolvedUse::Constant` (11074) devuelve `Type::Tainted`; quien escribe `visit.tainted` es check_against_context_one (10869-10872), como dice la fila 82. La frase de la fila 50 "sin convertir toda constante en causa nueva" es ambigua (la constante SI contamina la visita via 10872, hoy y tras S4); la fila 82 lo aclara, no bloquea.
+ - Salidas tempranas de `drive`: Index rango (10032-10041), Binary rango (10125-10133), For L05 (9871-9884) hacen `ready_result = Err; continue` ANTES de tocar owner/taint o apilar frames; L07 (14138-14148) devuelve Err al entrar. La fila 51/83 coincide.
+ - `check_against_context_one` (10750-10755, 10848, 10872, 10899) correcto; LogicalRight le pasa `Whole(combined)` con e = Binary, que limpia y restaura el owner heredado (8787-8792), como declara la fila 39.
+(b) Politica de las rutas nuevas vs codigo: `and`/`or` (drive 10134-10146) apilan LogicalLeft antes de `previous_owner = visit.owner; owner = None`, no hay take/false en LogicalLeft/Right (8754-8793), ambos operandos se evaluan siempre y el error izquierdo prevalece (8782-8786): la fila 39 reproduce exactamente el comportamiento. 65 citas de linea de las filas 33-50 y 77-88 comprobadas contra HEAD: todas coinciden (7795/7798/7836, 8011/8122/8161, 8805/8822, 8877-8880, 8922-8923, 8953/9029, 9150-9611, 10010-10372, 10750-10848, 11751/11790-11795, 13000/13354/13396, 13930-13963/14123, 14746-14756, 3516/3557, 2656/2701/2776, 8707). Compound assignment (`compound_operand_type`) solo cambia el contexto esperado, no el estado de visita; `retain` de implementation_limit (14746-14756) no toca visita.
+(c) Puertas: 3100a29->be8c47c y be8c47c->8aba06f no cambian src/ ni tests/ (git diff --stat vacio), asi que los binarios `C:\nexo-work\bin\3100a29\{debug,release}` (existen) son la referencia correcta de la fuente actual. Recuentos 2113 debug / 2115 release confirmados en el registro `gates/dd299642.../3100a29...json` y su log (Summary 2113/2115 passed). `tests/f0005_b1b.rs` esta registrado en tests/suite.rs y el §9 no lo incluye entre los archivos editables.
+
+## No bloquean
+- "Comprueba la identidad de la referencia antes de usarla" no dice como; no hay registro/cache de binarios para 3100a29 en gates/ ni cache/. Registrar SHA-256 de ambos nexo.exe en el informe de C.
+- Reaplicar la frase de la fila 50 para que no sugiera que las constantes no contaminan.
