@@ -2105,12 +2105,43 @@ struct VisitFact {
 }
 
 #[cfg(test)]
+#[derive(Clone, Copy, Debug)]
+struct BoundaryEdgeTrace {
+    site: (u64, u64),
+    role: FactRole,
+    parent_tainted: bool,
+    child_tainted: bool,
+    parent_owner: Option<(u64, u64)>,
+    child_owner: Option<(u64, u64)>,
+}
+
+#[cfg(test)]
+type ContextBoundaryEvent = (
+    &'static str,
+    &'static str,
+    Option<(u64, u64)>,
+    usize,
+    bool,
+    bool,
+);
+#[cfg(test)]
+type FrameExitEvent = (&'static str, Option<(u64, u64)>, bool, usize, FactRole);
+
+#[cfg(test)]
 thread_local! {
     static FACT_REENTRY_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static FACT_REENTRY_STACK: std::cell::RefCell<Vec<(u64, HashMap<FactId, VisitFact>)>> = const { std::cell::RefCell::new(Vec::new()) };
     static FACT_REENTRY_COUNT: std::cell::Cell<usize> = const { std::cell::Cell::new(0) };
     static FACT_STATEMENT_TRACE_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     static FACT_STATEMENT_TRACE: std::cell::RefCell<Vec<(bool, bool)>> = const { std::cell::RefCell::new(Vec::new()) };
+    static CONTEXT_BOUNDARY_TRACE_ENABLED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static CONTEXT_BOUNDARY_TRACE: std::cell::RefCell<Vec<ContextBoundaryEvent>> = const { std::cell::RefCell::new(Vec::new()) };
+    static CONTEXT_FACT_DEPTH_TRACE: std::cell::RefCell<Vec<(&'static str, usize)>> = const { std::cell::RefCell::new(Vec::new()) };
+    static FRAME_EXIT_TRACE: std::cell::RefCell<Vec<FrameExitEvent>> = const { std::cell::RefCell::new(Vec::new()) };
+    static BOUNDARY_EDGE_TRACE: std::cell::RefCell<Vec<BoundaryEdgeTrace>> = const { std::cell::RefCell::new(Vec::new()) };
+    static BOUNDARY_ROOT_OWNER: std::cell::Cell<Option<(u64, u64)>> = const { std::cell::Cell::new(None) };
+    static BOUNDARY_ROOT_TAINT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    static BOUNDARY_FORCE_TAINT_EDGE: std::cell::Cell<Option<((u64, u64), FactRole)>> = const { std::cell::Cell::new(None) };
 }
 
 #[derive(Clone)]
@@ -2186,6 +2217,12 @@ impl InferenceGraph {
                 numeric_domain_owner: None,
             },
         );
+        #[cfg(test)]
+        {
+            let fact = self.active_facts.get_mut(&id).expect("new root fact");
+            BOUNDARY_ROOT_OWNER.with(|owner| fact.numeric_domain_owner = owner.get());
+            BOUNDARY_ROOT_TAINT.with(|taint| fact.tainted = taint.get());
+        }
         id
     }
 
@@ -2222,10 +2259,18 @@ impl InferenceGraph {
         taint: FactInheritance,
         owner: FactInheritance,
     ) -> FactId {
+        #[cfg(test)]
+        BOUNDARY_FORCE_TAINT_EDGE.with(|forced| {
+            if forced.get() == Some((site, role)) {
+                self.fact_mut(parent).tainted = true;
+            }
+        });
         let parent_fact = self.fact(parent);
         let generation = parent_fact.generation;
         #[cfg(test)]
         let parent_tainted = parent_fact.tainted;
+        #[cfg(test)]
+        let parent_owner = parent_fact.numeric_domain_owner;
         let tainted = matches!(taint, FactInheritance::Inherit) && parent_fact.tainted;
         let numeric_domain_owner = match owner {
             FactInheritance::Inherit => parent_fact.numeric_domain_owner,
@@ -2243,6 +2288,21 @@ impl InferenceGraph {
                 numeric_domain_owner,
             },
         );
+        #[cfg(test)]
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| {
+            if enabled.get() {
+                BOUNDARY_EDGE_TRACE.with(|trace| {
+                    trace.borrow_mut().push(BoundaryEdgeTrace {
+                        site,
+                        role,
+                        parent_tainted,
+                        child_tainted: tainted,
+                        parent_owner,
+                        child_owner: numeric_domain_owner,
+                    });
+                });
+            }
+        });
         #[cfg(test)]
         if role == FactRole::Statement {
             FACT_STATEMENT_TRACE_ENABLED.with(|enabled| {
@@ -2312,6 +2372,16 @@ impl InferenceGraph {
     #[cfg(test)]
     fn active_count(&self) -> usize {
         self.active_facts.len()
+    }
+
+    #[cfg(test)]
+    fn fact_depth(&self, mut id: FactId) -> usize {
+        let mut depth = 0;
+        while let Some(parent) = self.fact(id).parent {
+            depth += 1;
+            id = parent;
+        }
+        depth
     }
 
     fn register(&mut self, obligation: ObligationKind) {
@@ -8849,6 +8919,25 @@ impl Checker<'_> {
             inner_context: &mut OwnedCheckContext,
             pending_task: &mut Option<Task<'a>>,
         ) -> Resume {
+            #[cfg(test)]
+            let boundary_frame = match &frame {
+                Frame::Array(_) => Some("Array"),
+                Frame::Index(_) => Some("Index"),
+                Frame::IndexSelector(_) => Some("IndexSelector"),
+                Frame::Binary(_) => Some("Binary"),
+                Frame::BinaryRight(_) => Some("BinaryRight"),
+                Frame::BinaryDeferredRight(_) => Some("BinaryDeferredRight"),
+                Frame::BinaryIndependentLeftError(_) => Some("BinaryIndependentLeftError"),
+                Frame::BinaryIndependentRight(_) => Some("BinaryIndependentRight"),
+                Frame::Call(_) => Some("Call"),
+                Frame::CallTarget(_) => Some("CallTarget"),
+                Frame::ClosureCall(_) => Some("ClosureCall"),
+                Frame::UnionCall(_) => Some("UnionCall"),
+                Frame::IntrinsicOne(_) => Some("IntrinsicOne"),
+                Frame::TryAdd(_) => Some("TryAdd"),
+                Frame::AssertEq(_) => Some("AssertEq"),
+                _ => None,
+            };
             match frame {
                 Frame::StatementSite(statement, parent_fact) => {
                     let prior_taint = checker.graph.fact(parent_fact).tainted;
@@ -10076,6 +10165,23 @@ impl Checker<'_> {
                 }
                 _ => unreachable!("match frame handled by drive"),
             }
+            #[cfg(test)]
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| {
+                if enabled.get()
+                    && let Some(tag) = boundary_frame
+                {
+                    FRAME_EXIT_TRACE.with(|trace| {
+                        let fact = checker.graph.fact(visit);
+                        trace.borrow_mut().push((
+                            tag,
+                            fact.numeric_domain_owner,
+                            fact.tainted,
+                            checker.graph.fact_depth(visit),
+                            fact.role,
+                        ));
+                    });
+                }
+            });
             Resume::Next(result, visit)
         }
         let (site, role) = match &start {
@@ -11266,6 +11372,17 @@ impl Checker<'_> {
             Expr::Binary { .. } | Expr::Index { .. } | Expr::Call { .. } | Expr::Array(..)
         )
         .then_some(visit);
+        #[cfg(test)]
+        let boundary_stage = match &computed {
+            Some(PrecomputedType::BinaryLeft { .. }) => "BinaryLeft",
+            Some(PrecomputedType::BinaryRight { .. }) => "BinaryRight",
+            Some(PrecomputedType::BinaryDeferredRight { .. }) => "BinaryDeferredRight",
+            Some(PrecomputedType::Whole(_)) => "Whole",
+            Some(PrecomputedType::ArrayComplete { .. }) => "ArrayComplete",
+            Some(PrecomputedType::IndexTarget { .. }) => "IndexTarget",
+            Some(PrecomputedType::CallComplete(_)) => "CallComplete",
+            _ => "Other",
+        };
         let visit = if let Some(parent) = comparison_parent {
             self.graph.child_fact(
                 parent,
@@ -11368,15 +11485,53 @@ impl Checker<'_> {
                 call_target,
             ),
         };
-        let got = match result {
-            Ok(got) => got,
-            Err(error) => {
-                if let Some(parent) = comparison_parent {
-                    self.graph.merge_child(parent, visit, true);
-                }
-                return Err(error);
+        #[cfg(test)]
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| {
+            if enabled.get() {
+                CONTEXT_BOUNDARY_TRACE.with(|trace| {
+                    trace.borrow_mut().push((
+                        "synthesis",
+                        boundary_stage,
+                        self.graph.fact(visit).numeric_domain_owner,
+                        self.graph.active_count(),
+                        comparison_parent.is_some_and(|parent| parent == visit),
+                        self.graph.fact(visit).role == FactRole::Operator,
+                    ));
+                });
             }
+        });
+        let visit = if let Some(parent) = comparison_parent {
+            self.graph.merge_child(parent, visit, true);
+            parent
+        } else {
+            visit
         };
+        #[cfg(test)]
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| {
+            if enabled.get() {
+                CONTEXT_FACT_DEPTH_TRACE.with(|trace| {
+                    trace
+                        .borrow_mut()
+                        .push((boundary_stage, self.graph.fact_depth(visit)));
+                });
+            }
+        });
+        #[cfg(test)]
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| {
+            if enabled.get() {
+                CONTEXT_BOUNDARY_TRACE.with(|trace| {
+                    trace.borrow_mut().push((
+                        "after_synthesis",
+                        boundary_stage,
+                        self.graph.fact(visit).numeric_domain_owner,
+                        self.graph.active_count(),
+                        comparison_parent.is_some_and(|parent| parent == visit),
+                        self.graph.fact(visit).role == FactRole::Operator,
+                    ));
+                });
+            }
+        });
+        let got = result?;
         self.capture_expression_dependencies(e);
         if got == Type::Tainted
             && self
@@ -11463,9 +11618,6 @@ impl Checker<'_> {
                         projection.expected = Some(expected.clone());
                         projection.expected_span = expected_span.cloned();
                         projection.related_expected = related_expected;
-                        if let Some(parent) = comparison_parent {
-                            self.graph.merge_child(parent, visit, true);
-                        }
                         return Ok(got);
                     }
                     // Compare the complete representative when an array
@@ -11488,6 +11640,21 @@ impl Checker<'_> {
                         got.clone()
                     };
                     let pending_before_comparison = self.pending_join_count();
+                    #[cfg(test)]
+                    CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| {
+                        if enabled.get() {
+                            CONTEXT_BOUNDARY_TRACE.with(|trace| {
+                                trace.borrow_mut().push((
+                                    "comparison",
+                                    boundary_stage,
+                                    self.graph.fact(visit).numeric_domain_owner,
+                                    self.graph.active_count(),
+                                    comparison_parent.is_some_and(|parent| parent == visit),
+                                    self.graph.fact(visit).role == FactRole::Operator,
+                                ));
+                            });
+                        }
+                    });
                     let outcome = self.unify_with_expected_origin(
                         visit,
                         expected.clone(),
@@ -11529,14 +11696,8 @@ impl Checker<'_> {
                     let root = self.root(id);
                     self.graph.mark_failed_constructor(root);
                 }
-                if let Some(parent) = comparison_parent {
-                    self.graph.merge_child(parent, visit, true);
-                }
                 return Err(error);
             }
-        }
-        if let Some(parent) = comparison_parent {
-            self.graph.merge_child(parent, visit, true);
         }
         Ok(got)
     }
@@ -16857,6 +17018,427 @@ mod quota_tests {
             assert!(!tainted);
             assert_eq!(checker.graph.active_count(), 0);
         }
+    }
+
+    #[test]
+    fn boundary_context_owner_closes_constructor_before_comparison() {
+        let source = "fn Main(){let z=Len([1]);}";
+        let ast = parse::parse_new_profile("boundary.n", source).unwrap();
+        let resolved = names::resolve_with_option("boundary.n", source, &ast, true).unwrap();
+        let Statement::Let { value, .. } = &ast.functions[0].body.statements[0] else {
+            panic!("expected call binding")
+        };
+        for (inherited_owner, inherited_taint) in [
+            (Some((26, 41)), false),
+            (None, false),
+            (Some((26, 41)), true),
+        ] {
+            let mut checker = empty_checker(&resolved);
+            let parent = checker
+                .graph
+                .begin_visit(span_key(value.span()), FactRole::Expression);
+            checker.graph.fact_mut(parent).numeric_domain_owner = inherited_owner;
+            checker.graph.fact_mut(parent).tainted = inherited_taint;
+            CONTEXT_BOUNDARY_TRACE.with(|trace| trace.borrow_mut().clear());
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+            let expected = Type::Bool;
+            let context = CheckContext {
+                expected: Some(&expected),
+                expected_span: None,
+                check_here: true,
+                anchor: None,
+                outer_compare: false,
+                related_expected: false,
+                deferred_element: false,
+            };
+            let result = checker.check_against_context_one(
+                parent,
+                value,
+                context,
+                Some(PrecomputedType::CallComplete(Ok(Type::I64))),
+            );
+            if inherited_taint {
+                assert_eq!(result.unwrap(), Type::I64);
+            } else {
+                assert_eq!(result.unwrap_err().code, "NX-E0102");
+            }
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+            CONTEXT_BOUNDARY_TRACE.with(|trace| {
+                let events = trace.borrow();
+                assert_eq!(events.len(), if inherited_taint { 2 } else { 3 });
+                assert_eq!(
+                    events[0],
+                    ("synthesis", "CallComplete", None, 2, false, true)
+                );
+                assert_eq!(
+                    events[1],
+                    (
+                        "after_synthesis",
+                        "CallComplete",
+                        inherited_owner,
+                        1,
+                        true,
+                        false
+                    )
+                );
+                if !inherited_taint {
+                    assert_eq!(
+                        events[2],
+                        (
+                            "comparison",
+                            "CallComplete",
+                            inherited_owner,
+                            1,
+                            true,
+                            false
+                        )
+                    );
+                }
+            });
+            assert_eq!(
+                checker.graph.fact(parent).numeric_domain_owner,
+                inherited_owner
+            );
+            assert_eq!(checker.graph.fact(parent).tainted, inherited_taint);
+            assert_eq!(checker.graph.active_count(), 1);
+            checker.graph.end_visit(parent);
+            assert_eq!(checker.graph.active_count(), 0);
+        }
+    }
+
+    #[test]
+    fn boundary_binary_context_closes_after_prepared_comparison() {
+        for (source, stage) in [
+            ("fn Main(){let z=1+2;}", "BinaryRight"),
+            ("fn Main(){let z=true+1;}", "Whole"),
+            ("fn Main(){let z=1+true;}", "BinaryRight"),
+            ("fn Main(){var r=[];let z=r+1;r=1;}", "BinaryLeft"),
+            ("fn Main(){var r=[];let z=1+r;r=1;}", "BinaryRight"),
+        ] {
+            let ast = parse::parse_new_profile("boundary-binary.n", source).unwrap();
+            let resolved =
+                names::resolve_with_option("boundary-binary.n", source, &ast, true).unwrap();
+            let mut checker = empty_checker(&resolved);
+            BOUNDARY_ROOT_OWNER.with(|owner| owner.set(Some((26, 41))));
+            BOUNDARY_ROOT_TAINT.with(|taint| taint.set(true));
+            CONTEXT_BOUNDARY_TRACE.with(|trace| trace.borrow_mut().clear());
+            CONTEXT_FACT_DEPTH_TRACE.with(|trace| trace.borrow_mut().clear());
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+            let _ = checker.drive(DriveStart::Block(&ast.functions[0].body));
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+            BOUNDARY_ROOT_OWNER.with(|owner| owner.set(None));
+            BOUNDARY_ROOT_TAINT.with(|taint| taint.set(false));
+            CONTEXT_FACT_DEPTH_TRACE.with(|trace| {
+                let observed: Vec<_> = trace
+                    .borrow()
+                    .iter()
+                    .copied()
+                    .filter(|event| event.0 == stage)
+                    .collect();
+                assert_eq!(observed, [(stage, 2)], "{source}: {:?}", trace.borrow());
+            });
+            CONTEXT_BOUNDARY_TRACE.with(|trace| {
+                let observed: Vec<_> = trace
+                    .borrow()
+                    .iter()
+                    .copied()
+                    .filter(|event| event.0 == "after_synthesis" && event.1 == stage)
+                    .collect();
+                assert_eq!(
+                    observed,
+                    [("after_synthesis", stage, None, 3, true, true)],
+                    "{source}: {:?}",
+                    trace.borrow().as_slice()
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn boundary_binary_left_quota_keeps_operator_until_context_close() {
+        let source = "fn Main(){let z=1+2;}";
+        let ast = parse::parse_new_profile("boundary-quota.n", source).unwrap();
+        let resolved = names::resolve_with_option("boundary-quota.n", source, &ast, true).unwrap();
+        let mut checker = empty_checker(&resolved);
+        checker.solver_limit = 0;
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(Some((26, 41))));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(true));
+        CONTEXT_BOUNDARY_TRACE.with(|trace| trace.borrow_mut().clear());
+        CONTEXT_FACT_DEPTH_TRACE.with(|trace| trace.borrow_mut().clear());
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+        let (result, _) = checker.drive(DriveStart::Block(&ast.functions[0].body));
+        assert!(result.is_ok());
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(None));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(false));
+        CONTEXT_BOUNDARY_TRACE.with(|trace| {
+            assert!(
+                trace
+                    .borrow()
+                    .contains(&("after_synthesis", "BinaryLeft", None, 3, true, true,)),
+                "{:?}",
+                trace.borrow()
+            );
+        });
+        CONTEXT_FACT_DEPTH_TRACE.with(|trace| {
+            assert!(
+                trace.borrow().contains(&("BinaryLeft", 2)),
+                "{:?}",
+                trace.borrow()
+            );
+        });
+    }
+
+    #[test]
+    fn boundary_frame_owner_survives_completed_calls() {
+        for (label, source) in [
+            (
+                "Call",
+                "fn F(x:view I64)->I64{return x;}fn Main(){let z=F(1);}",
+            ),
+            ("UnionCall", "fn Main(){let z=Some(1);}"),
+            ("TryAdd", "fn Main(){let z=TryAdd(1,1);}"),
+            ("IntrinsicOne", "fn Main(){let z=Len([1]);}"),
+            ("CallTarget", "fn Main(){let z=(fn ()->I64{return 1;})();}"),
+            ("AssertEq", "fn Main(){AssertEq(1,1);}"),
+        ] {
+            let ast = parse::parse_new_profile("boundary-call.n", source).unwrap();
+            let resolved =
+                names::resolve_with_option("boundary-call.n", source, &ast, true).unwrap();
+            let mut checker = empty_checker(&resolved);
+            BOUNDARY_ROOT_OWNER.with(|owner| owner.set(Some((26, 41))));
+            BOUNDARY_ROOT_TAINT.with(|taint| taint.set(true));
+            FRAME_EXIT_TRACE.with(|trace| trace.borrow_mut().clear());
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+            let _ = checker.drive(DriveStart::Block(&ast.functions.last().unwrap().body));
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+            BOUNDARY_ROOT_OWNER.with(|owner| owner.set(None));
+            BOUNDARY_ROOT_TAINT.with(|taint| taint.set(false));
+            FRAME_EXIT_TRACE.with(|trace| {
+                assert!(
+                    trace.borrow().iter().any(|event| {
+                        *event == (label, Some((26, 41)), false, 1, FactRole::Statement)
+                    }),
+                    "{label}: {:?}",
+                    trace.borrow()
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn boundary_closure_call_restores_parent_fact() {
+        let source = "fn Main(){let z=(fn [](x:view I64){return x;})(1);}";
+        let ast = parse::parse_new_profile("boundary-closure.n", source).unwrap();
+        let resolved =
+            names::resolve_with_option("boundary-closure.n", source, &ast, true).unwrap();
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(Some((26, 41))));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(true));
+        FRAME_EXIT_TRACE.with(|trace| trace.borrow_mut().clear());
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+        let report = check_with_partial("boundary-closure.n", source, &ast, &resolved);
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(None));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(false));
+        assert!(report.errors.is_empty(), "{:?}", report.errors);
+        FRAME_EXIT_TRACE.with(|trace| {
+            let observed: Vec<_> = trace
+                .borrow()
+                .iter()
+                .filter(|event| event.0 == "ClosureCall")
+                .copied()
+                .collect();
+            assert!(!observed.is_empty());
+            assert!(
+                observed.iter().all(|event| {
+                    *event == ("ClosureCall", Some((26, 41)), false, 1, FactRole::Statement)
+                }),
+                "{observed:?}"
+            );
+        });
+    }
+
+    #[test]
+    fn boundary_taint_edges_clear_before_local_values() {
+        for (label, source, marker, offset, length, role) in [
+            (
+                "statement",
+                "fn Main(){let x=1;let y=2;}",
+                "let y=2;",
+                0,
+                8,
+                FactRole::Statement,
+            ),
+            (
+                "assignment",
+                "fn Main(){var x=1;x=2;}",
+                "x=2;",
+                2,
+                1,
+                FactRole::Expression,
+            ),
+            (
+                "if",
+                "fn Main(){let z=(if true then 1 else 2);}",
+                "then 1",
+                5,
+                1,
+                FactRole::Expression,
+            ),
+            (
+                "match",
+                "fn Main(){let z=match true{true=>{value:1;},false=>{value:2;}};}",
+                "value:2",
+                6,
+                1,
+                FactRole::Expression,
+            ),
+            (
+                "closure",
+                "fn Main(){let f=fn []()->I64{let x=1;return 2;};}",
+                "return 2",
+                7,
+                1,
+                FactRole::Statement,
+            ),
+        ] {
+            let ast = parse::parse_new_profile("boundary-taint.n", source).unwrap();
+            let resolved =
+                names::resolve_with_option("boundary-taint.n", source, &ast, true).unwrap();
+            let start = (source.find(marker).unwrap() + offset) as u64;
+            let site = (start, start + length);
+            BOUNDARY_ROOT_OWNER.with(|owner| owner.set(Some((26, 41))));
+            BOUNDARY_ROOT_TAINT.with(|taint| taint.set(true));
+            BOUNDARY_FORCE_TAINT_EDGE.with(|forced| forced.set(Some((site, role))));
+            BOUNDARY_EDGE_TRACE.with(|trace| trace.borrow_mut().clear());
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+            let _report = check_with_partial("boundary-taint.n", source, &ast, &resolved);
+            CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+            BOUNDARY_FORCE_TAINT_EDGE.with(|forced| forced.set(None));
+            BOUNDARY_ROOT_OWNER.with(|owner| owner.set(None));
+            BOUNDARY_ROOT_TAINT.with(|taint| taint.set(false));
+            BOUNDARY_EDGE_TRACE.with(|trace| {
+                let selected: Vec<_> = trace
+                    .borrow()
+                    .iter()
+                    .copied()
+                    .filter(|edge| edge.site == site && edge.role == role)
+                    .collect();
+                assert!(!selected.is_empty(), "{label}: {:?}", trace.borrow());
+                assert!(
+                    selected.iter().all(|edge| {
+                        edge.parent_tainted
+                            && !edge.child_tainted
+                            && edge.parent_owner == Some((26, 41))
+                            && edge.child_owner == Some((26, 41))
+                    }),
+                    "{label}: {selected:?}"
+                );
+            });
+        }
+    }
+
+    #[test]
+    fn boundary_array_and_index_restore_owner_before_consumers() {
+        let source = "fn Main(){let x=[1];let z=x[0];}";
+        let ast = parse::parse_new_profile("boundary-index.n", source).unwrap();
+        let resolved = names::resolve_with_option("boundary-index.n", source, &ast, true).unwrap();
+        let mut checker = empty_checker(&resolved);
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(Some((26, 41))));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(true));
+        BOUNDARY_EDGE_TRACE.with(|trace| trace.borrow_mut().clear());
+        CONTEXT_BOUNDARY_TRACE.with(|trace| trace.borrow_mut().clear());
+        FRAME_EXIT_TRACE.with(|trace| trace.borrow_mut().clear());
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+        let _ = checker.drive(DriveStart::Block(&ast.functions[0].body));
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(None));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(false));
+        BOUNDARY_EDGE_TRACE.with(|trace| {
+            let edges = trace.borrow();
+            assert!(edges.iter().any(|edge| {
+                edge.site == (17, 18)
+                    && edge.role == FactRole::Expression
+                    && edge.parent_owner == Some((26, 41))
+                    && edge.child_owner.is_none()
+            }));
+            assert!(edges.iter().any(|edge| {
+                edge.site == (26, 27)
+                    && edge.role == FactRole::Expression
+                    && edge.parent_owner == Some((26, 41))
+                    && edge.child_owner.is_none()
+            }));
+            assert!(edges.iter().any(|edge| {
+                edge.site == (28, 29)
+                    && edge.role == FactRole::Selector
+                    && edge.parent_owner == Some((26, 41))
+                    && edge.child_owner == Some((26, 41))
+            }));
+        });
+        CONTEXT_BOUNDARY_TRACE.with(|trace| {
+            let events = trace.borrow();
+            assert!(events.contains(&(
+                "after_synthesis",
+                "ArrayComplete",
+                Some((26, 41)),
+                2,
+                true,
+                false,
+            )));
+            assert!(events.contains(&(
+                "after_synthesis",
+                "IndexTarget",
+                Some((26, 41)),
+                2,
+                true,
+                false,
+            )));
+        });
+        FRAME_EXIT_TRACE.with(|trace| {
+            assert!(trace.borrow().contains(&(
+                "Array",
+                Some((26, 41)),
+                false,
+                1,
+                FactRole::Statement,
+            )));
+        });
+    }
+
+    #[test]
+    fn boundary_binary_deferred_rhs_keeps_owner_until_result() {
+        let source = "fn Main(){var r=[];let z=(r<1);r=1;}";
+        let ast = parse::parse_new_profile("boundary-deferred.n", source).unwrap();
+        let resolved =
+            names::resolve_with_option("boundary-deferred.n", source, &ast, true).unwrap();
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(Some((26, 41))));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(true));
+        FRAME_EXIT_TRACE.with(|trace| trace.borrow_mut().clear());
+        CONTEXT_BOUNDARY_TRACE.with(|trace| trace.borrow_mut().clear());
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(true));
+        let _ = check_with_partial("boundary-deferred.n", source, &ast, &resolved);
+        CONTEXT_BOUNDARY_TRACE_ENABLED.with(|enabled| enabled.set(false));
+        BOUNDARY_ROOT_OWNER.with(|owner| owner.set(None));
+        BOUNDARY_ROOT_TAINT.with(|taint| taint.set(false));
+        FRAME_EXIT_TRACE.with(|trace| {
+            assert!(trace.borrow().contains(&(
+                "BinaryDeferredRight",
+                Some((26, 41)),
+                false,
+                1,
+                FactRole::Statement,
+            )));
+        });
+        CONTEXT_BOUNDARY_TRACE.with(|trace| {
+            assert!(trace.borrow().contains(&(
+                "after_synthesis",
+                "BinaryDeferredRight",
+                None,
+                3,
+                true,
+                true,
+            )));
+        });
     }
 
     #[test]

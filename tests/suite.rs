@@ -61,6 +61,8 @@ mod i07c_pattern_deferred;
 mod i07c_pending_nominal_domain;
 #[path = "i07c_rd_conformidad.rs"]
 mod i07c_rd_conformidad;
+#[path = "i07c_s4_context_regressions.rs"]
+mod i07c_s4_context_regressions;
 #[path = "i07c_solver_depth.rs"]
 mod i07c_solver_depth;
 #[path = "i08.rs"]
