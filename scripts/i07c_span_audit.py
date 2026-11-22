@@ -80,11 +80,97 @@ def check_helper(source_lines: list[str]) -> None:
         raise SystemExit(f"group-removal helper changed or missing in {HELPER}")
 
 
+def test_lines(text: str) -> set[int]:
+    """1-based lines of every `#[cfg(test)]` item (module, function, ...), delimited by its braces.
+
+    A small Rust scanner skips comments, string, raw string and character literals, so braces inside
+    them do not move the end of an item; anything outside these items is product code.
+    """
+    n = len(text)
+    line_of = [1] * (n + 1)
+    for i, ch in enumerate(text):
+        line_of[i + 1] = line_of[i] + (ch == "\n")
+
+    def skip(i: int) -> int:
+        """Index after the comment/literal starting at `i`, or `i` if none starts there."""
+        two = text[i:i + 2]
+        if two == "//":
+            j = text.find("\n", i)
+            return n if j < 0 else j
+        if two == "/*":
+            depth, j = 1, i + 2
+            while j < n and depth:
+                if text.startswith("/*", j):
+                    depth, j = depth + 1, j + 2
+                elif text.startswith("*/", j):
+                    depth, j = depth - 1, j + 2
+                else:
+                    j += 1
+            return j
+        m = re.compile(r'b?r(#*)"').match(text, i)
+        if m:
+            end = text.find('"' + m.group(1), m.end())
+            return n if end < 0 else end + 1 + len(m.group(1))
+        if text[i] == '"' or text.startswith('b"', i):
+            j = i + (2 if text[i] == "b" else 1)
+            while j < n and text[j] != '"':
+                j += 2 if text[j] == "\\" else 1
+            return j + 1
+        if text[i] == "'":
+            if text.startswith("'\\", i):
+                j = text.find("'", i + 3)
+                return n if j < 0 else j + 1
+            if i + 2 < n and text[i + 2] == "'":
+                return i + 3
+        return i
+
+    marks = []  # (start index, end index) of each cfg(test) item
+    i = 0
+    stack = []  # indices of open braces
+    pending = []  # (attribute index) waiting for the item's opening brace
+    open_of = {}  # brace index -> attribute index of a cfg(test) item
+    group = 0  # depth of parentheses and brackets (a `;` inside `[u8; 4]` does not end an item)
+    while i < n:
+        j = skip(i)
+        if j != i:
+            i = j
+            continue
+        if text.startswith("#[cfg(test)]", i):
+            pending.append(i)
+            i += len("#[cfg(test)]")
+            continue
+        ch = text[i]
+        if ch == "{":
+            if pending:
+                open_of[i] = pending.pop()
+            stack.append(i)
+        elif ch == "}":
+            start = stack.pop()
+            if start in open_of:
+                marks.append((open_of[start], i))
+        elif ch in "([":
+            group += 1
+        elif ch in ")]":
+            group -= 1
+        elif ch == ";" and pending and group == 0 and not stack_open_after(pending[-1], stack, i):
+            marks.append((pending.pop(), i))
+        i += 1
+    lines = set()
+    for a, b in marks:
+        lines.update(range(line_of[a], line_of[b] + 1))
+    return lines
+
+
+def stack_open_after(attribute: int, stack: list, index: int) -> bool:
+    """True if a brace opened after the attribute is still open (the `;` is inside the item)."""
+    return any(opened > attribute for opened in stack)
+
+
 def audit_plain(path: Path, reviewed: dict) -> int:
-    """Every raw `.span()` outside the test module must be a reviewed site."""
-    lines = path.read_text(encoding="utf-8").splitlines()
-    marker = [i for i, line in enumerate(lines) if line.strip() == "mod tests {"]
-    tests_begin = marker[0] + 1 if marker else len(lines) + 1
+    """Every raw `.span()` outside the cfg(test) items must be a reviewed site."""
+    text = path.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    tests_zone = test_lines(text)
     seen = set()
     tests = 0
     for number, line in enumerate(lines, 1):
@@ -97,7 +183,7 @@ def audit_plain(path: Path, reviewed: dict) -> int:
                 raise SystemExit(f"reviewed span changed at {path}:{number}: {line.strip()}")
             seen.add(number)
             print(f"{path.name} {kind}: {number} {expression} - {reason}")
-        elif number >= tests_begin:
+        elif number in tests_zone:
             tests += 1
         else:
             raise SystemExit(f"unreviewed raw span at {path}:{number}: {line.strip()}")
@@ -216,11 +302,22 @@ def self_test() -> None:
             write(types_text, parse_text)
             result = run(script)
             assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
-        # names.rs and effects.rs: a new raw use and the reversion of a reviewed site fail.
+        # names.rs and effects.rs: a new raw use anywhere in product code fails (including product
+        # code that follows a test module), the reversion of a reviewed site fails, and the same
+        # use inside a real test module is accepted.
         fresh = "fn zz(e: &Expr) -> Span { e.span().clone() }\n"
+        attribute = "#[cfg(test)]\nmod tests {"
+
+        def before(text: str, anchor: str) -> str:
+            assert text.count(anchor) == 1, anchor
+            return text.replace(anchor, fresh + anchor, 1)
+
         extra = [
-            ("new raw span in names.rs", dict(names_text=original_names.replace("mod tests {", fresh + "mod tests {", 1)), "unreviewed raw span"),
-            ("new raw span in effects.rs", dict(effects_text=original_effects.replace("mod tests {", fresh + "mod tests {", 1)), "unreviewed raw span"),
+            ("raw span before the names.rs test module", dict(names_text=before(original_names, attribute)), "unreviewed raw span"),
+            ("raw span after the last names.rs test module", dict(names_text=original_names + fresh), "unreviewed raw span"),
+            ("raw span in effects.rs before call_head", dict(effects_text=before(original_effects, "fn call_head(")), "unreviewed raw span"),
+            ("raw span in find_witness (after a test module)", dict(effects_text=before(original_effects, "fn find_witness(")), "unreviewed raw span"),
+            ("raw span after the last effects.rs test module", dict(effects_text=original_effects + fresh), "unreviewed raw span"),
             ("names.rs site 1085 normalized", dict(names_text=original_names.replace("related(&mut d, RelatedRole::Context, target.span().clone());", "related(&mut d, RelatedRole::Context, expression_primary_span(target));", 1)), "reviewed span changed"),
             ("effects.rs guard site reverted", dict(effects_text=original_effects.replace("out.push(guard.span().clone());", "out.push(guard_span(guard));", 1)), "reviewed span changed"),
         ]
@@ -228,6 +325,17 @@ def self_test() -> None:
             write(original, original_helper, **texts)
             result = run(script)
             assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
+        # Green: a raw span inside a real test module (and inside a string or comment with braces).
+        green = [
+            ("names.rs", dict(names_text=original_names.replace("mod tests {\n", "mod tests {\n" + fresh, 1))),
+            ("effects.rs tests", dict(effects_text=original_effects.replace("mod tests {\n", "mod tests {\n" + fresh, 1))),
+            ("effects.rs witness tests", dict(effects_text=original_effects.replace("mod witness_differential_tests {\n", "mod witness_differential_tests {\n" + fresh, 1))),
+            ("braces in a comment and a string", dict(effects_text=before(original_effects, "fn find_witness(").replace(fresh, "const Z: &str = \"}\"; // {" + chr(10)))),
+        ]
+        for label, texts in green:
+            write(original, original_helper, **texts)
+            result = run(script)
+            assert result.returncode == 0, (label, result.stdout, result.stderr)
         reverts = reverts + extra
     print(f"span auditor self-test: PASS ({len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)} "
           f"reviewed in 3 files; novel raw use and {len(reverts)} site reversions rejected)")
