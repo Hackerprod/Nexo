@@ -9,6 +9,7 @@ import hashlib
 from pathlib import Path
 import re
 import subprocess
+import sys
 
 
 NAMES = ("drive", "resume_non_match", "expr_inner", "match_advance",
@@ -64,6 +65,21 @@ def symbol_address(map_text, name, allow_missing=False):
     if len(found) != 1:
         raise ValueError(f"{name}: expected one exact section 0001 symbol, found {found}")
     return found[0]
+
+
+PAIR = ("drive", "resume_non_match")
+
+
+def scan(map_text, allow_missing):
+    """Ubica todos los símbolos. Con allow_missing solo se toleran los ayudantes ausentes:
+    la pareja principal (`drive`, `resume_non_match`) debe estar siempre; un mapa vacío o
+    ilegible no es evaluable y falla en vez de informar todo como `ausente`."""
+    located = {name: symbol_address(map_text, name, allow_missing) for name in NAMES}
+    absent = [name for name in PAIR if located[name] is None]
+    if absent:
+        raise ValueError("NO EVALUABLE: faltan en el mapa los marcos principales "
+                         + ", ".join(absent) + " (mapa vacío, ilegible o de otro ejecutable)")
+    return located
 
 
 PATHS = (("drive", "resume_expression_match", "match_advance", "selection_type"),
@@ -135,6 +151,29 @@ def selftest():
                         "ausente (resume_expression_match, match_advance)"), lines[1]
     assert lines[4] == "drive->resume_non_match->check_against_context_one->expr_inner=61120"
     assert summary({"drive": 1})[0] == "pair=ausente"
+    # allow_missing no tolera la ausencia de la pareja principal: mapa vacío o no UTF-8.
+    garbage = b"\xff\xfe\x00garbage\x80\x81".decode("utf-8", errors="replace")
+    for text in ("", garbage):
+        for allow in (False, True):
+            try:
+                scan(text, allow)
+            except ValueError:
+                pass
+            else:
+                raise AssertionError(f"mapa sin símbolos aceptado (allow_missing={allow})")
+    only_pair = (" 0001:00001000 ?drive@Checker@types@check@nexo@@YAXXZ 0000000140002000 f a.obj\n"
+                 " 0001:00002000 ?resume_non_match@Checker@types@check@nexo@@YAXXZ "
+                 "0000000140003000 f a.obj\n")
+    located = scan(only_pair, True)
+    assert located["drive"][1] == 0x140002000 and located["expr_inner"] is None
+    assert [name for name, found in located.items() if found is None] == \
+        [name for name in NAMES if name not in PAIR]
+    try:
+        scan(only_pair, False)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("ayudantes ausentes aceptados sin allow_missing")
     print("f5-frame-sizes selftest: both prologues, missing and ambiguous symbols, allow-missing ok")
 
 
@@ -153,11 +192,12 @@ def main():
     if args.executable is None or args.map is None:
         parser.error("executable and its /MAP file are required")
     text = args.map.read_text(encoding="utf-8", errors="replace")
+    located = scan(text, args.allow_missing)
     print(f"executable_sha256={hashlib.sha256(args.executable.read_bytes()).hexdigest()} "
           f"map_sha256={hashlib.sha256(args.map.read_bytes()).hexdigest()}")
     sizes = {}
     for name in NAMES:
-        found = symbol_address(text, name, args.allow_missing)
+        found = located[name]
         if found is None:
             print(f"{name}\tausente")
             continue
@@ -175,4 +215,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except (ValueError, RuntimeError, OSError, subprocess.TimeoutExpired) as error:
+        print(f"f5-frame-sizes: {error}", file=sys.stderr)
+        sys.exit(1)
