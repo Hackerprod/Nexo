@@ -455,5 +455,62 @@
    "( 5/26) nexo::suite i07c_s5b_selector::nested_selector_of_failed_base_chain_keeps_its_own_error"
   ],
   "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
+ },
+ {
+  "id": "R1",
+  "family": "r1 order_start is the identity",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
+  "sha_mutated": "06626ef320b579e37002224a5eaef0ef1745fb9dae1044934500ff4b534f99aa",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 2/28) nexo ir::effects::witness_differential_tests::order_start_is_the_call_start_for_every_target_shape",
+   "( 3/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
+   "(22/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
+ },
+ {
+  "id": "R2",
+  "family": "r1 compare_paths offsets without order_start",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
+  "sha_mutated": "31b58a32d5e40480024689bf4b2674c06be05ba2351c864f8f1a14f9bc8da764",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 2/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
+   "(22/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
+ },
+ {
+  "id": "R3",
+  "family": "r1 oracle offsets without order_start",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
+  "sha_mutated": "f1cb14ac8f047fb2d011affacea0f3772a1b9c07a4ed87e3c7db92ac69fe518c",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 6/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call"
+  ],
+  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
+ },
+ {
+  "id": "R4",
+  "family": "r1 empty start index",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
+  "sha_mutated": "e068fadc6284cef366c41d68acbef73bbe30b81d2a70e548852fc4cdba42625b",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 1/28) nexo ir::effects::witness_differential_tests::order_start_is_the_call_start_for_every_target_shape",
+   "( 5/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
+   "(21/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
  }
 ]

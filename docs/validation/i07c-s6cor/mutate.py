@@ -19,7 +19,8 @@ import sys
 
 FILTER = ("test(i07c_group_primary) | test(i07c_structural_invariants) | "
           "test(written_calls_resolve) | test(witness_search_and_enumerator) | "
-          "test(expression_primary) | test(i07c_s5b_selector)")
+          "test(expression_primary) | test(i07c_s5b_selector) | test(grouped_resource) | "
+          "test(order_start)")
 
 HELPER_LOOP = "    while let Expr::Group(inner, _) = current {\n        current = inner;\n    }\n    current\n}"
 
@@ -123,6 +124,18 @@ MUTANTS = [
     ("S1", "S5b.1 selector of a failed base inherits the base taint", "src/check/types.rs",
      "deferred_element: false,\n            };\n            let selector_fact = checker.graph.child_fact(\n                visit,\n                span_key(index.span()),\n                FactRole::Selector,\n                FactInheritance::Empty,\n                FactInheritance::Inherit,",
      "deferred_element: false,\n            };\n            let selector_fact = checker.graph.child_fact(\n                visit,\n                span_key(index.span()),\n                FactRole::Selector,\n                FactInheritance::Inherit,\n                FactInheritance::Inherit,"),
+    # Correction r1: the tie-break key of witnesses is the start of the written call.
+    ("R1", "r1 order_start is the identity", "src/ir/effects.rs",
+     "self.1.get(step).copied().unwrap_or(step.start)", "step.start"),
+    ("R2", "r1 compare_paths offsets without order_start", "src/ir/effects.rs",
+     "        let a_offsets: Vec<_> = a_chain\n            .iter()\n            .filter_map(|cause| cause.span.as_ref().map(|span| sites.order_start(span)))\n            .collect();\n        let b_offsets: Vec<_> = b_chain\n            .iter()\n            .filter_map(|cause| cause.span.as_ref().map(|span| sites.order_start(span)))\n            .collect();",
+     "        let a_offsets: Vec<_> = a_chain\n            .iter()\n            .filter_map(|cause| cause.span.as_ref().map(|span| span.start))\n            .collect();\n        let b_offsets: Vec<_> = b_chain\n            .iter()\n            .filter_map(|cause| cause.span.as_ref().map(|span| span.start))\n            .collect();"),
+    ("R3", "r1 oracle offsets without order_start", "src/ir/effects.rs",
+     "                    .filter_map(|cause| cause.span.as_ref().map(|span| sites.order_start(span)))\n                    .collect();\n                let identity",
+     "                    .filter_map(|cause| cause.span.as_ref().map(|span| span.start))\n                    .collect();\n                let identity"),
+    ("R4", "r1 empty start index", "src/ir/effects.rs",
+     "        let starts = calls\n            .iter()\n",
+     "        let starts = calls\n            .iter()\n            .filter(|_| false)\n"),
 ]
 
 

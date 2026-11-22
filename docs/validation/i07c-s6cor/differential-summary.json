@@ -1,26 +1,18 @@
 {
  "parts": 4,
  "counts": {
-  "executions": 94464,
-  "same": 35636,
-  "primary": 11560,
-  "unexplained": 36,
+  "executions": 94776,
+  "same": 35720,
+  "primary": 11668,
+  "unexplained": 0,
   "debug_release": 0,
   "check_run": 0,
   "base_debug_release": 0
  },
- "primary_moves": 14700,
- "unexplained_executions": 36,
- "unexplained_sources": [
-  "fn F(r:view MockResource){}fn Main() with no_io{F(((MockOpen))(1));}",
-  "fn F(r:view MockResource){}fn Main() with no_io{F((MockOpen)(1));}",
-  "fn Main() with no_io{((MockOpen))(1);}",
-  "fn Main() with no_io{(MockBlockingOpen)(1);}",
-  "fn Main() with no_io{(MockOpen)(1);}"
- ],
- "unexplained_cause": "witness tie-break of a grouped statement temporary: operation intrinsic.call -> value.drop (see informe)",
+ "primary_moves": 14884,
+ "unexplained": 0,
  "divergences": 0,
  "residual_group_primaries": 0,
- "sources": 3929,
- "sources_sha256": "544f2ecd5e4b485d7305c3cc6e6709e72ba72d3cf9835cc3a30744f3460a4ae7"
+ "sources_sha256": "5cf01a0e1ec5bc55468d4d19977d0769b1e0c2ba5e617cffedc9b715a187d74f",
+ "note": "after correction r1"
 }

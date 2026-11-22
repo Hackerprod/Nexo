@@ -104,3 +104,12 @@
 {"id": 103, "source": "fn F(r:view MockResource){}fn Main() with no_io{F(((MockOpen))(1));}"}
 {"id": 104, "source": "fn F(r:view MockResource){}fn Main() with no_io{F(MockOpen(1));}"}
 {"id": 105, "source": "fn F(r:view MockResource){}fn Main(){F((MockOpen)(1));}"}
+{"id": 106, "source": "fn Main() with no_io{let f=fn (){(MockOpen)(1);};f();}"}
+{"id": 107, "source": "fn Main() with no_io{let f=fn (){((MockOpen))(1);};((f))();}"}
+{"id": 108, "source": "fn Main() with no_io{let f=fn (){MockOpen(1);};f();}"}
+{"id": 109, "source": "fn Main(){var a=Some(1);match edit a{Some(x)=>{let b=move (a);},None=>{}}}"}
+{"id": 110, "source": "fn Main(){var a=Some(1);match edit a{Some(x)=>{let b=move ((a));},None=>{}}}"}
+{"id": 111, "source": "fn Main(){var a=[1];Push((a),2);}"}
+{"id": 112, "source": "fn Main(){var a=[1];let z=Pop(((a)));}"}
+{"id": 113, "source": "gen fn G()->I64{yield 1;}fn Main(){var g=G();Iterator.Next((g));}"}
+{"id": 114, "source": "gen fn G()->I64{yield 1;}fn Main(){var g=G();Iterator.Next(edit g);}"}

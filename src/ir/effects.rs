@@ -89,7 +89,13 @@ fn call_head(span: &Span, source: &str) -> Span {
 /// groups are removed, keyed by the call's full span (the span the lowered
 /// call instruction carries). F0-0002 section 8.2 names the call target, never
 /// its parentheses, so a grouped target `(f)()` reports `f`.
-struct CallSites(HashMap<Span, Span>);
+///
+/// The second map gives the start of the written call for the span of its
+/// target name. Witness ties are decided by the offsets of the source sites
+/// (F0-0002 second slice, witness selection): a site is the start of the
+/// operation, never the start of the emitted name, so grouping the target does
+/// not change which witness wins.
+struct CallSites(HashMap<Span, Span>, HashMap<Span, u64>);
 
 impl CallSites {
     /// Indexes the call sites of every function and closure body and returns
@@ -109,7 +115,17 @@ impl CallSites {
         for closure in super::lower::collect_closures(ast) {
             scope_sites(&closure.body, &mut Vec::new(), &mut calls);
         }
-        (Self(calls.into_iter().collect()), guards)
+        let starts = calls
+            .iter()
+            .map(|(call, name)| (name.clone(), call.start))
+            .collect();
+        (Self(calls.into_iter().collect(), starts), guards)
+    }
+
+    /// Offset used to order a cause step: the start of the written call whose
+    /// target name is `step`, otherwise the step's own start.
+    fn order_start(&self, step: &Span) -> u64 {
+        self.1.get(step).copied().unwrap_or(step.start)
     }
 
     /// Name of the written call at `span`; synthetic instructions (drops,
@@ -1018,7 +1034,7 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
         f,
         std::slice::from_ref(f),
         &crate::check::types::InferredTypes::default(),
-        &CallSites(HashMap::new()),
+        &CallSites(HashMap::new(), HashMap::new()),
     )
 }
 
@@ -1970,7 +1986,7 @@ pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
     let functions = program.functions.functions();
     let inferred = crate::check::types::InferredTypes::default();
     // Only the effect bits are compared here, never a site.
-    let no_sites = CallSites(HashMap::new());
+    let no_sites = CallSites(HashMap::new(), HashMap::new());
     let functions_by_id: HashMap<_, _> = functions.iter().map(|f| (f.id.clone(), f)).collect();
     let local: Vec<_> = functions
         .iter()
@@ -4057,6 +4073,7 @@ fn find_witness(
         b: &Path,
         best: &[Option<Path>],
         local: &[Vec<Witness>],
+        sites: &CallSites,
     ) -> std::cmp::Ordering {
         let a_causes = a.edges + local[a.leaf.0][a.leaf.1].chain.len();
         let b_causes = b.edges + local[b.leaf.0][b.leaf.1].chain.len();
@@ -4072,19 +4089,19 @@ fn find_witness(
         // copying the suffix chain.
         if let (Some((_, left)), Some((_, right))) = (&a.next, &b.next)
             && let (Some(left), Some(right)) = (&left.span, &right.span)
-            && left.start != right.start
+            && sites.order_start(left) != sites.order_start(right)
         {
-            return left.start.cmp(&right.start);
+            return sites.order_start(left).cmp(&sites.order_start(right));
         }
         let a_chain = causes(a, best, local);
         let b_chain = causes(b, best, local);
         let a_offsets: Vec<_> = a_chain
             .iter()
-            .filter_map(|cause| cause.span.as_ref().map(|span| span.start))
+            .filter_map(|cause| cause.span.as_ref().map(|span| sites.order_start(span)))
             .collect();
         let b_offsets: Vec<_> = b_chain
             .iter()
-            .filter_map(|cause| cause.span.as_ref().map(|span| span.start))
+            .filter_map(|cause| cause.span.as_ref().map(|span| sites.order_start(span)))
             .collect();
         a_offsets.cmp(&b_offsets).then_with(|| {
             let a_ids: Vec<_> = a_chain
@@ -4204,7 +4221,7 @@ fn find_witness(
             };
             if best[caller]
                 .as_ref()
-                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())
+                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local, sites).is_lt())
             {
                 best[caller] = Some(candidate);
             }
@@ -4225,7 +4242,7 @@ fn find_witness(
             };
             if best[caller]
                 .as_ref()
-                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local).is_lt())
+                .is_none_or(|prior| compare_paths(&candidate, prior, &best, local, sites).is_lt())
             {
                 best[caller] = Some(candidate);
             }
@@ -4270,7 +4287,7 @@ fn find_witness_enumerated(
                 let offsets = witness
                     .chain
                     .iter()
-                    .filter_map(|cause| cause.span.as_ref().map(|span| span.start))
+                    .filter_map(|cause| cause.span.as_ref().map(|span| sites.order_start(span)))
                     .collect();
                 let identity = witness
                     .chain
@@ -4433,6 +4450,83 @@ mod witness_differential_tests {
                 (CauseOperation::IntrinsicCall, "Print".to_owned()),
             ]
         );
+    }
+
+    // Witness ties use the offset of the source site (the start of the call),
+    // not the start of the emitted target name: a grouped target keeps the
+    // witness the bare call has.
+    #[test]
+    fn order_start_is_the_call_start_for_every_target_shape() {
+        let source = "fn F(){Print(1);}fn Main(){F();(F)();((F))();let f=fn (){};f();(f)();}";
+        let ast = crate::frontend::parse::parse_new_profile("order.n", source).unwrap();
+        let sites = sites(&ast);
+        let mut checked = 0;
+        for (call, name) in &sites.0 {
+            let text = &source[name.start as usize..name.end as usize];
+            assert!(matches!(text, "F" | "f" | "Print"), "{text:?}");
+            assert_eq!(sites.order_start(name), call.start);
+            assert!(call.start <= name.start);
+            checked += 1;
+        }
+        assert_eq!(checked, 6);
+        // A span that is not the name of a written call keeps its own start.
+        let other = Span {
+            file: "order.n".into(),
+            start: 3,
+            end: 4,
+        };
+        assert_eq!(sites.order_start(&other), 3);
+    }
+
+    #[test]
+    fn grouped_resource_constructor_keeps_the_witness_of_the_bare_call() {
+        let witness = |source: &str| {
+            let ast = crate::frontend::parse::parse_new_profile("temp.n", source).unwrap();
+            let program = crate::ir::compile_scalar_with_profile(
+                "temp.n",
+                source,
+                crate::ir::ReducedProfile::JNormal,
+                true,
+            )
+            .unwrap();
+            let sites = sites(&ast);
+            let functions = program.functions.functions();
+            let inferred = crate::check::types::InferredTypes::default();
+            let local: Vec<_> = functions
+                .iter()
+                .map(|f| function_intrinsic_effect_with_context(f, functions, &inferred, &sites))
+                .collect();
+            let main = functions.iter().position(|f| f.name == "Main").unwrap();
+            let actual = find_witness(&program, &ast, &sites, &local, main, IO).unwrap();
+            let expected =
+                find_witness_enumerated(&program, &ast, &sites, &local, main, IO).unwrap();
+            assert_eq!(actual.chain, expected.chain, "{source}");
+            assert_eq!(actual.operation, expected.operation, "{source}");
+            let shape: Vec<_> = actual
+                .chain
+                .iter()
+                .map(|cause| (cause.operation, cause.entity.clone()))
+                .collect();
+            (actual.operation, shape, actual.primary, source.to_owned())
+        };
+        let bare = witness("fn Main(){MockOpen(1);}");
+        assert_eq!(bare.0, CauseOperation::IntrinsicCall);
+        for source in [
+            "fn Main(){(MockOpen)(1);}",
+            "fn Main(){((MockOpen))(1);}",
+            "fn Main(){let f=fn (){(MockOpen)(1);};f();}",
+        ] {
+            let grouped = witness(source);
+            if source.contains("let f") {
+                // Through the closure the last step is still the intrinsic call.
+                assert_eq!(grouped.1.last().unwrap().0, CauseOperation::IntrinsicCall);
+            } else {
+                assert_eq!(grouped.0, bare.0, "{source}");
+                assert_eq!(grouped.1, bare.1, "{source}");
+                let text = &source[grouped.2.start as usize..grouped.2.end as usize];
+                assert_eq!(text, "MockOpen", "{source}");
+            }
+        }
     }
 
     fn witness_chain(size: usize) -> (String, Ast, Program, usize, Vec<Vec<Witness>>) {
