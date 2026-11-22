@@ -19,3 +19,4 @@ else
     cargo test --locked --offline
     cargo test --locked --offline --release
 fi
+python -B scripts/f5-stack65.py

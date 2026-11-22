@@ -8907,6 +8907,369 @@ impl Checker<'_> {
             Next(Result<Type, Box<Diagnostic>>, FactId),
             Evaluate(FactId),
         }
+        struct Entry<'a> {
+            frame: Frame<'a>,
+            child: &'a Expr,
+            context: OwnedCheckContext,
+            visit: FactId,
+        }
+        #[inline(never)]
+        fn enter_assignment<'a>(
+            checker: &mut Checker<'_>,
+            statement: &'a Statement,
+            visit: FactId,
+        ) -> Entry<'a> {
+            let Statement::Assign {
+                place, op, value, ..
+            } = statement
+            else {
+                unreachable!("assignment entry owns an assignment")
+            };
+            checker.prepare_assignment_plan(place, value);
+            Entry {
+                frame: Frame::AssignmentPlace(statement),
+                child: place,
+                context: OwnedCheckContext {
+                    expected: compound_operand_type(*op),
+                    expected_span: None,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: false,
+                    deferred_element: false,
+                },
+                visit,
+            }
+        }
+        #[inline(never)]
+        fn enter_neg_not<'a>(
+            expr: &'a Expr,
+            context: OwnedCheckContext,
+            expected: Type,
+            visit: FactId,
+        ) -> Entry<'a> {
+            let child = match expr {
+                Expr::Neg { value, .. } | Expr::Not { value, .. } => value.as_ref(),
+                _ => unreachable!("unary entry owns negation or not"),
+            };
+            Entry {
+                frame: Frame::Unary(Box::new((expr, context))),
+                child,
+                context: OwnedCheckContext {
+                    expected: Some(expected),
+                    expected_span: None,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: false,
+                    deferred_element: false,
+                },
+                visit,
+            }
+        }
+        #[inline(never)]
+        fn enter_binary<'a>(
+            checker: &mut Checker<'_>,
+            visit: FactId,
+            expr: &'a Expr,
+            context: OwnedCheckContext,
+        ) -> Entry<'a> {
+            let Expr::Binary { op, left, .. } = expr else {
+                unreachable!("binary entry owns a binary expression")
+            };
+            if checker.f5 && matches!(op.as_str(), "and" | "or") {
+                return Entry {
+                    frame: Frame::LogicalLeft(Box::new((expr, context))),
+                    child: left,
+                    context: OwnedCheckContext {
+                        expected: Some(Type::Bool),
+                        expected_span: None,
+                        check_here: true,
+                        anchor: None,
+                        outer_compare: false,
+                        related_expected: false,
+                        deferred_element: false,
+                    },
+                    visit,
+                };
+            }
+            let pending_before = checker.pending_join_count();
+            let numeric = super::operators::is_arithmetic(op, checker.f5);
+            let operator_site = span_key(expr.span());
+            let frame = Frame::Binary(Box::new((expr, context, pending_before, visit)));
+            let child_visit = checker.graph.child_fact(
+                visit,
+                operator_site,
+                FactRole::Operator,
+                FactInheritance::Inherit,
+                FactInheritance::Empty,
+            );
+            if numeric {
+                checker.graph.fact_mut(child_visit).numeric_domain_owner = Some(operator_site);
+            }
+            Entry {
+                frame,
+                child: left,
+                context: OwnedCheckContext {
+                    expected: numeric.then_some(Type::I64),
+                    expected_span: None,
+                    check_here: true,
+                    anchor: None,
+                    outer_compare: false,
+                    related_expected: false,
+                    deferred_element: false,
+                },
+                visit: child_visit,
+            }
+        }
+        #[inline(never)]
+        fn for_range_error(
+            checker: &Checker<'_>,
+            statement: &Statement,
+        ) -> Option<Box<Diagnostic>> {
+            let Statement::For { iterable, span, .. } = statement else {
+                unreachable!("for range entry owns a for statement")
+            };
+            (checker.f5 && super::pending_f5::range_for(iterable)).then(|| {
+                super::pending_f5::diagnostic(
+                    "L05",
+                    Span {
+                        file: span.file.clone(),
+                        start: span.start,
+                        end: span.start + 3,
+                    },
+                )
+            })
+        }
+        #[inline(never)]
+        fn index_range_error(checker: &Checker<'_>, expr: &Expr) -> Option<Box<Diagnostic>> {
+            let Expr::Index {
+                index, selector, ..
+            } = expr
+            else {
+                unreachable!("index range entry owns an index")
+            };
+            (checker.f5 && super::pending_f5::range_for(index))
+                .then(|| super::pending_f5::range_outside_for(selector.clone()))
+        }
+        #[inline(never)]
+        fn binary_range_error(checker: &Checker<'_>, expr: &Expr) -> Option<Box<Diagnostic>> {
+            let Expr::Binary {
+                op, left, right, ..
+            } = expr
+            else {
+                unreachable!("binary range entry owns a binary expression")
+            };
+            (checker.f5 && matches!(op.as_str(), "..<" | "..=")).then(|| {
+                super::pending_f5::range_outside_for(checker.operator_span(
+                    left.span(),
+                    right.span(),
+                    op,
+                ))
+            })
+        }
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)]
+        fn resume_statement_match<'a>(
+            checker: &mut Checker<'_>,
+            visit: FactId,
+            frame: Frame<'a>,
+            result: Result<Type, Box<Diagnostic>>,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+            pending_task: &mut Option<Task<'a>>,
+        ) -> Resume {
+            match frame {
+                Frame::StatementMatchScrutinee(selection) => {
+                    let inferred = match result {
+                        Ok(inferred) => inferred,
+                        Err(error) => return Resume::Next(Err(error), visit),
+                    };
+                    if let Err(error) = checker.require_match_pattern_shapes(selection, &inferred) {
+                        return Resume::Next(Err(error), visit);
+                    }
+                    frames.push(Frame::StatementMatch {
+                        selection,
+                        selected: checker.selection_type(&inferred, 0),
+                        selected_origin: Checker::primary_span(&selection.scrutinee),
+                        next: 0,
+                        stage: 0,
+                    });
+                    Resume::Next(Ok(Type::Unit), visit)
+                }
+                Frame::StatementMatch {
+                    selection,
+                    mut selected,
+                    selected_origin,
+                    mut next,
+                    stage,
+                } => {
+                    if stage == 2 && result.is_err() {
+                        return Resume::Next(result, visit);
+                    }
+                    if stage == 1 {
+                        if let Err(error) = result {
+                            if error.operation == Operation::AnalysisLimit {
+                                return Resume::Next(Err(error), visit);
+                            }
+                            checker.record_error(error);
+                        }
+                        let arm = &selection.arms[next];
+                        next += 1;
+                        *pending_task = Some(Task::Block(&arm.body));
+                        frames.push(Frame::StatementMatch {
+                            selection,
+                            selected,
+                            selected_origin,
+                            next,
+                            stage: 2,
+                        });
+                        return Resume::Evaluate(visit);
+                    }
+                    if next == selection.arms.len() {
+                        return Resume::Next(
+                            checker
+                                .finish_selection(selection, &selected, &None, false, None)
+                                .map(|_| Type::Unit),
+                            visit,
+                        );
+                    }
+                    let arm = &selection.arms[next];
+                    selected = checker.selection_type(&selected, 0);
+                    if let Err(error) =
+                        checker.pattern_type(&arm.pattern, &selected, &selected_origin)
+                    {
+                        return Resume::Next(Err(error), visit);
+                    }
+                    if let Some(guard) = &arm.guard {
+                        *inner = guard;
+                        *inner_context = OwnedCheckContext {
+                            expected: Some(Type::Bool),
+                            expected_span: arm.guard_span.clone(),
+                            check_here: true,
+                            anchor: None,
+                            outer_compare: false,
+                            related_expected: arm.guard_span.is_some(),
+                            deferred_element: false,
+                        };
+                        frames.push(Frame::StatementMatch {
+                            selection,
+                            selected,
+                            selected_origin,
+                            next,
+                            stage: 1,
+                        });
+                        return Resume::Evaluate(visit);
+                    }
+                    next += 1;
+                    *pending_task = Some(Task::Block(&arm.body));
+                    frames.push(Frame::StatementMatch {
+                        selection,
+                        selected,
+                        selected_origin,
+                        next,
+                        stage: 2,
+                    });
+                    Resume::Evaluate(visit)
+                }
+                _ => unreachable!("statement selection frame"),
+            }
+        }
+        #[inline(never)]
+        #[allow(clippy::too_many_arguments)]
+        fn resume_expression_match<'a>(
+            checker: &mut Checker<'_>,
+            mut visit: FactId,
+            frame: Frame<'a>,
+            result: Result<Type, Box<Diagnostic>>,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+            pending_task: &mut Option<Task<'a>>,
+        ) -> Resume {
+            let (expr, mut progress, prior) = match frame {
+                Frame::MatchScrutinee(boxed) => {
+                    let (expr, context) = *boxed;
+                    let Expr::Match(selection) = expr else {
+                        unreachable!("match scrutinee frame owns a match")
+                    };
+                    let inferred = match result {
+                        Err(error) => {
+                            return Resume::Next(
+                                checker.check_against_context_one(
+                                    visit,
+                                    expr,
+                                    context.borrowed(),
+                                    Some(PrecomputedType::MatchComplete(Err(error))),
+                                ),
+                                visit,
+                            );
+                        }
+                        Ok(inferred) => inferred,
+                    };
+                    if let Err(error) = checker.require_match_pattern_shapes(selection, &inferred) {
+                        return Resume::Next(
+                            checker.check_against_context_one(
+                                visit,
+                                expr,
+                                context.borrowed(),
+                                Some(PrecomputedType::MatchComplete(Err(error))),
+                            ),
+                            visit,
+                        );
+                    }
+                    (
+                        expr,
+                        Box::new(MatchProgress {
+                            selection,
+                            context,
+                            selected: checker.selection_type(&inferred, 0),
+                            selected_origin: Checker::primary_span(&selection.scrutinee),
+                            joined: None,
+                            arm_index: 0,
+                            branch: None,
+                            stage: MatchStage::Arm,
+                        }),
+                        None,
+                    )
+                }
+                Frame::Match { expr, progress } => (expr, progress, Some(result)),
+                _ => unreachable!("expression selection frame"),
+            };
+            match checker.match_advance(&mut visit, &mut progress, prior) {
+                MatchAction::Statement(statement) => {
+                    frames.push(Frame::Match { expr, progress });
+                    *pending_task = Some(Task::StatementSite(statement));
+                    Resume::Evaluate(visit)
+                }
+                MatchAction::Value(value, context) => {
+                    let branch_value = matches!(progress.stage, MatchStage::Value { .. });
+                    frames.push(Frame::Match { expr, progress });
+                    *inner = value;
+                    *inner_context = context;
+                    if branch_value {
+                        visit = checker.graph.child_fact(
+                            visit,
+                            span_key(value.span()),
+                            FactRole::Expression,
+                            FactInheritance::Empty,
+                            FactInheritance::Inherit,
+                        );
+                    }
+                    Resume::Evaluate(visit)
+                }
+                MatchAction::Done(outcome) => Resume::Next(
+                    checker.check_against_context_one(
+                        visit,
+                        expr,
+                        progress.context.borrowed(),
+                        Some(PrecomputedType::MatchComplete(outcome)),
+                    ),
+                    visit,
+                ),
+            }
+        }
         #[inline(never)]
         #[allow(clippy::too_many_arguments)] // Continuation carries one drive's cursor.
         fn resume_non_match<'a>(
@@ -10249,21 +10612,12 @@ impl Checker<'_> {
                         }
                     }
                     Task::Statement(statement) => match statement {
-                        Statement::Assign {
-                            place, op, value, ..
-                        } => {
-                            self.prepare_assignment_plan(place, value);
-                            frames.push(Frame::AssignmentPlace(statement));
-                            inner = place;
-                            inner_context = OwnedCheckContext {
-                                expected: compound_operand_type(*op),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            };
+                        Statement::Assign { .. } => {
+                            let entry = enter_assignment(self, statement, visit);
+                            frames.push(entry.frame);
+                            inner = entry.child;
+                            inner_context = entry.context;
+                            visit = entry.visit;
                             continue 'evaluate;
                         }
                         Statement::Let {
@@ -10397,18 +10751,8 @@ impl Checker<'_> {
                             continue 'evaluate;
                         }
                         Statement::For { iterable, .. } => {
-                            if self.f5 && super::pending_f5::range_for(iterable) {
-                                let Statement::For { span, .. } = statement else {
-                                    unreachable!()
-                                };
-                                ready_result = Some(Err(super::pending_f5::diagnostic(
-                                    "L05",
-                                    Span {
-                                        file: span.file.clone(),
-                                        start: span.start,
-                                        end: span.start + 3,
-                                    },
-                                )));
+                            if let Some(error) = for_range_error(self, statement) {
+                                ready_result = Some(Err(error));
                                 continue 'evaluate;
                             }
                             frames.push(Frame::StatementFor(statement, 0));
@@ -10572,16 +10916,9 @@ impl Checker<'_> {
                                 FactInheritance::Empty,
                             );
                         }
-                        Expr::Index {
-                            target,
-                            index,
-                            selector,
-                            ..
-                        } => {
-                            if self.f5 && super::pending_f5::range_for(index) {
-                                ready_result = Some(Err(super::pending_f5::range_outside_for(
-                                    selector.clone(),
-                                )));
+                        Expr::Index { target, .. } => {
+                            if let Some(error) = index_range_error(self, inner) {
+                                ready_result = Some(Err(error));
                                 continue 'evaluate;
                             }
                             frames.push(Frame::Index(Box::new((
@@ -10612,31 +10949,17 @@ impl Checker<'_> {
                         {
                             break;
                         }
-                        Expr::Neg { value, .. } => {
-                            frames.push(Frame::Unary(Box::new((inner, inner_context))));
-                            inner = value;
-                            inner_context = OwnedCheckContext::new(CheckContext {
-                                expected: Some(&Type::I64),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            });
-                        }
-                        Expr::Not { value, .. } => {
-                            frames.push(Frame::Unary(Box::new((inner, inner_context))));
-                            inner = value;
-                            inner_context = OwnedCheckContext::new(CheckContext {
-                                expected: Some(&Type::Bool),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            });
+                        Expr::Neg { .. } | Expr::Not { .. } => {
+                            let expected = if matches!(inner, Expr::Neg { .. }) {
+                                Type::I64
+                            } else {
+                                Type::Bool
+                            };
+                            let entry = enter_neg_not(inner, inner_context, expected, visit);
+                            frames.push(entry.frame);
+                            inner = entry.child;
+                            inner_context = entry.context;
+                            visit = entry.visit;
                         }
                         Expr::Unary {
                             mode: Mode::Read,
@@ -10669,59 +10992,20 @@ impl Checker<'_> {
                             inner = value;
                             inner_context = child_context;
                         }
-                        Expr::Binary { op, left, .. } => {
-                            if self.f5 && matches!(op.as_str(), "..<" | "..=") {
-                                let Expr::Binary { right, .. } = inner else {
-                                    unreachable!()
-                                };
-                                ready_result = Some(Err(super::pending_f5::range_outside_for(
-                                    self.operator_span(left.span(), right.span(), op),
-                                )));
+                        Expr::Binary { .. } => {
+                            if let Some(error) = binary_range_error(self, inner) {
+                                ready_result = Some(Err(error));
                                 continue 'evaluate;
                             }
-                            if self.f5 && matches!(op.as_str(), "and" | "or") {
-                                frames.push(Frame::LogicalLeft(Box::new((inner, inner_context))));
-                                inner = left;
-                                inner_context = OwnedCheckContext::new(CheckContext {
-                                    expected: Some(&Type::Bool),
-                                    expected_span: None,
-                                    check_here: true,
-                                    anchor: None,
-                                    outer_compare: false,
-                                    related_expected: false,
-                                    deferred_element: false,
-                                });
+                            let logical = self.f5 && matches!(inner, Expr::Binary { op, .. } if matches!(op.as_str(), "and" | "or"));
+                            let entry = enter_binary(self, visit, inner, inner_context);
+                            frames.push(entry.frame);
+                            inner = entry.child;
+                            inner_context = entry.context;
+                            visit = entry.visit;
+                            if logical {
                                 continue;
                             }
-                            let pending_before = self.pending_join_count();
-                            let numeric = super::operators::is_arithmetic(op, self.f5);
-                            let operator_site = span_key(inner.span());
-                            frames.push(Frame::Binary(Box::new((
-                                inner,
-                                inner_context,
-                                pending_before,
-                                visit,
-                            ))));
-                            visit = self.graph.child_fact(
-                                visit,
-                                operator_site,
-                                FactRole::Operator,
-                                FactInheritance::Inherit,
-                                FactInheritance::Empty,
-                            );
-                            if numeric {
-                                self.graph.fact_mut(visit).numeric_domain_owner = Some(operator_site);
-                            }
-                            inner = left;
-                            inner_context = OwnedCheckContext {
-                                expected: numeric.then_some(Type::I64),
-                                expected_span: None,
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: false,
-                                deferred_element: false,
-                            };
                         }
                         Expr::Call { args, span, .. }
                             if !args.is_empty()
@@ -11035,212 +11319,45 @@ impl Checker<'_> {
             };
             while let Some(frame) = frames.pop() {
                 match frame {
-                    Frame::StatementMatchScrutinee(selection) => {
-                        let inferred = match result {
-                            Ok(inferred) => inferred,
-                            Err(error) => {
-                                result = Err(error);
-                                continue;
+                    frame @ (Frame::StatementMatchScrutinee(_) | Frame::StatementMatch { .. }) => {
+                        match resume_statement_match(
+                            self,
+                            visit,
+                            frame,
+                            result,
+                            &mut frames,
+                            &mut inner,
+                            &mut inner_context,
+                            &mut pending_task,
+                        ) {
+                            Resume::Next(next, next_fact) => {
+                                result = next;
+                                visit = next_fact;
                             }
-                        };
-                        if let Err(error) = self.require_match_pattern_shapes(selection, &inferred)
-                        {
-                            result = Err(error);
-                            continue;
-                        }
-                        frames.push(Frame::StatementMatch {
-                            selection,
-                            selected: self.selection_type(&inferred, 0),
-                            selected_origin: Self::primary_span(&selection.scrutinee),
-                            next: 0,
-                            stage: 0,
-                        });
-                        result = Ok(Type::Unit);
-                        continue;
-                    }
-                    Frame::StatementMatch {
-                        selection,
-                        mut selected,
-                        selected_origin,
-                        mut next,
-                        stage,
-                    } => {
-                        if stage == 2 && result.is_err() {
-                            continue;
-                        }
-                        if stage == 1 {
-                            if let Err(error) = result {
-                                if error.operation == Operation::AnalysisLimit {
-                                    result = Err(error);
-                                    continue;
-                                }
-                                self.record_error(error);
-                            }
-                            let arm = &selection.arms[next];
-                            next += 1;
-                            pending_task = Some(Task::Block(&arm.body));
-                            frames.push(Frame::StatementMatch {
-                                selection,
-                                selected,
-                                selected_origin,
-                                next,
-                                stage: 2,
-                            });
-                            continue 'evaluate;
-                        }
-                        if next == selection.arms.len() {
-                            result = self
-                                .finish_selection(selection, &selected, &None, false, None)
-                                .map(|_| Type::Unit);
-                            continue;
-                        }
-                        let arm = &selection.arms[next];
-                        selected = self.selection_type(&selected, 0);
-                        if let Err(error) =
-                            self.pattern_type(&arm.pattern, &selected, &selected_origin)
-                        {
-                            result = Err(error);
-                            continue;
-                        }
-                        if let Some(guard) = &arm.guard {
-                            inner = guard;
-                            inner_context = OwnedCheckContext {
-                                expected: Some(Type::Bool),
-                                expected_span: arm.guard_span.clone(),
-                                check_here: true,
-                                anchor: None,
-                                outer_compare: false,
-                                related_expected: arm.guard_span.is_some(),
-                                deferred_element: false,
-                            };
-                            frames.push(Frame::StatementMatch {
-                                selection,
-                                selected,
-                                selected_origin,
-                                next,
-                                stage: 1,
-                            });
-                            continue 'evaluate;
-                        }
-                        next += 1;
-                        pending_task = Some(Task::Block(&arm.body));
-                        frames.push(Frame::StatementMatch {
-                            selection,
-                            selected,
-                            selected_origin,
-                            next,
-                            stage: 2,
-                        });
-                        continue 'evaluate;
-                    }
-                    Frame::MatchScrutinee(progress) => {
-                        let (expr, context) = *progress;
-                        let Expr::Match(selection) = expr else {
-                            unreachable!("match scrutinee frame owns a match")
-                        };
-                        match result {
-                            Err(error) => {
-                                result = self.check_against_context_one(
-                                    visit,
-                                    expr,
-                                    context.borrowed(),
-                                    Some(PrecomputedType::MatchComplete(Err(error))),
-                                );
-                            }
-                            Ok(inferred) => {
-                                if let Err(error) =
-                                    self.require_match_pattern_shapes(selection, &inferred)
-                                {
-                                    result = self.check_against_context_one(
-                                        visit,
-                                        expr,
-                                        context.borrowed(),
-                                        Some(PrecomputedType::MatchComplete(Err(error))),
-                                    );
-                                    continue;
-                                }
-                                let mut progress = MatchProgress {
-                                    selection,
-                                    context,
-                                    selected: self.selection_type(&inferred, 0),
-                                    selected_origin: Self::primary_span(&selection.scrutinee),
-                                    joined: None,
-                                    arm_index: 0,
-                                    branch: None,
-                                    stage: MatchStage::Arm,
-                                };
-                                match self.match_advance(&mut visit, &mut progress, None) {
-                                    MatchAction::Statement(statement) => {
-                                        frames.push(Frame::Match {
-                                            expr,
-                                            progress: Box::new(progress),
-                                        });
-                                        pending_task = Some(Task::StatementSite(statement));
-                                        continue 'evaluate;
-                                    }
-                                    MatchAction::Value(value, context) => {
-                                        let branch_value =
-                                            matches!(progress.stage, MatchStage::Value { .. });
-                                        frames.push(Frame::Match {
-                                            expr,
-                                            progress: Box::new(progress),
-                                        });
-                                        inner = value;
-                                        inner_context = context;
-                                        if branch_value {
-                                            visit = self.graph.child_fact(
-                                                visit,
-                                                span_key(value.span()),
-                                                FactRole::Expression,
-                                                FactInheritance::Empty,
-                                                FactInheritance::Inherit,
-                                            );
-                                        }
-                                        continue 'evaluate;
-                                    }
-                                    MatchAction::Done(outcome) => {
-                                        result = self.check_against_context_one(
-                                            visit,
-                                            expr,
-                                            progress.context.borrowed(),
-                                            Some(PrecomputedType::MatchComplete(outcome)),
-                                        );
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    Frame::Match { expr, mut progress } => {
-                        match self.match_advance(&mut visit, &mut progress, Some(result)) {
-                            MatchAction::Statement(statement) => {
-                                frames.push(Frame::Match { expr, progress });
-                                pending_task = Some(Task::StatementSite(statement));
+                            Resume::Evaluate(next_fact) => {
+                                visit = next_fact;
                                 continue 'evaluate;
                             }
-                            MatchAction::Value(value, context) => {
-                                let branch_value =
-                                    matches!(progress.stage, MatchStage::Value { .. });
-                                frames.push(Frame::Match { expr, progress });
-                                inner = value;
-                                inner_context = context;
-                                if branch_value {
-                                    visit = self.graph.child_fact(
-                                        visit,
-                                        span_key(value.span()),
-                                        FactRole::Expression,
-                                        FactInheritance::Empty,
-                                        FactInheritance::Inherit,
-                                    );
-                                }
-                                continue 'evaluate;
+                        }
+                    }
+                    frame @ (Frame::MatchScrutinee(_) | Frame::Match { .. }) => {
+                        match resume_expression_match(
+                            self,
+                            visit,
+                            frame,
+                            result,
+                            &mut frames,
+                            &mut inner,
+                            &mut inner_context,
+                            &mut pending_task,
+                        ) {
+                            Resume::Next(next, next_fact) => {
+                                result = next;
+                                visit = next_fact;
                             }
-                            MatchAction::Done(outcome) => {
-                                result = self.check_against_context_one(
-                                    visit,
-                                    expr,
-                                    progress.context.borrowed(),
-                                    Some(PrecomputedType::MatchComplete(outcome)),
-                                );
+                            Resume::Evaluate(next_fact) => {
+                                visit = next_fact;
+                                continue 'evaluate;
                             }
                         }
                     }
