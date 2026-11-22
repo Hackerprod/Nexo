@@ -45,3 +45,15 @@ Comando: `RUSTFLAGS='-C link-arg=/MAP:...' cargo test --lib --no-run --locked --
 ## 8. Límites
 
 NX-E1111 de `prepare_closure_call` NO EVALUADO (sin fuente alcanzable). El hallazgo de §5 queda abierto para D/B. `(a)[0]` (Index con hijo agrupado) fuera de alcance, para `Pending.md`. Las aserciones de líneas del auditor (7078, 8279, 12484, 14797, 14811) se fijan a este `types.rs`; el siguiente corte que lo edite debe reconciliarlas.
+
+## Fe de erratas del coordinador (tras la primera puerta completa)
+
+La primera puerta sobre `9d53e7f` falló en un test unitario EXISTENTE que el plan no inventariaba
+como test cambiado: `frontend::migrated_parser_contracts::b_repeated_and_grouped_modes_classify_after_the_whole_postfix`
+(`src/frontend/migrated_parser_contracts.rs`), fila `fn Main(){move (a[0]);}` con needle `(a[0])`
+(primario `[15,21)`). El plan fija este cambio en su fila J de §«Diferencias de primario»
+(`move (a[0]);`: `(a[0])` → `a[0]`), derivado del addendum `F0-0002-lagunas.md` §«Primario de una
+expresión bajo agrupaciones»; la fila pasa a needle `a[0]` (`[16,20)`) con comentario de la derivación.
+Es la ÚNICA edición de un test existente fuera del inventario del plan; D y D' deben verificarla. C no
+ejecutó los tests de la librería completos (la puerta del brief los dejaba a la puerta completa):
+1275/1275 pasan tras el ajuste.

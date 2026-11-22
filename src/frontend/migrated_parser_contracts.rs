@@ -394,7 +394,9 @@ fn b_repeated_and_grouped_modes_classify_after_the_whole_postfix() {
         ("fn Main(){move (a(1));}", "receiver_mode", "move"),
         ("fn Main(){edit F();}", "receiver_mode", "edit"),
         ("fn Main(){move (a)[0];}", "partial_transfer", "(a)[0]"),
-        ("fn Main(){move (a[0]);}", "partial_transfer", "(a[0])"),
+        // F0-0002-lagunas.md §«Primario de una expresión bajo agrupaciones»: se retiran
+        // las agrupaciones exteriores; el primario es `a[0]`, no `(a[0])` (plan S6-COR, fila J).
+        ("fn Main(){move (a[0]);}", "partial_transfer", "a[0]"),
         ("fn Main(){move a[0][1];}", "partial_transfer", "a[0][1]"),
     ] {
         let d = parse("mode.n", source).unwrap_err();
