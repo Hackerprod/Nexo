@@ -1,0 +1,10 @@
+# Informe B ronda 2 (dirigida) - I07c-laguna-o04-o05-o06-r1.md (87 lineas)
+
+Veredicto: PASS.
+
+1. Bloqueante 1 (barrido): CORREGIDO. B.5 (item 3) lista bad_binary_left_still_checks_independent_right_branch (fn l.948, fuente l.951) y tainted_left_operand_preserves_independent_right_join (fn l.3898, fuente l.3900). Lineas verificadas abriendo src/ir/i07c_tests.rs: l.951 y l.3900 contienen exactamente las fuentes citadas. Esperados actuales correctos (2 C: E0102 [16,20) + E1303 [42,47); 3 C: E0102 [22,26), E0102 [34,38), E1303 [63,65)); con la regla quedan solo E0102 (1 y 2 C). Dice que su esperado se corrige en COR tras revision independiente y que son tests de implementacion. La afirmacion previa de que ninguna fuente tenia la forma fue reformulada (el filtro de literales Rust los encontro).
+2. Bloqueante 2 (consumo): CORREGIDO. B.3 y la seccion D: "Consume el operando que emite NX-E0102 contra el I64 de esa operacion aunque tenga otros defectos; no consume el que solo tiene defectos de otra causa (operacion interior, condicion invalida, binding contaminado)". Coherencia comprobada: O06 (if q then r else p) consume pese a su condicion; O04 ar consume; (1+true)+[1]: el primero no consume y main da E0102 en true [19,23) y en [1] [25,28), como pide la regla. (if true then true else true)-1: dos C en las hojas del operando que consume (main), como afirma B.3.
+3. RD64/RD66 ya no se citan para "todas las hojas del operando que consume": B.3 apoya en N(d) 1.a frase y en main. Verificado con grep (sin menciones de RD64/RD66 en el documento).
+4. Cabecera: O05 (M4) y O04/O06 = defectos con esperado transcribible, una sola lectura (Yp: l.357, N(d) 2.a frase, RD15/RD16, fila +/- de 13.17); X queda como alternativa descartada; la seccion D se presenta como aclaracion; limite del O05 original de 279 bytes declarado (solo seguro el E0103 [92,94) espurio). Coincide con mi derivacion de la ronda 1.
+
+No bloquea: la linea 40 todavia menciona que X "romperia un test vigente (B.5)" como argumento adicional; ese test es de implementacion, no oraculo del ADR; basta como argumento secundario.
