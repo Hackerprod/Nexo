@@ -1,0 +1,459 @@
+[
+ {
+  "id": "T1",
+  "family": "helper: no group removal",
+  "file": "src/frontend/parse.rs",
+  "occurrences": 1,
+  "sha_initial": "1793866d71e817cf6528df6d80d82a461ad29a06288ecfb85666bbfd1a1d860e",
+  "sha_mutated": "848144027e0a46057dd232c0dfce3afd4a58712ca46e47d2c8f5b0a9a6adea5a",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 1/26) nexo frontend::parse::tests::expression_primary_removes_every_outer_group_and_only_those",
+   "( 2/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
+   "( 3/26) nexo ir::effects::witness_differential_tests::written_calls_resolve_to_the_target_name_under_groups",
+   "( 4/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument",
+   "( 6/26) nexo::suite i07c_group_primary::parser_partial_transfer_barrier_reports_the_inner_place"
+  ],
+  "sha_restored": "1793866d71e817cf6528df6d80d82a461ad29a06288ecfb85666bbfd1a1d860e"
+ },
+ {
+  "id": "T2",
+  "family": "types for_iteration",
+  "file": "src/check/types.rs",
+  "occurrences": 1,
+  "sha_initial": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93",
+  "sha_mutated": "755d48d2e8806726d98ae8c47b703e523bd584ccf5446df87adc81558db44861",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 4/26) nexo::suite i07c_group_primary::array_iterable_barrier_reports_the_inner_iterable",
+   "(22/26) nexo::suite i07c_structural_invariants::grouped_operands_keep_one_causal_primary"
+  ],
+  "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
+ },
+ {
+  "id": "T3",
+  "family": "types non_callable_target",
+  "file": "src/check/types.rs",
+  "occurrences": 1,
+  "sha_initial": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93",
+  "sha_mutated": "b2f0e9a6f446d4e8b486785eca360086d668275f85c5d88d033b183d277e5278",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument",
+   "(23/26) nexo::suite i07c_structural_invariants::grouped_operands_keep_one_causal_primary"
+  ],
+  "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
+ },
+ {
+  "id": "T4",
+  "family": "types closure bind_arguments target",
+  "file": "src/check/types.rs",
+  "occurrences": 1,
+  "sha_initial": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93",
+  "sha_mutated": "74b48e5eec4f74d1a92f561f302d376052aca87d14f5a338cb05b15fbc4ea35e",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(20/26) nexo::suite i07c_structural_invariants::grouped_operands_keep_one_causal_primary",
+   "(25/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
+ },
+ {
+  "id": "T5",
+  "family": "types primary_span delegation",
+  "file": "src/check/types.rs",
+  "occurrences": 1,
+  "sha_initial": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93",
+  "sha_mutated": "ef0790dcd7772f3c7db399cd31a9515171732b6624238629c7f4eae143906896",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/26) nexo::suite i07c_group_primary::array_iterable_barrier_reports_the_inner_iterable",
+   "( 6/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument",
+   "( 7/26) nexo::suite i07c_structural_invariants::diagnostic_relations_have_valid_distinct_expected_spans",
+   "( 8/26) nexo::suite i07c_structural_invariants::grouped_domain_union_and_operator_sites_keep_inner_primary",
+   "(23/26) nexo::suite i07c_structural_invariants::grouped_operands_keep_one_causal_primary"
+  ],
+  "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
+ },
+ {
+  "id": "N1",
+  "family": "names missing_argument target",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "18227bd46e04c1a00ba24fa32224b1698edf72bf90229b5873fced58d0c27fd4",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(21/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "N2",
+  "family": "names None non_callable",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "1abbff1472f3bfd93acb454eb312403b022430780f6438e7414984f52a50710e",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(19/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "N3",
+  "family": "names Drop projection",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "561fe5aa6ca7885c8fcc6d1c9c30eb62278fbfc17d549fbc06914f841e67202c",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(24/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "N4",
+  "family": "names positional_after_named",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "d5658acf21819c2ea1cda081cb50f5869a7f3acc317f009fdf62e21cf31b953e",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(21/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "N5",
+  "family": "names excess_positional_argument",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "710f0499036e18a60ac4aa4e4c250492615fc9652d63c6ebff905ab08f3e0ec5",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "N6",
+  "family": "names mode mismatch value",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "6146c88366bb4793f1c2c683b9fe075c5d0efc5a33c042f7f0c62d20911c364c",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(21/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "N7",
+  "family": "names mode mismatch prefix value",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "655b9c377a1bedfca7180d2b5cb22571157a297c8c7b8d855e91036163211d06",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "P1",
+  "family": "parse match move partial_transfer",
+  "file": "src/frontend/parse.rs",
+  "occurrences": 1,
+  "sha_initial": "1793866d71e817cf6528df6d80d82a461ad29a06288ecfb85666bbfd1a1d860e",
+  "sha_mutated": "0dba26de3b9a04a5f77a0f760c6f69eb26823e3968282acc18f6698f02735745",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(18/26) nexo::suite i07c_group_primary::parser_partial_transfer_barrier_reports_the_inner_place"
+  ],
+  "sha_restored": "1793866d71e817cf6528df6d80d82a461ad29a06288ecfb85666bbfd1a1d860e"
+ },
+ {
+  "id": "P2",
+  "family": "parse move partial_transfer",
+  "file": "src/frontend/parse.rs",
+  "occurrences": 1,
+  "sha_initial": "1793866d71e817cf6528df6d80d82a461ad29a06288ecfb85666bbfd1a1d860e",
+  "sha_mutated": "f30548b1ee145d5e7a2cbb550fc6fe3f704e27249e4d3a478371999358cc4819",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(14/26) nexo::suite i07c_group_primary::parser_partial_transfer_barrier_reports_the_inner_place"
+  ],
+  "sha_restored": "1793866d71e817cf6528df6d80d82a461ad29a06288ecfb85666bbfd1a1d860e"
+ },
+ {
+  "id": "L1",
+  "family": "lower NX-E1104 value",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "4c9acc32b86425b67366dee693cf7fc269d1ef1b308d0dd3c4684a382fd18db3",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L2",
+  "family": "lower first_f5_capability place",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "3ce93f5aa20280cd65190aea4c508e373d792a9bd5bcf01c6b3a392b7d453a76",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/26) nexo::suite i07c_group_primary::lowering_capability_barrier_reports_the_inner_place"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L3",
+  "family": "lower check_place_access place",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "1cdc2ad25c12e5182d57633fce207629cf3cedab8bc163d2ff049731126d3e41",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L5",
+  "family": "lower immutable_write root",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "bce9ed586318afed6e6a11c3a65efb90f3ef60edf6d81352293c9a9b991c5c58",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L6",
+  "family": "lower Drop((a)) primary",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "bc2d77f116217838c8c61233997a8caa7b7032ea8525213e5f85193d77dd2e14",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(14/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L7",
+  "family": "lower closure mode NX-E1107",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "755fceb990c7eeb4d848a597305d0d56fdd1dce0890e2f061db3201bf1f85a27",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L8",
+  "family": "lower rooted match-index origin",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "42bf5f2c8faec35cf07797dd90ae2fbb29c9511e0aa071913fe1631dbfaa1ece",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(22/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L9",
+  "family": "lower named closure receiver",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "88845649f6cf941cd5f208c2bd2de11ba6c8c625428df17a4ef9bffd978052c6",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(24/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "L13",
+  "family": "lower consume value primary",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3",
+  "sha_mutated": "886cc791ee874a236353ee9848f3b01a97df3d3efeccabbf5ae9b597d787f366",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(20/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "943db695bb4c8b4c95be9e09ddc323601e8e687738289533af32e7c276fd1bb3"
+ },
+ {
+  "id": "M1",
+  "family": "lower_match consume branch",
+  "file": "src/ir/lower_match.rs",
+  "occurrences": 1,
+  "sha_initial": "4060b053f6a00cd42ec520cabc435fef82d9db0d27f38c6f1f26fb8959b42a06",
+  "sha_mutated": "e48479141c8e61d43c19ae03a6245aa6e50fc0aa27762d9faceb098ace139ec3",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(26/26) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "4060b053f6a00cd42ec520cabc435fef82d9db0d27f38c6f1f26fb8959b42a06"
+ },
+ {
+  "id": "E1",
+  "family": "effects intrinsic first step",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
+  "sha_mutated": "c0e198b188b2123604852fc953761af5b0ccc74eb6ec6b50ed3cd7c59530a9f8",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 4/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
+ },
+ {
+  "id": "E2",
+  "family": "effects local primary fallback",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
+  "sha_mutated": "2e15f5a0440b1374676327c1ca1ffc4db78aa803746eb0df8e405b0fbce45f40",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
+ },
+ {
+  "id": "E9",
+  "family": "effects dropped temporary producer",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
+  "sha_mutated": "89d0e0402ff98c04f21efc685beeb026c861482d0694857368fb94c19e2bc0e4",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
+ },
+ {
+  "id": "E3",
+  "family": "effects transitive first step",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
+  "sha_mutated": "8c34858e486466aef3fdeec8bd9e80ac3cf25beb0c3cad6a4aa9aee25be0f5bb",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 3/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
+   "(19/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
+ },
+ {
+  "id": "E4",
+  "family": "effects guard call",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
+  "sha_mutated": "df559f000300b20e9c14e8e009e4ac9ff2c07282e786660f88ad7b86d940b669",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
+ },
+ {
+  "id": "E5",
+  "family": "effects temporary drop head",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
+  "sha_mutated": "e78926948df81a1f5fcdcb0aeb63e93349c50c0d676e0c4c15b4c6a948db85d5",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(23/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
+ },
+ {
+  "id": "E6",
+  "family": "effects index without calls",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
+  "sha_mutated": "8c847e9e4871c3536d0ecdc4621b2bca783e51eaaee6dcd2a77cd2c59b7f1204",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 3/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
+   "( 4/26) nexo ir::effects::witness_differential_tests::written_calls_resolve_to_the_target_name_under_groups",
+   "( 5/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
+ },
+ {
+  "id": "E7",
+  "family": "effects index without closure bodies",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
+  "sha_mutated": "72bf206d1072ae28f09f61923f4bfad125c1eec70db4e4b58b9f7494bf659122",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 3/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
+   "( 4/26) nexo ir::effects::witness_differential_tests::written_calls_resolve_to_the_target_name_under_groups"
+  ],
+  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
+ },
+ {
+  "id": "E8",
+  "family": "effects oracle step",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
+  "sha_mutated": "4cf6c187ae74d604208396d749ce185b1c1f8f46552acc2bf1fffb96c82eb665",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 1/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls"
+  ],
+  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
+ },
+ {
+  "id": "S1",
+  "family": "S5b.1 selector of a failed base inherits the base taint",
+  "file": "src/check/types.rs",
+  "occurrences": 1,
+  "sha_initial": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93",
+  "sha_mutated": "d280a0f6fa5fcc79312610d4e8629998051e72c6150ae0452a7afec3549c7e0a",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/26) nexo::suite i07c_s5b_selector::nested_selector_of_failed_base_chain_keeps_its_own_error"
+  ],
+  "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
+ }
+]

@@ -49,6 +49,8 @@ mod i07c_deferred_metamorphic;
 mod i07c_deferred_mutation_cases;
 #[path = "i07c_deferred_twins.rs"]
 mod i07c_deferred_twins;
+#[path = "i07c_group_primary.rs"]
+mod i07c_group_primary;
 #[path = "i07c_mutation_depth.rs"]
 mod i07c_mutation_depth;
 #[path = "i07c_mutation_regressions.rs"]

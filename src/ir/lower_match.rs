@@ -327,18 +327,15 @@ impl Lower<'_> {
                 let name = place_name(&selection.scrutinee)
                     .ok_or(CompileError::InvalidIr("match move place"))?;
                 let id = self.get(name)?;
-                self.check_available(id, selection.scrutinee.span().clone())?;
+                let primary = parse::expression_primary_span(&selection.scrutinee);
+                self.check_available(id, primary.clone())?;
                 if self.locals[id.0]
                     .parameter_mode
                     .is_some_and(|mode| mode != ParameterMode::Consume)
                 {
-                    return Err(self.permission_error(
-                        id,
-                        selection.scrutinee.span().clone(),
-                        "consume",
-                    ));
+                    return Err(self.permission_error(id, primary, "consume"));
                 }
-                self.conflict(id, selection.scrutinee.span().clone(), "consume")?;
+                self.conflict(id, primary, "consume")?;
                 self.mark_consumed(
                     id,
                     Some((

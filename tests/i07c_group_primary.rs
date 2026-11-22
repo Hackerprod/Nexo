@@ -1,0 +1,1362 @@
+//! F0-0002 lagunas, "Primario de una expresion bajo agrupaciones": every diagnostic whose subject
+//! is an expression reports the source span of the inner expression once the outer `Expr::Group`s
+//! are removed; the group node keeps its own span in the AST. Expected spans are transcribed from
+//! the adopted rule and its addendum (byte offsets over the ASCII sources below); each row pairs
+//! the grouped source with the bare control and a valid repair.
+use super::i07c_normative_literals::invoke;
+
+const J: &str = "f0-0003-b-v1";
+const F5: &str = "f0-0005-b-v1";
+
+struct Case {
+    family: &'static str,
+    name: &'static str,
+    profile: &'static str,
+    source: &'static str,
+    code: &'static str,
+    subcause: Option<&'static str>,
+    stage: &'static str,
+    operation: &'static str,
+    feature: Option<&'static str>,
+    data: &'static [&'static str],
+    primary: (usize, usize),
+    token: &'static str,
+    related: &'static [(&'static str, usize, usize)],
+    cause: &'static [(&'static str, usize, usize)],
+    control: &'static str,
+    control_primary: (usize, usize),
+    repair: &'static str,
+}
+
+const CASES: &[Case] = &[
+    Case {
+        family: "for_iteration",
+        name: "for_single",
+        profile: J,
+        source: "fn Main(){for x in ([1]){}}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "types",
+        operation: "types.check",
+        feature: Some("for_iteration"),
+        data: &["\"pending_scope\":\"later_adr\""],
+        primary: (20, 23),
+        token: "[1]",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){for x in [1]{}}",
+        control_primary: (19, 22),
+        repair: "fn Main(){let x=([1]);}",
+    },
+    Case {
+        family: "for_iteration",
+        name: "for_double",
+        profile: J,
+        source: "fn Main(){for x in (([1])){}}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "types",
+        operation: "types.check",
+        feature: Some("for_iteration"),
+        data: &["\"pending_scope\":\"later_adr\""],
+        primary: (21, 24),
+        token: "[1]",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){for x in [1]{}}",
+        control_primary: (19, 22),
+        repair: "fn Main(){let x=(([1]));}",
+    },
+    Case {
+        family: "call_bind",
+        name: "non_callable_name",
+        profile: J,
+        source: "fn Main(){let x=1;(x)(2);}",
+        code: "NX-E0111",
+        subcause: Some("non_callable_target"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (19, 20),
+        token: "x",
+        related: &[("declaration", 14, 15)],
+        cause: &[],
+        control: "fn Main(){let x=1;x(2);}",
+        control_primary: (18, 19),
+        repair: "fn F(x:view I64){}fn Main(){(F)(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "non_callable_name_double",
+        profile: J,
+        source: "fn Main(){let x=1;((x))(2);}",
+        code: "NX-E0111",
+        subcause: Some("non_callable_target"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (20, 21),
+        token: "x",
+        related: &[("declaration", 14, 15)],
+        cause: &[],
+        control: "fn Main(){let x=1;x(2);}",
+        control_primary: (18, 19),
+        repair: "fn F(x:view I64){}fn Main(){((F))(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "non_callable_none",
+        profile: J,
+        source: "fn Main(){(None)(2);}",
+        code: "NX-E0111",
+        subcause: Some("non_callable_target"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (11, 15),
+        token: "None",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){None(2);}",
+        control_primary: (10, 14),
+        repair: "fn F(x:view I64){}fn Main(){(F)(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "missing_argument_function",
+        profile: J,
+        source: "fn F(x:view I64){}fn Main(){(F)();}",
+        code: "NX-E0111",
+        subcause: Some("missing_argument"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (29, 30),
+        token: "F",
+        related: &[("declaration", 5, 6)],
+        cause: &[],
+        control: "fn F(x:view I64){}fn Main(){F();}",
+        control_primary: (28, 29),
+        repair: "fn F(x:view I64){}fn Main(){(F)(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "positional_after_named",
+        profile: J,
+        source: "fn F(x:view I64,y:view I64){}fn Main(){F(x:1,(2));}",
+        code: "NX-E0111",
+        subcause: Some("positional_after_named"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (46, 47),
+        token: "2",
+        related: &[("context", 41, 42)],
+        cause: &[],
+        control: "fn F(x:view I64,y:view I64){}fn Main(){F(x:1,2);}",
+        control_primary: (45, 46),
+        repair: "fn F(x:view I64,y:view I64){}fn Main(){F(x:1,y:(2));}",
+    },
+    Case {
+        family: "call_bind",
+        name: "argument_mode_mismatch",
+        profile: J,
+        source: "fn F(x:edit I64){}fn Main(){F((1));}",
+        code: "NX-E0111",
+        subcause: Some("argument_mode_mismatch"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (31, 32),
+        token: "1",
+        related: &[("declaration", 5, 6)],
+        cause: &[],
+        control: "fn F(x:edit I64){}fn Main(){F(1);}",
+        control_primary: (30, 31),
+        repair: "fn F(x:edit I64){}fn Main(){var x=1;F(edit x);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "excess_positional",
+        profile: J,
+        source: "fn F(x:view I64){}fn Main(){F(1,(2));}",
+        code: "NX-E0111",
+        subcause: Some("excess_positional_argument"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (33, 34),
+        token: "2",
+        related: &[],
+        cause: &[],
+        control: "fn F(x:view I64){}fn Main(){F(1,2);}",
+        control_primary: (32, 33),
+        repair: "fn F(x:view I64){}fn Main(){F(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "excess_positional_double",
+        profile: J,
+        source: "fn F(x:view I64){}fn Main(){F(1,((2)));}",
+        code: "NX-E0111",
+        subcause: Some("excess_positional_argument"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (34, 35),
+        token: "2",
+        related: &[],
+        cause: &[],
+        control: "fn F(x:view I64){}fn Main(){F(1,2);}",
+        control_primary: (32, 33),
+        repair: "fn F(x:view I64){}fn Main(){F(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "mode_mismatch_prefix_value",
+        profile: J,
+        source: "fn Main(){var a=[1];Drop(edit (a));}",
+        code: "NX-E0111",
+        subcause: Some("argument_mode_mismatch"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (31, 32),
+        token: "a",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var a=[1];Drop(edit a);}",
+        control_primary: (30, 31),
+        repair: "fn Main(){var a=[1];Drop(a);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "mode_mismatch_prefix_projection",
+        profile: J,
+        source: "fn Main(){var a=[1];Print(edit (a[0]));}",
+        code: "NX-E0111",
+        subcause: Some("argument_mode_mismatch"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (32, 36),
+        token: "a[0]",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var a=[1];Print(edit a[0]);}",
+        control_primary: (31, 35),
+        repair: "fn Main(){var a=[1];Print(a[0]);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "closure_missing_argument",
+        profile: F5,
+        source: "fn Main(){let f=fn (x:view I64){};(f)();}",
+        code: "NX-E0111",
+        subcause: Some("missing_argument"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (35, 36),
+        token: "f",
+        related: &[("declaration", 20, 21)],
+        cause: &[],
+        control: "fn Main(){let f=fn (x:view I64){};f();}",
+        control_primary: (34, 35),
+        repair: "fn Main(){let f=fn (x:view I64){};(f)(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "closure_missing_argument_double",
+        profile: F5,
+        source: "fn Main(){let f=fn (x:view I64){};((f))();}",
+        code: "NX-E0111",
+        subcause: Some("missing_argument"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (36, 37),
+        token: "f",
+        related: &[("declaration", 20, 21)],
+        cause: &[],
+        control: "fn Main(){let f=fn (x:view I64){};f();}",
+        control_primary: (34, 35),
+        repair: "fn Main(){let f=fn (x:view I64){};((f))(1);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "partial_transfer_drop",
+        profile: J,
+        source: "fn Main(){let x=[1];Drop((x[0]));}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "arguments",
+        operation: "call.bind",
+        feature: Some("partial_transfer"),
+        data: &["\"pending_scope\":\"later_adr\""],
+        primary: (26, 30),
+        token: "x[0]",
+        related: &[("context", 20, 24)],
+        cause: &[],
+        control: "fn Main(){let x=[1];Drop(x[0]);}",
+        control_primary: (25, 29),
+        repair: "fn Main(){let x=[1];Drop(x);}",
+    },
+    Case {
+        family: "call_bind",
+        name: "partial_transfer_drop_double",
+        profile: J,
+        source: "fn Main(){let x=[1];Drop((((x[0]))));}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "arguments",
+        operation: "call.bind",
+        feature: Some("partial_transfer"),
+        data: &["\"pending_scope\":\"later_adr\""],
+        primary: (28, 32),
+        token: "x[0]",
+        related: &[("context", 20, 24)],
+        cause: &[],
+        control: "fn Main(){let x=[1];Drop(x[0]);}",
+        control_primary: (25, 29),
+        repair: "fn Main(){let x=[1];Drop(x);}",
+    },
+    Case {
+        family: "parse_barrier",
+        name: "partial_transfer_move",
+        profile: J,
+        source: "fn Main(){let a=[1];move (a[0]);}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "parse",
+        operation: "syntax.parse",
+        feature: Some("partial_transfer"),
+        data: &["\"pending_scope\":\"later_adr\""],
+        primary: (26, 30),
+        token: "a[0]",
+        related: &[("context", 20, 24)],
+        cause: &[],
+        control: "fn Main(){let a=[1];move a[0];}",
+        control_primary: (25, 29),
+        repair: "fn Main(){let a=Some(1);Drop((a));}",
+    },
+    Case {
+        family: "parse_barrier",
+        name: "partial_transfer_match_move",
+        profile: J,
+        source: "fn Main(){let a=[1];match move (a[0]){_=>{}}}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "parse",
+        operation: "syntax.parse",
+        feature: Some("partial_transfer"),
+        data: &["\"pending_scope\":\"later_adr\""],
+        primary: (32, 36),
+        token: "a[0]",
+        related: &[("context", 26, 30)],
+        cause: &[],
+        control: "fn Main(){let a=[1];match move a[0]{_=>{}}}",
+        control_primary: (31, 35),
+        repair: "fn Main(){let a=Some(1);match move (a){_=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "immutable_match_edit",
+        profile: J,
+        source: "fn Main(){let a=Some(1);match edit (a){_=>{}}}",
+        code: "NX-E0105",
+        subcause: None,
+        stage: "ownership",
+        operation: "place.write",
+        feature: None,
+        data: &[],
+        primary: (36, 37),
+        token: "a",
+        related: &[("declaration", 14, 15)],
+        cause: &[],
+        control: "fn Main(){let a=Some(1);match edit a{_=>{}}}",
+        control_primary: (35, 36),
+        repair: "fn Main(){var a=Some(1);match edit (a){_=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "consumed_drop",
+        profile: J,
+        source: "fn Main(){let a=Some(1);Drop(a);Drop((a));}",
+        code: "NX-E0202",
+        subcause: Some("definitely_consumed"),
+        stage: "ownership",
+        operation: "ownership.use",
+        feature: None,
+        data: &[],
+        primary: (38, 39),
+        token: "a",
+        related: &[("declaration", 14, 15), ("consumption", 24, 31)],
+        cause: &[("value.drop", 24, 31)],
+        control: "fn Main(){let a=Some(1);Drop(a);Drop(a);}",
+        control_primary: (37, 38),
+        repair: "fn Main(){let a=Some(1);Drop((a));}",
+    },
+    Case {
+        family: "ownership",
+        name: "consumed_move",
+        profile: J,
+        source: "fn Main(){let a=Some(1);Drop(a);let b=move (a);}",
+        code: "NX-E0202",
+        subcause: Some("definitely_consumed"),
+        stage: "ownership",
+        operation: "ownership.use",
+        feature: None,
+        data: &[],
+        primary: (44, 45),
+        token: "a",
+        related: &[("declaration", 14, 15), ("consumption", 24, 31)],
+        cause: &[("value.drop", 24, 31)],
+        control: "fn Main(){let a=Some(1);Drop(a);let b=move a;}",
+        control_primary: (43, 44),
+        repair: "fn Main(){let a=Some(1);let b=move (a);}",
+    },
+    Case {
+        family: "ownership",
+        name: "consumed_match",
+        profile: J,
+        source: "fn Main(){let a=Some(1);Drop(a);match (a){_=>{}}}",
+        code: "NX-E0202",
+        subcause: Some("definitely_consumed"),
+        stage: "ownership",
+        operation: "ownership.use",
+        feature: None,
+        data: &[],
+        primary: (39, 40),
+        token: "a",
+        related: &[("declaration", 14, 15), ("consumption", 24, 31)],
+        cause: &[("value.drop", 24, 31)],
+        control: "fn Main(){let a=Some(1);Drop(a);match a{_=>{}}}",
+        control_primary: (38, 39),
+        repair: "fn Main(){let a=Some(1);match (a){_=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "borrow_conflict_match_arm",
+        profile: F5,
+        source: "fn Main(){var a=Some(1);match edit a{Some(x)=>{Drop((a));},None=>{}}}",
+        code: "NX-E1105",
+        subcause: Some("active_borrow_conflict"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"inout\"",
+            "\"id\":\"binding:14\"",
+            "\"id\":\"loan:35:0\"",
+            "\"id\":\"binding:14\"",
+            "\"requested_access\":\"drop\"",
+        ],
+        primary: (53, 54),
+        token: "a",
+        related: &[("declaration", 14, 15), ("origin", 35, 36)],
+        cause: &[("borrow.inout", 35, 36)],
+        control: "fn Main(){var a=Some(1);match edit a{Some(x)=>{Drop(a);},None=>{}}}",
+        control_primary: (52, 53),
+        repair: "fn Main(){var a=Some(1);match edit a{Some(x)=>{Print(1);},None=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "escaping_value_block",
+        profile: F5,
+        source: "fn Main(){let f=if true then {let x=1;value:(fn [view x]()->I64{return x;});}else{return;};Drop(f);}",
+        code: "NX-E1104",
+        subcause: None,
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (45, 74),
+        token: "fn [view x]()->I64{return x;}",
+        related: &[
+            ("declaration", 34, 35),
+            ("origin", 49, 55),
+            ("exit", 76, 77),
+        ],
+        cause: &[("borrow.read", 49, 55)],
+        control: "fn Main(){let f=if true then {let x=1;value:fn [view x]()->I64{return x;};}else{return;};Drop(f);}",
+        control_primary: (44, 73),
+        repair: "fn Main(){let f=if true then {let x=1;value:(fn [copy x]()->I64{return x;});}else{return;};Drop(f);}",
+    },
+    Case {
+        family: "ownership",
+        name: "closure_receiver_mode",
+        profile: F5,
+        source: "fn Main(){var x=1;var f=fn [edit x](){x=2;};(f)();}",
+        code: "NX-E1107",
+        subcause: None,
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &["\"requested_mode\":\"read\"", "\"required_mode\":\"inout\""],
+        primary: (45, 46),
+        token: "f",
+        related: &[("declaration", 22, 23)],
+        cause: &[],
+        control: "fn Main(){var x=1;var f=fn [edit x](){x=2;};f();}",
+        control_primary: (44, 45),
+        repair: "fn Main(){var x=1;var f=fn [edit x](){x=2;};edit (f)();}",
+    },
+    Case {
+        family: "ownership",
+        name: "borrow_conflict_argument",
+        profile: F5,
+        source: "fn F(x:edit I64,y:view I64){}fn Main(){var a=1;F(edit a,(a));}",
+        code: "NX-E1105",
+        subcause: Some("active_borrow_conflict"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"inout\"",
+            "\"id\":\"binding:43\"",
+            "\"id\":\"loan:49:0\"",
+            "\"id\":\"binding:43\"",
+            "\"requested_access\":\"read\"",
+        ],
+        primary: (57, 58),
+        token: "a",
+        related: &[("declaration", 43, 44), ("origin", 49, 55)],
+        cause: &[("borrow.inout", 49, 55)],
+        control: "fn F(x:edit I64,y:view I64){}fn Main(){var a=1;F(edit a,a);}",
+        control_primary: (56, 57),
+        repair: "fn F(x:edit I64,y:view I64){}fn Main(){var a=1;F(edit a,1);}",
+    },
+    Case {
+        family: "ownership",
+        name: "borrow_conflict_argument_projection",
+        profile: F5,
+        source: "fn F(x:edit I64,y:view I64){}fn Main(){var a=[1];F(edit a[0],(a[0]));}",
+        code: "NX-E1105",
+        subcause: Some("active_borrow_conflict"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"inout\"",
+            "\"id\":\"binding:43\"",
+            "\"id\":\"loan:51:0\"",
+            "\"id\":\"binding:43\"",
+            "\"requested_access\":\"read\"",
+        ],
+        primary: (62, 66),
+        token: "a[0]",
+        related: &[("declaration", 43, 44), ("origin", 51, 60)],
+        cause: &[("borrow.inout", 51, 60)],
+        control: "fn F(x:edit I64,y:view I64){}fn Main(){var a=[1];F(edit a[0],a[0]);}",
+        control_primary: (61, 65),
+        repair: "fn F(x:edit I64,y:view I64){}fn Main(){var a=[1];F(edit a[0],1);}",
+    },
+    Case {
+        family: "lower_barrier",
+        name: "compound_assign_name",
+        profile: F5,
+        source: "fn Main(){var a=1;(a)+=2;}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "lower",
+        operation: "ir.lower",
+        feature: Some("implementation_limit"),
+        data: &["\"pending_scope\":\"L08\""],
+        primary: (19, 20),
+        token: "a",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var a=1;a+=2;}",
+        control_primary: (18, 19),
+        repair: "fn Main(){var a=1;(a)=2;}",
+    },
+    Case {
+        family: "lower_barrier",
+        name: "compound_assign_projection",
+        profile: F5,
+        source: "fn Main(){var a=[1];(a[0])+=2;}",
+        code: "NX-E0006",
+        subcause: None,
+        stage: "lower",
+        operation: "ir.lower",
+        feature: Some("implementation_limit"),
+        data: &["\"pending_scope\":\"L08\""],
+        primary: (21, 25),
+        token: "a[0]",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var a=[1];a[0]+=2;}",
+        control_primary: (20, 24),
+        repair: "fn Main(){var a=[1];(a[0])=2;}",
+    },
+    Case {
+        family: "effects",
+        name: "intrinsic_call",
+        profile: J,
+        source: "fn Main() with no_io{(Print)(1);}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "intrinsic.call",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (22, 27),
+        token: "Print",
+        related: &[("contract", 15, 20)],
+        cause: &[("intrinsic.call", 22, 27)],
+        control: "fn Main() with no_io{Print(1);}",
+        control_primary: (21, 26),
+        repair: "fn Main(){(Print)(1);}",
+    },
+    Case {
+        family: "effects",
+        name: "intrinsic_call_double",
+        profile: J,
+        source: "fn Main() with no_io{((Print))(1);}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "intrinsic.call",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (23, 28),
+        token: "Print",
+        related: &[("contract", 15, 20)],
+        cause: &[("intrinsic.call", 23, 28)],
+        control: "fn Main() with no_io{Print(1);}",
+        control_primary: (21, 26),
+        repair: "fn Main(){((Print))(1);}",
+    },
+    Case {
+        family: "effects",
+        name: "function_call",
+        profile: J,
+        source: "fn F(){Print(1);}fn Main() with no_io{(F)();}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "function.call",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (39, 40),
+        token: "F",
+        related: &[("contract", 32, 37)],
+        cause: &[("function.call", 39, 40), ("intrinsic.call", 7, 12)],
+        control: "fn F(){Print(1);}fn Main() with no_io{F();}",
+        control_primary: (38, 39),
+        repair: "fn F(){Print(1);}fn Main(){(F)();}",
+    },
+    Case {
+        family: "effects",
+        name: "function_call_double",
+        profile: J,
+        source: "fn F(){Print(1);}fn Main() with no_io{((F))();}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "function.call",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (40, 41),
+        token: "F",
+        related: &[("contract", 32, 37)],
+        cause: &[("function.call", 40, 41), ("intrinsic.call", 7, 12)],
+        control: "fn F(){Print(1);}fn Main() with no_io{F();}",
+        control_primary: (38, 39),
+        repair: "fn F(){Print(1);}fn Main(){((F))();}",
+    },
+    Case {
+        family: "effects",
+        name: "closure_call",
+        profile: J,
+        source: "fn G(){Print(1);}fn Main() with no_io{let f=fn (){G();};(f)();}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "closure.call",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (57, 58),
+        token: "f",
+        related: &[("contract", 32, 37)],
+        cause: &[
+            ("closure.call", 57, 58),
+            ("function.call", 50, 51),
+            ("intrinsic.call", 7, 12),
+        ],
+        control: "fn G(){Print(1);}fn Main() with no_io{let f=fn (){G();};f();}",
+        control_primary: (56, 57),
+        repair: "fn G(){Print(1);}fn Main(){let f=fn (){G();};(f)();}",
+    },
+    Case {
+        family: "effects",
+        name: "closure_call_double",
+        profile: J,
+        source: "fn G(){Print(1);}fn Main() with no_io{let f=fn (){G();};((f))();}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "closure.call",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (58, 59),
+        token: "f",
+        related: &[("contract", 32, 37)],
+        cause: &[
+            ("closure.call", 58, 59),
+            ("function.call", 50, 51),
+            ("intrinsic.call", 7, 12),
+        ],
+        control: "fn G(){Print(1);}fn Main() with no_io{let f=fn (){G();};f();}",
+        control_primary: (56, 57),
+        repair: "fn G(){Print(1);}fn Main(){let f=fn (){G();};((f))();}",
+    },
+    Case {
+        family: "effects",
+        name: "guard_intrinsic_call",
+        profile: F5,
+        source: "fn Main(){match true{true if (MockUnknown)()==()=>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_effect"),
+        stage: "effects",
+        operation: "effects.check",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"unknown_effect\"",
+            "\"effect_model\":\"f0-0005-sim-v1\"",
+            "\"required_effect\":\"alloc\"",
+        ],
+        primary: (30, 41),
+        token: "MockUnknown",
+        related: &[],
+        cause: &[("intrinsic.call", 30, 41)],
+        control: "fn Main(){match true{true if MockUnknown()==()=>{},_=>{}}}",
+        control_primary: (29, 40),
+        repair: "fn Main(){match true{true if (true)=>{},_=>{}}}",
+    },
+    Case {
+        family: "effects",
+        name: "guard_function_call",
+        profile: F5,
+        source: "fn G()->Bool{let u=MockUnknown();return true;}fn Main(){match true{true if (G)()=>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_effect"),
+        stage: "effects",
+        operation: "effects.check",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"unknown_effect\"",
+            "\"effect_model\":\"f0-0005-sim-v1\"",
+            "\"required_effect\":\"alloc\"",
+        ],
+        primary: (76, 77),
+        token: "G",
+        related: &[],
+        cause: &[("function.call", 76, 77), ("intrinsic.call", 19, 30)],
+        control: "fn G()->Bool{let u=MockUnknown();return true;}fn Main(){match true{true if G()=>{},_=>{}}}",
+        control_primary: (75, 76),
+        repair: "fn G()->Bool{return true;}fn Main(){match true{true if (G)()=>{},_=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "permission_escalation_drop",
+        profile: F5,
+        source: "fn F(a:view I64){Drop((a));}fn Main(){F(1);}",
+        code: "NX-E1105",
+        subcause: Some("permission_escalation"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"read\"",
+            "\"id\":\"parameter:5\"",
+            "\"id\":\"parameter:5\"",
+            "\"requested_access\":\"drop\"",
+        ],
+        primary: (23, 24),
+        token: "a",
+        related: &[("declaration", 5, 6)],
+        cause: &[("borrow.read", 5, 6)],
+        control: "fn F(a:view I64){Drop(a);}fn Main(){F(1);}",
+        control_primary: (22, 23),
+        repair: "fn F(a:move I64){Drop((a));}fn Main(){F(1);}",
+    },
+    Case {
+        family: "ownership",
+        name: "permission_escalation_match_edit",
+        profile: F5,
+        source: "fn F(a:view I64){match edit (a){_=>{}}}fn Main(){F(1);}",
+        code: "NX-E1105",
+        subcause: Some("permission_escalation"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"read\"",
+            "\"id\":\"parameter:5\"",
+            "\"id\":\"parameter:5\"",
+            "\"requested_access\":\"borrow_inout\"",
+        ],
+        primary: (29, 30),
+        token: "a",
+        related: &[("declaration", 5, 6)],
+        cause: &[("borrow.read", 5, 6)],
+        control: "fn F(a:view I64){match edit a{_=>{}}}fn Main(){F(1);}",
+        control_primary: (28, 29),
+        repair: "fn F(a:edit I64){match edit (a){_=>{}}}fn Main(){var b=1;F(edit b);}",
+    },
+    Case {
+        family: "ownership",
+        name: "consumed_closure_receiver",
+        profile: F5,
+        source: "fn Main(){let f=fn (){};Drop(f);(f)();}",
+        code: "NX-E0202",
+        subcause: Some("definitely_consumed"),
+        stage: "ownership",
+        operation: "ownership.use",
+        feature: None,
+        data: &[],
+        primary: (33, 34),
+        token: "f",
+        related: &[("declaration", 14, 15), ("consumption", 24, 31)],
+        cause: &[("value.drop", 24, 31)],
+        control: "fn Main(){let f=fn (){};Drop(f);f();}",
+        control_primary: (32, 33),
+        repair: "fn Main(){let f=fn (){};(f)();}",
+    },
+    Case {
+        family: "ownership",
+        name: "consumed_closure_receiver_double",
+        profile: F5,
+        source: "fn Main(){let f=fn (){};Drop(f);((f))();}",
+        code: "NX-E0202",
+        subcause: Some("definitely_consumed"),
+        stage: "ownership",
+        operation: "ownership.use",
+        feature: None,
+        data: &[],
+        primary: (34, 35),
+        token: "f",
+        related: &[("declaration", 14, 15), ("consumption", 24, 31)],
+        cause: &[("value.drop", 24, 31)],
+        control: "fn Main(){let f=fn (){};Drop(f);f();}",
+        control_primary: (32, 33),
+        repair: "fn Main(){let f=fn (){};((f))();}",
+    },
+    Case {
+        family: "call_bind",
+        name: "closure_argument_mode_mismatch",
+        profile: F5,
+        source: "fn Main(){let f=fn (x:view I64){};let a=1;(f)(edit (a));}",
+        code: "NX-E0111",
+        subcause: Some("argument_mode_mismatch"),
+        stage: "arguments",
+        operation: "call.bind",
+        feature: None,
+        data: &[],
+        primary: (52, 53),
+        token: "a",
+        related: &[("declaration", 20, 21)],
+        cause: &[],
+        control: "fn Main(){let f=fn (x:view I64){};let a=1;f(edit a);}",
+        control_primary: (49, 50),
+        repair: "fn Main(){let f=fn (x:view I64){};let a=1;(f)(a);}",
+    },
+    Case {
+        family: "ownership",
+        name: "consumed_match_projection",
+        profile: J,
+        source: "fn Main(){let a=[1];Drop(a);match (a[0]){_=>{}}}",
+        code: "NX-E0202",
+        subcause: Some("definitely_consumed"),
+        stage: "ownership",
+        operation: "ownership.use",
+        feature: None,
+        data: &[],
+        primary: (35, 39),
+        token: "a[0]",
+        related: &[("declaration", 14, 15), ("consumption", 20, 27)],
+        cause: &[("value.drop", 20, 27)],
+        control: "fn Main(){let a=[1];Drop(a);match a[0]{_=>{}}}",
+        control_primary: (34, 38),
+        repair: "fn Main(){let a=[1];match (a[0]){_=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "immutable_match_edit_projection",
+        profile: F5,
+        source: "fn Main(){let a=[1];match edit (a[0]){_=>{}}}",
+        code: "NX-E0105",
+        subcause: None,
+        stage: "ownership",
+        operation: "place.write",
+        feature: None,
+        data: &[],
+        primary: (32, 36),
+        token: "a[0]",
+        related: &[("declaration", 14, 15)],
+        cause: &[],
+        control: "fn Main(){let a=[1];match edit a[0]{_=>{}}}",
+        control_primary: (31, 35),
+        repair: "fn Main(){var a=[1];match edit (a[0]){_=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "borrow_conflict_match_projection",
+        profile: F5,
+        source: "fn Main(){var a=[1];match edit a[0]{_=>{match (a[0]){_=>{}}}}}",
+        code: "NX-E1105",
+        subcause: Some("active_borrow_conflict"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"inout\"",
+            "\"id\":\"binding:14\"",
+            "\"id\":\"loan:31:0\"",
+            "\"id\":\"binding:14\"",
+            "\"requested_access\":\"read\"",
+        ],
+        primary: (47, 51),
+        token: "a[0]",
+        related: &[("declaration", 14, 15), ("origin", 31, 35)],
+        cause: &[("borrow.inout", 31, 35)],
+        control: "fn Main(){var a=[1];match edit a[0]{_=>{match a[0]{_=>{}}}}}",
+        control_primary: (46, 50),
+        repair: "fn Main(){var a=[1];match edit a[0]{_=>{Print(1);}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "borrow_conflict_match_read",
+        profile: F5,
+        source: "fn Main(){var a=Some(1);match edit a{Some(x)=>{match (a){_=>{}}},None=>{}}}",
+        code: "NX-E1105",
+        subcause: Some("active_borrow_conflict"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"inout\"",
+            "\"id\":\"binding:14\"",
+            "\"id\":\"loan:35:0\"",
+            "\"id\":\"binding:14\"",
+            "\"requested_access\":\"read\"",
+        ],
+        primary: (54, 55),
+        token: "a",
+        related: &[("declaration", 14, 15), ("origin", 35, 36)],
+        cause: &[("borrow.inout", 35, 36)],
+        control: "fn Main(){var a=Some(1);match edit a{Some(x)=>{match a{_=>{}}},None=>{}}}",
+        control_primary: (53, 54),
+        repair: "fn Main(){var a=Some(1);match edit a{Some(x)=>{Print(1);},None=>{}}}",
+    },
+    Case {
+        family: "ownership",
+        name: "borrow_conflict_match_move",
+        profile: F5,
+        source: "fn Main(){var a=Some(1);match edit a{Some(x)=>{match move (a){_=>{}}},None=>{}}}",
+        code: "NX-E1105",
+        subcause: Some("active_borrow_conflict"),
+        stage: "ownership",
+        operation: "ownership.access",
+        feature: None,
+        data: &[
+            "\"active_permission\":\"inout\"",
+            "\"id\":\"binding:14\"",
+            "\"id\":\"loan:35:0\"",
+            "\"id\":\"binding:14\"",
+            "\"requested_access\":\"consume\"",
+        ],
+        primary: (59, 60),
+        token: "a",
+        related: &[("declaration", 14, 15), ("origin", 35, 36)],
+        cause: &[("borrow.inout", 35, 36)],
+        control: "fn Main(){var a=Some(1);match edit a{Some(x)=>{match move a{_=>{}}},None=>{}}}",
+        control_primary: (58, 59),
+        repair: "fn Main(){var a=Some(1);match edit a{Some(x)=>{Print(1);},None=>{}}}",
+    },
+    Case {
+        family: "effects",
+        name: "dropped_temporary_of_grouped_call",
+        profile: J,
+        source: "fn Main() with no_io{(MockOpen)(1);}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "value.drop",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (22, 30),
+        token: "MockOpen",
+        related: &[("contract", 15, 20)],
+        cause: &[("value.drop", 21, 34)],
+        control: "fn Main() with no_io{MockOpen(1);}",
+        control_primary: (21, 29),
+        repair: "fn Main(){(MockOpen)(1);}",
+    },
+    Case {
+        family: "effects",
+        name: "dropped_temporary_of_grouped_call_double",
+        profile: J,
+        source: "fn Main() with no_io{((MockOpen))(1);}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "value.drop",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (23, 31),
+        token: "MockOpen",
+        related: &[("contract", 15, 20)],
+        cause: &[("value.drop", 21, 36)],
+        control: "fn Main() with no_io{MockOpen(1);}",
+        control_primary: (21, 29),
+        repair: "fn Main(){((MockOpen))(1);}",
+    },
+    Case {
+        family: "effects",
+        name: "temporary_argument_of_grouped_call",
+        profile: J,
+        source: "fn F(r:view MockResource){}fn Main() with no_io{F((MockOpen)(1));}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "value.drop",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (51, 59),
+        token: "MockOpen",
+        related: &[("contract", 42, 47)],
+        cause: &[("value.drop", 50, 63)],
+        control: "fn F(r:view MockResource){}fn Main() with no_io{F(MockOpen(1));}",
+        control_primary: (50, 58),
+        repair: "fn F(r:view MockResource){}fn Main(){F((MockOpen)(1));}",
+    },
+    Case {
+        family: "effects",
+        name: "temporary_argument_of_grouped_call_double",
+        profile: J,
+        source: "fn F(r:view MockResource){}fn Main() with no_io{F(((MockOpen))(1));}",
+        code: "NX-E0415",
+        subcause: None,
+        stage: "effects",
+        operation: "value.drop",
+        feature: None,
+        data: &[
+            "\"effect_evidence\":\"known_effect\"",
+            "\"effect_model\":\"f0-0003-sim-v1\"",
+            "\"required_effect\":\"io\"",
+        ],
+        primary: (52, 60),
+        token: "MockOpen",
+        related: &[("contract", 42, 47)],
+        cause: &[("value.drop", 50, 65)],
+        control: "fn F(r:view MockResource){}fn Main() with no_io{F(MockOpen(1));}",
+        control_primary: (50, 58),
+        repair: "fn F(r:view MockResource){}fn Main(){F(((MockOpen))(1));}",
+    },
+];
+
+fn number_after(text: &str, key: &str) -> usize {
+    let at = text
+        .find(key)
+        .unwrap_or_else(|| panic!("missing {key} in {text}"))
+        + key.len();
+    text[at..]
+        .chars()
+        .take_while(char::is_ascii_digit)
+        .collect::<String>()
+        .parse()
+        .unwrap()
+}
+
+fn span_of(text: &str) -> (usize, usize) {
+    (
+        number_after(text, "\"start\":"),
+        number_after(text, "\"end\":"),
+    )
+}
+
+fn section<'a>(json: &'a str, from: &str, to: &str) -> &'a str {
+    let start = json.find(from).unwrap_or_else(|| panic!("missing {from}")) + from.len();
+    let end = start
+        + json[start..]
+            .find(to)
+            .unwrap_or_else(|| panic!("missing {to}"));
+    &json[start..end]
+}
+
+fn related(json: &str) -> Vec<(String, usize, usize)> {
+    let body = section(json, "\"related_spans\":[", "],\"cause_chain\"");
+    body.split("{\"role\":\"")
+        .skip(1)
+        .map(|part| {
+            let (start, end) = span_of(part);
+            (part[..part.find('"').unwrap()].to_owned(), start, end)
+        })
+        .collect()
+}
+
+fn cause(json: &str) -> Vec<(String, usize, usize)> {
+    let body = section(json, "\"cause_chain\":[", "],\"feature_id\"");
+    body.split("\"operation\":\"")
+        .skip(1)
+        .map(|part| {
+            let (start, end) = span_of(part);
+            (part[..part.find('"').unwrap()].to_owned(), start, end)
+        })
+        .collect()
+}
+
+fn one_diagnostic(verb: &str, source: &str, profile: &str) -> String {
+    let (exit, json, stderr) = invoke(verb, source, profile);
+    assert_eq!(exit, 1, "{verb}: {source}: {json}: {stderr}");
+    assert!(stderr.is_empty(), "{verb}: {source}: {stderr}");
+    for fragment in [
+        "\"outcome\":{\"kind\":\"rejected\"}",
+        "\"stdout\":[]",
+        "\"events\":[]",
+        "\"observations\":[]",
+    ] {
+        assert!(json.contains(fragment), "{verb}: {source}: {json}");
+    }
+    assert_eq!(
+        json.matches("{\"schema_version\":1,\"diagnostic_namespace\"")
+            .count(),
+        1,
+        "{verb}: {source}: {json}"
+    );
+    json
+}
+
+fn primary(json: &str) -> (usize, usize) {
+    span_of(section(json, "\"primary_span\":{", "}"))
+}
+
+fn rule_fragments(json: &str, case: &Case, with_data: bool) {
+    let rule = format!(
+        "{}{}",
+        case.code,
+        case.subcause.map(|s| format!("/{s}")).unwrap_or_default()
+    );
+    for fragment in [
+        format!("\"code\":\"{}\"", case.code),
+        format!(
+            "\"subcause\":{}",
+            case.subcause
+                .map(|s| format!("\"{s}\""))
+                .unwrap_or_else(|| "null".into())
+        ),
+        format!("\"rule\":\"{rule}\""),
+        format!("\"explanation_id\":\"{rule}\""),
+        format!("\"stage\":\"{}\"", case.stage),
+        format!(
+            "\"feature_id\":{}",
+            case.feature
+                .map(|s| format!("\"{s}\""))
+                .unwrap_or_else(|| "null".into())
+        ),
+    ] {
+        assert!(
+            json.contains(&fragment),
+            "{}: {fragment}: {json}",
+            case.name
+        );
+    }
+    // The control only has to be the same rule; its witness may differ.
+    if with_data {
+        let operation = format!("\"operation\":\"{}\"", case.operation);
+        assert!(
+            json.contains(&operation),
+            "{}: {operation}: {json}",
+            case.name
+        );
+    }
+    for fragment in case.data.iter().filter(|_| with_data) {
+        assert!(json.contains(fragment), "{}: {fragment}: {json}", case.name);
+    }
+}
+
+fn run_family(family: &str) {
+    let mut seen = 0;
+    for case in CASES.iter().filter(|case| case.family == family) {
+        seen += 1;
+        assert!(case.source.is_ascii() && case.control.is_ascii() && case.repair.is_ascii());
+        assert_eq!(
+            &case.source[case.primary.0..case.primary.1],
+            case.token,
+            "{}: the expected span must slice the stated token",
+            case.name
+        );
+        let bare = &case.control[case.control_primary.0..case.control_primary.1];
+        assert!(
+            !bare.starts_with('('),
+            "{}: the control primary is the bare expression",
+            case.name
+        );
+        for verb in ["check", "run"] {
+            let json = one_diagnostic(verb, case.source, case.profile);
+            rule_fragments(&json, case, true);
+            assert_eq!(
+                primary(&json),
+                case.primary,
+                "{}: {verb}: {json}",
+                case.name
+            );
+            let expected_related: Vec<_> = case
+                .related
+                .iter()
+                .map(|(role, a, b)| (role.to_string(), *a, *b))
+                .collect();
+            assert_eq!(related(&json), expected_related, "{}: {verb}", case.name);
+            let expected_cause: Vec<_> = case
+                .cause
+                .iter()
+                .map(|(operation, a, b)| (operation.to_string(), *a, *b))
+                .collect();
+            if case.cause.is_empty() {
+                assert!(json.contains("\"cause_chain\":[]"), "{}: {json}", case.name);
+            } else {
+                assert_eq!(cause(&json), expected_cause, "{}: {verb}", case.name);
+            }
+            let json = one_diagnostic(verb, case.control, case.profile);
+            rule_fragments(&json, case, false);
+            assert_eq!(
+                primary(&json),
+                case.control_primary,
+                "{}: control {verb}: {json}",
+                case.name
+            );
+            let (exit, json, stderr) = invoke(verb, case.repair, case.profile);
+            assert_eq!(exit, 0, "{}: repair {verb}: {json}: {stderr}", case.name);
+            assert!(json.contains("\"diagnostics\":[]"), "{}: {json}", case.name);
+            assert!(
+                json.contains(if verb == "check" {
+                    "\"outcome\":{\"kind\":\"checked\"}"
+                } else {
+                    "\"outcome\":{\"kind\":\"unit\"}"
+                }),
+                "{}: {json}",
+                case.name
+            );
+        }
+    }
+    assert!(seen > 0, "no cases for {family}");
+}
+
+#[test]
+fn array_iterable_barrier_reports_the_inner_iterable() {
+    run_family("for_iteration");
+}
+
+#[test]
+fn call_binding_diagnostics_report_the_inner_target_and_argument() {
+    run_family("call_bind");
+}
+
+#[test]
+fn parser_partial_transfer_barrier_reports_the_inner_place() {
+    run_family("parse_barrier");
+}
+
+#[test]
+fn ownership_diagnostics_report_the_inner_place_or_value() {
+    run_family("ownership");
+}
+
+#[test]
+fn lowering_capability_barrier_reports_the_inner_place() {
+    run_family("lower_barrier");
+}
+
+#[test]
+fn effect_diagnostics_report_the_target_name_of_a_grouped_call() {
+    run_family("effects");
+}
+
+// Anchors that are not the call target expression keep their own site: the
+// scheduled `Next` token of a written `Iterator.Next` call (F0-0003 section
+// 5.2) and the `for` keyword of the synthetic resume of a generator loop.
+#[test]
+fn generator_resume_anchors_ignore_the_group_around_the_target() {
+    const GEN: &str = "gen fn G()->I64{Print(1);yield 1;}";
+    for (body, token_start) in [
+        ("var g=G();Iterator.Next(edit g);", 74),
+        ("var g=G();(Iterator.Next)(edit g);", 75),
+        ("for x in G(){}", 55),
+        ("for x in (G()){}", 55),
+        ("for x in ((G())){}", 55),
+    ] {
+        let source = format!("{GEN}fn Main() with no_io{{{body}}}");
+        let token = if body.starts_with("for") {
+            "for"
+        } else {
+            "Next"
+        };
+        assert_eq!(
+            &source[token_start..token_start + token.len()],
+            token,
+            "{source}"
+        );
+        for verb in ["check", "run"] {
+            let json = one_diagnostic(verb, &source, F5);
+            for fragment in ["\"code\":\"NX-E0415\"", "\"stage\":\"effects\""] {
+                assert!(json.contains(fragment), "{source}: {json}");
+            }
+            assert_eq!(
+                primary(&json),
+                (token_start, token_start + token.len()),
+                "{source}: {verb}"
+            );
+        }
+    }
+}

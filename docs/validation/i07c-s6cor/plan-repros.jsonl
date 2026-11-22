@@ -1,0 +1,106 @@
+{"id": 0, "source": "fn Main(){for x in ([1]){}}"}
+{"id": 1, "source": "fn Main(){for x in (([1])){}}"}
+{"id": 2, "source": "fn Main(){for x in [1]{}}"}
+{"id": 3, "source": "fn Main(){for x in (1){}}"}
+{"id": 4, "source": "fn Main(){let x=1;(x)(2);}"}
+{"id": 5, "source": "fn Main(){let x=1;((x))(2);}"}
+{"id": 6, "source": "fn Main(){let x=1;x(2);}"}
+{"id": 7, "source": "fn Main(){(None)(2);}"}
+{"id": 8, "source": "fn Main(){None(2);}"}
+{"id": 9, "source": "fn F(x:view I64){}fn Main(){(F)();}"}
+{"id": 10, "source": "fn F(x:view I64){}fn Main(){F();}"}
+{"id": 11, "source": "fn F(x:view I64,y:view I64){}fn Main(){F(x:1,(2));}"}
+{"id": 12, "source": "fn F(x:view I64,y:view I64){}fn Main(){F(x:1,2);}"}
+{"id": 13, "source": "fn F(x:edit I64){}fn Main(){F((1));}"}
+{"id": 14, "source": "fn F(x:edit I64){}fn Main(){F(1);}"}
+{"id": 15, "source": "fn Main(){let x=[1];Drop((x[0]));}"}
+{"id": 16, "source": "fn Main(){let x=[1];Drop((((x[0]))));}"}
+{"id": 17, "source": "fn Main(){let x=[1];Drop(x[0]);}"}
+{"id": 18, "source": "fn Main(){let a=[1];move (a[0]);}"}
+{"id": 19, "source": "fn Main(){let a=[1];move a[0];}"}
+{"id": 20, "source": "fn Main(){let a=[1];match move (a[0]){_=>{}}}"}
+{"id": 21, "source": "fn Main(){let a=Some(1);match edit (a){_=>{}}}"}
+{"id": 22, "source": "fn Main(){let a=Some(1);match edit a{_=>{}}}"}
+{"id": 23, "source": "fn Main(){let a=Some(1);Drop(a);Drop((a));}"}
+{"id": 24, "source": "fn Main(){let a=Some(1);Drop(a);Drop(a);}"}
+{"id": 25, "source": "fn Main(){let a=Some(1);Drop(a);let b=move (a);}"}
+{"id": 26, "source": "fn Main(){let a=Some(1);Drop(a);let b=move a;}"}
+{"id": 27, "source": "fn Main(){let a=Some(1);Drop(a);match (a){_=>{}}}"}
+{"id": 28, "source": "fn Main(){let a=Some(1);Drop(a);match a{_=>{}}}"}
+{"id": 29, "source": "fn Main(){var a=Some(1);match edit a{Some(x)=>{Drop((a));},None=>{}}}"}
+{"id": 30, "source": "fn Main(){var a=Some(1);match edit a{Some(x)=>{Drop(a);},None=>{}}}"}
+{"id": 31, "source": "fn Main(){let f=if true then {let x=1;value:(fn [view x]()->I64{return x;});}else{return;};Drop(f);}"}
+{"id": 32, "source": "fn Main(){let f=if true then {let x=1;value:fn [view x]()->I64{return x;};}else{return;};Drop(f);}"}
+{"id": 33, "source": "fn Main(){var x=1;var f=fn [edit x](){x=2;};(f)();}"}
+{"id": 34, "source": "fn Main(){var x=1;var f=fn [edit x](){x=2;};f();}"}
+{"id": 35, "source": "fn Main(){let f=fn (x:view I64){};(f)();}"}
+{"id": 36, "source": "fn Main(){let f=fn (x:view I64){};((f))();}"}
+{"id": 37, "source": "fn Main(){let f=fn (x:view I64){};f();}"}
+{"id": 38, "source": "fn Main(){var a=1;(a)+=2;}"}
+{"id": 39, "source": "fn Main(){var a=1;a+=2;}"}
+{"id": 40, "source": "fn Main(){var a=[1];(a[0])+=2;}"}
+{"id": 41, "source": "fn Main(){var a=[1];a[0]+=2;}"}
+{"id": 42, "source": "fn F(x:edit I64,y:view I64){}fn Main(){var a=1;F(edit a,(a));}"}
+{"id": 43, "source": "fn F(x:edit I64,y:view I64){}fn Main(){var a=1;F(edit a,a);}"}
+{"id": 44, "source": "fn F(x:edit I64,y:view I64){}fn Main(){var a=[1];F(edit a[0],(a[0]));}"}
+{"id": 45, "source": "fn F(x:edit I64,y:view I64){}fn Main(){var a=[1];F(edit a[0],a[0]);}"}
+{"id": 46, "source": "fn F(x:view I64){}fn Main(){F(1,(2));}"}
+{"id": 47, "source": "fn F(x:view I64){}fn Main(){F(1,((2)));}"}
+{"id": 48, "source": "fn F(x:view I64){}fn Main(){F(1,2);}"}
+{"id": 49, "source": "fn Main(){var a=[1];Drop(edit (a));}"}
+{"id": 50, "source": "fn Main(){var a=[1];Drop(edit a);}"}
+{"id": 51, "source": "fn Main(){var a=[1];Print(edit (a[0]));}"}
+{"id": 52, "source": "fn Main(){var a=[1];Print(edit a[0]);}"}
+{"id": 53, "source": "fn Main() with no_io{(Print)(1);}"}
+{"id": 54, "source": "fn Main() with no_io{((Print))(1);}"}
+{"id": 55, "source": "fn Main() with no_io{Print(1);}"}
+{"id": 56, "source": "fn F(){Print(1);}fn Main() with no_io{(F)();}"}
+{"id": 57, "source": "fn F(){Print(1);}fn Main() with no_io{((F))();}"}
+{"id": 58, "source": "fn F(){Print(1);}fn Main() with no_io{F();}"}
+{"id": 59, "source": "fn G(){Print(1);}fn Main() with no_io{let f=fn (){G();};(f)();}"}
+{"id": 60, "source": "fn G(){Print(1);}fn Main() with no_io{let f=fn (){G();};((f))();}"}
+{"id": 61, "source": "fn G(){Print(1);}fn Main() with no_io{let f=fn (){G();};f();}"}
+{"id": 62, "source": "gen fn G()->I64{Print(1);yield 1;}fn Main() with no_io{var g=G();(Iterator.Next)(edit g);}"}
+{"id": 63, "source": "gen fn G()->I64{Print(1);yield 1;}fn Main() with no_io{var g=G();Iterator.Next(edit g);}"}
+{"id": 64, "source": "gen fn G()->I64{Print(1);yield 1;}fn Main() with no_io{var g=G();for x in g{}}"}
+{"id": 65, "source": "gen fn G()->I64{Print(1);yield 1;}fn Main(){var g=G();(Iterator.Next)(edit g);}"}
+{"id": 66, "source": "fn Main(){let x=([1]);}"}
+{"id": 67, "source": "fn Main(){let x=(([1]));}"}
+{"id": 68, "source": "fn F(x:view I64){}fn Main(){(F)(1);}"}
+{"id": 69, "source": "fn F(x:view I64){}fn Main(){((F))(1);}"}
+{"id": 70, "source": "fn F(x:view I64,y:view I64){}fn Main(){F(x:1,y:(2));}"}
+{"id": 71, "source": "fn F(x:edit I64){}fn Main(){var x=1;F(edit x);}"}
+{"id": 72, "source": "fn Main(){let x=[1];Drop(x);}"}
+{"id": 73, "source": "fn Main(){let a=Some(1);Drop((a));}"}
+{"id": 74, "source": "fn Main(){let a=Some(1);match move (a){_=>{}}}"}
+{"id": 75, "source": "fn Main(){var a=Some(1);match edit (a){_=>{}}}"}
+{"id": 76, "source": "fn Main(){let a=Some(1);let b=move (a);}"}
+{"id": 77, "source": "fn Main(){let a=Some(1);match (a){_=>{}}}"}
+{"id": 78, "source": "fn Main(){var a=Some(1);match edit a{Some(x)=>{Print(1);},None=>{}}}"}
+{"id": 79, "source": "fn Main(){let f=if true then {let x=1;value:(fn [copy x]()->I64{return x;});}else{return;};Drop(f);}"}
+{"id": 80, "source": "fn Main(){var x=1;var f=fn [edit x](){x=2;};edit (f)();}"}
+{"id": 81, "source": "fn Main(){let f=fn (x:view I64){};(f)(1);}"}
+{"id": 82, "source": "fn Main(){var a=1;(a)=2;}"}
+{"id": 83, "source": "fn Main(){var a=[1];(a[0])=2;}"}
+{"id": 84, "source": "fn F(x:edit I64,y:view I64){}fn Main(){var a=1;F(edit a,1);}"}
+{"id": 85, "source": "fn F(x:edit I64,y:view I64){}fn Main(){var a=[1];F(edit a[0],1);}"}
+{"id": 86, "source": "fn F(x:view I64){}fn Main(){F(1);}"}
+{"id": 87, "source": "fn Main(){var a=[1];Drop(a);}"}
+{"id": 88, "source": "fn Main(){var a=[1];Print(a[0]);}"}
+{"id": 89, "source": "fn Main(){(Print)(1);}"}
+{"id": 90, "source": "fn Main(){((Print))(1);}"}
+{"id": 91, "source": "fn F(){Print(1);}fn Main(){(F)();}"}
+{"id": 92, "source": "fn F(){Print(1);}fn Main(){((F))();}"}
+{"id": 93, "source": "fn G(){Print(1);}fn Main(){let f=fn (){G();};(f)();}"}
+{"id": 94, "source": "fn G(){Print(1);}fn Main(){let f=fn (){G();};((f))();}"}
+{"id": 95, "source": "fn Main() with no_io{(MockOpen)(1);}"}
+{"id": 96, "source": "fn Main() with no_io{((MockOpen))(1);}"}
+{"id": 97, "source": "fn Main() with no_io{MockOpen(1);}"}
+{"id": 98, "source": "fn Main() with no_io{(MockBlockingOpen)(1);}"}
+{"id": 99, "source": "fn Main() with no_suspend{(MockBlockingOpen)(1);}"}
+{"id": 100, "source": "fn Main() with no_io{let r=(MockOpen)(1);Drop(r);}"}
+{"id": 101, "source": "fn Main() with no_io{[(MockOpen)(1)];}"}
+{"id": 102, "source": "fn F(r:view MockResource){}fn Main() with no_io{F((MockOpen)(1));}"}
+{"id": 103, "source": "fn F(r:view MockResource){}fn Main() with no_io{F(((MockOpen))(1));}"}
+{"id": 104, "source": "fn F(r:view MockResource){}fn Main() with no_io{F(MockOpen(1));}"}
+{"id": 105, "source": "fn F(r:view MockResource){}fn Main(){F((MockOpen)(1));}"}

@@ -11,6 +11,7 @@ use crate::frontend::{
     lex::{self, Kind, Token},
     parse::{
         Argument, Ast, Block, CaptureMode, Closure, Else, Expr, Function, Mode, Statement, Type,
+        expression_primary, expression_primary_span,
     },
 };
 
@@ -1048,11 +1049,7 @@ impl Resolver {
         if self.phase == Stage::Names {
             return Ok(());
         }
-        let mut unwrapped = target;
-        while let Expr::Group(inner, _) = unwrapped {
-            unwrapped = inner;
-        }
-        let target_use = match unwrapped {
+        let target_use = match expression_primary(target) {
             Expr::Name(_, s) => self.resolved.uses.get(&s.start),
             _ => None,
         }
@@ -1063,15 +1060,12 @@ impl Resolver {
         if matches!(target_use, ResolvedUse::Local(_) | ResolvedUse::Constant(_)) {
             return Ok(());
         }
+        let primary = expression_primary_span(target);
         if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "None") {
-            return Err(argument_error(
-                "non_callable_target",
-                target.span().clone(),
-                None,
-            ));
+            return Err(argument_error("non_callable_target", primary, None));
         }
         let sig = signature(&self.resolved, &target_use).expect("registered target");
-        let slots = Self::bind(&sig, target.span(), args)?;
+        let slots = Self::bind(&sig, &primary, args)?;
         if matches!(&target_use, ResolvedUse::Intrinsic(name) if name == "Drop")
             && let Some(arg) = args.first()
             && projected_named_place(&arg.value)
@@ -1081,7 +1075,7 @@ impl Resolver {
                 None,
                 Stage::Arguments,
                 Operation::CallBind,
-                arg.value.span().clone(),
+                expression_primary_span(&arg.value),
             );
             d.feature_id = Some("partial_transfer".into());
             d.data.insert(
@@ -1173,7 +1167,7 @@ impl Resolver {
                 if let Some(first) = &first_named {
                     return Err(argument_error(
                         "positional_after_named",
-                        a.value.span().clone(),
+                        expression_primary_span(&a.value),
                         Some((RelatedRole::Context, first.clone())),
                     ));
                 }
@@ -1182,7 +1176,7 @@ impl Resolver {
                 if slot >= sig.params.len() {
                     return Err(argument_error(
                         "excess_positional_argument",
-                        a.value.span().clone(),
+                        expression_primary_span(&a.value),
                         None,
                     ));
                 }
@@ -1211,9 +1205,13 @@ impl Resolver {
                 let related = (!sig.intrinsic)
                     .then(|| (RelatedRole::Declaration, sig.params[slot].name_span.clone()));
                 let span = match &a.value {
-                    _ if sig.intrinsic && formal == Mode::Inout => a.value.span().clone(),
-                    Expr::Unary { value, .. } if actual != Mode::Read => value.span().clone(),
-                    _ => a.value.span().clone(),
+                    _ if sig.intrinsic && formal == Mode::Inout => {
+                        expression_primary_span(&a.value)
+                    }
+                    Expr::Unary { value, .. } if actual != Mode::Read => {
+                        expression_primary_span(value)
+                    }
+                    _ => expression_primary_span(&a.value),
                 };
                 return Err(argument_error("argument_mode_mismatch", span, related));
             }

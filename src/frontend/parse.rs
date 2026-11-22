@@ -814,6 +814,23 @@ impl Expr {
     }
 }
 
+/// The expression a diagnostic denounces once every outer `Expr::Group` is
+/// removed (F0-0002 lagunas, "Primario de una expresion bajo agrupaciones").
+pub(crate) fn expression_primary(expr: &Expr) -> &Expr {
+    let mut current = expr;
+    while let Expr::Group(inner, _) = current {
+        current = inner;
+    }
+    current
+}
+
+/// Primary site of a diagnostic whose subject is `expr`: the source span of
+/// the inner expression. The AST keeps the group span; only the site changes.
+#[inline(never)]
+pub(crate) fn expression_primary_span(expr: &Expr) -> Span {
+    expression_primary(expr).span().clone()
+}
+
 pub(crate) fn statement_span(s: &Statement) -> &Span {
     match s {
         Statement::Block(b) => &b.span,
@@ -1061,6 +1078,64 @@ fn parse_inner(
 mod tests {
     use super::*;
     use crate::diagnostic::DataValue;
+
+    // F0-0002 lagunas, "Primario de una expresion bajo agrupaciones": the AST
+    // keeps the span of every group; the primary is the inner expression.
+    #[test]
+    fn expression_primary_removes_every_outer_group_and_only_those() {
+        let source = "// \u{f1}\u{e9} utf-8 before every site\nfn Main(){let c=x;let a=(x);let b=((x));let d=(x)+1;let e=(f(1));}";
+        let ast = parse_new_profile("primary.n", source).unwrap();
+        let statements = &ast.functions[0].body.statements;
+        let value = |index: usize| match &statements[index] {
+            Statement::Let { value, .. } => value,
+            other => panic!("{other:?}"),
+        };
+        let at = |needle: &str| source.find(needle).unwrap() as u64;
+        let span = |start: u64, end: u64| Span {
+            file: "primary.n".into(),
+            start,
+            end,
+        };
+        // No group: the helper is the identity.
+        let bare = at("x;let a");
+        assert_eq!(expression_primary_span(value(0)), span(bare, bare + 1));
+        // One group: the node keeps `(x)`, the primary is `x`.
+        let one = at("(x);let b");
+        assert_eq!(value(1).span(), &span(one, one + 3));
+        assert_eq!(expression_primary_span(value(1)), span(one + 1, one + 2));
+        // Two groups: all of them are removed.
+        let two = at("((x))");
+        assert_eq!(value(2).span(), &span(two, two + 5));
+        assert!(matches!(expression_primary(value(2)), Expr::Name(..)));
+        assert_eq!(expression_primary_span(value(2)), span(two + 2, two + 3));
+        // A binary expression with a grouped child keeps its compound span.
+        let sum = at("(x)+1");
+        assert_eq!(expression_primary_span(value(3)), span(sum, sum + 5));
+        // A group around a call removes the group, not the call's own span.
+        let call = at("(f(1))");
+        assert_eq!(expression_primary_span(value(4)), span(call + 1, call + 5));
+    }
+
+    // `move` and `edit` are prefixes, not groups: their Unary span is kept.
+    #[test]
+    fn expression_primary_keeps_the_prefix_of_move_and_edit() {
+        let source = "fn Main(){F(move (a));F(edit (a));}";
+        let ast = parse_new_profile("prefix.n", source).unwrap();
+        let statements = &ast.functions[0].body.statements;
+        for (index, needle) in [(0, "move (a)"), (1, "edit (a)")] {
+            let Statement::Expr {
+                value: Expr::Call { args, .. },
+                ..
+            } = &statements[index]
+            else {
+                panic!("{:?}", statements[index]);
+            };
+            let start = source.find(needle).unwrap() as u64;
+            let primary = expression_primary_span(&args[0].value);
+            assert!(matches!(args[0].value, Expr::Unary { .. }));
+            assert_eq!((primary.start, primary.end), (start, start + 8), "{needle}");
+        }
+    }
 
     #[test]
     fn production_table_has_108_declared_entry_fixtures() {
@@ -3007,7 +3082,7 @@ impl Parser<'_> {
                     }
                     if mode == Some(Mode::Consume) && is_projected_place(&scrutinee) {
                         let mut diagnostic =
-                            self.feature("partial_transfer", scrutinee.span().clone());
+                            self.feature("partial_transfer", expression_primary_span(&scrutinee));
                         if let Some(span) = mode_span.clone() {
                             diagnostic.related_spans.push(RelatedSpan {
                                 role: RelatedRole::Context,
@@ -3323,7 +3398,7 @@ impl Parser<'_> {
                         ));
                     }
                     if mode == Mode::Consume && is_projected_place(&val) {
-                        let mut d = self.feature("partial_transfer", val.span().clone());
+                        let mut d = self.feature("partial_transfer", expression_primary_span(&val));
                         d.related_spans.push(RelatedSpan {
                             role: RelatedRole::Context,
                             span: self.span(start, start + 4),

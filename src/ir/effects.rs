@@ -85,6 +85,43 @@ fn call_head(span: &Span, source: &str) -> Span {
     }
 }
 
+/// Diagnostic site of every written call whose target is a name once the outer
+/// groups are removed, keyed by the call's full span (the span the lowered
+/// call instruction carries). F0-0002 section 8.2 names the call target, never
+/// its parentheses, so a grouped target `(f)()` reports `f`.
+struct CallSites(HashMap<Span, Span>);
+
+impl CallSites {
+    /// Indexes the call sites of every function and closure body and returns
+    /// each function's own match guards, in `ast.functions` order. Closure
+    /// bodies are separate scopes: their guards are not their parent's.
+    fn from_ast(ast: &Ast) -> (Self, Vec<Vec<Span>>) {
+        let mut calls = Vec::new();
+        let guards = ast
+            .functions
+            .iter()
+            .map(|function| {
+                let mut guards = Vec::new();
+                scope_sites(&function.body, &mut guards, &mut calls);
+                guards
+            })
+            .collect();
+        for closure in super::lower::collect_closures(ast) {
+            scope_sites(&closure.body, &mut Vec::new(), &mut calls);
+        }
+        (Self(calls.into_iter().collect()), guards)
+    }
+
+    /// Name of the written call at `span`; synthetic instructions (drops,
+    /// yields, temporaries) have no written call and keep their own head.
+    fn head(&self, span: &Span, source: &str) -> Span {
+        self.0
+            .get(span)
+            .cloned()
+            .unwrap_or_else(|| call_head(span, source))
+    }
+}
+
 fn next_head(span: &Span, source: &str) -> Span {
     let start = span.start as usize;
     let end = span.end as usize;
@@ -384,6 +421,7 @@ fn function_intrinsic_effect_with_context(
     f: &Function,
     functions: &[Function],
     inferred: &crate::check::types::InferredTypes,
+    sites: &CallSites,
 ) -> Vec<Witness> {
     let drop_bits = |ty: &Ty| generator_drop_bits(ty, functions, inferred, &mut HashSet::new());
     let drop_sources = explicit_drop_sources(f);
@@ -750,7 +788,7 @@ fn function_intrinsic_effect_with_context(
                                 span: if matches!(operation, CauseOperation::ResourceDrop) {
                                     None
                                 } else if matches!(operation, CauseOperation::IntrinsicCall) {
-                                    Some(call_head(&ins.span, &f.source_text))
+                                    Some(sites.head(&ins.span, &f.source_text))
                                 } else {
                                     Some(ins.span.clone())
                                 },
@@ -785,7 +823,17 @@ fn function_intrinsic_effect_with_context(
                     CauseOperation::IntrinsicCall | CauseOperation::ValueDrop
                 ) || matches!(ins.op, Op::DropBinding(_) | Op::DropValue(_))
                 {
-                    call_head(&ins.span, &f.source_text)
+                    // A dropped temporary names the written call that produced it.
+                    let producer = match ins.op {
+                        Op::DropValue(temp) => temp_spans
+                            .get(temp.0)
+                            .and_then(Option::as_ref)
+                            .and_then(|span| sites.0.get(span)),
+                        _ => None,
+                    };
+                    producer
+                        .cloned()
+                        .unwrap_or_else(|| sites.head(&ins.span, &f.source_text))
                 } else if let Op::DropBinding(local) | Op::DropLocal(local) = ins.op {
                     f.locals[local.0].name_span.clone()
                 } else {
@@ -849,7 +897,7 @@ fn function_intrinsic_effect_with_context(
                         known: effect,
                         unknown: 0,
                     },
-                    primary: call_head(span, &f.source_text),
+                    primary: sites.head(span, &f.source_text),
                     operation: CauseOperation::ValueDrop,
                     chain: vec![Cause {
                         kind: CauseKind::Drop,
@@ -970,6 +1018,7 @@ fn function_intrinsic_effect(f: &Function) -> Vec<Witness> {
         f,
         std::slice::from_ref(f),
         &crate::check::types::InferredTypes::default(),
+        &CallSites(HashMap::new()),
     )
 }
 
@@ -994,7 +1043,13 @@ fn add(a: EffectSummary, b: EffectSummary) -> EffectSummary {
     }
 }
 
-fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
+/// One traversal of a function or closure body (closures are leaves of the
+/// enclosing scope) collecting its match guards and its written calls.
+fn scope_sites(
+    block: &crate::frontend::parse::Block,
+    out: &mut Vec<Span>,
+    calls: &mut Vec<(Span, Span)>,
+) {
     enum Frame<'a> {
         Block(&'a crate::frontend::parse::Block),
         Statement(&'a Statement),
@@ -1067,7 +1122,16 @@ fn guard_spans(block: &crate::frontend::parse::Block, out: &mut Vec<Span>) {
                     frames.push(Frame::Expr(right));
                     frames.push(Frame::Expr(left));
                 }
-                Expr::Call { target, args, .. } => {
+                Expr::Call { target, args, span } => {
+                    if matches!(
+                        crate::frontend::parse::expression_primary(target),
+                        Expr::Name(..)
+                    ) {
+                        calls.push((
+                            span.clone(),
+                            crate::frontend::parse::expression_primary_span(target),
+                        ));
+                    }
                     for arg in args.iter().rev() {
                         frames.push(Frame::Expr(&arg.value));
                     }
@@ -1306,10 +1370,15 @@ pub(super) fn analyze(
         .enumerate()
         .map(|(index, source)| (source.name.as_str(), index))
         .collect();
+    let (call_sites, function_guards) = CallSites::from_ast(ast);
     let mut local = Vec::new();
     for f in program.functions.functions() {
-        let mut witnesses =
-            function_intrinsic_effect_with_context(f, program.functions.functions(), inferred);
+        let mut witnesses = function_intrinsic_effect_with_context(
+            f,
+            program.functions.functions(),
+            inferred,
+            &call_sites,
+        );
         witnesses.extend(closure_local_witnesses(
             f,
             program.functions.functions(),
@@ -1653,7 +1722,7 @@ pub(super) fn analyze(
             } else if operation_name == "call"
                 && let Some(&target) =
                     indices.get(&super::model::FunctionId(format!("$closure:{}", info.site)))
-                && let Some(witness) = find_witness(program, ast, &local, target, bit)
+                && let Some(witness) = find_witness(program, ast, &call_sites, &local, target, bit)
             {
                 error.cause_chain = witness.chain;
                 error.primary_span = Some(witness.primary);
@@ -1672,9 +1741,10 @@ pub(super) fn analyze(
         let Some(source_function) = source_functions.get(f.name.as_str()).copied() else {
             continue;
         };
-        let mut guards = Vec::new();
-        guard_spans(&source_function.body, &mut guards);
-        for guard in guards {
+        for guard in function_guards[source_ranks[f.name.as_str()]]
+            .iter()
+            .cloned()
+        {
             let in_guard = |span: &Span| guard.start <= span.start && span.end <= guard.end;
             let mut candidates: Vec<(u64, usize, u8, Witness)> = Vec::new();
             for witness in &local[index] {
@@ -1705,10 +1775,12 @@ pub(super) fn analyze(
                     else {
                         continue;
                     };
-                    let Some(mut witness) = find_witness(program, ast, &local, target, *bit) else {
+                    let Some(mut witness) =
+                        find_witness(program, ast, &call_sites, &local, target, *bit)
+                    else {
                         continue;
                     };
-                    let primary = call_head(&instruction.span, &f.source_text);
+                    let primary = call_sites.head(&instruction.span, &f.source_text);
                     witness.primary = primary.clone();
                     witness.chain.insert(
                         0,
@@ -1802,7 +1874,7 @@ pub(super) fn analyze(
                 continue;
             }
             let unknown = summary.known & bit == 0;
-            let witness = find_witness(program, ast, &local, index, *bit);
+            let witness = find_witness(program, ast, &call_sites, &local, index, *bit);
             let mut d = crate::check::names::diagnostic(
                 code,
                 None,
@@ -1897,11 +1969,13 @@ pub(super) fn analyze(
 pub(super) fn verify_metadata(program: &Program) -> Result<(), &'static str> {
     let functions = program.functions.functions();
     let inferred = crate::check::types::InferredTypes::default();
+    // Only the effect bits are compared here, never a site.
+    let no_sites = CallSites(HashMap::new());
     let functions_by_id: HashMap<_, _> = functions.iter().map(|f| (f.id.clone(), f)).collect();
     let local: Vec<_> = functions
         .iter()
         .map(|f| {
-            function_intrinsic_effect_with_context(f, functions, &inferred)
+            function_intrinsic_effect_with_context(f, functions, &inferred, &no_sites)
                 .into_iter()
                 .fold(EffectSummary::default(), |s, w| add(s, w.summary))
         })
@@ -3954,6 +4028,7 @@ mod tests {
 fn find_witness(
     program: &Program,
     ast: &Ast,
+    sites: &CallSites,
     local: &[Vec<Witness>],
     start: usize,
     bit: u8,
@@ -4076,7 +4151,7 @@ fn find_witness(
                         span: Some(if cause_operation == CauseOperation::GeneratorNext {
                             next_head(&instruction.span, &function.source_text)
                         } else {
-                            call_head(&instruction.span, &function.source_text)
+                            sites.head(&instruction.span, &function.source_text)
                         }),
                         entity: Some(Entity {
                             kind: EntityKind::Function,
@@ -4175,6 +4250,7 @@ fn find_witness(
 fn find_witness_enumerated(
     program: &Program,
     ast: &Ast,
+    sites: &CallSites,
     local: &[Vec<Witness>],
     start: usize,
     bit: u8,
@@ -4189,7 +4265,7 @@ fn find_witness_enumerated(
                 witness.chain.splice(0..0, prefix.clone());
                 if !prefix.is_empty() {
                     witness.primary = prefix[0].span.clone().unwrap_or(witness.primary);
-                    witness.operation = CauseOperation::FunctionCall;
+                    witness.operation = prefix[0].operation;
                 }
                 let offsets = witness
                     .chain
@@ -4214,36 +4290,40 @@ fn find_witness_enumerated(
         let function = &functions[at];
         for block in std::iter::once(&function.block).chain(&function.blocks) {
             for instruction in &block.instructions {
-                let Op::CallDirect {
-                    function: target, ..
-                } = &instruction.op
-                else {
-                    continue;
+                let (target, operation, closure_site) = match &instruction.op {
+                    Op::CallDirect {
+                        function: target, ..
+                    } => (target.clone(), CauseOperation::FunctionCall, None),
+                    Op::CallClosure { site, .. } => (
+                        super::model::FunctionId(format!("$closure:{site}")),
+                        CauseOperation::ClosureCall,
+                        Some(*site),
+                    ),
+                    _ => continue,
                 };
                 let Some(target_index) = functions
                     .iter()
-                    .position(|candidate| candidate.id == *target)
+                    .position(|candidate| candidate.id == target)
                 else {
                     continue;
                 };
                 if path.contains(&target_index) {
                     continue;
                 }
-                let declaration = ast
-                    .functions
-                    .iter()
-                    .find(|decl| decl.name == functions[target_index].name);
+                let declaration = closure_site.unwrap_or_else(|| {
+                    ast.functions
+                        .iter()
+                        .find(|decl| decl.name == functions[target_index].name)
+                        .map_or(0, |decl| decl.name_span.start)
+                });
                 let mut next_prefix = prefix.clone();
                 next_prefix.push(Cause {
                     kind: CauseKind::Call,
-                    operation: CauseOperation::FunctionCall,
-                    span: Some(call_head(&instruction.span, &function.source_text)),
+                    operation,
+                    span: Some(sites.head(&instruction.span, &function.source_text)),
                     entity: Some(Entity {
                         kind: EntityKind::Function,
-                        id: format!(
-                            "function:{}",
-                            declaration.map_or(0, |decl| decl.name_span.start)
-                        ),
+                        id: format!("function:{declaration}"),
                     }),
                     evidence: Evidence::Verified,
                 });
@@ -4260,6 +4340,100 @@ fn find_witness_enumerated(
 #[cfg(test)]
 mod witness_differential_tests {
     use super::*;
+
+    fn sites(ast: &Ast) -> CallSites {
+        CallSites::from_ast(ast).0
+    }
+
+    // Every written call with a name target (grouped or not) has an AST call
+    // site; its head is the target name and never the empty span a grouped
+    // target gives when the head is read from the call's first characters.
+    #[test]
+    fn written_calls_resolve_to_the_target_name_under_groups() {
+        let source = "fn F(){Print(1);}fn Main(){F();(F)();((F))();Print(1);(Print)(1);((Print))(1);let f=fn (){F();(F)();};f();(f)();((f))();}";
+        let ast = crate::frontend::parse::parse_new_profile("sites.n", source).unwrap();
+        let program = crate::ir::compile_scalar_with_profile(
+            "sites.n",
+            source,
+            crate::ir::ReducedProfile::JNormal,
+            true,
+        )
+        .unwrap();
+        let sites = sites(&ast);
+        let mut checked = 0;
+        for function in program.functions.functions() {
+            for block in std::iter::once(&function.block).chain(&function.blocks) {
+                for instruction in &block.instructions {
+                    let name = match &instruction.op {
+                        Op::CallDirect { .. } | Op::CallClosure { .. } => true,
+                        Op::CallIntrinsic { intrinsic, .. } => {
+                            *intrinsic != super::super::model::Intrinsic::DropData
+                        }
+                        _ => false,
+                    };
+                    if !name {
+                        continue;
+                    }
+                    assert!(
+                        sites.0.contains_key(&instruction.span),
+                        "written call without an AST site: {:?}",
+                        instruction.span
+                    );
+                    let head = sites.head(&instruction.span, &function.source_text);
+                    let text = &source[head.start as usize..head.end as usize];
+                    assert!(matches!(text, "F" | "Print" | "f"), "{text:?}");
+                    checked += 1;
+                }
+            }
+        }
+        assert_eq!(checked, 12);
+    }
+
+    // The optimized search and the simple-path enumerator pick the call-step
+    // spans with the same selector, including closure calls and grouped
+    // targets, and both name the target (`f`, then `G`), never an empty head.
+    #[test]
+    fn witness_search_and_enumerator_agree_on_grouped_and_closure_calls() {
+        let source = "fn G(){Print(1);}fn Main(){let f=fn (){(G)();};((f))();}";
+        let ast = crate::frontend::parse::parse_new_profile("grouped.n", source).unwrap();
+        let program = crate::ir::compile_scalar_with_profile(
+            "grouped.n",
+            source,
+            crate::ir::ReducedProfile::JNormal,
+            true,
+        )
+        .unwrap();
+        let sites = sites(&ast);
+        let functions = program.functions.functions();
+        let inferred = crate::check::types::InferredTypes::default();
+        let local: Vec<_> = functions
+            .iter()
+            .map(|f| function_intrinsic_effect_with_context(f, functions, &inferred, &sites))
+            .collect();
+        let main = functions.iter().position(|f| f.name == "Main").unwrap();
+        let actual = find_witness(&program, &ast, &sites, &local, main, IO).unwrap();
+        let expected = find_witness_enumerated(&program, &ast, &sites, &local, main, IO).unwrap();
+        assert_eq!(actual.summary, expected.summary);
+        assert_eq!(actual.primary, expected.primary);
+        assert_eq!(actual.operation, expected.operation);
+        assert_eq!(actual.chain, expected.chain);
+        assert_eq!(actual.operation, CauseOperation::ClosureCall);
+        let text = |span: &Span| source[span.start as usize..span.end as usize].to_owned();
+        assert_eq!(text(&actual.primary), "f");
+        let steps: Vec<_> = actual
+            .chain
+            .iter()
+            .map(|cause| (cause.operation, text(cause.span.as_ref().unwrap())))
+            .collect();
+        assert_eq!(
+            steps,
+            [
+                (CauseOperation::ClosureCall, "f".to_owned()),
+                (CauseOperation::FunctionCall, "G".to_owned()),
+                (CauseOperation::IntrinsicCall, "Print".to_owned()),
+            ]
+        );
+    }
 
     fn witness_chain(size: usize) -> (String, Ast, Program, usize, Vec<Vec<Witness>>) {
         let mut source = String::new();
@@ -4361,7 +4535,7 @@ mod witness_differential_tests {
         let units = [32, 128, 512].map(|size| {
             let (_source, ast, program, start, local) = witness_chain(size);
             let (witness, units) = crate::ir::measure_cfg_thread_work(|| {
-                find_witness(&program, &ast, &local, start, IO)
+                find_witness(&program, &ast, &sites(&ast), &local, start, IO)
             });
             assert!(witness.is_some());
             units
@@ -4376,7 +4550,7 @@ mod witness_differential_tests {
         let elapsed = [32, 128, 512].map(|size| {
             let (_source, ast, program, start, local) = witness_chain(size);
             let began = std::time::Instant::now();
-            assert!(find_witness(&program, &ast, &local, start, IO).is_some());
+            assert!(find_witness(&program, &ast, &sites(&ast), &local, start, IO).is_some());
             began.elapsed()
         });
         eprintln!("I10a witness search-only release seconds at 32/128/512: {elapsed:?}");
@@ -4395,7 +4569,7 @@ mod witness_differential_tests {
     fn witness_release_timing_matches_validator_scale_shapes() {
         let (_source, ast, program, start, local) = witness_chain(800);
         let began = std::time::Instant::now();
-        assert!(find_witness(&program, &ast, &local, start, IO).is_some());
+        assert!(find_witness(&program, &ast, &sites(&ast), &local, start, IO).is_some());
         eprintln!(
             "I10a find_witness-only chain-800: {:.6}s",
             began.elapsed().as_secs_f64()
@@ -4403,7 +4577,7 @@ mod witness_differential_tests {
         for size in [512, 4_000] {
             let (ast, program, start, local) = synthetic_diamond(size);
             let began = std::time::Instant::now();
-            assert!(find_witness(&program, &ast, &local, start, IO).is_some());
+            assert!(find_witness(&program, &ast, &sites(&ast), &local, start, IO).is_some());
             let elapsed = began.elapsed().as_secs_f64();
             eprintln!("I10a synthetic diamond n={size}: {elapsed:.3}s");
             assert!(
@@ -4440,8 +4614,9 @@ mod witness_differential_tests {
                 .iter()
                 .position(|function| function.name == "Main")
                 .unwrap();
-            let dynamic = find_witness(&program, &ast, &local, main, IO).unwrap();
-            let enumerated = find_witness_enumerated(&program, &ast, &local, main, IO).unwrap();
+            let dynamic = find_witness(&program, &ast, &sites(&ast), &local, main, IO).unwrap();
+            let enumerated =
+                find_witness_enumerated(&program, &ast, &sites(&ast), &local, main, IO).unwrap();
             assert_eq!(dynamic.summary, enumerated.summary, "depth={depth}");
             assert_eq!(dynamic.primary, enumerated.primary, "depth={depth}");
             assert_eq!(dynamic.operation, enumerated.operation, "depth={depth}");
@@ -4517,12 +4692,13 @@ mod witness_differential_tests {
                 let main = functions.iter().position(|f| f.name == "Main").unwrap();
                 let mut violated_bits = 0;
                 for bit in [IO, ALLOC] {
-                    let expected = find_witness_enumerated(&program, &ast, &local, main, bit);
+                    let expected =
+                        find_witness_enumerated(&program, &ast, &sites(&ast), &local, main, bit);
                     if expected.is_none() {
                         continue;
                     }
                     violated_bits += 1;
-                    let actual = find_witness(&program, &ast, &local, main, bit);
+                    let actual = find_witness(&program, &ast, &sites(&ast), &local, main, bit);
                     assert_eq!(
                         actual.as_ref().map(|w| (
                             &w.summary,
@@ -4571,8 +4747,9 @@ mod witness_differential_tests {
         let functions = program.functions.functions();
         let local: Vec<_> = functions.iter().map(function_intrinsic_effect).collect();
         let main = functions.iter().position(|f| f.name == "Main").unwrap();
-        let actual = find_witness(&program, &ast, &local, main, IO).unwrap();
-        let expected = find_witness_enumerated(&program, &ast, &local, main, IO).unwrap();
+        let actual = find_witness(&program, &ast, &sites(&ast), &local, main, IO).unwrap();
+        let expected =
+            find_witness_enumerated(&program, &ast, &sites(&ast), &local, main, IO).unwrap();
         assert_eq!(actual.summary, expected.summary);
         assert_eq!(actual.primary, expected.primary);
         assert_eq!(actual.operation, expected.operation);

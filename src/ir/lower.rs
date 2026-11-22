@@ -1475,7 +1475,8 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
         Match(&'a parse::Match),
     }
     let mut pending: Vec<_> = ast.functions.iter().map(|f| Node::Block(&f.body)).collect();
-    let mut first: Option<Span> = None;
+    // The raw start orders candidates; the span is what a diagnostic reports.
+    let mut first: Option<(u64, Span)> = None;
     while let Some(node) = pending.pop() {
         match node {
             Node::Block(block) => pending.extend(block.statements.iter().map(Node::Statement)),
@@ -1489,9 +1490,9 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
                     if *op != parse::AssignOp::Set
                         && first
                             .as_ref()
-                            .is_none_or(|prior| place.span().start < prior.start)
+                            .is_none_or(|(prior, _)| place.span().start < *prior)
                     {
-                        first = Some(place.span().clone());
+                        first = Some((place.span().start, parse::expression_primary_span(place)));
                     }
                     pending.push(Node::Expr(value));
                     pending.push(Node::Expr(place));
@@ -1545,9 +1546,9 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
                     span,
                 } => {
                     if crate::check::operators::needs_f5(op)
-                        && first.as_ref().is_none_or(|prior| span.start < prior.start)
+                        && first.as_ref().is_none_or(|(prior, _)| span.start < *prior)
                     {
-                        first = Some(span.clone());
+                        first = Some((span.start, span.clone()));
                     }
                     pending.push(Node::Expr(left));
                     pending.push(Node::Expr(right));
@@ -1555,8 +1556,8 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
                 Expr::Closure(closure) => pending.push(Node::Block(&closure.body)),
                 Expr::Array(items, _) => pending.extend(items.iter().map(Node::Expr)),
                 Expr::Neg { value, span } | Expr::Not { value, span } => {
-                    if first.as_ref().is_none_or(|prior| span.start < prior.start) {
-                        first = Some(span.clone());
+                    if first.as_ref().is_none_or(|(prior, _)| span.start < *prior) {
+                        first = Some((span.start, span.clone()));
                     }
                     pending.push(Node::Expr(value));
                 }
@@ -1591,7 +1592,7 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
             },
         }
     }
-    first
+    first.map(|(_, span)| span)
 }
 
 fn ir_operand_count(op: &Op) -> u64 {
@@ -4519,7 +4520,7 @@ impl Lower<'_> {
         {
             root.span().clone()
         } else {
-            place.span().clone()
+            parse::expression_primary_span(place)
         };
         self.conflict(id, access_span, requested)
     }
@@ -4556,7 +4557,7 @@ impl Lower<'_> {
             stage: diagnostic::Stage::Ownership,
             message: "La raíz no admite escritura.".into(),
             operation: diagnostic::Operation::PlaceWrite,
-            primary_span: Some(root.span().clone()),
+            primary_span: Some(parse::expression_primary_span(root)),
             related_spans: vec![diagnostic::RelatedSpan {
                 role: diagnostic::RelatedRole::Declaration,
                 span: self.name_spans[id.0].clone(),
@@ -4810,7 +4811,7 @@ impl Lower<'_> {
             let primary = match block.statements.last() {
                 Some(Statement::Value {
                     value: Some(value), ..
-                }) => value.span().clone(),
+                }) => parse::expression_primary_span(value),
                 _ => block.span.clone(),
             };
             let mut error = crate::check::names::diagnostic(
@@ -5595,24 +5596,25 @@ impl Lower<'_> {
         ) -> Result<(Flow, Option<ReceiverLoan>), CompileError> {
             let name = place_name(target).ok_or(CompileError::InvalidIr("closure receiver"))?;
             let local = lower.get(name)?;
-            lower.check_available(local, target.span().clone())?;
+            let primary = parse::expression_primary_span(target);
+            lower.check_available(local, primary.clone())?;
             if receiver_mode == ParameterMode::Consume
                 && lower.locals[local.0]
                     .parameter_mode
                     .is_some_and(|mode| mode != ParameterMode::Consume)
             {
-                return Err(lower.permission_error(local, target.span().clone(), "consume"));
+                return Err(lower.permission_error(local, primary, "consume"));
             }
             if receiver_mode == ParameterMode::Inout
                 && lower.locals[local.0].parameter_mode == Some(ParameterMode::Read)
             {
-                return Err(lower.permission_error(local, target.span().clone(), "borrow_inout"));
+                return Err(lower.permission_error(local, primary, "borrow_inout"));
             }
             if receiver_mode == ParameterMode::Inout && !lower.locals[local.0].mutable {
                 return Err(lower.immutable_write(target, local));
             }
             if receiver_mode == ParameterMode::Consume {
-                lower.conflict(local, target.span().clone(), "consume")?;
+                lower.conflict(local, primary, "consume")?;
                 lower.mark_consumed(local, Some((receiver_span.clone(), false)));
                 let flow = lower.emitted(
                     Op::TransferValue(local),
@@ -5630,7 +5632,7 @@ impl Lower<'_> {
             };
             lower.conflict(
                 local,
-                target.span().clone(),
+                primary,
                 if permission == LoanPermission::Inout {
                     "borrow_inout"
                 } else {
@@ -8700,7 +8702,7 @@ impl Lower<'_> {
                             let prepared = (|| -> Result<MatchIndexState<'_>, CompileError> {
                                 let prelude = self.match_selection_prelude(selection)?;
                                 let local = self.get(name)?;
-                                let origin = selection.scrutinee.span().clone();
+                                let origin = parse::expression_primary_span(&selection.scrutinee);
                                 if selection.mode == Some(Mode::Inout) {
                                     self.check_available(local, origin.clone())?;
                                     if self.locals[local.0].parameter_mode
@@ -9077,7 +9079,7 @@ impl Lower<'_> {
                                     None,
                                     diagnostic::Stage::Ownership,
                                     diagnostic::Operation::OwnershipCheck,
-                                    target.span().clone(),
+                                    parse::expression_primary_span(target),
                                 );
                                 if let Some(name) = place_name(target)
                                     && let Ok(local) = self.get(name)
@@ -9191,18 +9193,15 @@ impl Lower<'_> {
                         {
                             let dropped = (|| -> Result<Flow, CompileError> {
                                 let local = self.get(binding)?;
-                                self.check_available(local, args[0].value.span().clone())?;
+                                let primary = parse::expression_primary_span(&args[0].value);
+                                self.check_available(local, primary.clone())?;
                                 if self.locals[local.0]
                                     .parameter_mode
                                     .is_some_and(|mode| mode != ParameterMode::Consume)
                                 {
-                                    return Err(self.permission_error(
-                                        local,
-                                        args[0].value.span().clone(),
-                                        "drop",
-                                    ));
+                                    return Err(self.permission_error(local, primary, "drop"));
                                 }
-                                self.conflict(local, args[0].value.span().clone(), "drop")?;
+                                self.conflict(local, primary, "drop")?;
                                 self.mark_consumed(local, Some((span.clone(), true)));
                                 let value = self.emitted(
                                     Op::TransferValue(local),
@@ -10521,14 +10520,15 @@ impl Lower<'_> {
                     return Err(CompileError::InvalidIr("partial transfer"));
                 };
                 let id = self.get(name)?;
-                self.check_available(id, value.span().clone())?;
+                let primary = parse::expression_primary_span(value);
+                self.check_available(id, primary.clone())?;
                 if self.locals[id.0]
                     .parameter_mode
                     .is_some_and(|m| m != ParameterMode::Consume)
                 {
-                    return Err(self.permission_error(id, value.span().clone(), "consume"));
+                    return Err(self.permission_error(id, primary, "consume"));
                 }
-                self.conflict(id, value.span().clone(), "consume")?;
+                self.conflict(id, primary, "consume")?;
                 self.mark_consumed(id, Some((span.clone(), false)));
                 let ty = inferred;
                 if ty == Ty::Never {

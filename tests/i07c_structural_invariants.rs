@@ -146,8 +146,14 @@ fn grouped_operands_keep_one_causal_primary() {
         String::from_utf8_lossy(&status.stderr)
     );
     let text = String::from_utf8_lossy(&status.stdout);
+    // The three grouped primaries (for_iteration, non-callable target, closure
+    // target) now call the single group-removal helper; none is pending.
     assert!(
-        text.contains("pendiente_decision: 3 lines=8283,12492,14804"),
+        text.contains("expression_primary: 3 lines=8279,12484,14797")
+            && text.contains("delegated_primary: 1 lines=7078")
+            && text.contains("argument_target_primary: 1 lines=14811")
+            && text.contains("reviewed: 14/14")
+            && !text.contains("pendiente_decision"),
         "{text}"
     );
     let status = Command::new("python")

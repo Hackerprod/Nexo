@@ -7075,11 +7075,7 @@ impl Checker<'_> {
     // Grouping has no diagnostic site of its own. Every expression site
     // passed to the solver or a diagnostic constructor uses this span.
     fn primary_span(e: &Expr) -> Span {
-        let mut e = e;
-        while let Expr::Group(inner, _) = e {
-            e = inner;
-        }
-        e.span().clone()
+        crate::frontend::parse::expression_primary_span(e)
     }
 
     fn normal_witness_span(&self, expression: &Expr) -> Span {
@@ -8280,7 +8276,7 @@ impl Checker<'_> {
                     None,
                     Stage::Types,
                     Operation::TypesCheck,
-                    iterable.span().clone(),
+                    Self::primary_span(iterable),
                 );
                 error.feature_id = Some("for_iteration".into());
                 error.data.insert(
@@ -12480,18 +12476,15 @@ impl Checker<'_> {
                         self.graph.fact_mut(visit).tainted = true;
                         return Ok(Type::Tainted);
                     }
-                    let mut unwrapped = target.as_ref();
-                    while let Expr::Group(inner, _) = unwrapped {
-                        unwrapped = inner;
-                    }
                     let mut error = names::diagnostic(
                         "NX-E0111",
                         Some("non_callable_target"),
                         Stage::Arguments,
                         Operation::CallBind,
-                        target.span().clone(),
+                        Self::primary_span(target),
                     );
-                    if let Expr::Name(_, name_span) = unwrapped
+                    if let Expr::Name(_, name_span) =
+                        crate::frontend::parse::expression_primary(target)
                         && let Some(ResolvedUse::Local(local)) =
                             self.resolved.uses.get(&name_span.start)
                     {
@@ -14801,7 +14794,7 @@ impl Checker<'_> {
                 None,
                 Stage::Types,
                 Operation::TypesCheck,
-                target.span().clone(),
+                Self::primary_span(target),
             )
         })?;
         let params = draft
@@ -14815,7 +14808,7 @@ impl Checker<'_> {
                 ty: SyntaxType::Unit,
             })
             .collect();
-        let slots = names::bind_arguments(params, target.span(), args)?;
+        let slots = names::bind_arguments(params, &Self::primary_span(target), args)?;
         Ok((draft, slots))
     }
 

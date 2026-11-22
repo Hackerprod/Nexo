@@ -242,3 +242,61 @@ fn analysis_limit_in_failed_base_selector_keeps_priority() {
     assert!(json.contains("\"code\":\"NX-E0102\""), "{json}");
     assert!(!json.contains("NX-E0003"), "{json}");
 }
+
+// F0-0002 §4.1.2.3: a failed base does not suppress an independent error in
+// its selector, including through several levels of failed bases. The program
+// has four independent defects: the unresolved empty `[]` (NX-E0103), the
+// Bool selectors `ar[true]` and `ar[b]` and, nested inside the failed base
+// chain `ar[b][t]`, the Bool selector of the literal `[1,2][true]`. That last
+// selector must still be reported: a failed base never lets its selector
+// inherit the base's taint.
+#[test]
+fn nested_selector_of_failed_base_chain_keeps_its_own_error() {
+    let source = "fn Main(){let ar=[1];let b=true;let x=1;var r=[3];var s=[];let t=ar[true];(ar[b][t][[1,2][true]]);}";
+    assert!(source.is_ascii());
+    let expected: [(&str, (usize, usize), &str); 4] = [
+        ("NX-E0103", (56, 58), "[]"),
+        ("NX-E0102", (68, 72), "true"),
+        ("NX-E0102", (78, 79), "b"),
+        ("NX-E0102", (90, 94), "true"),
+    ];
+    for verb in ["check", "run"] {
+        let (exit, json, stderr) = invoke(verb, source, PROFILE);
+        assert_eq!(exit, 1, "{verb}: {json}: {stderr}");
+        assert!(stderr.is_empty(), "{verb}: {stderr}");
+        let found: Vec<_> = json
+            .split("\"code\":\"")
+            .skip(1)
+            .map(|part| {
+                let code = &part[..part.find('"').unwrap()];
+                let at = part.find("\"primary_span\":{").unwrap();
+                let rest = &part[at..];
+                let number = |key: &str| -> usize {
+                    let from = rest.find(key).unwrap() + key.len();
+                    rest[from..]
+                        .chars()
+                        .take_while(char::is_ascii_digit)
+                        .collect::<String>()
+                        .parse()
+                        .unwrap()
+                };
+                (code.to_owned(), (number("\"start\":"), number("\"end\":")))
+            })
+            .collect();
+        assert_eq!(found.len(), expected.len(), "{verb}: {json}");
+        for ((code, span, token), (found_code, found_span)) in expected.iter().zip(&found) {
+            assert_eq!(&source[span.0..span.1], *token);
+            assert_eq!(
+                (code, span),
+                (&found_code.as_str(), found_span),
+                "{verb}: {json}"
+            );
+        }
+    }
+    // Paired positive: the same shape with Integer selectors and a resolved
+    // array is accepted.
+    accepted(
+        "fn Main(){let ar=[1];let b=0;let x=1;var r=[3];var s=[1];let t=ar[b];(ar[b]);}",
+        PROFILE,
+    );
+}

@@ -1,9 +1,10 @@
 """Audit raw expression spans in the deferred type solver.
 
-`primary_span` chooses a diagnostic operand; other raw spans can serve solver
-identity, lexical boundaries, a deferred result, or a different diagnostic
-family. Group wrappers retain distinct keys. The three grouped primaries marked
-`pendiente_decision` require a normative decision, not an auditor exemption.
+`primary_span` chooses a diagnostic operand and only delegates to the single
+group-removal helper in `src/frontend/parse.rs` (F0-0002 lagunas, "Primario de
+una expresion bajo agrupaciones"); the sites that report an expression use that
+helper. Other raw spans serve solver identity, lexical boundaries, a deferred
+result, or a different diagnostic family; group wrappers retain distinct keys.
 A new raw use always needs explicit review.
 """
 
@@ -16,39 +17,67 @@ import tempfile
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "src/check/types.rs"
-# This inventory is tied to the types.rs blob 6e358e9a3288506c59c623766bd36e1fdac0317b of the
-# S5b.1 commit (previously reviewed blob b70f9c56f9175fe01007298b03458d5eb81c55f1,
-# I07c-S6 plan §3.3, reconciled with F5-pila-r1). Only line numbers moved (+63/+74); classes and
-# reasons are unchanged. The next cut that edits types.rs must re-reconcile it.
-# Both the expression and its surrounding call/block must remain recognisable.
+HELPER = SOURCE.parents[1] / "frontend/parse.rs"
+# This inventory is tied to the types.rs of the I07c-S6-COR cut (derived from the S5b.1 inventory,
+# I07c-S6 plan section 3.3). Classes: the sites that report an expression call the group-removal
+# helper (`delegated_primary`, `expression_primary`, `argument_target_primary`); the rest keep a raw
+# span for identity, an operator token, a deferred result, a Pattern or a budget charge. The next
+# cut that edits types.rs must re-reconcile it. Both the expression and its surrounding call/block
+# must remain recognisable; a reviewed line that loses its expression is rejected.
 REVIEWED = {
-    7082: ("e.span().clone()", "primary_unwrapped", "while let Expr::Group(inner, _) = e", "Group removed in primary_span"),
-    8283: ("iterable.span().clone()", "pendiente_decision", "prepare_for_type", "for_iteration Array barrier; grouped primary undecided, observed repro"),
-    9065: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
-    9066: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
-    11304: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
-    12252: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
-    12492: ("target.span().clone()", "pendiente_decision", "non_callable_target", "call target primary; grouped primary undecided, observed repro"),
-    13065: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
-    13175: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
-    13386: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
-    13391: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
-    13566: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
-    14804: ("target.span().clone()", "pendiente_decision", '"NX-E1111"', "closure target primary; grouped primary undecided, branch not reproduced"),
-    14818: ("target.span()", "argument_target", "names::bind_arguments", "signature target for argument binding"),
+    7078: ("crate::frontend::parse::expression_primary_span(e)", "delegated_primary", "fn primary_span(e: &Expr)", "Group removal is delegated to the parse.rs helper"),
+    8279: ("Self::primary_span(iterable)", "expression_primary", "prepare_for_type", "for_iteration Array barrier reports the iterable without outer groups"),
+    9061: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
+    9062: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
+    11300: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
+    12248: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
+    12484: ("Self::primary_span(target)", "expression_primary", "non_callable_target", "call target reported without outer groups; the declaration relation is unchanged"),
+    13058: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
+    13168: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
+    13379: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
+    13384: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
+    13559: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
+    14797: ("Self::primary_span(target)", "expression_primary", '"NX-E1111"', "closure target reported without outer groups; branch NO EVALUADO, see below"),
+    14811: ("&Self::primary_span(target)", "argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
 }
+
+
+def check_helper(source_lines: list[str]) -> None:
+    """`primary_span` must only delegate, and parse.rs must own the single removal loop."""
+    header = "fn primary_span(e: &Expr) -> Span {"
+    starts = [i for i, line in enumerate(source_lines) if line.strip() == header]
+    if len(starts) != 1:
+        raise SystemExit(f"primary_span must exist once in {SOURCE}")
+    body = []
+    for line in source_lines[starts[0] + 1:]:
+        if line.strip() == "}":
+            break
+        body.append(line.strip())
+    if body != ["crate::frontend::parse::expression_primary_span(e)"]:
+        raise SystemExit(f"primary_span must only delegate to the parse.rs helper: {body}")
+    helper = HELPER.read_text(encoding="utf-8")
+    loop = re.search(r"pub\(crate\) fn expression_primary\(expr: &Expr\) -> &Expr \{\n"
+                     r"    let mut current = expr;\n"
+                     r"    while let Expr::Group\(inner, _\) = current \{\n"
+                     r"        current = inner;\n    \}\n    current\n\}\n", helper)
+    span = re.search(r"pub\(crate\) fn expression_primary_span\(expr: &Expr\) -> Span \{\n"
+                     r"    expression_primary\(expr\)\.span\(\)\.clone\(\)\n\}\n", helper)
+    if not loop or not span:
+        raise SystemExit(f"group-removal helper changed or missing in {HELPER}")
 
 
 def audit() -> None:
     source_lines = SOURCE.read_text(encoding="utf-8").splitlines()
+    check_helper(source_lines)
     tests_begin = source_lines.index("mod quota_tests {") + 1
     classes = {kind: [] for kind in ("identity", "boundary", "operator", "internal_result",
-                                    "primary_fallback", "test", "primary_unwrapped",
-                                    "pendiente_decision", "deferred_result", "pattern_primary",
-                                    "pattern_relation", "quota_charge", "argument_target")}
+                                    "primary_fallback", "test", "delegated_primary",
+                                    "expression_primary", "deferred_result", "pattern_primary",
+                                    "pattern_relation", "quota_charge",
+                                    "argument_target_primary")}
     seen = set()
     for number, line in enumerate(source_lines, 1):
-        if ".span()" not in line:
+        if ".span()" not in line and number not in REVIEWED:
             continue
         if number in REVIEWED:
             expression, kind, context, reason = REVIEWED[number]
@@ -78,26 +107,66 @@ def audit() -> None:
         raise SystemExit(f"reviewed sites missing: {REVIEWED.keys() - seen}")
     for kind, lines in classes.items():
         print(f"{kind}: {len(lines)} lines={','.join(map(str, lines))}")
-    print("PENDIENTE DECISIÓN: 8283/12492 (repro), 14804 (sin repro); Flujo A, K1-d2 NO EVALUADO")
+    print(f"reviewed: {len(seen)}/{len(REVIEWED)}")
+    print("NO EVALUADO solo la rama NX-E1111 de prepare_closure_call (sin borrador de closure); "
+          "las demas rutas de primario agrupado las ejercita tests/i07c_group_primary.rs")
     print(f"total: {sum(map(len, classes.values()))}")
 
 
 def self_test() -> None:
+    def run(script: Path) -> subprocess.CompletedProcess:
+        return subprocess.run([sys.executable, "-B", str(script)], capture_output=True, text=True)
+
     with tempfile.TemporaryDirectory(prefix="i07c-span-") as folder:
         root = Path(folder)
         script = root / "scripts/i07c_span_audit.py"
         source = root / "src/check/types.rs"
-        script.parent.mkdir(parents=True)
-        source.parent.mkdir(parents=True)
+        helper = root / "src/frontend/parse.rs"
+        for path in (script, source, helper):
+            path.parent.mkdir(parents=True, exist_ok=True)
         script.write_bytes(Path(__file__).read_bytes())
         original = SOURCE.read_text(encoding="utf-8")
-        source.write_text(original, encoding="utf-8")
-        good = subprocess.run([sys.executable, "-B", str(script)], capture_output=True, text=True)
+        original_helper = HELPER.read_text(encoding="utf-8")
+
+        def write(types_text: str, parse_text: str) -> None:
+            source.write_text(types_text, encoding="utf-8", newline="\n")
+            helper.write_text(parse_text, encoding="utf-8", newline="\n")
+
+        def revert(number: int, old: str, new: str) -> str:
+            lines = original.splitlines(keepends=True)
+            assert old in lines[number - 1], (number, old)
+            lines[number - 1] = lines[number - 1].replace(old, new, 1)
+            return "".join(lines)
+
+        write(original, original_helper)
+        good = run(script)
         assert good.returncode == 0 and all(f"{n} " in good.stdout for n in REVIEWED), good.stderr
-        source.write_text(original.replace("mod quota_tests {", "fn zz(e:&Expr)->Span{ e.span().clone() }\nmod quota_tests {", 1), encoding="utf-8")
-        bad = subprocess.run([sys.executable, "-B", str(script)], capture_output=True, text=True)
+        assert f"reviewed: {len(REVIEWED)}/{len(REVIEWED)}" in good.stdout, good.stdout
+        write(original.replace("mod quota_tests {", "fn zz(e:&Expr)->Span{ e.span().clone() }\nmod quota_tests {", 1), original_helper)
+        bad = run(script)
         assert bad.returncode == 1 and "unreviewed raw span" in bad.stderr, (bad.stdout, bad.stderr)
-    print("span auditor self-test: PASS (14 reviewed; novel raw use rejected)")
+        # Each edited site, reverted on its own, must be rejected.
+        loop = "    while let Expr::Group(inner, _) = current {\n        current = inner;\n    }\n"
+        assert loop in original_helper
+        reverts = [
+            ("primary_span without delegation",
+             revert(7078, "crate::frontend::parse::expression_primary_span(e)", "e.span().clone()"),
+             original_helper, "must only delegate"),
+            ("helper without its removal loop", original, original_helper.replace(loop, "", 1),
+             "helper changed or missing"),
+        ]
+        for number, old, new in ((8279, "Self::primary_span(iterable)", "iterable.span().clone()"),
+                                 (12484, "Self::primary_span(target)", "target.span().clone()"),
+                                 (14797, "Self::primary_span(target)", "target.span().clone()"),
+                                 (14811, "&Self::primary_span(target)", "target.span()")):
+            reverts.append((f"site {number} back to a raw span", revert(number, old, new),
+                            original_helper, "reviewed span changed"))
+        for label, types_text, parse_text, message in reverts:
+            write(types_text, parse_text)
+            result = run(script)
+            assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
+    print(f"span auditor self-test: PASS ({len(REVIEWED)} reviewed; novel raw use and "
+          f"{len(reverts)} site reversions rejected)")
 
 
 if __name__ == "__main__":
