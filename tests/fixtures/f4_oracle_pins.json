@@ -276,6 +276,68 @@
    "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
   }
  ],
- "generic": {},
+ "generic": {
+  "commit": "1010938",
+  "files": {
+   "scripts/f5_oracle/batch.py": "a1d21a3498bba95682ca94e1d04b96d408e4dd20",
+   "scripts/f5_oracle/runner.py": "5e44e12d5988eeba64ce9643c107a55ffb506b98"
+  },
+  "symbols": {
+   "Invocation": {
+    "ast_sha256": "c156b8ab6943bca6060fde1ee11fa0198d1f8f8f5602358ff48c7c62f28efa56",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "copied"
+   },
+   "_first_difference": {
+    "ast_sha256": "51b8e4f62893e98c0d079db84290ebfe04a53a06268c0769a006dcfd279b5ba3",
+    "ast_sha256_adapted": "38ef327d99577a4899567560ba3185ed86bc39ae357af75560a3babd0e702f36",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "changes": [
+     "igualdad estricta: claves de objeto en ambos sentidos (F5 ignora claves extra del obtenido) y mismo tipo JSON (distingue 1, true, 1.0 y \"1\")"
+    ],
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "adapted"
+   },
+   "invoke": {
+    "ast_sha256": "97f427b58500e927c8a0e665709b1ff1ef09e7bd53c9690a68ae2a9b0ccf26c3",
+    "ast_sha256_adapted": "f0c592b737d08802bc7d078169b28ea500a95982da2791f7e66b44c27172e321",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "changes": [
+     "parametros nuevos file_name y mock_env: anade --mock-env <ruta> solo en el verbo run y pasa file_name y la ruta invocada a normalize_files; outcome no objeto se trata como vacio; conserva el reintento unico de timeout, timeout_confirmed, internal_error y panic_or_invalid_ir"
+    ],
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "adapted"
+   },
+   "make_batches": {
+    "ast_sha256": "832eb3a84c645a19d7daf11c8ac26e69ce833cd5ac8f753e98e0be87fb8e14fe",
+    "blob": "a1d21a3498bba95682ca94e1d04b96d408e4dd20",
+    "file": "scripts/f5_oracle/batch.py",
+    "kind": "copied"
+   },
+   "normalize_files": {
+    "ast_sha256": "293b6adf1c608e7acfb35755371b55e9f55f14bca543cb529c8dcc1cb5cc9f35",
+    "ast_sha256_adapted": "8610db90eca44a332f680452d9b0b2e7c11dfdd2cab54b14f5421abdb4344dfa",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "changes": [
+     "nuevo parametro file_name (nombre del archivo del caso) y source (ruta invocada): solo se normaliza el campo `file` cuando su valor es la ruta invocada o su nombre; ya no se sustituye por el literal fijo; otros valores de `file` se conservan para que la comparacion los detecte"
+    ],
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "adapted"
+   },
+   "seed_range": {
+    "ast_sha256": "96a9ca09ae515be6186656d9f5597bec986ae997f47de473ca27568bcfa24b82",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "copied"
+   },
+   "sha": {
+    "ast_sha256": "7a0249256f2c77be9509011acfedd9c78845eed378c8ef495d89f3cfcfbab289",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "copied"
+   }
+  }
+ },
  "version": 1
 }

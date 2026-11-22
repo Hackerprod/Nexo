@@ -7,6 +7,7 @@ from the pinned ADR (``fixtures_io``) or from the hand-written pairs; no binary 
 
 from __future__ import annotations
 
+import io
 import json
 import os
 import random
@@ -1313,6 +1314,577 @@ def check_gen_subprocess(rep: Report):
     rep.check("gen.deterministic_across_processes", ok, str(outs[0][0]) + str(lines[:2]))
 
 
+# ------------------------------------------------------------------ O4: harness, mock executables
+
+import contextlib
+import shutil
+import subprocess
+import tempfile
+from pathlib import Path
+
+from . import batch as batch_mod, generic, minimize as minimize_mod, runner
+
+REQUIRED_K = {"G1": "K02", "G2": "K03", "G3": "K04", "G4": "K05", "G5": "K06", "G6": "K07", "G7": "K08",
+              "G8": "K09"}
+ST_TMP = Path("C:/nexo-work/tmp")
+
+
+def _record(seed, index, role, cls, family, source, verbs, expected, repr_=None, file="case.n"):
+    return {"seed": seed, "index": index, "role": role, "cls": cls, "fclass": cls, "family": family,
+            "phase": "G9", "file": file, "profile_id": diagnostics.PROFILE,
+            "source_hex": source.encode("utf-8").hex(), "verbs": verbs, "expected": expected,
+            "expected_sha256": fio.sha256_text(fio.dumps(expected)), "repr": repr_}
+
+
+def literal_records(phase: str, closed) -> list:
+    """Records of the literal rows of K (full 21-field comparison) valid for ``phase``/``closed``."""
+    emap = entry_map()
+    closed = set(closed)
+    ids = list(G0_LITERAL_IDS)
+    for g in sorted(G_ROWS, key=lambda x: int(x[1:])):
+        if int(g[1:]) <= int(phase[1:]) and REQUIRED_K[g] in closed:
+            ids += G_ROWS[g]
+    out = []
+    for ident in ids:
+        e = emap[ident]
+        if e["expected"]["kind"] != "diagnostic" or not e.get("cli", True):
+            continue
+        if ident in BUILD and len(BUILD[ident]) > 2 and BUILD[ident][2].get("limits"):
+            continue
+        d = expected_diagnostic(e)
+        fields = list(diagnostics.FIELDS) + (["message"] if "message" in d else [])
+        has_main = "fn Main" in e["source"]
+        verbs = ["check", "run"] if has_main else ["check"]
+        exp = {"fields": fields}
+        for v in verbs:
+            exp[v] = gen.rejected_doc(diagnostics.PROFILE, [d], fields)
+        out.append(_record(-1, len(out), "literal", "R", "row:" + ident, e["source"], verbs, exp, file=e["file"]))
+        pos = e.get("positive")
+        if pos:
+            pexp = {"fields": []}
+            for v in verbs:
+                pexp[v] = (gen.checked_doc(diagnostics.PROFILE) if v == "check" else
+                           gen._doc(diagnostics.PROFILE, 0, {"kind": "unit"}, [], [], [], [], []))
+            out.append(_record(-1, len(out), "literal_positive", "R", "row:" + ident, pos["source"], verbs, pexp,
+                               file=e["file"]))
+    return out
+
+
+# ---- mock harness plumbing
+
+MOCK_NAME = "f4_oracle_mock_nexo.py"
+DIAG_CORRUPTIONS = ["diag:" + f for f in diagnostics.FIELDS]
+RESULT_CORRUPTIONS = ["exit", "outcome_kind", "outcome_value", "stdout", "events", "observations",
+                      "observation_bytes", "reserved_observation_bytes"]
+HARNESS_CORRUPTIONS = ["cardinality_extra", "cardinality_missing", "debug_release", "check_run",
+                       "json_double", "json_absent", "timeout", "internal_error", "type_true", "type_string",
+                       "type_float", "null_vs_absent", "arrays_reordered", "file_other", "panic_stderr",
+                       "invalid_ir"]
+CORRUPTION_CATEGORY = {"timeout": "timeout_confirmed", "json_double": "non_json_output",
+                       "json_absent": "non_json_output", "internal_error": "internal_error",
+                       "panic_stderr": "panic_or_invalid_ir", "invalid_ir": "panic_or_invalid_ir"}
+ROW_TARGETS = set(DIAG_CORRUPTIONS) | {"cardinality_extra", "cardinality_missing", "debug_release",
+                                       "check_run", "null_vs_absent", "file_other"}
+
+
+class MockWorld:
+    """Scratch directory, mock table and environment of one harness run."""
+
+    def __init__(self):
+        ST_TMP.mkdir(parents=True, exist_ok=True)
+        self.dir = Path(tempfile.mkdtemp(prefix=f"f4-oracle-st-{os.getpid()}-", dir=str(ST_TMP)))
+        self.mock = self.dir / "mock-nexo.py"
+        self.mock.write_bytes(fio.read_fixture_bytes(MOCK_NAME))
+        self.log = self.dir / "mock.log"
+
+    def close(self):
+        shutil.rmtree(self.dir, ignore_errors=True)
+
+    def table(self, records, fuzz=False) -> Path:
+        import hashlib
+        sources = {}
+        for r in records:
+            if r.get("expected") is None:
+                continue
+            key = hashlib.sha256(bytes.fromhex(r["source_hex"])).hexdigest()
+            sources[key] = {v: r["expected"][v] for v in r["verbs"]}
+        path = self.dir / "table.json"
+        path.write_bytes(fio.dumps({"sources": sources, "fuzz": fuzz}).encode("utf-8"))
+        return path
+
+    def run(self, records, corrupt="", *, mode="compare", fuzz=False, timeout=10.0, workers=2, phase="G9",
+            known=None, resume=False, output=None, sleep="3", binary=None, gate_info=None):
+        corpus = self.dir / "corpus.jsonl"
+        corpus.write_bytes(b"".join((fio.dumps(r) + "\n").encode("utf-8") for r in records))
+        out = Path(output) if output else self.dir / "out.jsonl"
+        env = {"F4_MOCK_TABLE": str(self.table(records, fuzz)), "F4_MOCK_CORRUPT": corrupt,
+               "F4_MOCK_SLEEP": sleep, "F4_MOCK_LOG": str(self.log)}
+        saved = {k: os.environ.get(k) for k in env}
+        os.environ.update(env)
+        binary = binary or self.mock
+        try:
+            if mode == "fuzz":
+                code = runner.run_fuzz(corpus=corpus, binary_debug=binary, binary_release=binary,
+                                       profile=diagnostics.PROFILE, output=out, resume=resume,
+                                       workers=workers, timeout=timeout, tmp_root=ST_TMP)
+            else:
+                code = runner.run_compare(corpus=corpus, binary_debug=binary, binary_release=binary,
+                                          profile=diagnostics.PROFILE, phase=phase,
+                                          complete=list(barrier.ALL_K), output=out, resume=resume,
+                                          known_path=known, workers=workers, timeout=timeout,
+                                          tmp_root=ST_TMP, gate_info=gate_info)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    os.environ.pop(k, None)
+                else:
+                    os.environ[k] = v
+        return code, runner.read_jsonl(out)
+
+    def calls(self) -> int:
+        return len(self.log.read_text().splitlines()) if self.log.exists() else 0
+
+
+def _findings(lines):
+    return [x for x in lines if x.get("type") in ("finding",)]
+
+
+def _summary(lines):
+    return next(x for x in reversed(lines) if x.get("type") == "summary")
+
+
+def _mock_records():
+    """A K row (all 21 fields), a V case with two outputs and a generated N case."""
+    row = next(r for r in literal_records("G3", barrier.PHASES["G3"][0]) if r["family"] == "row:X05"
+               and r["role"] == "literal")
+    recs, _, _ = gen.generate_seed(0, "G2", barrier.PHASES["G2"][0], 60, 60)
+    v2 = next(r for r in recs if r["fclass"] == "V" and len(r["expected"]["run"]["stdout"]) >= 2)
+    n1 = next(r for r in recs if r["fclass"] == "N" and r["role"] == "main")
+    return row, v2, n1
+
+
+def check_generic_units(rep: Report):
+    nf = generic.normalize_files
+    doc = {"a": [{"file": "/tmp/x/case.n"}, {"file": "other.n"}, {"file": "C:\\w\\case.n"}], "file": "case.n",
+           "text": "case.n", "n": {"file": 3}}
+    got = nf(doc, "case.n", "/tmp/x/case.n")
+    rep.check("harness.normalize.only_file_field_of_the_case",
+              got == {"a": [{"file": "case.n"}, {"file": "other.n"}, {"file": "case.n"}], "file": "case.n",
+                      "text": "case.n", "n": {"file": 3}}, str(got))
+    fd = generic._first_difference
+    cases = [({"a": 1}, {"a": 1, "b": 2}, "$.b"), ({"a": 1, "b": 2}, {"a": 1}, "$.b"), ({"a": 1}, {"a": True}, "$.a"),
+             ({"a": 1}, {"a": 1.0}, "$.a"), ({"a": 1}, {"a": "1"}, "$.a"), ({"a": None}, {}, "$.a"),
+             ({"a": [1, 2]}, {"a": [2, 1]}, "$.a[0]"), ({"a": [1]}, {"a": [1, 2]}, "$.a"),
+             ({"a": {"b": "é"}}, {"a": {"b": "é"}}, None), ({"a": [{"b": 1}]}, {"a": [{"b": 2}]}, "$.a[0].b"),
+             (1, 1, None), ("1", 1, "$")]
+    bad = [(e, a, w, fd(e, a)) for e, a, w in cases if fd(e, a) != w]
+    rep.check("harness.first_difference.strict", not bad, str(bad[:2]))
+    rep.check("harness.batches.copied_semantics",
+              generic.make_batches("0:7", 3) == [[0, 1, 2], [3, 4, 5], [6, 7]] and
+              list(generic.seed_range("3:5")) == [3, 4, 5] and list(generic.seed_range("4")) == [4],
+              "make_batches/seed_range")
+    try:
+        generic.seed_range("5:2")
+        ok = False
+    except ValueError:
+        ok = True
+    rep.check("harness.seed_range.rejects_reversed", ok)
+    pins = fio.load_json("f4_oracle_pins.json")
+    rep.check("harness.pins.generic_symbols",
+              set(pins["generic"]["symbols"]) == {"sha", "Invocation", "seed_range", "make_batches",
+                                                  "normalize_files", "_first_difference", "invoke"}
+              and {k for k, v in pins["generic"]["symbols"].items() if v["kind"] == "adapted"} ==
+              {"normalize_files", "_first_difference", "invoke"})
+    # audit detects a tampered pin, an adapted symbol without declared change and a stray symbol
+    import copy
+    tampered = copy.deepcopy(pins)
+    tampered["generic"]["symbols"]["sha"]["ast_sha256"] = "0" * 64
+    nochange = copy.deepcopy(pins)
+    nochange["generic"]["symbols"]["invoke"]["changes"] = []
+    stray = copy.deepcopy(pins)
+    del stray["generic"]["symbols"]["make_batches"]
+    rep.check("harness.audit.pin_hash_mismatch", bool(audit._generic_symbol_findings(tampered)))
+    rep.check("harness.audit.adapted_needs_changes", bool(audit._generic_symbol_findings(nochange)))
+    rep.check("harness.audit.symbol_set_exact", bool(audit._generic_symbol_findings(stray)))
+    rep.check("harness.audit.generic_clean", audit._generic_symbol_findings(pins) == [])
+
+
+def check_corruption_inventory(rep: Report):
+    names = DIAG_CORRUPTIONS + RESULT_CORRUPTIONS + HARNESS_CORRUPTIONS
+    rep.check("harness.corruptions.count", len(DIAG_CORRUPTIONS) == 21 and len(RESULT_CORRUPTIONS) == 8
+              and len(HARNESS_CORRUPTIONS) >= 10 and len(names) >= 39, str(len(names)))
+    r = subprocess.run([sys.executable, "-B", str(fio.fixture_path(MOCK_NAME)), "--list-corruptions"],
+                       capture_output=True, timeout=30)
+    listed = r.stdout.decode().split()
+    rep.check("harness.corruptions.mock_implements_all", listed == names, f"{len(listed)} vs {len(names)}")
+
+
+def check_mock_corruptions(rep: Report, world: MockWorld):
+    row, v2, n1 = _mock_records()
+    code, lines = world.run([row, v2, n1])
+    s = _summary(lines)
+    rep.check("harness.faithful.exit0", code == 0 and not _findings(lines) and s["records"] == 3
+              and s["divergences"] == 0 and s["failures"] == 0, str(s))
+    rep.check("harness.faithful.header", lines[0]["type"] == "header" and lines[0]["judge"] and lines[0]["adr"]
+              and lines[0]["debug_sha256"] == lines[0]["release_sha256"])
+    names = DIAG_CORRUPTIONS + RESULT_CORRUPTIONS + HARNESS_CORRUPTIONS
+    for name in names:
+        subset = [row] if name in ROW_TARGETS else [v2]
+        code, lines = world.run(subset, name, timeout=1.0, sleep="4")
+        cats = {f["category"] for f in _findings(lines)}
+        want = CORRUPTION_CATEGORY.get(name, "divergence")
+        ok = code == 1 and want in cats
+        if name.startswith("diag:"):
+            ok = ok and any(f"diagnostics[0].{name[5:]}" in f["path"] for f in _findings(lines))
+        if name == "debug_release":
+            ok = ok and "debug_release" in cats
+        rep.check(f"harness.corruption.{name}", ok, f"exit={code} cats={sorted(cats)}")
+    # the corruptions are real: a faithful run over each subset is clean (control)
+    for label, subset in (("row", [row]), ("v2", [v2])):
+        code, _ = world.run(subset)
+        rep.check(f"harness.control.{label}", code == 0)
+
+
+def check_harness_contract(rep: Report, world: MockWorld):
+    row, v2, n1 = _mock_records()
+    # a record without expected_sha256 or with a wrong one is rejected as a harness error
+    for label, mutate in (("missing", lambda r: r.pop("expected_sha256")),
+                          ("wrong", lambda r: r.__setitem__("expected_sha256", "0" * 64))):
+        bad = dict(v2)
+        mutate(bad)
+        try:
+            world.run([bad])
+            ok = False
+        except runner.HarnessError:
+            ok = True
+        rep.check(f"harness.record_{label}_expected_sha256_rejected", ok)
+    other = dict(v2, profile_id="other-profile")
+    other["expected_sha256"] = v2["expected_sha256"]
+    try:
+        world.run([other])
+        ok = False
+    except runner.HarnessError:
+        ok = True
+    rep.check("harness.profile_mismatch_rejected", ok)
+    # the mock receives --mock-env only for run
+    env_rec = dict(v2, env_hex="7b7d")
+    world.log.write_text("")
+    world.run([env_rec])
+    log = world.log.read_text().splitlines()
+    rep.check("harness.mock_env_only_on_run", log and all(("env" in ln) == ln.startswith("run") for ln in log),
+              str(log[:4]))
+    # known issues
+    base = {"family": row["family"], "code": row["expected"]["run"]["diagnostics"][0]["code"],
+            "path": "$.diagnostics[0].code", "max_phase": "G9", "cite": "K 10.1 X05", "finding": "H-test",
+            "reviewed_by": "D"}
+    kpath = world.dir / "known.json"
+
+    def known(entries):
+        kpath.write_bytes(fio.dumps({"version": 1, "entries": entries}).encode("utf-8"))
+        return kpath
+
+    code, lines = world.run([row], "diag:code", known=known([base]))
+    s = _summary(lines)
+    rep.check("harness.known_issue.counted_apart", code == 0 and s["known"] >= 1 and s["divergences"] == 0
+              and all(f["category"] == "known" for f in _findings(lines)), str(s))
+    code, lines = world.run([row], "diag:code", known=known([dict(base, max_phase="G1")]), phase="G9")
+    rep.check("harness.known_issue.expires_after_max_phase", code == 1 and _summary(lines)["divergences"] >= 1)
+    code, lines = world.run([row], "diag:code", known=known([dict(base, path="$.diagnostics[0].data")]))
+    rep.check("harness.known_issue.needs_exact_match", code == 1)
+    try:
+        world.run([row], "", known=known([base]))
+        ok = False
+    except runner.HarnessError as exc:
+        ok = "obsolete" in str(exc)
+    rep.check("harness.known_issue.obsolete_exit2", ok)
+    code, lines = world.run([v2], "diag:code", known=known([base]))
+    rep.check("harness.known_issue.other_family_ignored", code == 0)
+    for label, bad in (("reviewed_by_C", dict(base, reviewed_by="C")), ("no_cite", dict(base, cite="")),
+                       ("bad_phase", dict(base, max_phase="G99"))):
+        try:
+            world.run([row], "diag:code", known=known([bad]))
+            ok = False
+        except runner.HarnessError:
+            ok = True
+        rep.check(f"harness.known_issue.rejects_{label}", ok)
+    # resume by seed
+    recs = []
+    for seed in (0, 1, 2):
+        r = dict(v2, seed=seed, index=0)
+        recs.append(r)
+    world.log.write_text("")
+    out = world.dir / "resume.jsonl"
+    code1, lines1 = world.run(recs, output=out)
+    first_calls = world.calls()
+    code2, lines2 = world.run(recs, resume=True, output=out)
+    s2 = _summary(lines2)
+    rep.check("harness.resume.skips_done_seeds", code1 == 0 and code2 == 0 and world.calls() == first_calls
+              and s2["skipped_seeds"] == 3 and s2["records"] == 3, f"{first_calls} {world.calls()} {s2}")
+    keep = [ln for ln in out.read_text(encoding="utf-8").split("\n") if ln.strip()]
+    cut = [ln for ln in keep if json.loads(ln)["type"] != "summary"]
+    last_seed = max(i for i, ln in enumerate(cut) if json.loads(ln)["type"] == "seed")
+    out.write_text("\n".join(cut[:last_seed]) + "\n", encoding="utf-8")
+    before = world.calls()
+    code3, lines3 = world.run(recs, resume=True, output=out)
+    rep.check("harness.resume.completes_interrupted_run", code3 == 0 and _summary(lines3)["records"] == 3
+              and world.calls() - before == 4 and _summary(lines3)["skipped_seeds"] == 2,
+              f"{world.calls() - before} {_summary(lines3)}")
+    changed = world.dir / "mock-changed.py"
+    changed.write_bytes(world.mock.read_bytes() + b"\n# changed\n")
+    try:
+        world.run(recs, resume=True, output=out, binary=changed)
+        ok = False
+    except runner.HarnessError as exc:
+        ok = "resume refused" in str(exc)
+    rep.check("harness.resume.refused_when_binary_changes", ok)
+    rep.check("harness.cleanup.private_copies_removed",
+              not (ST_TMP / f"f4-oracle-{os.getpid()}").exists())
+
+
+def check_harness_fuzz(rep: Report, world: MockWorld):
+    closed = barrier.PHASES["G1"][0]
+    from . import cli
+    recs = cli.fuzz_records(96, "G1", closed, 12, diagnostics.PROFILE, 10, 10)
+    again = cli.fuzz_records(96, "G1", closed, 12, diagnostics.PROFILE, 10, 10)
+    rep.check("harness.fuzz_corpus.deterministic", recs == again and len(recs) == 12
+              and all(r["expected"] is None and r["expected_sha256"] and r["role"] == "fuzz" for r in recs))
+    code, lines = world.run(recs, mode="fuzz", fuzz=True)
+    rep.check("harness.fuzz.clean_exit0", code == 0 and _summary(lines)["records"] == 12, str(_summary(lines)))
+    for name, cat in (("internal_error", "internal_error"), ("panic_stderr", "panic_or_invalid_ir"),
+                      ("invalid_ir", "panic_or_invalid_ir"), ("timeout", "timeout_confirmed"),
+                      ("debug_release", "debug_release")):
+        code, lines = world.run(recs[:2], name, mode="fuzz", fuzz=True, timeout=1.0, sleep="4")
+        rep.check(f"harness.fuzz.{name}", code == 1 and cat in {f["category"] for f in _findings(lines)},
+                  f"exit={code}")
+
+
+def check_harness_cli(rep: Report, world: MockWorld):
+    from . import cli
+    ns = ["--profile", diagnostics.PROFILE, "--phase", "G1", "--complete", "K01,K02", "--seeds", "0:1",
+          "--valid-per-seed", "3", "--invalid-per-seed", "3"]
+    gen_out = world.dir / "gen.jsonl"
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        c1 = cli.main(["generate"] + ns + ["--output", str(gen_out)])
+        first = gen_out.read_bytes()
+        c2 = cli.main(["generate"] + ns + ["--output", str(gen_out)])
+    recs = runner.read_jsonl(gen_out)
+    rep.check("cli.generate.deterministic_with_expected_first",
+              c1 == 0 and c2 == 0 and first == gen_out.read_bytes() and recs
+              and all("expected_sha256" in r and r["expected"] is not None for r in recs), buf.getvalue()[:80])
+    errs = io.StringIO()
+    with contextlib.redirect_stderr(errs):
+        bad_manifest = cli.main(["generate", "--profile", diagnostics.PROFILE, "--phase", "G3", "--complete",
+                                 "K01,K02,K03", "--seeds", "0", "--valid-per-seed", "1",
+                                 "--invalid-per-seed", "1", "--output", str(gen_out)])
+        bad_final = cli.main(["generate", "--final"] + ns + ["--output", str(gen_out)])
+        bad_seeds = cli.main(["generate", "--profile", diagnostics.PROFILE, "--phase", "G1", "--complete",
+                              "K01,K02", "--seeds", "5:2", "--valid-per-seed", "1", "--invalid-per-seed", "1",
+                              "--output", str(gen_out)])
+    rep.check("cli.exit2_on_harness_errors", bad_manifest == 2 and bad_final == 2 and bad_seeds == 2,
+              f"{bad_manifest} {bad_final} {bad_seeds}")
+    # compare / gate / fuzz through the CLI: faithful exit 0, corrupted exit != 0
+    closed = barrier.PHASES["G1"][0]
+    corpus = cli.corpus_records(cli.build_parser().parse_args(["generate"] + ns + ["--output", "x"]), closed)
+    table_world = world
+    table = table_world.table(corpus)
+    common = ["--binary-debug", str(world.mock), "--binary-release", str(world.mock)] + ns + [
+        "--timeout", "5", "--workers", "2"]
+    results = {}
+    env_backup = {k: os.environ.get(k) for k in ("F4_MOCK_TABLE", "F4_MOCK_CORRUPT", "F4_MOCK_LOG")}
+    try:
+        os.environ["F4_MOCK_TABLE"] = str(table)
+        os.environ["F4_MOCK_LOG"] = str(world.log)
+        for label, corrupt in (("faithful", ""), ("corrupt", "diag:code")):
+            os.environ["F4_MOCK_CORRUPT"] = corrupt
+            out = world.dir / f"cmp-{label}.jsonl"
+            with contextlib.redirect_stdout(io.StringIO()):
+                results["compare-" + label] = cli.main(["compare"] + common + ["--output", str(out)])
+            out = world.dir / f"gate-{label}.jsonl"
+            with contextlib.redirect_stdout(io.StringIO()):
+                results["gate-" + label] = cli.cmd_gate(
+                    cli.build_parser().parse_args(["gate"] + common + ["--output", str(out)]),
+                    audit_fn=lambda: [], selftest_fn=lambda: 0)
+        # gate does not compare when its selftest fails
+        os.environ["F4_MOCK_CORRUPT"] = ""
+        out = world.dir / "gate-failed.jsonl"
+        with contextlib.redirect_stdout(io.StringIO()):
+            results["gate-selftest-fails"] = cli.cmd_gate(
+                cli.build_parser().parse_args(["gate"] + common + ["--output", str(out)]),
+                audit_fn=lambda: [], selftest_fn=lambda: 1)
+            results["gate-audit-fails"] = cli.cmd_gate(
+                cli.build_parser().parse_args(["gate"] + common + ["--output", str(out)]),
+                audit_fn=lambda: ["finding"], selftest_fn=lambda: 0)
+    finally:
+        for k, v in env_backup.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+    gate_lines = runner.read_jsonl(world.dir / "gate-faithful.jsonl")
+    rep.check("cli.compare.exit_zero_when_faithful", results["compare-faithful"] == 0 and results["gate-faithful"] == 0,
+              str(results))
+    rep.check("cli.compare.exit_nonzero_on_divergence", results["compare-corrupt"] == 1, str(results))
+    rep.check("cli.gate.exit_nonzero_on_divergence", results["gate-corrupt"] == 1, str(results))
+    rep.check("cli.gate.records_audit_and_selftest", gate_lines[0]["type"] == "gate" and gate_lines[0]["audit_exit"] == 0
+              and gate_lines[0]["selftest_exit"] == 0 and len(gate_lines[0]["selftest_log_sha256"]) == 64)
+    rep.check("cli.gate.no_compare_when_selftest_or_audit_fails",
+              results["gate-selftest-fails"] == 1 and results["gate-audit-fails"] == 1
+              and not (world.dir / "gate-failed.jsonl").exists())
+    # fuzz through the CLI
+    fz = ["fuzz"] + common[:-4] + ["--fuzz-per-seed", "6", "--timeout", "5", "--workers", "2"]
+    saved = {k: os.environ.get(k) for k in ("F4_MOCK_TABLE", "F4_MOCK_CORRUPT")}
+    try:
+        os.environ["F4_MOCK_TABLE"] = str(world.table([], fuzz=True))
+        for label, corrupt, want in (("faithful", "", 0), ("internal_error", "internal_error", 1)):
+            os.environ["F4_MOCK_CORRUPT"] = corrupt
+            with contextlib.redirect_stdout(io.StringIO()):
+                got = cli.main(fz + ["--output", str(world.dir / f"fz-{label}.jsonl")])
+            rep.check(f"cli.fuzz.exit.{label}", got == want, f"{got}")
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+@contextlib.contextmanager
+def mock_env(world, table, corrupt):
+    keys = {"F4_MOCK_TABLE": str(table), "F4_MOCK_CORRUPT": corrupt, "F4_MOCK_LOG": str(world.log)}
+    saved = {k: os.environ.get(k) for k in keys}
+    os.environ.update(keys)
+    try:
+        yield
+    finally:
+        for k, v in saved.items():
+            if v is None:
+                os.environ.pop(k, None)
+            else:
+                os.environ[k] = v
+
+
+def _table_for_candidates(world, rec):
+    """Mock table with the model's expectation of a record and of its (transitive) reductions."""
+    import hashlib
+    sources = {}
+    todo = [rec["repr"]]
+    seen = 0
+    while todo and seen < 600:
+        rp = todo.pop()
+        seen += 1
+        res = gen.expect(rp)
+        if res["expected"] is None:
+            continue
+        key = hashlib.sha256(res["source"].encode("utf-8")).hexdigest()
+        if key in sources:
+            continue
+        sources[key] = {v: res["expected"][v] for v in rec["verbs"] if v in res["expected"]}
+        todo.extend(gen.reductions(rp))
+    path = world.dir / "table-min.json"
+    path.write_bytes(fio.dumps({"sources": sources, "fuzz": False}).encode("utf-8"))
+    return path
+
+
+def check_harness_minimize(rep: Report, world: MockWorld):
+    recs, _, _ = gen.generate_seed(0, "G3", barrier.PHASES["G3"][0], 20, 80)
+    cand = [r for r in recs if r["fclass"] == "N" and r["role"] == "main"
+            and len(gen.from_repr(r["repr"]["program"]).decls[-1].body) >= 3]
+    rec = cand[0]
+    code, lines = world.run([rec], "diag:code")
+    failure = next(f for f in _findings(lines) if f["binary"] == "debug" and f["verb"] == "check")
+    table = _table_for_candidates(world, rec)
+    kw = dict(binary_debug=world.mock, binary_release=world.mock, profile=diagnostics.PROFILE, tmp_root=ST_TMP)
+    with mock_env(world, table, "diag:code"):
+        res = minimize_mod.minimize(failure, **kw)
+        same = False
+        if res["status"] == "minimized":
+            final = gen.expect(res["repr"])
+            r2 = dict(rec, source_hex=res["source_hex"], expected=final["expected"],
+                      expected_sha256=fio.sha256_text(fio.dumps(final["expected"])), repr=res["repr"])
+            with runner.Session(world.mock, world.mock, tmp_root=ST_TMP) as s:
+                same = any(f["path"] == failure["path"] and f["code"] == failure["code"]
+                           and f["subcause"] == failure["subcause"] for f in s.check(r2))
+        res0 = minimize_mod.minimize(failure, budget=0.0, **kw)
+    rep.check("harness.minimize.reduces", res["status"] == "minimized" and res["steps"] >= 1
+              and len(res["source_hex"]) < len(failure["source_hex"]), str((res["status"], res["steps"])))
+    rep.check("harness.minimize.result_keeps_the_divergence", same, "no divergence after minimization")
+    rep.check("harness.minimize.keeps_original_when_not_converged",
+              res0["status"] == "not_converged" and res0["source_hex"] == failure["source_hex"], res0["status"])
+    with mock_env(world, table, ""):
+        resf = minimize_mod.minimize(failure, **kw)
+    rep.check("harness.minimize.not_reproducible_keeps_original",
+              resf["status"] == "not_reproducible" and resf["source_hex"] == failure["source_hex"], resf["status"])
+    nr = minimize_mod.minimize(dict(failure, repr=None), **kw)
+    rep.check("harness.minimize.no_repr", nr["status"] == "no_repr")
+
+
+def check_harness_batch(rep: Report):
+    base = dict(command="gate", binary_debug="C:/x/d", binary_release="C:/x/r", profile=diagnostics.PROFILE,
+                phase="G3", complete="K01,K02,K03,K04", seeds="0:3", valid=5, invalid=5,
+                output_dir="C:/nexo-work/tmp/f4-st-batch", width=2, session="s")
+    plan = batch_mod.plan(**base)
+    rep.check("harness.batch.plan", [p["label"] for p in plan] == ["00-01", "02-03"]
+              and all("heavy-lock.py" in p["command"][2] and "run" in p["command"] and "--resume" in p["command"]
+                      and p["command"][p["command"].index("--seeds") + 1] in ("0:1", "2:3") for p in plan))
+    for label, gap, odir in (("gap_below_60", 30, "C:/nexo-work/tmp/x"), ("not_on_C", 75, "D:/nexo-work/x")):
+        try:
+            batch_mod.validate_scale(gap, Path(odir))
+            ok = False
+        except ValueError:
+            ok = True
+        rep.check(f"harness.batch.rejects_{label}", ok)
+    d = Path(tempfile.mkdtemp(prefix="f4-st-batch-", dir=str(ST_TMP)))
+    try:
+        plan = batch_mod.plan(**dict(base, output_dir=d))
+        calls, naps = [], []
+
+        class R:
+            returncode = 0
+
+        def fake(cmd, **kw):
+            calls.append(cmd)
+            return R()
+
+        code, report = batch_mod.run(plan, gap_seconds=75, runner=fake, sleep=lambda s: naps.append(s))
+        rep.check("harness.batch.runs_with_gap", code == 0 and len(calls) == 2 and naps == [75], f"{calls} {naps}")
+        plan[0]["output"].write_text(fio.dumps({"type": "summary", "exit": 0}) + "\n", encoding="utf-8")
+        calls.clear()
+        code, report = batch_mod.run(plan, gap_seconds=75, runner=fake, sleep=lambda s: None)
+        rep.check("harness.batch.resume_skips_finished", len(calls) == 1 and report[0].get("skipped"), str(report))
+
+        class Fail:
+            returncode = 1
+
+        calls.clear()
+        plan[0]["output"].unlink()
+        code, report = batch_mod.run(plan, gap_seconds=75, runner=lambda c, **k: (calls.append(c), Fail())[1],
+                                     sleep=lambda s: None)
+        rep.check("harness.batch.stops_on_failure", code == 1 and len(calls) == 1)
+        code, report = batch_mod.run(plan, gap_seconds=75, dry_run=True)
+        rep.check("harness.batch.dry_run", code == 0 and all("command" in r for r in report))
+    finally:
+        shutil.rmtree(d, ignore_errors=True)
+
+
+def run_harness(rep: Report):
+    """Tests of the harness against the fictitious executables (processes run outside the hook)."""
+    check_generic_units(rep)
+    check_corruption_inventory(rep)
+    world = MockWorld()
+    try:
+        check_mock_corruptions(rep, world)
+        check_harness_contract(rep, world)
+        check_harness_fuzz(rep, world)
+        check_harness_cli(rep, world)
+        check_harness_minimize(rep, world)
+    finally:
+        world.close()
+    check_harness_batch(rep)
+    rows = literal_records("G8", barrier.PHASES["G8"][0] + ("K07",))
+    rep.check("harness.literal_records", len(rows) >= 60 and all(r["expected_sha256"] for r in rows), str(len(rows)))
+
+
 GROUPS = {"G0": run_g0, "G1": _rows_group("G1"), "G2": lambda rep: (run_model_basics(rep), _rows_group("G2")(rep)),
           "G3": lambda rep: (_rows_group("G3")(rep), run_scc_variants(rep)),
           "G4": _rows_group("G4"), "G5": _rows_group("G5"), "G6": _rows_group("G6"),
@@ -1329,13 +1901,15 @@ def run(fast: bool = False, groups=None) -> int:
     check_diagnostic_contract(rep)
     check_utf8(rep, fast)
     if not fast:
-        wanted = groups or list(GROUPS)
+        wanted = [g for g in (groups or list(GROUPS)) if g in GROUPS]
         for name in wanted:
             fn = GROUPS[name]
             _, violations = run_audited(lambda f=fn: f(rep))
             rep.check(f"audit.dynamic.{name}", not violations, "; ".join(violations[:4]))
         if groups is None or "GEN" in groups:
             check_gen_subprocess(rep)
+        if groups is None or "HARNESS" in groups:
+            run_harness(rep)
         probes = []
         _, v1 = run_audited(lambda: open(os.path.join(audit.ROOT, "Cargo.toml"), "rb").close())
         probes.append(bool(v1))

@@ -43,7 +43,8 @@ VETO = [
 ]
 
 # Symbols of the F5 oracle that must never appear in generic.py (plan 1.4).
-F5_SYMBOLS = ("projection", "SourceVM", "requirement_sites", "f0-0005", "F5-")
+F5_SYMBOLS = ("projection", "SourceVM", "requirement_sites", "f0-0005", "F5-", "case.n")
+F5_IDENTIFIERS = ("projection", "SourceVM", "requirement_sites")
 
 
 def module_files() -> list[str]:
@@ -177,16 +178,56 @@ def fixture_findings() -> list[str]:
     return out
 
 
+def _generic_symbol_findings(pins: dict) -> list[str]:
+    """generic.py holds exactly the pinned symbols with the pinned AST hashes (plan 1.4)."""
+    out: list[str] = []
+    gpath = os.path.join(HERE, "generic.py")
+    with open(gpath, "rb") as handle:
+        tree = ast.parse(handle.read().decode("utf-8"))
+    top = {n.name: n for n in tree.body if isinstance(n, (ast.FunctionDef, ast.ClassDef))}
+    symbols = pins["generic"].get("symbols", {})
+    if set(top) != set(symbols):
+        out.append(f"generic.py symbols differ from the pins: {sorted(set(top) ^ set(symbols))}")
+    for name, ent in symbols.items():
+        node = top.get(name)
+        if node is None:
+            continue
+        digest = hashlib.sha256(ast.dump(node).encode("utf-8")).hexdigest()
+        adapted = ent.get("kind") == "adapted"
+        want = ent.get("ast_sha256_adapted") if adapted else ent.get("ast_sha256")
+        if digest != want:
+            out.append(f"generic.py::{name}: AST hash differs from the pin")
+        if adapted and (not ent.get("changes") or ent.get("ast_sha256_adapted") == ent.get("ast_sha256")):
+            out.append(f"generic.py::{name}: adapted symbol without declared change")
+        if not adapted and ent.get("kind") != "copied":
+            out.append(f"generic.py::{name}: unknown provenance kind")
+        if not ent.get("blob") or not ent.get("file") or pins["generic"].get("commit") is None:
+            out.append(f"generic.py::{name}: pin without origin file, blob or commit")
+    for node in ast.walk(tree):
+        ident = None
+        if isinstance(node, (ast.FunctionDef, ast.ClassDef)):
+            ident = node.name
+        elif isinstance(node, ast.Name):
+            ident = node.id
+        elif isinstance(node, ast.Attribute):
+            ident = node.attr
+        if ident and (ident in F5_IDENTIFIERS or re.match(r"L0\d", ident)):
+            out.append(f"generic.py: F5 identifier {ident}")
+    return out
+
+
 def pin_findings() -> list[str]:
     out: list[str] = []
     path = os.path.join(FIXTURES, "f4_oracle_pins.json")
     with open(path, "rb") as handle:
         pins = json.loads(handle.read().decode("utf-8"))
+    has_file = os.path.exists(os.path.join(HERE, "generic.py"))
     if pins.get("generic"):
-        gpath = os.path.join(HERE, "generic.py")
-        if not os.path.exists(gpath):
+        if not has_file:
             out.append("pins list generic symbols but generic.py is missing")
-    elif os.path.exists(os.path.join(HERE, "generic.py")):
+        else:
+            out += _generic_symbol_findings(pins)
+    elif has_file:
         out.append("generic.py exists without pins")
     return out
 
