@@ -26,6 +26,7 @@ TMP = Path("C:/nexo-work/tmp")
 PHASE_ORDER = {f"G{i}": i for i in range(11)}
 TOP_KEYS = ("schema_version", "profile_id", "outcome", "stdout", "events", "observations",
             "observation_bytes", "reserved_observation_bytes")
+TEST_PREFIX = "f0-0004-b-test-"   # K 8.3: records of class Q carry their own reduced profile
 KNOWN_KEYS = ("family", "code", "path", "max_phase", "cite", "finding", "reviewed_by")
 NULL_SHA = hashlib.sha256(b"null").hexdigest()
 
@@ -169,7 +170,7 @@ class Session:
                     continue
                 if expected is not None:
                     exp_doc = expected[verb]
-                    obs = observed(inv, expected["fields"])
+                    obs = observed(inv, expected["fields"], exp_doc)
                     path = _first_difference(exp_doc, obs)
                     if path is not None:
                         findings.append(_finding(rec, verb, which, "divergence", path,
@@ -183,13 +184,24 @@ class Session:
         return findings
 
 
-def observed(inv: Invocation, fields) -> dict:
-    """Comparable view of an invocation: exit plus the contract fields, diagnostics projected."""
+def observed(inv: Invocation, fields, exp_doc=None) -> dict:
+    """Comparable view of an invocation: exit plus the contract fields, diagnostics projected.
+
+    A *partial* expected document (no ``schema_version``: the controller error of K 10.6, whose
+    shape K fixes only as exit and ``driver_error`` outcome) is compared on its own keys only.
+    ``outcome.error`` of an ``err`` outcome is compared as a decimal string (LAGUNAS LF-16: A2 writes
+    both ``"error":I64`` and ``"error":"40"``)."""
     doc = inv.document or {}
     obs = {"exit": inv.exit}
-    for key in TOP_KEYS:
+    partial = exp_doc is not None and "schema_version" not in exp_doc
+    for key in ([k for k in exp_doc if k != "exit"] if partial else TOP_KEYS):
         if key in doc:
             obs[key] = doc[key]
+    out = obs.get("outcome")
+    if isinstance(out, dict) and out.get("kind") == "err" and type(out.get("error")) is int:
+        obs["outcome"] = dict(out, error=str(out["error"]))
+    if partial:
+        return obs
     if "diagnostics" in doc:
         diags = doc["diagnostics"]
         if isinstance(diags, list):
@@ -216,6 +228,8 @@ def _finding(rec, verb, which, category, path, *, failure=None, exp_doc=None, ob
            "subcause": _first_diag(exp_doc, "subcause"),
            "expected_sha256": rec["expected_sha256"], "source_hex": rec["source_hex"],
            "file": rec["file"], "profile_id": rec["profile_id"], "repr": rec.get("repr")}
+    if rec.get("env_hex"):
+        out["env_hex"] = rec["env_hex"]
     if failure is not None:
         out["stderr"] = failure.stderr[:400]
         out["exit"] = failure.exit
@@ -265,7 +279,7 @@ def _drive(*, mode, corpus, binary_debug, binary_release, profile, phase, comple
     records = read_jsonl(corpus)
     for rec in records:
         validate_record(rec)
-        if rec["profile_id"] != profile:
+        if rec["profile_id"] != profile and not rec["profile_id"].startswith(TEST_PREFIX):
             raise HarnessError(f"record profile {rec['profile_id']} differs from --profile {profile}")
     seeds = group_by_seed(records)
     known = load_known(known_path) if mode == "compare" else []

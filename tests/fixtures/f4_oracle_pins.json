@@ -274,6 +274,123 @@
    "sha256": "8c271a0b874efe4629582603be828a2e47c4c3c0f902ced14afd668daf0e004e",
    "source_doc": "A2",
    "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome ok",
+   "fragment": "{\"kind\":\"ok\"}                           main devuelve Ok(())",
+   "id": "H5a",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"ok\"}  "
+   },
+   "section": "12.4",
+   "sha256": "73dccb9c1aa54cc543fd655af6dd4e2846d04ab2c7102c4b1771c5596497099b",
+   "source_doc": "A2",
+   "used_for": "forma outcome ok (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome err (LF-16)",
+   "fragment": "{\"kind\":\"err\",\"error\":I64}               main devuelve Err(i64)",
+   "id": "H5b",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"err\",\"error\":I64}"
+   },
+   "section": "12.4",
+   "sha256": "9e57c426f7e6e8ddbce1a0f6893fdddc105e0b352690a922aabdede7aee2e8da",
+   "source_doc": "A2",
+   "used_for": "forma outcome err (LF-16) (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome de fallo R",
+   "fragment": "{\"kind\":\"simulator_fault\"}              fallo R; diagnostics contiene la causa",
+   "id": "H5c",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"simulator_fault\"}"
+   },
+   "section": "12.4",
+   "sha256": "96b53111759c111be455aa368ba64252ee991af560e3f3d078e2b90f1f90d76d",
+   "source_doc": "A2",
+   "used_for": "forma outcome de fallo R (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome de error del controlador (E01-E06)",
+   "fragment": "{\"kind\":\"driver_error\",\"reason\":RAZON}   opciones o entorno mock inválidos",
+   "id": "H5d",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"driver_error\",\"reason\":RAZON}"
+   },
+   "section": "12.4",
+   "sha256": "49d77039e933560dee6a4eac624ae9d293bf78bccdc2740c010721eb1e233ef5",
+   "source_doc": "A2",
+   "used_for": "forma outcome de error del controlador (E01-E06) (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 razones de driver_error",
+   "fragment": "`input_error` conserva `NX-E0004` y su subcausa. Entre las razones de `driver_error` se incluyen las cuatro del entorno, `invalid_arguments` y `unknown_profile`. Una IR inválida sigue siendo fallo interno de implementación, no un resultado Nexo ni un R de programa.",
+   "id": "H5e",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "`input_error` conserva"
+   },
+   "section": "12.4",
+   "sha256": "71451c139209ea15e695451b4be77ebbe26f79caf16190737e62dadbfa678b30",
+   "source_doc": "A2",
+   "used_for": "razones de driver_error (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 exit 1 de Err, fallo R y rechazo",
+   "fragment": "| `main` devuelve `Err`; fallo R; rechazo estático, incluido exceso de fuente | 1 |",
+   "id": "H5f",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| `main` devuelve `Err`;"
+   },
+   "section": "12.4",
+   "sha256": "6d32d85ad2111ddd2bf080f35ecfd4248208c42b5f25ef541bdc077f1a3c4ceb",
+   "source_doc": "A2",
+   "used_for": "exit 1 de Err, fallo R y rechazo (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 exit 2 de controlador",
+   "fragment": "| Uso/configuración inválidos; fuente ilegible o UTF-8 inválido; fallo interno controlado de implementación | 2 |",
+   "id": "H5g",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| Uso/configuraci"
+   },
+   "section": "12.4",
+   "sha256": "87bf9a0966109d8491a3b86e6e65cafdd7db0133a8ce6f57808e7717a140a2f9",
+   "source_doc": "A2",
+   "used_for": "exit 2 de controlador (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 ejemplo literal de outcome ok",
+   "fragment": "con una respuesta `{\"ok\":null}` en `mock_write_i64`:",
+   "id": "H5h",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "con una respuesta `{\"ok\":null}` en `mock_write_i64`"
+   },
+   "section": "12.4",
+   "sha256": "f8e5c9655a24fbc4b1768f223df50e6e8be131c7fe9e8789c71cc9e71636270b",
+   "source_doc": "A2",
+   "used_for": "ejemplo literal de outcome ok (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 ejemplo literal de outcome err con error string (LF-16)",
+   "fragment": "El evento ocupa 24 bytes y la salida tres. Una respuesta `{\"err\":\"40\"}` produce solo `write_i64:25:err:40`, `outcome = {\"kind\":\"err\",\"error\":\"40\"}` y ninguna línea de salida.",
+   "id": "H5i",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "El evento ocupa 24 bytes"
+   },
+   "section": "12.4",
+   "sha256": "643abf1e895b16e17095977120ceab648a1aaa16c406b8566a8bf5598938f653",
+   "source_doc": "A2",
+   "used_for": "ejemplo literal de outcome err con error string (LF-16) (plan 3, O5)"
   }
  ],
  "generic": {

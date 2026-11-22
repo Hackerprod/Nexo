@@ -20,7 +20,7 @@ import platform
 import random
 import sys
 
-from . import audit, barrier, batch, fixtures_io, generate, generic, minimize, runner, selftest
+from . import app, audit, barrier, batch, fixtures_io, generate, generic, minimize, runner, selftest
 
 KNOWN_FIXTURE = "f4_oracle_known_issues.json"
 
@@ -57,6 +57,8 @@ def corpus_records(args, closed) -> list:
         recs, _, _ = generate.generate_seed(seed, args.phase, closed, args.valid_per_seed,
                                             args.invalid_per_seed, args.profile)
         out += recs
+        out += app.special_records(seed, args.phase, closed, args.valid_per_seed, args.invalid_per_seed,
+                               getattr(args, "final", False))
     return out
 
 
@@ -71,8 +73,24 @@ def fuzz_records(seed: int, phase: str, closed, count: int, profile: str, base_v
     null_sha = hashlib.sha256(b"null").hexdigest()
     out = []
     kinds = ["prefix", "flip", "insert", "delete", "dup", "row_prefix"]
+    with_env = phase in ("G9", "G10") and "K10" in closed
+    if with_env:
+        sources.append(app.app_source().encode("utf-8"))
+        kinds += ["env_flip", "env_prefix"]
     while len(out) < count:
         kind = rng.choice(kinds)
+        if kind.startswith("env_"):
+            data = bytearray(app.env_bytes(app.random_env(rng)[0], rng))
+            if kind == "env_prefix":
+                data = data[:rng.randrange(len(data) + 1)]
+            else:
+                for _ in range(rng.randint(1, 3)):
+                    data[rng.randrange(len(data))] = rng.randrange(256)
+            out.append({"seed": seed, "index": len(out), "role": "fuzz", "cls": "F", "fclass": "F",
+                        "family": "fuzz_" + kind, "phase": phase, "file": "case.n", "profile_id": profile,
+                        "source_hex": app.app_source().encode("utf-8").hex(), "env_hex": bytes(data).hex(),
+                        "verbs": ["run"], "expected": None, "expected_sha256": null_sha, "repr": None})
+            continue
         pool = rows if kind == "row_prefix" else sources
         src = rng.choice(pool) if pool else b"fn Main(){}"
         data = bytearray(src)
@@ -130,6 +148,8 @@ def _summary_line(path) -> str:
 
 def _run_compare(args, gate_info=None, known_path=None) -> int:
     closed = _check_manifest(args)
+    if getattr(args, "final", False):
+        print("matrix " + fixtures_io.dumps(selftest.matrix_report()))
     corpus = args.output + ".corpus.jsonl"
     _write_lines(corpus, corpus_records(args, closed))
     code = 2
@@ -221,7 +241,7 @@ def _corpus_sha(args) -> int:
         table = selftest.corpus_table()
         doc = {"version": 1, "python": platform.python_version(),
                "scale": {k: list(v) for k, v in selftest.SCALE.items()}, "g10": [1000, 1000, 50],
-               "note": "SHA-256 of the canonical JSON records per label|seed|class (V, N, L, B); "
+               "note": "SHA-256 of the canonical JSON records per label|seed|class (V, N, L, B; from G9 also A, E, Q; G10F = final recipes); "
                        "regenerate only with `corpus-sha --write` after reviewing the generator change.",
                "entries": table}
         path = fixtures_io.fixture_path("f4_oracle_corpus_sha.json")

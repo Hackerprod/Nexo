@@ -7,6 +7,7 @@ from the pinned ADR (``fixtures_io``) or from the hand-written pairs; no binary 
 
 from __future__ import annotations
 
+import functools
 import io
 import json
 import os
@@ -1008,6 +1009,7 @@ def corpus_table() -> dict:
             recs, _, _ = gen.generate_seed(seed, ph, comp, nv, ni)
             for c in "VNLB":
                 table[f"{label}|{seed}|{c}"] = gen.corpus_sha(recs, c)
+    table.update(special_entries())
     return table
 
 
@@ -1190,6 +1192,7 @@ def run_gen(rep: Report):
     rep.check("gen.distinct_minimums", not short, "; ".join(short[:4]))
     rep.check("gen.structural_minimums", not mins_bad, "; ".join(mins_bad[:4]))
     rep.check("gen.family_structural_minimums", not fam_bad, "; ".join(fam_bad[:6]))
+    got_table.update(special_entries())
     rep.check("gen.corpus_sha.scale", pinned["scale"] == {k: list(v) for k, v in SCALE.items()}
               and pinned["g10"] == [1000, 1000, 50], "scale differs from the pinned table")
     wrong = [k for k in got_table if pinned["entries"].get(k) != got_table[k]]
@@ -1329,9 +1332,9 @@ REQUIRED_K = {"G1": "K02", "G2": "K03", "G3": "K04", "G4": "K05", "G5": "K06", "
 ST_TMP = Path("C:/nexo-work/tmp")
 
 
-def _record(seed, index, role, cls, family, source, verbs, expected, repr_=None, file="case.n"):
+def _record(seed, index, role, cls, family, source, verbs, expected, repr_=None, file="case.n", profile=None):
     return {"seed": seed, "index": index, "role": role, "cls": cls, "fclass": cls, "family": family,
-            "phase": "G9", "file": file, "profile_id": diagnostics.PROFILE,
+            "phase": "G9", "file": file, "profile_id": profile or diagnostics.PROFILE,
             "source_hex": source.encode("utf-8").hex(), "verbs": verbs, "expected": expected,
             "expected_sha256": fio.sha256_text(fio.dumps(expected)), "repr": repr_}
 
@@ -1367,6 +1370,8 @@ def literal_records(phase: str, closed) -> list:
                            gen._doc(diagnostics.PROFILE, 0, {"kind": "unit"}, [], [], [], [], []))
             out.append(_record(-1, len(out), "literal_positive", "R", "row:" + ident, pos["source"], verbs, pexp,
                                file=e["file"]))
+    if int(phase[1:]) >= 9 and "K10" in closed:
+        out += o5_literal_records(len(out))
     return out
 
 
@@ -1407,7 +1412,11 @@ class MockWorld:
             if r.get("expected") is None:
                 continue
             key = hashlib.sha256(bytes.fromhex(r["source_hex"])).hexdigest()
-            sources[key] = {v: r["expected"][v] for v in r["verbs"]}
+            for v in r["verbs"]:
+                slot = key
+                if r.get("env_hex") and v == "run":
+                    slot = key + ":" + hashlib.sha256(bytes.fromhex(r["env_hex"])).hexdigest()
+                sources.setdefault(slot, {})[v] = r["expected"][v]
         path = self.dir / "table.json"
         path.write_bytes(fio.dumps({"sources": sources, "fuzz": fuzz}).encode("utf-8"))
         return path
@@ -1878,6 +1887,7 @@ def run_harness(rep: Report):
         check_harness_fuzz(rep, world)
         check_harness_cli(rep, world)
         check_harness_minimize(rep, world)
+        check_g9_harness(rep, world)
     finally:
         world.close()
     check_harness_batch(rep)
@@ -1885,11 +1895,660 @@ def run_harness(rep: Report):
     rep.check("harness.literal_records", len(rows) >= 60 and all(r["expected_sha256"] for r in rows), str(len(rows)))
 
 
+# ------------------------------------------------------------------ O5: application, environment v2, quotas (G9, G10)
+
+from . import app, charges
+
+PROFILE = diagnostics.PROFILE
+O5_ENV_IDS = ["E01", "E02", "E03", "E04", "E05", "E06"]
+O5_APP_IDS = ["APP"] + sorted(app.VARIANT_NAMES) + ["APP-100"]
+O5_Q_IDS = ["X24", "X25", "X26", "X27", "O13"]
+
+
+def _row_doc(e: dict, profile=PROFILE) -> dict:
+    """Result document of a K row of kind ``result`` (events and stdout in the observation order of K 6.1)."""
+    x = e["expected"]
+    order = app.interleave(x["events"], x["stdout"])
+    outcome = {"kind": "ok"} if x["outcome"] == "ok" else {"kind": "err", "error": str(x["error"])}
+    return gen._doc(profile, x["exit"], outcome, x["stdout"], x["events"], order, [], [])
+
+
+def o5_literal_records(first: int) -> list:
+    """Records of the rows of K 10.1, 10.6, 10.7 and 11 that need the environment or a test profile."""
+    emap = entry_map()
+    out = []
+
+    def add(family, source, verbs, expected, file, profile=PROFILE, env_hex=None, role="literal"):
+        rec = _record(-1, first + len(out), role, "R", family, source, verbs, expected, file=file,
+                      profile=profile)
+        if env_hex is not None:
+            rec["env_hex"] = env_hex
+        out.append(rec)
+
+    for ident in O5_ENV_IDS:
+        e = emap[ident]
+        add("row:" + ident, e["source"], ["run"],
+            {"fields": [], "run": app.controller_doc(e["expected"]["reason"])}, e["file"], env_hex=e["env_hex"])
+        pos = gen._doc(PROFILE, 0, {"kind": "ok"}, [], [e["positive_event"]], [("event", e["positive_event"])],
+                       [], [])
+        add("row:" + ident, e["source"], ["check", "run"],
+            {"fields": [], "check": gen.checked_doc(PROFILE), "run": pos}, e["file"],
+            env_hex=e["env_positive_hex"], role="literal_positive")
+    for ident in ["E07", "A08"] + O5_APP_IDS:
+        e = emap[ident]
+        add("row:" + ident, e["source"], ["check", "run"],
+            {"fields": [], "check": gen.checked_doc(PROFILE), "run": _row_doc(e)}, e["file"],
+            env_hex=e["env_hex"])
+    for ident in O5_Q_IDS:
+        e = emap[ident]
+        profile = e["expected"]["profile_id"]
+        d = expected_diagnostic(e)
+        fields = list(diagnostics.FIELDS)
+        has_main = "fn Main" in e["source"]
+        if d["code"] == "R0002":
+            exp = {"fields": fields, "check": gen.checked_doc(profile),
+                   "run": gen._doc(profile, 1, {"kind": "simulator_fault"}, [], [], [], [d], fields)}
+            pos_exp = {"fields": [], "check": gen.checked_doc(profile),
+                       "run": gen._doc(profile, 0, {"kind": "unit"}, [], [], [], [], [])}
+        else:
+            exp = {"fields": fields, "check": gen.rejected_doc(profile, [d], fields)}
+            pos_exp = {"fields": [], "check": gen.checked_doc(profile)}
+        verbs = ["check", "run"] if has_main and d["code"] == "R0002" else ["check"]
+        add("row:" + ident, e["source"], verbs, exp, e["file"], profile=profile)
+        add("row:" + ident, e["positive"]["source"], verbs, pos_exp, e["file"], profile=profile,
+            role="literal_positive")
+    return out
+
+
+def _stdout_len(lines) -> int:
+    return sum(len(utf8ref.text(s)) + 1 for s in lines)
+
+
+def check_app_rows(rep: Report):
+    """K 11 rows: the model of the application reproduces every transcribed row."""
+    emap = entry_map()
+    k = ktext()
+    for ident in O5_APP_IDS:
+        e = emap[ident]
+        x = e["expected"]
+        if ident == "APP":
+            env = app.base_env()
+        elif ident == "APP-100":
+            env = app.full_hundred_env()
+        else:
+            env = app.variant_env(app.VARIANT_NAMES[ident])
+        rep.check(f"{ident}.env_bytes", app.env_bytes(env).hex() == e["env_hex"])
+        run = app.run_app(app.parse_env(bytes.fromhex(e["env_hex"])))
+        err = x.get("error")
+        ok = (run.events == x["events"] and run.stdout == x["stdout"] and run.exit == x["exit"]
+              and run.error == err and run.observation_bytes == x["observation_bytes"]
+              and run.kind == x["outcome"])
+        rep.check(f"{ident}.run", ok, f"{run.events[:3]} {run.kind} {run.error} {run.observation_bytes}")
+        rep.check(f"{ident}.source_lines", e["source"].count("\n") == 81 and e["source"].endswith("}\n"))
+        if ident in app.VARIANT_NAMES:
+            frag = e["fragments"][2]["text"]
+            rep.check(f"{ident}.row_matches_fragment",
+                      all(("`%s`" % ev) in frag for ev in x["events"])
+                      and re.search(r"; %d \|$" % x["observation_bytes"], frag) is not None)
+    base = emap["APP"]["expected"]
+    run = app.run_app(app.base_env())
+    explicit = [(o[0], o[1]) for o in base["observations"]]
+    rep.check("APP.observation_order", run.order == explicit, str(run.order[:4]))
+    rep.check("APP.thirteen_observations", len(run.order) == 13)
+    rep.check("APP.event_bytes_202_stdout_118",
+              sum(9 + len(utf8ref.text(t)) for c, t in run.order if c == "event") == 202
+              and _stdout_len(run.stdout) == 118)
+    rep.check("APP.eleven_variants", len(app.VARIANT_NAMES) == 11)
+    rep.check("APP-100.counts", len(emap["APP-100"]["expected"]["events"]) == 201
+              and len(emap["APP-100"]["expected"]["stdout"]) == 101
+              and "6.866" in k and "201 eventos y 101 salidas" in k)
+
+
+APP_CASES = [
+    # label, reads, writes, events, stdout, outcome, error
+    ("boundary_discount", [("ok", "9"), ("ok", "10"), ("ok", "100"), ("ok", "101"), ("eof",)], [("ok",)] * 5,
+     ["read_line:ok:1", "read_line:ok:2", "read_line:ok:3", "read_line:ok:3", "read_line:eof",
+      "println:ok:22", "println:ok:23", "println:ok:25", "println:ok:25", "println:ok:51"],
+     ["L1: 9 EUR => 1089 cent", "L2: 10 EUR => 1089 cent", "L3: 100 EUR => 10890 cent",
+      "L4: 101 EUR => 12221 cent", "Registros: 4; total: 252 EUR y 89 cent; media: 6322"], "ok", None),
+    ("zero_amount", [("ok", "0"), ("eof",)], [("ok",)] * 2,
+     ["read_line:ok:1", "read_line:eof", "println:ok:19", "println:ok:45"],
+     ["L1: 0 EUR => 0 cent", "Registros: 1; total: 0 EUR y 0 cent; media: 0"], "ok", None),
+    ("minus_zero_and_zeros", [("ok", "-0"), ("ok", "007"), ("eof",)], [("ok",)] * 3,
+     ["read_line:ok:2", "read_line:ok:3", "read_line:eof", "println:ok:20", "println:ok:23", "println:ok:48"],
+     ["L1: -0 EUR => 0 cent", "L2: 007 EUR => 847 cent", "Registros: 2; total: 8 EUR y 47 cent; media: 423"],
+     "ok", None),
+    ("empty_lines_count", [("ok", ""), ("ok", ""), ("ok", "3"), ("eof",)], [("ok",)] * 2,
+     ["read_line:ok:0", "read_line:ok:0", "read_line:ok:1", "read_line:eof", "println:ok:21", "println:ok:48"],
+     ["L3: 3 EUR => 363 cent", "Registros: 1; total: 3 EUR y 63 cent; media: 363"], "ok", None),
+    ("println_exhausted", [("ok", "1"), ("eof",)], [], ["read_line:ok:1", "read_line:eof", "println:err:-9000"],
+     [], "err", -9000),
+    ("eof_stops_reading", [("eof",), ("ok", "5")], [("ok",)],
+     ["read_line:eof", "println:ok:45"], ["Registros: 0; total: 0 EUR y 0 cent; media: 0"], "ok", None),
+    ("fin_is_case_sensitive", [("ok", "Fin"), ("ok", "fin")], [("ok",)], ["read_line:ok:3"], [], "err", -9101),
+    ("non_ascii_rejected", [("ok", "é")], [("ok",)], ["read_line:ok:2"], [], "err", -9101),
+    ("garbage_after_data", [("ok", "5"), ("ok", "1x")], [("ok",)], ["read_line:ok:1", "read_line:ok:2"], [],
+     "err", -9101),
+    ("negative_in_batch", [("ok", "5"), ("ok", "-1"), ("ok", "7")], [("ok",)],
+     ["read_line:ok:1", "read_line:ok:2"], [], "err", 42),
+    ("overflow_negative", [("ok", "-9223372036854775809")], [("ok",)], ["read_line:ok:20"], [], "err", -9102),
+    ("max_i64_text_is_domain_error", [("ok", "9223372036854775807")], [("ok",)], ["read_line:ok:19"], [],
+     "err", 42),
+    ("read_error_midway", [("ok", "4"), ("err", 5), ("ok", "6")], [("ok",)], ["read_line:ok:1", "read_line:err:5"],
+     [], "err", 5),
+    ("write_error_in_summary", [("ok", "4"), ("eof",)], [("ok",), ("err", -2)],
+     ["read_line:ok:1", "read_line:eof", "println:ok:21", "println:err:-2"],
+     ["L1: 4 EUR => 484 cent"], "err", -2),
+]
+
+
+def check_app_cases(rep: Report):
+    for label, reads, writes, events, stdout, outcome, error in APP_CASES:
+        run = app.run_app(app.Env(reads, writes))
+        nbytes = sum(9 + len(e) for e in events) + _stdout_len(stdout)
+        ok = (run.events == events and run.stdout == stdout and run.kind == outcome and run.error == error
+              and run.observation_bytes == nbytes and run.exit == (0 if outcome == "ok" else 1))
+        rep.check(f"app.case.{label}", ok, f"{run.events} {run.stdout} {run.kind} {run.error}"[:240])
+    hundred = app.Env([("ok", "10000")] * 100 + [("err", 70)], [("ok",)] * 101)
+    run = app.run_app(hundred)
+    rep.check("app.case.max_total_fits_i64",
+              run.kind == "ok" and run.stdout[-1] == "Registros: 100; total: 1210000 EUR y 0 cent; media: 1210000"
+              and len([e for e in run.events if e.startswith("read_line")]) == 100)
+    ok_doc = app.run_app(app.base_env()).doc()
+    err_doc = app.run_app(app.variant_env("read_err_70")).doc()
+    rep.check("app.doc.shape", ok_doc["exit"] == 0 and ok_doc["outcome"] == {"kind": "ok"}
+              and ok_doc["observation_bytes"] == 320 and ok_doc["reserved_observation_bytes"] == 0
+              and err_doc["exit"] == 1 and err_doc["outcome"] == {"kind": "err", "error": "70"}
+              and err_doc["observation_bytes"] == 25 and err_doc["diagnostics"] == [])
+
+
+def check_env_model(rep: Report):
+    emap = entry_map()
+    bad = []
+    for ident in O5_ENV_IDS:
+        e = emap[ident]
+        try:
+            app.parse_env(bytes.fromhex(e["env_hex"]))
+            bad.append(ident + ": accepted")
+        except app.EnvError as exc:
+            if exc.reason != e["expected"]["reason"]:
+                bad.append(f"{ident}: {exc.reason}")
+        pos = app.parse_env(bytes.fromhex(e["env_positive_hex"]))
+        run = app.run_echo(pos)
+        if (run.events != [e["positive_event"]] or run.observation_bytes != 23 or run.kind != "ok"
+                or run.stdout != []):
+            bad.append(ident + ": positive")
+    rep.check("env.rows_E01_E06", not bad, "; ".join(bad))
+    e6 = emap["E06"]
+    rep.check("env.E06_bytes", bytes.fromhex(e6["env_hex"]).replace(b"\xc3\x28", b"\xc3\xa9")
+              == bytes.fromhex(e6["env_positive_hex"]) and bytes.fromhex(e6["env_hex"]).count(b"\xc3\x28") == 1)
+    e7 = app.run_echo(app.parse_env(bytes.fromhex(emap["E07"]["env_hex"])))
+    rep.check("env.E07_control", e7.kind == "err" and e7.error == 70 and e7.events == ["read_line:err:70"]
+              and e7.observation_bytes == 25 and e7.exit == 1)
+    a08 = app.run_a08(app.parse_env(bytes.fromhex(emap["A08"]["env_hex"])))
+    x = emap["A08"]["expected"]
+    rep.check("env.A08", a08.stdout == x["stdout"] and a08.events == x["events"] and a08.exit == 0
+              and a08.observation_bytes == 26)
+    # the whole environment is validated, also after EOF (K 10.6)
+    after_eof = (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],'
+                 b'"mock_reply":[],"console_read_line":[{"ok":null},{"ok":7}],"console_println":[]}')
+    try:
+        app.parse_env(after_eof)
+        rep.check("env.validated_after_eof", False, "accepted")
+    except app.EnvError as exc:
+        rep.check("env.validated_after_eof", exc.reason == "invalid_mock_schema")
+    pairs = [
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[],"console_println":[]}', None),
+        (b' { "console_println" : [ ] , "console_read_line" : [ { "ok" : "\\u00e9" } ] , "schema_version" : 2 ,'
+         b' "mock_reply":[],"mock_request":[],"mock_write_i64":[],"mock_read_records":[] } \n', None),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[{"ok":"\\ud83d\\ude42\\/"}],"console_println":[]}', None),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[{"err":"-9223372036854775808"},{"err":"0"}],"console_println":[{"err":"9"}]}', None),
+        (b'{"schema_version":1,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[],"console_println":[]}', "invalid_mock_schema"),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[]}', "invalid_mock_schema"),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[],"console_println":[],"x":1}', "invalid_mock_schema"),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[{"err":"+1"}],"console_println":[]}', "invalid_mock_schema"),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[],"console_println":[{"ok":"x"}]}', "invalid_mock_schema"),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[{"ok":"a","err":"1"}],"console_println":[]}', "invalid_mock_schema"),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[{"ok":"\\ude42"}],"console_println":[]}', "invalid_mock_json"),
+        (b'{"schema_version":2,"mock_read_records":[],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+         b'"console_read_line":[{"ok":"\\ud83dx"}],"console_println":[]}', "invalid_mock_json"),
+        (b'{"schema_version":2,', "invalid_mock_json"),
+        (b"", "invalid_mock_json"),
+        (b"[]", "invalid_mock_schema"),
+        (b'{"schema_version":2} x', "invalid_mock_json"),
+        (b'{"schema_version":02}', "invalid_mock_json"),
+        (b"\xef\xbb\xbf{}", "invalid_mock_json"),
+    ]
+    bad = []
+    for n, (data, want) in enumerate(pairs):
+        try:
+            app.parse_env(data)
+            got = None
+        except app.EnvError as exc:
+            got = exc.reason
+        if got != want:
+            bad.append(f"{n}: {got} != {want}")
+    rep.check("env.parser_pairs", not bad, "; ".join(bad))
+    gaps = [b'{"a":1,"a":2}', b'{"a":"x\ty"}',
+            b'{"a":' + b"[" * 17 + b"]" * 17 + b"}",
+            b'{"schema_version":2,"mock_read_records":[1],"mock_write_i64":[],"mock_request":[],"mock_reply":[],'
+            b'"console_read_line":[],"console_println":[]}']
+    not_gap = []
+    for n, data in enumerate(gaps):
+        try:
+            app.parse_env(data)
+            not_gap.append(n)
+        except app.ModelGap:
+            pass
+        except app.EnvError:
+            not_gap.append(n)
+    rep.check("env.unfixed_cases_are_gaps", not not_gap, str(not_gap))
+    canon = [("0", True), ("-1", True), ("9223372036854775807", True), ("-9223372036854775808", True),
+             ("9223372036854775808", False), ("-9223372036854775809", False), ("+1", False), ("007", False),
+             ("-0", False), ("", False), ("-", False), ("1 ", False), ("1.0", False), (5, False)]
+    rep.check("env.canonical_i64", all(app.canonical_i64(t) == w for t, w in canon),
+              str([t for t, w in canon if app.canonical_i64(t) != w]))
+    rng = random.Random("f4o-selftest-env")
+    bad = []
+    for _ in range(300):
+        env, _shape = app.random_env(rng)
+        data = app.env_bytes(env, rng)
+        back = app.parse_env(data)
+        if back.reads != env.reads or back.writes != env.writes:
+            bad.append(data[:60])
+    rep.check("env.roundtrip_with_layouts", not bad, str(bad[:2]))
+    reasons = {}
+    for name in app.SCHEMA_FAULTS + app.JSON_FAULTS:
+        for k in range(12):
+            r2 = random.Random("%s/%d" % (name, k))
+            try:
+                data = app.fault_env(r2, name)
+                app.parse_env(data)
+                got = "accepted"
+            except app.EnvError as exc:
+                got = exc.reason
+            except app.ModelGap:
+                got = "gap"
+            if got != app.FAULT_REASON[name]:
+                reasons.setdefault(name, set()).add(got)
+    rep.check("env.fault_families_reasons", not reasons, str(reasons)[:300])
+
+
+def _program_for(spec):
+    """Model program of a straight-line recipe: ``spec`` is a list of ("lit", text) / ("copy", index)."""
+    stmts, names = [], []
+    for k, item in enumerate(spec):
+        names.append("v%d" % k)
+        stmts.append(LET(names[-1], S(item[1]) if item[0] == "lit" else N(names[item[1]])))
+    return prog(main(*stmts)), stmts
+
+
+def check_charges_against_model(rep: Report):
+    """The closed-form accounting of ``charges`` agrees with the evaluator of ``model`` on random
+    straight-line programs (K 8.2: the three quotas, their order and the ``observed`` values)."""
+    rng = random.Random("f4o-selftest-charges")
+    bad, faults = [], 0
+    for n in range(300):
+        spec, ops, sizes = [], [], []
+        for k in range(rng.randint(1, 6)):
+            if sizes and rng.random() < 0.4:
+                j = rng.randrange(len(sizes))
+                spec.append(("copy", j))
+                ops.append(("copy", j, k))
+                sizes.append(sizes[j])
+            else:
+                text = "".join(rng.choice(["a", "b", "é", "\U0001f642"]) for _ in range(rng.randint(0, 6)))
+                spec.append(("lit", text))
+                n_b = len(utf8ref.text(text))
+                ops.append(("lit", n_b, k))
+                sizes.append(n_b)
+        limits = {"string_bytes": rng.randint(1, 14), "live_text_bytes": rng.randint(4, 40),
+                  "text_allocations": rng.randint(1, 7)}
+        st = charges.account(ops, dict(limits, nominal_members=16384))
+        program, stmts = _program_for(spec)
+        _, out, fault = m.run_program(program, "q.n", limits)
+        got = out.fault
+        if st.fault is None:
+            if got is not None:
+                bad.append(f"{n}: model faults")
+            continue
+        faults += 1
+        node = stmts[st.fault.span].init
+        if (got is None or got.data["runtime_budget_kind"] != st.fault.quota
+                or got.data["limit"] != st.fault.limit or got.data["observed"] != st.fault.observed
+                or got.key[0] is not node):
+            bad.append(f"{n}: {st.fault.quota} {st.fault.observed} vs {got and got.data}")
+    rep.check("charges.matches_model_random", not bad and faults > 60, f"{faults} {bad[:2]}")
+    # the loop closed form agrees with the unrolled program
+    bad = []
+    for count in range(1, 6):
+        for per in (1, 2, 3):
+            for limit in (2, 3, 5, 7):
+                ops = [("loop", count, [("lit", 0, k) for k in range(per)])]
+                st = charges.account(ops, dict(charges.NORMAL, text_allocations=limit))
+                spec = [("lit", "") for _ in range(count * per)]
+                program, _ = _program_for(spec)
+                _, out, _f = m.run_program(program, "q.n", {"text_allocations": limit})
+                got_fault = out.fault
+                # unrolled strings stay alive, but they are empty: only text_allocations can fire
+                same = ((st.fault is None) == (got_fault is None)
+                        and (st.fault is None or (got_fault.data["observed"] == st.fault.observed
+                                                  and got_fault.data["runtime_budget_kind"] == st.fault.quota)))
+                if not same:
+                    bad.append(f"{count}/{per}/{limit}")
+    rep.check("charges.loop_matches_unrolled_model", not bad, ", ".join(bad[:5]))
+    # nominal_members against the checker of model (reduced and normal limits)
+    bad = []
+    for profile, (pid, limit) in [(p, v) for p, v in charges.REDUCED.items() if p == "nominal_members"]:
+        for count in range(0, 6):
+            rec = charges.r_members(random.Random(count), count, pid)
+            fields = [("f%d" % i, "I64") for i in range(count)]
+            _, diags = m.check_program(prog(STRUCT("S", fields)), charges.FILE,
+                                       {"nominal_members": limit, "profile_id": pid})
+            exp = rec.expected["check"]["diagnostics"]
+            shape_ok = len(diags) == len(exp)
+            if diags and shape_ok:
+                for f in diagnostics.FIELDS:
+                    a, b = diags[0].get(f), exp[0].get(f)
+                    if f == "primary_span":
+                        continue  # the name prefix differs (the recipe draws it); spans are checked below
+                    shape_ok = shape_ok and a == b
+            if not shape_ok:
+                bad.append(count)
+    rep.check("charges.members_matches_model", not bad, str(bad))
+
+
+def check_q_recipes(rep: Report, final: bool):
+    """Every recipe reaches its target quota first (K 8.3) and the K figures are met."""
+    bad_first, bad_boundary, names = [], [], set()
+    for seed in (0, 1, 7, 31):
+        for r in charges.recipes(seed, final):
+            lim = charges.limits_of(r.profile)
+            occ = r.occupancy
+            names.add(r.name)
+            run_doc = r.expected["run"] if "run" in r.expected else r.expected["check"]
+            diags = run_doc["diagnostics"]
+            if r.target is None:
+                if diags or any(occ[q] > lim[q] for q in lim):
+                    bad_first.append(f"{r.name}/{seed}: passing recipe over a limit")
+            else:
+                d = diags[0]["data"]
+                q = d.get("runtime_budget_kind") or d.get("budget_kind")
+                if q != r.target or d["observed"] <= d["limit"] or d["limit"] != lim[q]:
+                    bad_first.append(f"{r.name}/{seed}: {q}")
+                others = [o for o in lim if o != q and occ[o] > lim[o]]
+                if others:
+                    bad_first.append(f"{r.name}/{seed}: {others} exceeded before the target")
+                if q in ("text_allocations", "nominal_members") and d["observed"] != d["limit"] + 1:
+                    bad_first.append(f"{r.name}/{seed}: observed {d['observed']} is not limit+1")
+    rep.check("Q.target_quota_first" + (".final" if final else ""), not bad_first, "; ".join(bad_first[:4]))
+    if final:
+        long_ones = [r for r in charges.recipes(0, True) if r.long]
+        got = {(r.name, r.target) for r in long_ones}
+        rep.check("Q.final_recipes_of_K83",
+                  {("string_literal", "string_bytes"), ("live_chain", "live_text_bytes"),
+                   ("alloc_loop", "text_allocations"), ("members", "nominal_members")} <= got, str(got))
+        five = charges.r_live_chain(random.Random(1), 60000, 4)
+        d = five.expected["run"]["diagnostics"][0]["data"]
+        rep.check("Q.five_strings_of_60000", d["observed"] == 300000 and d["limit"] == 262144
+                  and five.occupancy["live_text_bytes"] == 240000 and d["runtime_budget_kind"] == "live_text_bytes")
+        for count, observed in ((4097, 4097),):
+            r = charges.r_alloc_loop(random.Random(2), count, 1)
+            dd = r.expected["run"]["diagnostics"][0]["data"]
+            rep.check("Q.alloc_4097", dd["observed"] == observed and dd["limit"] == 4096)
+        big = charges.r_string_literal(random.Random(3), 65537)
+        sp = big.expected["run"]["diagnostics"][0]["primary_span"]
+        rep.check("Q.literal_65537", sp["start"] == 16 and sp["end"] == 16 + 65537 + 2
+                  and big.expected["run"]["diagnostics"][0]["data"]["observed"] == 65537)
+        mem = charges.r_members(random.Random(4), 16385)
+        dm = mem.expected["check"]["diagnostics"][0]
+        rep.check("Q.members_16385", dm["data"]["observed"] == 16385 and dm["data"]["limit"] == 16384
+                  and dm["code"] == "NX-E0003" and dm["stage"] == "types" and dm["operation"] == "analysis.limit")
+    else:
+        rep.check("Q.nonfinal_excludes_long", all(not r.long for r in charges.recipes(0, False)))
+        rep.check("Q.recipe_names", {"string_literal", "live_chain", "alloc_loop", "members", "string_8",
+                                     "live_16", "alloc_2"} <= names, str(names))
+        passing = {r.name: r for r in charges.recipes(1, False) if r.target is None}
+        boundary = {"string_literal": ("string_bytes", 65536), "live_chain": ("live_text_bytes", 262144),
+                    "alloc_loop": ("text_allocations", 4096), "members": ("nominal_members", 16384)}
+        for name, (q, v) in boundary.items():
+            reached = [r for r in charges.recipes(1, False) if r.name == name and r.occupancy[q] == v
+                       and r.profile == charges.PROFILE]
+            if not reached:
+                bad_boundary.append(name)
+        rep.check("Q.boundaries_reached_exactly", not bad_boundary, str(bad_boundary))
+        rep.check("Q.passing_have_no_diagnostics", bool(passing))
+
+
+def check_special_corpus(rep: Report):
+    """Classes A, E and Q: counts, minimums, determinism, record validity and family coverage."""
+    validate_record = runner.validate_record
+    bad_valid, bad_count, bad_min = [], [], []
+    e_fams, q_names, q_src = set(), set(), set()
+    for label, ph, comp, nv, ni, seeds, min_s in gen_labels():
+        if label not in ("G9", "G10"):
+            continue
+        for seed in seeds:
+            recs = list(_special(seed, ph, comp, nv, ni, False))
+            for r in recs:
+                try:
+                    validate_record(r)
+                except runner.HarnessError as exc:
+                    bad_valid.append(str(exc)[:80])
+            a = [r for r in recs if r["fclass"] == "A"]
+            e = [r for r in recs if r["fclass"] == "E"]
+            q = [r for r in recs if r["fclass"] == "Q"]
+            if len(a) != nv // 10 or len({r["distinct"] for r in a}) != len(a):
+                bad_count.append(f"{label}/{seed}: A {len(a)}")
+            if len(e) != ni // 25 or len({r["distinct"] for r in e}) != len(e):
+                bad_count.append(f"{label}/{seed}: E {len(e)}")
+            need = 30 if label == "G9" else 50
+            if len({r["structural"] for r in a}) < need:
+                bad_min.append(f"{label}/{seed}: A structural {len({r['structural'] for r in a})}<{need}")
+            e_fams |= {r["family"] for r in e}
+            q_names |= {r["family"] for r in q}
+            if label == "G9":
+                q_src |= {r["distinct"] for r in q}
+    rep.check("corpus.AEQ.records_valid", not bad_valid, "; ".join(bad_valid[:3]))
+    rep.check("corpus.AEQ.counts_and_distinct", not bad_count, "; ".join(bad_count[:3]))
+    rep.check("corpus.A.structural_minimums", not bad_min, "; ".join(bad_min[:3]))
+    want = {"env_" + n for n in app.SCHEMA_FAULTS + app.JSON_FAULTS} | {"env_valid"}
+    rep.check("corpus.E.fault_families_covered", want <= e_fams, str(sorted(want - e_fams))[:200])
+    rep.check("corpus.Q.variants_at_least_120", len(q_src) >= 120, str(len(q_src)))
+    rep.check("corpus.Q.families", {"q_string_literal", "q_live_chain", "q_alloc_loop", "q_members"} <= q_names,
+              str(sorted(q_names)))
+    a1 = app.special_records(3, "G9", barrier.ALL_K, 500, 500, False)
+    a2 = app.special_records(3, "G9", barrier.ALL_K, 500, 500, False)
+    rep.check("corpus.AEQ.deterministic", gen.corpus_sha(a1) == gen.corpus_sha(a2) and len(a1) > 100
+              and gen.corpus_sha(a1) != gen.corpus_sha(app.special_records(4, "G9", barrier.ALL_K, 500, 500, False)))
+    rep.check("corpus.AEQ.needs_K10", app.special_records(0, "G8", barrier.PHASES["G8"][0], 500, 500, False) == []
+              and app.special_records(0, "G9", barrier.PHASES["G9"][0], 50, 50, False) != [])
+    # expected values re-derived from the environment bytes (serialisation and parsing are inverse)
+    bad = []
+    for r in a1:
+        if r["fclass"] == "A":
+            again = app.run_app(app.parse_env(bytes.fromhex(r["env_hex"])))
+            if again.doc() != r["expected"]["run"]:
+                bad.append(r["index"])
+        elif r["fclass"] == "E" and r["family"] == "env_valid":
+            again = app.run_echo(app.parse_env(bytes.fromhex(r["env_hex"])))
+            if again.doc() != r["expected"]["run"]:
+                bad.append(r["index"])
+        elif r["fclass"] == "E":
+            try:
+                app.parse_env(bytes.fromhex(r["env_hex"]))
+                bad.append(r["index"])
+            except app.EnvError as exc:
+                if r["expected"]["run"] != app.controller_doc(exc.reason):
+                    bad.append(r["index"])
+    rep.check("corpus.AE.expected_rederived_from_env", not bad, str(bad[:4]))
+    outcomes = {r["expected"]["run"]["outcome"]["kind"] for r in a1 if r["fclass"] == "A"}
+    rep.check("corpus.A.outcome_variety", outcomes == {"ok", "err"}, str(outcomes))
+
+
+@functools.lru_cache(maxsize=None)
+def _special(seed, ph, comp, nv, ni, final) -> tuple:
+    return tuple(app.special_records(seed, ph, tuple(comp), nv, ni, final))
+
+
+def special_entries() -> dict:
+    """Pinned SHA-256 of classes A, E and Q (labels G9, G10 and, final recipes only, G10F)."""
+    table = {}
+    for label, ph, comp, nv, ni, seeds, _ in gen_labels():
+        if label not in ("G9", "G10"):
+            continue
+        for seed in seeds:
+            recs = _special(seed, ph, comp, nv, ni, False)
+            for c in "AEQ":
+                table[f"{label}|{seed}|{c}"] = gen.corpus_sha(recs, c)
+    for seed in G10_SEEDS:
+        recs = _special(seed, "G10", barrier.PHASES["G10"][0], 1000, 1000, True)
+        table[f"G10F|{seed}|Q"] = gen.corpus_sha(recs, "Q")
+    return table
+
+
+def run_g9(rep: Report):
+    check_app_rows(rep)
+    check_app_cases(rep)
+    check_env_model(rep)
+    check_charges_against_model(rep)
+    check_q_recipes(rep, False)
+    check_o5_literal_records(rep)
+
+
+def run_g10(rep: Report):
+    check_q_recipes(rep, True)
+    check_special_corpus(rep)
+    matrix = matrix_report()
+    rep.check("G10.matrix_C01_C11", sorted(matrix) == ["C%02d" % i for i in range(1, 12)]
+              and all(v["status"] in ("PASA", "NO EVALUADO", "PARCIAL") and v["note"] for v in matrix.values()))
+
+
+def check_o5_literal_records(rep: Report):
+    validate_record = runner.validate_record
+    recs = o5_literal_records(0)
+    bad = []
+    for r in recs:
+        try:
+            validate_record(r)
+        except runner.HarnessError as exc:
+            bad.append(str(exc)[:80])
+    rep.check("G9.literal_records_valid", not bad and len(recs) == 6 * 2 + 2 + 13 + 5 * 2, f"{len(recs)} {bad[:2]}")
+    fams = {r["family"] for r in recs}
+    rep.check("G9.literal_records_rows",
+              {"row:" + i for i in O5_ENV_IDS + O5_APP_IDS + O5_Q_IDS + ["E07", "A08"]} <= fams)
+    test_profiles = {r["profile_id"] for r in recs if r["profile_id"] != PROFILE}
+    rep.check("G9.literal_records_test_profiles", test_profiles == {
+        "f0-0004-b-test-string-8-v1", "f0-0004-b-test-text-live-16-v1", "f0-0004-b-test-text-alloc-2-v1",
+        "f0-0004-b-test-members-2-v1"}, str(test_profiles))
+    ctl = [r for r in recs if r["family"] in ("row:E01", "row:E05") and r["role"] == "literal"]
+    rep.check("G9.controller_expected_partial",
+              all(r["expected"]["run"] == {"exit": 2, "outcome": {"kind": "driver_error", "reason": r2}}
+                  for r, r2 in zip(ctl, ("invalid_mock_schema", "invalid_mock_json"))))
+    # every Q row: the closed form of charges reaches the same diagnostic as the row (X24-X26, O13)
+    emap = entry_map()
+    for ident, (profile, ops_spec) in {
+            "X24": ("f0-0004-b-test-string-8-v1", [("lit", 9)]),
+            "X25": ("f0-0004-b-test-text-live-16-v1", [("lit", 8), ("lit", 8), ("lit", 1)]),
+            "X26": ("f0-0004-b-test-text-alloc-2-v1", [("lit", 0), ("lit", 0), ("lit", 0)])}.items():
+        ops = [(k, n, i) for i, (k, n) in enumerate(ops_spec)]
+        st = charges.account(ops, charges.limits_of(profile))
+        want = emap[ident]["expected"]["data"]
+        rep.check(f"Q.{ident}.closed_form", st.fault is not None and st.fault.quota == want["runtime_budget_kind"]
+                  and st.fault.limit == want["limit"] and st.fault.observed == want["observed"])
+
+
+# ---- harness over the O5 classes with the fictitious executables
+
+def check_g9_harness(rep: Report, world: "MockWorld"):
+    recs = (app.app_records(0, 6) + app.env_records(0, 8) + charges.q_records(0, False))
+    sample = [r for r in recs if r["fclass"] == "A"][:4]
+    sample += [r for r in recs if r["fclass"] == "E" and r["family"] == "env_valid"][:1]
+    sample += [r for r in recs if r["fclass"] == "E" and r["family"] != "env_valid"][:2]
+    sample += [r for r in recs if r["fclass"] == "Q" and r["profile_id"] != PROFILE][:3]
+    sample += [r for r in recs if r["fclass"] == "Q" and r["profile_id"] == PROFILE and
+               r["expected"]["fields"]][:1]
+    sample += [r for r in o5_literal_records(0) if r["family"] in ("row:E05", "row:APP-V05", "row:X25")]
+    code, lines = world.run(sample)
+    summary = _summary(lines)
+    rep.check("G9.harness.faithful_exit0", code == 0 and not _findings(lines) and summary["records"] == len(sample),
+              str(code) + str(_findings(lines)[:1])[:200])
+    err = next(r for r in sample if r["fclass"] == "A" and r["expected"]["run"]["outcome"]["kind"] == "err")
+    ok = next(r for r in sample if r["fclass"] == "A" and r["expected"]["run"]["outcome"]["kind"] == "ok")
+    ctl = next(r for r in sample if r["fclass"] == "E" and r["family"] != "env_valid")
+    for name, target, must in [("exit", ok, True), ("outcome_kind", ok, True), ("outcome_value", err, True),
+                               ("stdout", ok, True), ("events", ok, True), ("observations", ok, True),
+                               ("observation_bytes", ok, True), ("reserved_observation_bytes", ok, True),
+                               ("debug_release", ok, True), ("check_run", ok, True),
+                               ("exit", ctl, True), ("outcome_kind", ctl, True), ("outcome_value", ctl, True),
+                               ("exit", err, True)]:
+        code, lines = world.run([target], corrupt=name)
+        rep.check(f"G9.harness.corruption.{name}.{target['fclass']}", (code != 0) == must, f"exit {code}")
+    # the same source with two environments is answered per environment by the mock
+    two = [ok, err]
+    code, lines = world.run(two)
+    rep.check("G9.harness.same_source_two_envs", code == 0 and ok["source_hex"] == err["source_hex"], str(code))
+    # an expected record without its hash is refused
+    broken = dict(ok)
+    broken.pop("expected_sha256")
+    try:
+        code, _ = world.run([broken])
+    except runner.HarnessError:
+        code = 2
+    rep.check("G9.harness.record_without_hash_refused", code == 2)
+    # a reduced profile other than the K 8.3 prefix is refused
+    foreign = dict(next(r for r in sample if r["fclass"] == "Q" and r["profile_id"] != PROFILE),
+                   profile_id="f0-0002-v2")
+    try:
+        code, _ = world.run([foreign])
+    except runner.HarnessError:
+        code = 2
+    rep.check("G9.harness.foreign_profile_refused", code == 2)
+
+
+MATRIX = {
+    "C01": ("PARCIAL", "Literales de K 10.1 y la clase L (G0) alcanzan su regla con offsets en bytes sobre texto multibyte; "
+                       "NO EVALUADO: parse-print-parse (la CLI no expone el AST ni el impresor)."),
+    "C02": ("PASA", "utf8ref, T01-T14 y las 4 filas con use std.parse, familias V de String, O01-O04/O10/O11, "
+                    "matriz de tamanos y escalares de K 12.2; ninguna normalizacion."),
+    "C03": ("PASA", "X05-X10, X21, X27, N03/N04, P02/P05/P06, clase N de nominales, constructores y SCC."),
+    "C04": ("PARCIAL", "X11, N05-N08, M04, O09, A05, A06 y las familias de propiedad; NO EVALUADO: conteo de "
+                       "cierres por adquisicion comprometida en programas generados con recursos."),
+    "C05": ("PARCIAL", "X23, N09 y familias no_alloc (literal, copia, Concat); NO EVALUADO: no_io de Print/ReadLine/"
+                       "Println y destructores transitivos (K no da fila literal ni diagnostico fijo)."),
+    "C06": ("PASA", "M01-M03, H12, H13, H12-edit, H13-move, P01, N01/N02, H11."),
+    "C07": ("NO EVALUADO", "El verificador de IR y el acceso publico sin verificar no son observables por la CLI."),
+    "C08": ("PARCIAL", "E01-E07, A08 y la clase E (35 familias de fallo del controlador, entornos validos) con "
+                       "colas, eventos y bytes; NO EVALUADO: igualdad text/json (el oraculo compara solo JSON) y "
+                       "agotamiento de cuota sin consumo de cola."),
+    "C09": ("PARCIAL", "Recetas Q (L-1/L/L+1) en perfiles normales y los cuatro reducidos, X24-X27, O13, "
+                       "fuzz sin panico; NO EVALUADO: perfiles reducidos de F5 y pilas de 256/512 KiB."),
+    "C10": ("PASA", "A01-A08, aplicacion de K 11 con sus once variantes, el lote de cien lineas y entornos "
+                    "aleatorios (clase A); sin deteccion por fuente."),
+    "C11": ("NO EVALUADO", "Las regresiones de A2, F0-0003 y F0-0005 son de otras suites; el oraculo exige "
+                           "perfil explicito y no toca la base."),
+}
+
+
+def matrix_report() -> dict:
+    return {k: {"status": s, "note": n} for k, (s, n) in MATRIX.items()}
+
+
 GROUPS = {"G0": run_g0, "G1": _rows_group("G1"), "G2": lambda rep: (run_model_basics(rep), _rows_group("G2")(rep)),
           "G3": lambda rep: (_rows_group("G3")(rep), run_scc_variants(rep)),
           "G4": _rows_group("G4"), "G5": _rows_group("G5"), "G6": _rows_group("G6"),
           "G7": _rows_group("G7"), "G8": lambda rep: (_rows_group("G8")(rep), run_semantics_extras(rep)),
-          "GEN": run_gen}
+          "G9": run_g9, "G10": run_g10, "GEN": run_gen}
 
 
 def run(fast: bool = False, groups=None) -> int:

@@ -146,6 +146,10 @@ def main():
     with open(source, "rb") as handle:
         key = hashlib.sha256(handle.read()).hexdigest()
     entry = table["sources"].get(key)
+    if "--mock-env" in argv:
+        with open(argv[argv.index("--mock-env") + 1], "rb") as handle:
+            env_key = key + ":" + hashlib.sha256(handle.read()).hexdigest()
+        entry = table["sources"].get(env_key, entry)
     if entry is not None and verb in entry:
         doc = json.loads(json.dumps(entry[verb]))
     elif table.get("fuzz"):

@@ -6461,6 +6461,1239 @@
    ],
    "id": "U01",
    "source": "gen fn G(){}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),None);}"
+  },
+  {
+   "anchor": "K §11",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a223132227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "read_line:ok:2",
+     "read_line:ok:0",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:eof",
+     "println:ok:23",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:49"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "observation_bytes": 320,
+    "observations": [
+     [
+      "event",
+      "read_line:ok:2"
+     ],
+     [
+      "event",
+      "read_line:ok:0"
+     ],
+     [
+      "event",
+      "read_line:ok:1"
+     ],
+     [
+      "event",
+      "read_line:ok:1"
+     ],
+     [
+      "event",
+      "read_line:eof"
+     ],
+     [
+      "event",
+      "println:ok:23"
+     ],
+     [
+      "stdout",
+      "L1: 12 EUR => 1306 cent"
+     ],
+     [
+      "event",
+      "println:ok:21"
+     ],
+     [
+      "stdout",
+      "L3: 8 EUR => 968 cent"
+     ],
+     [
+      "event",
+      "println:ok:21"
+     ],
+     [
+      "stdout",
+      "L4: 5 EUR => 605 cent"
+     ],
+     [
+      "event",
+      "println:ok:49"
+     ],
+     [
+      "stdout",
+      "Registros: 3; total: 28 EUR y 79 cent; media: 959"
+     ]
+    ],
+    "outcome": "ok",
+    "reserved_observation_bytes": 0,
+    "stdout": [
+     "L1: 12 EUR => 1306 cent",
+     "L3: 8 EUR => 968 cent",
+     "L4: 5 EUR => 605 cent",
+     "Registros: 3; total: 28 EUR y 79 cent; media: 959"
+    ]
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Stdout exacto"
+     },
+     "section": "11",
+     "text": "L1: 12 EUR => 1306 cent\nL3: 8 EUR => 968 cent\nL4: 5 EUR => 605 cent\nRegistros: 3; total: 28 EUR y 79 cent; media: 959"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Cálculo del importe"
+     },
+     "section": "11",
+     "text": "Cálculo del importe: 12×100×90/100=1080, IVA=1080×21/100=226, resultado 1306; 8×100+800×21/100=968; 5×100+500×21/100=605. Total=2879; cociente/resto por 100=28/79; media=2879/3=959. Las divisiones truncan hacia cero."
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 1
+     },
+     "section": "11",
+     "text": "| event `read_line:ok:2` | 14 | 23 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 2
+     },
+     "section": "11",
+     "text": "| event `read_line:ok:0` | 14 | 23 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 3
+     },
+     "section": "11",
+     "text": "| event `read_line:ok:1` | 14 | 23 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 4
+     },
+     "section": "11",
+     "text": "| event `read_line:ok:1` | 14 | 23 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 5
+     },
+     "section": "11",
+     "text": "| event `read_line:eof` | 13 | 22 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 6
+     },
+     "section": "11",
+     "text": "| event `println:ok:23` | 13 | 22 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 7
+     },
+     "section": "11",
+     "text": "| stdout `L1: 12 EUR => 1306 cent` | 23 | 24 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 8
+     },
+     "section": "11",
+     "text": "| event `println:ok:21` | 13 | 22 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 9
+     },
+     "section": "11",
+     "text": "| stdout `L3: 8 EUR => 968 cent` | 21 | 22 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 10
+     },
+     "section": "11",
+     "text": "| event `println:ok:21` | 13 | 22 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 11
+     },
+     "section": "11",
+     "text": "| stdout `L4: 5 EUR => 605 cent` | 21 | 22 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 12
+     },
+     "section": "11",
+     "text": "| event `println:ok:49` | 13 | 22 |"
+    },
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 13
+     },
+     "section": "11",
+     "text": "| stdout `Registros: 3; total: 28 EUR y 79 cent; media: 959` | 49 | 50 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Cada evento suma los ocho bytes ASCII"
+     },
+     "section": "11",
+     "text": "Cada evento suma los ocho bytes ASCII de `mock-io:` y un LF; stdout añade solo LF. Las proyecciones events/stdout preservan el orden de esta tabla. Outcome `{\"kind\":\"ok\"}`, diagnostics=[], exit 0, observation_bytes=320 (202 de eventos y 118 de stdout), reserved_observation_bytes=0. No se fija un total de ticks de esta aplicación: cada cargo se rige por A2/J/F5 y §8, sin calibrarlo a la ejecución. Sí se fijan los bytes y las trazas completos; el lote debe caber en el perfil normal."
+    }
+   ],
+   "id": "APP",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 Cambiar 8 por 18",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a223132227d2c7b226f6b223a22227d2c7b226f6b223a223138227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "read_line:ok:2",
+     "read_line:ok:0",
+     "read_line:ok:2",
+     "read_line:ok:1",
+     "read_line:eof",
+     "println:ok:23",
+     "println:ok:23",
+     "println:ok:21",
+     "println:ok:50"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "observation_bytes": 323,
+    "outcome": "ok",
+    "reserved_observation_bytes": 0,
+    "stdout": [
+     "L1: 12 EUR => 1306 cent",
+     "L3: 18 EUR => 1960 cent",
+     "L4: 5 EUR => 605 cent",
+     "Registros: 3; total: 38 EUR y 71 cent; media: 1290"
+    ]
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| Cambiar 8 por 18 |"
+     },
+     "section": "11",
+     "text": "| Cambiar 8 por 18 | `read_line:ok:2`, `read_line:ok:0`, `read_line:ok:2`, `read_line:ok:1`, `read_line:eof`, `println:ok:23`, `println:ok:23`, `println:ok:21`, `println:ok:50` | `[\"L1: 12 EUR => 1306 cent\",\"L3: 18 EUR => 1960 cent\",\"L4: 5 EUR => 605 cent\",\"Registros: 3; total: 38 EUR y 71 cent; media: 1290\"]` | Ok; 323 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V01",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 EOF como primera respuesta",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "read_line:eof",
+     "println:ok:45"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "observation_bytes": 90,
+    "outcome": "ok",
+    "reserved_observation_bytes": 0,
+    "stdout": [
+     "Registros: 0; total: 0 EUR y 0 cent; media: 0"
+    ]
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| EOF como primera respuesta |"
+     },
+     "section": "11",
+     "text": "| EOF como primera respuesta | `read_line:eof`, `println:ok:45` | `[\"Registros: 0; total: 0 EUR y 0 cent; media: 0\"]` | Ok; 90 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V02",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 fin como primera línea",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a2266696e227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "read_line:ok:3",
+     "println:ok:45"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "observation_bytes": 91,
+    "outcome": "ok",
+    "reserved_observation_bytes": 0,
+    "stdout": [
+     "Registros: 0; total: 0 EUR y 0 cent; media: 0"
+    ]
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| fin como primera línea |"
+     },
+     "section": "11",
+     "text": "| fin como primera línea | `read_line:ok:3`, `println:ok:45` | `[\"Registros: 0; total: 0 EUR y 0 cent; media: 0\"]` | Ok; 91 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V03",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 x como primera línea",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a2278227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": -9101,
+    "events": [
+     "read_line:ok:1"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 23,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": []
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| x como primera línea |"
+     },
+     "section": "11",
+     "text": "| x como primera línea | `read_line:ok:1` | `[]` | Err(-9101); 23 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V04",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 Primera lectura Err(70)",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b22657272223a223730227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": 70,
+    "events": [
+     "read_line:err:70"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 25,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": []
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| Primera lectura Err(70) |"
+     },
+     "section": "11",
+     "text": "| Primera lectura Err(70) | `read_line:err:70` | `[]` | Err(70); 25 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V05",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 Cambiar 8 por -8",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a223132227d2c7b226f6b223a22227d2c7b226f6b223a222d38227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": 42,
+    "events": [
+     "read_line:ok:2",
+     "read_line:ok:0",
+     "read_line:ok:2"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 69,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": []
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| Cambiar 8 por -8 |"
+     },
+     "section": "11",
+     "text": "| Cambiar 8 por -8 | `read_line:ok:2`, `read_line:ok:0`, `read_line:ok:2` | `[]` | Err(42); 69 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V06",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 10001 como primera línea",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a223130303031227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": 42,
+    "events": [
+     "read_line:ok:5"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 23,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": []
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| 10001 como primera línea |"
+     },
+     "section": "11",
+     "text": "| 10001 como primera línea | `read_line:ok:5` | `[]` | Err(42); 23 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V07",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 9223372036854775808 como primera línea",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a2239323233333732303336383534373735383038227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": -9102,
+    "events": [
+     "read_line:ok:19"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 24,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": []
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| 9223372036854775808 como primera línea |"
+     },
+     "section": "11",
+     "text": "| 9223372036854775808 como primera línea | `read_line:ok:19` | `[]` | Err(-9102); 24 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V08",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 Primera escritura Err(71)",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a223132227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b22657272223a223731227d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": 71,
+    "events": [
+     "read_line:ok:2",
+     "read_line:ok:0",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:eof",
+     "println:err:71"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 137,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": []
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| Primera escritura Err(71) |"
+     },
+     "section": "11",
+     "text": "| Primera escritura Err(71) | `read_line:ok:2`, `read_line:ok:0`, `read_line:ok:1`, `read_line:ok:1`, `read_line:eof`, `println:err:71` | `[]` | Err(71); 137 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V09",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 Segunda escritura Err(71)",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a223132227d2c7b226f6b223a22227d2c7b226f6b223a2238227d2c7b226f6b223a2235227d2c7b226f6b223a6e756c6c7d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b22657272223a223731227d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": 71,
+    "events": [
+     "read_line:ok:2",
+     "read_line:ok:0",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:eof",
+     "println:ok:23",
+     "println:err:71"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 183,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": [
+     "L1: 12 EUR => 1306 cent"
+    ]
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| Segunda escritura Err(71) |"
+     },
+     "section": "11",
+     "text": "| Segunda escritura Err(71) | `read_line:ok:2`, `read_line:ok:0`, `read_line:ok:1`, `read_line:ok:1`, `read_line:eof`, `println:ok:23`, `println:err:71` | `[\"L1: 12 EUR => 1306 cent\"]` | Err(71); 183 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V10",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11 Cola de lectura vacía",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": -9000,
+    "events": [
+     "read_line:err:-9000"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "observation_bytes": 28,
+    "outcome": "err",
+    "reserved_observation_bytes": 0,
+    "stdout": []
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno completo:"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"12\"},{\"ok\":\"\"},{\"ok\":\"8\"},{\"ok\":\"5\"},{\"ok\":null}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "| Cola de lectura vacía |"
+     },
+     "section": "11",
+     "text": "| Cola de lectura vacía | `read_line:err:-9000` | `[]` | Err(-9000); 28 |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes siguientes conservan fuente"
+     },
+     "section": "11",
+     "text": "Las variantes siguientes conservan fuente y demás respuestas. Cada secuencia enumera todos los eventos; cada println exitoso va seguido de su stdout. Todos terminan sin reservas vivas ni diagnósticos de programa; Err tipado tiene exit 1, Ok exit 0."
+    }
+   ],
+   "id": "APP-V11",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
+  },
+  {
+   "anchor": "K §11.2",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b226f6b223a2231227d2c7b22657272223a223730227d5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d2c7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "read_line:ok:1",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:21",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:22",
+     "println:ok:23",
+     "println:ok:51"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "observation_bytes": 6866,
+    "outcome": "ok",
+    "reserved_observation_bytes": 0,
+    "stdout": [
+     "L1: 1 EUR => 121 cent",
+     "L2: 1 EUR => 121 cent",
+     "L3: 1 EUR => 121 cent",
+     "L4: 1 EUR => 121 cent",
+     "L5: 1 EUR => 121 cent",
+     "L6: 1 EUR => 121 cent",
+     "L7: 1 EUR => 121 cent",
+     "L8: 1 EUR => 121 cent",
+     "L9: 1 EUR => 121 cent",
+     "L10: 1 EUR => 121 cent",
+     "L11: 1 EUR => 121 cent",
+     "L12: 1 EUR => 121 cent",
+     "L13: 1 EUR => 121 cent",
+     "L14: 1 EUR => 121 cent",
+     "L15: 1 EUR => 121 cent",
+     "L16: 1 EUR => 121 cent",
+     "L17: 1 EUR => 121 cent",
+     "L18: 1 EUR => 121 cent",
+     "L19: 1 EUR => 121 cent",
+     "L20: 1 EUR => 121 cent",
+     "L21: 1 EUR => 121 cent",
+     "L22: 1 EUR => 121 cent",
+     "L23: 1 EUR => 121 cent",
+     "L24: 1 EUR => 121 cent",
+     "L25: 1 EUR => 121 cent",
+     "L26: 1 EUR => 121 cent",
+     "L27: 1 EUR => 121 cent",
+     "L28: 1 EUR => 121 cent",
+     "L29: 1 EUR => 121 cent",
+     "L30: 1 EUR => 121 cent",
+     "L31: 1 EUR => 121 cent",
+     "L32: 1 EUR => 121 cent",
+     "L33: 1 EUR => 121 cent",
+     "L34: 1 EUR => 121 cent",
+     "L35: 1 EUR => 121 cent",
+     "L36: 1 EUR => 121 cent",
+     "L37: 1 EUR => 121 cent",
+     "L38: 1 EUR => 121 cent",
+     "L39: 1 EUR => 121 cent",
+     "L40: 1 EUR => 121 cent",
+     "L41: 1 EUR => 121 cent",
+     "L42: 1 EUR => 121 cent",
+     "L43: 1 EUR => 121 cent",
+     "L44: 1 EUR => 121 cent",
+     "L45: 1 EUR => 121 cent",
+     "L46: 1 EUR => 121 cent",
+     "L47: 1 EUR => 121 cent",
+     "L48: 1 EUR => 121 cent",
+     "L49: 1 EUR => 121 cent",
+     "L50: 1 EUR => 121 cent",
+     "L51: 1 EUR => 121 cent",
+     "L52: 1 EUR => 121 cent",
+     "L53: 1 EUR => 121 cent",
+     "L54: 1 EUR => 121 cent",
+     "L55: 1 EUR => 121 cent",
+     "L56: 1 EUR => 121 cent",
+     "L57: 1 EUR => 121 cent",
+     "L58: 1 EUR => 121 cent",
+     "L59: 1 EUR => 121 cent",
+     "L60: 1 EUR => 121 cent",
+     "L61: 1 EUR => 121 cent",
+     "L62: 1 EUR => 121 cent",
+     "L63: 1 EUR => 121 cent",
+     "L64: 1 EUR => 121 cent",
+     "L65: 1 EUR => 121 cent",
+     "L66: 1 EUR => 121 cent",
+     "L67: 1 EUR => 121 cent",
+     "L68: 1 EUR => 121 cent",
+     "L69: 1 EUR => 121 cent",
+     "L70: 1 EUR => 121 cent",
+     "L71: 1 EUR => 121 cent",
+     "L72: 1 EUR => 121 cent",
+     "L73: 1 EUR => 121 cent",
+     "L74: 1 EUR => 121 cent",
+     "L75: 1 EUR => 121 cent",
+     "L76: 1 EUR => 121 cent",
+     "L77: 1 EUR => 121 cent",
+     "L78: 1 EUR => 121 cent",
+     "L79: 1 EUR => 121 cent",
+     "L80: 1 EUR => 121 cent",
+     "L81: 1 EUR => 121 cent",
+     "L82: 1 EUR => 121 cent",
+     "L83: 1 EUR => 121 cent",
+     "L84: 1 EUR => 121 cent",
+     "L85: 1 EUR => 121 cent",
+     "L86: 1 EUR => 121 cent",
+     "L87: 1 EUR => 121 cent",
+     "L88: 1 EUR => 121 cent",
+     "L89: 1 EUR => 121 cent",
+     "L90: 1 EUR => 121 cent",
+     "L91: 1 EUR => 121 cent",
+     "L92: 1 EUR => 121 cent",
+     "L93: 1 EUR => 121 cent",
+     "L94: 1 EUR => 121 cent",
+     "L95: 1 EUR => 121 cent",
+     "L96: 1 EUR => 121 cent",
+     "L97: 1 EUR => 121 cent",
+     "L98: 1 EUR => 121 cent",
+     "L99: 1 EUR => 121 cent",
+     "L100: 1 EUR => 121 cent",
+     "Registros: 100; total: 121 EUR y 0 cent; media: 121"
+    ]
+   },
+   "file": "total-registros.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Archivo `total-registros.n`"
+     },
+     "section": "11",
+     "text": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Entorno literal completo"
+     },
+     "section": "11",
+     "text": "{\"schema_version\":2,\"mock_read_records\":[],\"mock_write_i64\":[],\"mock_request\":[],\"mock_reply\":[],\"console_read_line\":[{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"ok\":\"1\"},{\"err\":\"70\"}],\"console_println\":[{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null},{\"ok\":null}]}"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Stdout literal completo"
+     },
+     "section": "11",
+     "text": "L1: 1 EUR => 121 cent\nL2: 1 EUR => 121 cent\nL3: 1 EUR => 121 cent\nL4: 1 EUR => 121 cent\nL5: 1 EUR => 121 cent\nL6: 1 EUR => 121 cent\nL7: 1 EUR => 121 cent\nL8: 1 EUR => 121 cent\nL9: 1 EUR => 121 cent\nL10: 1 EUR => 121 cent\nL11: 1 EUR => 121 cent\nL12: 1 EUR => 121 cent\nL13: 1 EUR => 121 cent\nL14: 1 EUR => 121 cent\nL15: 1 EUR => 121 cent\nL16: 1 EUR => 121 cent\nL17: 1 EUR => 121 cent\nL18: 1 EUR => 121 cent\nL19: 1 EUR => 121 cent\nL20: 1 EUR => 121 cent\nL21: 1 EUR => 121 cent\nL22: 1 EUR => 121 cent\nL23: 1 EUR => 121 cent\nL24: 1 EUR => 121 cent\nL25: 1 EUR => 121 cent\nL26: 1 EUR => 121 cent\nL27: 1 EUR => 121 cent\nL28: 1 EUR => 121 cent\nL29: 1 EUR => 121 cent\nL30: 1 EUR => 121 cent\nL31: 1 EUR => 121 cent\nL32: 1 EUR => 121 cent\nL33: 1 EUR => 121 cent\nL34: 1 EUR => 121 cent\nL35: 1 EUR => 121 cent\nL36: 1 EUR => 121 cent\nL37: 1 EUR => 121 cent\nL38: 1 EUR => 121 cent\nL39: 1 EUR => 121 cent\nL40: 1 EUR => 121 cent\nL41: 1 EUR => 121 cent\nL42: 1 EUR => 121 cent\nL43: 1 EUR => 121 cent\nL44: 1 EUR => 121 cent\nL45: 1 EUR => 121 cent\nL46: 1 EUR => 121 cent\nL47: 1 EUR => 121 cent\nL48: 1 EUR => 121 cent\nL49: 1 EUR => 121 cent\nL50: 1 EUR => 121 cent\nL51: 1 EUR => 121 cent\nL52: 1 EUR => 121 cent\nL53: 1 EUR => 121 cent\nL54: 1 EUR => 121 cent\nL55: 1 EUR => 121 cent\nL56: 1 EUR => 121 cent\nL57: 1 EUR => 121 cent\nL58: 1 EUR => 121 cent\nL59: 1 EUR => 121 cent\nL60: 1 EUR => 121 cent\nL61: 1 EUR => 121 cent\nL62: 1 EUR => 121 cent\nL63: 1 EUR => 121 cent\nL64: 1 EUR => 121 cent\nL65: 1 EUR => 121 cent\nL66: 1 EUR => 121 cent\nL67: 1 EUR => 121 cent\nL68: 1 EUR => 121 cent\nL69: 1 EUR => 121 cent\nL70: 1 EUR => 121 cent\nL71: 1 EUR => 121 cent\nL72: 1 EUR => 121 cent\nL73: 1 EUR => 121 cent\nL74: 1 EUR => 121 cent\nL75: 1 EUR => 121 cent\nL76: 1 EUR => 121 cent\nL77: 1 EUR => 121 cent\nL78: 1 EUR => 121 cent\nL79: 1 EUR => 121 cent\nL80: 1 EUR => 121 cent\nL81: 1 EUR => 121 cent\nL82: 1 EUR => 121 cent\nL83: 1 EUR => 121 cent\nL84: 1 EUR => 121 cent\nL85: 1 EUR => 121 cent\nL86: 1 EUR => 121 cent\nL87: 1 EUR => 121 cent\nL88: 1 EUR => 121 cent\nL89: 1 EUR => 121 cent\nL90: 1 EUR => 121 cent\nL91: 1 EUR => 121 cent\nL92: 1 EUR => 121 cent\nL93: 1 EUR => 121 cent\nL94: 1 EUR => 121 cent\nL95: 1 EUR => 121 cent\nL96: 1 EUR => 121 cent\nL97: 1 EUR => 121 cent\nL98: 1 EUR => 121 cent\nL99: 1 EUR => 121 cent\nL100: 1 EUR => 121 cent\nRegistros: 100; total: 121 EUR y 0 cent; media: 121"
+    },
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Proyecci"
+     },
+     "section": "11",
+     "text": "[\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"read_line:ok:1\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:21\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:22\",\n  \"println:ok:23\",\n  \"println:ok:51\"\n]"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "El orden global es cien eventos"
+     },
+     "section": "11",
+     "text": "El orden global es cien eventos de lectura y luego, para cada uno de los 101 println, su evento seguido por su stdout correspondiente. Los primeros nueve stdout tienen 21 bytes de payload; los siguientes noventa, 22; L100 tiene 23; el resumen, 51. Con LF: 9×22+90×23+24+52=2.344 bytes. Cada read_line:ok:1 cuesta 23 y cada println de esta lista cuesta 22 (prefijo mock-io: y LF incluidos): 100×23+101×22=4.522 bytes de eventos. Total observation_bytes=6.866, reserved_observation_bytes=0, 201 eventos y 101 salidas. Resultado literal {\"kind\":\"ok\"}, diagnostics=[], exit 0. El entorno conserva sin consumir {\"err\":\"70\"}; console_println queda vacío. Se exige caber en todas las cuotas normales, sin fijar ticks por calibración del intérprete. Cierre en K10 y repetición independiente en K12."
+    }
+   ],
+   "id": "APP-100",
+   "source": "use std.console;\nuse std.parse;\nuse extension package.Resumen;\nconst maxLineas: I64 = comptime 100;\nconst iva: I64 = comptime 21;\n\n@derive(Format, PartialEq)\nstruct Registro {\n    linea: I64;\n    original: String;\n    centimos: I64;\n}\n\n@derive(Format, PartialEq)\nenum Lectura {\n    Vacia,\n    Dato(Registro)\n}\n\nstruct Resumen {\n    cantidad: I64;\n    total: I64;\n}\nextend Resumen {\n    fn Agregar(self: edit, r: view Registro) {\n        self.total += r.centimos;\n        self.cantidad += 1;\n    }\n    fn Texto(self: view) -> String {\n        var media = 0;\n        if self.cantidad != 0 {\n            media = self.total / self.cantidad;\n        }\n        return \"Registros: {self.cantidad}; total: {self.total / 100} EUR y {self.total % 100} cent; media: {media}\";\n    }\n}\n\nfn Convertir(linea: view I64, texto: view String) -> Result<Lectura, I64> {\n    if texto == \"\" {\n        return Ok(Lectura.Vacia);\n    }\n    let importe = parse.I64(texto)?;\n    if importe < 0 or importe > 10000 {\n        return Err(42);\n    }\n    var base = importe * 100;\n    if importe >= 10 and importe <= 100 {\n        base = base * 90 / 100;\n    }\n    let centimos = base + base * iva / 100;\n    return Ok(Lectura.Dato(Registro(linea, texto, centimos)));\n}\n\nfn Main() -> Result<(), I64> {\n    var registros: Array<Registro> = [];\n    for numero in 1..=maxLineas {\n        let siguiente = console.ReadLine()?;\n        match move siguiente {\n            Some(move texto) => {\n                if texto == \"fin\" {\n                    break;\n                }\n                let lectura = Convertir(numero, texto)?;\n                match move lectura {\n                    Lectura.Vacia => { continue; },\n                    Lectura.Dato(move r) => {\n                        Push(edit registros, move r);\n                    }\n                }\n            },\n            None => { break; }\n        }\n    }\n    var resumen = Resumen(0, 0);\n    for r in registros {\n        edit resumen.Agregar(r);\n        console.Println(\"L{r.linea}: {r.original} EUR => {r.centimos} cent\")?;\n    }\n    console.Println(resumen.Texto())?;\n    return Ok(());\n}\n"
   }
  ],
  "source_doc": "K",
