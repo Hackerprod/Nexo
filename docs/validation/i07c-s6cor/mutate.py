@@ -113,6 +113,9 @@ MUTANTS = [
      "deferred_element: false,\n            };\n            let selector_fact = checker.graph.child_fact(\n                visit,\n                span_key(index.span()),\n                FactRole::Selector,\n                FactInheritance::Empty,\n                FactInheritance::Inherit,",
      "deferred_element: false,\n            };\n            let selector_fact = checker.graph.child_fact(\n                visit,\n                span_key(index.span()),\n                FactRole::Selector,\n                FactInheritance::Inherit,\n                FactInheritance::Inherit,"),
     # Correction r1: the tie-break key of witnesses is the start of the written call.
+    # S6-COR r3: the count of diagnostics after removing the groups is that of the bare program.
+    ("D1", "r3 record_error without the per-site de-duplication", "src/check/types.rs",
+     "if !self.graph.emitted_sites.insert((span.start, span.end)) {", "if false && !self.graph.emitted_sites.insert((span.start, span.end)) {"),
     ("R1", "r1 order_start is the identity", "src/ir/effects.rs",
      ".and_then(|starts| starts.get(&step.start))", ".and_then(|_| None::<&u64>)"),
     ("R2", "r1 compare_paths offsets without order_start", "src/ir/effects.rs",

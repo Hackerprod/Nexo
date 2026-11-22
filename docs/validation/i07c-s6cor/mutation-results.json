@@ -567,5 +567,19 @@
    "(21/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
   ],
   "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
+ },
+ {
+  "id": "D1",
+  "family": "r3 record_error without the per-site de-duplication",
+  "file": "src/check/types.rs",
+  "occurrences": 1,
+  "sha_initial": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93",
+  "sha_mutated": "224134c86d296799da47f9a785c56ad303cba45dfee31f978e4b85da637ac76c",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(18/28) nexo::suite i07c_group_primary::array_iterable_barrier_reports_the_inner_iterable",
+   "(25/28) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
  }
 ]
