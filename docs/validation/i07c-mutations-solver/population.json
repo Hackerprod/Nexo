@@ -1,0 +1,2970 @@
+{
+  "base": "ccf6df1",
+  "operators": [
+    "and",
+    "break",
+    "continue",
+    "drop_assignment",
+    "drop_state",
+    "eq",
+    "false",
+    "increment",
+    "le",
+    "lt",
+    "ne",
+    "or",
+    "true"
+  ],
+  "mutations": [
+    {
+      "file": "src/check/types.rs",
+      "line": 4284,
+      "column": 17,
+      "operator": "and",
+      "literal": "                && !result_site.is_some_and(|site| {",
+      "replacement": "                || !result_site.is_some_and(|site| {",
+      "site_count": 1,
+      "id": "M00001"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4345,
+      "column": 34,
+      "operator": "increment",
+      "literal": "        let id = self.graph.next_variable;\n        self.graph.next_variable += 1;\n        self.graph.type_nodes.insert(",
+      "replacement": "        let id = self.graph.next_variable;\n        self.graph.next_variable -= 1;\n        self.graph.type_nodes.insert(",
+      "site_count": 1,
+      "id": "M00002"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4360,
+      "column": 37,
+      "operator": "false",
+      "literal": "                bottom_only: false,\n                failed_constructor: false,\n                deferred_join: false,",
+      "replacement": "                bottom_only: false,\n                failed_constructor: true,\n                deferred_join: false,",
+      "site_count": 1,
+      "id": "M00003"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4361,
+      "column": 32,
+      "operator": "false",
+      "literal": "                failed_constructor: false,\n                deferred_join: false,\n                recursive_join: false,",
+      "replacement": "                failed_constructor: false,\n                deferred_join: true,\n                recursive_join: false,",
+      "site_count": 1,
+      "id": "M00004"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4362,
+      "column": 33,
+      "operator": "false",
+      "literal": "                deferred_join: false,\n                recursive_join: false,\n                branch_join_scopes: Vec::new(),",
+      "replacement": "                deferred_join: false,\n                recursive_join: true,\n                branch_join_scopes: Vec::new(),",
+      "site_count": 1,
+      "id": "M00005"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4380,
+      "column": 13,
+      "operator": "or",
+      "literal": "        if self.graph.type_nodes[&root].variant_children.is_some()\n            || self.graph.type_nodes[&root]\n                .concrete",
+      "replacement": "        if self.graph.type_nodes[&root].variant_children.is_some()\n            && self.graph.type_nodes[&root]\n                .concrete",
+      "site_count": 1,
+      "id": "M00006"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4388,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "        self.graph.type_nodes.get_mut(&root).unwrap().array_child = Some(child);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00007"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4389,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "        self.graph.type_nodes.get_mut(&root).unwrap().array_origin = Some(origin.clone());",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00008"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4434,
+      "column": 17,
+      "operator": "and",
+      "literal": "                && !(if data_only {",
+      "replacement": "                || !(if data_only {",
+      "site_count": 1,
+      "id": "M00009"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4449,
+      "column": 17,
+      "operator": "and",
+      "literal": "            if self.graph.type_nodes[&root].variant_children.is_some()\n                && self.concrete(root).is_none()\n            {",
+      "replacement": "            if self.graph.type_nodes[&root].variant_children.is_some()\n                || self.concrete(root).is_none()\n            {",
+      "site_count": 1,
+      "id": "M00010"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4463,
+      "column": 49,
+      "operator": "lt",
+      "literal": "                .is_none_or(|span| origin.start < span.start)",
+      "replacement": "                .is_none_or(|span| origin.start <= span.start)",
+      "site_count": 1,
+      "id": "M00011"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4475,
+      "column": 17,
+      "operator": "drop_state",
+      "literal": "                frames.push(child);",
+      "replacement": "                ",
+      "site_count": 1,
+      "id": "M00012"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4483,
+      "column": 51,
+      "operator": "ne",
+      "literal": "        while self.graph.type_nodes[&root].parent != root {",
+      "replacement": "        while self.graph.type_nodes[&root].parent == root {",
+      "site_count": 1,
+      "id": "M00013"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4484,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            root = self.graph.type_nodes[&root].parent;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00014"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4489,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "            self.graph.type_nodes.get_mut(&current).unwrap().parent = root;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00015"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4522,
+      "column": 55,
+      "operator": "and",
+      "literal": "                        if node.array_child.is_some() && !matches!(concrete.0, Type::Array(..))",
+      "replacement": "                        if node.array_child.is_some() || !matches!(concrete.0, Type::Array(..))",
+      "site_count": 1,
+      "id": "M00016"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4523,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || node.variant_children.is_some_and(|children| {",
+      "replacement": "                            && node.variant_children.is_some_and(|children| {",
+      "site_count": 1,
+      "id": "M00017"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4525,
+      "column": 68,
+      "operator": "ne",
+      "literal": "                                    .is_none_or(|union| union.kind != children.kind)",
+      "replacement": "                                    .is_none_or(|union| union.kind == children.kind)",
+      "site_count": 1,
+      "id": "M00018"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4530,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        result = Some(concrete);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00019"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4532,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                    } else if let Some(child) = node.array_child {\n                        frames.push(Frame::Array);\n                        frames.push(Frame::Enter(child, depth + 1));",
+      "replacement": "                    } else if let Some(child) = node.array_child {\n                        \n                        frames.push(Frame::Enter(child, depth + 1));",
+      "site_count": 1,
+      "id": "M00020"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4533,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(child, depth + 1));",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00021"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4549,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::Enter(first, depth + 1));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00022"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4557,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    result = Some((Type::Array(Arc::new(ty)), origin));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00023"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4566,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    payloads.push(result.take()?);",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00024"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4576,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(next, depth + 1));",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00025"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4578,
+      "column": 53,
+      "operator": "or",
+      "literal": "                        let origin = origin.or_else(|| payloads.first().map(|p| p.1.clone()))?;",
+      "replacement": "                        let origin = origin.or_else(&& payloads.first().map(|p| p.1.clone()))?;",
+      "site_count": 1,
+      "id": "M00026"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4669,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        values.push(syntax_type(&resolved)?);",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00027"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4672,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                    Type::Array(inner) => {\n                        frames.push(Frame::Array);\n                        frames.push(Frame::Enter(inner.as_ref().clone()));",
+      "replacement": "                    Type::Array(inner) => {\n                        \n                        frames.push(Frame::Enter(inner.as_ref().clone()));",
+      "site_count": 1,
+      "id": "M00028"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4673,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(inner.as_ref().clone()));",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00029"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4676,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(inner.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }",
+      "replacement": "                        frames.push(Frame::Enter(inner.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        \n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }",
+      "site_count": 1,
+      "id": "M00030"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4677,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(inner.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);",
+      "replacement": "                        frames.push(Frame::Enter(inner.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        \n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);",
+      "site_count": 1,
+      "id": "M00031"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4678,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(inner.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }",
+      "replacement": "                        frames.push(Frame::Enter(inner.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        \n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }",
+      "site_count": 1,
+      "id": "M00032"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4681,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }\n                    Type::Union(..) => return None,",
+      "replacement": "                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        \n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }\n                    Type::Union(..) => return None,",
+      "site_count": 1,
+      "id": "M00033"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4682,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }\n                    Type::Union(..) => return None,",
+      "replacement": "                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        \n                    }\n                    Type::Union(..) => return None,",
+      "site_count": 1,
+      "id": "M00034"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4689,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    values.push(SyntaxType::Array(Box::new(child)));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00035"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4693,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    values.push(SyntaxType::Option(Box::new(child)));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00036"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4698,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    values.push(SyntaxType::Result(Box::new(ok), Box::new(err)));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00037"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4720,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        values.push(ty);",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00038"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4721,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                        values.push(ty);\n                        continue;\n                    }",
+      "replacement": "                        values.push(ty);\n                        break;\n                    }",
+      "site_count": 1,
+      "id": "M00039"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4726,
+      "column": 33,
+      "operator": "drop_state",
+      "literal": "                                values.push(concrete);",
+      "replacement": "                                ",
+      "site_count": 1,
+      "id": "M00040"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4727,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                values.push(concrete);\n                                continue;\n                            }",
+      "replacement": "                                values.push(concrete);\n                                break;\n                            }",
+      "site_count": 1,
+      "id": "M00041"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4732,
+      "column": 33,
+      "operator": "drop_state",
+      "literal": "                                frames.push(Frame::Array);",
+      "replacement": "                                ",
+      "site_count": 1,
+      "id": "M00042"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4733,
+      "column": 33,
+      "operator": "drop_state",
+      "literal": "                                frames.push(Frame::Enter(Type::Deferred(child), depth + 1));",
+      "replacement": "                                ",
+      "site_count": 1,
+      "id": "M00043"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4742,
+      "column": 41,
+      "operator": "drop_state",
+      "literal": "                                        frames.push(Frame::Option);",
+      "replacement": "                                        ",
+      "site_count": 1,
+      "id": "M00044"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4743,
+      "column": 41,
+      "operator": "drop_state",
+      "literal": "                                        frames.push(Frame::Enter(Type::Deferred(*some), depth + 1));",
+      "replacement": "                                        ",
+      "site_count": 1,
+      "id": "M00045"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4746,
+      "column": 41,
+      "operator": "drop_state",
+      "literal": "                                        frames.push(Frame::Result);",
+      "replacement": "                                        ",
+      "site_count": 1,
+      "id": "M00046"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4747,
+      "column": 41,
+      "operator": "drop_state",
+      "literal": "                                        frames.push(Frame::Enter(Type::Deferred(*err), depth + 1));",
+      "replacement": "                                        ",
+      "site_count": 1,
+      "id": "M00047"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4748,
+      "column": 41,
+      "operator": "drop_state",
+      "literal": "                                        frames.push(Frame::Enter(Type::Deferred(*ok), depth + 1));",
+      "replacement": "                                        ",
+      "site_count": 1,
+      "id": "M00048"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4753,
+      "column": 33,
+      "operator": "drop_state",
+      "literal": "                                values.push(Type::Deferred(id));",
+      "replacement": "                                ",
+      "site_count": 1,
+      "id": "M00049"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4757,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                        Type::Array(child) => {\n                            frames.push(Frame::Array);\n                            frames.push(Frame::Enter(child.as_ref().clone(), depth + 1));",
+      "replacement": "                        Type::Array(child) => {\n                            \n                            frames.push(Frame::Enter(child.as_ref().clone(), depth + 1));",
+      "site_count": 1,
+      "id": "M00050"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4758,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::Enter(child.as_ref().clone(), depth + 1));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00051"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4761,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                        Type::Union(UnionKind::Option, some, None) => {\n                            frames.push(Frame::Option);\n                            frames.push(Frame::Enter(some.as_ref().clone(), depth + 1));",
+      "replacement": "                        Type::Union(UnionKind::Option, some, None) => {\n                            \n                            frames.push(Frame::Enter(some.as_ref().clone(), depth + 1));",
+      "site_count": 1,
+      "id": "M00052"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4762,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::Enter(some.as_ref().clone(), depth + 1));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00053"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4765,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                        Type::Union(UnionKind::Result, ok, Some(err)) => {\n                            frames.push(Frame::Result);\n                            frames.push(Frame::Enter(err.as_ref().clone(), depth + 1));",
+      "replacement": "                        Type::Union(UnionKind::Result, ok, Some(err)) => {\n                            \n                            frames.push(Frame::Enter(err.as_ref().clone(), depth + 1));",
+      "site_count": 1,
+      "id": "M00054"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4766,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::Enter(err.as_ref().clone(), depth + 1));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00055"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4767,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::Enter(ok.as_ref().clone(), depth + 1));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00056"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4774,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    let child = values.pop().unwrap();\n                    values.push(Type::Array(Arc::new(child)));\n                }",
+      "replacement": "                    let child = values.pop().unwrap();\n                    \n                }",
+      "site_count": 1,
+      "id": "M00057"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4778,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    let child = values.pop().unwrap();\n                    values.push(Type::option(Arc::new(child)));\n                }",
+      "replacement": "                    let child = values.pop().unwrap();\n                    \n                }",
+      "site_count": 1,
+      "id": "M00058"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4783,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    let ok = values.pop().unwrap();\n                    values.push(Type::result(Arc::new(ok), Arc::new(err)));\n                }",
+      "replacement": "                    let ok = values.pop().unwrap();\n                    \n                }",
+      "site_count": 1,
+      "id": "M00059"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4847,
+      "column": 27,
+      "operator": "eq",
+      "literal": "            if child_root == element && self.graph.type_nodes[&child_root].bottom_only {",
+      "replacement": "            if child_root != element && self.graph.type_nodes[&child_root].bottom_only {",
+      "site_count": 1,
+      "id": "M00060"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4847,
+      "column": 38,
+      "operator": "and",
+      "literal": "            if child_root == element && self.graph.type_nodes[&child_root].bottom_only {",
+      "replacement": "            if child_root == element || self.graph.type_nodes[&child_root].bottom_only {",
+      "site_count": 1,
+      "id": "M00061"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4961,
+      "column": 17,
+      "operator": "break",
+      "literal": "            if depth > 128 {\n                break;\n            }",
+      "replacement": "            if depth > 128 {\n                continue;\n            }",
+      "site_count": 1,
+      "id": "M00062"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4965,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            if self.concrete(root).is_some() {\n                continue;\n            }",
+      "replacement": "            if self.concrete(root).is_some() {\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00063"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4968,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            let Some(actual) = self.graph.type_nodes[&root].variant_children else {\n                continue;\n            };",
+      "replacement": "            let Some(actual) = self.graph.type_nodes[&root].variant_children else {\n                break;\n            };",
+      "site_count": 1,
+      "id": "M00064"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4971,
+      "column": 59,
+      "operator": "ne",
+      "literal": "            if wanted_union.is_none_or(|union| union.kind != actual.kind) {",
+      "replacement": "            if wanted_union.is_none_or(|union| union.kind == actual.kind) {",
+      "site_count": 1,
+      "id": "M00065"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4973,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    conflict = Some((actual.kind, origin.clone()));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00066"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4974,
+      "column": 21,
+      "operator": "break",
+      "literal": "                    conflict = Some((actual.kind, origin.clone()));\n                    break;\n                }",
+      "replacement": "                    conflict = Some((actual.kind, origin.clone()));\n                    continue;\n                }",
+      "site_count": 1,
+      "id": "M00067"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4976,
+      "column": 17,
+      "operator": "continue",
+      "literal": "                    break;\n                }\n                continue;\n            }\n            let wanted_union = wanted_union.unwrap();",
+      "replacement": "                    break;\n                }\n                break;\n            }\n            let wanted_union = wanted_union.unwrap();",
+      "site_count": 1,
+      "id": "M00068"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 4981,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    pending.push((child, expected_child.clone(), depth + 1));",
+      "replacement": "                    ",
+      "site_count": 1,
+      "id": "M00069"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5003,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "        diagnostic.message = \"La forma del valor no coincide con el tipo esperado.\".into();",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00070"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5008,
+      "column": 28,
+      "operator": "ne",
+      "literal": "        if expected_origin != found {",
+      "replacement": "        if expected_origin == found {",
+      "site_count": 1,
+      "id": "M00071"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5024,
+      "column": 28,
+      "operator": "or",
+      "literal": "            if depth > 128 || matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {",
+      "replacement": "            if depth > 128 && matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {",
+      "site_count": 1,
+      "id": "M00072"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5025,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            if depth > 128 || matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {\n                continue;\n            }",
+      "replacement": "            if depth > 128 || matches!(against, Type::Never | Type::Tainted | Type::Deferred(_)) {\n                break;\n            }",
+      "site_count": 1,
+      "id": "M00073"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5029,
+      "column": 17,
+      "operator": "continue",
+      "literal": "            let Some(union) = self.graph.type_nodes[&root].variant_children else {\n                continue;\n            };",
+      "replacement": "            let Some(union) = self.graph.type_nodes[&root].variant_children else {\n                break;\n            };",
+      "site_count": 1,
+      "id": "M00074"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5032,
+      "column": 24,
+      "operator": "true",
+      "literal": "            let Some(wanted) = concrete_union(&against) else {\n                return true;\n            };",
+      "replacement": "            let Some(wanted) = concrete_union(&against) else {\n                return false;\n            };",
+      "site_count": 1,
+      "id": "M00075"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5034,
+      "column": 27,
+      "operator": "ne",
+      "literal": "            if union.kind != wanted.kind {",
+      "replacement": "            if union.kind == wanted.kind {",
+      "site_count": 1,
+      "id": "M00076"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5035,
+      "column": 24,
+      "operator": "true",
+      "literal": "            if union.kind != wanted.kind {\n                return true;\n            }",
+      "replacement": "            if union.kind != wanted.kind {\n                return false;\n            }",
+      "site_count": 1,
+      "id": "M00077"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5040,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push((actual, wanted.clone(), depth + 1));",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00078"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5043,
+      "column": 33,
+      "operator": "true",
+      "literal": "                    _ => return true,",
+      "replacement": "                    _ => return false,",
+      "site_count": 1,
+      "id": "M00079"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5047,
+      "column": 9,
+      "operator": "false",
+      "literal": "                }\n            }\n        }\n        false\n    }\n\n    #[allow(clippy::too_many_arguments)] // The visit is threaded through the existing solver call.",
+      "replacement": "                }\n            }\n        }\n        true\n    }\n\n    #[allow(clippy::too_many_arguments)] // The visit is threaded through the existing solver call.",
+      "site_count": 1,
+      "id": "M00080"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5073,
+      "column": 34,
+      "operator": "true",
+      "literal": "                .deferred_join = true;",
+      "replacement": "                .deferred_join = false;",
+      "site_count": 1,
+      "id": "M00081"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5115,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                    Type::Array(child) => {\n                        frames.push(Frame::Array);\n                        frames.push(Frame::Enter(child.as_ref().clone()));",
+      "replacement": "                    Type::Array(child) => {\n                        \n                        frames.push(Frame::Enter(child.as_ref().clone()));",
+      "site_count": 1,
+      "id": "M00082"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5116,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(child.as_ref().clone()));",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00083"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5119,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(child.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }",
+      "replacement": "                        frames.push(Frame::Enter(child.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        \n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }",
+      "site_count": 1,
+      "id": "M00084"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5120,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(child.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);",
+      "replacement": "                        frames.push(Frame::Enter(child.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        \n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);",
+      "site_count": 1,
+      "id": "M00085"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5121,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(child.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }",
+      "replacement": "                        frames.push(Frame::Enter(child.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Result, ok, Some(err)) => {\n                        frames.push(Frame::Result);\n                        frames.push(Frame::Enter(err.as_ref().clone()));\n                        \n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }",
+      "site_count": 1,
+      "id": "M00086"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5124,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }\n                    Type::Union(..) | Type::Never | Type::Tainted => return None,",
+      "replacement": "                        frames.push(Frame::Enter(ok.as_ref().clone()));\n                    }\n                    Type::Union(UnionKind::Option, some, None) => {\n                        \n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }\n                    Type::Union(..) | Type::Never | Type::Tainted => return None,",
+      "site_count": 1,
+      "id": "M00087"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5125,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        frames.push(Frame::Enter(some.as_ref().clone()));\n                    }\n                    Type::Union(..) | Type::Never | Type::Tainted => return None,",
+      "replacement": "                    Type::Union(UnionKind::Option, some, None) => {\n                        frames.push(Frame::Option);\n                        \n                    }\n                    Type::Union(..) | Type::Never | Type::Tainted => return None,",
+      "site_count": 1,
+      "id": "M00088"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5132,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    let child = values.pop()?;\n                    values.push(Type::Array(Arc::new(child)));\n                }",
+      "replacement": "                    let child = values.pop()?;\n                    \n                }",
+      "site_count": 1,
+      "id": "M00089"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5136,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    let child = values.pop()?;\n                    values.push(Type::option(Arc::new(child)));\n                }",
+      "replacement": "                    let child = values.pop()?;\n                    \n                }",
+      "site_count": 1,
+      "id": "M00090"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5141,
+      "column": 21,
+      "operator": "drop_state",
+      "literal": "                    let ok = values.pop()?;\n                    values.push(Type::result(Arc::new(ok), Arc::new(err)));\n                }",
+      "replacement": "                    let ok = values.pop()?;\n                    \n                }",
+      "site_count": 1,
+      "id": "M00091"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5325,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                Frame::Enter(request) => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    match request {",
+      "replacement": "                Frame::Enter(request) => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    match request {",
+      "site_count": 1,
+      "id": "M00092"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5346,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            );\n                            frames.push(Frame::EndFact(request.fact));\n                            let SolverBind {",
+      "replacement": "                            );\n                            \n                            let SolverBind {",
+      "site_count": 1,
+      "id": "M00093"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5360,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            if matches!(ty, Type::Never) {\n                                outcome = Ok(SolverValue::Unit);\n                                continue;",
+      "replacement": "                            if matches!(ty, Type::Never) {\n\n                                continue;",
+      "site_count": 1,
+      "id": "M00094"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5361,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                outcome = Ok(SolverValue::Unit);\n                                continue;\n                            }",
+      "replacement": "                                outcome = Ok(SolverValue::Unit);\n                                break;\n                            }",
+      "site_count": 1,
+      "id": "M00095"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5370,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                })));\n                                continue;\n                            }",
+      "replacement": "                                })));\n                                break;\n                            }",
+      "site_count": 1,
+      "id": "M00096"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5375,
+      "column": 37,
+      "operator": "or",
+      "literal": "                                    || self.graph.type_nodes[&root].variant_children.is_some()",
+      "replacement": "                                    && self.graph.type_nodes[&root].variant_children.is_some()",
+      "site_count": 1,
+      "id": "M00097"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5378,
+      "column": 37,
+      "operator": "drop_state",
+      "literal": "                                    let kind = wanted.kind;\n                                    frames.push(Frame::AtomicEnd(Box::new(self.clone())));\n                                    let was_concrete = self.concrete(root).is_some();",
+      "replacement": "                                    let kind = wanted.kind;\n                                    \n                                    let was_concrete = self.concrete(root).is_some();",
+      "site_count": 1,
+      "id": "M00098"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5382,
+      "column": 41,
+      "operator": "and",
+      "literal": "                                        && concrete_union(&previous)",
+      "replacement": "                                        || concrete_union(&previous)",
+      "site_count": 1,
+      "id": "M00099"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5383,
+      "column": 76,
+      "operator": "ne",
+      "literal": "                                            .is_none_or(|union| union.kind != kind)",
+      "replacement": "                                            .is_none_or(|union| union.kind == kind)",
+      "site_count": 1,
+      "id": "M00100"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5396,
+      "column": 41,
+      "operator": "continue",
+      "literal": "                                            None => Err(unresolved_type(found)),\n                                        };\n                                        continue;\n                                    }\n                                    frames.push(Frame::BindUnionAfterRequire {",
+      "replacement": "                                            None => Err(unresolved_type(found)),\n                                        };\n                                        break;\n                                    }\n                                    frames.push(Frame::BindUnionAfterRequire {",
+      "site_count": 1,
+      "id": "M00101"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5418,
+      "column": 37,
+      "operator": "continue",
+      "literal": "                                    }));\n                                    continue;\n                                }",
+      "replacement": "                                    }));\n                                    break;\n                                }",
+      "site_count": 1,
+      "id": "M00102"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5423,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                outcome = Err(unresolved_type(found));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00103"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5424,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                outcome = Err(unresolved_type(found));\n                                continue;\n                            }",
+      "replacement": "                                outcome = Err(unresolved_type(found));\n                                break;\n                            }",
+      "site_count": 1,
+      "id": "M00104"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5439,
+      "column": 53,
+      "operator": "eq",
+      "literal": "                                    self.root(base) == root && self.root(selector) == root",
+      "replacement": "                                    self.root(base) != root && self.root(selector) == root",
+      "site_count": 1,
+      "id": "M00105"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5439,
+      "column": 61,
+      "operator": "and",
+      "literal": "                                    self.root(base) == root && self.root(selector) == root",
+      "replacement": "                                    self.root(base) == root || self.root(selector) == root",
+      "site_count": 1,
+      "id": "M00106"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5439,
+      "column": 84,
+      "operator": "eq",
+      "literal": "                                    self.root(base) == root && self.root(selector) == root",
+      "replacement": "                                    self.root(base) == root && self.root(selector) != root",
+      "site_count": 1,
+      "id": "M00107"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5448,
+      "column": 37,
+      "operator": "continue",
+      "literal": "                                    ));\n                                    continue;\n                                }",
+      "replacement": "                                    ));\n                                    break;\n                                }",
+      "site_count": 1,
+      "id": "M00108"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5464,
+      "column": 37,
+      "operator": "continue",
+      "literal": "                                    };\n                                    continue;\n                                }",
+      "replacement": "                                    };\n                                    break;\n                                }",
+      "site_count": 1,
+      "id": "M00109"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5488,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                    Err(error) => outcome = Err(error),\n                                }\n                                continue;\n                            }\n                            let root = self.root(id);",
+      "replacement": "                                    Err(error) => outcome = Err(error),\n                                }\n                                break;\n                            }\n                            let root = self.root(id);",
+      "site_count": 1,
+      "id": "M00110"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5492,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            if let Err(error) = self.charge_solver(&found) {\n                                outcome = Err(error);\n                                continue;",
+      "replacement": "                            if let Err(error) = self.charge_solver(&found) {\n\n                                continue;",
+      "site_count": 1,
+      "id": "M00111"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5493,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                            if let Err(error) = self.charge_solver(&found) {\n                                outcome = Err(error);\n                                continue;\n                            }\n                            if self.graph.type_nodes[&root].copyable_origin.is_some()",
+      "replacement": "                            if let Err(error) = self.charge_solver(&found) {\n                                outcome = Err(error);\n                                break;\n                            }\n                            if self.graph.type_nodes[&root].copyable_origin.is_some()",
+      "site_count": 1,
+      "id": "M00112"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5496,
+      "column": 33,
+      "operator": "and",
+      "literal": "                                && !copyable(&ty)",
+      "replacement": "                                || !copyable(&ty)",
+      "site_count": 1,
+      "id": "M00113"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5506,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                ));\n                                continue;\n                            }",
+      "replacement": "                                ));\n                                break;\n                            }",
+      "site_count": 1,
+      "id": "M00114"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5511,
+      "column": 37,
+      "operator": "or",
+      "literal": "                                    || self.graph.preseeded_children.contains(&child))",
+      "replacement": "                                    && self.graph.preseeded_children.contains(&child))",
+      "site_count": 1,
+      "id": "M00115"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5512,
+      "column": 37,
+      "operator": "and",
+      "literal": "                                    && self.concrete(root).is_none()",
+      "replacement": "                                    || self.concrete(root).is_none()",
+      "site_count": 1,
+      "id": "M00116"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5522,
+      "column": 53,
+      "operator": "false",
+      "literal": "                                            branch: false,",
+      "replacement": "                                            branch: true,",
+      "site_count": 1,
+      "id": "M00117"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5526,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                    );\n                                    outcome = Ok(SolverValue::Unit);\n                                } else {",
+      "replacement": "                                    );\n\n                                } else {",
+      "site_count": 1,
+      "id": "M00118"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5529,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                    outcome = Err(self.array_domain_conflict(root, &ty, found));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00119"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5531,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                    outcome = Err(self.array_domain_conflict(root, &ty, found));\n                                }\n                                continue;\n                            }\n                            if let Some((previous, previous_origin)) = self.concrete(root) {",
+      "replacement": "                                    outcome = Err(self.array_domain_conflict(root, &ty, found));\n                                }\n                                break;\n                            }\n                            if let Some((previous, previous_origin)) = self.concrete(root) {",
+      "site_count": 1,
+      "id": "M00120"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5534,
+      "column": 45,
+      "operator": "ne",
+      "literal": "                                if previous != ty {",
+      "replacement": "                                if previous == ty {",
+      "site_count": 1,
+      "id": "M00121"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5547,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                } else {\n                                    outcome = Ok(SolverValue::Unit);\n                                }",
+      "replacement": "                                } else {\n\n                                }",
+      "site_count": 1,
+      "id": "M00122"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5557,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                    .concrete_intrinsic = intrinsic;\n                                outcome = Ok(SolverValue::Unit);\n                            }",
+      "replacement": "                                    .concrete_intrinsic = intrinsic;\n\n                            }",
+      "site_count": 1,
+      "id": "M00123"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5573,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::EndFact(parent_fact));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00124"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5575,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            if let Err(error) = self.charge_solver(&origin) {\n                                outcome = Err(error);\n                                continue;",
+      "replacement": "                            if let Err(error) = self.charge_solver(&origin) {\n\n                                continue;",
+      "site_count": 1,
+      "id": "M00125"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5576,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                            if let Err(error) = self.charge_solver(&origin) {\n                                outcome = Err(error);\n                                continue;\n                            }\n                            let root = self.root(id);",
+      "replacement": "                            if let Err(error) = self.charge_solver(&origin) {\n                                outcome = Err(error);\n                                break;\n                            }\n                            let root = self.root(id);",
+      "site_count": 1,
+      "id": "M00126"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5580,
+      "column": 60,
+      "operator": "eq",
+      "literal": "                                outcome = if children.kind == kind {",
+      "replacement": "                                outcome = if children.kind != kind {",
+      "site_count": 1,
+      "id": "M00127"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5585,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                };\n                                continue;\n                            }",
+      "replacement": "                                };\n                                break;\n                            }",
+      "site_count": 1,
+      "id": "M00128"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5588,
+      "column": 33,
+      "operator": "or",
+      "literal": "                                || self.graph.type_nodes[&root].concrete.as_ref().is_some_and(",
+      "replacement": "                                && self.graph.type_nodes[&root].concrete.as_ref().is_some_and(",
+      "site_count": 1,
+      "id": "M00129"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5590,
+      "column": 90,
+      "operator": "ne",
+      "literal": "                                        concrete_union(ty).is_none_or(|union| union.kind != kind)",
+      "replacement": "                                        concrete_union(ty).is_none_or(|union| union.kind == kind)",
+      "site_count": 1,
+      "id": "M00130"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5594,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                outcome = Err(unresolved_type(origin));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00131"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5595,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                                outcome = Err(unresolved_type(origin));\n                                continue;\n                            }",
+      "replacement": "                                outcome = Err(unresolved_type(origin));\n                                break;\n                            }",
+      "site_count": 1,
+      "id": "M00132"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5600,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                Err(error) => {\n                                    outcome = Err(error);\n                                    continue;",
+      "replacement": "                                Err(error) => {\n\n                                    continue;",
+      "site_count": 1,
+      "id": "M00133"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5601,
+      "column": 37,
+      "operator": "continue",
+      "literal": "                                    outcome = Err(error);\n                                    continue;\n                                }",
+      "replacement": "                                    outcome = Err(error);\n                                    break;\n                                }",
+      "site_count": 1,
+      "id": "M00134"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5604,
+      "column": 50,
+      "operator": "eq",
+      "literal": "                            let second = if kind == UnionKind::Result {",
+      "replacement": "                            let second = if kind != UnionKind::Result {",
+      "site_count": 1,
+      "id": "M00135"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5608,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                        outcome = Err(error);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00136"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5609,
+      "column": 41,
+      "operator": "continue",
+      "literal": "                                        outcome = Err(error);\n                                        continue;\n                                    }",
+      "replacement": "                                        outcome = Err(error);\n                                        break;\n                                    }",
+      "site_count": 1,
+      "id": "M00137"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5622,
+      "column": 33,
+      "operator": "and",
+      "literal": "                                && let Some(wanted) = concrete_union(&concrete)",
+      "replacement": "                                || let Some(wanted) = concrete_union(&concrete)",
+      "site_count": 1,
+      "id": "M00138"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5624,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                self.graph.type_nodes.get_mut(&root).unwrap().concrete = None;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00139"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5660,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                outcome = Ok(SolverValue::Union(children));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00140"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5671,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::EndFact(request.parent_fact));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00141"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5675,
+      "column": 33,
+      "operator": "or",
+      "literal": "                                || self.graph.type_nodes[&r].variant_children.is_some()",
+      "replacement": "                                && self.graph.type_nodes[&r].variant_children.is_some()",
+      "site_count": 1,
+      "id": "M00142"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5677,
+      "column": 33,
+      "operator": "drop_state",
+      "literal": "                            {\n                                frames.push(Frame::AtomicEnd(Box::new(self.clone())));\n                            }",
+      "replacement": "                            {\n                                \n                            }",
+      "site_count": 1,
+      "id": "M00143"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5679,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::UnionInner(request));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00144"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5689,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            );\n                            frames.push(Frame::EndFact(request.fact));\n                            if let Err(error) = self.charge_solver(&request.found) {",
+      "replacement": "                            );\n                            \n                            if let Err(error) = self.charge_solver(&request.found) {",
+      "site_count": 1,
+      "id": "M00145"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5691,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            if let Err(error) = self.charge_solver(&request.found) {\n                                outcome = Err(error);\n                                continue;",
+      "replacement": "                            if let Err(error) = self.charge_solver(&request.found) {\n\n                                continue;",
+      "site_count": 1,
+      "id": "M00146"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5692,
+      "column": 33,
+      "operator": "continue",
+      "literal": "                            if let Err(error) = self.charge_solver(&request.found) {\n                                outcome = Err(error);\n                                continue;\n                            }\n                            match (request.left.clone(), request.right.clone()) {",
+      "replacement": "                            if let Err(error) = self.charge_solver(&request.found) {\n                                outcome = Err(error);\n                                break;\n                            }\n                            match (request.left.clone(), request.right.clone()) {",
+      "site_count": 1,
+      "id": "M00147"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5696,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                    outcome = Ok(SolverValue::Type(Type::Tainted));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00148"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5699,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                    outcome = Ok(SolverValue::Type(other));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00149"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5702,
+      "column": 53,
+      "operator": "or",
+      "literal": "                                (Type::Deferred(a), Type::Deferred(b)) => {\n                                    let prepared = (|| -> Result<Option<Type>, Box<Diagnostic>> {\n                                        if request.policy.branch",
+      "replacement": "                                (Type::Deferred(a), Type::Deferred(b)) => {\n                                    let prepared = (&& -> Result<Option<Type>, Box<Diagnostic>> {\n                                        if request.policy.branch",
+      "site_count": 1,
+      "id": "M00150"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5704,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                            && let (Some((left, _)), Some((right, _))) =",
+      "replacement": "                                            || let (Some((left, _)), Some((right, _))) =",
+      "site_count": 1,
+      "id": "M00151"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5706,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                            && left != right",
+      "replacement": "                                            || left != right",
+      "site_count": 1,
+      "id": "M00152"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5706,
+      "column": 53,
+      "operator": "ne",
+      "literal": "                                            && left != right",
+      "replacement": "                                            && left == right",
+      "site_count": 1,
+      "id": "M00153"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5715,
+      "column": 61,
+      "operator": "or",
+      "literal": "                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(|| {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        let l = self.concrete(a);",
+      "replacement": "                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(&& {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        let l = self.concrete(a);",
+      "site_count": 1,
+      "id": "M00154"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5725,
+      "column": 49,
+      "operator": "and",
+      "literal": "                                            self.graph.type_nodes[&a_root].array_child.is_some()\n                                                && self.graph.type_nodes[&b_root]\n                                                    .variant_children",
+      "replacement": "                                            self.graph.type_nodes[&a_root].array_child.is_some()\n                                                || self.graph.type_nodes[&b_root]\n                                                    .variant_children",
+      "site_count": 1,
+      "id": "M00155"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5728,
+      "column": 49,
+      "operator": "or",
+      "literal": "                                                || self.graph.type_nodes[&a_root]",
+      "replacement": "                                                && self.graph.type_nodes[&a_root]",
+      "site_count": 1,
+      "id": "M00156"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5731,
+      "column": 53,
+      "operator": "and",
+      "literal": "                                                    && self.graph.type_nodes[&b_root]",
+      "replacement": "                                                    || self.graph.type_nodes[&b_root]",
+      "site_count": 1,
+      "id": "M00157"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5817,
+      "column": 53,
+      "operator": "or",
+      "literal": "                                (Type::Deferred(id), other) => {\n                                    let prepared = (|| -> Result<Option<Type>, Box<Diagnostic>> {\n                                        if let Some(error) = self.pattern_shape_mismatch(",
+      "replacement": "                                (Type::Deferred(id), other) => {\n                                    let prepared = (&& -> Result<Option<Type>, Box<Diagnostic>> {\n                                        if let Some(error) = self.pattern_shape_mismatch(",
+      "site_count": 1,
+      "id": "M00158"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5827,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                            && internal_state(&other).is_none()",
+      "replacement": "                                            || internal_state(&other).is_none()",
+      "site_count": 1,
+      "id": "M00159"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5828,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                            && let Some((left, _)) = self.concrete(id)",
+      "replacement": "                                            || let Some((left, _)) = self.concrete(id)",
+      "site_count": 1,
+      "id": "M00160"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5829,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                            && left != other",
+      "replacement": "                                            || left != other",
+      "site_count": 1,
+      "id": "M00161"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5829,
+      "column": 53,
+      "operator": "ne",
+      "literal": "                                            && left != other",
+      "replacement": "                                            && left == other",
+      "site_count": 1,
+      "id": "M00162"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5838,
+      "column": 61,
+      "operator": "or",
+      "literal": "                                                &other,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(|| {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            && let Some(constructor) = self",
+      "replacement": "                                                &other,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(&& {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            && let Some(constructor) = self",
+      "site_count": 1,
+      "id": "M00163"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5843,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                                &other,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(|| {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            && let Some(constructor) = self\n                                                .unresolved_constructor_shape_conflict(\n                                                    id,\n                                                    &other,\n                                                    &request.found,\n                                                )?\n                                        {\n                                            self.charge_solver(&request.found)?;\n                                            self.defer_shape_conflict(\n                                                request.fact,\n                                                Type::Deferred(id),",
+      "replacement": "                                                &other,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(|| {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            || let Some(constructor) = self\n                                                .unresolved_constructor_shape_conflict(\n                                                    id,\n                                                    &other,\n                                                    &request.found,\n                                                )?\n                                        {\n                                            self.charge_solver(&request.found)?;\n                                            self.defer_shape_conflict(\n                                                request.fact,\n                                                Type::Deferred(id),",
+      "site_count": 1,
+      "id": "M00164"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5881,
+      "column": 64,
+      "operator": "true",
+      "literal": "                                                left_deferred: true,",
+      "replacement": "                                                left_deferred: false,",
+      "site_count": 1,
+      "id": "M00165"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5884,
+      "column": 45,
+      "operator": "drop_state",
+      "literal": "                                                left_deferred: true,\n                                                pending_before,\n                                            });\n                                            frames.push(Frame::Enter(SolverRequest::Bind(bind)));\n                                        }\n                                        Err(error) => outcome = Err(error),\n                                    }",
+      "replacement": "                                                left_deferred: true,\n                                                pending_before,\n                                            });\n                                            \n                                        }\n                                        Err(error) => outcome = Err(error),\n                                    }",
+      "site_count": 1,
+      "id": "M00166"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5890,
+      "column": 53,
+      "operator": "or",
+      "literal": "                                (other, Type::Deferred(id)) => {\n                                    let prepared = (|| -> Result<Option<Type>, Box<Diagnostic>> {\n                                        if let Some(error) = self.pattern_shape_mismatch(",
+      "replacement": "                                (other, Type::Deferred(id)) => {\n                                    let prepared = (&& -> Result<Option<Type>, Box<Diagnostic>> {\n                                        if let Some(error) = self.pattern_shape_mismatch(",
+      "site_count": 1,
+      "id": "M00167"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5900,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                            && let Some((right, _)) = self.concrete(id)",
+      "replacement": "                                            || let Some((right, _)) = self.concrete(id)",
+      "site_count": 1,
+      "id": "M00168"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5901,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                            && other != right",
+      "replacement": "                                            || other != right",
+      "site_count": 1,
+      "id": "M00169"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5901,
+      "column": 54,
+      "operator": "ne",
+      "literal": "                                            && other != right",
+      "replacement": "                                            && other == right",
+      "site_count": 1,
+      "id": "M00170"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5910,
+      "column": 61,
+      "operator": "or",
+      "literal": "                                                &right,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(|| {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            && let Some(constructor) = self",
+      "replacement": "                                                &right,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(&& {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            && let Some(constructor) = self",
+      "site_count": 1,
+      "id": "M00171"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5915,
+      "column": 45,
+      "operator": "and",
+      "literal": "                                                &right,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(|| {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            && let Some(constructor) = self\n                                                .unresolved_constructor_shape_conflict(\n                                                    id,\n                                                    &other,\n                                                    &request.found,\n                                                )?\n                                        {\n                                            self.charge_solver(&request.found)?;\n                                            self.defer_shape_conflict(\n                                                request.fact,\n                                                other.clone(),",
+      "replacement": "                                                &right,\n                                                request.left_origin.clone(),\n                                                request.found.clone(),\n                                                request.policy,\n                                            )\n                                            .unwrap_or_else(|| {\n                                                unresolved_type(request.found.clone())\n                                            }));\n                                        }\n                                        if internal_state(&other).is_none()\n                                            || let Some(constructor) = self\n                                                .unresolved_constructor_shape_conflict(\n                                                    id,\n                                                    &other,\n                                                    &request.found,\n                                                )?\n                                        {\n                                            self.charge_solver(&request.found)?;\n                                            self.defer_shape_conflict(\n                                                request.fact,\n                                                other.clone(),",
+      "site_count": 1,
+      "id": "M00172"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5953,
+      "column": 64,
+      "operator": "false",
+      "literal": "                                                left_deferred: false,",
+      "replacement": "                                                left_deferred: true,",
+      "site_count": 1,
+      "id": "M00173"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5956,
+      "column": 45,
+      "operator": "drop_state",
+      "literal": "                                                left_deferred: false,\n                                                pending_before,\n                                            });\n                                            frames.push(Frame::Enter(SolverRequest::Bind(bind)));\n                                        }\n                                        Err(error) => outcome = Err(error),\n                                    }",
+      "replacement": "                                                left_deferred: false,\n                                                pending_before,\n                                            });\n                                            \n                                        }\n                                        Err(error) => outcome = Err(error),\n                                    }",
+      "site_count": 1,
+      "id": "M00174"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5970,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                                                error = Some(failed);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00175"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5971,
+      "column": 49,
+      "operator": "break",
+      "literal": "                                                break;",
+      "replacement": "                                                continue;",
+      "site_count": 1,
+      "id": "M00176"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5978,
+      "column": 41,
+      "operator": "continue",
+      "literal": "                                            None => Ok(SolverValue::Type(resolved)),\n                                        };\n                                        continue;\n                                    }\n                                    let before_inner = self.solver_steps;",
+      "replacement": "                                            None => Ok(SolverValue::Type(resolved)),\n                                        };\n                                        break;\n                                    }\n                                    let before_inner = self.solver_steps;",
+      "site_count": 1,
+      "id": "M00177"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 5993,
+      "column": 63,
+      "operator": "true",
+      "literal": "                                            related_expected: true,",
+      "replacement": "                                            related_expected: false,",
+      "site_count": 1,
+      "id": "M00178"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6003,
+      "column": 37,
+      "operator": "drop_state",
+      "literal": "                                    frames.push(Frame::Enter(SolverRequest::Unify(child)));",
+      "replacement": "                                    ",
+      "site_count": 1,
+      "id": "M00179"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6007,
+      "column": 41,
+      "operator": "and",
+      "literal": "                                        && concrete_union(&found_type).is_some() =>",
+      "replacement": "                                        || concrete_union(&found_type).is_some() =>",
+      "site_count": 1,
+      "id": "M00180"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6011,
+      "column": 56,
+      "operator": "ne",
+      "literal": "                                    if left_union.kind != right_union.kind {",
+      "replacement": "                                    if left_union.kind == right_union.kind {",
+      "site_count": 1,
+      "id": "M00181"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6022,
+      "column": 41,
+      "operator": "continue",
+      "literal": "                                            None => Ok(SolverValue::Type(expected)),\n                                        };\n                                        continue;\n                                    }\n                                    let pairs: Vec<_> = left_union",
+      "replacement": "                                            None => Ok(SolverValue::Type(expected)),\n                                        };\n                                        break;\n                                    }\n                                    let pairs: Vec<_> = left_union",
+      "site_count": 1,
+      "id": "M00182"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6037,
+      "column": 41,
+      "operator": "or",
+      "literal": "                                        || internal_state(&found_type).is_some()",
+      "replacement": "                                        && internal_state(&found_type).is_some()",
+      "site_count": 1,
+      "id": "M00183"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6039,
+      "column": 41,
+      "operator": "drop_state",
+      "literal": "                                        frames.push(Frame::AtomicEnd(Box::new(self.clone())));",
+      "replacement": "                                        ",
+      "site_count": 1,
+      "id": "M00184"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6048,
+      "column": 50,
+      "operator": "false",
+      "literal": "                                        waiting: false,",
+      "replacement": "                                        waiting: true,",
+      "site_count": 1,
+      "id": "M00185"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6069,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                Frame::UnionInner(request) => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    let prepared = (|| -> Result<Option<(SolverUnionJoin, Vec<SolverBind>)>, Box<Diagnostic>> {",
+      "replacement": "                Frame::UnionInner(request) => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    let prepared = (|| -> Result<Option<(SolverUnionJoin, Vec<SolverBind>)>, Box<Diagnostic>> {",
+      "site_count": 1,
+      "id": "M00186"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6071,
+      "column": 37,
+      "operator": "or",
+      "literal": "                    let prepared = (|| -> Result<Option<(SolverUnionJoin, Vec<SolverBind>)>, Box<Diagnostic>> {",
+      "replacement": "                    let prepared = (&& -> Result<Option<(SolverUnionJoin, Vec<SolverBind>)>, Box<Diagnostic>> {",
+      "site_count": 1,
+      "id": "M00187"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6075,
+      "column": 30,
+      "operator": "eq",
+      "literal": "                        if l == r {",
+      "replacement": "                        if l != r {",
+      "site_count": 1,
+      "id": "M00188"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6079,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && self.graph.type_nodes[&r].variant_children.is_some()",
+      "replacement": "                            || self.graph.type_nodes[&r].variant_children.is_some()",
+      "site_count": 1,
+      "id": "M00189"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6080,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            && self.graph.type_nodes[&r].variant_children.is_some()\n                            || self.graph.type_nodes[&l].variant_children.is_some()\n                                && self.graph.type_nodes[&r].array_child.is_some()",
+      "replacement": "                            && self.graph.type_nodes[&r].variant_children.is_some()\n                            && self.graph.type_nodes[&l].variant_children.is_some()\n                                && self.graph.type_nodes[&r].array_child.is_some()",
+      "site_count": 1,
+      "id": "M00190"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6081,
+      "column": 33,
+      "operator": "and",
+      "literal": "                                && self.graph.type_nodes[&r].array_child.is_some()",
+      "replacement": "                                || self.graph.type_nodes[&r].array_child.is_some()",
+      "site_count": 1,
+      "id": "M00191"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6086,
+      "column": 29,
+      "operator": "or",
+      "literal": "                        if (self.graph.type_nodes[&l].array_child.is_some()\n                            || self.graph.type_nodes[&l].variant_children.is_some()\n                            || self.graph.type_nodes[&r].array_child.is_some()",
+      "replacement": "                        if (self.graph.type_nodes[&l].array_child.is_some()\n                            && self.graph.type_nodes[&l].variant_children.is_some()\n                            || self.graph.type_nodes[&r].array_child.is_some()",
+      "site_count": 1,
+      "id": "M00192"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6087,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || self.graph.type_nodes[&l].variant_children.is_some()\n                            || self.graph.type_nodes[&r].array_child.is_some()\n                            || self.graph.type_nodes[&r].variant_children.is_some())",
+      "replacement": "                            || self.graph.type_nodes[&l].variant_children.is_some()\n                            && self.graph.type_nodes[&r].array_child.is_some()\n                            || self.graph.type_nodes[&r].variant_children.is_some())",
+      "site_count": 1,
+      "id": "M00193"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6088,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || self.graph.type_nodes[&r].variant_children.is_some())",
+      "replacement": "                            && self.graph.type_nodes[&r].variant_children.is_some())",
+      "site_count": 1,
+      "id": "M00194"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6089,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && (self.type_reaches(l, r, &request.found)?",
+      "replacement": "                            || (self.type_reaches(l, r, &request.found)?",
+      "site_count": 1,
+      "id": "M00195"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6090,
+      "column": 33,
+      "operator": "or",
+      "literal": "                                || self.type_reaches(r, l, &request.found)?)",
+      "replacement": "                                && self.type_reaches(r, l, &request.found)?)",
+      "site_count": 1,
+      "id": "M00196"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6093,
+      "column": 33,
+      "operator": "or",
+      "literal": "                                || self.graph.type_nodes[&r].array_child.is_some()",
+      "replacement": "                                && self.graph.type_nodes[&r].array_child.is_some()",
+      "site_count": 1,
+      "id": "M00197"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6108,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || (self.graph.type_nodes[&l].size",
+      "replacement": "                            && (self.graph.type_nodes[&l].size",
+      "site_count": 1,
+      "id": "M00198"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6109,
+      "column": 33,
+      "operator": "eq",
+      "literal": "                                == self.graph.type_nodes[&r].size",
+      "replacement": "                                != self.graph.type_nodes[&r].size",
+      "site_count": 1,
+      "id": "M00199"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6110,
+      "column": 33,
+      "operator": "and",
+      "literal": "                                && l < r)",
+      "replacement": "                                || l < r)",
+      "site_count": 1,
+      "id": "M00200"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6110,
+      "column": 38,
+      "operator": "lt",
+      "literal": "                                && l < r)",
+      "replacement": "                                && l <= r)",
+      "site_count": 1,
+      "id": "M00201"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6125,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && left.kind != right.kind",
+      "replacement": "                            || left.kind != right.kind",
+      "site_count": 1,
+      "id": "M00202"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6125,
+      "column": 42,
+      "operator": "ne",
+      "literal": "                            && left.kind != right.kind",
+      "replacement": "                            && left.kind == right.kind",
+      "site_count": 1,
+      "id": "M00203"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6130,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && a_result.is_some()",
+      "replacement": "                            || a_result.is_some()",
+      "site_count": 1,
+      "id": "M00204"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6131,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && a_result.is_some()\n                            && concrete_union(other)\n                                .is_none_or(|union| Some(union.kind) != a_result.map(|u| u.kind))",
+      "replacement": "                            && a_result.is_some()\n                            || concrete_union(other)\n                                .is_none_or(|union| Some(union.kind) != a_result.map(|u| u.kind))",
+      "site_count": 1,
+      "id": "M00205"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6132,
+      "column": 70,
+      "operator": "ne",
+      "literal": "                                .is_none_or(|union| Some(union.kind) != a_result.map(|u| u.kind))",
+      "replacement": "                                .is_none_or(|union| Some(union.kind) == a_result.map(|u| u.kind))",
+      "site_count": 1,
+      "id": "M00206"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6137,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && b_result.is_some()",
+      "replacement": "                            || b_result.is_some()",
+      "site_count": 1,
+      "id": "M00207"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6138,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && b_result.is_some()\n                            && concrete_union(other)\n                                .is_none_or(|union| Some(union.kind) != b_result.map(|u| u.kind))",
+      "replacement": "                            && b_result.is_some()\n                            || concrete_union(other)\n                                .is_none_or(|union| Some(union.kind) != b_result.map(|u| u.kind))",
+      "site_count": 1,
+      "id": "M00208"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6139,
+      "column": 70,
+      "operator": "ne",
+      "literal": "                                .is_none_or(|union| Some(union.kind) != b_result.map(|u| u.kind))",
+      "replacement": "                                .is_none_or(|union| Some(union.kind) == b_result.map(|u| u.kind))",
+      "site_count": 1,
+      "id": "M00209"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6143,
+      "column": 70,
+      "operator": "or",
+      "literal": "                        let (a_full, b_full) = if a_result.is_some() || b_result.is_some() {",
+      "replacement": "                        let (a_full, b_full) = if a_result.is_some() && b_result.is_some() {",
+      "site_count": 1,
+      "id": "M00210"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6149,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || self.graph.type_nodes[&b].variant_constructed;",
+      "replacement": "                            && self.graph.type_nodes[&b].variant_constructed;",
+      "site_count": 1,
+      "id": "M00211"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6151,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || self.graph.type_nodes[&b].array_constructed;",
+      "replacement": "                            && self.graph.type_nodes[&b].array_constructed;",
+      "site_count": 1,
+      "id": "M00212"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6153,
+      "column": 29,
+      "operator": "or",
+      "literal": "                            || self.graph.type_nodes[&b].bottom_only;",
+      "replacement": "                            && self.graph.type_nodes[&b].bottom_only;",
+      "site_count": 1,
+      "id": "M00213"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6157,
+      "column": 29,
+      "operator": "and",
+      "literal": "                        if let (Some(_), Some((ty, _))) = (&a_copyable, &b_concrete)\n                            && !copyable(ty)\n                        {",
+      "replacement": "                        if let (Some(_), Some((ty, _))) = (&a_copyable, &b_concrete)\n                            || !copyable(ty)\n                        {",
+      "site_count": 1,
+      "id": "M00214"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6168,
+      "column": 29,
+      "operator": "and",
+      "literal": "                        if let (Some(_), Some((ty, _))) = (&b_copyable, &a_concrete)\n                            && !copyable(ty)\n                        {",
+      "replacement": "                        if let (Some(_), Some((ty, _))) = (&b_copyable, &a_concrete)\n                            || !copyable(ty)\n                        {",
+      "site_count": 1,
+      "id": "M00215"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6213,
+      "column": 29,
+      "operator": "and",
+      "literal": "                        if let (Some(children), Some((ty, origin))) = (a_result, &b_concrete)\n                            && let Some(concrete) = concrete_union(ty)\n                        {",
+      "replacement": "                        if let (Some(children), Some((ty, origin))) = (a_result, &b_concrete)\n                            || let Some(concrete) = concrete_union(ty)\n                        {",
+      "site_count": 1,
+      "id": "M00216"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6228,
+      "column": 29,
+      "operator": "and",
+      "literal": "                        if let (Some(children), Some((ty, origin))) = (b_result, &a_concrete)\n                            && let Some(concrete) = concrete_union(ty)\n                        {",
+      "replacement": "                        if let (Some(children), Some((ty, origin))) = (b_result, &a_concrete)\n                            || let Some(concrete) = concrete_union(ty)\n                        {",
+      "site_count": 1,
+      "id": "M00217"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6267,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::UnionAfterBinds(state));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00218"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6269,
+      "column": 33,
+      "operator": "drop_state",
+      "literal": "                            for bind in binds.into_iter().rev() {\n                                frames.push(Frame::Enter(SolverRequest::Bind(bind)));\n                            }",
+      "replacement": "                            for bind in binds.into_iter().rev() {\n                                \n                            }",
+      "site_count": 1,
+      "id": "M00219"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6281,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        self.solver_steps = steps;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00220"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6283,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            self.quota_error = quota;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00221"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6293,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                } => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    let SolverValue::Union(actual) = &outcome.as_ref().unwrap() else {",
+      "replacement": "                } => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    let SolverValue::Union(actual) = &outcome.as_ref().unwrap() else {",
+      "site_count": 1,
+      "id": "M00222"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6330,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                } => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    if !was_concrete && self.concrete(root).is_some() {",
+      "replacement": "                } => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    if !was_concrete && self.concrete(root).is_some() {",
+      "site_count": 1,
+      "id": "M00223"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6332,
+      "column": 38,
+      "operator": "and",
+      "literal": "                    if !was_concrete && self.concrete(root).is_some() {",
+      "replacement": "                    if !was_concrete || self.concrete(root).is_some() {",
+      "site_count": 1,
+      "id": "M00224"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6333,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00225"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6335,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);\n                    }\n                    outcome = Ok(SolverValue::Unit);\n                }\n                Frame::BindArrayDone { expected, found } => {",
+      "replacement": "                        self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);\n                    }\n\n                }\n                Frame::BindArrayDone { expected, found } => {",
+      "site_count": 1,
+      "id": "M00226"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6352,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                } => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    self.graph",
+      "replacement": "                } => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    self.graph",
+      "site_count": 1,
+      "id": "M00227"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6359,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        .variant_children = Some(children);\n                    self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);\n                    outcome = Ok(SolverValue::Union(children));",
+      "replacement": "                        .variant_children = Some(children);\n\n                    outcome = Ok(SolverValue::Union(children));",
+      "site_count": 1,
+      "id": "M00228"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6360,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);\n                    outcome = Ok(SolverValue::Union(children));\n                }",
+      "replacement": "                    self.graph.type_nodes.get_mut(&root).unwrap().variant_origin = Some(origin);\n\n                }",
+      "site_count": 1,
+      "id": "M00229"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6364,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                Frame::UnionAfterBinds(state) => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    let prepared = (|| -> Result<Vec<SolverUnion>, Box<Diagnostic>> {",
+      "replacement": "                Frame::UnionAfterBinds(state) => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    let prepared = (|| -> Result<Vec<SolverUnion>, Box<Diagnostic>> {",
+      "site_count": 1,
+      "id": "M00230"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6366,
+      "column": 37,
+      "operator": "or",
+      "literal": "                    let prepared = (|| -> Result<Vec<SolverUnion>, Box<Diagnostic>> {",
+      "replacement": "                    let prepared = (&& -> Result<Vec<SolverUnion>, Box<Diagnostic>> {",
+      "site_count": 1,
+      "id": "M00231"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6368,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && state.a_child.is_some()",
+      "replacement": "                            || state.a_child.is_some()",
+      "site_count": 1,
+      "id": "M00232"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6369,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && state.a_child.is_some()\n                            && !matches!(other, Type::Array(_))\n                        {",
+      "replacement": "                            && state.a_child.is_some()\n                            || !matches!(other, Type::Array(_))\n                        {",
+      "site_count": 1,
+      "id": "M00233"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6378,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && state.b_child.is_some()",
+      "replacement": "                            || state.b_child.is_some()",
+      "site_count": 1,
+      "id": "M00234"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6379,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && state.b_child.is_some()\n                            && !matches!(other, Type::Array(_))\n                        {",
+      "replacement": "                            && state.b_child.is_some()\n                            || !matches!(other, Type::Array(_))\n                        {",
+      "site_count": 1,
+      "id": "M00235"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6389,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && a_ty != b_ty",
+      "replacement": "                            || a_ty != b_ty",
+      "site_count": 1,
+      "id": "M00236"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6389,
+      "column": 37,
+      "operator": "ne",
+      "literal": "                            && a_ty != b_ty",
+      "replacement": "                            && a_ty == b_ty",
+      "site_count": 1,
+      "id": "M00237"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6392,
+      "column": 51,
+      "operator": "le",
+      "literal": "                                if a_origin.start <= b_origin.start {",
+      "replacement": "                                if a_origin.start < b_origin.start {",
+      "site_count": 1,
+      "id": "M00238"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6398,
+      "column": 45,
+      "operator": "or",
+      "literal": "                                .ok_or_else(|| unresolved_type(state.found.clone()))?;",
+      "replacement": "                                .ok_or_else(&& unresolved_type(state.found.clone()))?;",
+      "site_count": 1,
+      "id": "M00239"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6432,
+      "column": 29,
+      "operator": "drop_state",
+      "literal": "                            frames.push(Frame::UnionMerge(state));",
+      "replacement": "                            ",
+      "site_count": 1,
+      "id": "M00240"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6434,
+      "column": 33,
+      "operator": "drop_state",
+      "literal": "                                frames.push(Frame::Enter(SolverRequest::Union(union)));",
+      "replacement": "                                ",
+      "site_count": 1,
+      "id": "M00241"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6442,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                Frame::UnionMerge(state) => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    let SolverUnionJoin {",
+      "replacement": "                Frame::UnionMerge(state) => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    let SolverUnionJoin {",
+      "site_count": 1,
+      "id": "M00242"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6465,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    self.graph.type_nodes.get_mut(&b).unwrap().parent = a;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00243"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6473,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    self.graph.type_nodes.get_mut(&a).unwrap().array_child = a_child.or(b_child);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00244"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6485,
+      "column": 38,
+      "operator": "or",
+      "literal": "                            .or_else(|| self.graph.type_nodes[&b].variant_origin.clone());",
+      "replacement": "                            .or_else(&& self.graph.type_nodes[&b].variant_origin.clone());",
+      "site_count": 1,
+      "id": "M00245"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6497,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    self.graph.type_nodes.get_mut(&a).unwrap().bottom_only = bottom_only;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00246"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6500,
+      "column": 67,
+      "operator": "le",
+      "literal": "                        match (a_copyable, b_copyable) {\n                            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),\n                            (Some(a), None) | (None, Some(a)) => Some(a),",
+      "replacement": "                        match (a_copyable, b_copyable) {\n                            (Some(a), Some(b)) => Some(if a.start < b.start { a } else { b }),\n                            (Some(a), None) | (None, Some(a)) => Some(a),",
+      "site_count": 1,
+      "id": "M00247"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6508,
+      "column": 67,
+      "operator": "le",
+      "literal": "                        match (a_array_origin, b_array_origin) {\n                            (Some(a), Some(b)) => Some(if a.start <= b.start { a } else { b }),\n                            (Some(a), None) | (None, Some(a)) => Some(a),",
+      "replacement": "                        match (a_array_origin, b_array_origin) {\n                            (Some(a), Some(b)) => Some(if a.start < b.start { a } else { b }),\n                            (Some(a), None) | (None, Some(a)) => Some(a),",
+      "site_count": 1,
+      "id": "M00248"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6513,
+      "column": 57,
+      "operator": "le",
+      "literal": "                        (Some(a), Some(b)) if a.1.start <= b.1.start => (Some(a), a_intrinsic),",
+      "replacement": "                        (Some(a), Some(b)) if a.1.start < b.1.start => (Some(a), a_intrinsic),",
+      "site_count": 1,
+      "id": "M00249"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6517,
+      "column": 48,
+      "operator": "false",
+      "literal": "                        (None, None) => (None, false),",
+      "replacement": "                        (None, None) => (None, true),",
+      "site_count": 1,
+      "id": "M00250"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6519,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    self.graph.type_nodes.get_mut(&a).unwrap().concrete = chosen;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00251"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6530,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        self.graph.mark_failed_constructor(a);\n                    }\n                    outcome = Ok(SolverValue::Unit);\n                }\n                Frame::UnifyAfterUnion {",
+      "replacement": "                        self.graph.mark_failed_constructor(a);\n                    }\n\n                }\n                Frame::UnifyAfterUnion {",
+      "site_count": 1,
+      "id": "M00252"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6541,
+      "column": 39,
+      "operator": "eq",
+      "literal": "                    if let Err(error) = outcome {\n                        if error.code == \"NX-E0102\"\n                            && (self.graph.type_nodes[&a_root].variant_children.is_some()",
+      "replacement": "                    if let Err(error) = outcome {\n                        if error.code != \"NX-E0102\"\n                            && (self.graph.type_nodes[&a_root].variant_children.is_some()",
+      "site_count": 1,
+      "id": "M00253"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6542,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && (self.graph.type_nodes[&a_root].variant_children.is_some()",
+      "replacement": "                            || (self.graph.type_nodes[&a_root].variant_children.is_some()",
+      "site_count": 1,
+      "id": "M00254"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6543,
+      "column": 33,
+      "operator": "or",
+      "literal": "                                || self.graph.type_nodes[&b_root].variant_children.is_some())",
+      "replacement": "                                && self.graph.type_nodes[&b_root].variant_children.is_some())",
+      "site_count": 1,
+      "id": "M00255"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6544,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && (self.concrete(a).is_none() || self.concrete(b).is_none())",
+      "replacement": "                            || (self.concrete(a).is_none() || self.concrete(b).is_none())",
+      "site_count": 1,
+      "id": "M00256"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6544,
+      "column": 60,
+      "operator": "or",
+      "literal": "                            && (self.concrete(a).is_none() || self.concrete(b).is_none())",
+      "replacement": "                            && (self.concrete(a).is_none() && self.concrete(b).is_none())",
+      "site_count": 1,
+      "id": "M00257"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6563,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            )));\n                            outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));\n                        } else if error.code == \"NX-E0103\" {",
+      "replacement": "                            )));\n\n                        } else if error.code == \"NX-E0103\" {",
+      "site_count": 1,
+      "id": "M00258"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6564,
+      "column": 46,
+      "operator": "eq",
+      "literal": "                        } else if error.code == \"NX-E0103\" {",
+      "replacement": "                        } else if error.code != \"NX-E0103\" {",
+      "site_count": 1,
+      "id": "M00259"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6567,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            node.deferred_join = true;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00260"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6567,
+      "column": 50,
+      "operator": "true",
+      "literal": "                            node.deferred_join = true;",
+      "replacement": "                            node.deferred_join = false;",
+      "site_count": 1,
+      "id": "M00261"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6568,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            node.recursive_join = true;",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00262"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6568,
+      "column": 51,
+      "operator": "true",
+      "literal": "                            node.recursive_join = true;",
+      "replacement": "                            node.recursive_join = false;",
+      "site_count": 1,
+      "id": "M00263"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6585,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            )));\n                            outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));\n                        } else {",
+      "replacement": "                            )));\n\n                        } else {",
+      "site_count": 1,
+      "id": "M00264"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6587,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));\n                        } else {\n                            outcome = Err(error);\n                        }\n                        continue;",
+      "replacement": "                            outcome = Ok(SolverValue::Type(Type::Deferred(constructor)));\n                        } else {\n\n                        }\n                        continue;",
+      "site_count": 1,
+      "id": "M00265"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6589,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                        } else {\n                            outcome = Err(error);\n                        }\n                        continue;\n                    }\n                    for join in self.pending_joins_mut().skip(pending_before) {\n                        join.left = Type::Deferred(a);",
+      "replacement": "                        } else {\n                            outcome = Err(error);\n                        }\n                        break;\n                    }\n                    for join in self.pending_joins_mut().skip(pending_before) {\n                        join.left = Type::Deferred(a);",
+      "site_count": 1,
+      "id": "M00266"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6592,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.left = Type::Deferred(a);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00267"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6593,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.right = Type::Deferred(b);",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00268"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6594,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.right = Type::Deferred(b);\n                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;",
+      "replacement": "                        join.right = Type::Deferred(b);\n\n                        join.branch = request.policy.branch;",
+      "site_count": 1,
+      "id": "M00269"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6595,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.right = Type::Deferred(b);\n                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;\n                        join.related_expected = request.policy.related_expected;\n                    }",
+      "replacement": "                        join.right = Type::Deferred(b);\n                        join.left_origin = request.left_origin.clone();\n\n                        join.related_expected = request.policy.related_expected;\n                    }",
+      "site_count": 1,
+      "id": "M00270"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6596,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;\n                        join.related_expected = request.policy.related_expected;\n                    }\n                    outcome = Ok(SolverValue::Type(Type::Deferred(self.root(a))));",
+      "replacement": "                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;\n\n                    }\n                    outcome = Ok(SolverValue::Type(Type::Deferred(self.root(a))));",
+      "site_count": 1,
+      "id": "M00271"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6598,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    outcome = Ok(SolverValue::Type(Type::Deferred(self.root(a))));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00272"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6609,
+      "column": 39,
+      "operator": "eq",
+      "literal": "                        let root = self.root(id);\n                        if error.code == \"NX-E0102\"\n                            && concrete_union(&other).is_some()",
+      "replacement": "                        let root = self.root(id);\n                        if error.code != \"NX-E0102\"\n                            && concrete_union(&other).is_some()",
+      "site_count": 1,
+      "id": "M00273"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6610,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && concrete_union(&other).is_some()",
+      "replacement": "                            || concrete_union(&other).is_some()",
+      "site_count": 1,
+      "id": "M00274"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6611,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && self.graph.type_nodes[&root].variant_children.is_some()",
+      "replacement": "                            || self.graph.type_nodes[&root].variant_children.is_some()",
+      "site_count": 1,
+      "id": "M00275"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6612,
+      "column": 29,
+      "operator": "and",
+      "literal": "                            && self.concrete(id).is_none()",
+      "replacement": "                            || self.concrete(id).is_none()",
+      "site_count": 1,
+      "id": "M00276"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6638,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            outcome = Ok(SolverValue::Type(Type::Deferred(root)));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00277"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6640,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            outcome = Ok(SolverValue::Type(Type::Deferred(root)));\n                        } else {\n                            outcome = Err(error);\n                        }\n                        continue;",
+      "replacement": "                            outcome = Ok(SolverValue::Type(Type::Deferred(root)));\n                        } else {\n\n                        }\n                        continue;",
+      "site_count": 1,
+      "id": "M00278"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6642,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                        } else {\n                            outcome = Err(error);\n                        }\n                        continue;\n                    }\n                    for join in self.pending_joins_mut().skip(pending_before) {\n                        join.left = if left_deferred {",
+      "replacement": "                        } else {\n                            outcome = Err(error);\n                        }\n                        break;\n                    }\n                    for join in self.pending_joins_mut().skip(pending_before) {\n                        join.left = if left_deferred {",
+      "site_count": 1,
+      "id": "M00279"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6655,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        };\n                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;",
+      "replacement": "                        };\n\n                        join.branch = request.policy.branch;",
+      "site_count": 1,
+      "id": "M00280"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6656,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        };\n                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;\n                        join.related_expected = request.policy.related_expected;\n                    }",
+      "replacement": "                        };\n                        join.left_origin = request.left_origin.clone();\n\n                        join.related_expected = request.policy.related_expected;\n                    }",
+      "site_count": 1,
+      "id": "M00281"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6657,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;\n                        join.related_expected = request.policy.related_expected;\n                    }\n                    let ty = self",
+      "replacement": "                        join.left_origin = request.left_origin.clone();\n                        join.branch = request.policy.branch;\n\n                    }\n                    let ty = self",
+      "site_count": 1,
+      "id": "M00282"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6662,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    outcome = Ok(SolverValue::Type(ty));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00283"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6675,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                            outcome = Err(array_mismatch(error, &expected, &found));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00284"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6676,
+      "column": 29,
+      "operator": "continue",
+      "literal": "                            outcome = Err(array_mismatch(error, &expected, &found));\n                            continue;\n                        }",
+      "replacement": "                            outcome = Err(array_mismatch(error, &expected, &found));\n                            break;\n                        }",
+      "site_count": 1,
+      "id": "M00285"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6680,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.left = Type::Array(Arc::new(join.left.clone()));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00286"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6681,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                        join.right = Type::Array(Arc::new(join.right.clone()));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00287"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6684,
+      "column": 60,
+      "operator": "and",
+      "literal": "                    if internal_state(&expected).is_none() && internal_state(&found).is_none() {",
+      "replacement": "                    if internal_state(&expected).is_none() || internal_state(&found).is_none() {",
+      "site_count": 1,
+      "id": "M00288"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6695,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    outcome = Ok(SolverValue::Type(resolved));",
+      "replacement": "",
+      "site_count": 1,
+      "id": "M00289"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6707,
+      "column": 25,
+      "operator": "continue",
+      "literal": "                } => {\n                    if outcome.is_err() {\n                        continue;\n                    }\n                    if waiting {",
+      "replacement": "                } => {\n                    if outcome.is_err() {\n                        break;\n                    }\n                    if waiting {",
+      "site_count": 1,
+      "id": "M00290"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6714,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        payloads.push(ty);",
+      "replacement": "                        ",
+      "site_count": 1,
+      "id": "M00291"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6727,
+      "column": 51,
+      "operator": "true",
+      "literal": "                                branch: request.policy.branch,\n                                related_expected: true,\n                            },",
+      "replacement": "                                branch: request.policy.branch,\n                                related_expected: false,\n                            },",
+      "site_count": 1,
+      "id": "M00292"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6737,
+      "column": 38,
+      "operator": "true",
+      "literal": "                            waiting: true,",
+      "replacement": "                            waiting: false,",
+      "site_count": 1,
+      "id": "M00293"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6739,
+      "column": 25,
+      "operator": "drop_state",
+      "literal": "                        });\n                        frames.push(Frame::Enter(SolverRequest::Unify(child)));\n                    } else {",
+      "replacement": "                        });\n                        \n                    } else {",
+      "site_count": 1,
+      "id": "M00294"
+    },
+    {
+      "file": "src/check/types.rs",
+      "line": 6755,
+      "column": 1,
+      "operator": "drop_assignment",
+      "literal": "                    if let Err(error) = outcome {\n                        outcome = Err(array_mismatch(error, &expected, &found));\n                    }",
+      "replacement": "                    if let Err(error) = outcome {\n\n                    }",
+      "site_count": 1,
+      "id": "M00295"
+    }
+  ]
+}
