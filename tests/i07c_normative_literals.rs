@@ -12,11 +12,10 @@ pub(super) fn source(body: &str) -> String {
 
 pub(super) fn invoke(verb: &str, source: &str, profile: &str) -> (i32, String, String) {
     let id = NEXT.fetch_add(1, Ordering::Relaxed);
-    let path = format!(
-        "{}/.scratch/tmp-s6/i07c-s6-{}-{id}.n",
-        env!("CARGO_MANIFEST_DIR"),
-        std::process::id()
-    );
+    let path = std::env::temp_dir()
+        .join(format!("i07c-s6-{}-{id}.n", std::process::id()))
+        .to_string_lossy()
+        .into_owned();
     fs::write(&path, source).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_nexo"))
         .args([verb, &path, "--profile", profile, "--format", "json"])

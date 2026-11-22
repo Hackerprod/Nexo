@@ -161,8 +161,10 @@ fn grouped_operands_keep_one_causal_primary() {
 #[test]
 fn repeated_check_and_run_keep_diagnostics_deterministic() {
     // §4.1.2 N(e), §13.9: the same file and bytes for both runs per verb.
-    let folder = format!("{}/.scratch/tmp-s6", env!("CARGO_MANIFEST_DIR"));
-    let path = format!("{folder}/i07c-s6-repeat-{}.n", std::process::id());
+    let path = std::env::temp_dir()
+        .join(format!("i07c-s6-repeat-{}.n", std::process::id()))
+        .to_string_lossy()
+        .into_owned();
     for body in [
         "var q=DV;let a=[1,(if true then false else false),q];q=3;",
         "let p=true;var r=[];let a:I64=(r==p);r=[1];",

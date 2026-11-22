@@ -81,7 +81,7 @@ def audit() -> None:
 
 
 def self_test() -> None:
-    with tempfile.TemporaryDirectory(prefix="i07c-span-", dir=SOURCE.parents[2] / ".scratch/tmp-s6") as folder:
+    with tempfile.TemporaryDirectory(prefix="i07c-span-") as folder:
         root = Path(folder)
         script = root / "scripts/i07c_span_audit.py"
         source = root / "src/check/types.rs"

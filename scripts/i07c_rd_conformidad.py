@@ -279,7 +279,7 @@ def self_test(rows: list[dict]) -> None:
 def verify(binary: Path, rows: list[dict]) -> int:
     failed = 0
     snapshots = 0
-    with tempfile.TemporaryDirectory(prefix="i07c-rd-", dir=ROOT / ".scratch/tmp-s6") as temporary:
+    with tempfile.TemporaryDirectory(prefix="i07c-rd-") as temporary:
         path = Path(temporary) / "case.n"
         for row in rows:
             path.write_bytes(row["source"].encode("ascii"))
