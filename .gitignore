@@ -5,3 +5,6 @@
 /scripts/**/target/
 /scripts/**/__pycache__/
 /Claude Agent.cmd
+
+# Python bytecode de herramientas de validacion
+docs/validation/**/__pycache__/
