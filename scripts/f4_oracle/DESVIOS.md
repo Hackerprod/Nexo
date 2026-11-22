@@ -1,0 +1,7 @@
+# F4 oráculo: desvíos del plan r3 (implementación C, tramos O1 y O2)
+
+1. **Base de la rama.** El encargo pide la rama `f4-oracle` desde `origin/main`. El clon local de `C:/projects/Nexo` tiene su rama `main` obsoleta (b506d7d, sin `scripts/f5_oracle`, sin `tests/fixtures` y con otro blob del ADR de K). El `origin/main` real del proyecto es b57145a (contiene el pin `1010938` y el blob `8bf37f56` de K). La rama parte de b57145a: en el clon se actualizó la referencia `refs/remotes/origin/main` a ese commit.
+2. **Módulos de casos.** Los constructores de programas por fila (O2) viven en `selftest.py` (ORQUESTA), no en un módulo nuevo, para no ampliar la lista de §7.
+3. **Fragmentos heredados (§1.2).** Solo se transcriben los que usan O1/O2: A2 §13.6 (identidades), A2 §12.4 (formato de Print), F0-0003 §3.1 (Option), D15 §2.4 (escapes) y las filas de A2 §13.12 de las etapas usadas. D15 §6.3 y §7.1, A2 §4.2/§13.15 y F0-0005 se pinan por blob pero sus fragmentos se transcriben en el tramo que los necesite (laguna LF-08).
+4. **Filas locales añadidas.** `L01–L06` (literales de la prosa de K §10.1), `T01–T14` (K §10.3), `CMP6`, `K04P`, `A01–A08` y `U01` llevan identificador propio del oráculo; su ancla cita el párrafo o bloque de K que los sustenta.
+5. **`selftest` G1–G2 en O1.** El modelo de String llega en O2; en O1 `selftest` verifica de G1–G2 la presencia y la integridad estructural de las filas (fragmentos, marcas, forma del contrato).

@@ -1,0 +1,6468 @@
+{
+ "entries": [
+  {
+   "anchor": "K §10.1 X01",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     17,
+     19
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "empty_interpolation",
+    "token": [
+     "symbol",
+     "}",
+     18,
+     19
+    ]
+   },
+   "file": "X01.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X01",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X01 | `fn Main(){let s=\"⟦{}⟧\";}` | NX-E1401/empty_interpolation | `{}` → `{1}` |\n| X01 | `[17,19)` | delimiter `[16,17)` | `{}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X01",
+   "marked": "fn Main(){let s=\"⟦{}⟧\";}",
+   "positive": {
+    "edit": [
+     "{}",
+     "{1}",
+     0
+    ],
+    "source": "fn Main(){let s=\"{1}\";}"
+   },
+   "source": "fn Main(){let s=\"{}\";}"
+  },
+  {
+   "anchor": "K §10.1 X02",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     17,
+     18
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "unescaped_closing_brace",
+    "token": [
+     "symbol",
+     "}",
+     17,
+     18
+    ]
+   },
+   "file": "X02.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X02",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X02 | `fn Main(){let s=\"⟦}⟧\";}` | NX-E1401/unescaped_closing_brace | `}` → `}}` |\n| X02 | `[17,18)` | delimiter `[16,17)` | `{}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X02",
+   "marked": "fn Main(){let s=\"⟦}⟧\";}",
+   "positive": {
+    "edit": [
+     "}",
+     "}}",
+     0
+    ],
+    "source": "fn Main(){let s=\"}}\";}"
+   },
+   "source": "fn Main(){let s=\"}\";}"
+  },
+  {
+   "anchor": "K §10.1 X03",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     17,
+     18
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "unterminated_interpolation",
+    "token": [
+     "symbol",
+     "{",
+     17,
+     18
+    ]
+   },
+   "file": "X03.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X03",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X03 | `fn Main(){let s=\"⟦{⟧1\";}` | NX-E1401/unterminated_interpolation | insertar `}` después de `1` |\n| X03 | `[17,18)` | delimiter `[16,17)` | `{}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X03",
+   "marked": "fn Main(){let s=\"⟦{⟧1\";}",
+   "positive": {
+    "edit": [
+     "1",
+     "1}",
+     0
+    ],
+    "source": "fn Main(){let s=\"{1}\";}"
+   },
+   "source": "fn Main(){let s=\"{1\";}"
+  },
+  {
+   "anchor": "K §10.1 X04",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:array",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     16,
+     20
+    ],
+    "related": [
+     [
+      "found_type",
+      16,
+      20
+     ]
+    ],
+    "subcause": "not_indexable"
+   },
+   "file": "X04.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X04",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X04 | `fn Main(){let s=⟦\"é\"⟧[0];}` | NX-E0102/not_indexable | sustituir `\"é\"` por `[233]` |\n| X04 | `[16,20)` | found_type igual al primario | `{\"expected_type\":\"domain:array\",\"found_type\":\"String\"}` |"
+    }
+   ],
+   "id": "X04",
+   "marked": "fn Main(){let s=⟦\"é\"⟧[0];}",
+   "positive": {
+    "edit": [
+     "\"é\"",
+     "[233]",
+     0
+    ],
+    "source": "fn Main(){let s=[233][0];}"
+   },
+   "source": "fn Main(){let s=\"é\"[0];}"
+  },
+  {
+   "anchor": "K §10.1 X05",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1402",
+    "data": {
+     "member_name": "y",
+     "receiver_type": "package.S"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     39,
+     40
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "unknown_member"
+   },
+   "file": "X05.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X05",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X05 | `struct S{x:I64;}fn Main(){let s=S(1);s.⟦y⟧;}` | NX-E1402/unknown_member | `y` → `x` |\n| X05 | `[39,40)` | declaration `[7,8)` | `{\"member_name\":\"y\",\"receiver_type\":\"package.S\"}` |"
+    }
+   ],
+   "id": "X05",
+   "marked": "struct S{x:I64;}fn Main(){let s=S(1);s.⟦y⟧;}",
+   "positive": {
+    "edit": [
+     "s.y",
+     "s.x",
+     0
+    ],
+    "source": "struct S{x:I64;}fn Main(){let s=S(1);s.x;}"
+   },
+   "source": "struct S{x:I64;}fn Main(){let s=S(1);s.y;}"
+  },
+  {
+   "anchor": "K §10.1 X06",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0104",
+    "data": {
+     "declaration_kind": "field"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     15,
+     16
+    ],
+    "related": [
+     [
+      "previous_declaration",
+      9,
+      10
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "X06.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X06",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X06 | `struct S{x:I64;⟦x⟧:I64;}` | NX-E0104/null | segundo `x` → `y` |\n| X06 | `[15,16)` | previous_declaration `[9,10)` | `{\"declaration_kind\":\"field\"}` |"
+    }
+   ],
+   "id": "X06",
+   "marked": "struct S{x:I64;⟦x⟧:I64;}",
+   "positive": {
+    "edit": [
+     "x:I64;x",
+     "x:I64;y",
+     0
+    ],
+    "source": "struct S{x:I64;y:I64;}"
+   },
+   "source": "struct S{x:I64;x:I64;}"
+  },
+  {
+   "anchor": "K §10.1 X07",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0104",
+    "data": {
+     "declaration_kind": "variant"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     9,
+     10
+    ],
+    "related": [
+     [
+      "previous_declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "X07.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X07",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X07 | `enum E{A,⟦A⟧}` | NX-E0104/null | segundo `A` → `B` |\n| X07 | `[9,10)` | previous_declaration `[7,8)` | `{\"declaration_kind\":\"variant\"}` |"
+    }
+   ],
+   "id": "X07",
+   "marked": "enum E{A,⟦A⟧}",
+   "positive": {
+    "edit": [
+     "A,A",
+     "A,B",
+     0
+    ],
+    "source": "enum E{A,B}"
+   },
+   "source": "enum E{A,A}"
+  },
+  {
+   "anchor": "K §10.1 X08",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0111",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     32,
+     33
+    ],
+    "related": [
+     [
+      "declaration",
+      9,
+      10
+     ]
+    ],
+    "subcause": "missing_argument"
+   },
+   "file": "X08.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X08",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X08 | `struct S{x:I64;}fn Main(){let s=⟦S⟧();}` | NX-E0111/missing_argument | insertar `1` en la llamada |\n| X08 | `[32,33)` | declaration `[9,10)` | `{}` |"
+    }
+   ],
+   "id": "X08",
+   "marked": "struct S{x:I64;}fn Main(){let s=⟦S⟧();}",
+   "positive": {
+    "edit": [
+     "S()",
+     "S(1)",
+     0
+    ],
+    "source": "struct S{x:I64;}fn Main(){let s=S(1);}"
+   },
+   "source": "struct S{x:I64;}fn Main(){let s=S();}"
+  },
+  {
+   "anchor": "K §10.1 X09",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0111",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     34,
+     35
+    ],
+    "related": [],
+    "subcause": "unknown_argument_label"
+   },
+   "file": "X09.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X09",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X09 | `struct S{x:I64;}fn Main(){let s=S(⟦z⟧:1);}` | NX-E0111/unknown_argument_label | `z` → `x` |\n| X09 | `[34,35)` | ninguna | `{}` |"
+    }
+   ],
+   "id": "X09",
+   "marked": "struct S{x:I64;}fn Main(){let s=S(⟦z⟧:1);}",
+   "positive": {
+    "edit": [
+     "z:1",
+     "x:1",
+     0
+    ],
+    "source": "struct S{x:I64;}fn Main(){let s=S(x:1);}"
+   },
+   "source": "struct S{x:I64;}fn Main(){let s=S(z:1);}"
+  },
+  {
+   "anchor": "K §10.1 X10",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0105",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     37,
+     38
+    ],
+    "related": [
+     [
+      "declaration",
+      30,
+      31
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "X10.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X10",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X10 | `struct S{x:I64;}fn Main(){let s=S(1);⟦s⟧.x=2;}` | NX-E0105/null | `let s` → `var s` |\n| X10 | `[37,38)` | declaration `[30,31)` | `{}` |"
+    }
+   ],
+   "id": "X10",
+   "marked": "struct S{x:I64;}fn Main(){let s=S(1);⟦s⟧.x=2;}",
+   "positive": {
+    "edit": [
+     "let s",
+     "var s",
+     0
+    ],
+    "source": "struct S{x:I64;}fn Main(){var s=S(1);s.x=2;}"
+   },
+   "source": "struct S{x:I64;}fn Main(){let s=S(1);s.x=2;}"
+  },
+  {
+   "anchor": "K §10.1 X11",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0201",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     62,
+     63
+    ],
+    "related": [
+     [
+      "declaration",
+      39,
+      40
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "X11.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X11",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X11 | `struct S{r:MockResource;}fn Main(){let s=S(MockOpen(1));let t=⟦s⟧;}` | NX-E0201/null | `s` del inicializador → `move s` |\n| X11 | `[62,63)` | declaration `[39,40)` | `{}` |"
+    }
+   ],
+   "id": "X11",
+   "marked": "struct S{r:MockResource;}fn Main(){let s=S(MockOpen(1));let t=⟦s⟧;}",
+   "positive": {
+    "edit": [
+     "let t=s;",
+     "let t=move s;",
+     0
+    ],
+    "source": "struct S{r:MockResource;}fn Main(){let s=S(MockOpen(1));let t=move s;}"
+   },
+   "source": "struct S{r:MockResource;}fn Main(){let s=S(MockOpen(1));let t=s;}"
+  },
+  {
+   "anchor": "K §10.1 X12",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "Format"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     43,
+     44
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_format"
+   },
+   "file": "X12.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X12",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X12 | `struct S{x:I64;}fn Main(){let s=S(1);Print(⟦s⟧);}` | NX-E1403/missing_format | anteponer `@derive(Format)` |\n| X12 | `[43,44)` | declaration `[7,8)` | `{\"required_capability\":\"Format\"}` |"
+    }
+   ],
+   "id": "X12",
+   "marked": "struct S{x:I64;}fn Main(){let s=S(1);Print(⟦s⟧);}",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(Format)struct S",
+     0
+    ],
+    "source": "@derive(Format)struct S{x:I64;}fn Main(){let s=S(1);Print(s);}"
+   },
+   "source": "struct S{x:I64;}fn Main(){let s=S(1);Print(s);}"
+  },
+  {
+   "anchor": "K §10.1 X13",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     47,
+     49
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "file": "X13.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X13",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X13 | `struct S{x:I64;}fn Main(){let s=S(1);AssertEq(s⟦==⟧s,true);}` | NX-E1403/missing_partial_eq | anteponer `@derive(PartialEq)` |\n| X13 | `[47,49)` | declaration `[7,8)` | `{\"required_capability\":\"PartialEq\"}` |"
+    }
+   ],
+   "id": "X13",
+   "marked": "struct S{x:I64;}fn Main(){let s=S(1);AssertEq(s⟦==⟧s,true);}",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{x:I64;}fn Main(){let s=S(1);AssertEq(s==s,true);}"
+   },
+   "source": "struct S{x:I64;}fn Main(){let s=S(1);AssertEq(s==s,true);}"
+  },
+  {
+   "anchor": "K §10.1 X14",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "Format"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     26,
+     38
+    ],
+    "related": [
+     [
+      "contract",
+      8,
+      14
+     ]
+    ],
+    "subcause": "missing_format"
+   },
+   "file": "X14.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X14",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X14 | `@derive(Format)struct S{r:⟦MockResource⟧;}` | NX-E1403/missing_format | tipo de campo → `I64` |\n| X14 | `[26,38)` | contract `[8,14)` | `{\"required_capability\":\"Format\"}` |"
+    }
+   ],
+   "id": "X14",
+   "marked": "@derive(Format)struct S{r:⟦MockResource⟧;}",
+   "positive": {
+    "edit": [
+     "MockResource",
+     "I64",
+     0
+    ],
+    "source": "@derive(Format)struct S{r:I64;}"
+   },
+   "source": "@derive(Format)struct S{r:MockResource;}"
+  },
+  {
+   "anchor": "K §10.1 X15",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1404",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     15,
+     21
+    ],
+    "related": [
+     [
+      "previous_declaration",
+      8,
+      14
+     ]
+    ],
+    "subcause": "duplicate_derive"
+   },
+   "file": "X15.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X15",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X15 | `@derive(Format,⟦Format⟧)struct S{}` | NX-E1404/duplicate_derive | quitar `,Format` segundo |\n| X15 | `[15,21)` | previous_declaration `[8,14)` | `{}` |"
+    }
+   ],
+   "id": "X15",
+   "marked": "@derive(Format,⟦Format⟧)struct S{}",
+   "positive": {
+    "edit": [
+     ",Format",
+     "",
+     0
+    ],
+    "source": "@derive(Format)struct S{}"
+   },
+   "source": "@derive(Format,Format)struct S{}"
+  },
+  {
+   "anchor": "K §10.1 X16",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1404",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     8,
+     14
+    ],
+    "related": [
+     [
+      "context",
+      18,
+      19
+     ]
+    ],
+    "subcause": "invalid_derive_target"
+   },
+   "file": "X16.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X16",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X16 | `@derive(⟦Format⟧)fn F(){}` | NX-E1404/invalid_derive_target | `fn F(){}` → `struct F{}` |\n| X16 | `[8,14)` | context `[18,19)` | `{}` |"
+    }
+   ],
+   "id": "X16",
+   "marked": "@derive(⟦Format⟧)fn F(){}",
+   "positive": {
+    "edit": [
+     "fn F(){}",
+     "struct F{}",
+     0
+    ],
+    "source": "@derive(Format)struct F{}"
+   },
+   "source": "@derive(Format)fn F(){}"
+  },
+  {
+   "anchor": "K §10.1 X17",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1310",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     10,
+     10
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_signature_type"
+   },
+   "file": "X17.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X17",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X17 | `pub fn F()⟦⟧ with unrestricted{}` | NX-E1310/missing_signature_type | insertar `->()` en la marca |\n| X17 | `[10,10)` | declaration `[7,8)` | `{}` |"
+    }
+   ],
+   "id": "X17",
+   "marked": "pub fn F()⟦⟧ with unrestricted{}",
+   "positive": {
+    "edit": [
+     "F()",
+     "F()->()",
+     0
+    ],
+    "source": "pub fn F()->() with unrestricted{}"
+   },
+   "source": "pub fn F() with unrestricted{}"
+  },
+  {
+   "anchor": "K §10.1 X18",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1310",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     7,
+     8
+    ],
+    "related": [],
+    "subcause": "missing_effect_bound"
+   },
+   "file": "X18.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X18",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X18 | `pub fn ⟦F⟧()->(){}` | NX-E1310/missing_effect_bound | insertar ` with unrestricted` antes de `{` |\n| X18 | `[7,8)` | ninguna | `{}` |"
+    }
+   ],
+   "id": "X18",
+   "marked": "pub fn ⟦F⟧()->(){}",
+   "positive": {
+    "edit": [
+     "->(){}",
+     "->() with unrestricted{}",
+     0
+    ],
+    "source": "pub fn F()->() with unrestricted{}"
+   },
+   "source": "pub fn F()->(){}"
+  },
+  {
+   "anchor": "K §10.1 X19",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1310",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     26,
+     27
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "unexported_type"
+   },
+   "file": "X19.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X19",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X19 | `struct S{}pub fn F(x:view ⟦S⟧)->() with unrestricted{}` | NX-E1310/unexported_type | anteponer `pub ` a struct |\n| X19 | `[26,27)` | declaration `[7,8)` | `{}` |"
+    }
+   ],
+   "id": "X19",
+   "marked": "struct S{}pub fn F(x:view ⟦S⟧)->() with unrestricted{}",
+   "positive": {
+    "edit": [
+     "struct S",
+     "pub struct S",
+     0
+    ],
+    "source": "pub struct S{}pub fn F(x:view S)->() with unrestricted{}"
+   },
+   "source": "struct S{}pub fn F(x:view S)->() with unrestricted{}"
+  },
+  {
+   "anchor": "K §10.1 X20",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1308",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     26,
+     27
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "private_reexport"
+   },
+   "file": "X20.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X20",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X20 | `struct S{}pub use package.⟦S⟧ as T;` | NX-E1308/private_reexport | anteponer `pub ` a struct |\n| X20 | `[26,27)` | declaration `[7,8)` | `{}` |"
+    }
+   ],
+   "id": "X20",
+   "marked": "struct S{}pub use package.⟦S⟧ as T;",
+   "positive": {
+    "edit": [
+     "struct S",
+     "pub struct S",
+     0
+    ],
+    "source": "pub struct S{}pub use package.S as T;"
+   },
+   "source": "struct S{}pub use package.S as T;"
+  },
+  {
+   "anchor": "K §10.1 X21",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1323",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     11,
+     12
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "recursive_value_layout"
+   },
+   "file": "X21.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X21",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X21 | `struct S{x:⟦S⟧;}` | NX-E1323/recursive_value_layout | campo `S` → `I64` |\n| X21 | `[11,12)` | declaration `[7,8)` | `{}` |"
+    }
+   ],
+   "id": "X21",
+   "marked": "struct S{x:⟦S⟧;}",
+   "positive": {
+    "edit": [
+     "x:S",
+     "x:I64",
+     0
+    ],
+    "source": "struct S{x:I64;}"
+   },
+   "source": "struct S{x:S;}"
+  },
+  {
+   "anchor": "K §10.1 X22",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1402",
+    "data": {
+     "member_name": "Nope",
+     "receiver_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     28,
+     32
+    ],
+    "related": [],
+    "subcause": "unknown_member"
+   },
+   "file": "X22.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X22",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X22 | `fn Main(){let s=\"a\";let t=s.⟦Nope⟧();}` | NX-E1402/unknown_member | `Nope` → `ByteLen` |\n| X22 | `[28,32)` | ninguna | `{\"member_name\":\"Nope\",\"receiver_type\":\"String\"}` |"
+    }
+   ],
+   "id": "X22",
+   "marked": "fn Main(){let s=\"a\";let t=s.⟦Nope⟧();}",
+   "positive": {
+    "edit": [
+     "Nope",
+     "ByteLen",
+     0
+    ],
+    "source": "fn Main(){let s=\"a\";let t=s.ByteLen();}"
+   },
+   "source": "fn Main(){let s=\"a\";let t=s.Nope();}"
+  },
+  {
+   "anchor": "K §10.1 X23",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "copy",
+      "value.copy",
+      40,
+      41,
+      {
+       "id": "parameter:5",
+       "kind": "parameter"
+      }
+     ]
+    ],
+    "code": "NX-E0412",
+    "data": {
+     "contract_origin": {
+      "end": 33,
+      "file": "X23.n",
+      "start": 25
+     },
+     "effect_evidence": "known_effect",
+     "effect_model": "f0-0004-sim-v1",
+     "required_effect": "alloc"
+    },
+    "kind": "diagnostic",
+    "operation": "value.copy",
+    "primary": [
+     40,
+     41
+    ],
+    "related": [
+     [
+      "contract",
+      25,
+      33
+     ]
+    ],
+    "stage": "effects",
+    "subcause": null
+   },
+   "file": "X23.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X23",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X23 | `fn F(s:view String) with no_alloc{let t=⟦s⟧;}` | NX-E0412/null | `let t=s;` → `s.ByteLen();` |\n| X23 | `[40,41)` | contract `[25,33)` | `{\"effect_model\":\"f0-0004-sim-v1\",\"effect_evidence\":\"known_effect\",\"contract_origin\":{\"file\":\"X23.n\",\"start\":25,\"end\":33},\"required_effect\":\"alloc\"}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X23",
+   "marked": "fn F(s:view String) with no_alloc{let t=⟦s⟧;}",
+   "positive": {
+    "edit": [
+     "let t=s;",
+     "s.ByteLen();",
+     0
+    ],
+    "source": "fn F(s:view String) with no_alloc{s.ByteLen();}"
+   },
+   "source": "fn F(s:view String) with no_alloc{let t=s;}"
+  },
+  {
+   "anchor": "K §10.1 X24",
+   "cli": true,
+   "expected": {
+    "code": "R0002",
+    "data": {
+     "limit": 8,
+     "observed": 9,
+     "runtime_budget_kind": "string_bytes"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     16,
+     27
+    ],
+    "profile_id": "f0-0004-b-test-string-8-v1",
+    "related": [],
+    "subcause": null
+   },
+   "file": "X24.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X24",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X24 | `fn Main(){let s=⟦\"abcdefghi\"⟧;}` | R0002/null, perfil test-string-8 | quitar `i` del literal |\n| X24 | `[16,27)` | ninguna | `{\"runtime_budget_kind\":\"string_bytes\",\"limit\":8,\"observed\":9}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X24",
+   "marked": "fn Main(){let s=⟦\"abcdefghi\"⟧;}",
+   "positive": {
+    "edit": [
+     "abcdefghi",
+     "abcdefgh",
+     0
+    ],
+    "source": "fn Main(){let s=\"abcdefgh\";}"
+   },
+   "source": "fn Main(){let s=\"abcdefghi\";}"
+  },
+  {
+   "anchor": "K §10.1 X25",
+   "cli": true,
+   "expected": {
+    "code": "R0002",
+    "data": {
+     "limit": 16,
+     "observed": 17,
+     "runtime_budget_kind": "live_text_bytes"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     50,
+     53
+    ],
+    "profile_id": "f0-0004-b-test-text-live-16-v1",
+    "related": [],
+    "subcause": null
+   },
+   "file": "X25.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X25",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X25 | `fn Main(){let a=\"12345678\";let b=\"12345678\";let c=⟦\"x\"⟧;}` | R0002/null, perfil test-text-live-16 | `\"x\"` → `\"\"` |\n| X25 | `[50,53)` | ninguna | `{\"runtime_budget_kind\":\"live_text_bytes\",\"limit\":16,\"observed\":17}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X25",
+   "marked": "fn Main(){let a=\"12345678\";let b=\"12345678\";let c=⟦\"x\"⟧;}",
+   "positive": {
+    "edit": [
+     "\"x\"",
+     "\"\"",
+     0
+    ],
+    "source": "fn Main(){let a=\"12345678\";let b=\"12345678\";let c=\"\";}"
+   },
+   "source": "fn Main(){let a=\"12345678\";let b=\"12345678\";let c=\"x\";}"
+  },
+  {
+   "anchor": "K §10.1 X26",
+   "cli": true,
+   "expected": {
+    "code": "R0002",
+    "data": {
+     "limit": 2,
+     "observed": 3,
+     "runtime_budget_kind": "text_allocations"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     34,
+     36
+    ],
+    "profile_id": "f0-0004-b-test-text-alloc-2-v1",
+    "related": [],
+    "subcause": null
+   },
+   "file": "X26.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X26",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X26 | `fn Main(){let a=\"\";let b=\"\";let c=⟦\"\"⟧;}` | R0002/null, perfil test-text-alloc-2 | `\"\"` del tercer binding → `0` |\n| X26 | `[34,36)` | ninguna | `{\"runtime_budget_kind\":\"text_allocations\",\"limit\":2,\"observed\":3}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X26",
+   "marked": "fn Main(){let a=\"\";let b=\"\";let c=⟦\"\"⟧;}",
+   "positive": {
+    "edit": [
+     "let c=\"\"",
+     "let c=0",
+     0
+    ],
+    "source": "fn Main(){let a=\"\";let b=\"\";let c=0;}"
+   },
+   "source": "fn Main(){let a=\"\";let b=\"\";let c=\"\";}"
+  },
+  {
+   "anchor": "K §10.1 X27",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0003",
+    "data": {
+     "budget_kind": "nominal_members",
+     "budget_scope": "compilation",
+     "incomplete_analysis": "types",
+     "limit": 2,
+     "observed": 3
+    },
+    "kind": "diagnostic",
+    "operation": "analysis.limit",
+    "primary": [
+     21,
+     22
+    ],
+    "profile_id": "f0-0004-b-test-members-2-v1",
+    "related": [],
+    "stage": "types",
+    "subcause": null
+   },
+   "file": "X27.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "X27",
+      "kind": "rows"
+     },
+     "section": "10.1",
+     "text": "| X27 | `struct S{a:I64;b:I64;⟦c⟧:I64;}` | NX-E0003/null, perfil test-members-2 | quitar `c:I64;` |\n| X27 | `[21,22)` | ninguna | `{\"budget_kind\":\"nominal_members\",\"budget_scope\":\"compilation\",\"incomplete_analysis\":\"types\",\"limit\":2,\"observed\":3}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "En X01 el token inesperado"
+     },
+     "section": "10.1",
+     "text": "En X01 el token inesperado es `}` en `[18,19)`; X02 `}` en `[17,18)`; X03 `{` en `[17,18)`. X23 tiene exactamente un paso causal: kind=copy, operation=value.copy, span igual al primario, entity=`{\"kind\":\"parameter\",\"id\":\"parameter:5\"}`, evidence=verified. Los otros pasos son []. X24–X26 usan namespace F0-0002-sim, stage runtime, operation runtime.limit, rule=R0002, explanation_id=null; Diagnostic.profile_id es respectivamente `f0-0004-b-test-string-8-v1`, `f0-0004-b-test-text-live-16-v1` y `f0-0004-b-test-text-alloc-2-v1`. X27 usa operation analysis.limit, stage types y Diagnostic.profile_id=`f0-0004-b-test-members-2-v1`. Data es exactamente la tabla: profile_id pertenece exclusivamente al campo exterior Diagnostic. Los positivos de estas cuatro filas usan el mismo perfil reducido que su negativo. X23 usa operation=value.copy. Las demás filas heredan C sin campos ocultos."
+    }
+   ],
+   "id": "X27",
+   "marked": "struct S{a:I64;b:I64;⟦c⟧:I64;}",
+   "positive": {
+    "edit": [
+     "c:I64;",
+     "",
+     0
+    ],
+    "source": "struct S{a:I64;b:I64;}"
+   },
+   "source": "struct S{a:I64;b:I64;c:I64;}"
+  },
+  {
+   "anchor": "K §10.1 prose L01",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     18,
+     19
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "incomplete_interpolation_expression",
+    "token": [
+     "symbol",
+     "\"",
+     18,
+     19
+    ]
+   },
+   "file": "L01.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "X01–X03 y H01–H06 son negativos"
+     },
+     "section": "10.1",
+     "text": "X01–X03 y H01–H06 son negativos de sintaxis final que se ejecutan por primera vez en K01; sus ediciones positivas eliminan el error de parse y alcanzan la barrera de capacidad que corresponda. Se repiten en K08.3 con sus positivos plenamente aceptados y con los campos de §2.1, §9 y esta sección. En particular, `fn Main(){let s=\"{\";}` emite NX-E1401/incomplete_interpolation_expression sobre la comilla [18,19), con unexpected_token de comilla y delimiter [16,17), por §2.1; `fn Main(){let s=\"{1\";}` conserva NX-E1401/unterminated_interpolation sobre `{` [17,18). Los literales `fn Main(){let s=\"{{\";}`, `fn Main(){let s=\"}}\";}` y `fn Main(){let s=\"a{{b}}c\";}` no tienen Hole y quedan disponibles al completar K02. `fn Main(){let s=\"{1}\";}` sí tiene Hole: después de K02 y hasta K08.3 recibe NX-E0006/implementation_limit, pending_scope=K08, types/types.check, primario [16,21). H07/H08 son pares de capacidad Format completos de K08.3 y conservan sus JSON finales. No se añaden pruebas `adr_gap_*`."
+    }
+   ],
+   "id": "L01",
+   "source": "fn Main(){let s=\"{\";}"
+  },
+  {
+   "anchor": "K §10.1 prose L02",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     17,
+     18
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "unterminated_interpolation",
+    "token": [
+     "symbol",
+     "{",
+     17,
+     18
+    ]
+   },
+   "file": "L02.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "X01–X03 y H01–H06 son negativos"
+     },
+     "section": "10.1",
+     "text": "X01–X03 y H01–H06 son negativos de sintaxis final que se ejecutan por primera vez en K01; sus ediciones positivas eliminan el error de parse y alcanzan la barrera de capacidad que corresponda. Se repiten en K08.3 con sus positivos plenamente aceptados y con los campos de §2.1, §9 y esta sección. En particular, `fn Main(){let s=\"{\";}` emite NX-E1401/incomplete_interpolation_expression sobre la comilla [18,19), con unexpected_token de comilla y delimiter [16,17), por §2.1; `fn Main(){let s=\"{1\";}` conserva NX-E1401/unterminated_interpolation sobre `{` [17,18). Los literales `fn Main(){let s=\"{{\";}`, `fn Main(){let s=\"}}\";}` y `fn Main(){let s=\"a{{b}}c\";}` no tienen Hole y quedan disponibles al completar K02. `fn Main(){let s=\"{1}\";}` sí tiene Hole: después de K02 y hasta K08.3 recibe NX-E0006/implementation_limit, pending_scope=K08, types/types.check, primario [16,21). H07/H08 son pares de capacidad Format completos de K08.3 y conservan sus JSON finales. No se añaden pruebas `adr_gap_*`."
+    }
+   ],
+   "id": "L02",
+   "source": "fn Main(){let s=\"{1\";}"
+  },
+  {
+   "anchor": "K §10.1 prose L03",
+   "cli": true,
+   "expected": {
+    "barrier_free_after": "K02",
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "L03.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "X01–X03 y H01–H06 son negativos"
+     },
+     "section": "10.1",
+     "text": "X01–X03 y H01–H06 son negativos de sintaxis final que se ejecutan por primera vez en K01; sus ediciones positivas eliminan el error de parse y alcanzan la barrera de capacidad que corresponda. Se repiten en K08.3 con sus positivos plenamente aceptados y con los campos de §2.1, §9 y esta sección. En particular, `fn Main(){let s=\"{\";}` emite NX-E1401/incomplete_interpolation_expression sobre la comilla [18,19), con unexpected_token de comilla y delimiter [16,17), por §2.1; `fn Main(){let s=\"{1\";}` conserva NX-E1401/unterminated_interpolation sobre `{` [17,18). Los literales `fn Main(){let s=\"{{\";}`, `fn Main(){let s=\"}}\";}` y `fn Main(){let s=\"a{{b}}c\";}` no tienen Hole y quedan disponibles al completar K02. `fn Main(){let s=\"{1}\";}` sí tiene Hole: después de K02 y hasta K08.3 recibe NX-E0006/implementation_limit, pending_scope=K08, types/types.check, primario [16,21). H07/H08 son pares de capacidad Format completos de K08.3 y conservan sus JSON finales. No se añaden pruebas `adr_gap_*`."
+    }
+   ],
+   "id": "L03",
+   "source": "fn Main(){let s=\"{{\";}"
+  },
+  {
+   "anchor": "K §10.1 prose L04",
+   "cli": true,
+   "expected": {
+    "barrier_free_after": "K02",
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "L04.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "X01–X03 y H01–H06 son negativos"
+     },
+     "section": "10.1",
+     "text": "X01–X03 y H01–H06 son negativos de sintaxis final que se ejecutan por primera vez en K01; sus ediciones positivas eliminan el error de parse y alcanzan la barrera de capacidad que corresponda. Se repiten en K08.3 con sus positivos plenamente aceptados y con los campos de §2.1, §9 y esta sección. En particular, `fn Main(){let s=\"{\";}` emite NX-E1401/incomplete_interpolation_expression sobre la comilla [18,19), con unexpected_token de comilla y delimiter [16,17), por §2.1; `fn Main(){let s=\"{1\";}` conserva NX-E1401/unterminated_interpolation sobre `{` [17,18). Los literales `fn Main(){let s=\"{{\";}`, `fn Main(){let s=\"}}\";}` y `fn Main(){let s=\"a{{b}}c\";}` no tienen Hole y quedan disponibles al completar K02. `fn Main(){let s=\"{1}\";}` sí tiene Hole: después de K02 y hasta K08.3 recibe NX-E0006/implementation_limit, pending_scope=K08, types/types.check, primario [16,21). H07/H08 son pares de capacidad Format completos de K08.3 y conservan sus JSON finales. No se añaden pruebas `adr_gap_*`."
+    }
+   ],
+   "id": "L04",
+   "source": "fn Main(){let s=\"}}\";}"
+  },
+  {
+   "anchor": "K §10.1 prose L05",
+   "cli": true,
+   "expected": {
+    "barrier_free_after": "K02",
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "L05.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "X01–X03 y H01–H06 son negativos"
+     },
+     "section": "10.1",
+     "text": "X01–X03 y H01–H06 son negativos de sintaxis final que se ejecutan por primera vez en K01; sus ediciones positivas eliminan el error de parse y alcanzan la barrera de capacidad que corresponda. Se repiten en K08.3 con sus positivos plenamente aceptados y con los campos de §2.1, §9 y esta sección. En particular, `fn Main(){let s=\"{\";}` emite NX-E1401/incomplete_interpolation_expression sobre la comilla [18,19), con unexpected_token de comilla y delimiter [16,17), por §2.1; `fn Main(){let s=\"{1\";}` conserva NX-E1401/unterminated_interpolation sobre `{` [17,18). Los literales `fn Main(){let s=\"{{\";}`, `fn Main(){let s=\"}}\";}` y `fn Main(){let s=\"a{{b}}c\";}` no tienen Hole y quedan disponibles al completar K02. `fn Main(){let s=\"{1}\";}` sí tiene Hole: después de K02 y hasta K08.3 recibe NX-E0006/implementation_limit, pending_scope=K08, types/types.check, primario [16,21). H07/H08 son pares de capacidad Format completos de K08.3 y conservan sus JSON finales. No se añaden pruebas `adr_gap_*`."
+    }
+   ],
+   "id": "L05",
+   "source": "fn Main(){let s=\"a{{b}}c\";}"
+  },
+  {
+   "anchor": "K §10.1 prose L06",
+   "cli": true,
+   "expected": {
+    "barrier_after": "K02",
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "K08"
+    },
+    "feature_id": "implementation_limit",
+    "kind": "diagnostic",
+    "operation": "types.check",
+    "primary": [
+     16,
+     21
+    ],
+    "related": [],
+    "stage": "types",
+    "subcause": null
+   },
+   "file": "L06.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "X01–X03 y H01–H06 son negativos"
+     },
+     "section": "10.1",
+     "text": "X01–X03 y H01–H06 son negativos de sintaxis final que se ejecutan por primera vez en K01; sus ediciones positivas eliminan el error de parse y alcanzan la barrera de capacidad que corresponda. Se repiten en K08.3 con sus positivos plenamente aceptados y con los campos de §2.1, §9 y esta sección. En particular, `fn Main(){let s=\"{\";}` emite NX-E1401/incomplete_interpolation_expression sobre la comilla [18,19), con unexpected_token de comilla y delimiter [16,17), por §2.1; `fn Main(){let s=\"{1\";}` conserva NX-E1401/unterminated_interpolation sobre `{` [17,18). Los literales `fn Main(){let s=\"{{\";}`, `fn Main(){let s=\"}}\";}` y `fn Main(){let s=\"a{{b}}c\";}` no tienen Hole y quedan disponibles al completar K02. `fn Main(){let s=\"{1}\";}` sí tiene Hole: después de K02 y hasta K08.3 recibe NX-E0006/implementation_limit, pending_scope=K08, types/types.check, primario [16,21). H07/H08 son pares de capacidad Format completos de K08.3 y conservan sus JSON finales. No se añaden pruebas `adr_gap_*`."
+    }
+   ],
+   "id": "L06",
+   "source": "fn Main(){let s=\"{1}\";}"
+  },
+  {
+   "anchor": "K §10.2 M01",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1107",
+    "data": {
+     "requested_mode": "read",
+     "required_mode": "inout"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     81,
+     82
+    ],
+    "related": [
+     [
+      "declaration",
+      75,
+      76
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "M01.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M01",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M01 | `struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){var s=S();⟦s⟧.F();}` | NX-E1107, positivo insertar `edit ` delante de s.F(). Relacionar declaration del binding s. |\n| M01 | `[81,82)` | declaration `[75,76)` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M01",
+   "marked": "struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){var s=S();⟦s⟧.F();}",
+   "positive": {
+    "edit": [
+     "s.F();",
+     "edit s.F();",
+     0
+    ],
+    "source": "struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){var s=S();edit s.F();}"
+   },
+   "source": "struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){var s=S();s.F();}"
+  },
+  {
+   "anchor": "K §10.2 M02",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1315",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     59,
+     60
+    ],
+    "related": [
+     [
+      "declaration",
+      22,
+      23
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "M02.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M02",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M02 | `struct S{}extend S{fn F(self:view){}}fn Main(){let s=S();s.⟦F⟧();}` | NX-E1315, positivo insertar `use extension package.S;` antes de Main. Relacionar declaration del método F. |\n| M02 | `[59,60)` | declaration `[22,23)` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M02",
+   "marked": "struct S{}extend S{fn F(self:view){}}fn Main(){let s=S();s.⟦F⟧();}",
+   "positive": {
+    "edit": [
+     "fn Main",
+     "use extension package.S;fn Main",
+     0
+    ],
+    "source": "struct S{}extend S{fn F(self:view){}}use extension package.S;fn Main(){let s=S();s.F();}"
+   },
+   "source": "struct S{}extend S{fn F(self:view){}}fn Main(){let s=S();s.F();}"
+  },
+  {
+   "anchor": "K §10.2 M03",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1322",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     39,
+     40
+    ],
+    "related": [
+     [
+      "previous_declaration",
+      22,
+      23
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "M03.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M03",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M03 | `struct S{}extend S{fn F(self:view){}fn ⟦F⟧(self:view){}}` | NX-E1322, positivo renombrar el segundo F a G. Relacionar previous_declaration del primer F. |\n| M03 | `[39,40)` | previous_declaration `[22,23)` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M03",
+   "marked": "struct S{}extend S{fn F(self:view){}fn ⟦F⟧(self:view){}}",
+   "positive": {
+    "edit": [
+     "fn F(self:view){}}",
+     "fn G(self:view){}}",
+     0
+    ],
+    "source": "struct S{}extend S{fn F(self:view){}fn G(self:view){}}"
+   },
+   "source": "struct S{}extend S{fn F(self:view){}fn F(self:view){}}"
+  },
+  {
+   "anchor": "K §10.2 M04",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "partial_transfer",
+    "kind": "diagnostic",
+    "operation": "syntax.parse",
+    "primary": [
+     48,
+     51
+    ],
+    "related": [
+     [
+      "context",
+      43,
+      47
+     ]
+    ],
+    "stage": "parse",
+    "subcause": null
+   },
+   "file": "M04.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M04",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M04 | `struct S{x:I64;}fn Main(){let s=S(1);let x=move ⟦s.x⟧;}` | NX-E0006/partial_transfer, positivo quitar `move `. Context=move; data={pending_scope:later_adr}; parse/syntax.parse. |\n| M04 | `[48,51)` | context `[43,47)` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M04",
+   "marked": "struct S{x:I64;}fn Main(){let s=S(1);let x=move ⟦s.x⟧;}",
+   "positive": {
+    "edit": [
+     "move ",
+     "",
+     0
+    ],
+    "source": "struct S{x:I64;}fn Main(){let s=S(1);let x=s.x;}"
+   },
+   "source": "struct S{x:I64;}fn Main(){let s=S(1);let x=move s.x;}"
+  },
+  {
+   "anchor": "K §10.2 M05",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "text",
+    "kind": "diagnostic",
+    "primary": [
+     22,
+     31
+    ],
+    "related": [],
+    "subcause": null
+   },
+   "file": "M05.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M05",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M05 | `fn Main(){let s=\"a\";s.⟦Graphemes⟧();}` | NX-E0006/text, positivo Graphemes→Scalars. types/types.check; data={pending_scope:later_adr}. |\n| M05 | `[22,31)` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M05",
+   "marked": "fn Main(){let s=\"a\";s.⟦Graphemes⟧();}",
+   "positive": {
+    "edit": [
+     "Graphemes",
+     "Scalars",
+     0
+    ],
+    "source": "fn Main(){let s=\"a\";s.Scalars();}"
+   },
+   "source": "fn Main(){let s=\"a\";s.Graphemes();}"
+  },
+  {
+   "anchor": "K §10.2 M06",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "modules_visibility",
+    "kind": "diagnostic",
+    "operation": "syntax.parse",
+    "primary": [
+     0,
+     3
+    ],
+    "related": [],
+    "stage": "parse",
+    "subcause": null
+   },
+   "file": "M06.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M06",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M06 | `⟦mod⟧ extra;` | NX-E0006/modules_visibility, positivo sustituir declaración por `struct Extra{}`. parse/syntax.parse; data={pending_scope:later_adr}. |\n| M06 | `[0,3)` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M06",
+   "marked": "⟦mod⟧ extra;",
+   "positive": {
+    "edit": [
+     "mod extra;",
+     "struct Extra{}",
+     0
+    ],
+    "source": "struct Extra{}"
+   },
+   "source": "mod extra;"
+  },
+  {
+   "anchor": "K §10.2 M07",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "traits_generics",
+    "kind": "diagnostic",
+    "operation": "syntax.parse",
+    "primary": [
+     0,
+     5
+    ],
+    "related": [],
+    "stage": "parse",
+    "subcause": null
+   },
+   "file": "M07.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M07",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M07 | `⟦trait⟧ T{}` | NX-E0006/traits_generics, positivo trait→struct. parse/syntax.parse; data={pending_scope:later_adr}. |\n| M07 | `[0,5)` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M07",
+   "marked": "⟦trait⟧ T{}",
+   "positive": {
+    "edit": [
+     "trait",
+     "struct",
+     0
+    ],
+    "source": "struct T{}"
+   },
+   "source": "trait T{}"
+  },
+  {
+   "anchor": "K §10.2 M08",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "attributes",
+    "kind": "diagnostic",
+    "operation": "syntax.parse",
+    "primary": [
+     8,
+     12
+    ],
+    "related": [],
+    "stage": "parse",
+    "subcause": null
+   },
+   "file": "M08.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "M08",
+      "kind": "rows"
+     },
+     "section": "10.2",
+     "text": "| M08 | `@derive(⟦Hash⟧)struct S{}` | NX-E0006/attributes, positivo Hash→PartialEq. parse/syntax.parse; data={pending_scope:later_adr}. |\n| M08 | `[8,12)` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "M01 lleva data exacta"
+     },
+     "section": "10.2",
+     "text": "M01 lleva data exacta `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` y cause_chain=[] conforme a F0-0003. M02/M03 llevan data={} y cause_chain=[]. Para las exclusiones M04–M08 feature_id es el de la fila, rule=explanation_id=NX-E0006, subcause=null; los demás campos C siguen vacíos/null. No se ofrece la edición positiva como repair applicable sin recomprobarla."
+    }
+   ],
+   "id": "M08",
+   "marked": "@derive(⟦Hash⟧)struct S{}",
+   "positive": {
+    "edit": [
+     "Hash",
+     "PartialEq",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}"
+   },
+   "source": "@derive(Hash)struct S{}"
+  },
+  {
+   "anchor": "K §10.3 fila 1",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9101)"
+    ]
+   },
+   "file": "T01.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 1
+     },
+     "section": "10.3",
+     "text": "| Cadena vacía no es entero | `\"\"` | `Err(-9101)` | `\"0\"` | `Ok(0)` |"
+    }
+   ],
+   "id": "T01",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"\"",
+    "positive_arg": "\"0\"",
+    "positive_source": "fn Main(){Print(std.parse.I64(\"0\"));}",
+    "positive_stdout": [
+     "Ok(0)"
+    ],
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"\"));}",
+    "use_variant_positive": "use std.parse;fn Main(){Print(parse.I64(\"0\"));}"
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"\"));}"
+  },
+  {
+   "anchor": "K §10.3 fila 2",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9101)"
+    ]
+   },
+   "file": "T02.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 2
+     },
+     "section": "10.3",
+     "text": "| Solo ASCII | `\"١\"` | `Err(-9101)` | `\"1\"` | `Ok(1)` |"
+    }
+   ],
+   "id": "T02",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"١\"",
+    "positive_arg": "\"1\"",
+    "positive_source": "fn Main(){Print(std.parse.I64(\"1\"));}",
+    "positive_stdout": [
+     "Ok(1)"
+    ],
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"١\"));}",
+    "use_variant_positive": "use std.parse;fn Main(){Print(parse.I64(\"1\"));}"
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"١\"));}"
+  },
+  {
+   "anchor": "K §10.3 fila 3",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9101)"
+    ]
+   },
+   "file": "T03.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 3
+     },
+     "section": "10.3",
+     "text": "| Sin whitespace implícito | `\" 1\"` | `Err(-9101)` | `\"1\"` | `Ok(1)` |"
+    }
+   ],
+   "id": "T03",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\" 1\"",
+    "positive_arg": "\"1\"",
+    "positive_source": "fn Main(){Print(std.parse.I64(\"1\"));}",
+    "positive_stdout": [
+     "Ok(1)"
+    ],
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\" 1\"));}",
+    "use_variant_positive": "use std.parse;fn Main(){Print(parse.I64(\"1\"));}"
+   },
+   "source": "fn Main(){Print(std.parse.I64(\" 1\"));}"
+  },
+  {
+   "anchor": "K §10.3 fila 4",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9101)"
+    ]
+   },
+   "file": "T04.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 4
+     },
+     "section": "10.3",
+     "text": "| Sin signo más | `\"+1\"` | `Err(-9101)` | `\"1\"` | `Ok(1)` |"
+    }
+   ],
+   "id": "T04",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"+1\"",
+    "positive_arg": "\"1\"",
+    "positive_source": "fn Main(){Print(std.parse.I64(\"1\"));}",
+    "positive_stdout": [
+     "Ok(1)"
+    ],
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"+1\"));}",
+    "use_variant_positive": "use std.parse;fn Main(){Print(parse.I64(\"1\"));}"
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"+1\"));}"
+  },
+  {
+   "anchor": "K §10.3 fila 5",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9102)"
+    ]
+   },
+   "file": "T05.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 5
+     },
+     "section": "10.3",
+     "text": "| Rango superior | `\"9223372036854775808\"` | `Err(-9102)` | `\"9223372036854775807\"` | `Ok(9223372036854775807)` |"
+    }
+   ],
+   "id": "T05",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"9223372036854775808\"",
+    "positive_arg": "\"9223372036854775807\"",
+    "positive_source": "fn Main(){Print(std.parse.I64(\"9223372036854775807\"));}",
+    "positive_stdout": [
+     "Ok(9223372036854775807)"
+    ],
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"9223372036854775808\"));}",
+    "use_variant_positive": "use std.parse;fn Main(){Print(parse.I64(\"9223372036854775807\"));}"
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"9223372036854775808\"));}"
+  },
+  {
+   "anchor": "K §10.3 fila 6",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9102)"
+    ]
+   },
+   "file": "T06.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 6
+     },
+     "section": "10.3",
+     "text": "| Rango inferior | `\"-9223372036854775809\"` | `Err(-9102)` | `\"-9223372036854775808\"` | `Ok(-9223372036854775808)` |"
+    }
+   ],
+   "id": "T06",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"-9223372036854775809\"",
+    "positive_arg": "\"-9223372036854775808\"",
+    "positive_source": "fn Main(){Print(std.parse.I64(\"-9223372036854775808\"));}",
+    "positive_stdout": [
+     "Ok(-9223372036854775808)"
+    ],
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"-9223372036854775809\"));}",
+    "use_variant_positive": "use std.parse;fn Main(){Print(parse.I64(\"-9223372036854775808\"));}"
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"-9223372036854775809\"));}"
+  },
+  {
+   "anchor": "K §10.3 fila 7",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9111)"
+    ]
+   },
+   "file": "T07.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 7
+     },
+     "section": "10.3",
+     "text": "| Frontera UTF-8 | START=0, END=1 | `Err(-9111)` | END=2 | `Ok(é)` |"
+    }
+   ],
+   "id": "T07",
+   "pair": {
+    "kind": "slice",
+    "negative_arg": "0,1",
+    "positive_arg": "0,2",
+    "positive_source": "fn Main(){Print(\"é\".SliceBytes(0,2));}",
+    "positive_stdout": [
+     "Ok(é)"
+    ],
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(\"é\".SliceBytes(0,1));}"
+  },
+  {
+   "anchor": "K §10.3 fila 8",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9110)"
+    ]
+   },
+   "file": "T08.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 8
+     },
+     "section": "10.3",
+     "text": "| Rango fuera | START=0, END=3 | `Err(-9110)` | END=2 | `Ok(é)` |"
+    }
+   ],
+   "id": "T08",
+   "pair": {
+    "kind": "slice",
+    "negative_arg": "0,3",
+    "positive_arg": "0,2",
+    "positive_source": "fn Main(){Print(\"é\".SliceBytes(0,2));}",
+    "positive_stdout": [
+     "Ok(é)"
+    ],
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(\"é\".SliceBytes(0,3));}"
+  },
+  {
+   "anchor": "K §10.3 fila 9",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9110)"
+    ]
+   },
+   "file": "T09.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 9
+     },
+     "section": "10.3",
+     "text": "| Rango invertido | START=2, END=0 | `Err(-9110)` | START=0 | `Ok()` |"
+    }
+   ],
+   "id": "T09",
+   "pair": {
+    "kind": "slice",
+    "negative_arg": "2,0",
+    "positive_arg": "0,0",
+    "positive_source": "fn Main(){Print(\"é\".SliceBytes(0,0));}",
+    "positive_stdout": [
+     "Ok()"
+    ],
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(\"é\".SliceBytes(2,0));}"
+  },
+  {
+   "anchor": "K §10.3 fila 10",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9110)"
+    ]
+   },
+   "file": "T10.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "ordinal",
+      "n": 10
+     },
+     "section": "10.3",
+     "text": "| Rango negativo | START=-1, END=0 | `Err(-9110)` | START=0 | `Ok()` |"
+    }
+   ],
+   "id": "T10",
+   "pair": {
+    "kind": "slice",
+    "negative_arg": "-1,0",
+    "positive_arg": "0,0",
+    "positive_source": "fn Main(){Print(\"é\".SliceBytes(0,0));}",
+    "positive_stdout": [
+     "Ok()"
+    ],
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(\"é\".SliceBytes(-1,0));}"
+  },
+  {
+   "anchor": "K §10.3 adicional A1",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Ok(7)"
+    ]
+   },
+   "file": "T11.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Una observaci"
+     },
+     "section": "10.3",
+     "text": "Una observación stdout por fila, sin eventos, LF añadido; bytes contados por UTF-8. Se añaden positivos de `\"0007\"`, `\"-0\"` y negativos de `\"-\"`, `\"1x\"`, con resultados 7, 0 y -9101/-9101. No se confunde un retorno Err de parseo con rechazo de compilación o R0101."
+    }
+   ],
+   "id": "T11",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"0007\"",
+    "positive_arg": null,
+    "positive_source": null,
+    "positive_stdout": null,
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"0007\"));}"
+  },
+  {
+   "anchor": "K §10.3 adicional A2",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Ok(0)"
+    ]
+   },
+   "file": "T12.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Una observaci"
+     },
+     "section": "10.3",
+     "text": "Una observación stdout por fila, sin eventos, LF añadido; bytes contados por UTF-8. Se añaden positivos de `\"0007\"`, `\"-0\"` y negativos de `\"-\"`, `\"1x\"`, con resultados 7, 0 y -9101/-9101. No se confunde un retorno Err de parseo con rechazo de compilación o R0101."
+    }
+   ],
+   "id": "T12",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"-0\"",
+    "positive_arg": null,
+    "positive_source": null,
+    "positive_stdout": null,
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"-0\"));}"
+  },
+  {
+   "anchor": "K §10.3 adicional A3",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9101)"
+    ]
+   },
+   "file": "T13.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Una observaci"
+     },
+     "section": "10.3",
+     "text": "Una observación stdout por fila, sin eventos, LF añadido; bytes contados por UTF-8. Se añaden positivos de `\"0007\"`, `\"-0\"` y negativos de `\"-\"`, `\"1x\"`, con resultados 7, 0 y -9101/-9101. No se confunde un retorno Err de parseo con rechazo de compilación o R0101."
+    }
+   ],
+   "id": "T13",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"-\"",
+    "positive_arg": null,
+    "positive_source": null,
+    "positive_stdout": null,
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"-\"));}"
+  },
+  {
+   "anchor": "K §10.3 adicional A4",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "Err(-9101)"
+    ]
+   },
+   "file": "T14.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Una observaci"
+     },
+     "section": "10.3",
+     "text": "Una observación stdout por fila, sin eventos, LF añadido; bytes contados por UTF-8. Se añaden positivos de `\"0007\"`, `\"-0\"` y negativos de `\"-\"`, `\"1x\"`, con resultados 7, 0 y -9101/-9101. No se confunde un retorno Err de parseo con rechazo de compilación o R0101."
+    }
+   ],
+   "id": "T14",
+   "pair": {
+    "kind": "parse",
+    "negative_arg": "\"1x\"",
+    "positive_arg": null,
+    "positive_source": null,
+    "positive_stdout": null,
+    "use_variant": null,
+    "use_variant_positive": null
+   },
+   "source": "fn Main(){Print(std.parse.I64(\"1x\"));}"
+  },
+  {
+   "anchor": "K §10.4 N01",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1325",
+    "data": {
+     "constructor": "package.E.A",
+     "expected_arity": 2,
+     "found_arity": 1
+    },
+    "kind": "diagnostic",
+    "primary": [
+     51,
+     57
+    ],
+    "related": [],
+    "subcause": "constructor_arity"
+   },
+   "file": "N01.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N01",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N01 | `enum E{A(I64,I64)}fn Main(){let e=E.A(1,2);match e{⟦E.A(x)⟧=>{}}}` | NX-E1325/constructor_arity `[51,57)` | patrón E.A(x) → E.A(x,y) |\n| N01 | `{\"constructor\":\"package.E.A\",\"expected_arity\":2,\"found_arity\":1}` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "N01/N02: types/types.check"
+     },
+     "section": "10.4",
+     "text": "N01/N02: types/types.check de F0-0003; N12: parse/syntax.parse; N13: types/types.check, mensaje exacto `Capacidad pendiente de implementación en K02.`. N12/N13 usan feature_id de su fila, subcause=null, rule=explanation_id=NX-E0006. Los demás stages/operations son los de C, salvo N09 effects/value.build_string."
+    }
+   ],
+   "id": "N01",
+   "marked": "enum E{A(I64,I64)}fn Main(){let e=E.A(1,2);match e{⟦E.A(x)⟧=>{}}}",
+   "positive": {
+    "edit": [
+     "E.A(x)",
+     "E.A(x,y)",
+     0
+    ],
+    "source": "enum E{A(I64,I64)}fn Main(){let e=E.A(1,2);match e{E.A(x,y)=>{}}}"
+   },
+   "source": "enum E{A(I64,I64)}fn Main(){let e=E.A(1,2);match e{E.A(x)=>{}}}"
+  },
+  {
+   "anchor": "K §10.4 N02",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1304",
+    "data": {
+     "missing_pattern": "package.E.B"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     26
+    ],
+    "related": [],
+    "subcause": "non_exhaustive"
+   },
+   "file": "N02.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N02",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N02 | `enum E{A,B}fn Main(){⟦match⟧ E.A{E.A=>{}}}` | NX-E1304/non_exhaustive `[21,26)` | añadir brazo `,E.B=>{}` |\n| N02 | `{\"missing_pattern\":\"package.E.B\"}` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "N01/N02: types/types.check"
+     },
+     "section": "10.4",
+     "text": "N01/N02: types/types.check de F0-0003; N12: parse/syntax.parse; N13: types/types.check, mensaje exacto `Capacidad pendiente de implementación en K02.`. N12/N13 usan feature_id de su fila, subcause=null, rule=explanation_id=NX-E0006. Los demás stages/operations son los de C, salvo N09 effects/value.build_string."
+    }
+   ],
+   "id": "N02",
+   "marked": "enum E{A,B}fn Main(){⟦match⟧ E.A{E.A=>{}}}",
+   "positive": {
+    "edit": [
+     "E.A=>{}",
+     "E.A=>{},E.B=>{}",
+     0
+    ],
+    "source": "enum E{A,B}fn Main(){match E.A{E.A=>{},E.B=>{}}}"
+   },
+   "source": "enum E{A,B}fn Main(){match E.A{E.A=>{}}}"
+  },
+  {
+   "anchor": "K §10.4 N03",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1402",
+    "data": {
+     "member_name": "B",
+     "receiver_type": "package.E"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     27,
+     28
+    ],
+    "related": [
+     [
+      "declaration",
+      5,
+      6
+     ]
+    ],
+    "subcause": "unknown_member"
+   },
+   "file": "N03.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N03",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N03 | `enum E{A}fn Main(){let e=E.⟦B⟧;}` | NX-E1402/unknown_member `[27,28)` | B → A |\n| N03 | `{\"member_name\":\"B\",\"receiver_type\":\"package.E\"}` | declaration `[5,6)` |"
+    }
+   ],
+   "id": "N03",
+   "marked": "enum E{A}fn Main(){let e=E.⟦B⟧;}",
+   "positive": {
+    "edit": [
+     "E.B",
+     "E.A",
+     0
+    ],
+    "source": "enum E{A}fn Main(){let e=E.A;}"
+   },
+   "source": "enum E{A}fn Main(){let e=E.B;}"
+  },
+  {
+   "anchor": "K §10.4 N04",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "package.A",
+     "found_type": "package.B"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     38,
+     41
+    ],
+    "related": [
+     [
+      "expected_type",
+      36,
+      37
+     ],
+     [
+      "found_type",
+      38,
+      41
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "file": "N04.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N04",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N04 | `struct A{}struct B{}fn Main(){let x:A=⟦B()⟧;}` | NX-E0102/type_mismatch `[38,41)` | constructor B → A |\n| N04 | `{\"expected_type\":\"package.A\",\"found_type\":\"package.B\"}` | expected_type `[36,37)`, found_type `[38,41)` |"
+    }
+   ],
+   "id": "N04",
+   "marked": "struct A{}struct B{}fn Main(){let x:A=⟦B()⟧;}",
+   "positive": {
+    "edit": [
+     "=B()",
+     "=A()",
+     0
+    ],
+    "source": "struct A{}struct B{}fn Main(){let x:A=A();}"
+   },
+   "source": "struct A{}struct B{}fn Main(){let x:A=B();}"
+  },
+  {
+   "anchor": "K §10.4 N05",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0201",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     51,
+     52
+    ],
+    "related": [
+     [
+      "declaration",
+      39,
+      40
+     ]
+    ],
+    "subcause": null
+   },
+   "file": "N05.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N05",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N05 | `enum E{A,B(MockResource)}fn Main(){let e=E.A;let f=⟦e⟧;}` | NX-E0201/null `[51,52)` | inicializador e → move e |\n| N05 | `{}` | declaration `[39,40)` |"
+    }
+   ],
+   "id": "N05",
+   "marked": "enum E{A,B(MockResource)}fn Main(){let e=E.A;let f=⟦e⟧;}",
+   "positive": {
+    "edit": [
+     "let f=e;",
+     "let f=move e;",
+     0
+    ],
+    "source": "enum E{A,B(MockResource)}fn Main(){let e=E.A;let f=move e;}"
+   },
+   "source": "enum E{A,B(MockResource)}fn Main(){let e=E.A;let f=e;}"
+  },
+  {
+   "anchor": "K §10.4 N06",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "borrow",
+      "borrow.read",
+      21,
+      22,
+      {
+       "id": "parameter:21",
+       "kind": "parameter"
+      }
+     ]
+    ],
+    "code": "NX-E1105",
+    "data": {
+     "active_permission": "read",
+     "origin": {
+      "id": "parameter:21",
+      "kind": "parameter"
+     },
+     "parameter": {
+      "id": "parameter:21",
+      "kind": "parameter"
+     },
+     "requested_access": "write"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     31,
+     32
+    ],
+    "related": [
+     [
+      "declaration",
+      21,
+      22
+     ]
+    ],
+    "subcause": "permission_escalation"
+   },
+   "file": "N06.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N06",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N06 | `struct S{x:I64;}fn F(s:view S){⟦s⟧.x=2;}` | NX-E1105/permission_escalation `[31,32)` | view → edit |\n| N06 | `{\"origin\":{\"kind\":\"parameter\",\"id\":\"parameter:21\"},\"parameter\":{\"kind\":\"parameter\",\"id\":\"parameter:21\"},\"active_permission\":\"read\",\"requested_access\":\"write\"}` | declaration `[21,22)` |\n| N06 | borrow / borrow.read | `[21,22)` | `{\"kind\":\"parameter\",\"id\":\"parameter:21\"}` |"
+    }
+   ],
+   "id": "N06",
+   "marked": "struct S{x:I64;}fn F(s:view S){⟦s⟧.x=2;}",
+   "positive": {
+    "edit": [
+     "s:view S",
+     "s:edit S",
+     0
+    ],
+    "source": "struct S{x:I64;}fn F(s:edit S){s.x=2;}"
+   },
+   "source": "struct S{x:I64;}fn F(s:view S){s.x=2;}"
+  },
+  {
+   "anchor": "K §10.4 N07",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "borrow",
+      "borrow.inout",
+      76,
+      84,
+      {
+       "id": "loan:76:0",
+       "kind": "loan"
+      }
+     ]
+    ],
+    "code": "NX-E1105",
+    "data": {
+     "active_permission": "inout",
+     "binding": {
+      "id": "binding:65",
+      "kind": "binding"
+     },
+     "loan": {
+      "id": "loan:76:0",
+      "kind": "loan"
+     },
+     "origin": {
+      "id": "binding:65",
+      "kind": "binding"
+     },
+     "requested_access": "borrow_inout"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     90,
+     93
+    ],
+    "related": [
+     [
+      "declaration",
+      65,
+      66
+     ],
+     [
+      "origin",
+      76,
+      84
+     ]
+    ],
+    "subcause": "overlapping_mutable_borrows"
+   },
+   "file": "N07.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N07",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N07 | `struct S{x:I64;y:I64;}fn F(a:edit I64,b:edit I64){}fn Main(){var s=S(1,2);F(edit s.x,edit ⟦s.y⟧);}` | NX-E1105/overlapping_mutable_borrows `[90,93)` | insertar `var t=S(3,4);` antes de F y cambiar solo el segundo origen s a t |\n| N07 | `{\"origin\":{\"kind\":\"binding\",\"id\":\"binding:65\"},\"binding\":{\"kind\":\"binding\",\"id\":\"binding:65\"},\"loan\":{\"kind\":\"loan\",\"id\":\"loan:76:0\"},\"active_permission\":\"inout\",\"requested_access\":\"borrow_inout\"}` | declaration `[65,66)`, origin `[76,84)` |\n| N07 | borrow / borrow.inout | `[76,84)` | `{\"kind\":\"loan\",\"id\":\"loan:76:0\"}` |"
+    }
+   ],
+   "id": "N07",
+   "marked": "struct S{x:I64;y:I64;}fn F(a:edit I64,b:edit I64){}fn Main(){var s=S(1,2);F(edit s.x,edit ⟦s.y⟧);}",
+   "positive": {
+    "edit": [
+     "F(edit s.x,edit s.y);",
+     "var t=S(3,4);F(edit s.x,edit t.y);",
+     0
+    ],
+    "source": "struct S{x:I64;y:I64;}fn F(a:edit I64,b:edit I64){}fn Main(){var s=S(1,2);var t=S(3,4);F(edit s.x,edit t.y);}"
+   },
+   "source": "struct S{x:I64;y:I64;}fn F(a:edit I64,b:edit I64){}fn Main(){var s=S(1,2);F(edit s.x,edit s.y);}"
+  },
+  {
+   "anchor": "K §10.4 N08",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "drop",
+      "value.drop",
+      30,
+      37,
+      {
+       "id": "binding:24",
+       "kind": "binding"
+      }
+     ]
+    ],
+    "code": "NX-E0202",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     44,
+     45
+    ],
+    "related": [
+     [
+      "declaration",
+      24,
+      25
+     ],
+     [
+      "consumption",
+      30,
+      37
+     ]
+    ],
+    "subcause": "definitely_consumed"
+   },
+   "file": "N08.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N08",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N08 | `struct S{}fn Main(){let s=S();Drop(s);let t=⟦s⟧;}` | NX-E0202/definitely_consumed `[44,45)` | quitar `Drop(s);` |\n| N08 | `{}` | declaration `[24,25)`, consumption `[30,37)` |\n| N08 | drop / value.drop | `[30,37)` | `{\"kind\":\"binding\",\"id\":\"binding:24\"}` |"
+    }
+   ],
+   "id": "N08",
+   "marked": "struct S{}fn Main(){let s=S();Drop(s);let t=⟦s⟧;}",
+   "positive": {
+    "edit": [
+     "Drop(s);",
+     "",
+     0
+    ],
+    "source": "struct S{}fn Main(){let s=S();let t=s;}"
+   },
+   "source": "struct S{}fn Main(){let s=S();Drop(s);let t=s;}"
+  },
+  {
+   "anchor": "K §10.4 N09",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "effect",
+      "value.build_string",
+      27,
+      30,
+      {
+       "id": "String",
+       "kind": "type"
+      }
+     ]
+    ],
+    "code": "NX-E0412",
+    "data": {
+     "contract_origin": {
+      "end": 20,
+      "file": "N09.n",
+      "start": 12
+     },
+     "effect_evidence": "known_effect",
+     "effect_model": "f0-0004-sim-v1",
+     "required_effect": "alloc"
+    },
+    "kind": "diagnostic",
+    "operation": "value.build_string",
+    "primary": [
+     27,
+     30
+    ],
+    "related": [
+     [
+      "contract",
+      12,
+      20
+     ]
+    ],
+    "stage": "effects",
+    "subcause": null
+   },
+   "file": "N09.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N09",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N09 | `fn F() with no_alloc{let s=⟦\"a\"⟧;}` | NX-E0412/null `[27,30)` | literal → 0 |\n| N09 | `{\"effect_model\":\"f0-0004-sim-v1\",\"effect_evidence\":\"known_effect\",\"contract_origin\":{\"file\":\"N09.n\",\"start\":12,\"end\":20},\"required_effect\":\"alloc\"}` | contract `[12,20)` |\n| N09 | effect / value.build_string | `[27,30)` | `{\"kind\":\"type\",\"id\":\"String\"}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "N01/N02: types/types.check"
+     },
+     "section": "10.4",
+     "text": "N01/N02: types/types.check de F0-0003; N12: parse/syntax.parse; N13: types/types.check, mensaje exacto `Capacidad pendiente de implementación en K02.`. N12/N13 usan feature_id de su fila, subcause=null, rule=explanation_id=NX-E0006. Los demás stages/operations son los de C, salvo N09 effects/value.build_string."
+    }
+   ],
+   "id": "N09",
+   "marked": "fn F() with no_alloc{let s=⟦\"a\"⟧;}",
+   "positive": {
+    "edit": [
+     "\"a\"",
+     "0",
+     0
+    ],
+    "source": "fn F() with no_alloc{let s=0;}"
+   },
+   "source": "fn F() with no_alloc{let s=\"a\";}"
+  },
+  {
+   "anchor": "K §10.4 N10",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "Format"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     38,
+     39
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_format"
+   },
+   "file": "N10.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N10",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N10 | `struct S{}fn Main(){let s=S();let t=\"{⟦s⟧}\";}` | NX-E1403/missing_format `[38,39)` | anteponer @derive(Format) |\n| N10 | `{\"required_capability\":\"Format\"}` | declaration `[7,8)` |"
+    }
+   ],
+   "id": "N10",
+   "marked": "struct S{}fn Main(){let s=S();let t=\"{⟦s⟧}\";}",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(Format)struct S",
+     0
+    ],
+    "source": "@derive(Format)struct S{}fn Main(){let s=S();let t=\"{s}\";}"
+   },
+   "source": "struct S{}fn Main(){let s=S();let t=\"{s}\";}"
+  },
+  {
+   "anchor": "K §10.4 N11",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     29,
+     41
+    ],
+    "related": [
+     [
+      "contract",
+      8,
+      17
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "file": "N11.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N11",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N11 | `@derive(PartialEq)struct S{r:⟦MockResource⟧;}` | NX-E1403/missing_partial_eq `[29,41)` | tipo de campo → I64 |\n| N11 | `{\"required_capability\":\"PartialEq\"}` | contract `[8,17)` |"
+    }
+   ],
+   "id": "N11",
+   "marked": "@derive(PartialEq)struct S{r:⟦MockResource⟧;}",
+   "positive": {
+    "edit": [
+     "MockResource",
+     "I64",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{r:I64;}"
+   },
+   "source": "@derive(PartialEq)struct S{r:MockResource;}"
+  },
+  {
+   "anchor": "K §10.4 N12",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "user_types",
+    "kind": "diagnostic",
+    "operation": "syntax.parse",
+    "primary": [
+     0,
+     4
+    ],
+    "related": [],
+    "stage": "parse",
+    "subcause": null
+   },
+   "file": "N12.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N12",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N12 | `⟦enum⟧ E{}` | NX-E0006/user_types `[0,4)` | insertar A dentro de llaves |\n| N12 | `{\"pending_scope\":\"later_adr\"}` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "N01/N02: types/types.check"
+     },
+     "section": "10.4",
+     "text": "N01/N02: types/types.check de F0-0003; N12: parse/syntax.parse; N13: types/types.check, mensaje exacto `Capacidad pendiente de implementación en K02.`. N12/N13 usan feature_id de su fila, subcause=null, rule=explanation_id=NX-E0006. Los demás stages/operations son los de C, salvo N09 effects/value.build_string."
+    }
+   ],
+   "id": "N12",
+   "marked": "⟦enum⟧ E{}",
+   "positive": {
+    "edit": [
+     "E{}",
+     "E{A}",
+     0
+    ],
+    "source": "enum E{A}"
+   },
+   "source": "enum E{}"
+  },
+  {
+   "anchor": "K §10.4 N13",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "K02"
+    },
+    "feature_id": "implementation_limit",
+    "kind": "diagnostic",
+    "manifest_without": "K02",
+    "message": "Capacidad pendiente de implementación en K02.",
+    "primary": [
+     16,
+     19
+    ],
+    "related": [],
+    "subcause": null
+   },
+   "file": "N13.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "N13",
+      "kind": "rows"
+     },
+     "section": "10.4",
+     "text": "| N13 | `fn Main(){let s=⟦\"a\"⟧;}` | NX-E0006/implementation_limit `[16,19)` | literal → 0 |\n| N13 | `{\"pending_scope\":\"K02\"}` | [] |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "N01/N02: types/types.check"
+     },
+     "section": "10.4",
+     "text": "N01/N02: types/types.check de F0-0003; N12: parse/syntax.parse; N13: types/types.check, mensaje exacto `Capacidad pendiente de implementación en K02.`. N12/N13 usan feature_id de su fila, subcause=null, rule=explanation_id=NX-E0006. Los demás stages/operations son los de C, salvo N09 effects/value.build_string."
+    }
+   ],
+   "id": "N13",
+   "marked": "fn Main(){let s=⟦\"a\"⟧;}",
+   "positive": {
+    "edit": [
+     "\"a\"",
+     "0",
+     0
+    ],
+    "source": "fn Main(){let s=0;}"
+   },
+   "source": "fn Main(){let s=\"a\";}"
+  },
+  {
+   "anchor": "K §10.5 H01",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     23
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "raw_line_break_in_interpolation",
+    "token": [
+     "invalid",
+     "\r\n",
+     21,
+     23
+    ]
+   },
+   "file": "H01.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H01",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H01 | `\"fn Main(){let s=\\\"é{1\\r\\n}\\\";}\"` | NX-E1401/raw_line_break_in_interpolation | `[21,23)` | sustituir CRLF por un espacio |\n| H01 | `{}` | delimiter [16,17) | kind=invalid, text=`\"\\r\\n\"`, span=`[21,23)` |"
+    }
+   ],
+   "id": "H01",
+   "positive": {
+    "edit": [
+     "\r\n",
+     " ",
+     0
+    ],
+    "source": "fn Main(){let s=\"é{1 }\";}"
+   },
+   "source": "fn Main(){let s=\"é{1\r\n}\";}"
+  },
+  {
+   "anchor": "K §10.5 H02",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     22
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "raw_line_break_in_interpolation",
+    "token": [
+     "invalid",
+     "\r",
+     21,
+     22
+    ]
+   },
+   "file": "H02.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H02",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H02 | `\"fn Main(){let s=\\\"é{1\\r}\\\";}\"` | NX-E1401/raw_line_break_in_interpolation | `[21,22)` | sustituir CR por un espacio |\n| H02 | `{}` | delimiter [16,17) | kind=invalid, text=`\"\\r\"`, span=`[21,22)` |"
+    }
+   ],
+   "id": "H02",
+   "positive": {
+    "edit": [
+     "\r",
+     " ",
+     0
+    ],
+    "source": "fn Main(){let s=\"é{1 }\";}"
+   },
+   "source": "fn Main(){let s=\"é{1\r}\";}"
+  },
+  {
+   "anchor": "K §10.5 H03",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     22
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "raw_line_break_in_interpolation",
+    "token": [
+     "invalid",
+     "\n",
+     21,
+     22
+    ]
+   },
+   "file": "H03.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H03",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H03 | `\"fn Main(){let s=\\\"é{1\\n}\\\";}\"` | NX-E1401/raw_line_break_in_interpolation | `[21,22)` | sustituir LF por un espacio |\n| H03 | `{}` | delimiter [16,17) | kind=invalid, text=`\"\\n\"`, span=`[21,22)` |"
+    }
+   ],
+   "id": "H03",
+   "positive": {
+    "edit": [
+     "\n",
+     " ",
+     0
+    ],
+    "source": "fn Main(){let s=\"é{1 }\";}"
+   },
+   "source": "fn Main(){let s=\"é{1\n}\";}"
+  },
+  {
+   "anchor": "K §10.5 H04",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     23
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "comment_in_interpolation",
+    "token": [
+     "symbol",
+     "//",
+     21,
+     23
+    ]
+   },
+   "file": "H04.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H04",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H04 | `\"fn Main(){let s=\\\"é{1//}\\\";}\"` | NX-E1401/comment_in_interpolation | `[21,23)` | quitar las dos barras |\n| H04 | `{}` | delimiter [16,17) | kind=symbol, text=`\"//\"`, span=`[21,23)` |"
+    }
+   ],
+   "id": "H04",
+   "positive": {
+    "edit": [
+     "//",
+     "",
+     0
+    ],
+    "source": "fn Main(){let s=\"é{1}\";}"
+   },
+   "source": "fn Main(){let s=\"é{1//}\";}"
+  },
+  {
+   "anchor": "K §10.5 H05",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     19,
+     24
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "empty_interpolation",
+    "token": [
+     "symbol",
+     "}",
+     23,
+     24
+    ]
+   },
+   "file": "H05.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H05",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H05 | `\"fn Main(){let s=\\\"é{ \\t }\\\";}\"` | NX-E1401/empty_interpolation | `[19,24)` | insertar `1` antes de `}` del Hole |\n| H05 | `{}` | delimiter [16,17) | kind=symbol, text=`\"}\"`, span=`[23,24)` |"
+    }
+   ],
+   "id": "H05",
+   "positive": {
+    "edit": [
+     " \t }",
+     " \t 1}",
+     0
+    ],
+    "source": "fn Main(){let s=\"é{ \t 1}\";}"
+   },
+   "source": "fn Main(){let s=\"é{ \t }\";}"
+  },
+  {
+   "anchor": "K §10.5 H06",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1401",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     24,
+     25
+    ],
+    "related": [
+     [
+      "delimiter",
+      16,
+      17
+     ]
+    ],
+    "subcause": "incomplete_interpolation_expression",
+    "token": [
+     "symbol",
+     "\"",
+     24,
+     25
+    ]
+   },
+   "file": "H06.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H06",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H06 | `\"fn Main(){let s=\\\"é{1 + \\\";}\"` | NX-E1401/incomplete_interpolation_expression | `[24,25)` | insertar `2}` antes de la comilla primaria |\n| H06 | `{}` | delimiter [16,17) | kind=symbol, text=`\"\\\"\"`, span=`[24,25)` |"
+    }
+   ],
+   "id": "H06",
+   "positive": {
+    "edit": [
+     "+ \"",
+     "+ 2}\"",
+     0
+    ],
+    "source": "fn Main(){let s=\"é{1 + 2}\";}"
+   },
+   "source": "fn Main(){let s=\"é{1 + \";}"
+  },
+  {
+   "anchor": "K §10.5 H07",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "Format"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     44,
+     45
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_format",
+    "token": null
+   },
+   "file": "H07.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H07",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H07 | `\"struct S{}\\r\\nfn Main(){let s=S();let t=\\\"é\\\\n{s}\\\";}\"` | NX-E1403/missing_format | `[44,45)` | anteponer `@derive(Format)` |\n| H07 | `{\"required_capability\":\"Format\"}` | declaration [7,8) | null |"
+    }
+   ],
+   "id": "H07",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(Format)struct S",
+     0
+    ],
+    "source": "@derive(Format)struct S{}\r\nfn Main(){let s=S();let t=\"é\\n{s}\";}"
+   },
+   "source": "struct S{}\r\nfn Main(){let s=S();let t=\"é\\n{s}\";}"
+  },
+  {
+   "anchor": "K §10.5 H08",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "Format"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     44,
+     45
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_format",
+    "token": null
+   },
+   "file": "H08.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H08",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H08 | `\"struct S{}fn Main(){let s=S();let t=\\\"é\\\\\\\"\\\\\\\\{s}\\\";}\"` | NX-E1403/missing_format | `[44,45)` | anteponer `@derive(Format)` |\n| H08 | `{\"required_capability\":\"Format\"}` | declaration [7,8) | null |"
+    }
+   ],
+   "id": "H08",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(Format)struct S",
+     0
+    ],
+    "source": "@derive(Format)struct S{}fn Main(){let s=S();let t=\"é\\\"\\\\{s}\";}"
+   },
+   "source": "struct S{}fn Main(){let s=S();let t=\"é\\\"\\\\{s}\";}"
+  },
+  {
+   "anchor": "K §10.5 H09",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1323",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     25,
+     26
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "recursive_value_layout",
+    "token": null
+   },
+   "file": "H09.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H09",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H09 | `\"struct A{b:B;}struct B{a:A;}\"` | NX-E1323/recursive_value_layout | `[25,26)` | sustituir el tipo primario `A` por `I64` |\n| H09 | `{}` | declaration [7,8) | null |"
+    }
+   ],
+   "id": "H09",
+   "positive": {
+    "edit": [
+     "a:A;",
+     "a:I64;",
+     0
+    ],
+    "source": "struct A{b:B;}struct B{a:I64;}"
+   },
+   "source": "struct A{b:B;}struct B{a:A;}"
+  },
+  {
+   "anchor": "K §10.5 H10",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1310",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     23,
+     24
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "unexported_type",
+    "token": null
+   },
+   "file": "H10.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H10",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H10 | `\"struct S{}pub enum E{A(S)}\"` | NX-E1310/unexported_type | `[23,24)` | anteponer `pub ` a struct |\n| H10 | `{}` | declaration [7,8) | null |"
+    }
+   ],
+   "id": "H10",
+   "positive": {
+    "edit": [
+     "struct S",
+     "pub struct S",
+     0
+    ],
+    "source": "pub struct S{}pub enum E{A(S)}"
+   },
+   "source": "struct S{}pub enum E{A(S)}"
+  },
+  {
+   "anchor": "K §10.5 H11",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1304",
+    "data": {
+     "missing_pattern": "package.E.B(0,false)"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     31,
+     36
+    ],
+    "related": [],
+    "subcause": "non_exhaustive",
+    "token": null
+   },
+   "file": "H11.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H11",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H11 | `\"enum E{A,B(I64,Bool)}fn Main(){match E.A{E.A=>{}}}\"` | NX-E1304/non_exhaustive | `[31,36)` | añadir `,E.B(_,_)=>{}` después del brazo A |\n| H11 | `{\"missing_pattern\":\"package.E.B(0,false)\"}` | [] | null |"
+    }
+   ],
+   "id": "H11",
+   "positive": {
+    "edit": [
+     "E.A=>{}",
+     "E.A=>{},E.B(_,_)=>{}",
+     0
+    ],
+    "source": "enum E{A,B(I64,Bool)}fn Main(){match E.A{E.A=>{},E.B(_,_)=>{}}}"
+   },
+   "source": "enum E{A,B(I64,Bool)}fn Main(){match E.A{E.A=>{}}}"
+  },
+  {
+   "anchor": "K §10.5 H12",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1107",
+    "data": {
+     "requested_mode": "read",
+     "required_mode": "inout"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     71,
+     74
+    ],
+    "related": [],
+    "subcause": null,
+    "token": null
+   },
+   "file": "H12.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H12",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H12 | `\"struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){S().F();}\"` | NX-E1107/null | `[71,74)` | cambiar `self:edit` por `self:view` |\n| H12 | `{\"required_mode\":\"inout\",\"requested_mode\":\"read\"}` | [] | null |"
+    }
+   ],
+   "id": "H12",
+   "positive": {
+    "edit": [
+     "self:edit",
+     "self:view",
+     0
+    ],
+    "source": "struct S{}extend S{fn F(self:view){}}use extension package.S;fn Main(){S().F();}"
+   },
+   "source": "struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){S().F();}"
+  },
+  {
+   "anchor": "K §10.5 H13",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1107",
+    "data": {
+     "requested_mode": "read",
+     "required_mode": "consume"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     71,
+     74
+    ],
+    "related": [],
+    "subcause": null,
+    "token": null
+   },
+   "file": "H13.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H13",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H13 | `\"struct S{}extend S{fn F(self:move){}}use extension package.S;fn Main(){S().F();}\"` | NX-E1107/null | `[71,74)` | cambiar `self:move` por `self:view` |\n| H13 | `{\"required_mode\":\"consume\",\"requested_mode\":\"read\"}` | [] | null |"
+    }
+   ],
+   "id": "H13",
+   "positive": {
+    "edit": [
+     "self:move",
+     "self:view",
+     0
+    ],
+    "source": "struct S{}extend S{fn F(self:view){}}use extension package.S;fn Main(){S().F();}"
+   },
+   "source": "struct S{}extend S{fn F(self:move){}}use extension package.S;fn Main(){S().F();}"
+  },
+  {
+   "anchor": "K §10.5 H12-edit",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0002",
+    "data": {},
+    "expected_tokens": [
+     "Place"
+    ],
+    "expected_tokens_kind": "admissible_set",
+    "kind": "diagnostic",
+    "parser_context": "inout_place",
+    "primary": [
+     77,
+     78
+    ],
+    "recognized_prefix": [
+     71,
+     77
+    ],
+    "related": [],
+    "subcause": null,
+    "token": [
+     "symbol",
+     "(",
+     77,
+     78
+    ]
+   },
+   "file": "H12-edit.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H12-edit",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H12-edit | `struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){edit S().F();}` | `[77,78)` | inout_place; `[71,77)` | `struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){var s=S();edit s.F();}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes prefijadas"
+     },
+     "section": "10.5",
+     "text": "Las variantes prefijadas conservan las firmas originales y usan C con las sustituciones siguientes. Cada negativo produce exactamente un NX-E0002, subcause=null, rule=explanation_id=NX-E0002, stage=parse, operation=syntax.parse, data={}, related_spans=[], cause_chain=[], repair=[], feature_id=null, expected_tokens=[\"Place\"], expected_tokens_kind=admissible_set. Unexpected_token es {kind:\"symbol\",text:\"(\",span:primario}; recognized_prefix incluye el nombre S ya admitido como raíz. No se ejecuta propiedad sobre ese receptor inválido."
+    }
+   ],
+   "id": "H12-edit",
+   "positive": {
+    "edit": null,
+    "source": "struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){var s=S();edit s.F();}"
+   },
+   "source": "struct S{}extend S{fn F(self:edit){}}use extension package.S;fn Main(){edit S().F();}"
+  },
+  {
+   "anchor": "K §10.5 H13-move",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0002",
+    "data": {},
+    "expected_tokens": [
+     "Place"
+    ],
+    "expected_tokens_kind": "admissible_set",
+    "kind": "diagnostic",
+    "parser_context": "consume_place",
+    "primary": [
+     77,
+     78
+    ],
+    "recognized_prefix": [
+     71,
+     77
+    ],
+    "related": [],
+    "subcause": null,
+    "token": [
+     "symbol",
+     "(",
+     77,
+     78
+    ]
+   },
+   "file": "H13-move.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "H13-move",
+      "kind": "rows"
+     },
+     "section": "10.5",
+     "text": "| H13-move | `struct S{}extend S{fn F(self:move){}}use extension package.S;fn Main(){move S().F();}` | `[77,78)` | consume_place; `[71,77)` | `struct S{}extend S{fn F(self:move){}}use extension package.S;fn Main(){let s=S();move s.F();}` |"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las variantes prefijadas"
+     },
+     "section": "10.5",
+     "text": "Las variantes prefijadas conservan las firmas originales y usan C con las sustituciones siguientes. Cada negativo produce exactamente un NX-E0002, subcause=null, rule=explanation_id=NX-E0002, stage=parse, operation=syntax.parse, data={}, related_spans=[], cause_chain=[], repair=[], feature_id=null, expected_tokens=[\"Place\"], expected_tokens_kind=admissible_set. Unexpected_token es {kind:\"symbol\",text:\"(\",span:primario}; recognized_prefix incluye el nombre S ya admitido como raíz. No se ejecuta propiedad sobre ese receptor inválido."
+    }
+   ],
+   "id": "H13-move",
+   "positive": {
+    "edit": null,
+    "source": "struct S{}extend S{fn F(self:move){}}use extension package.S;fn Main(){let s=S();move s.F();}"
+   },
+   "source": "struct S{}extend S{fn F(self:move){}}use extension package.S;fn Main(){move S().F();}"
+  },
+  {
+   "anchor": "K §10.6 E01",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a377d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "env_positive_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a22c3a9227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "expected": {
+    "exit": 2,
+    "kind": "controller",
+    "reason": "invalid_mock_schema"
+   },
+   "file": "E01.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "E01",
+      "kind": "rows"
+     },
+     "section": "10.6",
+     "text": "| E01 | `7` | invalid_mock_schema | `\"é\"` |"
+    }
+   ],
+   "id": "E01",
+   "positive_event": "read_line:ok:2",
+   "source": "use std.console;fn Main()->Result<(),I64>{console.ReadLine()?;return Ok(());}"
+  },
+  {
+   "anchor": "K §10.6 E02",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a22615c72227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "env_positive_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a2261227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "expected": {
+    "exit": 2,
+    "kind": "controller",
+    "reason": "invalid_mock_schema"
+   },
+   "file": "E02.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "E02",
+      "kind": "rows"
+     },
+     "section": "10.6",
+     "text": "| E02 | `\"a\\r\"` | invalid_mock_schema | `\"a\"` |"
+    }
+   ],
+   "id": "E02",
+   "positive_event": "read_line:ok:1",
+   "source": "use std.console;fn Main()->Result<(),I64>{console.ReadLine()?;return Ok(());}"
+  },
+  {
+   "anchor": "K §10.6 E03",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a22615c6e227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "env_positive_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a2261227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "expected": {
+    "exit": 2,
+    "kind": "controller",
+    "reason": "invalid_mock_schema"
+   },
+   "file": "E03.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "E03",
+      "kind": "rows"
+     },
+     "section": "10.6",
+     "text": "| E03 | `\"a\\n\"` | invalid_mock_schema | `\"a\"` |"
+    }
+   ],
+   "id": "E03",
+   "positive_event": "read_line:ok:1",
+   "source": "use std.console;fn Main()->Result<(),I64>{console.ReadLine()?;return Ok(());}"
+  },
+  {
+   "anchor": "K §10.6 E04",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a22615c725c6e227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "env_positive_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a2261227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "expected": {
+    "exit": 2,
+    "kind": "controller",
+    "reason": "invalid_mock_schema"
+   },
+   "file": "E04.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "E04",
+      "kind": "rows"
+     },
+     "section": "10.6",
+     "text": "| E04 | `\"a\\r\\n\"` | invalid_mock_schema | `\"a\"` |"
+    }
+   ],
+   "id": "E04",
+   "positive_event": "read_line:ok:1",
+   "source": "use std.console;fn Main()->Result<(),I64>{console.ReadLine()?;return Ok(());}"
+  },
+  {
+   "anchor": "K §10.6 E05",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a225c7564383030227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "env_positive_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a22c3a9227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "expected": {
+    "exit": 2,
+    "kind": "controller",
+    "reason": "invalid_mock_json"
+   },
+   "file": "E05.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "E05",
+      "kind": "rows"
+     },
+     "section": "10.6",
+     "text": "| E05 | `\"\\ud800\"` | invalid_mock_json | `\"é\"` |"
+    }
+   ],
+   "id": "E05",
+   "positive_event": "read_line:ok:2",
+   "source": "use std.console;fn Main()->Result<(),I64>{console.ReadLine()?;return Ok(());}"
+  },
+  {
+   "anchor": "K §10.6 E06",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a22c328227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "env_positive_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b226f6b223a22c3a9227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "expected": {
+    "exit": 2,
+    "kind": "controller",
+    "reason": "invalid_mock_json"
+   },
+   "file": "E06.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "E06",
+      "kind": "rows"
+     },
+     "section": "10.6",
+     "text": "| E06 | En los bytes UTF-8 del entorno base, sustituir únicamente C3 A9 (é) por C3 28 | invalid_mock_json | restaurar C3 A9 |"
+    }
+   ],
+   "id": "E06",
+   "positive_event": "read_line:ok:2",
+   "source": "use std.console;fn Main()->Result<(),I64>{console.ReadLine()?;return Ok(());}"
+  },
+  {
+   "anchor": "K §10.6 control Err(70)",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b7b22657272223a223730227d5d2c22636f6e736f6c655f7072696e746c6e223a5b5d7d",
+   "expected": {
+    "diagnostics": [],
+    "error": 70,
+    "events": [
+     "read_line:err:70"
+    ],
+    "exit": 1,
+    "kind": "result",
+    "outcome": "err",
+    "stdout": []
+   },
+   "file": "E07.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Cada negativo falla en el controlador"
+     },
+     "section": "10.6",
+     "text": "Cada negativo falla en el controlador, exit 2 y razón indicada, sin ejecutar Main, consumir colas ni emitir observaciones; no genera diagnóstico NX-E/R de programa ni Err tipado de ReadLine. Se valida el entorno completo incluso si la respuesta inválida está después de EOF. Cada positivo tiene diagnostics=[], outcome ok y exit 0; ningún stdout, un evento `read_line:ok:2` para é o `read_line:ok:1` para a. Los dos tipos de evento cuestan 23 observation_bytes (14 de texto, 8 de prefijo, 1 LF). Los surrogates escapados no se convierten a U+FFFD. Como control de error tipado válido, sustituir la respuesta por `{\"err\":\"70\"}` acepta el esquema y produce outcome Err(70), exit 1, evento `read_line:err:70` y ningún stdout."
+    }
+   ],
+   "id": "E07",
+   "source": "use std.console;fn Main()->Result<(),I64>{console.ReadLine()?;return Ok(());}"
+  },
+  {
+   "anchor": "K §10.7 O01-<",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "String",
+     "found_type": "I64"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     23,
+     24
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      20
+     ],
+     [
+      "found_type",
+      23,
+      24
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O01",
+   "file": "O01-0.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O01",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O01; OP=<, <=, >, >=, ==, != | `fn Main(){let x=\"é\" OP 1;}` | NX-E0102/type_mismatch; `[22+L,23+L)`, `1`; {expected_type=String, found_type=I64}; relaciones expected_type [16,20), found_type igual al primario. | reemplazar 1 por \"z\" |"
+    }
+   ],
+   "id": "O01-<",
+   "op": "<",
+   "positive": {
+    "edit": [
+     "1",
+     "\"z\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"é\" < \"z\";}"
+   },
+   "source": "fn Main(){let x=\"é\" < 1;}"
+  },
+  {
+   "anchor": "K §10.7 O01-<=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "String",
+     "found_type": "I64"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     24,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      20
+     ],
+     [
+      "found_type",
+      24,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O01",
+   "file": "O01-1.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O01",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O01; OP=<, <=, >, >=, ==, != | `fn Main(){let x=\"é\" OP 1;}` | NX-E0102/type_mismatch; `[22+L,23+L)`, `1`; {expected_type=String, found_type=I64}; relaciones expected_type [16,20), found_type igual al primario. | reemplazar 1 por \"z\" |"
+    }
+   ],
+   "id": "O01-<=",
+   "op": "<=",
+   "positive": {
+    "edit": [
+     "1",
+     "\"z\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"é\" <= \"z\";}"
+   },
+   "source": "fn Main(){let x=\"é\" <= 1;}"
+  },
+  {
+   "anchor": "K §10.7 O01->",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "String",
+     "found_type": "I64"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     23,
+     24
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      20
+     ],
+     [
+      "found_type",
+      23,
+      24
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O01",
+   "file": "O01-2.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O01",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O01; OP=<, <=, >, >=, ==, != | `fn Main(){let x=\"é\" OP 1;}` | NX-E0102/type_mismatch; `[22+L,23+L)`, `1`; {expected_type=String, found_type=I64}; relaciones expected_type [16,20), found_type igual al primario. | reemplazar 1 por \"z\" |"
+    }
+   ],
+   "id": "O01->",
+   "op": ">",
+   "positive": {
+    "edit": [
+     "1",
+     "\"z\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"é\" > \"z\";}"
+   },
+   "source": "fn Main(){let x=\"é\" > 1;}"
+  },
+  {
+   "anchor": "K §10.7 O01->=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "String",
+     "found_type": "I64"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     24,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      20
+     ],
+     [
+      "found_type",
+      24,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O01",
+   "file": "O01-3.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O01",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O01; OP=<, <=, >, >=, ==, != | `fn Main(){let x=\"é\" OP 1;}` | NX-E0102/type_mismatch; `[22+L,23+L)`, `1`; {expected_type=String, found_type=I64}; relaciones expected_type [16,20), found_type igual al primario. | reemplazar 1 por \"z\" |"
+    }
+   ],
+   "id": "O01->=",
+   "op": ">=",
+   "positive": {
+    "edit": [
+     "1",
+     "\"z\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"é\" >= \"z\";}"
+   },
+   "source": "fn Main(){let x=\"é\" >= 1;}"
+  },
+  {
+   "anchor": "K §10.7 O01-==",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "String",
+     "found_type": "I64"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     24,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      20
+     ],
+     [
+      "found_type",
+      24,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O01",
+   "file": "O01-4.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O01",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O01; OP=<, <=, >, >=, ==, != | `fn Main(){let x=\"é\" OP 1;}` | NX-E0102/type_mismatch; `[22+L,23+L)`, `1`; {expected_type=String, found_type=I64}; relaciones expected_type [16,20), found_type igual al primario. | reemplazar 1 por \"z\" |"
+    }
+   ],
+   "id": "O01-==",
+   "op": "==",
+   "positive": {
+    "edit": [
+     "1",
+     "\"z\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"é\" == \"z\";}"
+   },
+   "source": "fn Main(){let x=\"é\" == 1;}"
+  },
+  {
+   "anchor": "K §10.7 O01-!=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "String",
+     "found_type": "I64"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     24,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      20
+     ],
+     [
+      "found_type",
+      24,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O01",
+   "file": "O01-5.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O01",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O01; OP=<, <=, >, >=, ==, != | `fn Main(){let x=\"é\" OP 1;}` | NX-E0102/type_mismatch; `[22+L,23+L)`, `1`; {expected_type=String, found_type=I64}; relaciones expected_type [16,20), found_type igual al primario. | reemplazar 1 por \"z\" |"
+    }
+   ],
+   "id": "O01-!=",
+   "op": "!=",
+   "positive": {
+    "edit": [
+     "1",
+     "\"z\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"é\" != \"z\";}"
+   },
+   "source": "fn Main(){let x=\"é\" != 1;}"
+  },
+  {
+   "anchor": "K §10.7 O02-<",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "I64",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     20,
+     24
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      17
+     ],
+     [
+      "found_type",
+      20,
+      24
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O02",
+   "file": "O02-0.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O02",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O02; OP=<, <=, >, >=, ==, != | `fn Main(){let x=1 OP \"é\";}` | NX-E0102/type_mismatch; `[19+L,23+L)`, `\"é\"`; {expected_type=I64, found_type=String}; relaciones expected_type [16,17), found_type igual al primario. | 1 izquierdo por \"a\" |"
+    }
+   ],
+   "id": "O02-<",
+   "op": "<",
+   "positive": {
+    "edit": [
+     "1",
+     "\"a\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" < \"é\";}"
+   },
+   "source": "fn Main(){let x=1 < \"é\";}"
+  },
+  {
+   "anchor": "K §10.7 O02-<=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "I64",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      17
+     ],
+     [
+      "found_type",
+      21,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O02",
+   "file": "O02-1.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O02",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O02; OP=<, <=, >, >=, ==, != | `fn Main(){let x=1 OP \"é\";}` | NX-E0102/type_mismatch; `[19+L,23+L)`, `\"é\"`; {expected_type=I64, found_type=String}; relaciones expected_type [16,17), found_type igual al primario. | 1 izquierdo por \"a\" |"
+    }
+   ],
+   "id": "O02-<=",
+   "op": "<=",
+   "positive": {
+    "edit": [
+     "1",
+     "\"a\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" <= \"é\";}"
+   },
+   "source": "fn Main(){let x=1 <= \"é\";}"
+  },
+  {
+   "anchor": "K §10.7 O02->",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "I64",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     20,
+     24
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      17
+     ],
+     [
+      "found_type",
+      20,
+      24
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O02",
+   "file": "O02-2.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O02",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O02; OP=<, <=, >, >=, ==, != | `fn Main(){let x=1 OP \"é\";}` | NX-E0102/type_mismatch; `[19+L,23+L)`, `\"é\"`; {expected_type=I64, found_type=String}; relaciones expected_type [16,17), found_type igual al primario. | 1 izquierdo por \"a\" |"
+    }
+   ],
+   "id": "O02->",
+   "op": ">",
+   "positive": {
+    "edit": [
+     "1",
+     "\"a\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" > \"é\";}"
+   },
+   "source": "fn Main(){let x=1 > \"é\";}"
+  },
+  {
+   "anchor": "K §10.7 O02->=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "I64",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      17
+     ],
+     [
+      "found_type",
+      21,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O02",
+   "file": "O02-3.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O02",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O02; OP=<, <=, >, >=, ==, != | `fn Main(){let x=1 OP \"é\";}` | NX-E0102/type_mismatch; `[19+L,23+L)`, `\"é\"`; {expected_type=I64, found_type=String}; relaciones expected_type [16,17), found_type igual al primario. | 1 izquierdo por \"a\" |"
+    }
+   ],
+   "id": "O02->=",
+   "op": ">=",
+   "positive": {
+    "edit": [
+     "1",
+     "\"a\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" >= \"é\";}"
+   },
+   "source": "fn Main(){let x=1 >= \"é\";}"
+  },
+  {
+   "anchor": "K §10.7 O02-==",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "I64",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      17
+     ],
+     [
+      "found_type",
+      21,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O02",
+   "file": "O02-4.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O02",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O02; OP=<, <=, >, >=, ==, != | `fn Main(){let x=1 OP \"é\";}` | NX-E0102/type_mismatch; `[19+L,23+L)`, `\"é\"`; {expected_type=I64, found_type=String}; relaciones expected_type [16,17), found_type igual al primario. | 1 izquierdo por \"a\" |"
+    }
+   ],
+   "id": "O02-==",
+   "op": "==",
+   "positive": {
+    "edit": [
+     "1",
+     "\"a\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" == \"é\";}"
+   },
+   "source": "fn Main(){let x=1 == \"é\";}"
+  },
+  {
+   "anchor": "K §10.7 O02-!=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "I64",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     25
+    ],
+    "related": [
+     [
+      "expected_type",
+      16,
+      17
+     ],
+     [
+      "found_type",
+      21,
+      25
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O02",
+   "file": "O02-5.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O02",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O02; OP=<, <=, >, >=, ==, != | `fn Main(){let x=1 OP \"é\";}` | NX-E0102/type_mismatch; `[19+L,23+L)`, `\"é\"`; {expected_type=I64, found_type=String}; relaciones expected_type [16,17), found_type igual al primario. | 1 izquierdo por \"a\" |"
+    }
+   ],
+   "id": "O02-!=",
+   "op": "!=",
+   "positive": {
+    "edit": [
+     "1",
+     "\"a\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" != \"é\";}"
+   },
+   "source": "fn Main(){let x=1 != \"é\";}"
+  },
+  {
+   "anchor": "K §10.7 O03-<",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "Bool"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     22
+    ],
+    "related": [
+     [
+      "found_type",
+      16,
+      20
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O03",
+   "file": "O03-0.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O03",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O03; OP=<, <=, >, >= | `fn Main(){let x=true OP false;}` | NX-E0102/type_mismatch; `[21,21+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=Bool}; relaciones found_type [16,20). | true/false por \"a\"/\"b\" (solo el dominio de ambos operandos) |"
+    }
+   ],
+   "id": "O03-<",
+   "op": "<",
+   "positive": {
+    "edit": [
+     "true/false",
+     "\"a\"/\"b\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" < \"b\";}"
+   },
+   "source": "fn Main(){let x=true < false;}"
+  },
+  {
+   "anchor": "K §10.7 O03-<=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "Bool"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     23
+    ],
+    "related": [
+     [
+      "found_type",
+      16,
+      20
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O03",
+   "file": "O03-1.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O03",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O03; OP=<, <=, >, >= | `fn Main(){let x=true OP false;}` | NX-E0102/type_mismatch; `[21,21+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=Bool}; relaciones found_type [16,20). | true/false por \"a\"/\"b\" (solo el dominio de ambos operandos) |"
+    }
+   ],
+   "id": "O03-<=",
+   "op": "<=",
+   "positive": {
+    "edit": [
+     "true/false",
+     "\"a\"/\"b\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" <= \"b\";}"
+   },
+   "source": "fn Main(){let x=true <= false;}"
+  },
+  {
+   "anchor": "K §10.7 O03->",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "Bool"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     22
+    ],
+    "related": [
+     [
+      "found_type",
+      16,
+      20
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O03",
+   "file": "O03-2.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O03",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O03; OP=<, <=, >, >= | `fn Main(){let x=true OP false;}` | NX-E0102/type_mismatch; `[21,21+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=Bool}; relaciones found_type [16,20). | true/false por \"a\"/\"b\" (solo el dominio de ambos operandos) |"
+    }
+   ],
+   "id": "O03->",
+   "op": ">",
+   "positive": {
+    "edit": [
+     "true/false",
+     "\"a\"/\"b\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" > \"b\";}"
+   },
+   "source": "fn Main(){let x=true > false;}"
+  },
+  {
+   "anchor": "K §10.7 O03->=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "Bool"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     21,
+     23
+    ],
+    "related": [
+     [
+      "found_type",
+      16,
+      20
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O03",
+   "file": "O03-3.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O03",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O03; OP=<, <=, >, >= | `fn Main(){let x=true OP false;}` | NX-E0102/type_mismatch; `[21,21+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=Bool}; relaciones found_type [16,20). | true/false por \"a\"/\"b\" (solo el dominio de ambos operandos) |"
+    }
+   ],
+   "id": "O03->=",
+   "op": ">=",
+   "positive": {
+    "edit": [
+     "true/false",
+     "\"a\"/\"b\"",
+     0
+    ],
+    "source": "fn Main(){let x=\"a\" >= \"b\";}"
+   },
+   "source": "fn Main(){let x=true >= false;}"
+  },
+  {
+   "anchor": "K §10.7 O04",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "I64",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     16,
+     20
+    ],
+    "related": [
+     [
+      "found_type",
+      16,
+      20
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "file": "O04.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O04",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O04 | `fn Main(){let x=\"é\"+\"x\";}` | NX-E0102/type_mismatch; `[16,20)`, `\"é\"`; {expected_type=I64, found_type=String}; relaciones found_type igual al primario. | + por == |"
+    }
+   ],
+   "id": "O04",
+   "positive": {
+    "edit": [
+     "+",
+     "==",
+     0
+    ],
+    "source": "fn Main(){let x=\"é\"==\"x\";}"
+   },
+   "source": "fn Main(){let x=\"é\"+\"x\";}"
+  },
+  {
+   "anchor": "K §10.7 O05-==",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     38,
+     40
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "family": "O05",
+   "file": "O05-0.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O05",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O05; OP en ==, != | `struct S{}fn Main(){let s=S();let x=s OP s;}` | NX-E1403/missing_partial_eq; `[38,38+L)`, `OP`; {required_capability=PartialEq}; relaciones declaration [7,8). | anteponer @derive(PartialEq) |"
+    }
+   ],
+   "id": "O05-==",
+   "op": "==",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s == s;}"
+   },
+   "source": "struct S{}fn Main(){let s=S();let x=s == s;}"
+  },
+  {
+   "anchor": "K §10.7 O05-!=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     38,
+     40
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "family": "O05",
+   "file": "O05-1.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O05",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O05; OP en ==, != | `struct S{}fn Main(){let s=S();let x=s OP s;}` | NX-E1403/missing_partial_eq; `[38,38+L)`, `OP`; {required_capability=PartialEq}; relaciones declaration [7,8). | anteponer @derive(PartialEq) |"
+    }
+   ],
+   "id": "O05-!=",
+   "op": "!=",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s != s;}"
+   },
+   "source": "struct S{}fn Main(){let s=S();let x=s != s;}"
+  },
+  {
+   "anchor": "K §10.7 O06-==",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     46,
+     48
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "family": "O06",
+   "file": "O06-0.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O06",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O06; OP en ==, != | `struct S{}fn Main(){let a:Array<S>=[];let x=a OP a;}` | NX-E1403/missing_partial_eq; `[46,46+L)`, `OP`; {required_capability=PartialEq}; relaciones declaration [7,8). | anteponer @derive(PartialEq) |"
+    }
+   ],
+   "id": "O06-==",
+   "op": "==",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let a:Array<S>=[];let x=a == a;}"
+   },
+   "source": "struct S{}fn Main(){let a:Array<S>=[];let x=a == a;}"
+  },
+  {
+   "anchor": "K §10.7 O06-!=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     46,
+     48
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "family": "O06",
+   "file": "O06-1.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O06",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O06; OP en ==, != | `struct S{}fn Main(){let a:Array<S>=[];let x=a OP a;}` | NX-E1403/missing_partial_eq; `[46,46+L)`, `OP`; {required_capability=PartialEq}; relaciones declaration [7,8). | anteponer @derive(PartialEq) |"
+    }
+   ],
+   "id": "O06-!=",
+   "op": "!=",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let a:Array<S>=[];let x=a != a;}"
+   },
+   "source": "struct S{}fn Main(){let a:Array<S>=[];let x=a != a;}"
+  },
+  {
+   "anchor": "K §10.7 O07-==",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "package.A",
+     "found_type": "package.B"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     79,
+     82
+    ],
+    "related": [
+     [
+      "expected_type",
+      72,
+      75
+     ],
+     [
+      "found_type",
+      79,
+      82
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O07",
+   "file": "O07-0.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O07",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O07; OP en ==, != | `@derive(PartialEq)struct A{}@derive(PartialEq)struct B{}fn Main(){let x=A() OP B();}` | NX-E0102/type_mismatch; `[77+L,80+L)`, `B()`; {expected_type=package.A, found_type=package.B}; relaciones expected_type [72,75), found_type igual al primario. | B() por A() |"
+    }
+   ],
+   "id": "O07-==",
+   "op": "==",
+   "positive": {
+    "edit": [
+     "B()",
+     "A()",
+     1
+    ],
+    "source": "@derive(PartialEq)struct A{}@derive(PartialEq)struct B{}fn Main(){let x=A() == A();}"
+   },
+   "source": "@derive(PartialEq)struct A{}@derive(PartialEq)struct B{}fn Main(){let x=A() == B();}"
+  },
+  {
+   "anchor": "K §10.7 O07-!=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "package.A",
+     "found_type": "package.B"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     79,
+     82
+    ],
+    "related": [
+     [
+      "expected_type",
+      72,
+      75
+     ],
+     [
+      "found_type",
+      79,
+      82
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O07",
+   "file": "O07-1.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O07",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O07; OP en ==, != | `@derive(PartialEq)struct A{}@derive(PartialEq)struct B{}fn Main(){let x=A() OP B();}` | NX-E0102/type_mismatch; `[77+L,80+L)`, `B()`; {expected_type=package.A, found_type=package.B}; relaciones expected_type [72,75), found_type igual al primario. | B() por A() |"
+    }
+   ],
+   "id": "O07-!=",
+   "op": "!=",
+   "positive": {
+    "edit": [
+     "B()",
+     "A()",
+     1
+    ],
+    "source": "@derive(PartialEq)struct A{}@derive(PartialEq)struct B{}fn Main(){let x=A() != A();}"
+   },
+   "source": "@derive(PartialEq)struct A{}@derive(PartialEq)struct B{}fn Main(){let x=A() != B();}"
+  },
+  {
+   "anchor": "K §10.7 O08-<",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "package.S"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     56,
+     57
+    ],
+    "related": [
+     [
+      "found_type",
+      54,
+      55
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O08",
+   "file": "O08-0.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O08",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O08; OP=<, <=, >, >= | `@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s OP s;}` | NX-E0102/type_mismatch; `[56,56+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=package.S}; relaciones found_type [54,55). | operador de orden por == |"
+    }
+   ],
+   "id": "O08-<",
+   "op": "<",
+   "positive": {
+    "edit": [
+     "OP",
+     "==",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s == s;}"
+   },
+   "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s < s;}"
+  },
+  {
+   "anchor": "K §10.7 O08-<=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "package.S"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     56,
+     58
+    ],
+    "related": [
+     [
+      "found_type",
+      54,
+      55
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O08",
+   "file": "O08-1.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O08",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O08; OP=<, <=, >, >= | `@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s OP s;}` | NX-E0102/type_mismatch; `[56,56+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=package.S}; relaciones found_type [54,55). | operador de orden por == |"
+    }
+   ],
+   "id": "O08-<=",
+   "op": "<=",
+   "positive": {
+    "edit": [
+     "OP",
+     "==",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s == s;}"
+   },
+   "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s <= s;}"
+  },
+  {
+   "anchor": "K §10.7 O08->",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "package.S"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     56,
+     57
+    ],
+    "related": [
+     [
+      "found_type",
+      54,
+      55
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O08",
+   "file": "O08-2.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O08",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O08; OP=<, <=, >, >= | `@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s OP s;}` | NX-E0102/type_mismatch; `[56,56+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=package.S}; relaciones found_type [54,55). | operador de orden por == |"
+    }
+   ],
+   "id": "O08->",
+   "op": ">",
+   "positive": {
+    "edit": [
+     "OP",
+     "==",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s == s;}"
+   },
+   "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s > s;}"
+  },
+  {
+   "anchor": "K §10.7 O08->=",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:ordered_scalar",
+     "found_type": "package.S"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     56,
+     58
+    ],
+    "related": [
+     [
+      "found_type",
+      54,
+      55
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "family": "O08",
+   "file": "O08-3.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O08",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O08; OP=<, <=, >, >= | `@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s OP s;}` | NX-E0102/type_mismatch; `[56,56+L)`, `OP`; {expected_type=domain:ordered_scalar, found_type=package.S}; relaciones found_type [54,55). | operador de orden por == |"
+    }
+   ],
+   "id": "O08->=",
+   "op": ">=",
+   "positive": {
+    "edit": [
+     "OP",
+     "==",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s == s;}"
+   },
+   "source": "@derive(PartialEq)struct S{}fn Main(){let s=S();let x=s >= s;}"
+  },
+  {
+   "anchor": "K §10.7 O09",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "resource_array",
+    "kind": "diagnostic",
+    "primary": [
+     41,
+     49
+    ],
+    "related": [],
+    "subcause": null
+   },
+   "file": "O09.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O09",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O09 | `struct S{r:MockResource;}fn Main(){let a:Array<S>=[];}` | NX-E0006; `[41,49)`, `Array<S>`; {pending_scope=later_adr; feature_id=resource_array}; relaciones []. | MockResource por I64 |"
+    }
+   ],
+   "id": "O09",
+   "positive": {
+    "edit": [
+     "MockResource",
+     "I64",
+     0
+    ],
+    "source": "struct S{r:I64;}fn Main(){let a:Array<S>=[];}"
+   },
+   "source": "struct S{r:MockResource;}fn Main(){let a:Array<S>=[];}"
+  },
+  {
+   "anchor": "K §10.7 O10",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:iterable",
+     "found_type": "String"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     19,
+     23
+    ],
+    "related": [
+     [
+      "found_type",
+      19,
+      23
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "file": "O10.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O10",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O10 | `fn Main(){for x in \"é\"{}}` | NX-E0102/type_mismatch; `[19,23)`, `\"é\"`; {expected_type=domain:iterable, found_type=String}; relaciones found_type igual al primario. | \"é\" por [\"é\"] |"
+    }
+   ],
+   "id": "O10",
+   "positive": {
+    "edit": [
+     "\"é\"",
+     "[\"é\"]",
+     0
+    ],
+    "source": "fn Main(){for x in [\"é\"]{}}"
+   },
+   "source": "fn Main(){for x in \"é\"{}}"
+  },
+  {
+   "anchor": "K §10.7 O11",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "for_iteration",
+    "kind": "diagnostic",
+    "operation": "syntax.parse",
+    "primary": [
+     14,
+     18
+    ],
+    "related": [],
+    "stage": "parse",
+    "subcause": null
+   },
+   "file": "O11.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O11",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O11 | `fn Main(){for edit x in [\"é\"]{}}` | NX-E0006; `[14,18)`, `edit`; {pending_scope=later_adr; feature_id=for_iteration; parse/syntax.parse}; relaciones []. | quitar edit y el espacio siguiente |"
+    }
+   ],
+   "id": "O11",
+   "positive": {
+    "edit": [
+     "edit ",
+     "",
+     0
+    ],
+    "source": "fn Main(){for x in [\"é\"]{}}"
+   },
+   "source": "fn Main(){for edit x in [\"é\"]{}}"
+  },
+  {
+   "anchor": "K §10.7 O12",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0102",
+    "data": {
+     "expected_type": "domain:iterable",
+     "found_type": "package.S"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     29,
+     32
+    ],
+    "related": [
+     [
+      "found_type",
+      29,
+      32
+     ]
+    ],
+    "subcause": "type_mismatch"
+   },
+   "file": "O12.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O12",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O12 | `struct S{}fn Main(){for x in S(){}}` | NX-E0102/type_mismatch; `[29,32)`, `S()`; {expected_type=domain:iterable, found_type=package.S}; relaciones found_type igual al primario. | S() por [S()] |"
+    }
+   ],
+   "id": "O12",
+   "positive": {
+    "edit": [
+     "S(){}",
+     "[S()]{}",
+     0
+    ],
+    "source": "struct S{}fn Main(){for x in [S()]{}}"
+   },
+   "source": "struct S{}fn Main(){for x in S(){}}"
+  },
+  {
+   "anchor": "K §10.7 O13",
+   "cli": true,
+   "expected": {
+    "code": "R0002",
+    "data": {
+     "limit": 2,
+     "observed": 3,
+     "runtime_budget_kind": "text_allocations"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     70,
+     72
+    ],
+    "profile_id": "f0-0004-b-test-text-alloc-2-v1",
+    "related": [],
+    "subcause": null
+   },
+   "file": "O13.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_contains",
+      "text": "Negativo O13 completo"
+     },
+     "section": "10.7",
+     "text": "Bajo test-text-alloc-2, `fn Main(){var a=[\"é\"];for x in a{x.ByteLen();}Push(edit a,\"x\");Pop(edit a);}` acepta: dos búferes String iniciados, C1→C2, 32+64=96 bytes Array acumulados, pico Array 96, pico texto 3, y Pop no copia. El alias de for no inicia otro búfer. Cambiar solo el argumento `\"x\"` por `\"x\".Concat(\"\")` exige más de dos asignaciones y falla en el primer literal vacío que intenta iniciar la tercera, antes de llamar Concat. Negativo O13 completo: `fn Main(){var a=[\"é\"];for x in a{x.ByteLen();}Push(edit a,\"x\".Concat(\"\"));Pop(edit a);}`; R0002/runtime.limit, perfil f0-0004-b-test-text-alloc-2-v1, namespace F0-0002-sim, stage runtime, primario [70,72), token `\"\"`, data={\"runtime_budget_kind\":\"text_allocations\",\"limit\":2,\"observed\":3}, rule=R0002, explanation_id=null, sin relaciones/cadena; restantes campos C. Positivo: la fuente anterior con argumento simple `\"x\"`. Se conserva el prefijo de asignaciones y limpieza completa, sin observaciones. Los perfiles storage-96/allocation-96 de F5 se repiten con elementos String y nominales; sus slots y candidatos 96/192/224 no cambian, y las cuotas de texto normales no deben anticiparlos."
+    }
+   ],
+   "id": "O13",
+   "positive": {
+    "edit": [
+     "\"x\".Concat(\"\")",
+     "\"x\"",
+     0
+    ],
+    "source": "fn Main(){var a=[\"é\"];for x in a{x.ByteLen();}Push(edit a,\"x\");Pop(edit a);}"
+   },
+   "source": "fn Main(){var a=[\"é\"];for x in a{x.ByteLen();}Push(edit a,\"x\".Concat(\"\"));Pop(edit a);}"
+  },
+  {
+   "anchor": "K §10.7 O14",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     43,
+     45
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "file": "O14.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O14",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O14 | `struct S{}fn Main(){let a=Some(S());let x=a!=a;}` | [43,45), `!=` | declaration [7,8) |"
+    }
+   ],
+   "id": "O14",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let a=Some(S());let x=a!=a;}"
+   },
+   "source": "struct S{}fn Main(){let a=Some(S());let x=a!=a;}"
+  },
+  {
+   "anchor": "K §10.7 O15",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     55,
+     57
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "file": "O15.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O15",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O15 | `struct S{}fn Main(){let a:Result<S,I64>=Ok(S());let x=a!=a;}` | [55,57), `!=` | declaration [7,8) |"
+    }
+   ],
+   "id": "O15",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}fn Main(){let a:Result<S,I64>=Ok(S());let x=a!=a;}"
+   },
+   "source": "struct S{}fn Main(){let a:Result<S,I64>=Ok(S());let x=a!=a;}"
+  },
+  {
+   "anchor": "K §10.7 O16",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1403",
+    "data": {
+     "required_capability": "PartialEq"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     45,
+     46
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ],
+     [
+      "contract",
+      18,
+      27
+     ]
+    ],
+    "subcause": "missing_partial_eq"
+   },
+   "file": "O16.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "O16",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| O16 | `struct S{}@derive(PartialEq)enum E{Nada,Dato(S)}fn Main(){}` | [45,46), `S` | declaration [7,8), contract [18,27) |"
+    }
+   ],
+   "id": "O16",
+   "positive": {
+    "edit": [
+     "struct S",
+     "@derive(PartialEq)struct S",
+     0
+    ],
+    "source": "@derive(PartialEq)struct S{}@derive(PartialEq)enum E{Nada,Dato(S)}fn Main(){}"
+   },
+   "source": "struct S{}@derive(PartialEq)enum E{Nada,Dato(S)}fn Main(){}"
+  },
+  {
+   "anchor": "K §10.7 B01-text",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "borrow",
+      "borrow.read",
+      31,
+      32,
+      {
+       "id": "loan:31:0",
+       "kind": "loan"
+      }
+     ]
+    ],
+    "code": "NX-E1105",
+    "data": {
+     "active_permission": "read",
+     "binding": {
+      "id": "binding:14",
+      "kind": "binding"
+     },
+     "loan": {
+      "id": "loan:31:0",
+      "kind": "loan"
+     },
+     "origin": {
+      "id": "binding:14",
+      "kind": "binding"
+     },
+     "requested_access": "write"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     33,
+     34
+    ],
+    "related": [
+     [
+      "declaration",
+      14,
+      15
+     ],
+     [
+      "origin",
+      31,
+      32
+     ]
+    ],
+    "subcause": "active_borrow_conflict"
+   },
+   "file": "B01-text.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "B01-text",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| B01-text | `fn Main(){var a=[\"x\"];for x in a{a[0]=\"y\";}}` | [33,34), a | `fn Main(){var a=[\"x\"];for x in [\"x\"]{a[0]=\"y\";}}` |\n| B01-text | `{\"origin\":{\"kind\":\"binding\",\"id\":\"binding:14\"},\"binding\":{\"kind\":\"binding\",\"id\":\"binding:14\"},\"loan\":{\"kind\":\"loan\",\"id\":\"loan:31:0\"},\"active_permission\":\"read\",\"requested_access\":\"write\"}` | declaration [14,15), origin [31,32) | borrow / borrow.read, span [31,32), entity {kind:loan,id:loan:31:0}, evidence=verified |"
+    }
+   ],
+   "id": "B01-text",
+   "positive": {
+    "edit": null,
+    "source": "fn Main(){var a=[\"x\"];for x in [\"x\"]{a[0]=\"y\";}}"
+   },
+   "source": "fn Main(){var a=[\"x\"];for x in a{a[0]=\"y\";}}"
+  },
+  {
+   "anchor": "K §10.7 B01-struct",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "borrow",
+      "borrow.read",
+      48,
+      49,
+      {
+       "id": "loan:48:0",
+       "kind": "loan"
+      }
+     ]
+    ],
+    "code": "NX-E1105",
+    "data": {
+     "active_permission": "read",
+     "binding": {
+      "id": "binding:30",
+      "kind": "binding"
+     },
+     "loan": {
+      "id": "loan:48:0",
+      "kind": "loan"
+     },
+     "origin": {
+      "id": "binding:30",
+      "kind": "binding"
+     },
+     "requested_access": "write"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     50,
+     51
+    ],
+    "related": [
+     [
+      "declaration",
+      30,
+      31
+     ],
+     [
+      "origin",
+      48,
+      49
+     ]
+    ],
+    "subcause": "active_borrow_conflict"
+   },
+   "file": "B01-struct.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "B01-struct",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| B01-struct | `struct S{x:I64;}fn Main(){var a=[S(1)];for x in a{a[0]=S(2);}}` | [50,51), a | `struct S{x:I64;}fn Main(){var a=[S(1)];for x in [S(1)]{a[0]=S(2);}}` |\n| B01-struct | `{\"origin\":{\"kind\":\"binding\",\"id\":\"binding:30\"},\"binding\":{\"kind\":\"binding\",\"id\":\"binding:30\"},\"loan\":{\"kind\":\"loan\",\"id\":\"loan:48:0\"},\"active_permission\":\"read\",\"requested_access\":\"write\"}` | declaration [30,31), origin [48,49) | borrow / borrow.read, span [48,49), entity {kind:loan,id:loan:48:0}, evidence=verified |"
+    }
+   ],
+   "id": "B01-struct",
+   "positive": {
+    "edit": null,
+    "source": "struct S{x:I64;}fn Main(){var a=[S(1)];for x in [S(1)]{a[0]=S(2);}}"
+   },
+   "source": "struct S{x:I64;}fn Main(){var a=[S(1)];for x in a{a[0]=S(2);}}"
+  },
+  {
+   "anchor": "K §10.7 B01-enum",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "borrow",
+      "borrow.read",
+      48,
+      49,
+      {
+       "id": "loan:48:0",
+       "kind": "loan"
+      }
+     ]
+    ],
+    "code": "NX-E1105",
+    "data": {
+     "active_permission": "read",
+     "binding": {
+      "id": "binding:28",
+      "kind": "binding"
+     },
+     "loan": {
+      "id": "loan:48:0",
+      "kind": "loan"
+     },
+     "origin": {
+      "id": "binding:28",
+      "kind": "binding"
+     },
+     "requested_access": "write"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     50,
+     51
+    ],
+    "related": [
+     [
+      "declaration",
+      28,
+      29
+     ],
+     [
+      "origin",
+      48,
+      49
+     ]
+    ],
+    "subcause": "active_borrow_conflict"
+   },
+   "file": "B01-enum.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "B01-enum",
+      "kind": "rows"
+     },
+     "section": "10.7",
+     "text": "| B01-enum | `enum E{V(I64)}fn Main(){var a=[E.V(1)];for x in a{a[0]=E.V(2);}}` | [50,51), a | `enum E{V(I64)}fn Main(){var a=[E.V(1)];for x in [E.V(1)]{a[0]=E.V(2);}}` |\n| B01-enum | `{\"origin\":{\"kind\":\"binding\",\"id\":\"binding:28\"},\"binding\":{\"kind\":\"binding\",\"id\":\"binding:28\"},\"loan\":{\"kind\":\"loan\",\"id\":\"loan:48:0\"},\"active_permission\":\"read\",\"requested_access\":\"write\"}` | declaration [28,29), origin [48,49) | borrow / borrow.read, span [48,49), entity {kind:loan,id:loan:48:0}, evidence=verified |"
+    }
+   ],
+   "id": "B01-enum",
+   "positive": {
+    "edit": null,
+    "source": "enum E{V(I64)}fn Main(){var a=[E.V(1)];for x in [E.V(1)]{a[0]=E.V(2);}}"
+   },
+   "source": "enum E{V(I64)}fn Main(){var a=[E.V(1)];for x in a{a[0]=E.V(2);}}"
+  },
+  {
+   "anchor": "K §10.7 programa seis comparadores",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "CMP6.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "Programa positivo de seis comparadores"
+     },
+     "section": "10.7",
+     "text": "@derive(PartialEq)struct S{text:String;}\n@derive(PartialEq)enum E{Nada,Dato(S)}\nfn Main(){\n    AssertEq(\"é\"==\"é\",true);\n    AssertEq(\"é\"!=\"é\",true);\n    AssertEq(\"é\"<\"🙂\",true);\n    AssertEq(\"é\"<=\"é\",true);\n    AssertEq(\"🙂\">\"é\",true);\n    AssertEq(\"é\">=\"é\",true);\n    AssertEq(\"a\"<\"aa\",true);\n    AssertEq(\"\"<\"a\",true);\n    AssertEq(\"a\">\"aa\",false);\n    var a:Array<E>=[];\n    Push(edit a,E.Dato(S(\"é\")));\n    Push(edit a,E.Nada);\n    var b=a;\n    AssertEq(Pop(edit b),Some(E.Nada));\n    AssertEq(a!=b,true);\n    Push(edit b,E.Nada);\n    AssertEq(a==b,true);\n    let c=JoinArrays(a,b);\n    AssertEq(Len(c),4);\n    var n=0;\n    for item in c{\n        match item{E.Nada=>{},E.Dato(s)=>{n+=s.text.ByteLen();}}\n    }\n    AssertEq(n,4);\n}"
+    }
+   ],
+   "id": "CMP6",
+   "source": "@derive(PartialEq)struct S{text:String;}\n@derive(PartialEq)enum E{Nada,Dato(S)}\nfn Main(){\n    AssertEq(\"é\"==\"é\",true);\n    AssertEq(\"é\"!=\"é\",true);\n    AssertEq(\"é\"<\"🙂\",true);\n    AssertEq(\"é\"<=\"é\",true);\n    AssertEq(\"🙂\">\"é\",true);\n    AssertEq(\"é\">=\"é\",true);\n    AssertEq(\"a\"<\"aa\",true);\n    AssertEq(\"\"<\"a\",true);\n    AssertEq(\"a\">\"aa\",false);\n    var a:Array<E>=[];\n    Push(edit a,E.Dato(S(\"é\")));\n    Push(edit a,E.Nada);\n    var b=a;\n    AssertEq(Pop(edit b),Some(E.Nada));\n    AssertEq(a!=b,true);\n    Push(edit b,E.Nada);\n    AssertEq(a==b,true);\n    let c=JoinArrays(a,b);\n    AssertEq(Len(c),4);\n    var n=0;\n    for item in c{\n        match item{E.Nada=>{},E.Dato(s)=>{n+=s.text.ByteLen();}}\n    }\n    AssertEq(n,4);\n}"
+  },
+  {
+   "anchor": "K §10.7 programa K04",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "K04P.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "K04 tiene este programa independiente"
+     },
+     "section": "10.7",
+     "text": "struct S{text:String;}\nenum E{Nada,Dato(S)}\nfn Main(){\n    var a=[S(\"é\")];\n    var b=a;\n    Push(edit b,S(\"x\"));\n    AssertEq(Len(a),1);\n    AssertEq(Len(b),2);\n    var bytes=0;\n    for r in b{bytes+=r.text.ByteLen();}\n    AssertEq(bytes,3);\n    var es=[E.Nada];\n    Push(edit es,E.Dato(S(\"y\")));\n    let popped=Pop(edit es);\n    match popped{None=>{AssertEq(false,true);},Some(v)=>{}}\n    var count=0;\n    for e in JoinArrays(es,es){count+=1;}\n    AssertEq(count,2);\n}"
+    }
+   ],
+   "id": "K04P",
+   "source": "struct S{text:String;}\nenum E{Nada,Dato(S)}\nfn Main(){\n    var a=[S(\"é\")];\n    var b=a;\n    Push(edit b,S(\"x\"));\n    AssertEq(Len(a),1);\n    AssertEq(Len(b),2);\n    var bytes=0;\n    for r in b{bytes+=r.text.ByteLen();}\n    AssertEq(bytes,3);\n    var es=[E.Nada];\n    Push(edit es,E.Dato(S(\"y\")));\n    let popped=Pop(edit es);\n    match popped{None=>{AssertEq(false,true);},Some(v)=>{}}\n    var count=0;\n    for e in JoinArrays(es,es){count+=1;}\n    AssertEq(count,2);\n}"
+  },
+  {
+   "anchor": "K §10.8 P01",
+   "cli": true,
+   "expected": {
+    "cause_chain": [
+     [
+      "borrow",
+      "borrow.read",
+      30,
+      34,
+      {
+       "id": "parameter:30",
+       "kind": "parameter"
+      }
+     ]
+    ],
+    "code": "NX-E1105",
+    "data": {
+     "active_permission": "read",
+     "origin": {
+      "id": "parameter:30",
+      "kind": "parameter"
+     },
+     "parameter": {
+      "id": "parameter:30",
+      "kind": "parameter"
+     },
+     "requested_access": "write"
+    },
+    "kind": "diagnostic",
+    "primary": [
+     41,
+     45
+    ],
+    "related": [
+     [
+      "declaration",
+      30,
+      34
+     ]
+    ],
+    "subcause": "permission_escalation"
+   },
+   "file": "P01.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "P01",
+      "kind": "rows"
+     },
+     "section": "10.8",
+     "text": "| P01 | `struct S{x:I64;}extend S{fn F(self:view){self.x=2;}}` | NX-E1105/permission_escalation; [41,45), self; ownership/ownership.access | `struct S{x:I64;}extend S{fn F(self:edit){self.x=2;}}` |\n| P01 | `{\"origin\":{\"kind\":\"parameter\",\"id\":\"parameter:30\"},\"parameter\":{\"kind\":\"parameter\",\"id\":\"parameter:30\"},\"active_permission\":\"read\",\"requested_access\":\"write\"}` | declaration [30,34) | Un paso borrow/borrow.read, span [30,34), entity {kind:parameter,id:parameter:30}, evidence=verified |"
+    }
+   ],
+   "id": "P01",
+   "positive": {
+    "edit": [
+     "self:view",
+     "self:edit",
+     0
+    ],
+    "source": "struct S{x:I64;}extend S{fn F(self:edit){self.x=2;}}"
+   },
+   "source": "struct S{x:I64;}extend S{fn F(self:view){self.x=2;}}"
+  },
+  {
+   "anchor": "K §10.8 P02",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1323",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     18,
+     19
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8
+     ]
+    ],
+    "subcause": "recursive_value_layout"
+   },
+   "file": "P02.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "P02",
+      "kind": "rows"
+     },
+     "section": "10.8",
+     "text": "| P02 | `struct S{x:Result<S,I64>;}` | NX-E1323/recursive_value_layout; [18,19), S; types/types.check | `struct S{x:Result<I64,I64>;}` |\n| P02 | `{}` | declaration [7,8) | [] |"
+    }
+   ],
+   "id": "P02",
+   "positive": {
+    "edit": [
+     "Result<S,I64>",
+     "Result<I64,I64>",
+     0
+    ],
+    "source": "struct S{x:Result<I64,I64>;}"
+   },
+   "source": "struct S{x:Result<S,I64>;}"
+  },
+  {
+   "anchor": "K §10.8 P03",
+   "cli": true,
+   "expected": {
+    "code": "NX-E1309",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     37,
+     38
+    ],
+    "related": [
+     [
+      "previous_declaration",
+      17,
+      18
+     ]
+    ],
+    "subcause": "alias_collision"
+   },
+   "file": "P03.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "P03",
+      "kind": "rows"
+     },
+     "section": "10.8",
+     "text": "| P03 | `struct A{}struct B{}use package.A as B;` | NX-E1309/alias_collision; [37,38), B; names/names.resolve | `struct A{}struct B{}use package.A as C;` |\n| P03 | `{}` | previous_declaration [17,18) | [] |"
+    }
+   ],
+   "id": "P03",
+   "positive": {
+    "edit": [
+     "as B",
+     "as C",
+     0
+    ],
+    "source": "struct A{}struct B{}use package.A as C;"
+   },
+   "source": "struct A{}struct B{}use package.A as B;"
+  },
+  {
+   "anchor": "K §10.8 P05",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0111",
+    "data": {},
+    "kind": "diagnostic",
+    "operation": "call.bind",
+    "primary": [
+     29,
+     42
+    ],
+    "related": [],
+    "stage": "types",
+    "subcause": "non_callable_target"
+   },
+   "file": "P05.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "P05",
+      "kind": "rows"
+     },
+     "section": "10.8",
+     "text": "| P05 | `enum Evento{Inicio}fn Main(){Evento.Inicio();}` | NX-E0111/non_callable_target; [29,42), Evento.Inicio; types/call.bind | `enum Evento{Inicio}fn Main(){Evento.Inicio;}` |\n| P05 | `{}` | [] | [] |"
+    }
+   ],
+   "id": "P05",
+   "positive": {
+    "edit": [
+     "Inicio();",
+     "Inicio;",
+     0
+    ],
+    "source": "enum Evento{Inicio}fn Main(){Evento.Inicio;}"
+   },
+   "source": "enum Evento{Inicio}fn Main(){Evento.Inicio();}"
+  },
+  {
+   "anchor": "K §10.8 P06",
+   "cli": true,
+   "expected": {
+    "code": "NX-E0006",
+    "data": {
+     "pending_scope": "later_adr"
+    },
+    "feature_id": "partial_transfer",
+    "kind": "diagnostic",
+    "operation": "call.bind",
+    "primary": [
+     46,
+     53
+    ],
+    "related": [
+     [
+      "context",
+      41,
+      45
+     ]
+    ],
+    "stage": "arguments",
+    "subcause": null
+   },
+   "file": "P06.n",
+   "fragments": [
+    {
+     "locator": {
+      "id": "P06",
+      "kind": "rows"
+     },
+     "section": "10.8",
+     "text": "| P06 | `struct S{campo:I64;}fn Main(){let p=S(1);Drop(p.campo);}` | NX-E0006, feature_id=partial_transfer; [46,53), p.campo; arguments/call.bind | `struct S{campo:I64;}fn Main(){let p=S(1);Drop(p);}` |\n| P06 | `{\"pending_scope\":\"later_adr\"}` | context [41,45) | [] |"
+    }
+   ],
+   "id": "P06",
+   "positive": {
+    "edit": [
+     "p.campo",
+     "p",
+     0
+    ],
+    "source": "struct S{campo:I64;}fn Main(){let p=S(1);Drop(p);}"
+   },
+   "source": "struct S{campo:I64;}fn Main(){let p=S(1);Drop(p.campo);}"
+  },
+  {
+   "anchor": "K §10.8 P04",
+   "cli": false,
+   "definition_file": "P04-def.n",
+   "definition_source": "struct S{}",
+   "expected": {
+    "code": "NX-E1308",
+    "data": {},
+    "kind": "diagnostic",
+    "primary": [
+     12,
+     13
+    ],
+    "related": [
+     [
+      "declaration",
+      7,
+      8,
+      "P04-def.n"
+     ]
+    ],
+    "subcause": "private_access"
+   },
+   "file": "P04.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Esperado P04"
+     },
+     "section": "10.8",
+     "text": "Esperado P04: NX-E1308/private_access, names/names.resolve, primario {file:P04.n,start:12,end:13}, token fuente S, data={}, related_spans=[{role:declaration,span:{file:P04-def.n,start:7,end:8}}], cause_chain=[]; restantes campos C, sin instalar T ni producir observaciones. Positivo: sustituir exclusivamente la declaración por `pub struct S{}` (nombre S [11,12)), conservando dominio solicitante y petición. Resuelve T a package.S, diagnostics=[], sin ejecución ni observaciones. Se prueba acceso antes de exportabilidad; X20 sigue siendo el par independiente private_reexport en el propio dominio privado."
+    }
+   ],
+   "id": "P04",
+   "positive_definition": "pub struct S{}",
+   "source": "use package.S as T;"
+  },
+  {
+   "anchor": "K §11.1 A01",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "A01.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A01, bytes/escalares"
+     },
+     "section": "11.1",
+     "text": "fn Main(){let a=\"é🙂\";var b=a;b=\"x\";AssertEq(a.ByteLen(),6);AssertEq(a.ScalarLen(),2);AssertEq(b,\"x\");}"
+    }
+   ],
+   "id": "A01",
+   "source": "fn Main(){let a=\"é🙂\";var b=a;b=\"x\";AssertEq(a.ByteLen(),6);AssertEq(a.ScalarLen(),2);AssertEq(b,\"x\");}"
+  },
+  {
+   "anchor": "K §11.1 A02",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "2"
+    ]
+   },
+   "file": "A02.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A02, escalar/iteraci"
+     },
+     "section": "11.1",
+     "text": "fn Main(){let a=\"é\".Scalars();let b=\"é\".Scalars();AssertEq(a,[233]);AssertEq(b,[101,769]);var n=0;for code in b{n+=1;}Print(n);}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Salida `2\\n`, dos bytes, sin eventos."
+     },
+     "section": "11.1",
+     "text": "Salida `2\\n`, dos bytes, sin eventos."
+    }
+   ],
+   "id": "A02",
+   "source": "fn Main(){let a=\"é\".Scalars();let b=\"é\".Scalars();AssertEq(a,[233]);AssertEq(b,[101,769]);var n=0;for code in b{n+=1;}Print(n);}"
+  },
+  {
+   "anchor": "K §11.1 A03",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "ok",
+    "stdout": []
+   },
+   "file": "A03.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A03, extremos"
+     },
+     "section": "11.1",
+     "text": "use std.parse;use std.text;\nfn Main()->Result<(),I64>{let n=parse.I64(\"-9223372036854775808\")?;AssertEq(text.FromI64(n),\"-9223372036854775808\");AssertEq(parse.I64(\"+1\"),Err(-9101));return Ok(());}"
+    }
+   ],
+   "id": "A03",
+   "source": "use std.parse;use std.text;\nfn Main()->Result<(),I64>{let n=parse.I64(\"-9223372036854775808\")?;AssertEq(text.FromI64(n),\"-9223372036854775808\");AssertEq(parse.I64(\"+1\"),Err(-9101));return Ok(());}"
+  },
+  {
+   "anchor": "K §11.1 A04",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "A04.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A04, copias anidadas"
+     },
+     "section": "11.1",
+     "text": "@derive(PartialEq)struct S{x:Array<String>;}\nfn Main(){let a=S([\"a\"]);var b=a;Push(edit b.x,\"b\");AssertEq(a.x,[\"a\"]);AssertEq(b.x,[\"a\",\"b\"]);AssertEq(a!=b,true);AssertEq(Pop(edit b.x),Some(\"b\"));AssertEq(a==b,true);let c=JoinArrays(a.x,[\"é\"]);var n=0;for text in c{n+=text.ByteLen();}AssertEq(n,3);}"
+    }
+   ],
+   "id": "A04",
+   "source": "@derive(PartialEq)struct S{x:Array<String>;}\nfn Main(){let a=S([\"a\"]);var b=a;Push(edit b.x,\"b\");AssertEq(a.x,[\"a\"]);AssertEq(b.x,[\"a\",\"b\"]);AssertEq(a!=b,true);AssertEq(Pop(edit b.x),Some(\"b\"));AssertEq(a==b,true);let c=JoinArrays(a.x,[\"é\"]);var n=0;for text in c{n+=text.ByteLen();}AssertEq(n,3);}"
+  },
+  {
+   "anchor": "K §11.1 A05",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "open:0:7",
+     "inspect:0:7",
+     "close:0:7"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "A05.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A05, enum con recurso"
+     },
+     "section": "11.1",
+     "text": "enum E{Nada,Vivo(MockResource)}\nfn Main(){let e=E.Vivo(MockOpen(7));match move e{E.Nada=>{},E.Vivo(move r)=>{Inspect(r);}}}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Eventos exactos `open:0:7`"
+     },
+     "section": "11.1",
+     "text": "Eventos exactos `open:0:7`, `inspect:0:7`, `close:0:7`; sin stdout. La variante Nada no cierra un recurso inexistente."
+    }
+   ],
+   "id": "A05",
+   "source": "enum E{Nada,Vivo(MockResource)}\nfn Main(){let e=E.Vivo(MockOpen(7));match move e{E.Nada=>{},E.Vivo(move r)=>{Inspect(r);}}}"
+  },
+  {
+   "anchor": "K §11.1 A06",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "open:0:2",
+     "open:1:1",
+     "close:0:2",
+     "close:1:1"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "A06.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A06, evaluaci"
+     },
+     "section": "11.1",
+     "text": "struct Par{a:MockResource;b:MockResource;}\nfn Main(){let p=Par(b:MockOpen(2),a:MockOpen(1));Drop(p);}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Eventos `open:0:2`"
+     },
+     "section": "11.1",
+     "text": "Eventos `open:0:2`, `open:1:1`, `close:0:2`, `close:1:1`. Construcción escrita b,a; limpieza de objeto completo b,a por orden inverso de declaración. El negativo dinámico pareado sustituye el segundo argumento por una función `fn Fallar()->MockResource{Fail();return MockOpen(1);}` y llamada Fallar(): solo open:0:2 y close:0:2, R0301. El retorno tras Fail conserva comprobación hipotética; no se omite su tipo."
+    }
+   ],
+   "id": "A06",
+   "source": "struct Par{a:MockResource;b:MockResource;}\nfn Main(){let p=Par(b:MockOpen(2),a:MockOpen(1));Drop(p);}"
+  },
+  {
+   "anchor": "K §11.1 A07",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": [
+     "{0:1:1}"
+    ]
+   },
+   "file": "A07.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A07, pr"
+     },
+     "section": "11.1",
+     "text": "fn Siguiente(n:edit I64)->I64{n=n+1;return n;}\nfn Main(){var n=0;Print(\"{{{n}:{Siguiente(edit n)}:{n}}}\");AssertEq(n,1);}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Salida exacta `{0:1:1}"
+     },
+     "section": "11.1",
+     "text": "Salida exacta `{0:1:1}\\n`, ocho bytes. El primer préstamo de n ya terminó antes del segundo Hole. Un préstamo que escape por una closure dentro de la expresión sigue las obligaciones F0-0003, no se libera ficticiamente por terminar el formato."
+    }
+   ],
+   "id": "A07",
+   "source": "fn Siguiente(n:edit I64)->I64{n=n+1;return n;}\nfn Main(){var n=0;Print(\"{{{n}:{Siguiente(edit n)}:{n}}}\");AssertEq(n,1);}"
+  },
+  {
+   "anchor": "K §11.1 A08",
+   "cli": true,
+   "env_hex": "7b22736368656d615f76657273696f6e223a322c226d6f636b5f726561645f7265636f726473223a5b5d2c226d6f636b5f77726974655f693634223a5b5d2c226d6f636b5f72657175657374223a5b5d2c226d6f636b5f7265706c79223a5b5d2c22636f6e736f6c655f726561645f6c696e65223a5b5d2c22636f6e736f6c655f7072696e746c6e223a5b7b226f6b223a6e756c6c7d5d7d",
+   "expected": {
+    "diagnostics": [],
+    "events": [
+     "println:ok:4"
+    ],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "ok",
+    "stdout": [
+     "é:1"
+    ]
+   },
+   "file": "A08.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "block_after",
+      "text": "A08, texto literal"
+     },
+     "section": "11.1",
+     "text": "use std.console;\nfn Main()->Result<(),I64>{let s=\"{\"é\"}:{if true then 1 else 2}\";console.Println(s)?;return Ok(());}"
+    },
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Entorno de esquema 2 con una respuesta"
+     },
+     "section": "11.1",
+     "text": "Entorno de esquema 2 con una respuesta `{\"ok\":null}` en console_println y las otras cinco colas vacías. Stdout `é:1\\n` (5 bytes); evento `println:ok:4`; outcome ok. El positivo alternativo cambia el Hole interior por literal `é` y conserva el contenido, pero no exige iguales cuotas de asignación: la cadena interior materializa un propietario adicional."
+    }
+   ],
+   "id": "A08",
+   "source": "use std.console;\nfn Main()->Result<(),I64>{let s=\"{\"é\"}:{if true then 1 else 2}\";console.Println(s)?;return Ok(());}"
+  },
+  {
+   "anchor": "K §9.1 U01",
+   "cli": true,
+   "expected": {
+    "diagnostics": [],
+    "events": [],
+    "exit": 0,
+    "kind": "result",
+    "outcome": "unit",
+    "stdout": []
+   },
+   "file": "U01.n",
+   "fragments": [
+    {
+     "locator": {
+      "kind": "line_prefix",
+      "text": "Las formas J aceptadas conservan"
+     },
+     "section": "9.1",
+     "text": "Las formas J aceptadas conservan sus contratos aunque no usen ninguna capacidad K. Regresión de aceptación U01 (K01): `gen fn G(){}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),None);}`; UTF-8 sin BOM, sin LF final, archivo U01.n. Item=(), Next devuelve None; check/run exit 0, diagnostics=[], outcome unit, stdout/events vacíos. No se exige anotación ni se emite inferred_non_unit_result, generator o implementation_limit por esta fuente. Las restricciones J de captura, parámetros, recursión de estados y efectos siguen siendo las de F0-0003 §4 y §5; ninguna fila K vuelve a excluir sus formas incluidas. La referencia a sus enmiendas es §10, «Concreciones y enmiendas propuestas», por título y regla, no por número de línea ni por una copia histórica de su fila sobre F0-0004."
+    }
+   ],
+   "id": "U01",
+   "source": "gen fn G(){}fn Main(){var g=G();AssertEq(Iterator.Next(edit g),None);}"
+  }
+ ],
+ "source_doc": "K",
+ "version": 1
+}
