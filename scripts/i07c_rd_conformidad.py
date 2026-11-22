@@ -7,6 +7,7 @@ change invalidate the fixture until it is explicitly regenerated and reviewed.
 
 import argparse
 from collections import Counter
+import copy
 import hashlib
 import json
 import re
@@ -116,84 +117,210 @@ def table() -> tuple[str, list[dict]]:
     return hashlib.sha256(fragment.encode("utf-8")).hexdigest(), rows
 
 
-def parse_text(stderr: str) -> list[dict]:
-    diagnostics = []
-    current = None
-    for line in stderr.splitlines():
-        header = re.match(r"^(NX-[ER]\d+):\d+:\d+: ", line)
-        if header:
-            if current is not None:
-                diagnostics.append(current)
-            current = {"code": header.group(1), "subcause": None,
-                       "stage": None, "operation": None,
-                       "primary": None, "data": {}, "related": []}
-            continue
-        if current is None:
-            continue
-        item = re.match(r"^  ([a-z_]+): (.*)$", line)
-        if not item:
-            continue
-        key, value = item.groups()
-        if key in ("stage", "operation", "subcause"):
-            current[key] = value
-        elif key == "at":
-            span = json.loads(value)
-            current["primary"] = [span["start"], span["end"]]
-        elif key == "data":
-            current["data"] = json.loads(value)
-        elif key == "related":
-            relation = json.loads(value)
-            span = relation["span"]
-            current["related"].append([relation["role"], span["start"], span["end"]])
-    if current is not None:
-        diagnostics.append(current)
+TYPE = re.compile(r"(?:I64|Bool|\(\)|MockResource|MockBlockingResource|Array<|Result<|Option<)")
+DOMAINS = {"domain:array", "domain:copyable_data", "domain:mock_resource", "domain:result"}
+TOKEN = re.compile(r"[A-Za-z_][A-Za-z_0-9]*|[0-9]+|==|->|\S")
+
+
+def type_is_concrete(value: str, domain: bool = False) -> bool:
+    if not isinstance(value, str):
+        return False
+    if domain and value in DOMAINS:
+        return True
+
+    def parse(pos: int) -> int:
+        match = TYPE.match(value, pos)
+        if not match:
+            return -1
+        atom = match.group()
+        pos = match.end()
+        if atom.endswith("<"):
+            pos = parse(pos)
+            if pos < 0:
+                return -1
+            if atom == "Result<":
+                if value[pos:pos + 1] != ",":
+                    return -1
+                pos = parse(pos + 1)
+                if pos < 0:
+                    return -1
+            if value[pos:pos + 1] != ">":
+                return -1
+            pos += 1
+        return pos
+
+    return parse(0) == len(value)
+
+
+def lexical_site(source: str, span: list[int]) -> bool:
+    if not isinstance(span, list) or len(span) != 2 or not all(type(i) is int for i in span):
+        return False
+    start, end = span
+    if not 0 <= start < end <= len(source.encode("ascii")):
+        return False
+    tokens = list(TOKEN.finditer(source))
+    return (start in {m.start() for m in tokens} and end in {m.end() for m in tokens}
+            and not source[start:end].isspace())
+
+
+def normalized(diag: dict) -> dict:
+    primary = diag["primary_span"]
+    return {"code": diag["code"], "subcause": diag["subcause"],
+            "stage": diag["stage"], "operation": diag["operation"],
+            "primary": [primary["start"], primary["end"]], "data": diag["data"],
+            "related": sorted([[r["role"], r["span"]["start"], r["span"]["end"]]
+                               for r in diag["related_spans"]], key=lambda r: (r[1], r[2]))}
+
+
+def examine(row: dict, diagnostics: list[dict], command: str, file: str) -> tuple[list[str], list[dict]]:
+    """Public JSON has no C/D/V labels: subtract exactly the fixture's C sites."""
+    source = row["source"]
+    errors = []
+    expected_c = Counter((d["code"], d["subcause"], tuple(d["primary"]))
+                         for d in row["expected"] if d["level"] == "C")
+    observed = Counter((d["code"], d["subcause"], tuple(d["primary"]))
+                       for d in diagnostics)
+    for key, count in expected_c.items():
+        if observed[key] != count:
+            errors.append(f"C {key}: expected {count}, observed {observed[key]}")
+    remaining = expected_c.copy()
+    extras = []
+    sites = Counter(tuple(d["primary"]) for d in diagnostics)
     for diag in diagnostics:
-        diag["related"].sort(key=lambda relation: (relation[1], relation[2]))
-    return diagnostics
+        key = (diag["code"], diag["subcause"], tuple(diag["primary"]))
+        if remaining[key]:
+            remaining[key] -= 1
+        else:
+            extras.append(diag)
+        if (diag["code"], diag["subcause"], diag["operation"]) not in CODES.values() or diag["stage"] != "types":
+            errors.append(f"invalid RD operation/code/subcause: {key} {diag['operation']}")
+        if not lexical_site(source, diag["primary"]) or sites[tuple(diag["primary"])] != 1:
+            errors.append(f"invalid/duplicate primary: {diag['primary']}")
+        if diag.get("file") != file:
+            errors.append(f"wrong primary file: {diag.get('file')}")
+        data = diag["data"]
+        if diag["code"] == "NX-E0103":
+            if data != {} or diag["related"]:
+                errors.append("U must have empty data/relations")
+        elif (set(data) != {"expected_type", "found_type"}
+              or not type_is_concrete(data.get("expected_type"), domain=True)
+              or not type_is_concrete(data.get("found_type"))):
+            errors.append(f"unserializable/invalid type data: {data}")
+        for role, start, end, related_file in diag["related"]:
+            if related_file != file or role not in ("expected_type", "found_type") or not lexical_site(source, [start, end]):
+                errors.append(f"invalid relation: {role} {start}:{end} {related_file}")
+            if role == "expected_type" and [start, end] == diag["primary"]:
+                errors.append("expected_type self-relation")
+        # Apply the same recursive type check even if a future schema nests data.
+        def check_nested(value: object, name: str = "") -> None:
+            if isinstance(value, dict):
+                for k, v in value.items():
+                    check_nested(v, k)
+            elif isinstance(value, list):
+                for v in value:
+                    check_nested(v, name)
+            elif name in ("expected_type", "found_type") and not type_is_concrete(value, domain=name == "expected_type"):
+                errors.append(f"unserializable nested {name}: {value}")
+        check_nested(data)
+    return errors, extras
+
+
+def public_diagnostics(document: dict) -> list[dict]:
+    result = []
+    for item in document["diagnostics"]:
+        diag = normalized(item)
+        diag["file"] = item["primary_span"]["file"]
+        diag["related"] = sorted([[r["role"], r["span"]["start"], r["span"]["end"], r["span"]["file"]]
+                                  for r in item["related_spans"]], key=lambda r: (r[1], r[2]))
+        result.append(diag)
+    return result
+
+
+def self_test(rows: list[dict]) -> None:
+    # Synthetic decisions exercise the filter, never predict product emissions.
+    row = next(r for r in rows if r["id"] == "RD83")
+    file = "case.n"
+    causal = [copy.deepcopy(d) for d in row["expected"] if d["level"] == "C"]
+    for d in causal:
+        d.pop("level")
+        d["file"] = file
+        d["related"] = [[*r, file] for r in d["related"]]
+    assert not examine(row, causal, "check", file)[0]
+    extra = copy.deepcopy(causal[0])
+    extra["primary"] = [90, 95]  # RD83's other false leaf; presence is I.
+    extra["related"] = [["found_type", 90, 95, file]]
+    assert not examine(row, causal + [extra], "check", file)[0]
+    cases = []
+    cases.append(causal[1:])  # missing C
+    for change in (
+        {"code": "NX-E9999"}, {"primary": [0, 0]}, {"primary": [9999, 10000]},
+        {"primary": [0, 1]}, {"primary": [80, 83]}, {"data": {"expected_type": "Array<?>", "found_type": "Bool"}},
+        {"data": {"expected_type": "?17", "found_type": "Bool"}},
+        {"related": [["expected_type", 79, 84, file]]},
+        {"related": [["found_type", 10000, 10001, file]]},
+        {"related": [["found_type", 79, 79, file]]},
+    ):
+        altered = copy.deepcopy(causal[0]); altered.update(change)
+        cases.append([altered])
+    cases.append(causal + [copy.deepcopy(causal[0])])
+    for case in cases:
+        assert examine(row, case, "check", file)[0], case
+    for rid in ("RD101", "RD119a", "RD119b"):
+        current = next(r for r in rows if r["id"] == rid)
+        base = [dict(d, file=file, related=[[*r, file] for r in d["related"]])
+                for d in current["expected"] if d["level"] == "C"]
+        assert not examine(current, base, "run", file)[0]
+        corrupt = copy.deepcopy(base)
+        corrupt[0]["data"] = {"expected_type": "?17", "found_type": "Bool"}
+        assert examine(current, corrupt, "run", file)[0]
+    print("RD filter self-test: PASS (missing C, vocabulary, lexical sites, duplicates, types, relations)")
 
 
 def verify(binary: Path, rows: list[dict]) -> int:
     failed = 0
     snapshots = 0
-    with tempfile.TemporaryDirectory(prefix="i07c-rd-", dir=ROOT) as temporary:
+    with tempfile.TemporaryDirectory(prefix="i07c-rd-", dir=ROOT / ".scratch/tmp-s6") as temporary:
         path = Path(temporary) / "case.n"
         for row in rows:
             path.write_bytes(row["source"].encode("ascii"))
             row_failed = False
             for command in ("check", "run"):
-                done = subprocess.run([str(binary), command, str(path)],
-                                      capture_output=True, text=True, encoding="utf-8")
+                done = subprocess.run([str(binary), command, "case.n", "--format", "json",
+                                       "--profile", "f0-0002-b-v2"], cwd=temporary,
+                                       capture_output=True, text=True, encoding="utf-8")
                 try:
-                    actual = parse_text(done.stderr)
+                    document = json.loads(done.stdout)
+                    actual = public_diagnostics(document)
                 except (ValueError, KeyError, TypeError) as error:
                     print(row["id"], command, "unreadable output", error, done.stdout[:300], done.stderr[:300])
                     row_failed = True
                     continue
                 expected = row["expected"]
-                causal = Counter((diag["code"], diag["subcause"], tuple(diag["primary"]))
-                                 for diag in expected if diag["level"] == "C")
-                observed = Counter((diag["code"], diag["subcause"], tuple(diag["primary"]))
-                                   for diag in actual if diag["primary"] is not None)
-                sites = Counter(tuple(diag["primary"]) for diag in actual
-                                if diag["primary"] is not None)
-                normative_error = (done.returncode != (1 if expected else 0)
-                                   or bool(actual) != bool(expected)
-                                   or any(observed[key] < count for key, count in causal.items())
-                                   or any(count > 1 for count in sites.values())
-                                   or any(diag["code"] not in {"NX-E0102", "NX-E0103", "NX-E1303"}
-                                          or diag["primary"] is None
-                                          or not 0 <= diag["primary"][0] < diag["primary"][1] <= len(row["source"])
-                                          for diag in actual))
-                snapshot_expected = [{key: value for key, value in diag.items() if key != "level"}
-                                     for diag in expected]
-                if normative_error:
-                    print(row["id"], command, "NORMATIVE expected C", dict(causal),
-                          "expected acceptance", not expected, "actual", actual, "exit", done.returncode)
+                errors, extras = examine(row, actual, command, "case.n")
+                positive = not expected
+                desired = "checked" if command == "check" else "unit"
+                outcome = "rejected" if not positive else desired
+                if (done.returncode != (0 if positive else 1)
+                    or document["outcome"]["kind"] != outcome
+                    or bool(actual) != bool(expected)
+                    or document["stdout"] != (["[3]"] if positive and command == "run" and row["id"] == "RD87c" else [])
+                    or document["events"] != []
+                    or (not positive and document["observations"] != [])
+                    or (positive and row["id"] != "RD87c" and document["observations"] != [])
+                    or done.stderr):
+                    errors.append(f"exit/outcome/channels: {done.returncode}, {document['outcome']}, {done.stderr[:200]}")
+                snapshot_expected = [dict((k, v) for k, v in diag.items() if k != "level") for diag in expected]
+                snapshot_actual = [{k: v for k, v in diag.items() if k != "file"}
+                                   for diag in actual]
+                snapshot_actual = [{**d, "related": [r[:3] for r in d["related"]]} for d in snapshot_actual]
+                if errors:
+                    print(row["id"], command, "NORMATIVE", errors, "actual", actual)
                     row_failed = True
-                elif actual != snapshot_expected:
+                elif snapshot_actual != snapshot_expected:
                     snapshots += 1
-                    print(row["id"], command, "SNAPSHOT expected", snapshot_expected,
-                          "actual", actual)
+                    print(row["id"], command, "SNAPSHOT I expected", snapshot_expected,
+                          "actual", snapshot_actual, "delta I by structural filter; independent causal review required",
+                          "extras", extras)
             failed += row_failed
     print(f"RD snapshot differences: {snapshots} (informative)")
     return failed
@@ -203,6 +330,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--generate", action="store_true")
     parser.add_argument("--verify", type=Path)
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
     digest, rows = table()
     fixture = {"adr_fragment_sha256": digest, "rows": rows}
@@ -214,9 +342,12 @@ def main() -> None:
         if saved != fixture:
             raise SystemExit("RD fixture differs from the current ADR table")
     if args.verify:
+        self_test(rows)
         failures = verify(args.verify, rows)
         print(f"RD normative: {len(rows) - failures}/{len(rows)} check/run pairs")
         raise SystemExit(bool(failures))
+    if args.self_test:
+        self_test(rows)
 
 
 if __name__ == "__main__":

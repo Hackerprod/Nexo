@@ -53,6 +53,8 @@ mod i07c_deferred_twins;
 mod i07c_mutation_depth;
 #[path = "i07c_mutation_regressions.rs"]
 mod i07c_mutation_regressions;
+#[path = "i07c_normative_literals.rs"]
+mod i07c_normative_literals;
 #[path = "i07c_normative_survivors.rs"]
 mod i07c_normative_survivors;
 #[path = "i07c_pattern_deferred.rs"]
@@ -65,6 +67,10 @@ mod i07c_rd_conformidad;
 mod i07c_s4_context_regressions;
 #[path = "i07c_solver_depth.rs"]
 mod i07c_solver_depth;
+#[path = "i07c_solver_quota_literal.rs"]
+mod i07c_solver_quota_literal;
+#[path = "i07c_structural_invariants.rs"]
+mod i07c_structural_invariants;
 #[path = "i08.rs"]
 mod i08;
 #[path = "i08_campaign.rs"]
