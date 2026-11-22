@@ -1392,12 +1392,12 @@ RESULT_CORRUPTIONS = ["exit", "outcome_kind", "outcome_value", "stdout", "events
 HARNESS_CORRUPTIONS = ["cardinality_extra", "cardinality_missing", "debug_release", "check_run",
                        "json_double", "json_absent", "timeout", "internal_error", "type_true", "type_string",
                        "type_float", "null_vs_absent", "arrays_reordered", "file_other", "panic_stderr",
-                       "invalid_ir"]
+                       "invalid_ir", "extra_diag_field", "extra_top_key", "stdout_extra_line"]
 CORRUPTION_CATEGORY = {"timeout": "timeout_confirmed", "json_double": "non_json_output",
                        "json_absent": "non_json_output", "internal_error": "internal_error",
                        "panic_stderr": "panic_or_invalid_ir", "invalid_ir": "panic_or_invalid_ir"}
 ROW_TARGETS = set(DIAG_CORRUPTIONS) | {"cardinality_extra", "cardinality_missing", "debug_release",
-                                       "check_run", "null_vs_absent", "file_other"}
+                                       "check_run", "null_vs_absent", "file_other", "extra_diag_field"}
 
 
 class MockWorld:
@@ -1560,6 +1560,44 @@ def check_mock_corruptions(rep: Report, world: MockWorld):
     for label, subset in (("row", [row]), ("v2", [v2])):
         code, _ = world.run(subset)
         rep.check(f"harness.control.{label}", code == 0)
+
+
+def check_mixed_family_divergences(rep: Report, world: MockWorld):
+    """Divergences with code None (positive) and with a code (negative) in one family still summarise
+    (runner sorted tuples with None and str and raised TypeError)."""
+    recs, _, _ = gen.generate_seed(0, "G5", barrier.PHASES["G5"][0], 5, 40)
+    fam = next(r["family"] for r in recs if r["role"] == "positive" and r["fclass"] == "N")
+    pair = [r for r in recs if r["family"] == fam][:2]
+    rep.check("harness.mixed_family_pair", len(pair) == 2 and {r["role"] for r in pair} == {"main", "positive"})
+    for name in ("stdout_extra_line", "stdout", "outcome_kind"):
+        code, lines = world.run(pair, name)
+        summ = [x for x in lines if x.get("type") == "summary"]
+        rep.check(f"harness.mixed_family_summary.{name}", code == 1 and len(summ) == 1 and summ[0]["divergences"] >= 1,
+                  str(code))
+    keys = [x for x in lines if x.get("type") == "seed"]
+    rep.check("harness.mixed_family_keys_total_order", bool(keys) and len(keys[0]["keys"]) >= 2)
+
+
+def check_default_literals(rep: Report, world: MockWorld):
+    """The literal rows of K are part of every default corpus (a gate without them would be a false PASS)."""
+    from . import cli
+    base = ["--profile", diagnostics.PROFILE, "--phase", "G10", "--complete", ",".join(barrier.ALL_K),
+            "--seeds", "0:0", "--valid-per-seed", "20", "--invalid-per-seed", "20"]
+    parser = cli.build_parser()
+    closed = barrier.validate_manifest("G10", list(barrier.ALL_K))
+    counts = {}
+    for cmd, extra in (("generate", ["--output", "x"]), ("compare", ["--binary-debug", "d", "--binary-release", "r",
+                                                                       "--output", "x"]),
+                       ("gate", ["--binary-debug", "d", "--binary-release", "r", "--output", "x"])):
+        args = parser.parse_args([cmd] + base + extra)
+        counts[cmd] = sum(1 for r in cli.corpus_records(args, closed) if r["fclass"] == "R")
+    args = parser.parse_args(["generate"] + base + ["--output", "x", "--no-literals"])
+    off = sum(1 for r in cli.corpus_records(args, closed) if r["fclass"] == "R")
+    rep.check("cli.literals_on_by_default", all(v > 150 for v in counts.values()) and off == 0, f"{counts} {off}")
+    args = parser.parse_args(["generate"] + base + ["--output", "x"])
+    rows = [r for r in cli.corpus_records(args, closed) if r["fclass"] == "R" and r["role"] == "literal"][:4]
+    code, lines = world.run(rows, "diag:code")
+    rep.check("cli.default_gate_fails_on_a_violated_literal_row", code == 1 and _findings(lines), str(code))
 
 
 def check_harness_contract(rep: Report, world: MockWorld):
@@ -1895,6 +1933,8 @@ def run_harness(rep: Report):
         check_harness_contract(rep, world)
         check_harness_fuzz(rep, world)
         check_harness_cli(rep, world)
+        check_mixed_family_divergences(rep, world)
+        check_default_literals(rep, world)
         check_harness_minimize(rep, world)
         check_g9_harness(rep, world)
     finally:

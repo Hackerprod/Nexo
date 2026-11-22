@@ -19,7 +19,7 @@ Los esperados salen solo de K, de los fragmentos heredados que el plan ratifica 
 python -B -m scripts.f4_oracle.cli selftest [--fast] [--groups G0,G9,...] [--fail-fast]
 python -B -m scripts.f4_oracle.cli audit
 python -B -m scripts.f4_oracle.cli generate|fuzz-corpus --profile P --phase G9 --complete K01,...,K10 --seeds 0:7 \
-    --valid-per-seed 500 --invalid-per-seed 500 --output f.jsonl [--with-literals] [--final]
+    --valid-per-seed 500 --invalid-per-seed 500 --output f.jsonl [--no-literals] [--final]
 python -B -m scripts.f4_oracle.cli compare|gate|fuzz --binary-debug D --binary-release R --profile P --phase G9 \
     --complete ... --seeds ... --valid-per-seed N --invalid-per-seed N --output out.jsonl
 python -B -m scripts.f4_oracle.cli minimize|batch|corpus-sha ...

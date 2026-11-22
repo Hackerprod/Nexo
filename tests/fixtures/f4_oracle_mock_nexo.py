@@ -26,7 +26,8 @@ RESULT = ("exit", "outcome_kind", "outcome_value", "stdout", "events", "observat
           "observation_bytes", "reserved_observation_bytes")
 HARNESS = ("cardinality_extra", "cardinality_missing", "debug_release", "check_run", "json_double",
            "json_absent", "timeout", "internal_error", "type_true", "type_string", "type_float",
-           "null_vs_absent", "arrays_reordered", "file_other", "panic_stderr", "invalid_ir")
+           "null_vs_absent", "arrays_reordered", "file_other", "panic_stderr", "invalid_ir",
+           "extra_diag_field", "extra_top_key", "stdout_extra_line")
 
 
 def names():
@@ -121,6 +122,13 @@ def corrupt(name, doc, code, verb):
             doc["diagnostics"] = list(reversed(diags))
     elif name == "file_other":
         set_file(doc, "other.n")
+    elif name == "extra_diag_field":
+        if diags:
+            diags[0]["zzz_extra"] = 1
+    elif name == "extra_top_key":
+        doc["zzz_extra"] = 1
+    elif name == "stdout_extra_line":
+        doc["stdout"] = list(doc.get("stdout", [])) + ["extra line"]
     elif name == "panic_stderr":
         mode = "panic"
     elif name == "invalid_ir":

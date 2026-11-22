@@ -51,7 +51,7 @@ def _write_lines(path, records) -> int:
 
 def corpus_records(args, closed) -> list:
     out = []
-    if getattr(args, "with_literals", False):
+    if not getattr(args, "no_literals", False):
         out += selftest.literal_records(args.phase, closed)
     for seed in generic.seed_range(args.seeds):
         recs, _, _ = generate.generate_seed(seed, args.phase, closed, args.valid_per_seed,
@@ -303,14 +303,14 @@ def build_parser():
         p.add_argument("--invalid-per-seed", type=int, required=True)
         p.add_argument("--output", required=True)
         p.add_argument("--final", action="store_true")
-        p.add_argument("--with-literals", action="store_true")
+        p.add_argument("--no-literals", action="store_true")
         p.add_argument("--fuzz-per-seed", type=int, default=300)
     for name in ("compare", "gate", "fuzz"):
         p = sub.add_parser(name)
         _common(p)
         p.add_argument("--resume", action="store_true")
         p.add_argument("--workers", type=int, default=2)
-        p.add_argument("--with-literals", action="store_true")
+        p.add_argument("--no-literals", action="store_true")
         p.add_argument("--fuzz-per-seed", type=int, default=300)
     mz = sub.add_parser("minimize")
     mz.add_argument("--binary-debug", required=True)

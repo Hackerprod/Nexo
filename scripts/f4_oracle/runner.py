@@ -27,6 +27,13 @@ PHASE_ORDER = {f"G{i}": i for i in range(11)}
 TOP_KEYS = ("schema_version", "profile_id", "outcome", "stdout", "events", "observations",
             "observation_bytes", "reserved_observation_bytes")
 TEST_PREFIX = "f0-0004-b-test-"   # K 8.3: records of class Q carry their own reduced profile
+# The JSON schema of A2 13.6 / 12.4 is closed: an extra field is a divergence (DESVIOS 38).
+TOP_SCHEMA = frozenset(TOP_KEYS) | {"diagnostics"}
+DIAG_KEYS = frozenset((
+    "schema_version", "diagnostic_namespace", "profile_id", "code", "subcause", "rule", "explanation_id",
+    "severity", "stage", "message", "operation", "primary_span", "related_spans", "cause_chain", "feature_id",
+    "unexpected_token", "expected_tokens", "expected_tokens_kind", "parser_context", "recognized_prefix",
+    "repair", "data"))
 KNOWN_KEYS = ("family", "code", "path", "max_phase", "cite", "finding", "reviewed_by")
 NULL_SHA = hashlib.sha256(b"null").hexdigest()
 
@@ -184,6 +191,20 @@ class Session:
         return findings
 
 
+def _total(key):
+    """Total order for (family, code, path) tuples whose code may be None."""
+    return tuple("" if x is None else str(x) for x in key)
+
+
+def _project(d, fields):
+    """Contract fields of a diagnostic plus any key outside the closed schema (an extra key diverges)."""
+    if not isinstance(d, dict):
+        return d
+    out = {f: d[f] for f in fields if f in d}
+    out.update({k: v for k, v in d.items() if k not in DIAG_KEYS})
+    return out
+
+
 def observed(inv: Invocation, fields, exp_doc=None) -> dict:
     """Comparable view of an invocation: exit plus the contract fields, diagnostics projected.
 
@@ -202,11 +223,13 @@ def observed(inv: Invocation, fields, exp_doc=None) -> dict:
         obs["outcome"] = dict(out, error=str(out["error"]))
     if partial:
         return obs
+    for key in doc:
+        if key not in TOP_SCHEMA:
+            obs[key] = doc[key]
     if "diagnostics" in doc:
         diags = doc["diagnostics"]
         if isinstance(diags, list):
-            obs["diagnostics"] = [{f: d[f] for f in fields if f in d} if isinstance(d, dict) else d
-                                  for d in diags]
+            obs["diagnostics"] = [_project(d, fields) for d in diags]
         else:
             obs["diagnostics"] = diags
     return obs
@@ -346,7 +369,7 @@ def _drive(*, mode, corpus, binary_debug, binary_release, profile, phase, comple
                 fams = sorted({r["family"] for r in recs})
                 seed_line = {"type": "seed", "seed": seed, "records": len(recs), "divergences": n_div + n_dr,
                              "known": n_known, "failures": n_fail, "debug_release": n_dr, "families": fams,
-                             "keys": sorted(seed_matched)}
+                             "keys": sorted(seed_matched, key=_total)}
                 out.write((fio.dumps(seed_line) + "\n").encode("utf-8"))
                 out.flush()
                 totals["records"] += len(recs)
