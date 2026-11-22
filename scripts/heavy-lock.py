@@ -131,15 +131,27 @@ def reclaim_and_create(path, data, before_delete=None):
         record = (f"{datetime.now(timezone.utc).isoformat()} reclama sesion={data['session']} "
                   f"pid={os.getpid()} huerfano: sesion={seen.get('session')} pid={seen.get('pid')} "
                   f"token={seen['token']} edad_s={seen['age_seconds']} pid_exists=False\n")
+        # En Windows el borrado falla mientras otro proceso lee el archivo: se reintenta
+        # y la línea de registro se escribe solo si el borrado ocurrió de verdad.
+        deadline = time.time() + 3
+        while True:
+            try:
+                path.unlink()
+                break
+            except FileNotFoundError:
+                raise busy()
+            except OSError:
+                if time.time() > deadline:
+                    raise busy()
+                time.sleep(0.02)
         try:
             with open(path.parent / RECLAIM_LOG, 'a', encoding='utf-8') as log:
                 log.write(record)
-            path.unlink()
-        except OSError:
-            raise busy()
+        except OSError as error:
+            print(f'no se pudo registrar el reclamo: {error}', file=sys.stderr)
         try:
             create_lock(path, data)
-        except FileExistsError:
+        except OSError:
             raise busy()
 
 
@@ -151,7 +163,7 @@ def acquire(session, before_delete=None):
             'session': session, 'token': token}
     try:
         create_lock(path, data)
-    except FileExistsError:
+    except (FileExistsError, PermissionError):
         reclaim_and_create(path, data, before_delete)
     return token
 
