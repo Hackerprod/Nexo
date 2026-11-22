@@ -1,3 +1,5 @@
+> **Documento histórico (estado de la entrega de C sobre `e72b45f`).** Lo superan `I07c-S6-mutaciones-inversas.md` (las 15 inversiones medidas), el test hermano `grouped_domain_union_and_operator_sites_keep_inner_primary`, el auditor reconciliado con `main` tras F5-pila-r1 (14 sitios; `pendiente_decision`: 8283, 12418 y 14730) y los informes de validación `I07c-D1-S6.md` e `I07c-Dprima-S6.md` (PASS sobre `4d75e2c`). El «bloqueo de plan §3.5» y el «no se entrega a D» de abajo ya no rigen.
+
 # I07c-S6 — informe de C (solo pruebas; entrega sin commit)
 
 Base local `e72b45f051885aad3f6a0191702e3e8a3925e9c5`, árbol Git
