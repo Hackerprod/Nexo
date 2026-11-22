@@ -1,0 +1,50 @@
+{
+  "id": "M14",
+  "tree": "C:\\nexo-work\\val\\s6mut\\tree",
+  "file": "src\\check\\types.rs",
+  "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+  "sha_mutated": "10b837b8dd4fd15c4fb1b48eff5fd08a52bec9c7dc1256d59cba8d44ba99f02a",
+  "selection": "default completo; sin -E; retries 0; fail-fast",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "nextest": "cargo-nextest 0.9.152 (26ebeda79 2026-11-13)",
+  "profiles": [
+    {
+      "profile": "debug",
+      "exit": 100,
+      "seconds": 101.068,
+      "verdict": "MUERTO",
+      "test": "nexo::nexo$ir::i07c_tests::adr_gap_resolved_variable_within_element_keeps_current_union_site",
+      "reason": "test fallido",
+      "log": "D:\\nexo-work\\mut-s3\\s6mut\\M14.verdict.debug.log",
+      "stdout_sha256": "55f84ffbdeab1bc10bea3dd9a2e5860cf4be7dc9ac182e171a668d0e633e7150",
+      "stderr_sha256": "c7f8108afcd7bfa83e1050fb584e1e1f403d563ab4216e501b8abd1a479a263d",
+      "confirmation": {
+        "selection": [
+          "cargo",
+          "nextest",
+          "run",
+          "--locked",
+          "--offline",
+          "--profile",
+          "default",
+          "--retries",
+          "0",
+          "--message-format",
+          "libtest-json",
+          "-E",
+          "test(=ir::i07c_tests::adr_gap_resolved_variable_within_element_keeps_current_union_site)"
+        ],
+        "mutated_verdict": "MUERTO",
+        "mutated_test": "nexo::nexo$ir::i07c_tests::adr_gap_resolved_variable_within_element_keeps_current_union_site",
+        "mutated_exit": 100,
+        "baseline_verdict": "VERDE",
+        "baseline_exit": 0,
+        "mutated_stdout_sha256": "0c965adc41c630331d487ae226225bddc45aaa077d08f114b51160a4d3879b4f",
+        "baseline_stdout_sha256": "0a07c94d0e90bbd483b07158776df6dbe67334ed1edc4b7f783f014cfeef0e62"
+      }
+    }
+  ],
+  "mutated_tree_sha256": "e10b053f2fd0837b980631862862779de90f5c80c4b9d9af0ad67359f505ea41",
+  "verdict": "MUERTO",
+  "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6"
+}

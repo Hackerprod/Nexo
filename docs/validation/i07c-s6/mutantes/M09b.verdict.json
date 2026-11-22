@@ -1,0 +1,37 @@
+{
+  "id": "M09b",
+  "tree": "C:\\nexo-work\\val\\s6mut\\tree",
+  "file": "src\\check\\types.rs",
+  "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+  "sha_mutated": "ac1e6491098248ebe2f202cfc4c88f98871eb75f355107dd9d969cbaf235affb",
+  "selection": "default completo; sin -E; retries 0; fail-fast",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "nextest": "cargo-nextest 0.9.152 (26ebeda79 2026-11-13)",
+  "profiles": [
+    {
+      "profile": "debug",
+      "exit": 0,
+      "seconds": 327.819,
+      "verdict": "VERDE",
+      "test": null,
+      "reason": "suite completa",
+      "log": "D:\\nexo-work\\mut-s3\\s6mut\\M09b.verdict.debug.log",
+      "stdout_sha256": "51e0f518030193c51575d5509decd5214c18027d091d7db012eec7d53f0e4bc0",
+      "stderr_sha256": "9fdf93084570e748eb2b434a9313a967d6bb2840100efd8a5acb2d45ef6d0e38"
+    },
+    {
+      "profile": "release",
+      "exit": 0,
+      "seconds": 386.475,
+      "verdict": "VERDE",
+      "test": null,
+      "reason": "suite completa",
+      "log": "D:\\nexo-work\\mut-s3\\s6mut\\M09b.verdict.release.log",
+      "stdout_sha256": "28fdb6299d1be4be10395c852312090a47f2ac281a8c4e55f331a078d7abc130",
+      "stderr_sha256": "c9f2e82fbb331032493e954bafe6a1c7fd122874c5ad3423bccfc4227742d0cf"
+    }
+  ],
+  "mutated_tree_sha256": "476eb0043b058f11168f4fae78aeb7e95a0999951287beb560732af2f404cbc2",
+  "verdict": "SUPERVIVIENTE",
+  "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6"
+}

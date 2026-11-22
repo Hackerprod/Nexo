@@ -1,0 +1,15 @@
+{
+ "id": "M07a",
+ "desc": "array_next: sin referencia concreta para el ultimo elemento",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 12442,
+ "sha_mutated": "269dd1624c5843dee63756795466db73304cfa159ed8108fba65e538c29ae2d7",
+ "seconds": 6,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 5.19s\n────────────\n Nextest run ID 87d72ceb-1336-4395-b8f5-7fd6cfa75039 with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.157s] (1/1) nexo::suite i07c_normative_literals::bottom_array_operands_accept_matching_last_element\n────────────\n     Summary [   0.161s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

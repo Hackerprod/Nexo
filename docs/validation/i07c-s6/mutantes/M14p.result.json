@@ -1,0 +1,18 @@
+{
+ "id": "M14p",
+ "desc": "M14 contra el test propuesto",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 7079,
+ "sha_mutated": "10b837b8dd4fd15c4fb1b48eff5fd08a52bec9c7dc1256d59cba8d44ba99f02a",
+ "seconds": 44,
+ "failed": [
+  "nexo::suite i07c_structural_invariants::grouped_domain_union_and_operator_sites_keep_inner_primary",
+  "nexo::suite i07c_structural_invariants::grouped_domain_union_and_operator_sites_keep_inner_primary"
+ ],
+ "tail": "ary' (20908) panicked at tests\\i07c_normative_literals.rs:112:13:\n    fn Main(){let q=3;let a:Bool=Len((q));}: missing \"start\":34,\"end\":35: {\"schema_version\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"rejected\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[{\"schema_version\":1,\"diagnostic_namespace\":\"Nexo-proposed-v1\",\"profile_id\":\"f0-0002-b-v2\",\"code\":\"NX-E0102\",\"subcause\":\"not_indexable\",\"rule\":\"NX-E0102/not_indexable\",\"explanation_id\":\"NX-E0102/not_indexable\",\"severity\":\"error\",\"stage\":\"types\",\"message\":\"Invalid name, call or type in the proposed profile.\",\"operation\":\"types.check\",\"primary_span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-41364-0.n\",\"start\":33,\"end\":36},\"related_spans\":[{\"role\":\"found_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-41364-0.n\",\"start\":33,\"end\":36}}],\"cause_chain\":[],\"feature_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{\"expected_type\":\"domain:array\",\"found_type\":\"I64\"}}]}\n\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.063s] 1 test run: 0 passed, 1 failed, 2217 skipped\n        FAIL [   0.051s] (1/1) nexo::suite i07c_structural_invariants::grouped_domain_union_and_operator_sites_keep_inner_primary\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

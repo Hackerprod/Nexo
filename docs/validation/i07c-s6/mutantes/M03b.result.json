@@ -1,0 +1,18 @@
+{
+ "id": "M03b",
+ "desc": "Bind concreto: rechazar tipo igual (invierte !=)",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 5534,
+ "sha_mutated": "51194ca09c3b51bea869730cb7195a5b78ac1a1e86622da0ae32d8d6e4c32cb2",
+ "seconds": 5,
+ "failed": [
+  "nexo::suite i07c_normative_literals::literal_alias_constraints_accept_equivalent_source_orders",
+  "nexo::suite i07c_normative_literals::literal_alias_constraints_accept_equivalent_source_orders"
+ ],
+ "tail": "ersion\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"rejected\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[{\"schema_version\":1,\"diagnostic_namespace\":\"Nexo-proposed-v1\",\"profile_id\":\"f0-0002-b-v2\",\"code\":\"NX-E0102\",\"subcause\":\"type_mismatch\",\"rule\":\"NX-E0102/type_mismatch\",\"explanation_id\":\"NX-E0102/type_mismatch\",\"severity\":\"error\",\"stage\":\"types\",\"message\":\"Invalid name, call or type in the proposed profile.\",\"operation\":\"types.check\",\"primary_span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-69764-0.n\",\"start\":70,\"end\":71},\"related_spans\":[{\"role\":\"expected_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-69764-0.n\",\"start\":66,\"end\":67}},{\"role\":\"found_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-69764-0.n\",\"start\":70,\"end\":71}}],\"cause_chain\":[],\"feature_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{\"expected_type\":\"I64\",\"found_type\":\"I64\"}}]}\n    : \n      left: 1\n     right: 0\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.024s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   0.020s] (1/1) nexo::suite i07c_normative_literals::literal_alias_constraints_accept_equivalent_source_orders\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

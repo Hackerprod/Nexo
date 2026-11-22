@@ -1,0 +1,15 @@
+{
+ "id": "M06c",
+ "desc": "operando derecho aritmetico sin contexto I64 (sitio 2, linea 9474)",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 2,
+ "line": 9474,
+ "sha_mutated": "e4a0535ff4b24444a7fa059ee0a1bb9f48518abdf9c289c5fc070237272ca332",
+ "seconds": 6,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 5.56s\n────────────\n Nextest run ID a048e17a-e737-4df1-a4ef-550c1d082fd1 with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.087s] (1/1) nexo::suite i07c_normative_literals::bottom_numeric_operands_accept_literal_one\n────────────\n     Summary [   0.091s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

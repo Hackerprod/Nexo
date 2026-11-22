@@ -1,0 +1,15 @@
+{
+ "id": "M13",
+ "desc": "array_accept (pending): descartar primer C independiente",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 12669,
+ "sha_mutated": "ba5857234f10e3384c2333075263198613720ba4ae40211d04e4840458d64510",
+ "seconds": 7,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 6.95s\n────────────\n Nextest run ID 0caf278c-eb1c-4bed-8d1b-25d370de62ac with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.051s] (1/1) nexo::suite i07c_structural_invariants::rd_optional_leaves_keep_the_causal_rejection\n────────────\n     Summary [   0.056s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

@@ -1,0 +1,1 @@
+{"file": "src/check/names.rs", "before": "    errors.sort_by(|a, b| {", "after": "    errors.sort_by(|b, a| {", "occurrence": 0, "sha_initial": "d38aef00ab7e288b3a1af58ca4d40beaf5d0cf3e9ae0da3eb110e1fbc041fdfc", "sha_mutated": "42d43e7045ab676574bc8a140edd789d3ce3dbaea08706d5f462272d8eb367d9"}

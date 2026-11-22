@@ -1,0 +1,15 @@
+{
+ "id": "M04",
+ "desc": "UnionAfterBinds: aceptar concretos distintos",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 6388,
+ "sha_mutated": "cfeec2b9bb28093b812d7e7665eae21b78704798f0cbafc7b75bbd22f45c7b3a",
+ "seconds": 6,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 5.18s\n────────────\n Nextest run ID be7023b8-7611-42c8-9a33-a1b94a3aec1f with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.239s] (1/1) nexo::suite i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract\n────────────\n     Summary [   0.243s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

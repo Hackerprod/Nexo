@@ -1,0 +1,18 @@
+{
+ "id": "M05",
+ "desc": "unify: Never deja de ser fondo para Bool/Array",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 5698,
+ "sha_mutated": "fb55be2c8ba87d727a73a4648dc8cf028037612a587ab30cf9d330bd183adbd5",
+ "seconds": 7,
+ "failed": [
+  "nexo::suite i07c_normative_literals::never_joins_run_to_unit_without_observations",
+  "nexo::suite i07c_normative_literals::never_joins_run_to_unit_without_observations"
+ ],
+ "tail": "ailed; 0 ignored; 0 measured; 890 filtered out; finished in 0.01s\n\n  stderr ───\n\n    thread 'i07c_normative_literals::never_joins_run_to_unit_without_observations' (100220) panicked at tests\\i07c_normative_literals.rs:36:9:\n    assertion `left == right` failed: check: fn Main(){let x=((if true then {return;} else {return;}))==true;}: {\"schema_version\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"rejected\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[{\"schema_version\":1,\"diagnostic_namespace\":\"Nexo-proposed-v1\",\"profile_id\":\"f0-0002-b-v2\",\"code\":\"NX-E0103\",\"subcause\":null,\"rule\":\"NX-E0103\",\"explanation_id\":\"NX-E0103\",\"severity\":\"error\",\"stage\":\"types\",\"message\":\"Invalid name, call or type in the proposed profile.\",\"operation\":\"types.infer\",\"primary_span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-28460-0.n\",\"start\":59,\"end\":63},\"related_spans\":[],\"cause_chain\":[],\"feature_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{}}]}\n    : \n      left: 1\n     right: 0\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.023s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   0.019s] (1/1) nexo::suite i07c_normative_literals::never_joins_run_to_unit_without_observations\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

@@ -1,0 +1,18 @@
+{
+ "id": "M10b",
+ "desc": "branch_accept: descartar el primer C de ramas, conservar los posteriores (D)",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 14144,
+ "sha_mutated": "695f3b8ebe2856e80bcf950739644d0f7c81d830b25378acc496eb9b2a83fc21",
+ "seconds": 6,
+ "failed": [
+  "nexo::suite i07c_structural_invariants::rd_causals_determine_rejection_with_optional_leaves",
+  "nexo::suite i07c_structural_invariants::rd_causals_determine_rejection_with_optional_leaves"
+ ],
+ "tail": "extest run ID cd160cb8-b3d9-4acf-9984-0ebc1fcffc12 with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        FAIL [   0.021s] (1/1) nexo::suite i07c_structural_invariants::rd_causals_determine_rejection_with_optional_leaves\n  stdout ───\n\n    running 1 test\n    test i07c_structural_invariants::rd_causals_determine_rejection_with_optional_leaves ... FAILED\n\n    failures:\n\n    failures:\n        i07c_structural_invariants::rd_causals_determine_rejection_with_optional_leaves\n\n    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 890 filtered out; finished in 0.02s\n\n  stderr ───\n\n    thread 'i07c_structural_invariants::rd_causals_determine_rejection_with_optional_leaves' (152584) panicked at tests\\i07c_structural_invariants.rs:23:13:\n    assertion `left == right` failed: fn Main(){var q=(if true then {return;} else {return;});let a=[1,(if true then false else false),q];q=3;}: {\"schema_version\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"checked\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n\n      left: 0\n     right: 1\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.025s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   0.021s] (1/1) nexo::suite i07c_structural_invariants::rd_causals_determine_rejection_with_optional_leaves\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

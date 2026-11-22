@@ -1,0 +1,15 @@
+{
+ "id": "M10-row4",
+ "desc": "array_accept (hijo): descartar C",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 12504,
+ "sha_mutated": "4a6657105920b6a958c51c1de575582efeadb5254ee07da8697ce4d42b78ace1",
+ "seconds": 5,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 4.64s\n────────────\n Nextest run ID ca818cc0-4fd1-47aa-b18d-f1875347b978 with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.230s] (1/1) nexo::suite i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract\n────────────\n     Summary [   0.234s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

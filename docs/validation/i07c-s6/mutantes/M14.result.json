@@ -1,0 +1,15 @@
+{
+ "id": "M14",
+ "desc": "primary_span: detener desempaquetado de Group",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 7079,
+ "sha_mutated": "10b837b8dd4fd15c4fb1b48eff5fd08a52bec9c7dc1256d59cba8d44ba99f02a",
+ "seconds": 5,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 4.89s\n────────────\n Nextest run ID aab6922e-3a53-4bf3-a02f-f155bc5ea083 with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.403s] (1/1) nexo::suite i07c_structural_invariants::grouped_operands_keep_one_causal_primary\n────────────\n     Summary [   0.407s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

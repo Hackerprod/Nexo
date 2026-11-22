@@ -1,0 +1,1 @@
+{"file": "src/check/types.rs", "before": "concrete_union(&concrete).filter(|u| u.kind == kind)", "after": "concrete_union(&concrete).filter(|u| u.kind == kind || true)", "occurrence": 0, "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6", "sha_mutated": "4d93d858ef9bde0d4018f44e9fe55a5dc70a9207f2393210a2ead05052b7815b"}

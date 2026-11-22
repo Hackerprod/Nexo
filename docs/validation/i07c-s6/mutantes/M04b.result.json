@@ -1,0 +1,15 @@
+{
+ "id": "M04b",
+ "desc": "Bind concreto: aceptar tipo distinto",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 5534,
+ "sha_mutated": "1912116d010350b3600eb34247ee93b5726dfad41e8a0a27f2ee46e492896ea8",
+ "seconds": 6,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 5.44s\n────────────\n Nextest run ID 2751bf6a-9f9d-4f2b-a45c-2b848b797fd5 with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.194s] (1/1) nexo::suite i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract\n────────────\n     Summary [   0.198s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

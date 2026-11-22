@@ -1,0 +1,18 @@
+{
+ "id": "M04c",
+ "desc": "compare_source_site: aceptar expected I64 / found Bool",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 2037,
+ "sha_mutated": "faa7325dd34d477ed0c10dc3aa786ba4d99c6e6b5d45d25ab430219f16cccdbb",
+ "seconds": 5,
+ "failed": [
+  "nexo::suite i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract",
+  "nexo::suite i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract"
+ ],
+ "tail": "hed `test` profile [unoptimized] target(s) in 4.67s\n────────────\n Nextest run ID b9ff4dba-7c2c-45db-a866-d00c34f8881e with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        FAIL [   0.061s] (1/1) nexo::suite i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract\n  stdout ───\n\n    running 1 test\n    test i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract ... FAILED\n\n    failures:\n\n    failures:\n        i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract\n\n    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 890 filtered out; finished in 0.05s\n\n  stderr ───\n\n    thread 'i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract' (101144) panicked at tests\\i07c_normative_literals.rs:67:9:\n    assertion `left == right` failed: check: fn Main(){var v=3;var w=v;v=3;w=true;}: {\"schema_version\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"driver_error\",\"reason\":\"internal_error\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n    : \n      left: 2\n     right: 1\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.065s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   0.061s] (1/1) nexo::suite i07c_normative_literals::td_alias_conflicts_have_cli_rejection_contract\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

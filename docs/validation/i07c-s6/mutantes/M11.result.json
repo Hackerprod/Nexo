@@ -1,0 +1,18 @@
+{
+ "id": "M11",
+ "desc": "sort_diagnostics: orden inverso",
+ "file": "src/check/names.rs",
+ "sha_initial": "d38aef00ab7e288b3a1af58ca4d40beaf5d0cf3e9ae0da3eb110e1fbc041fdfc",
+ "occurrences": 1,
+ "line": 1301,
+ "sha_mutated": "42d43e7045ab676574bc8a140edd789d3ce3dbaea08706d5f462272d8eb367d9",
+ "seconds": 7,
+ "failed": [
+  "nexo::suite i07c_structural_invariants::repeated_check_and_run_keep_diagnostics_deterministic",
+  "nexo::suite i07c_structural_invariants::repeated_check_and_run_keep_diagnostics_deterministic"
+ ],
+ "tail": "_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{\"expected_type\":\"I64\",\"found_type\":\"Bool\"}},{\"schema_version\":1,\"diagnostic_namespace\":\"Nexo-proposed-v1\",\"profile_id\":\"f0-0002-b-v2\",\"code\":\"NX-E0102\",\"subcause\":\"type_mismatch\",\"rule\":\"NX-E0102/type_mismatch\",\"explanation_id\":\"NX-E0102/type_mismatch\",\"severity\":\"error\",\"stage\":\"types\",\"message\":\"Invalid name, call or type in the proposed profile.\",\"operation\":\"types.check\",\"primary_span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-repeat-168720.n\",\"start\":79,\"end\":84},\"related_spans\":[{\"role\":\"expected_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-repeat-168720.n\",\"start\":63,\"end\":64}},{\"role\":\"found_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-repeat-168720.n\",\"start\":79,\"end\":84}}],\"cause_chain\":[],\"feature_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{\"expected_type\":\"I64\",\"found_type\":\"Bool\"}}]}\n\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.039s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   0.033s] (1/1) nexo::suite i07c_structural_invariants::repeated_check_and_run_keep_diagnostics_deterministic\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d38aef00ab7e288b3a1af58ca4d40beaf5d0cf3e9ae0da3eb110e1fbc041fdfc",
+ "restored_ok": true
+}

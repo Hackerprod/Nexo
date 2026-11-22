@@ -1,0 +1,50 @@
+{
+  "id": "M07b",
+  "tree": "C:\\nexo-work\\val\\s6mut\\tree",
+  "file": "src\\check\\types.rs",
+  "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+  "sha_mutated": "c9fe031e6fc527f780e8b1a0ff5b773f99501208b2ec08b5611463d6e1ee5012",
+  "selection": "default completo; sin -E; retries 0; fail-fast",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "nextest": "cargo-nextest 0.9.152 (26ebeda79 2026-11-13)",
+  "profiles": [
+    {
+      "profile": "debug",
+      "exit": 100,
+      "seconds": 266.384,
+      "verdict": "MUERTO",
+      "test": "nexo::suite$i07c_structural_invariants::grouped_operands_keep_one_causal_primary",
+      "reason": "test fallido",
+      "log": "D:\\nexo-work\\mut-s3\\s6mut\\M07b.verdict.debug.log",
+      "stdout_sha256": "84ef9b6ed4f8424035bed71efd330774518b4ab92731385b49d933f1970b158b",
+      "stderr_sha256": "97f2cd754a013020cc77465929207a1867d572271dd3dd6c4651fa450e9fdccd",
+      "confirmation": {
+        "selection": [
+          "cargo",
+          "nextest",
+          "run",
+          "--locked",
+          "--offline",
+          "--profile",
+          "default",
+          "--retries",
+          "0",
+          "--message-format",
+          "libtest-json",
+          "-E",
+          "test(=i07c_structural_invariants::grouped_operands_keep_one_causal_primary)"
+        ],
+        "mutated_verdict": "MUERTO",
+        "mutated_test": "nexo::suite$i07c_structural_invariants::grouped_operands_keep_one_causal_primary",
+        "mutated_exit": 100,
+        "baseline_verdict": "VERDE",
+        "baseline_exit": 0,
+        "mutated_stdout_sha256": "478106faadd913eba0e1a1457382779e29e55d2cd291d20b77f445a57df2df60",
+        "baseline_stdout_sha256": "0d307ab70cd42f72736091a2418cac37f5541ba8ab424be283d49d0c6e2137f2"
+      }
+    }
+  ],
+  "mutated_tree_sha256": "4ae60edc5b6c3e127842d2267bcfa1cd32f01f7bc655962126f9cbf7f0f4b4a8",
+  "verdict": "MUERTO",
+  "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6"
+}

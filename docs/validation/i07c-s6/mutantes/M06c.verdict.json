@@ -1,0 +1,50 @@
+{
+  "id": "M06c",
+  "tree": "C:\\nexo-work\\val\\s6mut\\tree",
+  "file": "src\\check\\types.rs",
+  "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+  "sha_mutated": "e4a0535ff4b24444a7fa059ee0a1bb9f48518abdf9c289c5fc070237272ca332",
+  "selection": "default completo; sin -E; retries 0; fail-fast",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "nextest": "cargo-nextest 0.9.152 (26ebeda79 2026-11-13)",
+  "profiles": [
+    {
+      "profile": "debug",
+      "exit": 100,
+      "seconds": 5.482,
+      "verdict": "MUERTO",
+      "test": "nexo::nexo$check::tests::branch_restores_dependency_taint_after_invalid_return_expression",
+      "reason": "test fallido",
+      "log": "D:\\nexo-work\\mut-s3\\s6mut\\M06c.verdict.debug.log",
+      "stdout_sha256": "8bd304fc9e7cdfe088ae4a224799c7cafffdae9c1f5dae0a1a5717b9c61991a8",
+      "stderr_sha256": "f5396ad900febcf43595013cfaa5e7471ca1a566fbd28e2c4df31484796b43e9",
+      "confirmation": {
+        "selection": [
+          "cargo",
+          "nextest",
+          "run",
+          "--locked",
+          "--offline",
+          "--profile",
+          "default",
+          "--retries",
+          "0",
+          "--message-format",
+          "libtest-json",
+          "-E",
+          "test(=check::tests::branch_restores_dependency_taint_after_invalid_return_expression)"
+        ],
+        "mutated_verdict": "MUERTO",
+        "mutated_test": "nexo::nexo$check::tests::branch_restores_dependency_taint_after_invalid_return_expression",
+        "mutated_exit": 100,
+        "baseline_verdict": "VERDE",
+        "baseline_exit": 0,
+        "mutated_stdout_sha256": "d2e276dfca038271187e42cd999ed27efaf6c82fc566073a3a1c6a8a7d9d6fb7",
+        "baseline_stdout_sha256": "c143d6edd24ca3c055837a8e6f491e3aa134c5da686badafc9e5a3f4f4ecb94a"
+      }
+    }
+  ],
+  "mutated_tree_sha256": "c1a2e837772277f03e0fc8527a52f92f6b673da9fbff8eb46b549162cbf3b458",
+  "verdict": "MUERTO",
+  "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6"
+}

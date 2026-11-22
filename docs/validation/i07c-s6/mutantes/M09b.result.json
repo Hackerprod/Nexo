@@ -1,0 +1,15 @@
+{
+ "id": "M09b",
+ "desc": "pattern_type: admitir Ok con scrutinee Option",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 13438,
+ "sha_mutated": "ac1e6491098248ebe2f202cfc4c88f98871eb75f355107dd9d969cbaf235affb",
+ "seconds": 5,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 5.06s\n────────────\n Nextest run ID 446f062e-eb57-4e39-b256-0f93c52f02d8 with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.046s] (1/1) nexo::suite i07c_normative_literals::previously_open_root_fixed_to_option_rejects_result_pattern\n────────────\n     Summary [   0.050s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

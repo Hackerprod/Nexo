@@ -16,21 +16,24 @@ import tempfile
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "src/check/types.rs"
-# This inventory is tied to the reviewed types.rs blob (I07c-S6 plan §3.3).
+# This inventory is tied to the reviewed types.rs blob b70f9c56f9175fe01007298b03458d5eb81c55f1
+# (I07c-S6 plan §3.3), reconciled on the base with F5-pila-r1.
 # Both the expression and its surrounding call/block must remain recognisable.
 REVIEWED = {
     7082: ("e.span().clone()", "primary_unwrapped", "while let Expr::Group(inner, _) = e", "Group removed in primary_span"),
     8283: ("iterable.span().clone()", "pendiente_decision", "prepare_for_type", "for_iteration Array barrier; grouped primary undecided, observed repro"),
-    10957: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
-    12072: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
-    12301: ("target.span().clone()", "pendiente_decision", "non_callable_target", "call target primary; grouped primary undecided, observed repro"),
-    12874: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
-    12984: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
-    13195: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
-    13200: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
-    13375: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
-    14613: ("target.span().clone()", "pendiente_decision", '"NX-E1111"', "closure target primary; grouped primary undecided, branch not reproduced"),
-    14627: ("target.span()", "argument_target", "names::bind_arguments", "signature target for argument binding"),
+    9065: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
+    9066: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
+    11241: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
+    12189: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
+    12418: ("target.span().clone()", "pendiente_decision", "non_callable_target", "call target primary; grouped primary undecided, observed repro"),
+    12991: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
+    13101: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
+    13312: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
+    13317: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
+    13492: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
+    14730: ("target.span().clone()", "pendiente_decision", '"NX-E1111"', "closure target primary; grouped primary undecided, branch not reproduced"),
+    14744: ("target.span()", "argument_target", "names::bind_arguments", "signature target for argument binding"),
 }
 
 
@@ -73,7 +76,7 @@ def audit() -> None:
         raise SystemExit(f"reviewed sites missing: {REVIEWED.keys() - seen}")
     for kind, lines in classes.items():
         print(f"{kind}: {len(lines)} lines={','.join(map(str, lines))}")
-    print("PENDIENTE DECISIÓN: 8283/12301 (repro), 14613 (sin repro); Flujo A, K1-d2 NO EVALUADO")
+    print("PENDIENTE DECISIÓN: 8283/12418 (repro), 14730 (sin repro); Flujo A, K1-d2 NO EVALUADO")
     print(f"total: {sum(map(len, classes.values()))}")
 
 
@@ -92,7 +95,7 @@ def self_test() -> None:
         source.write_text(original.replace("mod quota_tests {", "fn zz(e:&Expr)->Span{ e.span().clone() }\nmod quota_tests {", 1), encoding="utf-8")
         bad = subprocess.run([sys.executable, "-B", str(script)], capture_output=True, text=True)
         assert bad.returncode == 1 and "unreviewed raw span" in bad.stderr, (bad.stdout, bad.stderr)
-    print("span auditor self-test: PASS (12 reviewed; novel raw use rejected)")
+    print("span auditor self-test: PASS (14 reviewed; novel raw use rejected)")
 
 
 if __name__ == "__main__":

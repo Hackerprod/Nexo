@@ -147,7 +147,7 @@ fn grouped_operands_keep_one_causal_primary() {
     );
     let text = String::from_utf8_lossy(&status.stdout);
     assert!(
-        text.contains("pendiente_decision: 3 lines=8283,12301,14613"),
+        text.contains("pendiente_decision: 3 lines=8283,12418,14730"),
         "{text}"
     );
     let status = Command::new("python")
@@ -241,4 +241,44 @@ fn small_deterministic_source_batch_has_no_internal_errors() {
             assert!(stderr.is_empty(), "{program}: {stderr}");
         }
     }
+}
+
+#[test]
+fn grouped_domain_union_and_operator_sites_keep_inner_primary() {
+    // F0-0002-lagunas (primario bajo agrupaciones); §4.1.2.3 Len (RD86(b) agrupado);
+    // §4.1.2.4 NX-E1303; N(d) una denuncia por operacion.
+    for (open, close, start) in [("(", ")", 34usize), ("((", "))", 35)] {
+        let bad = format!("fn Main(){{let q=3;let a:Bool=Len({open}q{close});}}");
+        assert_eq!(&bad[start..start + 1], "q");
+        rejected(
+            &bad,
+            PROFILE,
+            "NX-E0102",
+            Some("not_indexable"),
+            (start, start + 1),
+            &[("expected_type", "domain:array"), ("found_type", "I64")],
+            &[("found_type", start, start + 1)],
+        );
+    }
+    accepted("fn Main(){let q=[3];let a:I64=Len((q));}", PROFILE);
+    rejected(
+        "fn Main(){let x=if true then 1 else (true);}",
+        PROFILE,
+        "NX-E1303",
+        None,
+        (37, 41),
+        &[("expected_type", "I64"), ("found_type", "Bool")],
+        &[("expected_type", 29, 30), ("found_type", 37, 41)],
+    );
+    accepted("fn Main(){let x=if true then 1 else (1);}", PROFILE);
+    rejected(
+        "fn Main(){let x=(true)+(true);}",
+        PROFILE,
+        "NX-E0102",
+        Some("type_mismatch"),
+        (17, 21),
+        &[("expected_type", "I64"), ("found_type", "Bool")],
+        &[("found_type", 17, 21)],
+    );
+    accepted("fn Main(){let x=(1)+(1);}", PROFILE);
 }

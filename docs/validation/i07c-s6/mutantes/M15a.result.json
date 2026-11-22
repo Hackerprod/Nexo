@@ -1,0 +1,18 @@
+{
+ "id": "M15a",
+ "desc": "charge_solver: omitir limite",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 4303,
+ "sha_mutated": "618a5e719d64e22816d92c8ee9b62881c08118d755a4179e9e20254f1f49d635",
+ "seconds": 9,
+ "failed": [
+  "nexo::suite i07c_solver_quota_literal::literal_deep_assignment_exhausts_default_solver_budget",
+  "nexo::suite i07c_solver_quota_literal::literal_deep_assignment_exhausts_default_solver_budget"
+ ],
+ "tail": "rk\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 5.05s\n────────────\n Nextest run ID 1a67ab66-5ff5-46d7-9794-5e8744c42bed with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        FAIL [   3.437s] (1/1) nexo::suite i07c_solver_quota_literal::literal_deep_assignment_exhausts_default_solver_budget\n  stdout ───\n\n    running 1 test\n    test i07c_solver_quota_literal::literal_deep_assignment_exhausts_default_solver_budget ... FAILED\n\n    failures:\n\n    failures:\n        i07c_solver_quota_literal::literal_deep_assignment_exhausts_default_solver_budget\n\n    test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 890 filtered out; finished in 3.43s\n\n  stderr ───\n\n    thread 'i07c_solver_quota_literal::literal_deep_assignment_exhausts_default_solver_budget' (88756) panicked at tests\\i07c_solver_quota_literal.rs:35:5:\n    assertion `left == right` failed: {\"schema_version\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"checked\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[]}\n     \n      left: 0\n     right: 1\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   3.442s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   3.437s] (1/1) nexo::suite i07c_solver_quota_literal::literal_deep_assignment_exhausts_default_solver_budget\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

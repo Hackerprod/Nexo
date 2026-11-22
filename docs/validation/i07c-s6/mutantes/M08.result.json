@@ -1,0 +1,18 @@
+{
+ "id": "M08",
+ "desc": "check_intrinsic_domain: Array concreto deja de aceptarse",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 3922,
+ "sha_mutated": "22aba0dd8713a18539d0835807fd19fa95f95f966a20810a8ae3c99d61beb42e",
+ "seconds": 6,
+ "failed": [
+  "nexo::suite i07c_normative_literals::rd87_run_emits_only_the_literal_print_observation",
+  "nexo::suite i07c_normative_literals::rd87_run_emits_only_the_literal_print_observation"
+ ],
+ "tail": "ative_literals.rs:36:9:\n    assertion `left == right` failed: check: fn Main(){let q=[3];let a:I64=Len(q);}: {\"schema_version\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"rejected\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[{\"schema_version\":1,\"diagnostic_namespace\":\"Nexo-proposed-v1\",\"profile_id\":\"f0-0002-b-v2\",\"code\":\"NX-E0102\",\"subcause\":\"not_indexable\",\"rule\":\"NX-E0102/not_indexable\",\"explanation_id\":\"NX-E0102/not_indexable\",\"severity\":\"error\",\"stage\":\"types\",\"message\":\"Invalid name, call or type in the proposed profile.\",\"operation\":\"types.check\",\"primary_span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-170664-4.n\",\"start\":34,\"end\":35},\"related_spans\":[{\"role\":\"found_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-170664-4.n\",\"start\":34,\"end\":35}}],\"cause_chain\":[],\"feature_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{\"expected_type\":\"domain:array\",\"found_type\":\"Array<I64>\"}}]}\n    : \n      left: 1\n     right: 0\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.063s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   0.059s] (1/1) nexo::suite i07c_normative_literals::rd87_run_emits_only_the_literal_print_observation\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

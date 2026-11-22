@@ -1,0 +1,50 @@
+{
+  "id": "M06a",
+  "tree": "C:\\nexo-work\\val\\s6mut\\tree",
+  "file": "src\\check\\types.rs",
+  "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+  "sha_mutated": "518ba4b1825bf3779e867bc0ed32cd9c11f5d66c569d0890d1169e6636999c67",
+  "selection": "default completo; sin -E; retries 0; fail-fast",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "nextest": "cargo-nextest 0.9.152 (26ebeda79 2026-11-13)",
+  "profiles": [
+    {
+      "profile": "debug",
+      "exit": 100,
+      "seconds": 7.474,
+      "verdict": "MUERTO",
+      "test": "nexo::nexo$check::tests::divergent_left_keeps_independent_numeric_operand_sites",
+      "reason": "test fallido",
+      "log": "D:\\nexo-work\\mut-s3\\s6mut\\M06a.verdict.debug.log",
+      "stdout_sha256": "142865f80240d63ebf7b2b4cc9e0f7f4b9da4af01b2a1cd3894c20e9ccdc9c46",
+      "stderr_sha256": "8ce157dc774393965774363a63fdf5a94e10a9f5452d86beacb91032fa609e2e",
+      "confirmation": {
+        "selection": [
+          "cargo",
+          "nextest",
+          "run",
+          "--locked",
+          "--offline",
+          "--profile",
+          "default",
+          "--retries",
+          "0",
+          "--message-format",
+          "libtest-json",
+          "-E",
+          "test(=check::tests::divergent_left_keeps_independent_numeric_operand_sites)"
+        ],
+        "mutated_verdict": "MUERTO",
+        "mutated_test": "nexo::nexo$check::tests::divergent_left_keeps_independent_numeric_operand_sites",
+        "mutated_exit": 100,
+        "baseline_verdict": "VERDE",
+        "baseline_exit": 0,
+        "mutated_stdout_sha256": "ed6543918cdc47cf539124ef69a27fdca5f9525cbfa8241411b58c32a3a98ae5",
+        "baseline_stdout_sha256": "444cf740b82442e0989a93b2c8bb26c6cd4aafa18614a0c06adf19f1a3e97063"
+      }
+    }
+  ],
+  "mutated_tree_sha256": "bc5126deaa66ef4010b50038cad03b1f7c94200e64ec064f4e8cfaec0467c5e8",
+  "verdict": "MUERTO",
+  "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6"
+}

@@ -1,0 +1,18 @@
+{
+ "id": "M12",
+ "desc": "mismatch: relacion expected_type con found_span",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 959,
+ "sha_mutated": "21a716d6f1f577ffcf6967965cad975893328e2e3db34298808fe1cd9e74197f",
+ "seconds": 6,
+ "failed": [
+  "nexo::suite i07c_structural_invariants::diagnostic_relations_have_valid_distinct_expected_spans",
+  "nexo::suite i07c_structural_invariants::diagnostic_relations_have_valid_distinct_expected_spans"
+ ],
+ "tail": "r==r)==true];r=[1];}: {\"schema_version\":1,\"profile_id\":\"f0-0002-b-v2\",\"outcome\":{\"kind\":\"rejected\"},\"stdout\":[],\"events\":[],\"observations\":[],\"observation_bytes\":0,\"reserved_observation_bytes\":0,\"diagnostics\":[{\"schema_version\":1,\"diagnostic_namespace\":\"Nexo-proposed-v1\",\"profile_id\":\"f0-0002-b-v2\",\"code\":\"NX-E0102\",\"subcause\":\"type_mismatch\",\"rule\":\"NX-E0102/type_mismatch\",\"explanation_id\":\"NX-E0102/type_mismatch\",\"severity\":\"error\",\"stage\":\"types\",\"message\":\"Invalid name, call or type in the proposed profile.\",\"operation\":\"types.check\",\"primary_span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-81048-0.n\",\"start\":39,\"end\":40},\"related_spans\":[{\"role\":\"expected_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-81048-0.n\",\"start\":39,\"end\":40}},{\"role\":\"found_type\",\"span\":{\"file\":\"C:\\\\nexo-work\\\\val\\\\s6mut\\\\tree/.scratch/tmp-s6/i07c-s6-81048-0.n\",\"start\":39,\"end\":40}}],\"cause_chain\":[],\"feature_id\":null,\"unexpected_token\":null,\"expected_tokens\":[],\"expected_tokens_kind\":null,\"parser_context\":null,\"recognized_prefix\":null,\"repair\":[],\"data\":{\"expected_type\":\"Bool\",\"found_type\":\"I64\"}}]}\n\n    note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace\n\n  Cancelling due to test failure\n────────────\n     Summary [   0.027s] 1 test run: 0 passed, 1 failed, 2216 skipped\n        FAIL [   0.022s] (1/1) nexo::suite i07c_structural_invariants::diagnostic_relations_have_valid_distinct_expected_spans\nerror: test run failed\n",
+ "result": "MUERTO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

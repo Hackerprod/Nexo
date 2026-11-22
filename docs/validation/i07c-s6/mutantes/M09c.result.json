@@ -1,0 +1,15 @@
+{
+ "id": "M09c",
+ "desc": "require_match_pattern_shapes (scrutinee concreto): aceptar kind distinto",
+ "file": "src/check/types.rs",
+ "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "occurrences": 1,
+ "line": 13341,
+ "sha_mutated": "ce5943a576d8c9da26bce63091880609b95812fa05efc3a8442d15dd8628a7f3",
+ "seconds": 6,
+ "failed": [],
+ "tail": "   Compiling nexo v0.0.1 (C:\\nexo-work\\val\\s6mut\\tree)\n    Finished `test` profile [unoptimized] target(s) in 5.92s\n────────────\n Nextest run ID 7baf3a5c-360f-4709-9ff2-2ad386f5ea4e with nextest profile: default\n    Starting 1 test across 4 binaries (2216 tests skipped)\n        PASS [   0.043s] (1/1) nexo::suite i07c_normative_literals::previously_open_root_fixed_to_option_rejects_result_pattern\n────────────\n     Summary [   0.046s] 1 test run: 1 passed, 2216 skipped\n",
+ "result": "SUPERVIVIENTE-DIRIGIDO",
+ "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+ "restored_ok": true
+}

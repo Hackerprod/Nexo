@@ -1,0 +1,1 @@
+{"file": "src/check/types.rs", "before": "                                if previous != ty {\n", "after": "                                if previous != ty && false {\n", "occurrence": 0, "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6", "sha_mutated": "1912116d010350b3600eb34247ee93b5726dfad41e8a0a27f2ee46e492896ea8"}
