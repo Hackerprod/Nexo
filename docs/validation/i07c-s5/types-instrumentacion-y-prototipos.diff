@@ -1,0 +1,341 @@
+--- tmp/types_head.rs	2026-11-21 19:45:59.878701500 -0800
++++ val/s5-diag/tree/src/check/types.rs	2026-11-21 19:59:22.674443300 -0800
+@@ -2,6 +2,14 @@
+ use std::collections::{HashMap, HashSet};
+ use std::sync::Arc;
+ 
++macro_rules! tr {
++    ($($arg:tt)*) => {
++        if std::env::var_os("NEXO_TRACE").is_some() {
++            eprintln!("[TR] {}", format!($($arg)*));
++        }
++    };
++}
++
+ use super::names::{self, Resolved, ResolvedUse};
+ use crate::diagnostic::{DataValue, Diagnostic, Operation, RelatedRole, RelatedSpan, Span, Stage};
+ use crate::frontend::{
+@@ -1277,7 +1285,7 @@
+ struct IndexSelectorProgress<'a> {
+     expr: &'a Expr,
+     context: OwnedCheckContext,
+-    base: Type,
++    base: Result<Type, Box<Diagnostic>>,
+     parent_fact: FactId,
+     deferred_child: Option<u64>,
+ }
+@@ -3194,6 +3202,10 @@
+                 );
+                 current = child;
+             }
++            let proto_old = (
++                self.graph.concrete_plan.get(&site).map(|e| e.ty.clone()),
++                self.graph.read_plan.get(&site).map(|r| (r.ty.clone(), r.blocked.clone(), r.assignment_start)),
++            );
+             self.graph.concrete_plan.remove(&site);
+             self.graph.read_plan.remove(&site);
+             let projected: Vec<_> = self.graph.projected_bases.iter().copied().collect();
+@@ -3350,6 +3362,37 @@
+                     self.graph.concrete_plan.insert(site, concrete);
+                 }
+             }
++            tr!("PLAN site={} planning={} layers={} (prev {:?}) concrete_plan={:?} read_plan={:?} assignment_type_plan={:?} prefix_concrete={:?} has_deferred_join={} has_recursive_join={} assigned_base={} chain={:?}",
++                site, self.planning, origins.len(), self.graph.shape_plan.get(&site).map(|o| o.len()),
++                self.graph.concrete_plan.get(&site).map(|e| &e.ty),
++                self.graph.read_plan.get(&site).map(|r| (&r.ty, r.blocked.clone(), r.assignment_start)),
++                self.graph.assignment_type_plan.get(&site).map(|x| &x.0),
++                self.graph.prefix_concrete.get(&site).map(|e| &e.ty),
++                has_deferred_join, has_recursive_join, self.graph.assigned_bases.contains(&site), chain);
++            let mut origins = origins;
++            if std::env::var_os("PROTO_TRUNC").is_some()
++                && let Some(rp) = self.graph.read_plan.get(&site)
++            {
++                let mut depth = 0;
++                let mut layer = &rp.ty;
++                while let Type::Array(child) = layer {
++                    depth += 1;
++                    layer = child;
++                }
++                if depth < origins.len() {
++                    tr!("PROTO_TRUNC site={} origins {} -> {}", site, origins.len(), depth);
++                    origins.truncate(depth);
++                }
++            }
++            if std::env::var_os("PROTO_PLANREAD").is_some() {
++                let proto_new = (
++                    self.graph.concrete_plan.get(&site).map(|e| e.ty.clone()),
++                    self.graph.read_plan.get(&site).map(|r| (r.ty.clone(), r.blocked.clone(), r.assignment_start)),
++                );
++                if proto_new != proto_old {
++                    changed = true;
++                }
++            }
+             changed |= self.graph.shape_plan.get(&site) != Some(&origins);
+             self.graph.shape_plan.insert(site, origins);
+         }
+@@ -3360,6 +3403,10 @@
+         let Some(origins) = self.graph.shape_plan.get(&site).cloned() else {
+             return;
+         };
++        if !self.planning && std::env::var_os("ABL_SEED").is_some() {
++            return;
++        }
++        tr!("SEED_PLANNED_SHAPE site={} var={} layers={} planning={} concrete_plan={:?}", site, id, origins.len(), self.planning, self.graph.concrete_plan.get(&site).map(|e| &e.ty));
+         let mut current = id;
+         for origin in origins {
+             current = self.root(current);
+@@ -3497,6 +3544,7 @@
+     }
+ 
+     fn truncate_pending_joins(&mut self, length: usize) {
++        tr!("TRUNCATE_PENDING_JOINS to {} (had {})", length, self.pending_join_count());
+         let mut seen = 0;
+         self.graph.obligations.retain(|entry| match entry {
+             ObligationKind::Join(_) => {
+@@ -4235,6 +4283,8 @@
+         if self.planning {
+             return;
+         }
++        tr!("RECORD_ERROR {} primary={:?} dup_site={}", error.code, error.primary_span.as_ref().map(|s| (s.start, s.end)),
++            error.primary_span.as_ref().is_some_and(|s| self.graph.emitted_sites.contains(&(s.start, s.end))));
+         if error.code == "NX-E0003"
+             && error.data.get("budget_kind") == Some(&DataValue::String("value_type_depth".into()))
+             && let Some(previous) = self.errors.iter_mut().find(|previous| {
+@@ -4823,6 +4873,7 @@
+         found: Span,
+         intrinsic: bool,
+     ) -> Result<(), Box<Diagnostic>> {
++        tr!("BIND_ENTER id={} root={} ty={:?} found={}..{} concrete_before={:?}", id, self.root(id), ty, found.start, found.end, self.concrete(id).map(|x| x.0));
+         let request = SolverBind {
+             fact,
+             parent_fact: fact,
+@@ -4833,7 +4884,9 @@
+             found,
+             intrinsic,
+         };
+-        match self.solve(SolverRequest::Bind(request))? {
++        let res = self.solve(SolverRequest::Bind(request));
++        tr!("BIND_EXIT id={} -> {:?} concrete_after={:?} pending_joins={}", id, res.as_ref().map(|_| ()).map_err(|e| (e.code.clone(), e.primary_span.as_ref().map(|s| (s.start, s.end)))), self.concrete(id).map(|x| x.0), self.pending_join_count());
++        match res? {
+             SolverValue::Unit => Ok(()),
+             _ => unreachable!("bind result"),
+         }
+@@ -5058,6 +5111,14 @@
+         found: Span,
+         policy: UnifyPolicy,
+     ) {
++        {
++            let croot = self.root(constructor);
++            let cc = self.concrete(constructor).map(|x| x.0);
++            let nd = self.graph.type_nodes[&croot].clone();
++            tr!("DEFER_SHAPE_CONFLICT left={:?} right={:?} ctor={} root={} ctor_concrete={:?} array_child={:?} branch={} found={}..{} left_origin={}..{} failed_ctor_before={} npending={}",
++                left, right, constructor, croot, cc, nd.array_child, policy.branch, found.start, found.end, left_origin.start, left_origin.end,
++                self.graph.failed_constructor(croot), self.pending_join_count());
++        }
+         // A failed branch equality belongs to that use; it does not
+         // invalidate the constructor shared by later independent uses
+         // (§4.1.2.5). Other shape failures can suppress a consequent
+@@ -5221,6 +5282,7 @@
+         found: Span,
+         policy: UnifyPolicy,
+     ) -> Result<Type, Box<Diagnostic>> {
++        tr!("UNIFY_ENTER left={:?} right={:?} found={}..{} branch={} left_origin={}..{}", left, right, found.start, found.end, policy.branch, left_origin.start, left_origin.end);
+         let request = SolverUnify {
+             fact,
+             left,
+@@ -5230,7 +5292,9 @@
+             found,
+             policy,
+         };
+-        match self.solve(SolverRequest::Unify(request))? {
++        let res = self.solve(SolverRequest::Unify(request));
++        tr!("UNIFY_EXIT -> {:?} pending_joins={}", res.as_ref().map(|v| match v { SolverValue::Type(t) => format!("{:?}", t), _ => String::new() }).map_err(|e| (e.code.clone(), e.primary_span.as_ref().map(|s| (s.start, s.end)))), self.pending_join_count());
++        match res? {
+             SolverValue::Type(ty) => Ok(ty),
+             _ => unreachable!("unify result"),
+         }
+@@ -6589,6 +6653,7 @@
+                         continue;
+                     }
+                     for join in self.pending_joins_mut().skip(pending_before) {
++                        tr!("REWRITE_AFTER_UNION join(found={}..{} ctor={}) old left={:?} right={:?} -> Deferred({}),Deferred({})", join.found.start, join.found.end, join.constructor, join.left, join.right, a, b);
+                         join.left = Type::Deferred(a);
+                         join.right = Type::Deferred(b);
+                         join.left_origin = request.left_origin.clone();
+@@ -6642,6 +6707,7 @@
+                         continue;
+                     }
+                     for join in self.pending_joins_mut().skip(pending_before) {
++                        tr!("REWRITE_AFTER_BIND join(found={}..{} ctor={}) old left={:?} right={:?} left_origin={}..{}", join.found.start, join.found.end, join.constructor, join.left, join.right, join.left_origin.start, join.left_origin.end);
+                         join.left = if left_deferred {
+                             Type::Deferred(id)
+                         } else {
+@@ -6652,6 +6718,7 @@
+                         } else {
+                             Type::Deferred(id)
+                         };
++                        tr!("   -> new left={:?} right={:?} left_origin={}..{}", join.left, join.right, request.left_origin.start, request.left_origin.end);
+                         join.left_origin = request.left_origin.clone();
+                         join.branch = request.policy.branch;
+                         join.related_expected = request.policy.related_expected;
+@@ -6677,6 +6744,7 @@
+                         }
+                     };
+                     for join in self.pending_joins_mut().skip(pending_before) {
++                        tr!("REWRITE_ARRAY_DONE join(found={}..{} ctor={}) wrap left={:?} right={:?}", join.found.start, join.found.end, join.constructor, join.left, join.right);
+                         join.left = Type::Array(Arc::new(join.left.clone()));
+                         join.right = Type::Array(Arc::new(join.right.clone()));
+                     }
+@@ -7720,8 +7788,11 @@
+             // A constructor with no determined element has one causal
+             // NX-E0103. Once its element is concrete, independent source
+             // operands keep their own NX-E0102/NX-E1303 (§13.9).
+-            let left = self.resolved_join_side(join.left);
+-            let right = self.resolved_join_side(join.right);
++            let left = self.resolved_join_side(join.left.clone());
++            let right = self.resolved_join_side(join.right.clone());
++            tr!("CLOSE_JOIN left={:?} -> {:?}; right={:?} -> {:?}; ctor={} root={} ctor_concrete={:?} found={}..{} branch={} failed_ctor={}",
++                join.left, left, join.right, right, join.constructor, constructor,
++                self.concrete(constructor).map(|x| x.0), join.found.start, join.found.end, join.branch, self.graph.failed_constructor(constructor));
+             // A queued conflict belongs to the source operand whether or
+             // not both types resolve. Different constructor roots can reach
+             // the same operand; another operand keeps its distinct span.
+@@ -7836,6 +7907,9 @@
+                 start <= span.start && span.end <= end && (start, end) != span_key(&span)
+             });
+             // A failed constructor can be caused at a different source site.
++            tr!("CLOSE_CTOR span={}..{} root={} child={} child_root={} failed_ctor={} own_cause={} shared={} child_concrete={:?} in_unresolved_arrays={}",
++                span.start, span.end, root, child, child_root, self.graph.failed_constructor(root), own_inference_cause,
++                shared_inference_roots.contains(&root), self.concrete(child).map(|x| x.0), unresolved_arrays.contains(&self.root(child)));
+             // Its unresolved literal must not add a dependent inference error.
+             if (!self.graph.failed_constructor(root)
+                 || own_inference_cause
+@@ -9237,6 +9311,7 @@
+                     visit = parent_fact;
+                     match result {
+                         Ok(base) => {
++                            tr!("INDEX_BASE_OK span={} base={:?} tainted_fact={}", expr.span().start, base, checker.graph.fact(visit).tainted);
+                             let Expr::Index { target, index, .. } = expr else {
+                                 unreachable!("index frame owns an index")
+                             };
+@@ -9295,7 +9370,7 @@
+                             frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
+                                 expr,
+                                 context,
+-                                base,
++                                base: Ok(base),
+                                 parent_fact: visit,
+                                 deferred_child,
+                             })));
+@@ -9322,7 +9397,38 @@
+                             );
+                             return Resume::Evaluate(visit);
+                         }
++                        Err(error) if std::env::var_os("PROTO_FAM3").is_some() && error.operation != Operation::AnalysisLimit => {
++                            let Expr::Index { index, .. } = expr else {
++                                unreachable!("index frame owns an index")
++                            };
++                            frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
++                                expr,
++                                context,
++                                base: Err(error),
++                                parent_fact: visit,
++                                deferred_child: None,
++                            })));
++                            *inner = index;
++                            *inner_context = OwnedCheckContext {
++                                expected: None,
++                                expected_span: None,
++                                check_here: true,
++                                anchor: None,
++                                outer_compare: false,
++                                related_expected: false,
++                                deferred_element: false,
++                            };
++                            visit = checker.graph.child_fact(
++                                visit,
++                                span_key(inner.span()),
++                                FactRole::Selector,
++                                FactInheritance::Empty,
++                                FactInheritance::Inherit,
++                            );
++                            return Resume::Evaluate(visit);
++                        }
+                         other => {
++                            tr!("INDEX_BASE_NOT_OK span={:?} base={:?} -> selector NOT visited", expr.span().start, other.as_ref().map(|t| format!("{:?}", t)).map_err(|e| (e.code.clone(), e.primary_span.as_ref().map(|s| (s.start, s.end)))));
+                             result = checker.check_against_context_one(
+                                 visit,
+                                 expr,
+@@ -9351,7 +9457,7 @@
+                         expr,
+                         context.borrowed(),
+                         Some(PrecomputedType::IndexTarget {
+-                            target: Ok(base),
++                            target: base,
+                             selector: Some(result),
+                             deferred_child,
+                         }),
+@@ -11793,7 +11899,8 @@
+                             if let Some((ty, _)) = self.concrete(id) {
+                                 return Ok(ty);
+                             }
+-                            if !self.planning
++                            if (!self.planning || std::env::var_os("PROTO_PLANREAD").is_some())
++                                && std::env::var_os("ABL_READ").is_none()
+                                 && let Some(plan) = self.graph.read_plan.get(&local.name_span.start)
+                                 && span.start < plan.assignment_start
+                                 && plan
+@@ -11801,6 +11908,7 @@
+                                     .iter()
+                                     .all(|(start, end)| span.start < *start || span.start >= *end)
+                             {
++                                tr!("READ_PLAN_HIT name_at={} returns {:?} (var {} unresolved)", span.start, plan.ty, id);
+                                 return Ok(plan.ty.clone());
+                             }
+                             self.graph.mark(span_key(span), OccurrenceFlag::Deferred);
+@@ -12149,7 +12257,18 @@
+                     selector: mut precomputed_selector,
+                     deferred_child,
+                 } = index_target.expect("index target is prepared by check_against_context");
+-                let base = base?;
++                let base = match base {
++                    Ok(base) => base,
++                    Err(error) => {
++                        if let Some(Err(selector_error)) = precomputed_selector.take() {
++                            if selector_error.operation == Operation::AnalysisLimit {
++                                return Err(selector_error);
++                            }
++                            self.record_error(selector_error);
++                        }
++                        return Err(error);
++                    }
++                };
+                 if base == Type::Tainted {
+                     let outcome = precomputed_selector.take().expect("tainted index selector");
+                     if let Err(error) = outcome {
+@@ -13565,6 +13684,9 @@
+             || (second_failed && !first_anchored)
+             || (needs_deferred_join && first_failed);
+         let pending_before_join = self.pending_join_count();
++        tr!("IF_FINISH_JOIN first_join={:?} second_join={:?} expected={:?} first_failed={} second_failed={} first_partial={} first_anchored={} second_anchored={} anchor_pending={} anchor_err={} needs_deferred_join={} skip_failed={} first_has_failed_ctor={} first_unres={} second_unres={} pending_before={}",
++            first_join, second_join, expected, first_failed, second_failed, first_partial, first_anchored, second_anchored, anchor_pending, anchor_error.is_some(),
++            needs_deferred_join, skip_failed_context_join, first_has_failed_constructor, first_unresolved, second_unresolved, pending_before_join);
+         let join = if anchor_error.is_none()
+             && !anchor_pending
+             && !skip_failed_context_join
+@@ -15229,6 +15351,7 @@
+         for _ in 0..=128 {
+             checker.analysis_exhausted = false;
+             checker.quota_error = None;
++            tr!("=== PLANNING PASS ===");
+             let _ = checker.function(function);
+             if !checker.collect_planned_shapes() {
+                 break;
+@@ -15237,6 +15360,7 @@
+         checker.planning = false;
+         checker.analysis_exhausted = false;
+         checker.quota_error = None;
++        tr!("=== FINAL PASS ===");
+         if let Err(error) = checker.function(function) {
+             checker.record_error(error);
+         }
