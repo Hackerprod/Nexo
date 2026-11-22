@@ -30,6 +30,11 @@ Fuente de cada laguna: plan del oráculo r3 §3 (iniciales) o hallazgo de implem
 | LF-23 C | Entorno v2 fuera de lo que K 6.1 fija: profundidad JSON mayor de 16, claves duplicadas, carácter de control crudo dentro de una cadena JSON, frontera de 1 MiB (`mock_env_too_large`), elementos de las cuatro colas heredadas y orden de validación cuando hay dos defectos a la vez. | `app.parse_json`/`validate` lanzan `ModelGap`; ningún entorno generado lo contiene y no se compara (cada fuente E tiene exactamente un defecto). |
 | LF-24 C | Primario de R0002 cuando la reserva que falla es la copia de un String (`let b=a;`): K 8.2 dice «copiar-lugar completo» sin ejemplo ni fila (¿el lugar copiado o el inicializador?). | Las recetas Q de copia (`live_chain`) comparan los 20 campos restantes y omiten `primary_span`; los literales (X24–X26, O13 y recetas de literal/bucle) sí lo comparan. |
 | LF-25 C | Ocupación de trabajo, frames, celdas y observaciones en las recetas Q: K 8.3 pide registrar todas las cuotas, pero K no fija ticks (LF-06) ni cómo cuenta un rango `1..=N` las celdas de su iterador. | `charges.occupancy` registra las cuatro cuotas de texto y miembros; el resto se acota (las recetas no imprimen, no tienen frames anidados y sus ticks son órdenes de magnitud inferiores a 16.000.000). No se compara nada de eso. |
+| LF-26 C | `cause_chain` solo se compara donde K lo fija con filas (X23, N06–N09, B01, P01); en las familias generadas N y L (campos `C D P Rel`) no se compara. | Un binario con cadena causal errónea en una familia generada no se detectaría; las filas literales sí la cubren. |
+| LF-27 C | `s[a..<b]` (K §3: `range/later_adr` sobre el selector completo, `types`): K no fija el primario con precisión (¿el selector entre corchetes o la expresión entera?) ni `operation`. | Familia N `n_string_slice_range` compara `C D` (código, feature_id `range`, `pending_scope`, etapa); no `P`. |
+| LF-28 C | Dominio de `NX-E0102/type_mismatch` de Print, interpolación o `AssertEq` sobre un recurso (K §5.2 remite a «su dominio anterior» de A2/F0-0003, no transcrito) y primario de `NX-E1403` por `AssertEq`. | `n_print_resource` y `n_hole_resource` comparan solo `C`; `n_asserteq_no_partial_eq` compara `C D`. |
+| LF-29 C | Evaluación de Holes de derecha a izquierda y préstamo de Hole tardío: solo los detectan A07/A08 y, para el orden, el mutante S01; el préstamo tardío no tiene mutación textual limpia (el modelo no lleva préstamos en ejecución). | Brecha conocida de COBERTURA. |
+| LF-30 C | `not` como operando de un Hole (`KEYWORD_OPERAND`) y primario de barrera de `string_copy` (LF-01): ningún programa citable en K/A2/F0-0005 (`and/or/not` están pendientes L02). | Brecha conocida: los mutantes N09 y N15 de D sobreviven por esa razón. |
 
 ## Revisión de O6: estado de cada laguna y decisiones que pide
 
@@ -64,3 +69,5 @@ Fuente de cada laguna: plan del oráculo r3 §3 (iniciales) o hallazgo de implem
 | LF-25 | abierta (nueva, O5) | Ninguna: ocupación de trabajo, frames y celdas de las recetas Q solo acotada. |
 
 Resumen: piden decisión del coordinador LF-01, LF-02, LF-17, LF-19 y, solo ante un contraste adverso, LF-10 y LF-20; piden Flujo A LF-03 y LF-24; ninguna otra necesita decisión.
+
+O7: LF-26 a LF-30 son nuevas; ninguna pide decisión inmediata salvo LF-27 (Flujo A cuando el producto implemente K03).

@@ -26,11 +26,16 @@ python -B -m scripts.f4_oracle.cli minimize|batch|corpus-sha ...
 python -B -m scripts.f4_oracle.mutate F4-Ok [--only T01,N03] [--workers 2] [--full] [--check]
 ```
 
+- Las filas literales de K (clase R) entran siempre en `generate`/`compare`/`gate`; `--no-literals` es opt-out explícito para depurar y nunca vale como evidencia.
 - `selftest` (≈ 2–4 min; `--fast`: `audit`, pines, literales y `utf8ref`, < 1 s) corre antes de comparar con ningún binario: filas de K reproducidas por el modelo (G0–G10), determinismo y SHA de corpus, mínimos de distinción, ejecutables ficticios con una corrupción por campo del contrato, la matriz C01–C11 y la propia campaña de mutación. `gate` ejecuta `audit` y `selftest`, registra exit 0 y el SHA-256 de su log y solo entonces `compare`.
 - Fases `G0`–`G10` y `--complete`: conjunto de unidades K cerradas (no un prefijo), validado contra las dependencias de K §12 y las listas de cada fase (`barrier.PHASES`); una combinación imposible es error de arnés (exit 2). `--final` solo vale con `--phase G10`: añade las recetas largas de cuotas de la clase Q (65.537 bytes, 4.097 asignaciones, 16.385 miembros, cinco cadenas de 60.000 bytes) e imprime la matriz C01–C11 de K §12.1.
 - Clases de caso: V válidas, N una mutación aislada de una V con su positivo reparado, L gramática del Hole, B barrera de capacidad pendiente, A la aplicación de K §11 con entorno aleatorio, E entornos válidos o con un solo defecto, Q recetas de cuotas (perfil normal y los cuatro reducidos de K §8.3). Cada registro lleva `expected` y `expected_sha256` antes de la primera invocación; el arnés no recalcula nada.
 - Exit de `compare`/`gate`/`fuzz`: 0 sin divergencias; 1 ante divergencia, fallo de arnés, `internal_error`, pánico, `InvalidIr` o timeout confirmado (un timeout nunca es PASS); 2 ante error de configuración o `known_issue` caducada. Una divergencia cubierta por `tests/fixtures/f4_oracle_known_issues.json` (familia, código, ruta, fase máxima, cita de K, id de `HALLAZGOS.md`, revisor distinto de C) se cuenta aparte como `known`.
 - Semillas: G0–G9 `0:7`; G10 `0:31` (C), `32:63` (D), `64:95` (D'); fuzz `96:127`. `--seeds A:B` incluye ambos extremos. `corpus-sha` fija el SHA del corpus por semilla y clase (`tests/fixtures/f4_oracle_corpus_sha.json`; regenerar solo tras revisar un cambio del generador).
+
+## Requisitos de entorno
+
+`python scripts/check-nextest-selection.py` (parte de la puerta del repositorio, no del oráculo) necesita `cargo` y `cargo-nextest` en el PATH (`~/.cargo/bin` y el toolchain `1.99.1-x86_64-pc-windows-msvcin`); sin ellos falla con `WinError 2`. El oráculo en sí solo necesita Python.
 
 ## Reglas de máquina
 
