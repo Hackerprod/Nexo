@@ -380,3 +380,9 @@ Plan y registros de corrección: `docs/correcciones/I07c-plan.md` (r2 a r17; S3 
 Para reproducir la puerta del corte: `sh scripts/validate.sh` en una copia limpia (o `scripts/gate.sh <commit>`), `python scripts/i07c_rd_conformidad.py --verify <nexo.exe>` (RD 152/152), `scripts/i07c_stack_probe/probe.py` (ocho filas `J16-S1C-*` a 204 KiB en debug y a 256 KiB en debug y release) y `tests/i07c_solver_depth.rs`. Los ficheros de prueba de I07c se registran en `tests/suite.rs`.
 
 Para reproducir la mutación acotada: la población congelada y su hash están en `docs/validation/i07c-mutations-ccf/` (`population.json`, `FREEZE.md`); el enumerador es `scripts/i07c_mutaciones.py --base ccf6df1` con `I07C_MUT_DIR=docs/validation/i07c-mutations-ccf`. Resultados, clasificación y caza con generador: `RESULTADO.md`, `results.jsonl`, `clasificacion.json`, `caza/` y `andamiaje/` en ese directorio.
+
+## I07c-S4 — recuperación
+
+Plan y rondas: `docs/correcciones/I07c-S4-plan.md` (con la ampliación por B1b y la enmienda r4 de pila), `I07c-S4-r1.md` (corrección del defecto de D) e informes de B, C, D y D' (`I07c-plan-B-S4-*.md`, `I07c-C-S4-*.md`, `I07c-D1-S4*.md`, `I07c-Dprima-S4.md`). Mecanismo: el registro activo de hechos del `InferenceGraph` con pila de generaciones y reloj compartido que `AtomicEnd` no rebobina.
+
+Para reproducir: `scripts/gate.sh <commit>`; diferencial contra `be8c47c` y `3100a29` con `docs/validation/i07c-s4/andamiaje/` (generadores, semillas y SHA-256 en su `README.md`); pila: `scripts/i07c_stack_probe/probe.py` a perfil idéntico (`docs/correcciones/I07c-medicion-pila-s3-b1b-s4.md` fija los perfiles y SHA-256). Mutación: población congelada y hash en `docs/validation/i07c-mutations-s4/` (`FREEZE.md`, `population.json`, `RESULTADO.md`); el enumerador es `scripts/i07c_mutaciones.py --base be8c47c` con `I07C_MUT_DIR=docs/validation/i07c-mutations-s4`; la caza de supervivientes, en `caza/`.
