@@ -152,7 +152,10 @@ fn grouped_operands_keep_one_causal_primary() {
         text.contains("expression_primary: 3 lines=8279,12484,14797")
             && text.contains("delegated_primary: 1 lines=7078")
             && text.contains("argument_target_primary: 1 lines=14811")
-            && text.contains("reviewed: 14/14")
+            && text.contains("types.rs reviewed: 14/14")
+            && text.contains("names.rs reviewed: 5/5")
+            && text.contains("effects.rs reviewed: 1/1")
+            && text.contains("reviewed: 20/20")
             && !text.contains("pendiente_decision"),
         "{text}"
     );

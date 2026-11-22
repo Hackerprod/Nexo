@@ -24,11 +24,14 @@ import sys
 
 PROFILES = ["f0-0002-b-v2", "f0-0003-b-v1", "f0-0005-b-v1"]
 CALL_STEPS = {"function.call", "closure.call", "intrinsic.call"}
+# Bytes allowed between the start of a call and the start of its site: groups and trivia.
+GROUP_TRIVIA = set("(" + chr(32) + chr(9) + chr(13) + chr(10))
 NAME = re.compile(r"^[A-Za-z_][A-Za-z0-9_.]*$")
 
 
 def strip_groups(text):
-    while text.startswith("(") and text.endswith(")"):
+    # `()` is the unit literal, not an empty group.
+    while text.startswith("(") and text.endswith(")") and len(text) > 2:
         depth = 0
         for index, char in enumerate(text):
             depth += char == "("
@@ -95,7 +98,7 @@ def classify(source, before, after):
                     continue
                 x, y = cb["span"], ca["span"]
                 gap = raw[x["start"]:y["start"]].decode("utf-8", "replace")
-                if not (x["start"] == x["end"] and gap and set(gap) <= {"("}
+                if not (x["start"] == x["end"] and gap and set(gap) <= GROUP_TRIVIA
                         and NAME.match(raw_text(y))):
                     return "unexplained", [f"diagnostic {index} step {position}: {x} -> {y}"]
                 moves.append({"index": index, "rule": b["rule"] + f" step{position}",
@@ -109,7 +112,7 @@ def classify(source, before, after):
         after_text = raw[sa[0]:sa[1]].decode("utf-8", "replace")
         if sb[0] == sb[1]:
             gap = raw[sb[0]:sa[0]].decode("utf-8", "replace")
-            ok = (set(gap) <= {"("} and gap != "" and bool(NAME.match(after_text)))
+            ok = (set(gap) <= GROUP_TRIVIA and gap != "" and bool(NAME.match(after_text)))
             rule = "empty grouped call target -> target name"
         else:
             ok = (strip_groups(before_text) == after_text and before_text.startswith("(")

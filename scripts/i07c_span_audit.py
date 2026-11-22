@@ -18,6 +18,20 @@ import tempfile
 
 SOURCE = Path(__file__).resolve().parents[1] / "src/check/types.rs"
 HELPER = SOURCE.parents[1] / "frontend/parse.rs"
+# names.rs and effects.rs have no raw-span class to classify by pattern: every raw `.span()` use
+# outside their test modules is reviewed one by one (expression + context), and a new one fails.
+NAMES = SOURCE.parent / "names.rs"
+EFFECTS = SOURCE.parents[1] / "ir/effects.rs"
+REVIEWED_NAMES = {
+    191: ("value.span().start", "boundary", "stmt_span.start", "lower bound of the token search, not a primary"),
+    795: ("self.enter(expr.span())", "identity", "self.enter(", "entry/quota key of the node, keeps the group"),
+    1085: ("target.span().clone()", "relation", "partial_transfer", "Context relation names the whole call target"),
+    1186: ("a.value.span().clone()", "unreachable_fallback", "duplicate_argument", "unlabelled duplicate primary, unreachable (plan section 2)"),
+    1193: ("occupied[slot]", "relation", "label_span(a)", "occupied slot span, Context relation of a later duplicate"),
+}
+REVIEWED_EFFECTS = {
+    1223: ("guard.span().clone()", "identity", "Frame::Guard(guard)", "match guard region used to contain witnesses, not a primary"),
+}
 # This inventory is tied to the types.rs of the I07c-S6-COR cut (derived from the S5b.1 inventory,
 # I07c-S6 plan section 3.3). Classes: the sites that report an expression call the group-removal
 # helper (`delegated_primary`, `expression_primary`, `argument_target_primary`); the rest keep a raw
@@ -66,6 +80,33 @@ def check_helper(source_lines: list[str]) -> None:
         raise SystemExit(f"group-removal helper changed or missing in {HELPER}")
 
 
+def audit_plain(path: Path, reviewed: dict) -> int:
+    """Every raw `.span()` outside the test module must be a reviewed site."""
+    lines = path.read_text(encoding="utf-8").splitlines()
+    marker = [i for i, line in enumerate(lines) if line.strip() == "mod tests {"]
+    tests_begin = marker[0] + 1 if marker else len(lines) + 1
+    seen = set()
+    tests = 0
+    for number, line in enumerate(lines, 1):
+        if ".span()" not in line and number not in reviewed:
+            continue
+        if number in reviewed:
+            expression, kind, context, reason = reviewed[number]
+            neighborhood = "\n".join(lines[max(0, number - 45):number + 6])
+            if expression not in line or context not in neighborhood:
+                raise SystemExit(f"reviewed span changed at {path}:{number}: {line.strip()}")
+            seen.add(number)
+            print(f"{path.name} {kind}: {number} {expression} - {reason}")
+        elif number >= tests_begin:
+            tests += 1
+        else:
+            raise SystemExit(f"unreviewed raw span at {path}:{number}: {line.strip()}")
+    if seen != reviewed.keys():
+        raise SystemExit(f"reviewed sites missing in {path}: {reviewed.keys() - seen}")
+    print(f"{path.name} reviewed: {len(seen)}/{len(reviewed)} (test lines: {tests})")
+    return len(seen)
+
+
 def audit() -> None:
     source_lines = SOURCE.read_text(encoding="utf-8").splitlines()
     check_helper(source_lines)
@@ -107,7 +148,10 @@ def audit() -> None:
         raise SystemExit(f"reviewed sites missing: {REVIEWED.keys() - seen}")
     for kind, lines in classes.items():
         print(f"{kind}: {len(lines)} lines={','.join(map(str, lines))}")
-    print(f"reviewed: {len(seen)}/{len(REVIEWED)}")
+    print(f"types.rs reviewed: {len(seen)}/{len(REVIEWED)}")
+    others = audit_plain(NAMES, REVIEWED_NAMES) + audit_plain(EFFECTS, REVIEWED_EFFECTS)
+    total = len(seen) + others
+    print(f"reviewed: {total}/{len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)}")
     print("NO EVALUADO solo la rama NX-E1111 de prepare_closure_call (sin borrador de closure); "
           "las demas rutas de primario agrupado las ejercita tests/i07c_group_primary.rs")
     print(f"total: {sum(map(len, classes.values()))}")
@@ -122,15 +166,22 @@ def self_test() -> None:
         script = root / "scripts/i07c_span_audit.py"
         source = root / "src/check/types.rs"
         helper = root / "src/frontend/parse.rs"
-        for path in (script, source, helper):
+        names = root / "src/check/names.rs"
+        effects = root / "src/ir/effects.rs"
+        original_names = NAMES.read_text(encoding="utf-8")
+        original_effects = EFFECTS.read_text(encoding="utf-8")
+        for path in (script, source, helper, names, effects):
             path.parent.mkdir(parents=True, exist_ok=True)
         script.write_bytes(Path(__file__).read_bytes())
         original = SOURCE.read_text(encoding="utf-8")
         original_helper = HELPER.read_text(encoding="utf-8")
 
-        def write(types_text: str, parse_text: str) -> None:
+        def write(types_text: str, parse_text: str, names_text: str = original_names,
+                  effects_text: str = original_effects) -> None:
             source.write_text(types_text, encoding="utf-8", newline="\n")
             helper.write_text(parse_text, encoding="utf-8", newline="\n")
+            names.write_text(names_text, encoding="utf-8", newline="\n")
+            effects.write_text(effects_text, encoding="utf-8", newline="\n")
 
         def revert(number: int, old: str, new: str) -> str:
             lines = original.splitlines(keepends=True)
@@ -165,8 +216,21 @@ def self_test() -> None:
             write(types_text, parse_text)
             result = run(script)
             assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
-    print(f"span auditor self-test: PASS ({len(REVIEWED)} reviewed; novel raw use and "
-          f"{len(reverts)} site reversions rejected)")
+        # names.rs and effects.rs: a new raw use and the reversion of a reviewed site fail.
+        fresh = "fn zz(e: &Expr) -> Span { e.span().clone() }\n"
+        extra = [
+            ("new raw span in names.rs", dict(names_text=original_names.replace("mod tests {", fresh + "mod tests {", 1)), "unreviewed raw span"),
+            ("new raw span in effects.rs", dict(effects_text=original_effects.replace("mod tests {", fresh + "mod tests {", 1)), "unreviewed raw span"),
+            ("names.rs site 1085 normalized", dict(names_text=original_names.replace("related(&mut d, RelatedRole::Context, target.span().clone());", "related(&mut d, RelatedRole::Context, expression_primary_span(target));", 1)), "reviewed span changed"),
+            ("effects.rs guard site reverted", dict(effects_text=original_effects.replace("out.push(guard.span().clone());", "out.push(guard_span(guard));", 1)), "reviewed span changed"),
+        ]
+        for label, texts, message in extra:
+            write(original, original_helper, **texts)
+            result = run(script)
+            assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
+        reverts = reverts + extra
+    print(f"span auditor self-test: PASS ({len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)} "
+          f"reviewed in 3 files; novel raw use and {len(reverts)} site reversions rejected)")
 
 
 if __name__ == "__main__":

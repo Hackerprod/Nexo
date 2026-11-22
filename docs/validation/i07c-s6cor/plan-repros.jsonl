@@ -113,3 +113,11 @@
 {"id": 112, "source": "fn Main(){var a=[1];let z=Pop(((a)));}"}
 {"id": 113, "source": "gen fn G()->I64{yield 1;}fn Main(){var g=G();Iterator.Next((g));}"}
 {"id": 114, "source": "gen fn G()->I64{yield 1;}fn Main(){var g=G();Iterator.Next(edit g);}"}
+{"id": 115, "source": "fn Main() with no_io{let f=fn (){Print(1);};(  f)();}"}
+{"id": 116, "source": "fn Main() with no_suspend{(fn (){MockUnknown();})();}"}
+{"id": 117, "source": "fn Main() with no_io{(fn (){(fn (){Print(1);})();})();}"}
+{"id": 118, "source": "fn G(y:view Option<I64>){let z=move (y);}fn Main(){}"}
+{"id": 119, "source": "fn G(y:view Option<I64>){let z=move y;}fn Main(){}"}
+{"id": 120, "source": "fn G(y:move Option<I64>){let z=move (y);}fn Main(){}"}
+{"id": 121, "source": "fn G()->MockResource{return MockOpen(1);}fn Main() with no_io{(G)();}"}
+{"id": 122, "source": "fn G()->MockResource{return MockOpen(1);}fn F(r:view MockResource){}fn Main() with no_io{F((G)());}"}

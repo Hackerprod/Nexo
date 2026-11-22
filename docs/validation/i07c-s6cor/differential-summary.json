@@ -1,18 +1,19 @@
 {
- "parts": 4,
+ "parts": 8,
+ "sources": 6740,
  "counts": {
-  "executions": 94776,
-  "same": 35720,
-  "primary": 11668,
+  "executions": 161760,
+  "same": 60428,
+  "primary": 20452,
   "unexplained": 0,
   "debug_release": 0,
   "check_run": 0,
   "base_debug_release": 0
  },
- "primary_moves": 14884,
+ "primary_moves": 26812,
  "unexplained": 0,
  "divergences": 0,
  "residual_group_primaries": 0,
- "sources_sha256": "5cf01a0e1ec5bc55468d4d19977d0769b1e0c2ba5e617cffedc9b715a187d74f",
- "note": "after correction r1"
+ "sources_sha256": "5ddaec1e5eea5569ed4b8a001981a4231f9061f920f74a45c59fdfb2f671ee7d",
+ "note": "after correction r2; includes family-r2.jsonl (2784 programs, four contracts)"
 }

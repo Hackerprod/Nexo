@@ -85,17 +85,34 @@ fn call_head(span: &Span, source: &str) -> Span {
     }
 }
 
-/// Diagnostic site of every written call whose target is a name once the outer
-/// groups are removed, keyed by the call's full span (the span the lowered
-/// call instruction carries). F0-0002 section 8.2 names the call target, never
-/// its parentheses, so a grouped target `(f)()` reports `f`.
+/// The diagnostic site of a written call (F0-0002 section 8.2 and the
+/// addendum on grouped call targets): the name of the target, or, when the
+/// target is not a name, the inner expression once every outer group is
+/// removed, whose head (its first token) is reported.
+enum Site {
+    Name(Span),
+    Anchor(Span),
+}
+
+impl Site {
+    fn anchor(&self) -> &Span {
+        match self {
+            Self::Name(span) | Self::Anchor(span) => span,
+        }
+    }
+}
+
+/// Every written call, keyed by the call's full span (the span the lowered call
+/// instruction carries). A grouped target `(f)()` reports `f`; `(fn (){..})()`
+/// reports `fn`: the groups are never part of the site.
 ///
-/// The second map gives the start of the written call for the span of its
-/// target name. Witness ties are decided by the offsets of the source sites
-/// (F0-0002 second slice, witness selection): a site is the start of the
-/// operation, never the start of the emitted name, so grouping the target does
-/// not change which witness wins.
-struct CallSites(HashMap<Span, Span>, HashMap<Span, u64>);
+/// The second map gives, per file, the start of the written call for the start
+/// of its site (the smallest start when two calls share one). Witness ties are
+/// decided by the offsets of the source sites (F0-0002 second slice, witness
+/// selection): a site is the start of the operation, never the start of the
+/// emitted name or head, so grouping the target does not change which witness
+/// wins.
+struct CallSites(HashMap<Span, Site>, HashMap<String, HashMap<u64, u64>>);
 
 impl CallSites {
     /// Indexes the call sites of every function and closure body and returns
@@ -115,25 +132,41 @@ impl CallSites {
         for closure in super::lower::collect_closures(ast) {
             scope_sites(&closure.body, &mut Vec::new(), &mut calls);
         }
-        let starts = calls
-            .iter()
-            .map(|(call, name)| (name.clone(), call.start))
-            .collect();
+        let mut starts: HashMap<String, HashMap<u64, u64>> = HashMap::new();
+        for (call, site) in &calls {
+            let site = site.anchor();
+            starts
+                .entry(site.file.clone())
+                .or_default()
+                .entry(site.start)
+                .and_modify(|start| *start = (*start).min(call.start))
+                .or_insert(call.start);
+        }
         (Self(calls.into_iter().collect(), starts), guards)
     }
 
     /// Offset used to order a cause step: the start of the written call whose
-    /// target name is `step`, otherwise the step's own start.
+    /// site starts where `step` starts, otherwise the step's own start.
     fn order_start(&self, step: &Span) -> u64 {
-        self.1.get(step).copied().unwrap_or(step.start)
+        self.1
+            .get(step.file.as_str())
+            .and_then(|starts| starts.get(&step.start))
+            .copied()
+            .unwrap_or(step.start)
     }
 
-    /// Name of the written call at `span`; synthetic instructions (drops,
-    /// yields, temporaries) have no written call and keep their own head.
+    /// Site of the written call at `span`, if it is a written call.
+    fn written_head(&self, span: &Span, source: &str) -> Option<Span> {
+        self.0.get(span).map(|site| match site {
+            Site::Name(name) => name.clone(),
+            Site::Anchor(anchor) => call_head(anchor, source),
+        })
+    }
+
+    /// Site of the call at `span`; synthetic instructions (drops, yields,
+    /// temporaries) have no written call and keep their own head.
     fn head(&self, span: &Span, source: &str) -> Span {
-        self.0
-            .get(span)
-            .cloned()
+        self.written_head(span, source)
             .unwrap_or_else(|| call_head(span, source))
     }
 }
@@ -844,12 +877,10 @@ fn function_intrinsic_effect_with_context(
                         Op::DropValue(temp) => temp_spans
                             .get(temp.0)
                             .and_then(Option::as_ref)
-                            .and_then(|span| sites.0.get(span)),
+                            .and_then(|span| sites.written_head(span, &f.source_text)),
                         _ => None,
                     };
-                    producer
-                        .cloned()
-                        .unwrap_or_else(|| sites.head(&ins.span, &f.source_text))
+                    producer.unwrap_or_else(|| sites.head(&ins.span, &f.source_text))
                 } else if let Op::DropBinding(local) | Op::DropLocal(local) = ins.op {
                     f.locals[local.0].name_span.clone()
                 } else {
@@ -1064,7 +1095,7 @@ fn add(a: EffectSummary, b: EffectSummary) -> EffectSummary {
 fn scope_sites(
     block: &crate::frontend::parse::Block,
     out: &mut Vec<Span>,
-    calls: &mut Vec<(Span, Span)>,
+    calls: &mut Vec<(Span, Site)>,
 ) {
     enum Frame<'a> {
         Block(&'a crate::frontend::parse::Block),
@@ -1139,15 +1170,16 @@ fn scope_sites(
                     frames.push(Frame::Expr(left));
                 }
                 Expr::Call { target, args, span } => {
-                    if matches!(
+                    let anchor = crate::frontend::parse::expression_primary_span(target);
+                    let site = if matches!(
                         crate::frontend::parse::expression_primary(target),
                         Expr::Name(..)
                     ) {
-                        calls.push((
-                            span.clone(),
-                            crate::frontend::parse::expression_primary_span(target),
-                        ));
-                    }
+                        Site::Name(anchor)
+                    } else {
+                        Site::Anchor(anchor)
+                    };
+                    calls.push((span.clone(), site));
                     for arg in args.iter().rev() {
                         frames.push(Frame::Expr(&arg.value));
                     }
@@ -4461,7 +4493,10 @@ mod witness_differential_tests {
         let ast = crate::frontend::parse::parse_new_profile("order.n", source).unwrap();
         let sites = sites(&ast);
         let mut checked = 0;
-        for (call, name) in &sites.0 {
+        for (call, site) in &sites.0 {
+            let Site::Name(name) = site else {
+                panic!("only name targets here");
+            };
             let text = &source[name.start as usize..name.end as usize];
             assert!(matches!(text, "F" | "f" | "Print"), "{text:?}");
             assert_eq!(sites.order_start(name), call.start);
@@ -4527,6 +4562,32 @@ mod witness_differential_tests {
                 assert_eq!(text, "MockOpen", "{source}");
             }
         }
+    }
+
+    // A call whose target is not a name reports the head (first token) of the
+    // inner expression, never an empty span, and orders by the call start.
+    #[test]
+    fn grouped_non_name_targets_report_their_head_and_order_by_the_call() {
+        let source = "fn Main(){fn (){Print(1);}();(fn (){Print(1);})();((fn (){Print(1);}))();}";
+        let ast = crate::frontend::parse::parse_new_profile("anchor.n", source).unwrap();
+        let sites = sites(&ast);
+        let mut heads = Vec::new();
+        for (call, site) in &sites.0 {
+            if let Site::Anchor(_) = site {
+                let head = sites.head(call, source);
+                assert_eq!(&source[head.start as usize..head.end as usize], "fn");
+                assert_eq!(sites.order_start(&head), call.start);
+                heads.push((call.start, head.start));
+            }
+        }
+        heads.sort_unstable();
+        let first = source.find("fn (){Print(1);}();").unwrap() as u64;
+        let second = source.find("(fn (){Print(1);})();").unwrap() as u64;
+        let third = source.find("((fn (){Print(1);}))();").unwrap() as u64;
+        assert_eq!(
+            heads,
+            [(first, first), (second, second + 1), (third, third + 2)]
+        );
     }
 
     fn witness_chain(size: usize) -> (String, Ast, Program, usize, Vec<Vec<Witness>>) {

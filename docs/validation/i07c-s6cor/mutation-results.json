@@ -76,19 +76,6 @@
   "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
  },
  {
-  "id": "N1",
-  "family": "names missing_argument target",
-  "file": "src/check/names.rs",
-  "occurrences": 1,
-  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
-  "sha_mutated": "18227bd46e04c1a00ba24fa32224b1698edf72bf90229b5873fced58d0c27fd4",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "(21/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
-  ],
-  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
- },
- {
   "id": "N2",
   "family": "names None non_callable",
   "file": "src/check/names.rs",
@@ -323,127 +310,6 @@
   "sha_restored": "4060b053f6a00cd42ec520cabc435fef82d9db0d27f38c6f1f26fb8959b42a06"
  },
  {
-  "id": "E1",
-  "family": "effects intrinsic first step",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
-  "sha_mutated": "c0e198b188b2123604852fc953761af5b0ccc74eb6ec6b50ed3cd7c59530a9f8",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "( 4/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
-  ],
-  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
- },
- {
-  "id": "E2",
-  "family": "effects local primary fallback",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
-  "sha_mutated": "2e15f5a0440b1374676327c1ca1ffc4db78aa803746eb0df8e405b0fbce45f40",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "( 5/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
-  ],
-  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
- },
- {
-  "id": "E9",
-  "family": "effects dropped temporary producer",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
-  "sha_mutated": "89d0e0402ff98c04f21efc685beeb026c861482d0694857368fb94c19e2bc0e4",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "(23/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
-  ],
-  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
- },
- {
-  "id": "E3",
-  "family": "effects transitive first step",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
-  "sha_mutated": "8c34858e486466aef3fdeec8bd9e80ac3cf25beb0c3cad6a4aa9aee25be0f5bb",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "( 3/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
-   "(19/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
-  ],
-  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
- },
- {
-  "id": "E4",
-  "family": "effects guard call",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
-  "sha_mutated": "df559f000300b20e9c14e8e009e4ac9ff2c07282e786660f88ad7b86d940b669",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "(23/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
-  ],
-  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
- },
- {
-  "id": "E5",
-  "family": "effects temporary drop head",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3",
-  "sha_mutated": "e78926948df81a1f5fcdcb0aeb63e93349c50c0d676e0c4c15b4c6a948db85d5",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "(23/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
-  ],
-  "sha_restored": "97655782a3180f8e8a7f3f3264df19e6503050ea859e7683e02f8b7fe9b6abe3"
- },
- {
-  "id": "E6",
-  "family": "effects index without calls",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
-  "sha_mutated": "8c847e9e4871c3536d0ecdc4621b2bca783e51eaaee6dcd2a77cd2c59b7f1204",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "( 3/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
-   "( 4/26) nexo ir::effects::witness_differential_tests::written_calls_resolve_to_the_target_name_under_groups",
-   "( 5/26) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
-  ],
-  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
- },
- {
-  "id": "E7",
-  "family": "effects index without closure bodies",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
-  "sha_mutated": "72bf206d1072ae28f09f61923f4bfad125c1eec70db4e4b58b9f7494bf659122",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "( 3/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
-   "( 4/26) nexo ir::effects::witness_differential_tests::written_calls_resolve_to_the_target_name_under_groups"
-  ],
-  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
- },
- {
-  "id": "E8",
-  "family": "effects oracle step",
-  "file": "src/ir/effects.rs",
-  "occurrences": 1,
-  "sha_initial": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec",
-  "sha_mutated": "4cf6c187ae74d604208396d749ce185b1c1f8f46552acc2bf1fffb96c82eb665",
-  "verdict": "MUERTO",
-  "killed_by": [
-   "( 1/26) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls"
-  ],
-  "sha_restored": "268a74703023bd0ed659965181fbe78e75819ceb8eddf2ea0a195832eb00eeec"
- },
- {
   "id": "S1",
   "family": "S5b.1 selector of a failed base inherits the base taint",
   "file": "src/check/types.rs",
@@ -457,60 +323,249 @@
   "sha_restored": "54c9dfedb4c6909bba132e8889a791a88d6d9cfc7929d7bbc2e4bb6490cafd93"
  },
  {
+  "id": "S2a",
+  "family": "r2 Anchor head from the call span",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "0b5dce052f03b7dc08a9d6bf77c93d9c1e5b28a577087671dc2f615295c4d4cb",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(27/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "S2b",
+  "family": "r2 index only name targets",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "3600ab3871d2acb480e395b110b6710e26d3bfe188560156f1edabb8d586c88a",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(27/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "S2c",
+  "family": "r2 anchor keeps the group span",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "1e71c854481169842497751e964fd9972cb6417c0419ef5e3b2ace45121eb3e3",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 1/28) nexo ir::effects::witness_differential_tests::order_start_is_the_call_start_for_every_target_shape",
+   "( 4/28) nexo ir::effects::witness_differential_tests::written_calls_resolve_to_the_target_name_under_groups",
+   "( 5/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call",
+   "( 6/28) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
+   "( 7/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "S2d",
+  "family": "r2 order key by the end of the site",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "1b5338e8f899e13d539df267c661fd517372fcf654c2d0378633c8aa8385ef4d",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 2/28) nexo ir::effects::witness_differential_tests::order_start_is_the_call_start_for_every_target_shape",
+   "( 4/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
+   "(22/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "S2e",
+  "family": "r2 order key keeps the largest call start",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "ebbd7eb435efb2600c7e206973fcef1987dd4984536a7dca87c6d59eeca16c06",
+  "verdict": "SUPERVIVIENTE (selected tests)",
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "note": "equivalent: two written calls sharing the head start need a call-result target, which is rejected before effects (NX-E0111)"
+ },
+ {
+  "id": "Y1",
+  "family": "r2 move (y) permission_error with the raw span",
+  "file": "src/ir/lower.rs",
+  "occurrences": 1,
+  "sha_initial": "5fe888ad20292a00d82207609a63e5994f330f0a35b266e0c627a0d99f11a054",
+  "sha_mutated": "36bca8ad7bbc891bd55d6bd4d17cb0f8e498b56b002716aade19c4ec56f2df30",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(27/28) nexo::suite i07c_group_primary::ownership_diagnostics_report_the_inner_place_or_value"
+  ],
+  "sha_restored": "5fe888ad20292a00d82207609a63e5994f330f0a35b266e0c627a0d99f11a054"
+ },
+ {
+  "id": "E1",
+  "family": "effects intrinsic first step",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "6cb3dbfa084d377934f30856e93920ad457eb55f490043097233bbd1a35a016b",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
   "id": "R1",
   "family": "r1 order_start is the identity",
   "file": "src/ir/effects.rs",
   "occurrences": 1,
-  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
-  "sha_mutated": "06626ef320b579e37002224a5eaef0ef1745fb9dae1044934500ff4b534f99aa",
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "47d98962bbd4d25aa9cc472fe393d4a679ea62be2e89d964bd9ea045b926ca3c",
   "verdict": "MUERTO",
   "killed_by": [
    "( 2/28) nexo ir::effects::witness_differential_tests::order_start_is_the_call_start_for_every_target_shape",
-   "( 3/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
+   "( 4/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
    "(22/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
   ],
-  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
  },
  {
   "id": "R2",
   "family": "r1 compare_paths offsets without order_start",
   "file": "src/ir/effects.rs",
   "occurrences": 1,
-  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
-  "sha_mutated": "31b58a32d5e40480024689bf4b2674c06be05ba2351c864f8f1a14f9bc8da764",
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "a63d923752cd17fa49b8e07414fae34f3258fa2cdcf210b2b3e56f7209fbc647",
   "verdict": "MUERTO",
   "killed_by": [
-   "( 2/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
-   "(22/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+   "( 3/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
+   "(23/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
   ],
-  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
  },
  {
   "id": "R3",
   "family": "r1 oracle offsets without order_start",
   "file": "src/ir/effects.rs",
   "occurrences": 1,
-  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
-  "sha_mutated": "f1cb14ac8f047fb2d011affacea0f3772a1b9c07a4ed87e3c7db92ac69fe518c",
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "8165aa83779af897e4e467900269e41fb17f27f706bdae7280e886e2f89ec0d0",
   "verdict": "MUERTO",
   "killed_by": [
-   "( 6/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call"
+   "( 3/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call"
   ],
-  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
  },
  {
-  "id": "R4",
-  "family": "r1 empty start index",
+  "id": "E3",
+  "family": "effects transitive first step",
   "file": "src/ir/effects.rs",
   "occurrences": 1,
-  "sha_initial": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9",
-  "sha_mutated": "e068fadc6284cef366c41d68acbef73bbe30b81d2a70e548852fc4cdba42625b",
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "4501f9c32bb612d2da7049f9fa25a6cd7d8a196e3ac5403e8f71f8940840616a",
   "verdict": "MUERTO",
   "killed_by": [
-   "( 1/28) nexo ir::effects::witness_differential_tests::order_start_is_the_call_start_for_every_target_shape",
-   "( 5/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
-   "(21/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+   "( 5/28) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
+   "(20/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
   ],
-  "sha_restored": "6a2fd94648c6f009a80c25d17a60ea1683ead2d683c1ecab0daa1baa3b191da9"
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "E4",
+  "family": "effects guard call",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "9340dc131360c8008cffc051d1d048efae86780c4ae97619348fd62a164c664b",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(25/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "E2",
+  "family": "effects dropped temporary fallback",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "cac297df1f2a7402955fe617efce432ac68984e839aabc3e06955957a055793f",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/28) nexo ir::effects::witness_differential_tests::grouped_resource_constructor_keeps_the_witness_of_the_bare_call",
+   "( 7/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "E5",
+  "family": "effects temporary drop head",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "9688e81baa024976a11e1727a0a30aa36160e6840e05dc8dcc7f5e6fe28e4732",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(28/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "E7",
+  "family": "effects index without closure bodies",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "859be9fdc817f5adcf5dc01a50de5de1edf90afd702ce1cef12ba558e00c389e",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/28) nexo ir::effects::witness_differential_tests::written_calls_resolve_to_the_target_name_under_groups",
+   "( 6/28) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls",
+   "(23/28) nexo::suite i07c_structural_invariants::grouped_operands_keep_one_causal_primary",
+   "(26/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "E8",
+  "family": "effects oracle step",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "6b40a534df28b2129f88160a04f1ce1aaafb67975b44b123e7ecadc18d7627cb",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "( 5/28) nexo ir::effects::witness_differential_tests::witness_search_and_enumerator_agree_on_grouped_and_closure_calls"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "E9",
+  "family": "effects dropped temporary producer",
+  "file": "src/ir/effects.rs",
+  "occurrences": 1,
+  "sha_initial": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5",
+  "sha_mutated": "fca6462fa44d9ecb13ed98da98f3cae9c0380b90f8ebcfbd4b85198dd0a6e0b1",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(28/28) nexo::suite i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call"
+  ],
+  "sha_restored": "7557010d4becc8270d6c0a6e39ba302460fe4114e32a17d5368e36cf59baada5"
+ },
+ {
+  "id": "N1",
+  "family": "names missing_argument target",
+  "file": "src/check/names.rs",
+  "occurrences": 1,
+  "sha_initial": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf",
+  "sha_mutated": "18227bd46e04c1a00ba24fa32224b1698edf72bf90229b5873fced58d0c27fd4",
+  "verdict": "MUERTO",
+  "killed_by": [
+   "(21/26) nexo::suite i07c_group_primary::call_binding_diagnostics_report_the_inner_target_and_argument"
+  ],
+  "sha_restored": "3363b499e7e0befaacbb2697a7cb5c1091d2d36c641e2a42cb335a5577f541bf"
  }
 ]
