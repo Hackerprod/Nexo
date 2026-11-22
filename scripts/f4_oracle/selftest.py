@@ -7,6 +7,7 @@ from the pinned ADR (``fixtures_io``) or from the hand-written pairs; no binary 
 
 from __future__ import annotations
 
+import json
 import os
 import random
 import re
@@ -55,6 +56,10 @@ def _norm(path) -> str | None:
 def _install_hook():
     if _Hook.installed:
         return
+    # lazy imports of the standard library (hashing, seeding) must not happen while armed
+    hashlib_warm = __import__("hashlib")
+    hashlib_warm.sha256(b"").hexdigest()
+    random.Random("warm").random()
     stdlib = os.path.dirname(os.path.abspath(os.__file__))
     prefixes = [os.path.normcase(p) for p in fio.allowed_read_paths()]
     prefixes.append(os.path.normcase(audit.HERE))
@@ -963,10 +968,356 @@ def run_semantics_extras(rep: Report):
     rep.check("extra.for_alias_and_pop_do_not_copy", alias[2] is None and alias[1].fault is None)
 
 
+
+# ------------------------------------------------------------------ O3: generators (V/N/L/B)
+# Scale, minimums and corpus SHA (plan 4).  Expected values come from K through the model;
+# the generator is also checked against the literal rows of K with scripted choices.
+
+from . import generate as gen
+
+SCALE = {f"G{i}": ((300, 300) if i < 2 else (500, 500)) for i in range(10)}
+MIN_STRUCT = {f"G{i}": (20 if i < 2 else 30) for i in range(10)}
+SEED_RANGE = range(0, 8)
+G10_SEEDS = (0, 31)
+EXTRA_LABELS = {
+    "G5+": ("G5", ("K01", "K02", "K03", "K04", "K05", "K06", "K07", "K08")),
+    "G6+": ("G6", ("K01", "K02", "K03", "K04", "K05", "K06", "K07", "K08")),
+    "G7+": ("G7", ("K01", "K02", "K03", "K04", "K05", "K06", "K07", "K08")),
+    "G8+": ("G8", ("K01", "K02", "K03", "K04", "K05", "K06", "K07", "K08", "K09")),
+}
+
+
+def gen_labels() -> list:
+    """(label, phase, complete, valid, invalid, seeds, min structural)."""
+    out = []
+    for i in range(10):
+        ph = f"G{i}"
+        out.append((ph, ph, barrier.PHASES[ph][0], *SCALE[ph], SEED_RANGE, MIN_STRUCT[ph]))
+    for label, (ph, comp) in EXTRA_LABELS.items():
+        out.append((label, ph, comp, *SCALE[ph], (0,), MIN_STRUCT[ph]))
+    out.append(("G10", "G10", barrier.PHASES["G10"][0], 1000, 1000, G10_SEEDS, 50))
+    return out
+
+
+def corpus_table() -> dict:
+    """SHA-256 of the generated corpus per label/seed/class (the pinned table)."""
+    table = {}
+    for label, ph, comp, nv, ni, seeds, _ in gen_labels():
+        for seed in seeds:
+            recs, _, _ = gen.generate_seed(seed, ph, comp, nv, ni)
+            for c in "VNLB":
+                table[f"{label}|{seed}|{c}"] = gen.corpus_sha(recs, c)
+    return table
+
+
+class FixedGen(gen.Gen):
+    """Generator source with scripted names and values (reproduces the K rows)."""
+
+    def __init__(self, **queues):
+        super().__init__(None)
+        self.q = {k: list(v) for k, v in queues.items()}
+
+    def _pop(self, key):
+        return self.q[key].pop(0)
+
+    def var(self): return self._pop("var")
+    def ty(self): return self._pop("ty")
+    def fld(self): return self._pop("fld")
+    def fn(self): return self._pop("fn")
+    def vnt(self): return self._pop("vnt")
+    def mth(self): return self._pop("mth")
+    def i(self, lo=0, hi=20): return m.I(self._pop("i"))
+    def text(self, escapes=False): return self._pop("text")
+    def pad(self): return []
+    def sep(self): return ""
+
+
+class Scripted:
+    """Random source that replays a list of choices (checked against the offered values)."""
+
+    def __init__(self, values):
+        self.q = list(values)
+
+    def choice(self, seq):
+        v = self.q.pop(0)
+        assert v in seq, (v, seq)
+        return v
+
+
+ROW_CASES = [
+    ("X04", "n_string_index", dict(var=["s"], text=["é"], i=[0])),
+    ("X05", "n_unknown_field", dict(ty=["S"], fld=["x", "y"], var=["s"], i=[1])),
+    ("X08", "n_missing_arg", dict(ty=["S"], fld=["x"], var=["s"], i=[1])),
+    ("X09", "n_unknown_label", dict(ty=["S"], fld=["x", "z"], var=["s"], i=[1])),
+    ("X10", "n_assign_let_field", dict(ty=["S"], fld=["x"], var=["s"], i=[1, 2])),
+    ("X11", "n_copy_resource", dict(ty=["S"], fld=["r"], var=["s", "t"], i=[1])),
+    ("X12", "n_print_no_format", dict(ty=["S"], fld=["x"], var=["s"], i=[1])),
+    ("N01", "n_pattern_arity", dict(ty=["E"], vnt=["A"], var=["e", "x", "y"], i=[1, 2])),
+    ("N02", "n_non_exhaustive", dict(ty=["E"], vnt=["A", "B"], var=["e"])),
+    ("N03", "n_unknown_variant", dict(ty=["E"], vnt=["A", "B"], var=["e"])),
+    ("N04", "n_nominal_mismatch", dict(ty=["A", "B"], var=["x"])),
+    ("O10", "n_for_string", dict(var=["x"], text=["é"])),
+    ("O12", "n_for_nominal", dict(ty=["S"], var=["x"])),
+    ("P05", "n_non_callable", dict(ty=["Evento"], vnt=["Inicio"])),
+    ("P06", "n_drop_field", dict(ty=["S"], fld=["campo"], var=["p"], i=[1])),
+    ("M01", "n_missing_edit_prefix", dict(ty=["S"], mth=["F"], var=["s"])),
+    ("M02", "n_no_use_extension", dict(ty=["S"], mth=["F"], var=["s"])),
+    ("H12", "n_temp_edit", dict(ty=["S"], mth=["F"])),
+    ("H13", "n_temp_move", dict(ty=["S"], mth=["F"])),
+    ("H12-edit", "n_edit_non_place", dict(ty=["S"], mth=["F"], var=["s"])),
+    ("B01-text", "n_b01_text", dict(var=["a", "x"], text=["x", "y"])),
+    ("B01-struct", "n_b01_struct", dict(ty=["S"], fld=["x"], var=["a", "x"], i=[1, 2])),
+]
+
+L_ROW_CASES = [
+    ("X01", "l_empty", ["", "", "", 0, "let", "s"]),
+    ("H05", "l_empty", [" \t ", "é", "", 0, "let", "s"]),
+    ("X02", "l_unescaped_close", ["", "", 0, "let", "s"]),
+    ("X03", "l_unterminated", ["", 1, 0, "let", "s"]),
+    ("L01", "l_incomplete_open", ["", 0, "let", "s"]),
+    ("H06", "l_incomplete_expr", ["é", 1, 0, "let", "s"]),
+    ("H04", "l_comment", ["é", 1, 0, "let", "s"]),
+    ("H03", "l_raw_break", ["é", "\n", 1, 0, "let", "s"]),
+    ("H01", "l_raw_break", ["é", "\r\n", 1, 0, "let", "s"]),
+    ("H02", "l_raw_break", ["é", "\r", 1, 0, "let", "s"]),
+]
+
+
+def _fam(name):
+    for f in gen.V_FAMS + gen.N_FAMS + gen.L_FAMS + gen.B_FAMS:
+        if f.name == name:
+            return f
+    raise KeyError(name)
+
+
+def _no_file(value):
+    """Spans carry the case file name, which differs between a K row and a generated case."""
+    if isinstance(value, dict):
+        return {k: ("F" if k == "file" else _no_file(v)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_no_file(v) for v in value]
+    return value
+
+
+def _fields_match(got: dict, want: dict, names) -> list:
+    return [n for n in names if _no_file(got.get(n)) != _no_file(want.get(n))]
+
+
+def check_rows_reproduced(rep: Report):
+    """The generator, driven by scripted choices, rebuilds each K row (source and diagnostic)."""
+    emap = entry_map()
+    bad = []
+    for ident, fam_name, queues in ROW_CASES:
+        entry = emap[ident]
+        fam = _fam(fam_name)
+        g = FixedGen(**queues)
+        build = fam.build(g)
+        program = m.Program(list(build(False)), sep="")
+        rpt = {"cls": "N", "family": fam_name, "closed": sorted(barrier.ALL_K), "verbs": ["check", "run"],
+               "fields": fam.fields, "program": gen.to_repr(program)}
+        res = gen.expect(rpt)
+        want = expected_diagnostic(entry)
+        got = res["diags"][0] if res["diags"] else {}
+        problems = []
+        if res["source"] != entry["source"]:
+            problems.append("source")
+        diff = _fields_match(got, want, gen.fields_of(fam.fields))
+        if diff:
+            problems.append("fields " + ",".join(diff))
+        pos = m.Program(list(fam.build(FixedGen(**queues))(True)), sep="")
+        pres = gen.expect({"cls": "P", "family": fam_name, "closed": sorted(barrier.ALL_K),
+                           "verbs": ["check", "run"], "fields": "", "program": gen.to_repr(pos)})
+        if pres["status"] != "ok" or ("positive" in entry and pres["source"] != entry["positive"]["source"]):
+            problems.append("positive")
+        if problems:
+            bad.append(f"{ident}: {'; '.join(problems)}")
+    for ident, fam_name, script in L_ROW_CASES:
+        entry = emap[ident]
+        fam = _fam(fam_name)
+        g = gen.Gen(Scripted(script))
+        lit = fam.build(g)
+        res = gen.expect({"cls": "L", "family": fam_name, "closed": sorted(barrier.ALL_K),
+                          "verbs": ["check", "run"], "fields": fam.fields, "lit": lit})
+        want = expected_diagnostic(entry)
+        got = res["diags"][0] if res["diags"] else {}
+        problems = []
+        if res["source"] != entry["source"]:
+            problems.append("source")
+        diff = _fields_match(got, want, gen.fields_of(fam.fields))
+        if diff:
+            problems.append("fields " + ",".join(diff))
+        if problems:
+            bad.append(f"{ident}: {'; '.join(problems)}")
+    rep.check("gen.rows_reproduced", not bad, "; ".join(bad[:5]))
+    rep.check("gen.rows_count", len(ROW_CASES) + len(L_ROW_CASES) >= 32)
+
+
+def run_gen(rep: Report):
+    pinned = fio.load_json("f4_oracle_corpus_sha.json")
+    got_table = {}
+    discard_bad, short, fam_bad, mins_bad = [], [], [], []
+    for label, ph, comp, nv, ni, seeds, min_s in gen_labels():
+        fam_union = {}
+        for seed in seeds:
+            recs, st, fs = gen.generate_seed(seed, ph, comp, nv, ni)
+            for c in "VNLB":
+                got_table[f"{label}|{seed}|{c}"] = gen.corpus_sha(recs, c)
+            for c in "VNLB":
+                extra = set(st[c]["discards"]) - {"duplicate"}
+                if extra:
+                    discard_bad.append(f"{label}/{seed}/{c}: {sorted(extra)}")
+            if st["V"]["distinct"] < nv:
+                short.append(f"{label}/{seed}: V {st['V']['distinct']}<{nv}")
+            inv = sum(st[c]["distinct"] for c in "NLB")
+            if inv < ni:
+                short.append(f"{label}/{seed}: invalid {inv}<{ni}")
+            if len(st["V"]["structural"]) < min_s:
+                mins_bad.append(f"{label}/{seed}: V structural {len(st['V']['structural'])}<{min_s}")
+            inv_struct = set()
+            for c in "NLB":
+                inv_struct |= st[c]["structural"]
+            if len(inv_struct) < min_s:
+                mins_bad.append(f"{label}/{seed}: invalid structural {len(inv_struct)}<{min_s}")
+            for name, f in fs.items():
+                u = fam_union.setdefault(name, [set(), f["max_forms"]])
+                u[0] |= f["structural"]
+        for name, (forms, max_forms) in (fam_union.items() if len(seeds) > 1 else ()):
+            need = 8 if max_forms is None else min(8, max_forms)
+            if len(forms) < need:
+                fam_bad.append(f"{label}/{name}: {len(forms)}<{need}")
+    rep.check("gen.no_inconsistent_discards", not discard_bad, "; ".join(discard_bad[:4]))
+    rep.check("gen.distinct_minimums", not short, "; ".join(short[:4]))
+    rep.check("gen.structural_minimums", not mins_bad, "; ".join(mins_bad[:4]))
+    rep.check("gen.family_structural_minimums", not fam_bad, "; ".join(fam_bad[:6]))
+    rep.check("gen.corpus_sha.scale", pinned["scale"] == {k: list(v) for k, v in SCALE.items()}
+              and pinned["g10"] == [1000, 1000, 50], "scale differs from the pinned table")
+    wrong = [k for k in got_table if pinned["entries"].get(k) != got_table[k]]
+    extra_pin = [k for k in pinned["entries"] if k not in got_table]
+    rep.check("gen.corpus_sha", not wrong and not extra_pin,
+              f"python {pinned.get('python')}; differ: {wrong[:3]} extra: {extra_pin[:3]}")
+    # JSON round trip of the representation and expected hashes (one seed, every label)
+    bad_rt, bad_sha = [], []
+    for label, ph, comp, nv, ni, seeds, _ in gen_labels():
+        recs, _, _ = gen.generate_seed(1, ph, comp, 40, 40)
+        for r in recs:
+            back = json.loads(fio.dumps(r["repr"]))
+            res = gen.expect(back)
+            if utf8ref.text(res["source"]).hex() != r["source_hex"] or res["expected"] != r["expected"]:
+                bad_rt.append(f"{label}/{r['family']}")
+            if fio.sha256_text(fio.dumps(r["expected"])) != r["expected_sha256"]:
+                bad_sha.append(f"{label}/{r['family']}")
+    rep.check("gen.repr_roundtrip", not bad_rt, ", ".join(bad_rt[:4]))
+    rep.check("gen.expected_sha256", not bad_sha, ", ".join(bad_sha[:4]))
+    a = gen.generate_seed(2, "G3", barrier.PHASES["G3"][0], 120, 120)[0]
+    b = gen.generate_seed(2, "G3", barrier.PHASES["G3"][0], 120, 120)[0]
+    rep.check("gen.deterministic", gen.corpus_sha(a) == gen.corpus_sha(b) and len(a) > 200)
+    rep.check("gen.seeds_differ", gen.corpus_sha(a) !=
+              gen.corpus_sha(gen.generate_seed(3, "G3", barrier.PHASES["G3"][0], 120, 120)[0]))
+    check_rows_reproduced(rep)
+    check_gen_structure(rep)
+
+
+def check_gen_structure(rep: Report):
+    """Family tables, barrier gating, classes and reductions."""
+    closed_g2 = barrier.PHASES["G2"][0]
+    names = gen.family_table("G2", closed_g2)
+    rep.check("gen.gating.G2", "n_unknown_field" not in names["N"] and "n_for_string" in names["N"]
+              and "b_k03" not in names["B"] and "b_k04" in names["B"], str(names))
+    rep.check("gen.gating.G0_no_N", gen.family_table("G0", barrier.PHASES["G0"][0])["N"] == [])
+    rep.check("gen.gating.G9_no_B", gen.family_table("G9", barrier.PHASES["G9"][0])["B"] == [])
+    bad_manifest = []
+    for ph, comp in [("G3", ("K01", "K02", "K03")), ("G9", ("K01", "K02", "K03", "K04", "K05")),
+                     ("G5", ("K01", "K02", "K03", "K04", "K05", "K06", "K09"))]:
+        try:
+            gen.generate_seed(0, ph, comp, 1, 1)
+            bad_manifest.append(ph)
+        except barrier.ManifestError:
+            pass
+    rep.check("gen.manifest_rejected", not bad_manifest, str(bad_manifest))
+    recs, _, _ = gen.generate_seed(0, "G1", barrier.PHASES["G1"][0], 60, 60)
+    fam_by_name = {f.name: f for f in gen.V_FAMS + gen.N_FAMS + gen.L_FAMS + gen.B_FAMS}
+    bad = []
+    for r in recs:
+        f = fam_by_name[r["family"]]
+        if r["role"] != "main":
+            continue
+        d = r["expected"].get("check", {}).get("diagnostics", [])
+        if f.cls == "B" and d[0]["data"]["pending_scope"] != f.target:
+            bad.append(r["family"])
+        if f.cls == "L" and d[0]["subcause"] != f.sub:
+            bad.append(r["family"])
+        if f.cls == "N" and d[0]["code"] != f.code:
+            bad.append(r["family"])
+        if f.cls == "V" and d:
+            bad.append(r["family"])
+    rep.check("gen.class_contracts", not bad, ", ".join(bad[:4]))
+    g0, _, _ = gen.generate_seed(0, "G0", barrier.PHASES["G0"][0], 20, 60)
+    prim = {}
+    for r in g0:
+        if r["fclass"] == "B":
+            prim.setdefault(r["family"], set()).add("primary_span" in r["expected"]["fields"])
+    rep.check("gen.barrier_primary_only_for_literals",
+              True in prim.get("b_k02", ()) and prim.get("b_k04") == {False} and prim.get("b_k09") == {False},
+              str(prim))
+    lpos = [r for r in g0 if r["fclass"] == "L" and r["role"] == "positive"]
+    rep.check("gen.L_positive_hits_K02_barrier_at_G0",
+              bool(lpos) and all(r["expected"]["check"]["diagnostics"][0]["data"]["pending_scope"] == "K02"
+                                 for r in lpos))
+    g3, _, _ = gen.generate_seed(0, "G3", barrier.PHASES["G3"][0], 20, 60)
+    lpos3 = [r for r in g3 if r["fclass"] == "L" and r["role"] == "positive"]
+    rep.check("gen.L_positive_accepted_with_K02",
+              bool(lpos3) and all(r["expected"]["check"]["outcome"] == {"kind": "checked"}
+                                  and r["expected"]["run"]["outcome"] == {"kind": "unit"} for r in lpos3))
+    small, total = 0, 0
+    for r in gen.generate_seed(4, "G9", barrier.ALL_K, 40, 80)[0]:
+        if r["role"] != "main":
+            continue
+        cands = gen.reductions(r["repr"])
+        total += len(cands)
+        for c in cands[:6]:
+            res = gen.expect(c)
+            if len(res["source"]) < len(utf8ref.from_bytes(bytes.fromhex(r["source_hex"]))):
+                small += 1
+    rep.check("gen.reductions.produce_smaller", total > 100 and small > 100, f"{total} {small}")
+    base = gen.generate_seed(4, "G9", barrier.ALL_K, 5, 5)[0][0]
+    before = fio.dumps(base["repr"])
+    gen.reductions(base["repr"])
+    rep.check("gen.reductions.pure", fio.dumps(base["repr"]) == before)
+    p1 = m.Program([main(LET("a", I(1)), ES(C("Print", BIN(N("a"), "+", I(2)))))])
+    p2 = m.Program([main(LET("zz", I(99)), ES(C("Print", BIN(N("zz"), "+", I(7)))))])
+    p3 = m.Program([main(LET("a", I(1)), ES(C("Print", BIN(N("a"), "-", I(2)))))])
+    rep.check("gen.structural_form", gen.structural_program(p1) == gen.structural_program(p2)
+              and gen.structural_program(p1) != gen.structural_program(p3))
+    p4 = m.Program([main(LET("a", S("é")))])
+    p5 = m.Program([main(LET("b", S("zzz")))])
+    p6 = m.Program([main(LET("b", S("z", I(1))))])
+    rep.check("gen.structural_string_content", gen.structural_program(p4) == gen.structural_program(p5)
+              and gen.structural_program(p4) != gen.structural_program(p6))
+
+
+def check_gen_subprocess(rep: Report):
+    """Determinism across interpreter processes with different hash randomisation."""
+    import subprocess
+    outs = []
+    for hs in ("1", "777"):
+        env = dict(os.environ, PYTHONHASHSEED=hs, PYTHONUTF8="1")
+        r = subprocess.run([sys.executable, "-B", "-m", "scripts.f4_oracle.cli", "corpus-sha",
+                            "--label", "G3", "--seeds", "2:2"], capture_output=True, cwd=audit.ROOT, env=env,
+                           timeout=120)
+        outs.append((r.returncode, r.stdout))
+    ref = gen.generate_seed(2, "G3", barrier.PHASES["G3"][0], *SCALE["G3"])[0]
+    want = {c: gen.corpus_sha(ref, c) for c in "VNLB"}
+    ok = all(rc == 0 for rc, _ in outs) and outs[0][1] == outs[1][1]
+    lines = outs[0][1].decode().split()
+    ok = ok and all(f"G3|2|{c}={want[c]}" in lines for c in "VNLB")
+    rep.check("gen.deterministic_across_processes", ok, str(outs[0][0]) + str(lines[:2]))
+
+
 GROUPS = {"G0": run_g0, "G1": _rows_group("G1"), "G2": lambda rep: (run_model_basics(rep), _rows_group("G2")(rep)),
           "G3": lambda rep: (_rows_group("G3")(rep), run_scc_variants(rep)),
           "G4": _rows_group("G4"), "G5": _rows_group("G5"), "G6": _rows_group("G6"),
-          "G7": _rows_group("G7"), "G8": lambda rep: (_rows_group("G8")(rep), run_semantics_extras(rep))}
+          "G7": _rows_group("G7"), "G8": lambda rep: (_rows_group("G8")(rep), run_semantics_extras(rep)),
+          "GEN": run_gen}
 
 
 def run(fast: bool = False, groups=None) -> int:
@@ -983,6 +1334,8 @@ def run(fast: bool = False, groups=None) -> int:
             fn = GROUPS[name]
             _, violations = run_audited(lambda f=fn: f(rep))
             rep.check(f"audit.dynamic.{name}", not violations, "; ".join(violations[:4]))
+        if groups is None or "GEN" in groups:
+            check_gen_subprocess(rep)
         probes = []
         _, v1 = run_audited(lambda: open(os.path.join(audit.ROOT, "Cargo.toml"), "rb").close())
         probes.append(bool(v1))

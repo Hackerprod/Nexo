@@ -6,3 +6,4 @@ El producto no implementa F0-0004 (K01–K12 pendientes): no existe binario cont
 |---|---|---|
 | F4-O1 | L-NX-E1401 (G0), barrera K02–K10 y manifiesto, literales de K §§10.1–10.8 (integridad y fragmentos) | NO EVALUADO: ninguna capacidad K está implementada, el binario vigente rechaza o ignora la sintaxis F4. |
 | F4-O2 | String/parseo/slicing/comparadores, nominales, SCC, propiedad/préstamo, métodos, patrones, derive/Format/PartialEq, visibilidad (pares G1–G8) | NO EVALUADO: mismo motivo; los pares comprueban el modelo contra los literales de K, no contra el CLI. |
+| F4-O3 | Generadores V/N/L/B (G0–G10): 14 familias V, 71 N, 7 L, 12 B, positivos reparados, `reductions`, forma estructural y SHA de corpus | NO EVALUADO: el binario no implementa K; las filas literales de K se reproducen con elecciones guionadas del generador (32 filas). |
