@@ -193,9 +193,27 @@ def unique_literal(source: str, start: int, end: int, replacement: str) -> tuple
     return literal, literal[:start - left] + replacement + literal[end - left:]
 
 
+def line_ranges() -> dict[str, list[tuple[int, int]]]:
+    """Acota la poblacion a rangos de lineas: I07C_MUT_LINES="ruta:ini-fin[,ruta:ini-fin]" (andamiaje)."""
+    spec = os.environ.get("I07C_MUT_LINES", "").strip()
+    ranges: dict[str, list[tuple[int, int]]] = {}
+    for part in filter(None, (piece.strip() for piece in spec.split(","))):
+        path, span = part.rsplit(":", 1)
+        start, stop = span.split("-")
+        ranges.setdefault(path, []).append((int(start), int(stop)))
+    return ranges
+
+
 def candidates(base: str) -> list[dict]:
     result: list[dict] = []
     changed = changed_lines(base)
+    ranges = line_ranges()
+    if ranges:
+        changed = {
+            path: {line for line in lines
+                   if any(start <= line <= stop for start, stop in ranges[path])}
+            for path, lines in changed.items() if path in ranges
+        }
     for path, lines in sorted(changed.items()):
         source = (ROOT / path).read_text(encoding="utf-8")
         mask = code_mask(source)
