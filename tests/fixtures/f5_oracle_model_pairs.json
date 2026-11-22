@@ -1,0 +1,17 @@
+[
+  {"id":"push_copy_nested","adr":"§9.3, Push/Pop/JoinArrays; §4.1, copy by value","source":"fn Main(){var a=[[1]];var b=[2];Push(edit a,b);Push(edit b,3);Print(a);}","stdout":["[[1], [2]]"]},
+  {"id":"for_array_order","adr":"§3.2, array iteration; §9.3","source":"fn Main(){for x in [1,2,3]{Print(x);}}","stdout":["1","2","3"]},
+  {"id":"for_range_break","adr":"§3.1, range iteration and break; §9.3","source":"fn Main(){for i in 0..<3{if i==1{break;}Print(i);}}","stdout":["0"]},
+  {"id":"for_range_continue","adr":"§3.1, range iteration and continue; §9.3","source":"fn Main(){for i in 0..<3{if i==1{continue;}Print(i);}}","stdout":["0","2"]},
+  {"id":"short_circuit_effect","adr":"§2.2; §9.3, Right","source":"fn Right()->Bool{Print(9);return true;}fn Main(){AssertEq(false and Right(),false);AssertEq(true or Right(),true);AssertEq(true and Right(),true);AssertEq(false or Right(),true);}","stdout":["9","9"]},
+  {"id":"pop_option","adr":"§4.1; §9.3, Pop","source":"fn Main(){var a=[2];Print(Pop(edit a));Print(Pop(edit a));}","stdout":["Some(2)","None"]},
+  {"id":"user_function","adr":"§9.3, Right; §12.2","source":"fn Add(x:view I64)->I64{return x+2;}fn Main(){Print(Add(3));}","stdout":["5"]},
+  {"id":"const_scalar","adr":"§5; §8.2, H2","source":"const k:I64=comptime 3;fn Main(){Print(k);Print(k);}","stdout":["3","3"]},
+  {"id":"compound_index_before_rhs","adr":"§9.3, a[Index()]*=Rhs()","source":"fn Index()->I64{Print(1);return 0;}fn Rhs()->I64{Print(2);return 3;}fn Main(){var a=[4];a[Index()]*=Rhs();Print(a);}","stdout":["1","2","[12]"]},
+  {"id":"compound_index_fault_before_rhs","adr":"§3.3, place preparation; §9.3","source":"fn Index()->I64{Print(1);return 2;}fn Rhs()->I64{Print(2);return 3;}fn Main(){var a=[4];a[Index()]*=Rhs();Print(a);}","fault":"R0102","stdout":["1"]},
+  {"id":"range_bounds_left_to_right","adr":"§3.1, left-to-right bounds","source":"fn L()->I64{Print(1);return 0;}fn H()->I64{Print(2);return 2;}fn Main(){for i in L()..<H(){Print(i);}}","stdout":["1","2","0","1"]},
+  {"id":"array_equality_length","adr":"§2.1, structural equality","source":"fn Main(){Print([1]==[1,2]);}","stdout":["false"]},
+  {"id":"resource_cleanup_reverse","adr":"F5 §4.2, orden inverso de inicialización/ámbitos/parámetros","source":"fn Main(){let a=MockOpen(1);let b=MockOpen(2);}","stdout":[],"events":["open:1:0","open:2:1","close:2:1","close:1:0"]},
+  {"id":"pop_option_array_payload","adr":"F5 §4.1, Pop -> Option<T> y Array transitivo; §9.3 formato","source":"fn Main(){var a=[[1]];Print(Pop(edit a));}","stdout":["Some([1])"]},
+  {"id":"pop_option_nested_payload","adr":"F5 §4.1, Array/Option transitivos; §9.3 formato","source":"fn Main(){var a=[Some([1])];Print(Pop(edit a));}","stdout":["Some(Some([1]))"]}
+]
