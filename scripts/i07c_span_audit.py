@@ -17,9 +17,9 @@ import tempfile
 
 SOURCE = Path(__file__).resolve().parents[1] / "src/check/types.rs"
 # This inventory is tied to the types.rs blob 6e358e9a3288506c59c623766bd36e1fdac0317b of the
-# S5b.1 working tree (uncommitted; previously reviewed blob b70f9c56f9175fe01007298b03458d5eb81c55f1,
+# S5b.1 commit (previously reviewed blob b70f9c56f9175fe01007298b03458d5eb81c55f1,
 # I07c-S6 plan §3.3, reconciled with F5-pila-r1). Only line numbers moved (+63/+74); classes and
-# reasons are unchanged. The coordinator re-reconciles after the S5b.1 commit if the blob SHA changes.
+# reasons are unchanged. The next cut that edits types.rs must re-reconcile it.
 # Both the expression and its surrounding call/block must remain recognisable.
 REVIEWED = {
     7082: ("e.span().clone()", "primary_unwrapped", "while let Expr::Group(inner, _) = e", "Group removed in primary_span"),

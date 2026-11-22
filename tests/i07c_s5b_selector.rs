@@ -199,3 +199,46 @@ fn independent_selector_and_nonindexable_base_controls() {
         assert!(json.contains("\"start\":36,\"end\":40"), "{json}");
     }
 }
+
+// NX-E0003 (analysis limit) keeps priority: when the index base or selector
+// exceeds the array-depth budget, only that error is reported and the
+// independent selector error (`[1,true]`) is not added. The expected
+// diagnostic comes from the priority of the analysis-limit error, not from
+// the code under test. The budget figure (128) is prototype scaffolding.
+fn nested_index_source(depth: usize, selector: &str) -> String {
+    let mut source = String::from("fn Main(){let ar=[1];let a0=[0];");
+    for i in 1..depth {
+        source.push_str(&format!("let a{i}=[a{}];", i - 1));
+    }
+    source.push_str(&format!("let z=[a{}][{selector}];}}", depth - 1));
+    assert!(source.is_ascii());
+    source
+}
+
+#[test]
+fn analysis_limit_in_failed_base_selector_keeps_priority() {
+    // [a127] has array depth 129 (> 128): the base fails with the limit.
+    let source = nested_index_source(128, "[1,true]");
+    for verb in ["check", "run"] {
+        let (exit, json, stderr) = invoke(verb, &source, PROFILE);
+        assert_eq!(exit, 1, "{verb}: {json}: {stderr}");
+        assert_eq!(json.matches("\"code\":\"NX-").count(), 1, "{verb}: {json}");
+        for fragment in [
+            "\"code\":\"NX-E0003\"",
+            "\"operation\":\"analysis.limit\"",
+            "\"budget_kind\":\"array_type_depth\"",
+            "\"limit\":128",
+            "\"observed\":129",
+        ] {
+            assert!(json.contains(fragment), "{verb}: {fragment}: {json}");
+        }
+        assert!(!json.contains("NX-E0102"), "{verb}: {json}");
+    }
+    // Paired positive: depth 128 (at the limit) with an integer selector.
+    accepted(&nested_index_source(127, "0"), PROFILE);
+    // Paired control: under the limit the selector error is reported alone.
+    let (exit, json, stderr) = invoke("check", &nested_index_source(127, "[1,true]"), PROFILE);
+    assert_eq!(exit, 1, "{json}: {stderr}");
+    assert!(json.contains("\"code\":\"NX-E0102\""), "{json}");
+    assert!(!json.contains("NX-E0003"), "{json}");
+}
