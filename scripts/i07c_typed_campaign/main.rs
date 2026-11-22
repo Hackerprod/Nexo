@@ -1777,7 +1777,29 @@ fn main() {
                                     ablame += 1;
                                 } else if r.diffs.iter().any(|d| d.cls == "A") && out.len() < 20000 {
                                     out.push((i, p, r));
-                                } else if !r.diffs.is_empty() { other += 1; }
+                                } else if !r.diffs.is_empty() {
+                                    other += 1;
+                                    if std::env::var("LIST_OTHER").is_ok() {
+                                        // Andamiaje: lista las diferencias fuera de la clase A con su programa y su reduccion.
+                                        let d0 = &r.diffs[0];
+                                        let side: &'static str = match d0.side {
+                                            "extra_in_deferred" => "extra_in_deferred",
+                                            "missing_in_deferred" => "missing_in_deferred",
+                                            "perm_accept" => "perm_accept",
+                                            "poison_diff" => "poison_diff",
+                                            _ => "perm_diff",
+                                        };
+                                        let reduced = reduce(&p, (side, &d0.k.code, &d0.k.sub), level2);
+                                        let (full, _) = pstr(&p);
+                                        let (small, _) = pstr(&reduced);
+                                        let ds: Vec<String> = r
+                                            .diffs
+                                            .iter()
+                                            .map(|x| format!("{}[{}]{}/{}@{}", x.side, x.cls, x.k.code, x.k.sub, x.k.loc))
+                                            .collect();
+                                        println!("OTHER idx={i} :: {small} || {} || FULL {full}", ds.join(" "));
+                                    }
+                                }
                                 i += threads;
                             }
                             eprintln!("thread {t}: tot={tot} rej={rej} acc_both={acc} bugs={bugs} assign_blamed={ablame} dups={dups} nonA_diff={other}");

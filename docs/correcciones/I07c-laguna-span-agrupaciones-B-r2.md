@@ -1,0 +1,7 @@
+# Ronda 2 - validacion B del documento corregido -> PASS
+- Motivos r1 B1-B4: corregidos. Inventario incluye lower.rs 8703-8724/9190-9205/10515-10531 (E0202/E1105), 9030-9135 (E1107), 4810-4822 (E1104 confirmado), effects.rs (call_head vacio), lower_match 327-377; mi nueva busqueda (target.span(), check_available/conflict, place_name, Group) no halla sitios omitidos (8329 y 10252 son claves/identidad; 10317/10493 capturas/nombres).
+- Antes reproducidos con binario main (f0-0003-b-v1 y f0-0005-b-v1): E0202 [37,40)/[43,46)/[38,41); E1105 [52,55); E1104 [44,75) (sin grupo [44,73)); E1107 [44,47) req=inout/req=read; E0415 [21,21) y [38,38) vacios con cause_chain primer paso vacio ([21,21), [38,38)); controles desnudos [37,38), [43,44), [38,39), [52,53), [44,45), [21,26), [38,39); positivos checked.
+- Despues recalculados a mano: [38,39), [44,45), [39,40), [53,54), [45,74), [45,46), [22,27), [39,40): coherentes.
+- Citas: 4.1.2.1 clausula 1, 3.6 l.230, l.359, 6.6 l.602, 8.2 l.702 ("sin argumentos ni parentesis"), 11 l.1155, 13.13, 14.10 l.3258, F0-0003 5.2 l.468: secciones y literales correctos. Sin contradiccion.
+- Regresiones por familia: E0202, E1105, E1104, E1107, E0415 listadas como obligatorias del plan COR con oraculos literales. "No bloquea" incorporados (clausula 1, prefijo move/edit, E0003, inconsistencia (a)[0] verificada [35,36) vs [34,40)).
+No bloquea: efectos laterales de orden por offset y rutas indirectas (ownership_flow, runtime) quedan para el plan COR, declarado.
