@@ -1,0 +1,109 @@
+# I07c-S6-COR-2 — primario y origen de tick de expresiones agrupadas en lowering y ejecución
+
+**Estado: plan de A (contexto limpio), pendiente de B; NO autoriza implementación.** Corte de **núcleo** (primario de un diagnóstico de expresión; aceptación de guardas; conteo de ticks). Andamiaje: auditor, diferencial, regresión de cuota. Base: `HEAD=2875943` (`src/` idéntico a `aa4da68`, S6-COR integrado). Binarios base: caché de `51a716a7…` (`git diff --name-only 51a716a HEAD -- src Cargo.*` vacío), debug y release. Candidato de comprobación: copia de `git archive HEAD` en `C:\nexo-work\val\a-s6cor2` con los 8 cambios de §4 (no confirmada; se borra).
+
+## 0. Resumen y cuenta
+
+**Salen 7 sitios semánticos (8 líneas) que deben cambiar, más que los ~5 previstos: 6 en `src/ir/lower.rs`/2 en `src/ir/lower_match.rs`; mecanismo único: `expression_primary` / `expression_primary_span`.** Familia: S6-COR aplicó el ayudante a tipos, nombres, propiedad y efectos y no a lowering/ejecución (cargos de trabajo y guardas). Hay además dos defectos hermanos que no son «span» sino que dependen de las mismas agrupaciones: (a) el nombre del destino de una llamada agrupada no cobra su tick (conteo de trabajo distinto), (b) `(Drop)(a)` en una guarda se acepta (aceptación errónea). **§13.13 NO exige Flujo A** (§1). Sin PARADA: ninguna salida protegida cambia (§5).
+
+## 1. Alcance y autoridad
+
+- Addendum `F0-0002-lagunas.md` «Primario de una expresión bajo agrupaciones»: «se retiran **todas y solo las agrupaciones exteriores** … La regla rige con independencia de la etapa y del perfil, tanto para restricciones de tipos como para nombres, argumentos, propiedad, efectos, lowering y ejecución». También: «Un diagnóstico que denuncia un token, una declaración, un patrón, un operador, una cuota en un sitio distinto o una construcción mayor que contiene un hijo agrupado conserva su ancla propia» y «El span del grupo puede seguir utilizándose en el AST, procedencias, IR y roles relacionados».
+  - Lectura adoptada de «una cuota en un sitio distinto»: una cuota cuyo sitio **no es** la expresión agrupada (p. ej. la `}` de la unidad final, el token `let`/`while`, la llamada rechazada). Un tick cuyo origen es la expresión (condición, sentencia de expresión, lugar destino, operando de rama) sí lo es: el sitio es la expresión. Lectura descartada: «toda cuota conserva su ancla»; contradice «ejecución» y deja los ticks de nombre y de condición con dos primarios según agrupen o no.
+- ADR §11 «Origen de los ticks» (l.~1143–1155): «Tick adicional de condición de bucle: expresión de condición»; «Asignación: lugar destino completo. Sentencia de expresión: expresión completa, sin terminador»; «Nodo de expresión: su construcción fuente completa; nombre: su lexema». «Las agrupaciones conservan spans fuente aunque no tengan tick propio» habla del **nodo** (AST/IR), no del primario (lo dice el addendum). §11 (l.~1038): «Los paréntesis de agrupación no crean nodos cobrables», y la tabla: «Nombre del destino de una llamada directa | 1».
+- **§13.13** (leído entero, l.2425–2456): fija la ubicación solo de seis presupuestos estructurales (`source_bytes`, `syntax_nesting`, `expression_tree_depth`, `function_count`, `array_type_depth`, `value_type_depth`) y exime de igualdad de `primary_span` a `type_solver_steps`, `effect_fixpoint_steps`, `ir_items`, `ownership_flow_steps`. No menciona R0001/R0002 ni fija ningún span **con** grupo; su «span original del candidato, incluidos los paréntesis» (altura de expresión) es de `NX-E0003/expression_tree_depth`, ajeno a ticks de ejecución. Autoridad de R0001: §11.6–11.7 y «Origen de los ticks». No hay decisión abierta: sin Flujo A.
+- Fuera de alcance: `for` (§3, C2), AST, IR, relaciones, `check` de presupuestos estructurales.
+
+## 2. Causa raíz (comprobada con binarios base, `check` y `run`, debug y release idénticos)
+
+El origen de cada tick de cuota sale de `WorkPlanner::charge(evento, span)` en `lower.rs`; el `span` es el `Expr::span()` crudo del nodo, y `Expr::Group` conserva el span completo con paréntesis. R0001 toma como primario el origen del primer tick rechazado (§11.6); `check` no ejecuta ticks (`checked`, sin diagnósticos). Los demás `budget_kind` de `run` no se ven afectados (barrido §3).
+
+1. `fn Main(){{}{}{}var n=0;while (n<9999999){}}`: R0001 `[30,41)` `(n<9999999)`; control sin grupo `[30,39)`. Origen: `WorkEvent::WhileCondition` con `condition.span()`.
+2. `fn Main(){{}{}var n=0;while true{(n+1);}}`: R0001 `[33,38)`; control `[33,36)`. `ExpressionStatement` con `value.span()`. Igual con `(Id(n))`, `(AssertEq(1,1))`, `(fn (){})`, `(())`, `([1])`.
+3. `…while true{(n)=1;}}` (p=2): `[33,36)` frente a `[33,34)`. `Assignment` con `place.span()` (el destino puede ser grupo).
+4. `…while true{let y=if true then (n) else 2;}` (p=8): `[64,67)` frente a `[64,65)`. Operando de rama sin marcador: `ValueStatement` con `value_tail.value.span()`.
+5. Conteo: bucle `n=n+1;(Id)(1);` agota R0001 con N distinto del control `Id(1)`: el control pasa hasta N=43477 y falla en 43478; el grupo pasa hasta 45453 (falta **un tick por iteración**). Igual `(f)()`/`((f))()` de un closure (45453 frente a 47618 con grupo). Causa: en `prepare_expr`, `if matches!(target, Expr::Name(..)) { own.push(target.span()) }` no ve el nombre bajo el grupo.
+6. `fn Main(){var x=1;match true{true if (if true then {(x)=2;value:true;} else {value:false;}) =>{},_=>{}}}`, `check` y `run`: `NX-E1305/guard_mutation` primario `(x)`; control `x`. `guard_violations` usa `place.span()`.
+7. Misma forma con `{(Drop)(a);value:true;}`: **aceptado** (`checked`/`unit`); `Drop(a)` da `NX-E1305/guard_transfer` `Drop`. `guard_violations` busca `Expr::Name("Drop")` sin quitar grupos.
+
+Causa común: lowering usa `Expr::span()`/`matches!(.., Name)` sobre el nodo exterior; el único ayudante vive en `parse.rs` y no se aplicó a estos sitios.
+
+## 3. Familia: barrido y diferencial
+
+**Barrido** (producción, antes de `mod tests`: `lower.rs` l.10841, `lower_match.rs` l.1388; `rg '\.span\(\)'`): 81 + 22 = 103 accesos crudos; ya delegados al ayudante: 12 usos (`lower.rs` 9, `lower_match.rs` 1, `effects.rs` 2). Clasificación:
+
+| Clase | Sitios (`lower.rs` salvo indicación) | Decisión y motivo |
+|---|---|---|
+| **Debe desagrupar** (8 líneas) | `ExpressionStatement` (~8157), `WhileCondition` (~9631), `Assignment` (~7700), `ValueStatement` de rama (~9839) y espejo en `statement_leaf` (~10036, no observable: precede a `InvalidIr` por `NX-E1302` previo), nombre de destino (~10251); `lower_match.rs` ~113 (`guard_mutation`) y ~219 (`guard_transfer`) | cambian (§4) |
+| Usa grupo y es correcto | `Expr::Group(..) => {}` de `prepare_expr` (~10275); entrada de llamada/`Binary`/`Index`/`If` y `Drop(…)`: construcción mayor que contiene un hijo agrupado (`Id((n+1))`, `(n)+1`, `(a)[0]`, `AssertEq(1,(2))`, `(F)()` R0002 `(F)()`) | el addendum conserva el ancla de la construcción mayor; barrido §3 lo confirma |
+| Identidad / clave | `resolved_expr` y mapas `(start,end)` (~1934, 7723, 7942, 8331); `LoanId(..span().start)` (~3039, 3107, 5642, 6675, 7798; `lower_match` 1300) | el grupo es otra clave; no es primario |
+| Frontera / relación / IR | `BeginLoan`, `origin_span`, `context`, `ActiveLoan.span`, spans de `Jump`/`BranchBool`/`DropValue` de `while` (~5993–6007) y de `match` (`lower_match` 630, 677, 725), `CompoundStore` (~6270), `name_span`, límite de búsqueda (~1493, 8108) | IR y roles relacionados: el addendum conserva el span completo; ninguno es primario observado |
+| Ya cubierto por S6-COR | receptor/escrutinio y `check_available`/`permission_error`/`conflict` (~4511–4523, 5599, `lower_match` 330–374, 473–554) | 11 programas `match edit (a)`/`move (a)` y `(a)` tras `Drop(a)`: primario `a` en base (la denuncia sale antes del lowering) |
+| Inalcanzable hoy | `for`/`iterable.span()` (~2861–3372: 35 accesos, incl. cargo `ArrayIterationLength` ~3160) | `for` es `NX-E0006` o `NX-E0002` en `f0-0002/3/5` antes del lowering; **deuda con fecha: el corte que active `for_iteration` aplica el ayudante en el origen del cargo `ArrayIterationLength` y en el primario de la barrera** (queda anotada en `Pending.md`); no se toca código sin ruta alcanzable |
+
+**Diferencial dirigido (base `r.exe`/`d.exe`, `run` y `check`, 42 plantillas × pad `{}`×0..11 × 0..3 grupos y trivia `( e )`):** `while`/`if`/`else if`/`match`/llamadas (destino y argumentos)/`return`/índices/asignaciones/operadores/`if` expresión/closures/`Drop`/`move`/sentencia de expresión con las seis formas de arriba. El pad rota qué tick agota R0001 (cada tick de una iteración llega a ser el rechazado). Resultado en base: grupo exterior como primario solo en los sitios 1–4; todas las demás diferencias son de construcción mayor (§3 tabla). R0002 (`call_frames`, `live_value_cells`, `observation_bytes`), R0101, R0102, R0103, R0201: sin primario con grupo exterior (con `(F)()`, `AssertEq(1,(2))` y `[(5)]` el grupo es interior a la construcción). 1.008 programas **sin** grupo: 0 diferencias base/candidato en `run` y `check`.
+
+## 4. Mecanismo único
+
+Sin ayudante nuevo. Se usa `parse::expression_primary_span(expr)` (origen de tick) y `parse::expression_primary(expr)` (cuando hay que reconocer un nombre). Cambios, un commit por solución, todos locales al origen que ya pasa al `WorkPlanner`/`found`:
+
+- **S1** `ExpressionStatement`: `value.span().clone()` → `parse::expression_primary_span(value)`.
+- **S2** `WhileCondition`: `condition.span().clone()` → `parse::expression_primary_span(condition)`.
+- **S3** `Assignment`: `place.span().clone()` → `parse::expression_primary_span(place)`. `place_parts` ya quita grupos para el resto del lowering.
+- **S4** `ValueStatement`: en `unwrap_or_else` del marcador (~9839) y su espejo (~10036): `value…span().clone()` → `parse::expression_primary_span(value…)`. El marcador `value:` sigue siendo token.
+- **S5** `prepare_expr` (conteo): `let callee = parse::expression_primary(target); if matches!(callee, Expr::Name(..)) { own.push(callee.span().clone()); }`. Un destino agrupado cobra exactamente el tick de nombre de destino que cobra el no agrupado (§11).
+- **S6** `lower_match::guard_violations`, `Assign`: `found.push(("guard_mutation", parse::expression_primary_span(place)))`.
+- **S7** `guard_violations`, `Call`: `let callee = parse::expression_primary(target); if matches!(callee, Expr::Name(name,_) if name == "Drop") { found.push(("guard_transfer", callee.span().clone())) }`.
+
+Sin parches por patrón de fuente: cada cambio quita las agrupaciones exteriores del nodo AST, no examina texto; ningún flujo se duplica; no se toca `Expr::span()`. Comprobado en candidato: los 8 cambios eliminan toda diferencia de primario exterior y de conteo del barrido (275 diferencias restantes, todas de construcción mayor); `Id(1)` = `(Id)(1)` = `((Id))(1)` = `( Id )(1)` (43477), `f()` = `(f)()` (45453); guarda: `x`, `x`, `Drop`, `Drop`, sin cambio en el control.
+
+## 5. Efectos laterales y salidas protegidas
+
+- **Ticks y orden de eventos:** S1–S4/S6 solo cambian el span del origen; el orden, el total y los eventos no cambian. **S5 cambia el total de trabajo de los programas que llaman con destino agrupado** (+1 por llamada): cambia dónde cae R0001 y la frontera de cuota de programas aceptados `(F)()`. Es la consecuencia directa de «los paréntesis no crean nodos cobrables»; no existe fixture que lo fije (abajo). `data` de R0001 (`limit`, `observed`, `work_consumed`) no cambia de forma.
+- **S7 cambia la aceptación** de `(Drop)(x)` dentro de una guarda: ahora `NX-E1305/guard_transfer` primario `Drop` (el control sin grupo ya lo daba). Programa antes aceptado ahora rechazado: es lo que fija el addendum («no cambia … la aceptación» del programa sin grupo, y `(F)(1)` no se rechaza por agrupar).
+- **Barrido de protegidas:** 152 filas RD (`tests/fixtures/i07c_rd.json`): ninguna con R0001/R0002 ni E1305 con grupo. 217 `.n` (`corpus/`, `tests/fixtures/`) ejecutados con `f0-0002/3/5`: 0 diagnósticos `R…`. Fixtures TD/DG: sin E1305/R. `src/ir/i10b_tests.rs` (orígenes R0001 `return;`, `while true{}`, `if`/`while` en bucle, índices, `a[0]=1`) y `tests/*`: ninguna fuente con grupo exterior en el sitio rechazado. Tests existentes que cambian: **ninguno**. `tests/i07c_group_primary.rs` solo comprueba `check`. Si la puerta completa o la búsqueda de C encuentra un test cuyo esperado actual sea un primario agrupado de cuota o un conteo con destino agrupado: **PARAR** y consultar (no ajustar esperados).
+- **Pila:** `src/check/types.rs` (`Checker::drive`, `drive::resume_non_match`) no se toca; el corte solo edita `lower.rs`, `lower_match.rs`, tests y auditor. Sin conflicto con S5a.1 (edita `types.rs`). `scripts/f5-stack65.py` en la puerta, sin cambio esperado.
+
+## 6. Regresiones (en `tests/i07c_group_primary.rs`, con `invoke` existente; esperados por bytes de la fuente)
+
+El esperado **no** sale del binario: es el span del texto interior calculado sobre la fuente (`src.find(interior)`), igual al control sin grupo (addendum) y distinto del span del grupo. Cada caso exige código, `data` de R0001 y el resto del diagnóstico idéntico al control; `run` (y `check` donde aplique: S6, S7).
+
+| Sol. | Fuente (grupos 1, 2 y trivia `( e )`; control sin grupo) | Primario esperado |
+|---|---|---|
+| S1 | `fn Main(){{}{}var n=0;while true{E;}}`, `E=n+1` | `[33,36)` control; `(E)` `[34,37)`; `((E))` `[35,38)`; `( E )` `[35,38)`; R0001 |
+| S2 | `fn Main(){{}{}{}var n=0;while (n<9999999){}}` y `((…))`, `( … )` | `[30,39)`, `[31,40)`, `[32,41)`, `[32,41)` |
+| S3 | `fn Main(){{}{}var n=0;while true{(n)=1;}}` | `[34,35)` (control `[33,34)`); con `((n))` `[35,36)`; con `( n )` `[35,36)` |
+| S4 | `fn Main(){{}{}{}{}{}{}{}{}var n=0;while true{let y=if true then (n) else 2;}}` | `[65,66)`; `((n))` `[66,67)`; trivia `[66,67)` |
+| S5 | `fn Id(x:view I64)->I64{return x;}fn Main(){var n=0;while n<N{n=n+1;(Id)(1);}}` y `(f)()` de closure | misma frontera que el control: completa con el último N sin R0001 del control y R0001 con N+1, idéntico para 1, 2 grupos y trivia |
+| S6 | `fn Main(){var x=1;match true{true if (if true then {(x)=2;value:true;} else {value:false;}) =>{},_=>{}}}` en `f0-0003-b-v1` | `NX-E1305/guard_mutation`, `ownership/ownership.check`, primario `x`; con `((x))` igual; control `x=2` |
+| S7 | `…{(Drop)(a);value:true;}…` con `let a=Some(1);` y `((Drop))(a)` | `NX-E1305/guard_transfer`, `Drop`; mismas relaciones vacías que `Drop(a)` |
+
+Positivos (no rechazan): el mismo bucle de S1–S4 con N pequeño, p. ej. `while (n<3){n=n+1;}` y `(n+1);` dentro de un bucle acotado, `check`/`run` sale 0 con el resultado del control; `(Id)(1)` sin exceder la cuota; `match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}` aceptado. Negativos aislados: cada fila rompe solo el grupo (control sin grupo = esperado). Un barrido de pad `0..=11` por sitio comprueba que el primario del grupo iguala siempre al del control (cada tick de la iteración); los pads fijos de la tabla son los testigos de que el tick rechazado es el del sitio. La regresión de S5 no fija la cifra 43477: calcula N con el control y exige lo mismo con grupos.
+
+## 7. Auditor y mutación inversa
+
+- **Mutación inversa por sitio** (S1–S7): un parche por sitio que restaura el acceso crudo (`expression_primary_span(x)` → `x.span().clone()`; `callee` → `target`), restauración por SHA-256, suite completa en perfil `default`; debe morir con la regresión de su fila. Una sola pasada, al final, por el implementador.
+- **Auditor** (`scripts/i07c_span_audit.py`, hoy `types.rs`, `names.rs`, `effects.rs` con tabla por línea): `lower*.rs` tiene 103 accesos crudos (> ~20), así que **no** se revisa línea a línea; se añade una **línea base congelada** por (archivo, texto de la expresión) → recuento esperado (≈ 31 + 12 entradas, sin números de línea, fuera de `#[cfg(test)]`). Falla ante una expresión nueva o un recuento mayor; el cambio exige reconciliar el baseline con motivo. Además **cuatro anclas positivas** (regex sobre el contexto) que exigen `expression_primary_span`/`expression_primary` en S1–S7 (los accesos crudos de esos sitios ya no figuran en el baseline). Autotest `--self-test` ampliado: revertir uno de los siete sitios y comprobar que falla. Proporcionalidad: andamiaje; no fija más cifras que esas.
+
+## 8. Orden, diferencial y puertas
+
+Orden de commits (rama `i07c-robustez`, uno por solución, id en el mensaje): S1, S2, S3, S4, S5, S6, S7, auditor+baseline, regresiones (cada solución con su regresión en su commit). S5 el último de ticks (único que cambia totales). Dependencias: ninguna entre S1–S4, S6, S7; el auditor al final.
+
+Diferencial base `HEAD` frente a candidato con `git archive`, debug y release, `check` y `run`: **≥ 3.000 fuentes** (plantillas del barrido: 42 × 12 pads × 6 variantes × 2 órdenes ≈ 6.000, más el corpus `.n`, las fuentes de `tests/fixtures/i07c_repros` y la batería oficial de la puerta): sin diferencia en programas sin grupo (los 1.008 ya medidos: 0); con grupo, solo las filas esperadas de §6. Puerta mecánica: `sh scripts/validate.sh` en clon limpio (fmt, clippy `-D warnings`, tests debug y release, RD, `check-nextest-selection.py`), `scripts/f5-stack65.py`, medidor de objetivos. Fuzz sin pánicos sobre las plantillas. D/D' usan la puerta completa.
+
+## 9. Alternativas descartadas
+
+- **Cambiar `Expr::span()` o el parser para que `Group` devuelva el span interior:** prohibido por el addendum («no se transforma globalmente `Expr::span()`») y rompe AST, procedencias y claves de tipos (§3 «Identidad»).
+- **Desagrupar en `WorkPlanner::charge`:** no ve el AST (recibe un `Span`) y obligaría a mirar el texto: parche por patrón de fuente.
+- **Registrar el primario agrupado como laguna de cuotas / «conserva su ancla»:** descartado por el orquestador y por la lectura de «cuota en un sitio distinto» (§1); además produce dos primarios para una misma construcción con y sin paréntesis.
+- **No corregir S5 (solo es conteo, andamiaje):** el programa con `(F)()` cobraría un tick menos que `F()`; §11 dice que la agrupación no crea ni quita nodos cobrables. Se corrige porque la discrepancia es observable como frontera de R0001 y comparte la causa (destino agrupado).
+- **Cambiar los accesos de `for` ahora:** sin ruta alcanzable no hay regresión ni mutante que lo pruebe; queda como deuda con fecha (§3).
+- **Ampliar el auditor línea a línea a `lower*.rs`:** 103 accesos, desproporcionado (§7).
+
+## 10. Riesgos y PARADAS
+
+- **PARAR y consultar** si: un test existente, una fila RD/TD/DG o un fixture cambia de salida (§5); la puerta completa muestra una diferencia de aceptación en programas sin grupo; un sitio del barrido distinto de los siete resulta reproducible con un programa (nuevo defecto: no se improvisa, se registra y vuelve a A/B); una regresión exige fijar una cifra de trabajo que el ADR no enuncia.
+- Riesgo S5: cambia fronteras de cuota de programas con destino agrupado; mitigado por el barrido de fixtures y porque la regresión es relacional (control sin grupo). Riesgo S7: acepta→rechaza `(Drop)(x)` en guardas: coherente con la regla de aceptación del addendum; sin fixture afectado.
+- Atribución de S4 (~9839 vs el operando de rama) comprobada con el candidato (la mutación elimina el primario `(n)` de ramas); C la confirma con la regresión de §6 y la mutación inversa.
+- Lectura de «cuota en un sitio distinto» (§1): si el propietario la desmintiera, S1–S4 se revierten por commit sin tocar S5–S7.
+- No se modifica ningún ADR; si el coordinador quiere dejarlo escrito, basta añadir al addendum un ejemplo de R0001 con `while (n<N)` y de `(Drop)(a)` en guarda.
