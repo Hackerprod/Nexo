@@ -1,0 +1,57 @@
+{
+  "seed": 64193,
+  "entries": 39127,
+  "sha256": "d9a8c389bef1d6b1d860fdb52d79ba5b5a58b7ad980e3abf886ae33f4eed4684",
+  "groups": [
+    {
+      "family": "directed",
+      "count": 3040,
+      "new_unique": 3040,
+      "sha256": "df9cffd9d9df53cf6d77a725cd1336420fac953611f3f5b140ac8de338e897c8"
+    },
+    {
+      "family": "s4_family",
+      "count": 3072,
+      "new_unique": 3072,
+      "sha256": "854578a62fe37895cd8a98c7062ac2bd5fcd910e88c6035745ce92b720171758"
+    },
+    {
+      "family": "s4_index",
+      "count": 384,
+      "new_unique": 384,
+      "sha256": "6c4071d6249a1c804d766bcd6bd0efdf18d60a95178d64ce21afc2c809d07433"
+    },
+    {
+      "family": "s4_recheck",
+      "count": 3072,
+      "new_unique": 0,
+      "sha256": "854578a62fe37895cd8a98c7062ac2bd5fcd910e88c6035745ce92b720171758"
+    },
+    {
+      "family": "previous_corpus",
+      "count": 32631,
+      "new_unique": 32631,
+      "sha256": "a6a0cf27028441f6938ab0ff71fd452a55406aa59bd04b3e7560d4676397a090"
+    },
+    {
+      "family": "rd_152",
+      "count": 152,
+      "new_unique": 0,
+      "sha256": "44f2538be8f934a90e4392e6a150178db8f607728ed3ab3e5167a28196b7968b"
+    },
+    {
+      "family": "corpus_files",
+      "count": 44,
+      "new_unique": 0,
+      "sha256": "50a8a0774a900dd444f0b4331a48cb5bf3b4adcefcd983ca604e885beb8d2714"
+    },
+    {
+      "family": "fixture_files",
+      "count": 173,
+      "new_unique": 0,
+      "sha256": "b4c94cb962892061fa6ba99d4de945fc3524059d00f50e4c1b743cc516801a7b"
+    }
+  ],
+  "generator_sha256": "7d00ac31cd38b2cfd4aec4c672c5b0d54799779d8f1996943840b10d6aa2a539",
+  "corpus_directory": "C:\\nexo-work\\val\\hunt-s4\\corpus"
+}

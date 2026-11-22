@@ -1,0 +1,112 @@
+[
+ {
+  "file": "src/check/types.rs",
+  "line": 2958,
+  "column": 1,
+  "operator": "drop_assignment",
+  "literal": "            self.graph.fact_mut(parent_fact).tainted = self.graph.fact(*visit).tainted;",
+  "replacement": "",
+  "site_count": 1,
+  "id": "M00008"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 2959,
+  "column": 57,
+  "operator": "false",
+  "literal": "            self.graph.merge_child(parent_fact, *visit, false);",
+  "replacement": "            self.graph.merge_child(parent_fact, *visit, true);",
+  "site_count": 1,
+  "id": "M00009"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 3011,
+  "column": 1,
+  "operator": "drop_assignment",
+  "literal": "                        self.graph.fact_mut(*visit).tainted = self.graph.fact(child).tainted;",
+  "replacement": "",
+  "site_count": 1,
+  "id": "M00010"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 3012,
+  "column": 63,
+  "operator": "false",
+  "literal": "                        self.graph.merge_child(*visit, child, false);",
+  "replacement": "                        self.graph.merge_child(*visit, child, true);",
+  "site_count": 1,
+  "id": "M00011"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 7700,
+  "column": 88,
+  "operator": "true",
+  "literal": "            if let Err(error) = self.bind_independent(id, nominal, result, found_site, true) {",
+  "replacement": "            if let Err(error) = self.bind_independent(id, nominal, result, found_site, false) {",
+  "site_count": 1,
+  "id": "M00018"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 8210,
+  "column": 1,
+  "operator": "drop_assignment",
+  "literal": "                    self.graph.fact_mut(visit).tainted = previous_taint;",
+  "replacement": "",
+  "site_count": 1,
+  "id": "M00021"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 8951,
+  "column": 67,
+  "operator": "false",
+  "literal": "                    checker.graph.merge_child(parent_fact, visit, false);",
+  "replacement": "                    checker.graph.merge_child(parent_fact, visit, true);",
+  "site_count": 1,
+  "id": "M00025"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 9021,
+  "column": 67,
+  "operator": "true",
+  "literal": "                        .map(|_| Type::Unit);\n                    checker.graph.merge_child(parent_fact, visit, true);\n                    visit = parent_fact;",
+  "replacement": "                        .map(|_| Type::Unit);\n                    checker.graph.merge_child(parent_fact, visit, false);\n                    visit = parent_fact;",
+  "site_count": 1,
+  "id": "M00028"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 9203,
+  "column": 67,
+  "operator": "true",
+  "literal": "                    let parent_fact = state.parent_fact;\n                    checker.graph.merge_child(parent_fact, visit, true);\n                    visit = parent_fact;",
+  "replacement": "                    let parent_fact = state.parent_fact;\n                    checker.graph.merge_child(parent_fact, visit, false);\n                    visit = parent_fact;",
+  "site_count": 1,
+  "id": "M00034"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 9548,
+  "column": 29,
+  "operator": "and",
+  "literal": "                                .has(&span_key(left.span()), OccurrenceFlag::FailedJoin)\n                            && !checker.graph.fact_mut(visit).tainted\n                            && !checker",
+  "replacement": "                                .has(&span_key(left.span()), OccurrenceFlag::FailedJoin)\n                            || !checker.graph.fact_mut(visit).tainted\n                            && !checker",
+  "site_count": 1,
+  "id": "M00043"
+ },
+ {
+  "file": "src/check/types.rs",
+  "line": 9598,
+  "column": 66,
+  "operator": "true",
+  "literal": "                    checker.graph.merge_child(outer_fact, visit, true);",
+  "replacement": "                    checker.graph.merge_child(outer_fact, visit, false);",
+  "site_count": 1,
+  "id": "M00044"
+ }
+]

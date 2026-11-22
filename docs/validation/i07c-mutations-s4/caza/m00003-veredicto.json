@@ -1,0 +1,50 @@
+{
+  "id": "M00003",
+  "tree": "C:\\nexo-work\\val\\m3\\tree",
+  "file": "src\\check\\types.rs",
+  "sha_initial": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6",
+  "sha_mutated": "70e51ac177d46b1e2f560a1e021eb2e27659aab468841d2bc8ce7e4a63f8d6e8",
+  "selection": "default completo; sin -E; retries 0; fail-fast",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "nextest": "cargo-nextest 0.9.152 (26ebeda79 2026-11-13)",
+  "profiles": [
+    {
+      "profile": "debug",
+      "exit": 100,
+      "seconds": 19.816,
+      "verdict": "MUERTO",
+      "test": "nexo::nexo$check::tests::adr_gap_primitive_domain_primary_is_first_offending_argument",
+      "reason": "test fallido",
+      "log": "D:\\nexo-work\\mut-s3\\m00003-verdict.debug.log",
+      "stdout_sha256": "07ff2ede283b7392553cef036f1c321bf730a2beb19b0f092f52688c3ec7da64",
+      "stderr_sha256": "77eb4dfecde93c5185b480c4f1aed5b10e9c6be676bcb5c6a225b4edba4ea0e4",
+      "confirmation": {
+        "selection": [
+          "cargo",
+          "nextest",
+          "run",
+          "--locked",
+          "--offline",
+          "--profile",
+          "default",
+          "--retries",
+          "0",
+          "--message-format",
+          "libtest-json",
+          "-E",
+          "test(=check::tests::adr_gap_primitive_domain_primary_is_first_offending_argument)"
+        ],
+        "mutated_verdict": "MUERTO",
+        "mutated_test": "nexo::nexo$check::tests::adr_gap_primitive_domain_primary_is_first_offending_argument",
+        "mutated_exit": 100,
+        "baseline_verdict": "VERDE",
+        "baseline_exit": 0,
+        "mutated_stdout_sha256": "3b9365dffe877bb9aa638ba8668ed2159c9b626cbaac54a7b88ee673336d6628",
+        "baseline_stdout_sha256": "6165b36d3996a6b3760e9111c1ce9a21f30ddcbe9cdadbc59694e5a2a79b1171"
+      }
+    }
+  ],
+  "mutated_tree_sha256": "54a5db549daf2829ffb5164788b51f247b2f7b168d70447f162b71f110f1a2a0",
+  "verdict": "MUERTO",
+  "sha_restored": "d5046aedf42b6c14e8b4b4c0273402472b7a479fa942bb27cec2a25b34682ca6"
+}
