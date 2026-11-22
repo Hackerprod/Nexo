@@ -147,7 +147,7 @@ fn grouped_operands_keep_one_causal_primary() {
     );
     let text = String::from_utf8_lossy(&status.stdout);
     assert!(
-        text.contains("pendiente_decision: 3 lines=8283,12418,14730"),
+        text.contains("pendiente_decision: 3 lines=8283,12492,14804"),
         "{text}"
     );
     let status = Command::new("python")

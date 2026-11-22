@@ -1,5 +1,6 @@
-// Oracle transcribed from be8c47c. Each expected value is the complete CLI JSON,
-// with only the temporary source filename replaced by case.n.
+// Oracle transcribed from be8c47c, with the index_selector exception derived
+// from F0-0002 §§4.1.1, 4.1.2.3 and 4.1.2.4/N(d). Each expected value is the
+// complete CLI JSON, with only the temporary source filename replaced by case.n.
 use std::{
     fs,
     process::Command,
@@ -79,6 +80,21 @@ fn contextual_owner_and_adjacent_fact_boundaries_match_b1b_cli() {
         ),
     ];
     for (name, source, expected) in cases {
+        let mut expected = expected.to_owned();
+        if name == "index_selector" {
+            // The erroneous base [] ([148,150), genuine E0103) cannot suppress
+            // the independent selector [r,0]. Its first element r fixes
+            // Array<Array<I64>>; the following 0 is I64, hence E0102 at
+            // [162,163), with found_type at the same span (N(d)). Insert only
+            // this diagnostic between the existing third and fourth entries.
+            let extra = r####",{"schema_version":1,"diagnostic_namespace":"Nexo-proposed-v1","profile_id":"f0-0005-b-v1","code":"NX-E0102","subcause":"type_mismatch","rule":"NX-E0102/type_mismatch","explanation_id":"NX-E0102/type_mismatch","severity":"error","stage":"types","message":"Invalid name, call or type in the proposed profile.","operation":"types.check","primary_span":{"file":"case.n","start":162,"end":163},"related_spans":[{"role":"expected_type","span":{"file":"case.n","start":160,"end":161}},{"role":"found_type","span":{"file":"case.n","start":162,"end":163}}],"cause_chain":[],"feature_id":null,"unexpected_token":null,"expected_tokens":[],"expected_tokens_kind":null,"parser_context":null,"recognized_prefix":null,"repair":[],"data":{"expected_type":"Array<Array<I64>>","found_type":"I64"}}"####;
+            let boundary = expected
+                .match_indices("},{\"schema_version\":1,\"diagnostic_namespace\"")
+                .nth(2)
+                .expect("third index_selector diagnostic")
+                .0;
+            expected.insert_str(boundary + 1, extra);
+        }
         for mode in ["check", "run"] {
             let (exit, stdout, stderr) = run_case(source, mode);
             assert_eq!(exit, 1, "{name}/{mode}: {stdout}");

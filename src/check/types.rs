@@ -1277,7 +1277,7 @@ struct BinaryIndependentProgress<'a> {
 struct IndexSelectorProgress<'a> {
     expr: &'a Expr,
     context: OwnedCheckContext,
-    base: Type,
+    base: Result<Type, Box<Diagnostic>>,
     parent_fact: FactId,
     deferred_child: Option<u64>,
 }
@@ -9271,6 +9271,75 @@ impl Checker<'_> {
             }
         }
         #[inline(never)]
+        #[allow(clippy::too_many_arguments)] // The selector stays on the drive's frame stack.
+        fn index_failed_base<'a>(
+            checker: &mut Checker<'_>,
+            expr: &'a Expr,
+            context: OwnedCheckContext,
+            error: Box<Diagnostic>,
+            visit: FactId,
+            frames: &mut Vec<Frame<'a>>,
+            inner: &mut &'a Expr,
+            inner_context: &mut OwnedCheckContext,
+        ) -> Resume {
+            let Expr::Index { index, .. } = expr else {
+                unreachable!("index frame owns an index")
+            };
+            frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
+                expr,
+                context,
+                base: Err(error),
+                parent_fact: visit,
+                deferred_child: None,
+            })));
+            *inner = index;
+            *inner_context = OwnedCheckContext {
+                expected: None,
+                expected_span: None,
+                check_here: true,
+                anchor: None,
+                outer_compare: false,
+                related_expected: false,
+                deferred_element: false,
+            };
+            let selector_fact = checker.graph.child_fact(
+                visit,
+                span_key(index.span()),
+                FactRole::Selector,
+                FactInheritance::Empty,
+                FactInheritance::Inherit,
+            );
+            Resume::Evaluate(selector_fact)
+        }
+        #[inline(never)]
+        #[allow(clippy::boxed_local)] // Unbox only in the small helper, never in resume_non_match.
+        fn finish_index_selector(
+            checker: &mut Checker<'_>,
+            progress: Box<IndexSelectorProgress<'_>>,
+            selector_fact: FactId,
+            selector: Result<Type, Box<Diagnostic>>,
+        ) -> (Result<Type, Box<Diagnostic>>, FactId) {
+            let IndexSelectorProgress {
+                expr,
+                context,
+                base,
+                parent_fact,
+                deferred_child,
+            } = *progress;
+            checker.graph.merge_child(parent_fact, selector_fact, true);
+            let result = checker.check_against_context_one(
+                parent_fact,
+                expr,
+                context.borrowed(),
+                Some(PrecomputedType::IndexTarget {
+                    target: base,
+                    selector: Some(selector),
+                    deferred_child,
+                }),
+            );
+            (result, parent_fact)
+        }
+        #[inline(never)]
         #[allow(clippy::too_many_arguments)] // Continuation carries one drive's cursor.
         fn resume_non_match<'a>(
             checker: &mut Checker<'_>,
@@ -9658,7 +9727,7 @@ impl Checker<'_> {
                             frames.push(Frame::IndexSelector(Box::new(IndexSelectorProgress {
                                 expr,
                                 context,
-                                base,
+                                base: Ok(base),
                                 parent_fact: visit,
                                 deferred_child,
                             })));
@@ -9685,6 +9754,18 @@ impl Checker<'_> {
                             );
                             return Resume::Evaluate(visit);
                         }
+                        Err(error) if error.operation != Operation::AnalysisLimit => {
+                            return index_failed_base(
+                                checker,
+                                expr,
+                                context,
+                                error,
+                                visit,
+                                frames,
+                                inner,
+                                inner_context,
+                            );
+                        }
                         other => {
                             result = checker.check_against_context_one(
                                 visit,
@@ -9700,25 +9781,7 @@ impl Checker<'_> {
                     }
                 }
                 Frame::IndexSelector(progress) => {
-                    let IndexSelectorProgress {
-                        expr,
-                        context,
-                        base,
-                        parent_fact,
-                        deferred_child,
-                    } = *progress;
-                    checker.graph.merge_child(parent_fact, visit, true);
-                    visit = parent_fact;
-                    result = checker.check_against_context_one(
-                        visit,
-                        expr,
-                        context.borrowed(),
-                        Some(PrecomputedType::IndexTarget {
-                            target: Ok(base),
-                            selector: Some(result),
-                            deferred_child,
-                        }),
-                    );
+                    (result, visit) = finish_index_selector(checker, progress, visit, result);
                 }
                 Frame::Binary(progress) => {
                     let (expr, context, pending_before, outer_fact) = *progress;
@@ -12266,7 +12329,18 @@ impl Checker<'_> {
                     selector: mut precomputed_selector,
                     deferred_child,
                 } = index_target.expect("index target is prepared by check_against_context");
-                let base = base?;
+                let base = match base {
+                    Ok(base) => base,
+                    Err(error) => {
+                        if let Some(Err(selector_error)) = precomputed_selector.take() {
+                            if selector_error.operation == Operation::AnalysisLimit {
+                                return Err(selector_error);
+                            }
+                            self.record_error(selector_error);
+                        }
+                        return Err(error);
+                    }
+                };
                 if base == Type::Tainted {
                     let outcome = precomputed_selector.take().expect("tainted index selector");
                     if let Err(error) = outcome {

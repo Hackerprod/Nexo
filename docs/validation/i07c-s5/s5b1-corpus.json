@@ -1,0 +1,6 @@
+{
+  "seed": 20261121,
+  "count": 3000,
+  "sha256": "294bd7b32f67d1b5186d894651673a01b9f3cc55e751e0e743720dd799e3ae05",
+  "encoding": "length-prefixed ASCII, four-byte big-endian length, in shuffled order"
+}

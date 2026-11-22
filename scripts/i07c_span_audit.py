@@ -16,24 +16,26 @@ import tempfile
 
 
 SOURCE = Path(__file__).resolve().parents[1] / "src/check/types.rs"
-# This inventory is tied to the reviewed types.rs blob b70f9c56f9175fe01007298b03458d5eb81c55f1
-# (I07c-S6 plan §3.3), reconciled on the base with F5-pila-r1.
+# This inventory is tied to the types.rs blob 6e358e9a3288506c59c623766bd36e1fdac0317b of the
+# S5b.1 working tree (uncommitted; previously reviewed blob b70f9c56f9175fe01007298b03458d5eb81c55f1,
+# I07c-S6 plan §3.3, reconciled with F5-pila-r1). Only line numbers moved (+63/+74); classes and
+# reasons are unchanged. The coordinator re-reconciles after the S5b.1 commit if the blob SHA changes.
 # Both the expression and its surrounding call/block must remain recognisable.
 REVIEWED = {
     7082: ("e.span().clone()", "primary_unwrapped", "while let Expr::Group(inner, _) = e", "Group removed in primary_span"),
     8283: ("iterable.span().clone()", "pendiente_decision", "prepare_for_type", "for_iteration Array barrier; grouped primary undecided, observed repro"),
     9065: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
     9066: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
-    11241: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
-    12189: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
-    12418: ("target.span().clone()", "pendiente_decision", "non_callable_target", "call target primary; grouped primary undecided, observed repro"),
-    12991: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
-    13101: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
-    13312: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
-    13317: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
-    13492: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
-    14730: ("target.span().clone()", "pendiente_decision", '"NX-E1111"', "closure target primary; grouped primary undecided, branch not reproduced"),
-    14744: ("target.span()", "argument_target", "names::bind_arguments", "signature target for argument binding"),
+    11304: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
+    12252: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
+    12492: ("target.span().clone()", "pendiente_decision", "non_callable_target", "call target primary; grouped primary undecided, observed repro"),
+    13065: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
+    13175: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
+    13386: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
+    13391: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
+    13566: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
+    14804: ("target.span().clone()", "pendiente_decision", '"NX-E1111"', "closure target primary; grouped primary undecided, branch not reproduced"),
+    14818: ("target.span()", "argument_target", "names::bind_arguments", "signature target for argument binding"),
 }
 
 
@@ -76,7 +78,7 @@ def audit() -> None:
         raise SystemExit(f"reviewed sites missing: {REVIEWED.keys() - seen}")
     for kind, lines in classes.items():
         print(f"{kind}: {len(lines)} lines={','.join(map(str, lines))}")
-    print("PENDIENTE DECISIÓN: 8283/12418 (repro), 14730 (sin repro); Flujo A, K1-d2 NO EVALUADO")
+    print("PENDIENTE DECISIÓN: 8283/12492 (repro), 14804 (sin repro); Flujo A, K1-d2 NO EVALUADO")
     print(f"total: {sum(map(len, classes.values()))}")
 
 
