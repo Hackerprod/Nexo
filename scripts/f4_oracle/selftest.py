@@ -326,7 +326,21 @@ def check_utf8(rep: Report, fast: bool):
     rep.check("utf8ref.boundaries", bounds == [0, 4], str(bounds))
 
 
+def check_cause_evidence(rep: Report):
+    """K 10.5 (X23, N06-N09, B01, P01): every causal step has evidence=verified, one of the three values of A2 13.6."""
+    line = next(ln for ln in ktext().splitlines() if ln.startswith("Cause_chain, un paso por cada fila"))
+    want = re.search(r"evidence=(\w+)", line).group(1)
+    allowed = re.search(r'"evidence": ((?:"\w+"(?: \| )?)+)', fio.adr_text("A2"))
+    values = re.findall(r'"(\w+)"', allowed.group(1))
+    chains = [c for e in load_literals() if e["expected"]["kind"] == "diagnostic"
+              for c in expected_diagnostic(e)["cause_chain"]]
+    rep.check("K10.5.cause_evidence_is_verified",
+              want == "verified" and want in values and chains and all(c["evidence"] == want for c in chains),
+              f"{want} {values} {len(chains)}")
+
+
 def check_diagnostic_contract(rep: Report):
+    check_cause_evidence(rep)
     d = diagnostics.make("NX-E1401", "empty_interpolation", file="x.n", primary=(1, 2))
     rep.check("diagnostics.fields", diagnostics.check_shape(d) == [] and len(diagnostics.FIELDS) == 21)
     r = diagnostics.make("R0002", file="x.n", primary=(1, 2), data={"limit": 1})
@@ -1570,7 +1584,11 @@ def check_mixed_family_divergences(rep: Report, world: MockWorld):
     pair = [r for r in recs if r["family"] == fam][:2]
     rep.check("harness.mixed_family_pair", len(pair) == 2 and {r["role"] for r in pair} == {"main", "positive"})
     for name in ("stdout_extra_line", "stdout", "outcome_kind"):
-        code, lines = world.run(pair, name)
+        try:
+            code, lines = world.run(pair, name)
+        except Exception as exc:
+            rep.check(f"harness.mixed_family_summary.{name}", False, repr(exc))
+            continue
         summ = [x for x in lines if x.get("type") == "summary"]
         rep.check(f"harness.mixed_family_summary.{name}", code == 1 and len(summ) == 1 and summ[0]["divergences"] >= 1,
                   str(code))
@@ -2659,6 +2677,25 @@ def guards_nominal(rep: Report):
 
 
 def guards_literal(rep: Report):
+    app_src = entry_map()["APP"]["source"]
+    lits = literal.find_literals(app_src)
+    rep.check("K11.application_literals_recognised_with_their_holes",
+              all(r.other is None and r.diag is None for r in lits) and [r.holes for r in lits if r.holes] == [4, 3],
+              str([(r.holes, r.other) for r in lits]))
+    for esc, val in ((chr(34), chr(34)), (chr(92), chr(92)), ("n", chr(10)), ("r", chr(13)), ("t", chr(9))):
+        r = literal.analyze('"x' + chr(92) + esc + 'y"', 0)
+        text = "".join(p[1] for p in r.parts if p[0] == "text")
+        rep.check(f"D15.2.4.escape_decodes.{ord(esc)}", r.other is None and text == "x" + val + "y", repr(text))
+    two = barrier.literal_constructs((0, 5), 1)
+    one = barrier.literal_constructs((0, 5), 0)
+    rep.check("LF-02.class_B_needs_exactly_one_pending_K",
+              barrier.class_b_eligible(two, ()) is False and barrier.class_b_eligible(one, ()) is True
+              and barrier.class_b_eligible(two, ("K02",)) is True and barrier.class_b_eligible(one, ("K02",)) is False)
+    expr = literal.analyze('"{a + b - c * d / e % f}"', 0)
+    rep.check("K2.1.every_binary_operator_inside_a_hole", expr.other is None and expr.holes == 1, str(expr.other))
+    for op in ("<", ">", "==", "!=", "<=", ">="):
+        r = literal.analyze('"{a %s b}"' % op, 0)
+        rep.check(f"K2.1.comparison_operator_inside_a_hole.{op}", r.other is None and r.holes == 1, str(r.other))
     res = literal.analyze('"a\rb"', 0)
     rep.check("literal.raw_cr_is_excluded_LF03", res.other == "raw_control_in_text", str(res.other))
     res = literal.analyze('"a\nb"', 0)
@@ -2670,7 +2707,30 @@ def guards_literal(rep: Report):
               str([(r.start, r.end, r.diag) for r in found]))
 
 
+def guards_model_limits(rep: Report):
+    """K 8.2: the default quotas of the model evaluator at their boundary (limit passes, limit+1 faults)."""
+    def lets(n, text=""):
+        return prog(main(*[LET("s%d" % k, S(text)) for k in range(n)]))
+    fault = lambda p: m.run_program(p, "g.n")[1].fault
+    ok = fault(prog(main(LET("s", S("a" * 65536)))))
+    bad = fault(prog(main(LET("s", S("a" * 65537)))))
+    rep.check("K8.2.string_bytes_65536_passes_65537_faults",
+              ok is None and bad is not None and bad.data == {"runtime_budget_kind": "string_bytes",
+                                                              "limit": 65536, "observed": 65537}, str(bad and bad.data))
+    ok, bad = fault(lets(4096)), fault(lets(4097))
+    rep.check("K8.2.text_allocations_4096_passes_4097_faults",
+              ok is None and bad is not None and bad.data["runtime_budget_kind"] == "text_allocations"
+              and bad.data["observed"] == 4097 and bad.data["limit"] == 4096)
+    chain = [LET("a", S("a" * 65536)), LET("b", N("a")), LET("c", N("b")), LET("d", N("c"))]
+    ok = fault(prog(main(*chain)))
+    bad = fault(prog(main(*chain, LET("e", S("x")))))
+    rep.check("K8.2.live_text_bytes_262144_passes_262145_faults",
+              ok is None and bad is not None and bad.data == {"runtime_budget_kind": "live_text_bytes",
+                                                              "limit": 262144, "observed": 262145})
+
+
 def guards_charges(rep: Report):
+    guards_model_limits(rep)
     lim = dict(charges.NORMAL, live_text_bytes=10)
     in_loop = charges.account([("loop", 5, [("lit", 3, 0)])], lim)
     straight = charges.account([("lit", 3, 0), ("lit", 3, 1), ("lit", 3, 2), ("lit", 3, 3)], lim)
