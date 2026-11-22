@@ -1,0 +1,460 @@
+{
+ "adr": {
+  "A2": {
+   "blob": "227b2c7c8ed492f8528771c3abfcb26cfd7d7618",
+   "path": "docs/adr/F0-0002-second-slice.md",
+   "sha256_lf": "2f37fe66eb16bb18e08b69666a5b3c553eeef1ac6621780d0991d608782f4d53"
+  },
+  "D15": {
+   "blob": "c2308af2e3bd31d0fb4d20bb704f74f40d3a4caa",
+   "path": "docs/adr/F0-D15-sintaxis-oficial.md",
+   "sha256_lf": "2c87f832357dc6f45a1c3dfef43865a3653dac686be3bc402ac095020593038c"
+  },
+  "F0003": {
+   "blob": "0c55626ba5e056ba62c341a6b857851f5f4dd7a1",
+   "path": "docs/adr/F0-0003-third-slice.md",
+   "sha256_lf": "21b73b79769f5295c396a008d34a44024921821e20ff11d5d9c29778331f1a26"
+  },
+  "F0005": {
+   "blob": "df59a15c8d805c42cb92d9f10810ed7645deaafe",
+   "path": "docs/adr/F0-0005-operators-control-collections.md",
+   "sha256_lf": "16823a5c7aa4f2dbeec2cf3af78eec22b70f2e61b20f006fafb0a9a8135c8ac2"
+  },
+  "K": {
+   "blob": "8bf37f56c9afd7c4d8c8bb212ea1b2b7b29635a5",
+   "path": "docs/adr/F0-0004-text-and-user-types.md",
+   "sha256_lf": "cb9dc5e93d7965c99d871fbd386a6d5375ff443471b45194a88ae0901125d941"
+  }
+ },
+ "commit": "1010938",
+ "fragments": [
+  {
+   "anchor": "A2 §13.6 identidades fuente reproducibles",
+   "fragment": "Las identidades fuente son reproducibles: `function:<offset>`, `parameter:<offset>` y `binding:<offset>` usan el comienzo del nombre declarado. Préstamos y temporales usan `loan:<offset>:<ordinal>` y `temporary:<offset>:<ordinal>`, con ordinal desde cero en el orden del lowering canónico de ese sitio. Intrínsecos usan `prelude:<nombre>`. Los tipos usan su escritura canónica sin espacios. Estas identidades son locales al archivo indicado por sus spans, no direcciones de memoria.",
+   "id": "H1",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "Las identidades fuente son reproducibles"
+   },
+   "section": "13.6",
+   "sha256": "9fc910fc165c910648558f4d03df1b8e722697e76459f24bb3a7ed012e5d8a15",
+   "source_doc": "A2",
+   "used_for": "entity.id (plan 1.2-1)"
+  },
+  {
+   "anchor": "A2 §12.4 formato Array",
+   "fragment": "- Array: `[` y `]`, elementos separados por `, `, con formato recursivo.",
+   "id": "H2a",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "- Array: `[` y `]`"
+   },
+   "section": "12.4",
+   "sha256": "606e84fa3edc235c9768bef3c20e1ceff8f0e5ff98b2621eda593f91651b3dce",
+   "source_doc": "A2",
+   "used_for": "formato de Print (plan 1.2-4)"
+  },
+  {
+   "anchor": "A2 §12.4 formato Result",
+   "fragment": "- `Result` de datos: `Ok(<payload>)` o `Err(<payload>)`, con formato recursivo.",
+   "id": "H2b",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "- `Result` de datos"
+   },
+   "section": "12.4",
+   "sha256": "f37a6bffc0e1a353998a9a455b4bddb920134d3c2b8930aaaf7d3959b1ea1c22",
+   "source_doc": "A2",
+   "used_for": "formato de Print (plan 1.2-4)"
+  },
+  {
+   "anchor": "A2 §12.4 formato I64",
+   "fragment": "- `i64`: decimal canónico.",
+   "id": "H2c",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "- `i64`: decimal"
+   },
+   "section": "12.4",
+   "sha256": "a15abe478c1fe6927239dc065ea884c1e2cdf7380d6e372474e4aa8a8d61e735",
+   "source_doc": "A2",
+   "used_for": "formato de Print (plan 1.2-4)"
+  },
+  {
+   "anchor": "A2 §12.4 formato Bool",
+   "fragment": "- `bool`: `true` o `false`.",
+   "id": "H2d",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "- `bool`: `true`"
+   },
+   "section": "12.4",
+   "sha256": "da8b0f2ca6e02d040252bd9dcdcfeade516d05ae5335a8c9a9df19c020aba445",
+   "source_doc": "A2",
+   "used_for": "formato de Print (plan 1.2-4)"
+  },
+  {
+   "anchor": "A2 §12.4 formato unidad",
+   "fragment": "- Unidad: `()`.",
+   "id": "H2e",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "- Unidad: `()`."
+   },
+   "section": "12.4",
+   "sha256": "36c76860f84d3738e3737d87a5d704ee737182f71aa89467c2db997a5bf2c3ae",
+   "source_doc": "A2",
+   "used_for": "formato de Print (plan 1.2-4)"
+  },
+  {
+   "anchor": "F0-0003 §3.1 Print de Option",
+   "fragment": "Print produce `None` o `Some(<payload>)`; igualdad compara tag y después",
+   "id": "H3",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "Print produce `None` o `Some(<payload>)`"
+   },
+   "section": "3.1",
+   "sha256": "04167c9024a5a59d1e2f936cfc354fc535df1f719fe9f47f362327719c530280",
+   "source_doc": "F0003",
+   "used_for": "formato de Option (plan 1.2-5)"
+  },
+  {
+   "anchor": "D15 §2.4 cadena de B completa",
+   "fragment": "Cadena de **B completa**: comillas dobles, contenido Unicode sin CR/LF crudos, escapes cerrados `\\\"`, `\\\\`, `\\n`, `\\r`, `\\t`; `{{` y `}}` representan llaves literales. `{Expr}` interpola una expresión, una vez y en orden escrito; no admite sentencias ni campos de formato. Las comillas y escapes de interpolaciones se analizan recursivamente en su contexto. No hay raw strings, triples ni plantillas UI (D14 §3.2; R D10).",
+   "id": "H4a",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "Cadena de **B completa**"
+   },
+   "section": "2.4",
+   "sha256": "45cd073dd7cadc5ea4ff670bb503de9b85c2979c1b2d5a21bcdf8c1117d2c9e9",
+   "source_doc": "D15",
+   "used_for": "escapes (plan 1.2-6)"
+  },
+  {
+   "anchor": "D15 §2.4 envoltura F0",
+   "fragment": "En **F0**, el lexer reconoce una envoltura simple: termina en la primera `\"` no escapada, sin analizar interpolaciones ni habilitar comillas interiores. Valida los cinco escapes anteriores; un escape desconocido es NX-E0001 sobre ese escape, con el contrato léxico de §6.3. Las llaves simples o duplicadas son contenido opaco: no se exige duplicarlas ni se comprueba el balance de una interpolación. Una cadena incompleta ocupa desde `\"` hasta EOF o antes del CR/LF que la interrumpe; una barra inversa no permite atravesar ese salto. Una vez obtenido el token, el parser emite NX-E0006/feature_id `text` sobre el token completo **sin mirar su interior**, conforme al reconocimiento de alcance de A2 §§3.2–3.6. Así `\"…{x}\"` se rechaza por `text`, sin resolver x ni ejecutar interpolación. La recursión y el límite de anidamiento de interpolaciones se incorporan al habilitar esa capacidad.",
+   "id": "H4b",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "En **F0**, el lexer reconoce"
+   },
+   "section": "2.4",
+   "sha256": "aad60018c0384f7293836d5f84244f251a21087ec40d7f7df89b7945bf5117ec",
+   "source_doc": "D15",
+   "used_for": "escapes (plan 1.2-6)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0001 |",
+   "fragment": "| NX-E0001 | `lex` | `syntax.lex` |",
+   "id": "S-NX-E0001",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0001 |"
+   },
+   "section": "13.12",
+   "sha256": "c285f2b5a0d44195a341584aeeb9a9578807e24c2e9cbd203d626de946d6c811",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0002; NX-E0005 |",
+   "fragment": "| NX-E0002; NX-E0005 | `parse` | `syntax.parse` |",
+   "id": "S-NX-E0002",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0002; NX-E0005 |"
+   },
+   "section": "13.12",
+   "sha256": "34e2df19129d0af88d22732f39fceaeac446eb963c68e49a026d408530d03490",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0102/type_mismatch",
+   "fragment": "| NX-E0102/type_mismatch, not_indexable, resource_required | `types` | `types.check` |",
+   "id": "S-NX-E0102/type_mismatch",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0102/type_mismatch"
+   },
+   "section": "13.12",
+   "sha256": "2942c464b0ca3c358aa34e069f44ad0216b57dfa3400a5dd64438c233ebc3d8d",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0104, incluidos",
+   "fragment": "| NX-E0104, incluidos los tres `declaration_kind` | `names` | `names.declare` |",
+   "id": "S-NX-E0104",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0104, incluidos"
+   },
+   "section": "13.12",
+   "sha256": "b4d33430efa07cb4791512b31a23ad6ce2b80c075f8937c613106b20a744479a",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0105 |",
+   "fragment": "| NX-E0105 | `ownership` | `place.write` |",
+   "id": "S-NX-E0105",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0105 |"
+   },
+   "section": "13.12",
+   "sha256": "679ef53bfc569133762eccd94a2b3951df7b87d736aebf71824bf732b166da24",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0111, sus siete",
+   "fragment": "| NX-E0111, sus siete subcausas | `arguments` | `call.bind` |",
+   "id": "S-NX-E0111",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0111, sus siete"
+   },
+   "section": "13.12",
+   "sha256": "611a0b80ffc2719364fe09969614615a0131d2d398f66a4a020e2771c53db78b",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0201 |",
+   "fragment": "| NX-E0201 | `ownership` | `value.copy` |",
+   "id": "S-NX-E0201",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0201 |"
+   },
+   "section": "13.12",
+   "sha256": "8c8f41c1ccf59f4ccdc4fe7c126a4f920833bdd9827fb7ce059bb0a7f1466ea2",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E0202, sus dos",
+   "fragment": "| NX-E0202, sus dos subcausas | `ownership` | `ownership.use` |",
+   "id": "S-NX-E0202",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E0202, sus dos"
+   },
+   "section": "13.12",
+   "sha256": "28a017255d359a00a5181a9da905b848358677c1ed6a64e349ee2fd1049b2e3f",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | NX-E1105, sus tres",
+   "fragment": "| NX-E1105, sus tres subcausas | `ownership` | `ownership.access` |",
+   "id": "S-NX-E1105",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| NX-E1105, sus tres"
+   },
+   "section": "13.12",
+   "sha256": "ac4218c0eee8b946bcf7e92fb98eb418fcc8e52ef1764462423414f59fc86235",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §13.12 etapa/operacion | R0001; R0002 |",
+   "fragment": "| R0001; R0002 | `runtime` | `runtime.limit` |",
+   "id": "S-R0001",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| R0001; R0002 |"
+   },
+   "section": "13.12",
+   "sha256": "8c271a0b874efe4629582603be828a2e47c4c3c0f902ced14afd668daf0e004e",
+   "source_doc": "A2",
+   "used_for": "tabla STAGE_OP de diagnostics.py (plan 1.2-2)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome ok",
+   "fragment": "{\"kind\":\"ok\"}                           main devuelve Ok(())",
+   "id": "H5a",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"ok\"}  "
+   },
+   "section": "12.4",
+   "sha256": "73dccb9c1aa54cc543fd655af6dd4e2846d04ab2c7102c4b1771c5596497099b",
+   "source_doc": "A2",
+   "used_for": "forma outcome ok (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome err (LF-16)",
+   "fragment": "{\"kind\":\"err\",\"error\":I64}               main devuelve Err(i64)",
+   "id": "H5b",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"err\",\"error\":I64}"
+   },
+   "section": "12.4",
+   "sha256": "9e57c426f7e6e8ddbce1a0f6893fdddc105e0b352690a922aabdede7aee2e8da",
+   "source_doc": "A2",
+   "used_for": "forma outcome err (LF-16) (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome de fallo R",
+   "fragment": "{\"kind\":\"simulator_fault\"}              fallo R; diagnostics contiene la causa",
+   "id": "H5c",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"simulator_fault\"}"
+   },
+   "section": "12.4",
+   "sha256": "96b53111759c111be455aa368ba64252ee991af560e3f3d078e2b90f1f90d76d",
+   "source_doc": "A2",
+   "used_for": "forma outcome de fallo R (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 forma outcome de error del controlador (E01-E06)",
+   "fragment": "{\"kind\":\"driver_error\",\"reason\":RAZON}   opciones o entorno mock inválidos",
+   "id": "H5d",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "{\"kind\":\"driver_error\",\"reason\":RAZON}"
+   },
+   "section": "12.4",
+   "sha256": "49d77039e933560dee6a4eac624ae9d293bf78bccdc2740c010721eb1e233ef5",
+   "source_doc": "A2",
+   "used_for": "forma outcome de error del controlador (E01-E06) (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 razones de driver_error",
+   "fragment": "`input_error` conserva `NX-E0004` y su subcausa. Entre las razones de `driver_error` se incluyen las cuatro del entorno, `invalid_arguments` y `unknown_profile`. Una IR inválida sigue siendo fallo interno de implementación, no un resultado Nexo ni un R de programa.",
+   "id": "H5e",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "`input_error` conserva"
+   },
+   "section": "12.4",
+   "sha256": "71451c139209ea15e695451b4be77ebbe26f79caf16190737e62dadbfa678b30",
+   "source_doc": "A2",
+   "used_for": "razones de driver_error (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 exit 1 de Err, fallo R y rechazo",
+   "fragment": "| `main` devuelve `Err`; fallo R; rechazo estático, incluido exceso de fuente | 1 |",
+   "id": "H5f",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| `main` devuelve `Err`;"
+   },
+   "section": "12.4",
+   "sha256": "6d32d85ad2111ddd2bf080f35ecfd4248208c42b5f25ef541bdc077f1a3c4ceb",
+   "source_doc": "A2",
+   "used_for": "exit 1 de Err, fallo R y rechazo (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 exit 2 de controlador",
+   "fragment": "| Uso/configuración inválidos; fuente ilegible o UTF-8 inválido; fallo interno controlado de implementación | 2 |",
+   "id": "H5g",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "| Uso/configuraci"
+   },
+   "section": "12.4",
+   "sha256": "87bf9a0966109d8491a3b86e6e65cafdd7db0133a8ce6f57808e7717a140a2f9",
+   "source_doc": "A2",
+   "used_for": "exit 2 de controlador (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 ejemplo literal de outcome ok",
+   "fragment": "con una respuesta `{\"ok\":null}` en `mock_write_i64`:",
+   "id": "H5h",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "con una respuesta `{\"ok\":null}` en `mock_write_i64`"
+   },
+   "section": "12.4",
+   "sha256": "f8e5c9655a24fbc4b1768f223df50e6e8be131c7fe9e8789c71cc9e71636270b",
+   "source_doc": "A2",
+   "used_for": "ejemplo literal de outcome ok (plan 3, O5)"
+  },
+  {
+   "anchor": "A2 §12.4 ejemplo literal de outcome err con error string (LF-16)",
+   "fragment": "El evento ocupa 24 bytes y la salida tres. Una respuesta `{\"err\":\"40\"}` produce solo `write_i64:25:err:40`, `outcome = {\"kind\":\"err\",\"error\":\"40\"}` y ninguna línea de salida.",
+   "id": "H5i",
+   "locator": {
+    "kind": "line_prefix",
+    "text": "El evento ocupa 24 bytes"
+   },
+   "section": "12.4",
+   "sha256": "643abf1e895b16e17095977120ceab648a1aaa16c406b8566a8bf5598938f653",
+   "source_doc": "A2",
+   "used_for": "ejemplo literal de outcome err con error string (LF-16) (plan 3, O5)"
+  }
+ ],
+ "generic": {
+  "commit": "1010938",
+  "files": {
+   "scripts/f5_oracle/batch.py": "a1d21a3498bba95682ca94e1d04b96d408e4dd20",
+   "scripts/f5_oracle/runner.py": "5e44e12d5988eeba64ce9643c107a55ffb506b98"
+  },
+  "symbols": {
+   "Invocation": {
+    "ast_sha256": "c156b8ab6943bca6060fde1ee11fa0198d1f8f8f5602358ff48c7c62f28efa56",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "copied"
+   },
+   "_first_difference": {
+    "ast_sha256": "51b8e4f62893e98c0d079db84290ebfe04a53a06268c0769a006dcfd279b5ba3",
+    "ast_sha256_adapted": "38ef327d99577a4899567560ba3185ed86bc39ae357af75560a3babd0e702f36",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "changes": [
+     "igualdad estricta: claves de objeto en ambos sentidos (F5 ignora claves extra del obtenido) y mismo tipo JSON (distingue 1, true, 1.0 y \"1\")"
+    ],
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "adapted"
+   },
+   "invoke": {
+    "ast_sha256": "97f427b58500e927c8a0e665709b1ff1ef09e7bd53c9690a68ae2a9b0ccf26c3",
+    "ast_sha256_adapted": "f0c592b737d08802bc7d078169b28ea500a95982da2791f7e66b44c27172e321",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "changes": [
+     "parametros nuevos file_name y mock_env: anade --mock-env <ruta> solo en el verbo run y pasa file_name y la ruta invocada a normalize_files; outcome no objeto se trata como vacio; conserva el reintento unico de timeout, timeout_confirmed, internal_error y panic_or_invalid_ir"
+    ],
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "adapted"
+   },
+   "make_batches": {
+    "ast_sha256": "832eb3a84c645a19d7daf11c8ac26e69ce833cd5ac8f753e98e0be87fb8e14fe",
+    "blob": "a1d21a3498bba95682ca94e1d04b96d408e4dd20",
+    "file": "scripts/f5_oracle/batch.py",
+    "kind": "copied"
+   },
+   "normalize_files": {
+    "ast_sha256": "293b6adf1c608e7acfb35755371b55e9f55f14bca543cb529c8dcc1cb5cc9f35",
+    "ast_sha256_adapted": "8610db90eca44a332f680452d9b0b2e7c11dfdd2cab54b14f5421abdb4344dfa",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "changes": [
+     "nuevo parametro file_name (nombre del archivo del caso) y source (ruta invocada): solo se normaliza el campo `file` cuando su valor es la ruta invocada o su nombre; ya no se sustituye por el literal fijo; otros valores de `file` se conservan para que la comparacion los detecte"
+    ],
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "adapted"
+   },
+   "seed_range": {
+    "ast_sha256": "96a9ca09ae515be6186656d9f5597bec986ae997f47de473ca27568bcfa24b82",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "copied"
+   },
+   "sha": {
+    "ast_sha256": "7a0249256f2c77be9509011acfedd9c78845eed378c8ef495d89f3cfcfbab289",
+    "blob": "5e44e12d5988eeba64ce9643c107a55ffb506b98",
+    "file": "scripts/f5_oracle/runner.py",
+    "kind": "copied"
+   }
+  }
+ },
+ "version": 1
+}
