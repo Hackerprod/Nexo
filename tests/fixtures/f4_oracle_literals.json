@@ -2280,7 +2280,7 @@
     "positive_arg": null,
     "positive_source": null,
     "positive_stdout": null,
-    "use_variant": null,
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"0007\"));}",
     "use_variant_positive": null
    },
    "source": "fn Main(){Print(std.parse.I64(\"0007\"));}"
@@ -2316,7 +2316,7 @@
     "positive_arg": null,
     "positive_source": null,
     "positive_stdout": null,
-    "use_variant": null,
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"-0\"));}",
     "use_variant_positive": null
    },
    "source": "fn Main(){Print(std.parse.I64(\"-0\"));}"
@@ -2352,7 +2352,7 @@
     "positive_arg": null,
     "positive_source": null,
     "positive_stdout": null,
-    "use_variant": null,
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"-\"));}",
     "use_variant_positive": null
    },
    "source": "fn Main(){Print(std.parse.I64(\"-\"));}"
@@ -2388,7 +2388,7 @@
     "positive_arg": null,
     "positive_source": null,
     "positive_stdout": null,
-    "use_variant": null,
+    "use_variant": "use std.parse;fn Main(){Print(parse.I64(\"1x\"));}",
     "use_variant_positive": null
    },
    "source": "fn Main(){Print(std.parse.I64(\"1x\"));}"
@@ -5880,7 +5880,7 @@
     }
    ],
    "id": "CMP6",
-   "source": "@derive(PartialEq)struct S{text:String;}\n@derive(PartialEq)enum E{Nada,Dato(S)}\nfn Main(){\n    AssertEq(\"é\"==\"é\",true);\n    AssertEq(\"é\"!=\"é\",true);\n    AssertEq(\"é\"<\"🙂\",true);\n    AssertEq(\"é\"<=\"é\",true);\n    AssertEq(\"🙂\">\"é\",true);\n    AssertEq(\"é\">=\"é\",true);\n    AssertEq(\"a\"<\"aa\",true);\n    AssertEq(\"\"<\"a\",true);\n    AssertEq(\"a\">\"aa\",false);\n    var a:Array<E>=[];\n    Push(edit a,E.Dato(S(\"é\")));\n    Push(edit a,E.Nada);\n    var b=a;\n    AssertEq(Pop(edit b),Some(E.Nada));\n    AssertEq(a!=b,true);\n    Push(edit b,E.Nada);\n    AssertEq(a==b,true);\n    let c=JoinArrays(a,b);\n    AssertEq(Len(c),4);\n    var n=0;\n    for item in c{\n        match item{E.Nada=>{},E.Dato(s)=>{n+=s.text.ByteLen();}}\n    }\n    AssertEq(n,4);\n}"
+   "source": "@derive(PartialEq)struct S{text:String;}\n@derive(PartialEq)enum E{Nada,Dato(S)}\nfn Main(){\n    AssertEq(\"é\"==\"é\",true);\n    AssertEq(\"é\"!=\"é\",true);\n    AssertEq(\"é\"<\"🙂\",true);\n    AssertEq(\"é\"<=\"é\",true);\n    AssertEq(\"🙂\">\"é\",true);\n    AssertEq(\"é\">=\"é\",true);\n    AssertEq(\"a\"<\"aa\",true);\n    AssertEq(\"\"<\"a\",true);\n    AssertEq(\"a\">\"aa\",false);\n    var a:Array<E>=[];\n    Push(edit a,E.Dato(S(\"é\")));\n    Push(edit a,E.Nada);\n    var b=a;\n    AssertEq(Pop(edit b),Some(E.Nada));\n    AssertEq(a!=b,true);\n    Push(edit b,E.Nada);\n    AssertEq(a==b,true);\n    let c=JoinArrays(a,b);\n    AssertEq(Len(c),4);\n    var n=0;\n    for item in c{\n        match item{E.Nada=>{},E.Dato(s)=>{n+=s.text.ByteLen();}}\n    }\n    AssertEq(n,4);\n}\n"
   },
   {
    "anchor": "K §10.7 programa K04",
@@ -5905,7 +5905,7 @@
     }
    ],
    "id": "K04P",
-   "source": "struct S{text:String;}\nenum E{Nada,Dato(S)}\nfn Main(){\n    var a=[S(\"é\")];\n    var b=a;\n    Push(edit b,S(\"x\"));\n    AssertEq(Len(a),1);\n    AssertEq(Len(b),2);\n    var bytes=0;\n    for r in b{bytes+=r.text.ByteLen();}\n    AssertEq(bytes,3);\n    var es=[E.Nada];\n    Push(edit es,E.Dato(S(\"y\")));\n    let popped=Pop(edit es);\n    match popped{None=>{AssertEq(false,true);},Some(v)=>{}}\n    var count=0;\n    for e in JoinArrays(es,es){count+=1;}\n    AssertEq(count,2);\n}"
+   "source": "struct S{text:String;}\nenum E{Nada,Dato(S)}\nfn Main(){\n    var a=[S(\"é\")];\n    var b=a;\n    Push(edit b,S(\"x\"));\n    AssertEq(Len(a),1);\n    AssertEq(Len(b),2);\n    var bytes=0;\n    for r in b{bytes+=r.text.ByteLen();}\n    AssertEq(bytes,3);\n    var es=[E.Nada];\n    Push(edit es,E.Dato(S(\"y\")));\n    let popped=Pop(edit es);\n    match popped{None=>{AssertEq(false,true);},Some(v)=>{}}\n    var count=0;\n    for e in JoinArrays(es,es){count+=1;}\n    AssertEq(count,2);\n}\n"
   },
   {
    "anchor": "K §10.8 P01",
@@ -6202,7 +6202,7 @@
     }
    ],
    "id": "A01",
-   "source": "fn Main(){let a=\"é🙂\";var b=a;b=\"x\";AssertEq(a.ByteLen(),6);AssertEq(a.ScalarLen(),2);AssertEq(b,\"x\");}"
+   "source": "fn Main(){let a=\"é🙂\";var b=a;b=\"x\";AssertEq(a.ByteLen(),6);AssertEq(a.ScalarLen(),2);AssertEq(b,\"x\");}\n"
   },
   {
    "anchor": "K §11.1 A02",
@@ -6237,7 +6237,7 @@
     }
    ],
    "id": "A02",
-   "source": "fn Main(){let a=\"é\".Scalars();let b=\"é\".Scalars();AssertEq(a,[233]);AssertEq(b,[101,769]);var n=0;for code in b{n+=1;}Print(n);}"
+   "source": "fn Main(){let a=\"é\".Scalars();let b=\"é\".Scalars();AssertEq(a,[233]);AssertEq(b,[101,769]);var n=0;for code in b{n+=1;}Print(n);}\n"
   },
   {
    "anchor": "K §11.1 A03",
@@ -6262,7 +6262,7 @@
     }
    ],
    "id": "A03",
-   "source": "use std.parse;use std.text;\nfn Main()->Result<(),I64>{let n=parse.I64(\"-9223372036854775808\")?;AssertEq(text.FromI64(n),\"-9223372036854775808\");AssertEq(parse.I64(\"+1\"),Err(-9101));return Ok(());}"
+   "source": "use std.parse;use std.text;\nfn Main()->Result<(),I64>{let n=parse.I64(\"-9223372036854775808\")?;AssertEq(text.FromI64(n),\"-9223372036854775808\");AssertEq(parse.I64(\"+1\"),Err(-9101));return Ok(());}\n"
   },
   {
    "anchor": "K §11.1 A04",
@@ -6287,7 +6287,7 @@
     }
    ],
    "id": "A04",
-   "source": "@derive(PartialEq)struct S{x:Array<String>;}\nfn Main(){let a=S([\"a\"]);var b=a;Push(edit b.x,\"b\");AssertEq(a.x,[\"a\"]);AssertEq(b.x,[\"a\",\"b\"]);AssertEq(a!=b,true);AssertEq(Pop(edit b.x),Some(\"b\"));AssertEq(a==b,true);let c=JoinArrays(a.x,[\"é\"]);var n=0;for text in c{n+=text.ByteLen();}AssertEq(n,3);}"
+   "source": "@derive(PartialEq)struct S{x:Array<String>;}\nfn Main(){let a=S([\"a\"]);var b=a;Push(edit b.x,\"b\");AssertEq(a.x,[\"a\"]);AssertEq(b.x,[\"a\",\"b\"]);AssertEq(a!=b,true);AssertEq(Pop(edit b.x),Some(\"b\"));AssertEq(a==b,true);let c=JoinArrays(a.x,[\"é\"]);var n=0;for text in c{n+=text.ByteLen();}AssertEq(n,3);}\n"
   },
   {
    "anchor": "K §11.1 A05",
@@ -6324,7 +6324,7 @@
     }
    ],
    "id": "A05",
-   "source": "enum E{Nada,Vivo(MockResource)}\nfn Main(){let e=E.Vivo(MockOpen(7));match move e{E.Nada=>{},E.Vivo(move r)=>{Inspect(r);}}}"
+   "source": "enum E{Nada,Vivo(MockResource)}\nfn Main(){let e=E.Vivo(MockOpen(7));match move e{E.Nada=>{},E.Vivo(move r)=>{Inspect(r);}}}\n"
   },
   {
    "anchor": "K §11.1 A06",
@@ -6362,7 +6362,7 @@
     }
    ],
    "id": "A06",
-   "source": "struct Par{a:MockResource;b:MockResource;}\nfn Main(){let p=Par(b:MockOpen(2),a:MockOpen(1));Drop(p);}"
+   "source": "struct Par{a:MockResource;b:MockResource;}\nfn Main(){let p=Par(b:MockOpen(2),a:MockOpen(1));Drop(p);}\n"
   },
   {
    "anchor": "K §11.1 A07",
@@ -6397,7 +6397,7 @@
     }
    ],
    "id": "A07",
-   "source": "fn Siguiente(n:edit I64)->I64{n=n+1;return n;}\nfn Main(){var n=0;Print(\"{{{n}:{Siguiente(edit n)}:{n}}}\");AssertEq(n,1);}"
+   "source": "fn Siguiente(n:edit I64)->I64{n=n+1;return n;}\nfn Main(){var n=0;Print(\"{{{n}:{Siguiente(edit n)}:{n}}}\");AssertEq(n,1);}\n"
   },
   {
    "anchor": "K §11.1 A08",
@@ -6435,7 +6435,7 @@
     }
    ],
    "id": "A08",
-   "source": "use std.console;\nfn Main()->Result<(),I64>{let s=\"{\"é\"}:{if true then 1 else 2}\";console.Println(s)?;return Ok(());}"
+   "source": "use std.console;\nfn Main()->Result<(),I64>{let s=\"{\"é\"}:{if true then 1 else 2}\";console.Println(s)?;return Ok(());}\n"
   },
   {
    "anchor": "K §9.1 U01",

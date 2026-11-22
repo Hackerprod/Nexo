@@ -406,16 +406,567 @@ def run_g0(rep: Report):
     rep.check("G0.barrier.table_closed", set(ktable.values()) == {f"K{n:02d}" for n in range(2, 11)})
 
 
-def run_g1_g2_integrity(rep: Report):
-    """O1: G1/G2 rows are present and structurally sound; the model pairs arrive with O2."""
-    emap = entry_map()
-    need = ["X04", "X23", "X24", "X25", "X26", "N09", "A01", "T01", "T10", "T14", "X22", "M05", "O01-<",
-            "O02-!=", "O03->=", "O04", "O10", "O11", "O13", "B01-text", "A02"]
-    missing = [n for n in need if n not in emap]
-    rep.check("G1G2.rows_present", not missing, ",".join(missing))
+# ------------------------------------------------------------------ O2: model pairs G1-G8
+# Each builder describes one K row as a typed program (never parsed from text).  ``pos`` is
+# False for the negative fixture and True for its single-edit positive.
+
+from . import model as m
+
+I, B, S, N, C, lab, edit, move, M = m.I, m.B, m.S, m.N, m.C, m.lab, m.edit, m.move, m.M
+FLD, V, BIN, ARR, LET, VAR, ASG, ES = m.F, m.V, m.BIN, m.ARR, m.LET, m.VAR, m.ASG, m.ES
+FOR, ARM, MATCH, STRUCT, ENUM, FN, EXT, METH = m.FOR, m.ARM, m.MATCH, m.STRUCT, m.ENUM, m.FN, m.EXT, m.METH
+Program, Use, UseExt, RawDecl, PVar, PBind, PWild, PNone, PSome = (
+    m.Program, m.Use, m.UseExt, m.RawDecl, m.PVar, m.PBind, m.PWild, m.PNone, m.PSome)
+IDX, TRY, IFE, Mv = m.IDX, m.TRY, m.IFE, m.Mv
 
 
-GROUPS = {"G0": run_g0, "G1": run_g1_g2_integrity}
+def main(*body, ret=None, ml=False):
+    return FN("Main", [], list(body), ret=ret, ml=ml)
+
+
+def AEQ(a, b):
+    return ES(C("AssertEq", a, b))
+
+
+def prog(*decls, **kw):
+    return Program(list(decls), **kw)
+
+
+def _op_rows(ident, ops, build):
+    return {f"{ident}-{op}": (lambda pos, op=op: build(pos, op)) for op in ops}
+
+
+OPS6 = ["<", "<=", ">", ">=", "==", "!="]
+
+# kind: check (static diagnostics), run (runtime fault), result (stdout/events), access (P04)
+BUILD = {
+    # ---- G1
+    "X04": ("check", lambda pos: prog(main(LET("s", IDX(ARR(I(233)) if pos else S("é"), I(0)))))),
+    "X23": ("check", lambda pos: prog(FN("F", [("s", "view", "String")],
+                                         [ES(M(N("s"), "ByteLen"))] if pos else [LET("t", N("s"))],
+                                         with_="no_alloc"))),
+    "X24": ("run", lambda pos: prog(main(LET("s", S("abcdefgh" if pos else "abcdefghi")))),
+            {"limits": {"string_bytes": 8}, "profile": "f0-0004-b-test-string-8-v1"}),
+    "X25": ("run", lambda pos: prog(main(LET("a", S("12345678")), LET("b", S("12345678")),
+                                         LET("c", S("" if pos else "x")))),
+            {"limits": {"live_text_bytes": 16}, "profile": "f0-0004-b-test-text-live-16-v1"}),
+    "X26": ("run", lambda pos: prog(main(LET("a", S("")), LET("b", S("")), LET("c", I(0) if pos else S("")))),
+            {"limits": {"text_allocations": 2}, "profile": "f0-0004-b-test-text-alloc-2-v1"}),
+    "N09": ("check", lambda pos: prog(FN("F", [], [LET("s", I(0) if pos else S("a"))], with_="no_alloc"))),
+    # ---- G2
+    "X22": ("check", lambda pos: prog(main(LET("s", S("a")), LET("t", M(N("s"), "ByteLen" if pos else "Nope"))))),
+    "M05": ("check", lambda pos: prog(main(LET("s", S("a")), ES(M(N("s"), "Scalars" if pos else "Graphemes"))))),
+    "O04": ("check", lambda pos: prog(main(LET("x", BIN(S("é"), "==" if pos else "+", S("x")))))),
+    "O10": ("check", lambda pos: prog(main(FOR("x", ARR(S("é")) if pos else S("é"), [])))),
+    "O11": ("check", lambda pos: prog(main(FOR("x", ARR(S("é")), [], edit_=not pos)))),
+    "O13": ("run", lambda pos: prog(main(VAR("a", ARR(S("é"))), FOR("x", N("a"), [ES(M(N("x"), "ByteLen"))]),
+                                         ES(C("Push", edit(N("a")), S("x") if pos else M(S("x"), "Concat", S("")))),
+                                         ES(C("Pop", edit(N("a")))))),
+            {"limits": {"text_allocations": 2}, "profile": "f0-0004-b-test-text-alloc-2-v1"}),
+    "B01-text": ("check", lambda pos: prog(main(VAR("a", ARR(S("x"))),
+                                                FOR("x", ARR(S("x")) if pos else N("a"),
+                                                    [ASG(IDX(N("a"), I(0)), S("y"))])))),
+    # ---- G3
+    "X05": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                      main(LET("s", C("S", I(1))), ES(FLD(N("s"), "x" if pos else "y"))))),
+    "X06": ("check", lambda pos: prog(STRUCT("S", [("x", "I64"), ("y" if pos else "x", "I64")]))),
+    "X07": ("check", lambda pos: prog(ENUM("E", [("A", []), ("B" if pos else "A", [])]))),
+    "X08": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                      main(LET("s", C("S", I(1)) if pos else C("S"))))),
+    "X09": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                      main(LET("s", C("S", lab("x" if pos else "z", I(1))))))),
+    "X10": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                      main((VAR if pos else LET)("s", C("S", I(1))),
+                                           ASG(FLD(N("s"), "x"), I(2))))),
+    "X21": ("check", lambda pos: prog(STRUCT("S", [("x", "I64" if pos else "S")]))),
+    "X27": ("check", lambda pos: prog(STRUCT("S", [("a", "I64"), ("b", "I64")] + ([] if pos else [("c", "I64")]))),
+            {"limits": {"nominal_members": 2, "profile_id": "f0-0004-b-test-members-2-v1"}}),
+    "M07": ("check", lambda pos: prog(STRUCT("T", []) if pos else RawDecl("trait T{}", "trait"))),
+    "N03": ("check", lambda pos: prog(ENUM("E", [("A", [])]),
+                                      main(LET("e", V("E", "A" if pos else "B", null=True))))),
+    "N04": ("check", lambda pos: prog(STRUCT("A", []), STRUCT("B", []),
+                                      main(LET("x", C("A" if pos else "B"), t="A")))),
+    "N12": ("check", lambda pos: prog(ENUM("E", [("A", [])] if pos else []))),
+    "P02": ("check", lambda pos: prog(STRUCT("S", [("x", "Result<I64,I64>" if pos else "Result<S,I64>")]))),
+    "P05": ("check", lambda pos: prog(ENUM("Evento", [("Inicio", [])]),
+                                      main(ES(V("Evento", "Inicio", null=True, called=not pos))))),
+    "P06": ("check", lambda pos: prog(STRUCT("S", [("campo", "I64")]),
+                                      main(LET("p", C("S", I(1))),
+                                           ES(C("Drop", N("p") if pos else FLD(N("p"), "campo")))))),
+    "H09": ("check", lambda pos: prog(STRUCT("A", [("b", "B")]), STRUCT("B", [("a", "I64" if pos else "A")]))),
+    "O12": ("check", lambda pos: prog(STRUCT("S", []), main(FOR("x", ARR(C("S")) if pos else C("S"), [])))),
+    "B01-struct": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                             main(VAR("a", ARR(C("S", I(1)))),
+                                                  FOR("x", ARR(C("S", I(1))) if pos else N("a"),
+                                                      [ASG(IDX(N("a"), I(0)), C("S", I(2)))])))),
+    "B01-enum": ("check", lambda pos: prog(ENUM("E", [("V", ["I64"])]),
+                                           main(VAR("a", ARR(V("E", "V", I(1)))),
+                                                FOR("x", ARR(V("E", "V", I(1))) if pos else N("a"),
+                                                    [ASG(IDX(N("a"), I(0)), V("E", "V", I(2)))])))),
+    # ---- G4
+    "X11": ("check", lambda pos: prog(STRUCT("S", [("r", "MockResource")]),
+                                      main(LET("s", C("S", C("MockOpen", I(1)))),
+                                           LET("t", Mv(N("s")) if pos else N("s"))))),
+    "M04": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                      main(LET("s", C("S", I(1))),
+                                           LET("x", FLD(N("s"), "x") if pos else Mv(FLD(N("s"), "x")))))),
+    "N05": ("check", lambda pos: prog(ENUM("E", [("A", []), ("B", ["MockResource"])]),
+                                      main(LET("e", V("E", "A", null=True)),
+                                           LET("f", Mv(N("e")) if pos else N("e"))))),
+    "N06": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                      FN("F", [("s", "edit" if pos else "view", "S")],
+                                         [ASG(FLD(N("s"), "x"), I(2))]))),
+    "N07": ("check", lambda pos: prog(STRUCT("S", [("x", "I64"), ("y", "I64")]),
+                                      FN("F", [("a", "edit", "I64"), ("b", "edit", "I64")], []),
+                                      main(*([VAR("s", C("S", I(1), I(2))), VAR("t", C("S", I(3), I(4))),
+                                              ES(C("F", edit(FLD(N("s"), "x")), edit(FLD(N("t"), "y"))))] if pos else
+                                             [VAR("s", C("S", I(1), I(2))),
+                                              ES(C("F", edit(FLD(N("s"), "x")), edit(FLD(N("s"), "y"))))])))),
+    "N08": ("check", lambda pos: prog(STRUCT("S", []),
+                                      main(*([LET("s", C("S"))] + ([] if pos else [ES(C("Drop", N("s")))])
+                                             + [LET("t", N("s"))])))),
+    "O09": ("check", lambda pos: prog(STRUCT("S", [("r", "I64" if pos else "MockResource")]),
+                                      main(LET("a", ARR(), t="Array<S>")))),
+    # ---- G5
+    "M01": ("check", lambda pos: prog(STRUCT("S", []), EXT("S", METH("F", "edit")), UseExt("package.S"),
+                                      main(VAR("s", C("S")), ES(M(N("s"), "F", prefix="edit" if pos else None))))),
+    "M02": ("check", lambda pos: prog(*([STRUCT("S", []), EXT("S", METH("F", "view"))]
+                                        + ([UseExt("package.S")] if pos else [])
+                                        + [main(LET("s", C("S")), ES(M(N("s"), "F")))]))),
+    "M03": ("check", lambda pos: prog(STRUCT("S", []),
+                                      EXT("S", METH("F", "view"), METH("G" if pos else "F", "view")))),
+    "P01": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")]),
+                                      EXT("S", METH("F", "edit" if pos else "view",
+                                                    [ASG(FLD(N("self"), "x"), I(2))])))),
+    "H12": ("check", lambda pos: prog(STRUCT("S", []), EXT("S", METH("F", "view" if pos else "edit")),
+                                      UseExt("package.S"), main(ES(M(C("S"), "F"))))),
+    "H13": ("check", lambda pos: prog(STRUCT("S", []), EXT("S", METH("F", "view" if pos else "move")),
+                                      UseExt("package.S"), main(ES(M(C("S"), "F"))))),
+    "H12-edit": ("check", lambda pos: prog(STRUCT("S", []), EXT("S", METH("F", "edit")), UseExt("package.S"),
+                                           main(*([VAR("s", C("S")), ES(M(N("s"), "F", prefix="edit"))] if pos
+                                                  else [ES(M(C("S"), "F", prefix="edit"))])))),
+    "H13-move": ("check", lambda pos: prog(STRUCT("S", []), EXT("S", METH("F", "move")), UseExt("package.S"),
+                                           main(*([LET("s", C("S")), ES(M(N("s"), "F", prefix="move"))] if pos
+                                                  else [ES(M(C("S"), "F", prefix="move"))])))),
+    # ---- G6
+    "N01": ("check", lambda pos: prog(ENUM("E", [("A", ["I64", "I64"])]),
+                                      main(LET("e", V("E", "A", I(1), I(2))),
+                                           MATCH(N("e"), ARM(PVar("E", "A", [PBind("x")] + ([PBind("y")] if pos else []))))))),
+    "N02": ("check", lambda pos: prog(ENUM("E", [("A", []), ("B", [])]),
+                                      main(MATCH(V("E", "A", null=True),
+                                                 *([ARM(PVar("E", "A"))] + ([ARM(PVar("E", "B"))] if pos else [])))))),
+    "H11": ("check", lambda pos: prog(ENUM("E", [("A", []), ("B", ["I64", "Bool"])]),
+                                      main(MATCH(V("E", "A", null=True),
+                                                 *([ARM(PVar("E", "A"))] +
+                                                   ([ARM(PVar("E", "B", [PWild(), PWild()]))] if pos else [])))))),
+    # ---- G7
+    "X12": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")], derive=["Format"] if pos else []),
+                                      main(LET("s", C("S", I(1))), ES(C("Print", N("s")))))),
+    "X13": ("check", lambda pos: prog(STRUCT("S", [("x", "I64")], derive=["PartialEq"] if pos else []),
+                                      main(LET("s", C("S", I(1))),
+                                           AEQ(BIN(N("s"), "==", N("s")), B(True))))),
+    "X14": ("check", lambda pos: prog(STRUCT("S", [("r", "I64" if pos else "MockResource")], derive=["Format"]))),
+    "X15": ("check", lambda pos: prog(STRUCT("S", [], derive=["Format"] if pos else ["Format", "Format"]))),
+    "X16": ("check", lambda pos: prog(STRUCT("F", [], derive=["Format"]) if pos
+                                      else FN("F", [], [], derive=["Format"]))),
+    "N10": ("check", lambda pos: prog(STRUCT("S", [], derive=["Format"] if pos else []),
+                                      main(LET("s", C("S")), LET("t", S(N("s")))))),
+    "N11": ("check", lambda pos: prog(STRUCT("S", [("r", "I64" if pos else "MockResource")], derive=["PartialEq"]))),
+    "M08": ("check", lambda pos: prog(STRUCT("S", [], derive=["PartialEq" if pos else "Hash"]))),
+    "O14": ("check", lambda pos: prog(STRUCT("S", [], derive=["PartialEq"] if pos else []),
+                                      main(LET("a", C("Some", C("S"))), LET("x", BIN(N("a"), "!=", N("a")))))),
+    "O15": ("check", lambda pos: prog(STRUCT("S", [], derive=["PartialEq"] if pos else []),
+                                      main(LET("a", C("Ok", C("S")), t="Result<S,I64>"),
+                                           LET("x", BIN(N("a"), "!=", N("a")))))),
+    "O16": ("check", lambda pos: prog(STRUCT("S", [], derive=["PartialEq"] if pos else []),
+                                      ENUM("E", [("Nada", []), ("Dato", ["S"])], derive=["PartialEq"]),
+                                      main())),
+    "H07": ("check", lambda pos: prog(STRUCT("S", [], derive=["Format"] if pos else []),
+                                      main(LET("s", C("S")), LET("t", S("é\n", N("s")))), sep="\r\n")),
+    "H08": ("check", lambda pos: prog(STRUCT("S", [], derive=["Format"] if pos else []),
+                                      main(LET("s", C("S")), LET("t", S("é\"\\", N("s")))))),
+    # ---- G8
+    "X17": ("check", lambda pos: prog(FN("F", [], [], ret="()" if pos else None, with_="unrestricted", pub=True))),
+    "X18": ("check", lambda pos: prog(FN("F", [], [], ret="()", with_="unrestricted" if pos else None, pub=True))),
+    "X19": ("check", lambda pos: prog(STRUCT("S", [], pub=pos),
+                                      FN("F", [("x", "view", "S")], [], ret="()", with_="unrestricted", pub=True))),
+    "X20": ("check", lambda pos: prog(STRUCT("S", [], pub=pos), Use("package.S", "T", pub=True))),
+    "M06": ("check", lambda pos: prog(STRUCT("Extra", []) if pos else RawDecl("mod extra;", "mod"))),
+    "P03": ("check", lambda pos: prog(STRUCT("A", []), STRUCT("B", []), Use("package.A", "C" if pos else "B"))),
+    "H10": ("check", lambda pos: prog(STRUCT("S", [], pub=pos), ENUM("E", [("A", ["S"])], pub=True))),
+}
+BUILD.update({k: ("check", v) for k, v in _op_rows("O01", OPS6, lambda pos, op: prog(
+    main(LET("x", BIN(S("é"), op, S("z") if pos else I(1), sp=True))))).items()})
+BUILD.update({k: ("check", v) for k, v in _op_rows("O02", OPS6, lambda pos, op: prog(
+    main(LET("x", BIN(S("a") if pos else I(1), op, S("é"), sp=True))))).items()})
+BUILD.update({k: ("check", v) for k, v in _op_rows("O03", OPS6[:4], lambda pos, op: prog(
+    main(LET("x", BIN(S("a") if pos else B(True), op, S("b") if pos else B(False), sp=True))))).items()})
+BUILD.update({k: ("check", v) for k, v in _op_rows("O05", ["==", "!="], lambda pos, op: prog(
+    STRUCT("S", [], derive=["PartialEq"] if pos else []),
+    main(LET("s", C("S")), LET("x", BIN(N("s"), op, N("s"), sp=True))))).items()})
+BUILD.update({k: ("check", v) for k, v in _op_rows("O06", ["==", "!="], lambda pos, op: prog(
+    STRUCT("S", [], derive=["PartialEq"] if pos else []),
+    main(LET("a", ARR(), t="Array<S>"), LET("x", BIN(N("a"), op, N("a"), sp=True))))).items()})
+BUILD.update({k: ("check", v) for k, v in _op_rows("O07", ["==", "!="], lambda pos, op: prog(
+    STRUCT("A", [], derive=["PartialEq"]), STRUCT("B", [], derive=["PartialEq"]),
+    main(LET("x", BIN(C("A"), op, C("A" if pos else "B"), sp=True))))).items()})
+BUILD.update({k: ("check", v) for k, v in _op_rows("O08", OPS6[:4], lambda pos, op: prog(
+    STRUCT("S", [], derive=["PartialEq"]),
+    main(LET("s", C("S")), LET("x", BIN(N("s"), "==" if pos else op, N("s"), sp=True))))).items()})
+
+
+def _tprog(entry, pos, use=False):
+    pair = entry["pair"]
+    arg = pair["positive_arg"] if pos else pair["negative_arg"]
+    if pair["kind"] == "parse":
+        text = arg[1:-1]
+        callee = "parse.I64" if use else "std.parse.I64"
+        decls = ([Use("std.parse")] if use else []) + [main(ES(C("Print", C(callee, S(text)))))]
+        return prog(*decls)
+    a, b = (int(x) for x in arg.split(","))
+    return prog(main(ES(C("Print", M(S("é"), "SliceBytes", I(a), I(b))))))
+
+
+def _results(entry, pos):
+    pair = entry["pair"]
+    return pair["positive_stdout"] if pos else entry["expected"]["stdout"]
+
+
+def check_eq(rep: Report, name: str, got, want, detail=""):
+    rep.check(name, got == want, f"{detail}{got!r} != {want!r}"[:300])
+
+
+def _first(rep: Report, name: str, diags: list, want: dict):
+    if len(diags) != 1:
+        rep.check(name, False, f"{len(diags)} diagnostics: {[d['code'] + '/' + str(d['subcause']) for d in diags]}")
+        return
+    diff = diag_equal(diags[0], want)
+    rep.check(name, not diff, ",".join(diff))
+
+
+def run_row(rep: Report, ident: str, emap: dict):
+    entry = emap[ident]
+    kind, build = BUILD[ident][0], BUILD[ident][1]
+    opts = BUILD[ident][2] if len(BUILD[ident]) > 2 else {}
+    limits = opts.get("limits")
+    mlim = {k: v for k, v in (limits or {}).items() if k != "profile_id"}
+    profile = opts.get("profile")
+    file = entry["file"]
+    want = expected_diagnostic(entry)
+    if kind == "check":
+        src, diags = m.check_program(build(False), file, limits)
+        rep.check(f"{ident}.source", src == entry["source"], repr(src)[:160])
+        _first(rep, f"{ident}.diagnostic", diags, want)
+        psrc, pdiags = m.check_program(build(True), file, limits)
+        rep.check(f"{ident}.positive", psrc == entry["positive"]["source"] and not pdiags,
+                  f"{psrc!r} {[d['code'] for d in pdiags]}"[:200])
+    elif kind == "run":
+        src, out, fault = m.run_program(build(False), file, mlim, profile)
+        rep.check(f"{ident}.source", src == entry["source"], repr(src)[:160])
+        _first(rep, f"{ident}.diagnostic", [fault] if fault else [], want)
+        psrc, pout, pfault = m.run_program(build(True), file, mlim, profile)
+        rep.check(f"{ident}.positive", psrc == entry["positive"]["source"] and pfault is None
+                  and pout.fault is None, repr(psrc)[:160])
+
+
+def run_t_rows(rep: Report, emap: dict, use: bool):
+    for ident in sorted(i for i in emap if i.startswith("T") and i[1:].isdigit()):
+        entry = emap[ident]
+        pair = entry["pair"]
+        if use and pair["kind"] != "parse":
+            continue
+        for pos in (False, True):
+            if pos and pair["positive_arg"] is None:
+                continue
+            program = _tprog(entry, pos, use)
+            src, out, fault = m.run_program(program, entry["file"])
+            want_src = (pair["use_variant_positive" if pos else "use_variant"] if use
+                        else (pair["positive_source"] if pos else entry["source"]))
+            got = [utf8ref.from_bytes(b) for b in out.stdout]
+            tag = f"{ident}.{'use.' if use else ''}{'pos' if pos else 'neg'}"
+            rep.check(tag, src == want_src and got == _results(entry, pos) and fault is None
+                      and not m.check_program(program, entry["file"])[1],
+                      f"{src!r} {got!r}"[:200])
+
+
+def run_result_rows(rep: Report, ids, emap: dict, builders: dict):
+    for ident in ids:
+        entry = emap[ident]
+        program = builders[ident]()
+        src, diags = m.check_program(program, entry["file"])
+        rep.check(f"{ident}.source", src == entry["source"], repr(src)[:200])
+        rep.check(f"{ident}.accepted", not diags, str([d["code"] for d in diags]))
+        _, out, fault = m.run_program(program, entry["file"])
+        e = entry["expected"]
+        got_out = [utf8ref.from_bytes(b) for b in out.stdout]
+        rep.check(f"{ident}.outcome", got_out == e["stdout"] and out.events == e["events"]
+                  and fault is None and out.fault is None, f"{got_out!r} {out.events!r} {out.fault}"[:200])
+
+
+def _A(n):
+    def a01():
+        return prog(main(LET("a", S("é🙂")), VAR("b", N("a")), ASG(N("b"), S("x")),
+                         AEQ(M(N("a"), "ByteLen"), I(6)), AEQ(M(N("a"), "ScalarLen"), I(2)),
+                         AEQ(N("b"), S("x"))), final_lf=True)
+
+    def a02():
+        return prog(main(LET("a", M(S("é"), "Scalars")), LET("b", M(S("é"), "Scalars")),
+                         AEQ(N("a"), ARR(I(233))), AEQ(N("b"), ARR(I(101), I(769))), VAR("n", I(0)),
+                         FOR("code", N("b"), [ASG(N("n"), I(1), "+=")]), ES(C("Print", N("n")))),
+                    final_lf=True)
+
+    def a03():
+        return prog(Use("std.parse"), Use("std.text"),
+                    main(LET("n", TRY(C("parse.I64", S("-9223372036854775808")))),
+                         AEQ(C("text.FromI64", N("n")), S("-9223372036854775808")),
+                         AEQ(C("parse.I64", S("+1")), C("Err", I(-9101))),
+                         m.Ret(C("Ok", m.Raw("()", "()"))), ret="Result<(),I64>"),
+                    breaks=(1,), final_lf=True)
+
+    def a04():
+        return prog(STRUCT("S", [("x", "Array<String>")], derive=["PartialEq"]),
+                    main(LET("a", C("S", ARR(S("a")))), VAR("b", N("a")),
+                         ES(C("Push", edit(FLD(N("b"), "x")), S("b"))),
+                         AEQ(FLD(N("a"), "x"), ARR(S("a"))), AEQ(FLD(N("b"), "x"), ARR(S("a"), S("b"))),
+                         AEQ(BIN(N("a"), "!=", N("b")), B(True)),
+                         AEQ(C("Pop", edit(FLD(N("b"), "x"))), C("Some", S("b"))),
+                         AEQ(BIN(N("a"), "==", N("b")), B(True)),
+                         LET("c", C("JoinArrays", FLD(N("a"), "x"), ARR(S("é")))), VAR("n", I(0)),
+                         FOR("text", N("c"), [ASG(N("n"), M(N("text"), "ByteLen"), "+=")]),
+                         AEQ(N("n"), I(3))), breaks=(0,), final_lf=True)
+
+    def a05():
+        return prog(ENUM("E", [("Nada", []), ("Vivo", ["MockResource"])]),
+                    main(LET("e", V("E", "Vivo", C("MockOpen", I(7)))),
+                         MATCH(N("e"), ARM(PVar("E", "Nada")),
+                               ARM(PVar("E", "Vivo", [PBind("r", "move")]), [ES(C("Inspect", N("r")))]),
+                               move_=True)), breaks=(0,), final_lf=True)
+
+    def a06():
+        return prog(STRUCT("Par", [("a", "MockResource"), ("b", "MockResource")]),
+                    main(LET("p", C("Par", lab("b", C("MockOpen", I(2))), lab("a", C("MockOpen", I(1))))),
+                         ES(C("Drop", N("p")))), breaks=(0,), final_lf=True)
+
+    def a07():
+        return prog(FN("Siguiente", [("n", "edit", "I64")],
+                       [ASG(N("n"), BIN(N("n"), "+", I(1))), m.Ret(N("n"))], ret="I64"),
+                    main(VAR("n", I(0)),
+                         ES(C("Print", S("{", N("n"), ":", C("Siguiente", edit(N("n"))), ":", N("n"), "}"))),
+                         AEQ(N("n"), I(1))), breaks=(0,), final_lf=True)
+
+    return {"A01": a01, "A02": a02, "A03": a03, "A04": a04, "A05": a05, "A06": a06, "A07": a07}[n]
+
+
+def _a08(console: bool):
+    inner = S("é")
+    s_expr = S(inner, ":", IFE(B(True), I(1), I(2)))
+    if console:
+        return prog(Use("std.console"),
+                    main(LET("s", s_expr), ES(TRY(C("console.Println", N("s")))),
+                         m.Ret(C("Ok", m.Raw("()", "()"))), ret="Result<(),I64>"),
+                    breaks=(0,), final_lf=True)
+    return prog(main(LET("s", s_expr), ES(C("Print", N("s")))))
+
+
+def _cmp6():
+    ml = True
+    lines = [AEQ(BIN(S("é"), "==", S("é")), B(True)), AEQ(BIN(S("é"), "!=", S("é")), B(True)),
+             AEQ(BIN(S("é"), "<", S("🙂")), B(True)), AEQ(BIN(S("é"), "<=", S("é")), B(True)),
+             AEQ(BIN(S("🙂"), ">", S("é")), B(True)), AEQ(BIN(S("é"), ">=", S("é")), B(True)),
+             AEQ(BIN(S("a"), "<", S("aa")), B(True)), AEQ(BIN(S(""), "<", S("a")), B(True)),
+             AEQ(BIN(S("a"), ">", S("aa")), B(False)),
+             VAR("a", ARR(), t="Array<E>"),
+             ES(C("Push", edit(N("a")), V("E", "Dato", C("S", S("é"))))),
+             ES(C("Push", edit(N("a")), V("E", "Nada", null=True))),
+             VAR("b", N("a")),
+             AEQ(C("Pop", edit(N("b"))), C("Some", V("E", "Nada", null=True))),
+             AEQ(BIN(N("a"), "!=", N("b")), B(True)),
+             ES(C("Push", edit(N("b")), V("E", "Nada", null=True))),
+             AEQ(BIN(N("a"), "==", N("b")), B(True)),
+             LET("c", C("JoinArrays", N("a"), N("b"))),
+             AEQ(C("Len", N("c")), I(4)),
+             VAR("n", I(0)),
+             FOR("item", N("c"), [MATCH(N("item"), ARM(PVar("E", "Nada")),
+                                        ARM(PVar("E", "Dato", [PBind("s")]),
+                                            [ASG(N("n"), M(FLD(N("s"), "text"), "ByteLen"), "+=")]))], ml=True),
+             AEQ(N("n"), I(4))]
+    return prog(STRUCT("S", [("text", "String")], derive=["PartialEq"]),
+                ENUM("E", [("Nada", []), ("Dato", ["S"])], derive=["PartialEq"]),
+                FN("Main", [], lines, ml=True), sep="\n", final_lf=True)
+
+
+def _k04p():
+    lines = [VAR("a", ARR(C("S", S("é")))), VAR("b", N("a")),
+             ES(C("Push", edit(N("b")), C("S", S("x")))),
+             AEQ(C("Len", N("a")), I(1)), AEQ(C("Len", N("b")), I(2)),
+             VAR("bytes", I(0)),
+             FOR("r", N("b"), [ASG(N("bytes"), M(FLD(N("r"), "text"), "ByteLen"), "+=")]),
+             AEQ(N("bytes"), I(3)),
+             VAR("es", ARR(V("E", "Nada", null=True))),
+             ES(C("Push", edit(N("es")), V("E", "Dato", C("S", S("y"))))),
+             LET("popped", C("Pop", edit(N("es")))),
+             MATCH(N("popped"), ARM(PNone(), [AEQ(B(False), B(True))]), ARM(PSome(PBind("v")))),
+             VAR("count", I(0)),
+             FOR("e", C("JoinArrays", N("es"), N("es")), [ASG(N("count"), I(1), "+=")]),
+             AEQ(N("count"), I(2))]
+    return prog(STRUCT("S", [("text", "String")]), ENUM("E", [("Nada", []), ("Dato", ["S"])]),
+                FN("Main", [], lines, ml=True), sep="\n", final_lf=True)
+
+
+G_ROWS = {
+    "G1": ["X04", "X23", "X24", "X25", "X26", "N09"],
+    "G2": ["X22", "M05", "O04", "O10", "O11", "O13", "B01-text"]
+          + [f"O01-{o}" for o in OPS6] + [f"O02-{o}" for o in OPS6] + [f"O03-{o}" for o in OPS6[:4]],
+    "G3": ["X05", "X06", "X07", "X08", "X09", "X10", "X21", "X27", "M07", "N03", "N04", "N12", "P02",
+           "P05", "P06", "H09", "O12", "B01-struct", "B01-enum"],
+    "G4": ["X11", "M04", "N05", "N06", "N07", "N08", "O09"],
+    "G5": ["M01", "M02", "M03", "P01", "H12", "H13", "H12-edit", "H13-move"],
+    "G6": ["N01", "N02", "H11"],
+    "G7": ["X12", "X13", "X14", "X15", "X16", "N10", "N11", "M08", "O14", "O15", "O16", "H07", "H08"]
+          + [f"O05-{o}" for o in ["==", "!="]] + [f"O06-{o}" for o in ["==", "!="]]
+          + [f"O07-{o}" for o in ["==", "!="]] + [f"O08-{o}" for o in OPS6[:4]],
+    "G8": ["X17", "X18", "X19", "X20", "M06", "P03", "H10"],
+}
+
+
+def _rows_group(group):
+    def runner(rep: Report):
+        emap = entry_map()
+        for ident in G_ROWS[group]:
+            run_row(rep, ident, emap)
+        extra = {
+            "G2": lambda: (run_t_rows(rep, emap, False), run_result_rows(rep, ["A01", "A02"], emap,
+                                                                      {"A01": _A("A01"), "A02": _A("A02")})),
+            "G3": lambda: run_result_rows(rep, ["K04P"], emap, {"K04P": _k04p}),
+            "G4": lambda: (run_result_rows(rep, ["A06"], emap, {"A06": _A("A06")}), _a06_failure(rep)),
+            "G6": lambda: run_result_rows(rep, ["A05"], emap, {"A05": _A("A05")}),
+            "G7": lambda: (run_result_rows(rep, ["A04", "A07", "CMP6"], emap,
+                                           {"A04": _A("A04"), "A07": _A("A07"), "CMP6": _cmp6}),
+                           _a08_checks(rep, emap)),
+            "G8": lambda: (run_t_rows(rep, emap, True),
+                           run_result_rows(rep, ["A03"], emap, {"A03": _A("A03")}), _p04(rep, emap)),
+        }.get(group)
+        if extra:
+            extra()
+    return runner
+
+
+def _a06_failure(rep: Report):
+    """K 11.1 A06: replacing the second argument by a failing call leaves only open:0:2 and close:0:2."""
+    fallar = FN("Fallar", [], [ES(C("Fail")), m.Ret(C("MockOpen", I(1)))], ret="MockResource")
+    program = prog(STRUCT("Par", [("a", "MockResource"), ("b", "MockResource")]), fallar,
+                   main(LET("p", C("Par", lab("b", C("MockOpen", I(2))), lab("a", C("Fallar")))),
+                        ES(C("Drop", N("p")))))
+    _, out, _ = m.run_program(program, "A06f.n")
+    line = [ln for ln in ktext().split("\n") if "El negativo din" in ln]
+    cited = len(line) == 1 and "open:0:2" in line[0] and "close:0:2" in line[0] and "R0301" in line[0]
+    rep.check("A06.failing_variant", cited and out.events == ["open:0:2", "close:0:2"]
+              and out.fault is not None and out.fault.code == "R0301", str(out.events))
+
+
+def _a08_checks(rep: Report, emap: dict):
+    e = emap["A08"]
+    src, diags = m.check_program(_a08(True), e["file"])
+    rep.check("A08.source", src == e["source"], repr(src)[:200])
+    _, out, _ = m.run_program(_a08(False), e["file"])
+    got = [utf8ref.from_bytes(b) for b in out.stdout]
+    rep.check("A08.interpolation_with_print", got == e["expected"]["stdout"] and not out.events, str(got))
+
+
+def _p04(rep: Report, emap: dict):
+    e = emap["P04"]
+    use = prog(Use("package.S", "T"))
+    for pos in (False, True):
+        defs = prog(STRUCT("S", [], pub=pos))
+        diags = m.check_import_access(defs, "P04-def.n", use, e["file"])
+        if pos:
+            rep.check("P04.positive", not diags and m.render(defs).source == e["positive_definition"])
+        else:
+            rep.check("P04.source", m.render(use).source == e["source"]
+                      and m.render(defs).source == e["definition_source"])
+            _first(rep, "P04.diagnostic", diags, expected_diagnostic(e))
+
+
+def run_model_basics(rep: Report):
+    """Pure functions of the text model against facts of K 3 and 10.3."""
+    cases = [(b"", ("Err", -9101)), ("١".encode(), ("Err", -9101)), (b"0007", ("Ok", 7)),
+             (b"-0", ("Ok", 0)), (b"-", ("Err", -9101)), (b"1x", ("Err", -9101)),
+             (b"999999999999999999999x", ("Err", -9101)), (b"9223372036854775808", ("Err", -9102)),
+             (b"-9223372036854775808", ("Ok", -(1 << 63))), (b"-9223372036854775809", ("Err", -9102)),
+             (b"+1", ("Err", -9101)), (b" 1", ("Err", -9101))]
+    bad = [c for c, want in cases if m.parse_i64(c) != want]
+    rep.check("model.parse_i64", not bad, str(bad))
+    sl = [((0, 1), ("Err", -9111)), ((0, 2), ("Ok", "é".encode())), ((0, 3), ("Err", -9110)),
+          ((2, 0), ("Err", -9110)), ((-1, 0), ("Err", -9110)), ((0, 0), ("Ok", b"")),
+          ((2, 2), ("Ok", b""))]
+    bad = [a for a, want in sl if m.slice_bytes("é".encode(), *a) != want]
+    rep.check("model.slice_bytes", not bad, str(bad))
+    rep.check("model.slice_empty_at_eof", m.slice_bytes(b"", 0, 0) == ("Ok", b""))
+    rep.check("model.slice_range_before_boundary", m.slice_bytes("\U0001F642".encode(), 0, 9) == ("Err", -9110))
+    mn = -(1 << 63)
+    rep.check("model.from_i64", [m.from_i64(n) for n in (0, 7, -7, mn, (1 << 63) - 1)]
+              == [b"0", b"7", b"-7", b"-9223372036854775808", b"9223372036854775807"])
+    rep.check("model.compare_prefix_and_signed_bytes",
+              m.compare_op("<", b"a", b"aa") and m.compare_op(">", b"\xc3\xa9", b"z")
+              and m.compare_op("<", "é".encode(), "\U0001F642".encode())
+              and not m.compare_op("==", "é".encode(), "é".encode())
+              and m.compare_op("!=", "é".encode(), "é".encode())
+              and m.compare_op(">=", b"", b"") and m.compare_op("<=", b"", b""))
+    rep.check("model.scalars_vs_bytelen", m.scalars_of("é".encode()) == [101, 769]
+              and len("é".encode()) == 3 and utf8ref.scalar_len("\U0001F642".encode()) == 1)
+    out_fmt = m.format_value(m.Res(True, m.Sv("é".encode()))) + b"|" + m.format_value(m.Opt(False)) \
+        + b"|" + m.format_value([1, 2]) + b"|" + m.format_value(m.Res(True, ()))
+    rep.check("model.format", out_fmt == "Ok(é)|None|[1, 2]|Ok(())".encode(), str(out_fmt))
+
+
+def run_scc_variants(rep: Report):
+    """K 4.2: one diagnostic per cyclic component, shortest cycle, rotated to the smallest offset."""
+    two = prog(STRUCT("A", [("b", "B")]), STRUCT("B", [("a", "A")]))
+    _, d = m.check_program(two, "c.n")
+    rep.check("scc.two_cycle_primary_is_last_edge", len(d) == 1 and d[0]["primary_span"]["start"] == 25)
+    sep = prog(STRUCT("A", [("x", "A")]), STRUCT("B", [("y", "B")]))
+    _, d = m.check_program(sep, "c.n")
+    rep.check("scc.one_per_component_ordered", len(d) == 2 and d[0]["primary_span"]["start"] < d[1]["primary_span"]["start"])
+    dag = prog(STRUCT("A", [("l", "B"), ("r", "B")]), STRUCT("B", [("x", "I64")]))
+    _, d = m.check_program(dag, "c.n")
+    rep.check("scc.diamond_has_no_cycle", d == [])
+    arr = prog(STRUCT("A", [("x", "Array<A>")]))
+    _, d = m.check_program(arr, "c.n")
+    rep.check("scc.array_cycle_is_deferred_not_layout",
+              len(d) == 1 and d[0]["code"] == "NX-E0006" and d[0]["feature_id"] == "user_types")
+    tri = prog(STRUCT("A", [("c", "C"), ("b", "B")]), STRUCT("B", [("a", "A")]), STRUCT("C", [("a", "A")]))
+    _, d = m.check_program(tri, "c.n")
+    rep.check("scc.shortest_cycle_one_diag", len(d) == 1 and d[0]["code"] == "NX-E1323")
+
+
+def run_semantics_extras(rep: Report):
+    """Positive/negative probes of rules the literal rows exercise only once."""
+    s = prog(STRUCT("S", [("x", "I64"), ("y", "I64")]),
+             main(LET("s", C("S", lab("y", I(2)), lab("x", I(1))))))
+    _, d = m.check_program(s, "c.n")
+    rep.check("extra.labels_reordered_accepted", d == [])
+    s = prog(STRUCT("S", [("x", "I64")]), main(VAR("s", C("S", I(1))), ASG(FLD(N("s"), "x"), I(3), "+=")))
+    _, d = m.check_program(s, "c.n")
+    rep.check("extra.compound_assign_on_field_ok", d == [])
+    e = prog(ENUM("E", [("A", []), ("B", [])]), main(MATCH(V("E", "A", null=True), ARM(PWild()))))
+    _, d = m.check_program(e, "c.n")
+    rep.check("extra.wildcard_covers_enum", d == [])
+    r = prog(STRUCT("S", [("r", "MockResource")]), main(LET("s", C("S", C("MockOpen", I(1))))))
+    out = m.run_program(r, "c.n")[1]
+    rep.check("extra.scope_end_closes_resource", out.events == ["open:0:1", "close:0:1"], str(out.events))
+    lim = m.run_program(prog(main(LET("a", S("ab")), LET("b", N("a")))), "c.n",
+                        {"text_allocations": 1}, "p")[2]
+    rep.check("extra.copy_of_place_costs_an_allocation",
+              lim is not None and lim["data"]["observed"] == 2 and lim["data"]["runtime_budget_kind"] == "text_allocations")
+    alias = m.run_program(prog(main(VAR("a", ARR(S("é"))), FOR("x", N("a"), [ES(M(N("x"), "ByteLen"))]),
+                                    ES(C("Pop", edit(N("a")))))), "c.n", {"text_allocations": 1}, "p")
+    rep.check("extra.for_alias_and_pop_do_not_copy", alias[2] is None and alias[1].fault is None)
+
+
+GROUPS = {"G0": run_g0, "G1": _rows_group("G1"), "G2": lambda rep: (run_model_basics(rep), _rows_group("G2")(rep)),
+          "G3": lambda rep: (_rows_group("G3")(rep), run_scc_variants(rep)),
+          "G4": _rows_group("G4"), "G5": _rows_group("G5"), "G6": _rows_group("G6"),
+          "G7": _rows_group("G7"), "G8": lambda rep: (_rows_group("G8")(rep), run_semantics_extras(rep))}
 
 
 def run(fast: bool = False, groups=None) -> int:
