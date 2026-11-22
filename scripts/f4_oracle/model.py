@@ -196,6 +196,13 @@ class Idx:
 
 
 @dataclass(eq=False)
+class Rng:
+    """Range selector ``lo..<hi`` (K 3: ``s[a..<b]`` is range/later_adr)."""
+    lo: object
+    hi: object
+
+
+@dataclass(eq=False)
 class Bin:
     op: str
     left: object
@@ -450,6 +457,10 @@ def BIN(left, op, right, sp=False):
 
 def ARR(*items):
     return Arr(list(items))
+
+
+def RNG(lo, hi):
+    return Rng(lo, hi)
 
 
 def IDX(base, index):
@@ -905,6 +916,10 @@ def _expr(s: Ser, e):
         n = s.pos
         s.w(e.name)
         s.mark(e, "name", n)
+    elif isinstance(e, Rng):
+        _expr(s, e.lo)
+        s.w("..<")
+        _expr(s, e.hi)
     elif isinstance(e, Idx):
         _expr(s, e.base)
         s.w("[")
@@ -1101,6 +1116,8 @@ class Checker:
             return
         kind, decl = found
         if kind == "resource":
+            # K 5.2: uses already rejected by A2/F0-0003 on resources keep NX-E0102/type_mismatch
+            self.emit("NX-E0102", "type_mismatch", primary, [("found_type", primary)], {})
             return
         related = [("declaration", (decl, "name"))] + list(extra_related)
         self.emit("NX-E1403", CAP_SUB[cap], primary, related, {"required_capability": cap})
@@ -1193,6 +1210,8 @@ class Checker:
             kids = [e.base]
         elif isinstance(e, Idx):
             kids = [e.base, e.index]
+        elif isinstance(e, Rng):
+            kids = [e.lo, e.hi]
         elif isinstance(e, Bin):
             kids = [e.left, e.right]
         elif isinstance(e, Arr):
@@ -1518,8 +1537,15 @@ class Checker:
         return root, self.env.get(root.name)
 
     def assign(self, st: Assign):
-        self.ty(st.target)
-        self.ty(st.expr)
+        tt = self.ty(st.target)
+        et = self.ty(st.expr)
+        if st.op != "=":
+            # K 3: the five compound operators stay I64; the first incompatible operand (A2 13.17)
+            for side, t in ((st.target, tt), (st.expr, et)):
+                if t not in ("I64", UNKNOWN):
+                    self.emit("NX-E0102", "type_mismatch", (side, "all"), [("found_type", (side, "all"))],
+                              {"expected_type": "I64", "found_type": self.dt(t)})
+                    break
         self.own(st.expr)
         root, info = self.root_info(st.target)
         if info is None:
@@ -1644,6 +1670,10 @@ class Checker:
             return self.field(e)
         if isinstance(e, Idx):
             bt = self.ty(e.base)
+            if isinstance(e.index, Rng):
+                # K 3: the slice precedes the rejection of the child range and of the indexing
+                self.emit("NX-E0006", None, (e, "all"), (), {"pending_scope": "later_adr"}, feature_id="range")
+                return UNKNOWN
             self.ty(e.index)
             if bt == "String":
                 self.emit("NX-E0102", "not_indexable", (e.base, "all"), [("found_type", (e.base, "all"))],
@@ -1791,6 +1821,8 @@ class Checker:
                 self.need_cap(arg_types[0], "Format", (e.args[0].expr, "all"))
             return UNIT
         if name == "AssertEq":
+            if len(arg_types) == 2 and self.same(arg_types[0], arg_types[1]):
+                self.need_cap(arg_types[0], "PartialEq", (e.args[0].expr, "all"))
             return UNIT
         if name == "Drop":
             a = e.args[0].expr

@@ -20,7 +20,7 @@ from dataclasses import dataclass, is_dataclass
 
 from . import barrier, diagnostics, fixtures_io as fio, literal, model, utf8ref
 from .model import (ARM, ARR, ASG, B, BIN, C, ES, EXT, FN, FOR, F, I, IDX, IFE, LET, M, MATCH, METH,
-                    N, S, STRUCT, ENUM, V, VAR, Program, Ret, UseExt, Use, RawDecl, PVar, PBind,
+                    N, RNG, S, STRUCT, ENUM, V, VAR, Program, Ret, UseExt, Use, RawDecl, PVar, PBind,
                     PWild, Mv, TRY, edit, lab, move)
 
 PROFILE = diagnostics.PROFILE
@@ -954,6 +954,22 @@ def n_string_plus(g):
     return lambda pos: [_main(*pad, LET("r_x", BIN(S(x), "==" if pos else "+", S(y), sp=True)))]
 
 
+@_n("n_string_slice_range", ("K03",), "NX-E0006", None, "C D")
+def n_string_slice_range(g):
+    """K 3: ``s[a..<b]`` is range/later_adr; the only String slicing of this cut is SliceBytes."""
+    pad, s, t, a, b = g.pad(), g.var(), g.text(), g.i(0, 3), g.i(0, 5)
+    return lambda pos: [_main(*pad, LET(s, M(S(t), "SliceBytes", a, b) if pos else IDX(S(t), RNG(a, b))))]
+
+
+@_n("n_string_compound_plus", ("K03",), "NX-E0102", "type_mismatch", "C D")
+def n_string_compound_plus(g):
+    """K 3: the five compound operators stay I64; text uses Concat."""
+    pad, s, x = g.pad(), g.var(), g.text()
+    y = g.text()
+    return lambda pos: [_main(*pad, VAR(s, S(x)),
+                              ASG(N(s), M(N(s), "Concat", S(y)) if pos else S(y), "=" if pos else "+="))]
+
+
 @_n("n_for_string", ("K03",), "NX-E0102", "type_mismatch", "C D P Rel")
 def n_for_string(g):
     pad, x, tx = g.pad(), g.var(), g.text()
@@ -1104,6 +1120,20 @@ def n_copy_resource(g):
                         _main(*pad, LET(s, C(sn, C("MockOpen", k))), LET(t, Mv(N(s)) if pos else N(s)))]
 
 
+@_n("n_print_resource", ("K05",), "NX-E0102", "type_mismatch", "C")
+def n_print_resource(g):
+    """K 5.2: Print of a resource keeps NX-E0102/type_mismatch (not NX-E1403)."""
+    pad, k = g.pad(), g.i(1, 9)
+    return lambda pos: [_main(*pad, _pr(k if pos else C("MockOpen", k)))]
+
+
+@_n("n_hole_resource", ("K05", "K08"), "NX-E0102", "type_mismatch", "C")
+def n_hole_resource(g):
+    """K 5.2: a Hole that interpolates a resource keeps NX-E0102/type_mismatch."""
+    pad, k, s, pre = g.pad(), g.i(1, 9), g.var(), g.text()
+    return lambda pos: [_main(*pad, LET(s, S(pre, k if pos else C("MockOpen", k))))]
+
+
 @_n("n_partial_move", ("K05",), "NX-E0006", None, "C D")
 def n_partial_move(g):
     pad, sn, x, s, t = g.pad(), g.ty(), g.fld(), g.var(), g.var()
@@ -1251,6 +1281,19 @@ def n_eq_no_partial_eq(g):
     k = g.i()
     return lambda pos: [STRUCT(sn, [(x, "I64")], derive=["PartialEq"] if pos else []),
                         _main(*pad, LET(s, C(sn, k)), ES(C("AssertEq", BIN(N(s), "==", N(s), sp=True), B(True))))]
+
+
+@_n("n_asserteq_no_partial_eq", ("K08",), "NX-E1403", "missing_partial_eq", "C D")
+def n_asserteq_no_partial_eq(g):
+    """K 5.2: AssertEq requires PartialEq, directly on a nominal or on an Option of a nominal."""
+    pad, sn, x, s, o = g.pad(), g.ty(), g.fld(), g.var(), g.var()
+    k, wrapped = g.i(), g.r.random() < 0.5
+    def build(pos):
+        decl = STRUCT(sn, [(x, "I64")], derive=["PartialEq"] if pos else [])
+        if wrapped:
+            return [decl, _main(*pad, LET(s, C(sn, k)), LET(o, C("Some", N(s))), ES(C("AssertEq", N(o), N(o))))]
+        return [decl, _main(*pad, LET(s, C(sn, k)), ES(C("AssertEq", N(s), N(s))))]
+    return build
 
 
 @_n("n_format_resource_field", ("K08",), "NX-E1403", "missing_format", "C D P Rel")

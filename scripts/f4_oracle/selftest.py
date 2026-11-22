@@ -2654,7 +2654,40 @@ def guards_text(rep: Report):
               and d[0]["subcause"] == "type_mismatch", str([(x["code"], x["subcause"]) for x in d]))
 
 
+def guards_k3_k52_gaps(rep: Report):
+    """Rules the model enforces but that no K row isolates (ADR 3, 5.2): each expects what K fixes."""
+    sl = prog(main(LET("a", IDX(S("abc"), m.RNG(I(0), I(2))))))
+    d = m.check_program(sl, "g.n")[1]
+    rep.check("K3.string_range_selector_is_range_later_adr_alone",
+              len(d) == 1 and d[0]["code"] == "NX-E0006" and d[0]["feature_id"] == "range"
+              and d[0]["data"] == {"pending_scope": "later_adr"} and d[0]["stage"] == "types",
+              str([(x["code"], x["feature_id"]) for x in d]))
+    cp = prog(main(VAR("s", S("a")), ASG(N("s"), S("b"), "+=")))
+    d = m.check_program(cp, "g.n")[1]
+    rep.check("K3.compound_plus_on_String_is_type_mismatch_I64",
+              len(d) == 1 and (d[0]["code"], d[0]["subcause"]) == ("NX-E0102", "type_mismatch")
+              and d[0]["data"] == {"expected_type": "I64", "found_type": "String"}, str(d))
+    ok = prog(main(VAR("n", I(1)), ASG(N("n"), I(2), "+=")))
+    rep.check("K3.compound_plus_on_I64_is_accepted", m.check_program(ok, "g.n")[1] == [])
+    pr = prog(main(ES(C("Print", C("MockOpen", I(1))))))
+    d = m.check_program(pr, "g.n")[1]
+    rep.check("K5.2.Print_of_a_resource_keeps_type_mismatch_not_E1403",
+              len(d) == 1 and (d[0]["code"], d[0]["subcause"]) == ("NX-E0102", "type_mismatch"),
+              str([(x["code"], x["subcause"]) for x in d]))
+    st = STRUCT("S", [("x", "I64")])
+    for label, body in (("nominal", [ES(C("AssertEq", N("a"), N("a")))]),
+                        ("option_of_nominal", [LET("o", C("Some", N("a"))), ES(C("AssertEq", N("o"), N("o")))])):
+        d = m.check_program(prog(st, main(LET("a", C("S", I(1))), *body)), "g.n")[1]
+        rep.check(f"K5.2.AssertEq_requires_PartialEq.{label}",
+                  len(d) == 1 and (d[0]["code"], d[0]["subcause"]) == ("NX-E1403", "missing_partial_eq")
+                  and d[0]["data"] == {"required_capability": "PartialEq"}, str(d))
+    st2 = STRUCT("S", [("x", "I64")], derive=["PartialEq"])
+    d = m.check_program(prog(st2, main(LET("a", C("S", I(1))), ES(C("AssertEq", N("a"), N("a"))))), "g.n")[1]
+    rep.check("K5.2.AssertEq_with_PartialEq_is_accepted", d == [])
+
+
 def guards_nominal(rep: Report):
+    guards_k3_k52_gaps(rep)
     two = prog(STRUCT("S", [("a", "I64"), ("b", "I64")]),
                main(LET("s", C("S", I(1), I(2))), ES(C("Print", FLD(N("s"), "a"))), ES(C("Print", FLD(N("s"), "b")))))
     got, _, _ = _printed(two)
@@ -2828,6 +2861,18 @@ GROUPS = {"G0": run_g0, "G1": _rows_group("G1"), "G2": lambda rep: (run_model_ba
           "G9": run_g9, "G10": run_g10, "GEN": run_gen}
 
 
+def _sweep_own_dirs():
+    """Remove the scratch directories of THIS process (``f4-oracle-st-<PID>-*``, ``f4-oracle-mut-<PID>-*``);
+    a child that still holds a handle on Windows gets a few retries.  Other PIDs are never touched."""
+    for pattern in (f"f4-oracle-st-{os.getpid()}-*", f"f4-oracle-mut-{os.getpid()}-*"):
+        for path in Path("C:/nexo-work/tmp").glob(pattern):
+            for _ in range(5):
+                shutil.rmtree(path, ignore_errors=True)
+                if not path.exists():
+                    break
+                time.sleep(0.5)
+
+
 def _run_checks(rep: Report, fast: bool, groups):
     check_audit(rep)
     check_pins(rep)
@@ -2861,6 +2906,8 @@ def run(fast: bool = False, groups=None, fail_fast: bool = False) -> int:
         _run_checks(rep, fast, groups)
     except FailFast:
         pass
+    finally:
+        _sweep_own_dirs()
     for line in rep.lines:
         print(line)
     print(f"selftest: {rep.total} checks, {rep.failed} failed, {time.time() - started:.1f}s"
