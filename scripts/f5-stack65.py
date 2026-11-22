@@ -55,6 +55,7 @@ def find_debug(table, trail):
 
 
 def config_violations(files):
+    # Limite conocido (no bloqueante): `include = [...]` de la config de cargo no se sigue.
     """Claves de configuración que cambiarían la pila medida (rustflags o debuginfo)."""
     problems = []
     for path in files:

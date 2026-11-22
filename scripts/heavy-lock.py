@@ -24,7 +24,12 @@ def lock_path():
 
 
 def describe(data):
-    """Añade pid_exists, age_seconds y reclaimable a los datos de un cerrojo."""
+    """Añade pid_exists, age_seconds y reclaimable a los datos de un cerrojo.
+
+    Riesgo conocido: en Windows un OpenProcess fallido cuenta como proceso inexistente aunque
+    sea acceso denegado (no reproducido); por eso el reclamo exige además edad >= 600 s y
+    deja registro en heavy-lock-reclaim.log. Un cerrojo ilegible o sin token nunca se reclama.
+    """
     pid = data.get('pid')
     if isinstance(pid, int) and pid > 0:
         try:
@@ -175,7 +180,7 @@ def release(token):
     lock_path().unlink()
 
 
-def concurrent_rounds(here, dead_pid, rounds=200, procs=4, batch=25):
+def concurrent_rounds(here, dead_pid, rounds=200, procs=8, batch=12):
     """Rondas de `procs` reclamantes simultáneos sobre un huérfano; rondas en lotes paralelos."""
     import tempfile
     hold = 'import time; time.sleep(2)'
