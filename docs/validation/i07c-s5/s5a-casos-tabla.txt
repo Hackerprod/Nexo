@@ -1,0 +1,81 @@
+## F01  E0103 base=2 final=0
+  base : E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [97,98) I64|Array<I64>
+  final: E1303 [130,131) Array<Array<I64>>|I64 ; E0102/type_mismatch [136,137) Array<I64>|I64
+## F02  E0103 base=2 final=0
+  base : E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [100,101) I64|Array<I64>
+  final: E1303 [130,132) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [138,139) Array<I64>|I64
+## F03  E0103 base=0 final=0
+  base : E0102/type_mismatch [96,97) I64|Array<I64> ; E0102/type_mismatch [114,117) Bool|Array<Array<I64>> ; E1303 [130,131) Array<Bool>|Bool
+  final: E0102/type_mismatch [96,97) I64|Array<I64> ; E0102/type_mismatch [114,117) Bool|Array<Array<I64>> ; E1303 [130,131) Array<Bool>|Bool
+## F04  E0103 base=2 final=0
+  base : E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [99,101) Bool|Array<I64> ; E1303 [117,118) I64|Array<I64> ; E0102/type_mismatch [124,125) Bool|I64
+  final: E0102/type_mismatch [99,101) Bool|Array<I64> ; E0102/type_mismatch [124,125) Bool|I64 ; E1303 [138,140) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [146,147) Array<I64>|I64
+## F05  E0103 base=2 final=0
+  base : E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [105,107) Bool|Array<I64> ; E0102/type_mismatch [140,141) Array<Array<I64>>|Array<I64>
+  final: E0102/type_mismatch [105,107) Bool|Array<I64> ; E1303 [120,121) I64|Array<Array<I64>> ; E0102/type_mismatch [135,142) I64|Array<Array<Array<I64>>> ; E0102/type_mismatch [147,148) Array<I64>|I64
+## F06  E0103 base=1 final=0
+  base : E0103 [74,76) | ; E1303 [149,151) I64|Array<I64>
+  final: E1303 [132,133) Array<I64>|Array<Array<I64>> ; E0102/type_mismatch [164,165) Array<I64>|I64
+## F07  E0103 base=0 final=0
+  base : E0101 [95,97) |
+  final: E0101 [95,97) |
+## F08  E0103 base=1 final=1
+  base : E0103 [108,149) |
+  final: E0103 [108,149) |
+## F09  E0103 base=2 final=0
+  base : E0103 [74,76) | ; E0103 [92,94) | ; E0102/type_mismatch [105,109) Array<I64>|I64 ; E0102/type_mismatch [116,117) Bool|Array<I64> ; E0102/type_mismatch [127,128) Bool|I64
+  final: E0102/type_mismatch [102,110) Bool|Array<Array<I64>> ; E0102/type_mismatch [116,117) Bool|Array<Array<I64>> ; E0102/type_mismatch [127,128) Bool|I64 ; E1303 [141,145) Array<Array<I64>>|Bool ; E0102/type_mismatch [166,167) Array<I64>|I64
+## F10  E0103 base=2 final=2
+  base : E0103 [83,85) | ; E0102/type_mismatch [93,97) I64|Bool ; E0103 [151,154) | ; E1303 [170,171) Array<Array<I64>>|Array<I64>
+  final: E0103 [83,85) | ; E0102/type_mismatch [93,97) I64|Bool ; E0103 [151,154) | ; E1303 [170,171) Array<Array<I64>>|Array<I64>
+## F11  E0103 base=2 final=2
+  base : E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [104,105) Array<I64>|I64 ; E0102/type_mismatch [164,165) I64|Bool
+  final: E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [104,105) Array<I64>|I64 ; E0102/type_mismatch [164,165) I64|Bool
+## F12  E0103 base=2 final=0
+  base : E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [102,103) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [176,177) Array<I64>|Bool
+  final: E0102/type_mismatch [97,104) I64|Array<Array<Array<I64>>> ; E1303 [158,163) Array<Array<I64>>|Bool ; E0102/type_mismatch [176,177) Array<I64>|Bool ; E0102/type_mismatch [183,184) Array<I64>|Array<Array<I64>> ; E0102/type_mismatch [189,190) Array<I64>|I64
+## F13  E0103 base=2 final=0
+  base : E0103 [74,76) | ; E0103 [83,85) | ; E0102/type_mismatch [157,158) Bool|Array<I64> ; E1303 [171,174) Array<I64>|Array<Array<I64>>
+  final: E0102/type_mismatch [121,122) Bool|Array<Array<I64>> ; E1303 [135,136) Bool|Array<Array<I64>> ; E0102/type_mismatch [157,158) Bool|Array<I64> ; E0102/type_mismatch [180,181) Array<I64>|I64
+## F14  E0103 base=2 final=0
+  base : E0103 [83,85) | ; E0103 [92,94) | ; E0102/type_mismatch [102,106) I64|Bool ; E0102/type_mismatch [116,118) Bool|Array<I64> ; E1303 [133,134) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [156,157) Bool|I64
+  final: E0102/type_mismatch [102,106) I64|Bool ; E0102/type_mismatch [116,118) Bool|Array<I64> ; E0102/type_mismatch [156,157) Bool|I64 ; E1303 [188,190) Array<Array<I64>>|Array<Bool> ; E0102/type_mismatch [203,204) Array<I64>|I64
+## F15  E0103 base=0 final=0
+  base : E0101 [179,181) |
+  final: E0101 [179,181) |
+## F16  E0103 base=2 final=0
+  base : E0103 [83,85) | ; E0103 [111,178) |
+  final: E0102/type_mismatch [118,164) Array<Array<I64>>|Array<Array<Array<Array<I64>>>> ; E0102/type_mismatch [202,204) Array<Array<Array<I64>>>|Array<I64>
+## F17  E0103 base=2 final=0
+  base : E0103 [83,85) | ; E0103 [92,94) | ; E0102/type_mismatch [106,111) I64|Bool ; E0102/type_mismatch [171,172) Bool|Array<Array<I64>> ; E1303 [187,190) Array<Bool>|Array<Array<Array<I64>>>
+  final: E0102/type_mismatch [106,111) I64|Bool ; E0102/type_mismatch [171,172) Bool|Array<Array<I64>> ; E1303 [206,207) Array<Array<Array<I64>>>|I64 ; E0102/type_mismatch [217,221) Array<Array<I64>>|Bool
+## F18  E0103 base=2 final=0
+  base : E0103 [83,85) | ; E0103 [92,94) | ; E0102/type_mismatch [108,109) Bool|Array<I64> ; E1303 [143,144) I64|Array<I64> ; E0102/not_indexable [169,211) domain:array|I64
+  final: E0102/type_mismatch [108,109) Bool|Array<I64> ; E0102/type_mismatch [154,155) Array<I64>|I64 ; E0102/not_indexable [169,211) domain:array|I64 ; E1303 [208,209) I64|Array<Array<I64>>
+## F19  E0103 base=2 final=0
+  base : E0103 [83,85) | ; E0103 [92,94) | ; E0102/type_mismatch [102,106) I64|Bool ; E0102/type_mismatch [121,125) Array<I64>|I64 ; E1303 [180,184) Array<I64>|Bool ; E0102/type_mismatch [217,218) Bool|Array<I64>
+  final: E0102/type_mismatch [102,106) I64|Bool ; E0102/type_mismatch [119,120) I64|Array<I64> ; E1303 [180,184) Array<I64>|Bool ; E0102/type_mismatch [217,218) Bool|Array<I64> ; E0102/type_mismatch [230,231) Array<I64>|I64
+## O01  E0103 base=1 final=0
+  base : E0103 [74,76) | ; E0102/type_mismatch [93,99) Bool|Array<Array<I64>> ; E0102/not_indexable [139,144) domain:array|Bool ; E1303 [198,203) Array<I64>|Array<Array<I64>>
+  final: E0102/type_mismatch [93,99) Bool|Array<Array<Array<I64>>> ; E0102/not_indexable [139,144) domain:array|Bool ; E1303 [191,192) Array<Array<I64>>|Array<Array<Array<I64>>> ; E0102/type_mismatch [209,212) Array<Array<Array<I64>>>|Array<Array<I64>>
+## O02  E0103 base=1 final=0
+  base : E0103 [74,76) | ; E0102/type_mismatch [83,100) Bool|Array<Bool> ; E1303 [196,207) Array<I64>|Array<Array<I64>> ; E0102/type_mismatch [268,269) Bool|Array<Array<I64>>
+  final: E0102/type_mismatch [83,100) Bool|Array<Bool> ; E1303 [213,214) Array<Array<I64>>|Array<Array<Array<I64>>> ; E0102/type_mismatch [268,269) Bool|Array<Array<Array<I64>>> ; E0102/type_mismatch [346,347) Array<Array<I64>>|Array<Array<Array<I64>>> ; E0102/type_mismatch [351,354) Array<Array<Array<I64>>>|Array<Array<I64>>
+## O03  E0103 base=1 final=0
+  base : E0103 [74,76) | ; E1303 [203,206) Array<I64>|Array<Array<I64>> ; E0102/type_mismatch [277,278) Bool|Array<I64>
+  final: E1303 [212,215) Array<Array<I64>>|Array<Array<Array<I64>>> ; E0102/type_mismatch [277,278) Bool|Array<I64> ; E0102/type_mismatch [358,359) Array<I64>|I64
+## O04  E0103 base=1 final=0
+  base : E0103 [83,85) | ; E0102/type_mismatch [122,123) Bool|I64 ; E0102/type_mismatch [130,135) I64|Array<I64> ; E1303 [181,184) I64|Array<I64> ; E0102/type_mismatch [196,197) I64|Array<I64> ; E0102/type_mismatch [259,263) Bool|I64 ; E1303 [332,333) Array<Array<I64>>|I64 ; E1303 [352,354) Array<Array<I64>>|Array<I64> ; E1303 [363,365) Array<Array<I64>>|Array<I64>
+  final: E0102/type_mismatch [122,123) Bool|I64 ; E0102/type_mismatch [130,135) I64|Array<I64> ; E1303 [190,191) Array<I64>|Array<Array<I64>> ; E0102/type_mismatch [196,197) I64|Array<Array<I64>> ; E0102/type_mismatch [259,263) Bool|Array<I64> ; E1303 [332,333) Array<Array<I64>>|I64 ; E1303 [352,354) Array<Array<I64>>|Array<I64> ; E1303 [363,365) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [390,391) Array<I64>|I64
+## O05  E0103 base=1 final=0
+  base : E0103 [92,94) | ; E0102/type_mismatch [155,156) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [157,158) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [265,266) Array<Bool>|I64
+  final: E0102/type_mismatch [155,156) Array<Array<I64>>|Array<I64> ; E1303 [206,216) Array<Array<Array<I64>>>|Array<Array<I64>> ; E1303 [233,236) Array<Array<Array<I64>>>|Array<Array<I64>> ; E0102/type_mismatch [243,245) Array<Array<I64>>|Array<I64> ; E0102/type_mismatch [265,266) Array<Bool>|I64
+## O06  E0103 base=1 final=0
+  base : E0103 [74,76) | ; E0102/type_mismatch [105,108) I64|Array<Array<I64>> ; E0102/type_mismatch [133,135) Bool|Array<Bool> ; E1303 [141,142) I64|Array<I64> ; E0102/type_mismatch [159,160) Bool|Array<I64> ; E0102/type_mismatch [166,167) I64|Array<I64> ; E0102/type_mismatch [173,174) I64|Bool ; E0102/type_mismatch [182,184) Bool|Array<I64> ; E1303 [198,202) Array<I64>|Bool
+  final: E0102/type_mismatch [105,108) I64|Array<Array<I64>> ; E0102/type_mismatch [133,135) Bool|Array<Bool> ; E1303 [148,149) Array<I64>|Array<Array<I64>> ; E0102/type_mismatch [159,160) Bool|Array<I64> ; E0102/type_mismatch [166,167) I64|Array<Array<I64>> ; E0102/type_mismatch [173,174) I64|Bool ; E0102/type_mismatch [182,184) Bool|Array<I64> ; E1303 [198,202) Array<I64>|Bool ; E0102/type_mismatch [209,210) Array<I64>|I64
+## O07  E0103 base=1 final=0
+  base : E0103 [74,76) | ; E1303 [140,143) Array<I64>|Array<Array<I64>>
+  final: E1303 [149,152) Array<Array<I64>>|Array<Array<Array<I64>>> ; E0102/type_mismatch [159,160) Array<I64>|I64
+## O08  E0103 base=1 final=0
+  base : E0103 [74,76) | ; E0102/type_mismatch [93,94) Bool|Array<Array<I64>> ; E0102/type_mismatch [100,101) Bool|Array<Array<I64>> ; E0102/type_mismatch [107,109) Bool|Array<I64> ; E0102/type_mismatch [130,131) Bool|I64 ; E1303 [144,147) Array<I64>|Array<Array<I64>>
+  final: E0102/type_mismatch [93,94) Bool|Array<Array<Array<I64>>> ; E0102/type_mismatch [100,101) Bool|Array<Array<Array<I64>>> ; E0102/type_mismatch [107,109) Bool|Array<I64> ; E0102/type_mismatch [130,131) Bool|I64 ; E1303 [137,138) Array<Array<I64>>|Array<Array<Array<I64>>> ; E0102/type_mismatch [155,158) Array<Array<Array<I64>>>|Array<Array<I64>>
