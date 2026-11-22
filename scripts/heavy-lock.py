@@ -2,6 +2,7 @@
 """Coordina trabajo pesado entre carriles mediante creación exclusiva en C:."""
 
 import argparse
+import contextlib
 import ctypes
 import json
 import os
@@ -64,27 +65,37 @@ def owner():
         return {'error': 'cerrojo ilegible; coordinar con el otro carril'}
 
 
-def reclaim_orphan(session, before_delete=None):
-    """Reclama un cerrojo huérfano; True solo si lo borró. before_delete es un gancho de prueba."""
-    path = lock_path()
-    seen = owner()
-    if not seen or not seen.get('reclaimable') or not isinstance(seen.get('token'), str):
-        return False
-    if before_delete is not None:
-        before_delete()
-    again = owner()
-    if not again or again.get('token') != seen['token'] or not again.get('reclaimable'):
-        return False
-    record = (f"{datetime.now(timezone.utc).isoformat()} reclama sesion={session} pid={os.getpid()} "
-              f"huerfano: sesion={seen.get('session')} pid={seen.get('pid')} "
-              f"token={seen['token']} edad_s={seen['age_seconds']} pid_exists=False\n")
+@contextlib.contextmanager
+def reclaim_mutex(path):
+    """Bloqueo del SO no bloqueante sobre `<cerrojo>.reclaim`; None si otro lo tiene.
+
+    El SO lo libera al morir el proceso, así que el mutex nunca queda huérfano.
+    """
+    descriptor = os.open(path.with_name(path.name + '.reclaim'), os.O_RDWR | os.O_CREAT, 0o600)
+    taken = False
     try:
-        with open(path.parent / RECLAIM_LOG, 'a', encoding='utf-8') as log:
-            log.write(record)
-        path.unlink()
-    except OSError:
-        return False
-    return True
+        try:
+            if os.name == 'nt':
+                import msvcrt
+                os.lseek(descriptor, 0, os.SEEK_SET)
+                msvcrt.locking(descriptor, msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            taken = True
+        except OSError:
+            pass
+        yield taken
+    finally:
+        if taken:
+            try:
+                if os.name == 'nt':
+                    import msvcrt
+                    os.lseek(descriptor, 0, os.SEEK_SET)
+                    msvcrt.locking(descriptor, msvcrt.LK_UNLCK, 1)
+            except OSError:
+                pass
+        os.close(descriptor)
 
 
 def create_lock(path, data):
@@ -98,6 +109,40 @@ def busy():
     return RuntimeError('trabajo pesado ocupado: ' + json.dumps(owner(), ensure_ascii=False))
 
 
+def reclaim_and_create(path, data, before_delete=None):
+    """Reclama un huérfano y crea el cerrojo, todo bajo el mutex de reclamo.
+
+    Toda la secuencia leer, verificar, borrar y crear está serializada: quien no
+    obtiene el mutex devuelve ocupado sin tocar nada, y quien lo obtiene relee el
+    cerrojo dentro del mutex, de modo que nunca borra un cerrojo vivo y nuevo.
+    before_delete es un gancho de prueba.
+    """
+    with reclaim_mutex(path) as taken:
+        if not taken:
+            raise busy()
+        seen = owner()
+        if not seen or not seen.get('reclaimable') or not isinstance(seen.get('token'), str):
+            raise busy()
+        if before_delete is not None:
+            before_delete()
+        again = owner()
+        if not again or again.get('token') != seen['token'] or not again.get('reclaimable'):
+            raise busy()
+        record = (f"{datetime.now(timezone.utc).isoformat()} reclama sesion={data['session']} "
+                  f"pid={os.getpid()} huerfano: sesion={seen.get('session')} pid={seen.get('pid')} "
+                  f"token={seen['token']} edad_s={seen['age_seconds']} pid_exists=False\n")
+        try:
+            with open(path.parent / RECLAIM_LOG, 'a', encoding='utf-8') as log:
+                log.write(record)
+            path.unlink()
+        except OSError:
+            raise busy()
+        try:
+            create_lock(path, data)
+        except FileExistsError:
+            raise busy()
+
+
 def acquire(session, before_delete=None):
     path = lock_path()
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -107,12 +152,7 @@ def acquire(session, before_delete=None):
     try:
         create_lock(path, data)
     except FileExistsError:
-        if not reclaim_orphan(session, before_delete):
-            raise busy()
-        try:
-            create_lock(path, data)
-        except FileExistsError:
-            raise busy()
+        reclaim_and_create(path, data, before_delete)
     return token
 
 
@@ -121,6 +161,37 @@ def release(token):
     if not current or current.get('token') != token or current.get('pid') != os.getpid():
         raise RuntimeError('no se libera un cerrojo de otro dueño')
     lock_path().unlink()
+
+
+def concurrent_rounds(here, dead_pid, rounds=200, procs=4, batch=25):
+    """Rondas de `procs` reclamantes simultáneos sobre un huérfano; rondas en lotes paralelos."""
+    import tempfile
+    hold = 'import time; time.sleep(2)'
+    with tempfile.TemporaryDirectory() as directory:
+        for start in range(0, rounds, batch):
+            running = []
+            for number in range(start, min(start + batch, rounds)):
+                path = Path(directory) / f'r{number}' / 'heavy.lock'
+                path.parent.mkdir()
+                when = datetime.fromtimestamp(time.time() - 900, timezone.utc).isoformat()
+                path.write_text(json.dumps({'pid': dead_pid, 'time_utc': when, 'session': 'huerfano',
+                                            'token': 'viejo'}) + '\n', encoding='utf-8')
+                env = dict(os.environ, NEXO_HEAVY_LOCK_PATH=str(path))
+                children = [subprocess.Popen([sys.executable, '-B', here, 'run', '--session',
+                                              f'c{index}', '--', sys.executable, '-c', hold],
+                                             env=env, stderr=subprocess.PIPE, text=True)
+                            for index in range(procs)]
+                running.append((path, children))
+            for path, children in running:
+                results = []
+                for child in children:
+                    _, error = child.communicate()
+                    results.append((child.returncode, error))
+                codes = sorted(code for code, _ in results)
+                assert codes == [0] + [75] * (procs - 1), (path, results)
+                assert not path.exists(), (path, 'el ganador no liberó el cerrojo')
+                lines = (path.parent / RECLAIM_LOG).read_text(encoding='utf-8').splitlines()
+                assert len(lines) == 1 and 'token=viejo' in lines[0], (path, lines)
 
 
 def selftest():
@@ -188,6 +259,8 @@ def selftest():
                 'reclamó con el token cambiado'
             assert json.loads(path.read_text())['token'] == 'otro' and not log.exists()
             clean()
+            # 4b. reclamo concurrente: un ganador, el resto ocupado, una línea de registro.
+            concurrent_rounds(here, dead_pid)
             # 5. flujo normal: run propaga el exit del hijo y libera; ocupado da 75.
             result = cli('run', '--session', 'st', '--', sys.executable, '-c', 'raise SystemExit(7)')
             assert result.returncode == 7 and not path.exists(), (result.returncode, result.stderr)
@@ -206,7 +279,7 @@ def selftest():
             else:
                 os.environ['NEXO_HEAVY_LOCK_PATH'] = previous
     print('heavy-lock selftest: reclamo huerfano, no reclamo (joven, vivo, desconocido, token), '
-          'run/release ok')
+          'run/release y 200 rondas concurrentes ok')
 
 
 def main():
