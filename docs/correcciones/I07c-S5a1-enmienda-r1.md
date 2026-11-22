@@ -1,0 +1,39 @@
+# I07c-S5a.1 — enmienda r1 al plan (§3, mecanismo V6, punto 2): veredicto por asignación, no por binding
+
+**Origen:** hallazgo de C (`I07c-C-S5a1-hallazgo.md`). Medido con binarios de `main` (HEAD `7dfa50f`, base `types.rs` SHA-256 `54c9dfed…`), del candidato (`types.rs` sin confirmar, solo leído) y de dos variantes mías en copias desechables. Perfil `f0-0002-b-v2`; offsets por bytes. **No exige Flujo A:** el addendum («Ancla con componente pendiente y asignación posterior») fija el origen en los tres programas.
+
+## 1. Derivación independiente (ADR §§4.1.2.2, 4.1.2.7; addendum)
+
+Regla: `expected_type` de un E0102 de asignación = origen de la **primera igualdad compatible que, con las precedentes, determina el componente**; una igualdad entre incógnitas (`[r,q]`: `α_r=α_q`) no lo determina, y una igualdad rechazada no fija nada.
+- **P1** (113 B): `Print([r,q])` solo iguala `α_r=α_q`. `q=[[true]]` `[93,101)` fija `α_q=Array<Bool>` (coincide con el E1303 `Array<Array<Bool>>`); `q=ar` `[109,111)` es la rechazada. Correcto: **`[93,101)`** (`main`); el `[85,86)` del candidato es un `r` hoja sin tipo propio (retroceso).
+- **P2** (137 B): `[r,q]` solo iguala; `q=[[3]]` `[119,124)` fija `α_q=Array<I64>`; `q=ar` `[127,129)` rechazada. Correcto: **`[119,124)`** (`main`); `[76,77)` del candidato es la hoja `r`.
+- **P3** (104 B, `let a=[q,(if p then r[0] else [r])];q=[[ar]];r=[[3]];`): `[q,U]`/`r[0]` solo encadenan incógnitas (`α_r=Array<α_q>`); `q=[[ar]]` `[88,94)` es la primera igualdad que determina `α_q`, y por tanto el elemento esperado de `3` `[99,100)`. Correcto: **`[88,94)`** (candidato); el `[57,58)` de `main` es la hoja `q`, sin tipo cuando se igualó. El E0102 de `r` `[81,82)` conserva `[57,58)` en los tres binarios: ahí rige «testigo fuente real que impuso el contexto» (§4.1.2.4), no se toca.
+- **P4** (control, 175 B, ver §4): `r=[q]` `[165,168)` fija `r` (`Array^3<I64>`); `r=ar` es la rechazada; la unión re-lee `r` antes. Correcto: `expected_type=[165,168)` y `[[r]]` con `Array^5<I64>` (candidato); `main` da `[102,107)` y `Array^3` (lectura retipada por la rechazada; viola §4.1.2.2).
+
+## 2. Decisión (texto exacto que sustituye al punto 2 de §3)
+
+> 2. **`read_plan` solo si la pasada de planning aceptó la asignación que adelanta.** `rejected_assignments` es un `HashSet<u64>` de **inicios de RHS** (`Self::primary_span(value).start`, la clave de `assignment_type_plan`), no de bindings. `note_assignment_verdict(place, rhs_start, failed)` lo rellena en planning con el mismo veredicto del plan (**se conserva la rama `failed`**): RHS `Err` o asignación que dejó un `PendingDeferredJoin` nuevo. `collect_planned_shapes` añade a su compuerta `!seed_cap.contains_key(site)` y: si el sitio tiene `assignment_type_plan[site]` (la primera asignación con tipo Array intrínseco, `or_insert`), `!rejected_assignments.contains(&assignment_type_plan[site].1.start)`; si no lo tiene (el tipo sale de `concrete_evidence`), se conserva el criterio del candidato: ninguna asignación rechazada del sitio (conjunto auxiliar por binding, solo para ese caso).
+
+Se **descarta** quitar `failed` (M2d): arregla P1–P3 pero reproduce el bug de `main` en P4 (viola §4.1.2.2 «una asignación rechazada nunca retipa lecturas anteriores»). Se **descarta** registrar P1/P2 como límite: son núcleo (procedencia) y la corrección es una clave, no un mecanismo nuevo. El candidato fallaba por granularidad: `q=ar` marcaba todo el binding `q` y quitaba el `read_plan` de la asignación aceptada `q=[[true]]`.
+- **Terminación:** inalterada. Los veredictos se calculan solo en planning y se vacían por pasada; `read_plan` lo lee únicamente la pasada final y el planning no lo aplica, así que no hay realimentación; `seed_cap[s]` solo decrece (variante decreciente, tope 129 conservado). Cambiar la clave de binding a RHS no añade estado que el planning lea.
+- **Independencia de orden:** la fuente del plan sigue siendo la primera asignación intrínseca por orden fuente (`or_insert`); el veredicto de cada asignación no depende de las demás. Medido: las permutaciones de P1 con `q=ar` antes de `q=[[true]]` dan salida idéntica en `main`, candidato y variante; con `q=ar` después, solo el candidato diverge. Las 3.674 fuentes del diferencial (incluye las permutaciones de los 27 gemelos) no muestran diferencias de orden. Sigue siendo declaración empírica.
+
+## 3. Efecto en las regresiones del plan (§7)
+
+Variante (prototipo mío, solo CLI, no es el código de C) frente al candidato sobre las 3.674 fuentes del diferencial congelado (`check` y `run` en `f0-0002-b-v2`, debug): **2 diferencias** (`generated:1411`, `generated:1681`; ambas pasan a coincidir con `main`; C las clasificó «B, derivación null»), más 2 en 18.000 aleatorios. Repros A, A_control, A sin asignación, A reordenado, B (ambos órdenes), F06, M1/M2, D-REF, constructor y protecciones: **salidas idénticas al candidato** (esperados de §7 intactos: A `[83,86)`/`[53,54)` y `[92,93)`/`[74,77)`; F06 `[76,77)`/`[51,55)` y `[91,92)`/`[83,85)`; M2 `[77,78)`/`[53,57)` y `[92,95)`/`[84,87)`; B `[63,64)` y `[83,84)`/`[89,90)`). O01, O03, O07, O08 y el corpus 26+1: sin diferencia. `s5a1-differential.py` y `s5a1-adjudicate.py` deben regenerarse; `s5a1-diferencias-adjudicadas.json` pasa de 61 a 59 filas contra `main`.
+
+## 4. Regresiones nuevas (C; esperados de esta enmienda, no del binario) y mutantes
+
+Todas con `check` y `run` (exit 1, `rejected`, sin ejecución) y positivo pareado = **borrar la única asignación rechazada** (deja los diagnósticos propios del programa, idénticos a `main`).
+1. **P1** (113 B, arriba): `NX-E0103 [27,29)`, `NX-E1303 [70,71)` (`Bool`/`Array<Array<Bool>>`, `expected_type=[60,64)`), `NX-E0102/type_mismatch [109,111)` (`Array<Array<Bool>>`/`Array<I64>`, `expected_type=[93,101)`). Positivo: sin `q=ar;` → solo E0103 y E1303.
+2. **P2** (137 B): E1303 `[108,114)` (`Array<Array<Array<I64>>>`/`Array<Bool>`, `[75,80)`); E0102 `[127,129)` `ar` (`Array<Array<I64>>`/`Array<I64>`, **`[119,124)`**); E0102 `[133,134)` (`[75,80)`). Positivo: sin `q=ar;` (queda el E1303 y el E0102 de `r=[r]`).
+3. **P3** (104 B, arriba): E0102 `[81,82)` (`Array<Array<I64>>`/`Array<Array<Array<Array<I64>>>>`, `[57,58)`) y E0102 `[99,100)` `3` (`Array<Array<I64>>`/`I64`, **`[88,94)`**). Positivo: sin `r=[[3]];` (queda el primero).
+4. **P4** (175 B, control de `failed`): `fn n(){let x=1;let p=true;let ar=[1];let aa=[[]];var r=[];var q=[];let a=[(if[]then[]else 1),(if[]then[[r]]else(if[]then(if()then r else(true))else[[2]]))];q=[ar];r=[q];r=ar;}`. Se afirma solo: E0102 `[171,173)` `ar` (`Array<Array<Array<I64>>>`/`Array<I64>`, **`[165,168)`**) y el tipo esperado `Array<Array<Array<Array<Array<I64>>>>>` de los tres E1303 (`[130,131)`, `[137,141)`, `[147,152)`; primarios y tipos idénticos en candidato y variante). La relación `expected_type` de esos E1303 no la fija el addendum (ancla que la propia unión relee): no se afirma; se registra en `Pending.md` con fecha. Positivo: sin `r=ar;`.
+5. **Mutantes:** M2e = clave por binding (el candidato actual) muere con P1 y P2; M2d (sin `failed`) muere con P4; Mutación inversa por restauración SHA-256 como en el plan.
+
+## 5. Riesgos
+
+- Las 4 fuentes que la variante devuelve a `main` (`generated:1411`, `generated:1681` y dos aleatorias) **no están adjudicadas por ADR** (varias uniones anidadas con errores de condición); C y D deben derivar cada una desde §§4.1.2.2–5 antes del cierre; si alguna no se deriva, no entra a `tests/` y se registra («una unión, una denuncia» y la política de lecturas en `else r` no quedan fijadas aquí).
+- La fila P5 (117 B) y el tercer diagnóstico de P2 `[133,134)` no son oráculo (relación ambigua); no se incluyen.
+- Ruta de `assignment_type_plan` ausente: criterio por binding conservado a propósito; unificarlo exigiría otro diferencial.
+- Pila: `note_assignment_verdict` sigue `#[inline(never)]`; no cambia marcos de `drive`/`resume_non_match` (a medir en el cierre del bloque).
