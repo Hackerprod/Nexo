@@ -1,0 +1,1 @@
+fn n(){let x=1;let p=true;let ar=[1];let aa=[[]];var r=[];var q=[];let a=[(if[]then[]else 1),(if[]then[[r]]else(if[]then(if()then r else(true))else[[2]]))];q=[ar];r=[q];r=ar;}

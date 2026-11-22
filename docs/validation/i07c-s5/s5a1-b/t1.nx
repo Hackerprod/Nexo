@@ -1,0 +1,1 @@
+fn Main(){let x=1;let p=true;let ar=[1];let br=[true];let aar=[[1]];var r=[];let a0=[(r[0]),(if (x < 0) then r else [[2]]),[(0 - x),(0 - 0),Len(ar)]];let a1=1;r=[ar];}
