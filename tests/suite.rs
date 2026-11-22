@@ -33,6 +33,8 @@ mod corpus_objetivo;
 mod explain_and_print_output;
 #[path = "f0005_b1b.rs"]
 mod f0005_b1b;
+#[path = "f0005_operand_domain.rs"]
+mod f0005_operand_domain;
 #[path = "f0007.rs"]
 mod f0007;
 #[path = "i01_diagnostic.rs"]

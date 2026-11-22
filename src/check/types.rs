@@ -1973,6 +1973,7 @@ type IfResult = Result<(Option<Type>, bool, bool), Box<Diagnostic>>;
 
 enum PrecomputedType {
     Whole(Result<Type, Box<Diagnostic>>),
+    LogicalComplete(Result<Type, Box<Diagnostic>>),
     ArrayComplete {
         result: Result<Type, Box<Diagnostic>>,
         constructor_pair: bool,
@@ -9556,7 +9557,7 @@ impl Checker<'_> {
                         visit,
                         expr,
                         context.borrowed(),
-                        Some(PrecomputedType::Whole(combined)),
+                        Some(PrecomputedType::LogicalComplete(combined)),
                     );
                 }
                 Frame::Array(progress) => {
@@ -11471,7 +11472,13 @@ impl Checker<'_> {
             related_expected,
             ..
         } = context;
-        let mut context_use = if matches!(computed, Some(PrecomputedType::Whole(_))) {
+        let mut context_use = if matches!(computed, Some(PrecomputedType::Whole(_)))
+            || (matches!(computed, Some(PrecomputedType::LogicalComplete(_)))
+                && matches!(context.expected, Some(Type::Bool)))
+        {
+            // The Boolean domain was already proved by both child checks.
+            // Preserve its existing solver charge for a matching context;
+            // a different consumer type must compare the completed result.
             ContextUse::Propagated
         } else if matches!(
             computed,
@@ -11495,6 +11502,7 @@ impl Checker<'_> {
             Some(PrecomputedType::BinaryRight { .. }) => "BinaryRight",
             Some(PrecomputedType::BinaryDeferredRight { .. }) => "BinaryDeferredRight",
             Some(PrecomputedType::Whole(_)) => "Whole",
+            Some(PrecomputedType::LogicalComplete(_)) => "LogicalComplete",
             Some(PrecomputedType::ArrayComplete { .. }) => "ArrayComplete",
             Some(PrecomputedType::IndexTarget { .. }) => "IndexTarget",
             Some(PrecomputedType::CallComplete(_)) => "CallComplete",
@@ -11582,6 +11590,9 @@ impl Checker<'_> {
                     pending_before,
                 }) => (None, None, None, None, Some((result, pending_before)), None),
                 Some(PrecomputedType::Whole(result)) => {
+                    (Some(result), None, None, None, None, None)
+                }
+                Some(PrecomputedType::LogicalComplete(result)) => {
                     (Some(result), None, None, None, None, None)
                 }
                 Some(PrecomputedType::UnaryOperand(_)) => unreachable!("unary operand separated"),
