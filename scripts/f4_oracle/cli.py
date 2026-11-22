@@ -287,6 +287,7 @@ def build_parser():
     st = sub.add_parser("selftest")
     st.add_argument("--fast", action="store_true")
     st.add_argument("--groups", default="")
+    st.add_argument("--fail-fast", action="store_true")
     sub.add_parser("audit")
     cs = sub.add_parser("corpus-sha")
     cs.add_argument("--label", default="")
@@ -343,7 +344,7 @@ def main(argv=None) -> int:
             return 1 if findings else 0
         if args.command == "selftest":
             groups = [g for g in args.groups.split(",") if g] or None
-            return selftest.run(fast=args.fast, groups=groups)
+            return selftest.run(fast=args.fast, groups=groups, fail_fast=args.fail_fast)
         if args.command == "corpus-sha":
             return _corpus_sha(args)
         handlers = {"generate": cmd_generate, "fuzz-corpus": cmd_fuzz_corpus, "compare": cmd_compare,

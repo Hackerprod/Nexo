@@ -21,11 +21,16 @@ from . import audit, barrier, diagnostics, fixtures_io as fio, literal, utf8ref
 ARNES_MESSAGE = "selftest"
 
 
+class FailFast(BaseException):
+    """Raised by the first failed check when ``--fail-fast`` is on (mutation campaigns)."""
+
+
 class Report:
-    def __init__(self):
+    def __init__(self, fail_fast: bool = False):
         self.lines: list[str] = []
         self.failed = 0
         self.total = 0
+        self.fail_fast = fail_fast
 
     def check(self, name: str, ok: bool, detail: str = "") -> bool:
         self.total += 1
@@ -34,6 +39,8 @@ class Report:
         else:
             self.failed += 1
             self.lines.append(f"FAIL {name}: {detail}")
+            if self.fail_fast:
+                raise FailFast(name)
         return ok
 
 
@@ -345,6 +352,7 @@ def _literal_diag(entry: dict, source: str):
 
 
 def run_g0(rep: Report):
+    guards_literal(rep)
     emap = entry_map()
     for ident in G0_LITERAL_IDS:
         e = emap[ident]
@@ -1878,6 +1886,7 @@ def check_harness_batch(rep: Report):
 
 def run_harness(rep: Report):
     """Tests of the harness against the fictitious executables (processes run outside the hook)."""
+    guards_harness(rep)
     check_generic_units(rep)
     check_corruption_inventory(rep)
     world = MockWorld()
@@ -2418,6 +2427,7 @@ def special_entries() -> dict:
 
 
 def run_g9(rep: Report):
+    guards_charges(rep)
     check_app_rows(rep)
     check_app_cases(rep)
     check_env_model(rep)
@@ -2544,16 +2554,181 @@ def matrix_report() -> dict:
     return {k: {"status": s, "note": n} for k, (s, n) in MATRIX.items()}
 
 
-GROUPS = {"G0": run_g0, "G1": _rows_group("G1"), "G2": lambda rep: (run_model_basics(rep), _rows_group("G2")(rep)),
-          "G3": lambda rep: (_rows_group("G3")(rep), run_scc_variants(rep)),
+# ------------------------------------------------------------------ guards with labelled cases (mutation campaign)
+# Each case states the rule it follows (K section) and expects what that text fixes, not what the model
+# happens to return.
+
+def _printed(program, file="g.n"):
+    _, out, fault = m.run_program(program, file)
+    return [utf8ref.from_bytes(b) for b in out.stdout], out, fault
+
+
+def guards_text(rep: Report):
+    probe = FN("P", [("x", "view", "I64")], [ES(C("Print", N("x"))), m.Ret(N("x"))], ret="I64")
+    for op in ("<", "<=", ">", ">="):
+        got, _, _ = _printed(prog(probe, main(LET("c", BIN(C("P", I(1)), op, C("P", I(2)))))))
+        rep.check(f"K3.operands_evaluated_left_to_right.{op}", got == ["1", "2"], str(got))
+    got, _, _ = _printed(prog(main(ES(C("Print", M(S(""), "IsEmpty"))), ES(C("Print", M(S("a"), "IsEmpty"))),
+                                   ES(C("Print", M(S("é"), "IsEmpty"))))))
+    rep.check("K3.IsEmpty_is_ByteLen_equal_zero", got == ["true", "false", "false"], str(got))
+    got, _, _ = _printed(prog(main(ES(C("Print", M(S("ab"), "Concat", S("c")))),
+                                   ES(C("Print", M(S("é"), "Concat", S("\U0001f642")))))))
+    rep.check("K3.Concat_self_then_other", got == ["abc", "é\U0001f642"], str(got))
+    fmt = prog(STRUCT("P", [("x", "I64"), ("y", "String")], derive=["Format"]), STRUCT("E0", [], derive=["Format"]),
+               ENUM("E", [("A", []), ("B", ["I64", "String"])], derive=["Format"]),
+               main(ES(C("Print", C("P", I(1), S("a")))), ES(C("Print", C("E0"))),
+                    ES(C("Print", V("E", "A", null=True))), ES(C("Print", V("E", "B", I(1), S("x"))))))
+    got, _, _ = _printed(fmt)
+    rep.check("K5.2.derived_format_shapes", got == ["P(x: 1, y: a)", "E0()", "E.A", "E.B(1, x)"], str(got))
+    only_format = prog(STRUCT("S", [], derive=["Format"]),
+                       main(LET("a", C("S")), LET("b", C("S")), LET("c", BIN(N("a"), "==", N("b")))))
+    d = m.check_program(only_format, "g.n")[1]
+    rep.check("K5.2.Format_does_not_imply_PartialEq", len(d) == 1 and d[0]["code"] == "NX-E1403"
+              and d[0]["subcause"] == "missing_partial_eq", str([(x["code"], x["subcause"]) for x in d]))
+    only_eq = prog(STRUCT("S", [], derive=["PartialEq"]), main(LET("a", C("S")), ES(C("Print", N("a")))))
+    d = m.check_program(only_eq, "g.n")[1]
+    rep.check("K5.2.PartialEq_does_not_imply_Format", len(d) == 1 and d[0]["code"] == "NX-E1403"
+              and d[0]["subcause"] == "missing_format", str([(x["code"], x["subcause"]) for x in d]))
+    two_types = prog(STRUCT("S", []), STRUCT("T", []),
+                     main(LET("a", C("S")), LET("b", C("T")), LET("c", BIN(N("a"), "==", N("b")))))
+    d = m.check_program(two_types, "g.n")[1]
+    rep.check("K5.2.different_types_fail_by_type_before_capability", len(d) == 1 and d[0]["code"] == "NX-E0102"
+              and d[0]["subcause"] == "type_mismatch", str([(x["code"], x["subcause"]) for x in d]))
+
+
+def guards_nominal(rep: Report):
+    two = prog(STRUCT("S", [("a", "I64"), ("b", "I64")]),
+               main(LET("s", C("S", I(1), I(2))), ES(C("Print", FLD(N("s"), "a"))), ES(C("Print", FLD(N("s"), "b")))))
+    got, _, _ = _printed(two)
+    rep.check("K4.1.positional_arguments_follow_declaration_order", got == ["1", "2"], str(got))
+    fail = FN("Fallar", [], [ES(C("Fail")), m.Ret(C("MockOpen", I(9)))], ret="MockResource")
+    trio = prog(STRUCT("T", [("a", "MockResource"), ("b", "MockResource"), ("c", "MockResource")]), fail,
+                main(LET("t", C("T", C("MockOpen", I(1)), C("MockOpen", I(2)), C("Fallar")))))
+    _, out, _ = _printed(trio)
+    rep.check("K4.4.incomplete_constructor_cleans_in_reverse_evaluation_order",
+              out.events == ["open:0:1", "open:1:2", "close:1:2", "close:0:1"]
+              and out.fault is not None and out.fault.code == "R0301", str(out.events))
+    cyc = prog(STRUCT("A", [("b", "B"), ("c", "C")]), STRUCT("B", [("a", "A")]), STRUCT("C", [("d", "D")]),
+               STRUCT("D", [("a", "A")]), main())
+    src, d = m.check_program(cyc, "g.n")
+    at = src.index("struct B{a:") + len("struct B{a:")
+    rep.check("K4.2.shortest_cycle_primary_is_last_edge",
+              len(d) == 1 and d[0]["code"] == "NX-E1323"
+              and (d[0]["primary_span"]["start"], d[0]["primary_span"]["end"]) == (at, at + 1),
+              str([(x["code"], x["primary_span"]) for x in d]))
+
+
+def guards_literal(rep: Report):
+    res = literal.analyze('"a\rb"', 0)
+    rep.check("literal.raw_cr_is_excluded_LF03", res.other == "raw_control_in_text", str(res.other))
+    res = literal.analyze('"a\nb"', 0)
+    rep.check("literal.raw_lf_is_excluded_LF03", res.other == "raw_control_in_text", str(res.other))
+    src = entry_map()["X02"]["source"]
+    found = literal.find_literals(src)
+    rep.check("literal.recovery_yields_one_diagnostic_after_a_stray_brace",
+              len([r for r in found if r.diag is not None]) == 1 and len(found) == 1,
+              str([(r.start, r.end, r.diag) for r in found]))
+
+
+def guards_charges(rep: Report):
+    lim = dict(charges.NORMAL, live_text_bytes=10)
+    in_loop = charges.account([("loop", 5, [("lit", 3, 0)])], lim)
+    straight = charges.account([("lit", 3, 0), ("lit", 3, 1), ("lit", 3, 2), ("lit", 3, 3)], lim)
+    rep.check("K8.2.strings_of_a_loop_body_die_at_the_end_of_each_iteration",
+              in_loop.fault is None and in_loop.peak_live == 3 and in_loop.allocs == 5)
+    rep.check("K8.2.strings_outside_a_loop_stay_alive",
+              straight.fault is not None and straight.fault.quota == "live_text_bytes"
+              and straight.fault.observed == 12 and straight.fault.span == 3)
+
+
+def guards_harness(rep: Report):
+    err_int = generic.Invocation(["x"], 1, {"outcome": {"kind": "err", "error": 70}, "stdout": []}, "", None, 0.0)
+    want = {"exit": 1, "schema_version": 1, "outcome": {"kind": "err", "error": "70"}, "stdout": []}
+    rep.check("harness.observed.err_as_integer_equals_decimal_string",
+              runner.observed(err_int, [], want)["outcome"] == {"kind": "err", "error": "70"})
+    ctl = generic.Invocation(["x"], 2, {"outcome": {"kind": "driver_error", "reason": "invalid_mock_json"},
+                                        "stdout": ["x"], "events": []}, "", None, 0.0)
+    want = {"exit": 2, "outcome": {"kind": "driver_error", "reason": "invalid_mock_json"}}
+    got = runner.observed(ctl, [], want)
+    rep.check("harness.observed.controller_document_is_compared_on_its_own_keys",
+              got == want and generic._first_difference(want, got) is None, str(got))
+    wrong = generic.Invocation(["x"], 2, {"outcome": {"kind": "driver_error", "reason": "invalid_mock_schema"}},
+                               "", None, 0.0)
+    rep.check("harness.observed.controller_reason_is_compared",
+              generic._first_difference(want, runner.observed(wrong, [], want)) == "$.outcome.reason")
+
+
+# ------------------------------------------------------------------ O6: the mutation harness itself
+
+def check_mutate_units(rep: Report):
+    """Copy, restoration by SHA-256, refusal of ambiguous patterns, verdicts and a two-worker campaign."""
+    from . import mutate
+    ST_TMP.mkdir(parents=True, exist_ok=True)
+    work = Path(tempfile.mkdtemp(prefix=f"f4-oracle-st-mut-{os.getpid()}-", dir=str(ST_TMP)))
+    try:
+        rep.check("mutate.catalogue_valid", mutate.check_catalogue() == [] and len(mutate.MUTATIONS) >= 40,
+                  str(mutate.check_catalogue()[:2]))
+        ids = [m_.ident for m_ in mutate.MUTATIONS]
+        rep.check("mutate.catalogue_ids_unique", len(ids) == len(set(ids)))
+        rep.check("mutate.equivalents_carry_an_argument",
+                  all(len(m_.equivalent) > 60 for m_ in mutate.MUTATIONS if m_.equivalent is not None))
+        copy = mutate.Copy(work / "c").build()
+        rel = "scripts/f4_oracle/barrier.py"
+        original = generic.sha(Path(audit.ROOT) / rel)
+        copy.apply(rel, "def compares_primary", "def compares_primary_x")
+        changed = generic.sha(copy.root / rel)
+        copy.restore(rel)
+        rep.check("mutate.apply_changes_and_restore_returns_the_blob",
+                  changed != original and generic.sha(copy.root / rel) == original and not copy.blobs)
+        bad = []
+        for pattern in ("zzz-not-in-the-file-zzz", "import"):
+            try:
+                copy.apply(rel, pattern, "x")
+                bad.append(pattern)
+                copy.restore(rel)
+            except mutate.MutationError:
+                pass
+        rep.check("mutate.refuses_zero_or_several_occurrences", not bad, str(bad))
+        copy.apply(rel, "def compares_primary", "def compares_primary_x")
+        data, digest = copy.blobs[rel]
+        copy.blobs[rel] = (data + b"#", digest)
+        try:
+            copy.restore(rel)
+            refused = False
+        except mutate.MutationError:
+            refused = True
+        copy.blobs.pop(rel, None)
+        (copy.root / rel).write_bytes(data)
+        rep.check("mutate.restoration_mismatch_aborts", refused)
+        eq = mutate.Mutation("X", "f", rel, "a", "b", equivalent="argument " * 12)
+        plain = mutate.Mutation("Y", "f", rel, "a", "b")
+        rep.check("mutate.verdicts",
+                  mutate.verdict(plain, {"status": "killed"}) == "killed"
+                  and mutate.verdict(plain, {"status": "survived"}) == "SURVIVOR"
+                  and mutate.verdict(eq, {"status": "survived"}) == "equivalent"
+                  and mutate.verdict(eq, {"status": "killed"}) == "refuted")
+        base = mutate.run_selftest(copy.root, "G0", 300)
+        rep.check("mutate.unmutated_copy_passes", base["status"] == "survived", str(base))
+        copy.close()
+        picked = [m_ for m_ in mutate.MUTATIONS if m_.ident in ("B03", "L02")]
+        code, results = mutate.run_campaign(picked, workers=2, timeout=300)
+        rep.check("mutate.two_worker_campaign_kills_with_a_label",
+                  code == 0 and all(r["verdict"] == "killed" and r["label"] for r in results)
+                  and {r["id"] for r in results} == {"B03", "L02"}, str(results)[:200])
+        left = [p for p in ST_TMP.glob(f"f4-oracle-mut-{os.getpid()}-*")]
+        rep.check("mutate.campaign_removes_its_copies", not left, str(left))
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+GROUPS = {"G0": run_g0, "G1": _rows_group("G1"), "G2": lambda rep: (run_model_basics(rep), _rows_group("G2")(rep), guards_text(rep)),
+          "G3": lambda rep: (_rows_group("G3")(rep), run_scc_variants(rep), guards_nominal(rep)),
           "G4": _rows_group("G4"), "G5": _rows_group("G5"), "G6": _rows_group("G6"),
           "G7": _rows_group("G7"), "G8": lambda rep: (_rows_group("G8")(rep), run_semantics_extras(rep)),
           "G9": run_g9, "G10": run_g10, "GEN": run_gen}
 
 
-def run(fast: bool = False, groups=None) -> int:
-    started = time.time()
-    rep = Report()
+def _run_checks(rep: Report, fast: bool, groups):
     check_audit(rep)
     check_pins(rep)
     check_literal_rows(rep)
@@ -2569,14 +2744,25 @@ def run(fast: bool = False, groups=None) -> int:
             check_gen_subprocess(rep)
         if groups is None or "HARNESS" in groups:
             run_harness(rep)
+        if (groups is None or "MUTATE" in groups) and not os.environ.get("F4_ORACLE_MUTANT"):
+            check_mutate_units(rep)  # a mutated copy does not run the campaign about itself
         probes = []
         _, v1 = run_audited(lambda: open(os.path.join(audit.ROOT, "Cargo.toml"), "rb").close())
         probes.append(bool(v1))
         _, v2 = run_audited(lambda: __import__("sched"))
         probes.append(bool(v2))
         rep.check("audit.dynamic.detects_violations", all(probes), str(probes))
+
+
+def run(fast: bool = False, groups=None, fail_fast: bool = False) -> int:
+    started = time.time()
+    rep = Report(fail_fast)
+    try:
+        _run_checks(rep, fast, groups)
+    except FailFast:
+        pass
     for line in rep.lines:
         print(line)
     print(f"selftest: {rep.total} checks, {rep.failed} failed, {time.time() - started:.1f}s"
-          + (" (fast)" if fast else ""))
+          + (" (fast)" if fast else "") + (" (fail-fast)" if fail_fast else ""))
     return 0 if rep.failed == 0 else 1

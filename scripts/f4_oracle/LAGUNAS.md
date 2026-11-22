@@ -30,3 +30,37 @@ Fuente de cada laguna: plan del oráculo r3 §3 (iniciales) o hallazgo de implem
 | LF-23 C | Entorno v2 fuera de lo que K 6.1 fija: profundidad JSON mayor de 16, claves duplicadas, carácter de control crudo dentro de una cadena JSON, frontera de 1 MiB (`mock_env_too_large`), elementos de las cuatro colas heredadas y orden de validación cuando hay dos defectos a la vez. | `app.parse_json`/`validate` lanzan `ModelGap`; ningún entorno generado lo contiene y no se compara (cada fuente E tiene exactamente un defecto). |
 | LF-24 C | Primario de R0002 cuando la reserva que falla es la copia de un String (`let b=a;`): K 8.2 dice «copiar-lugar completo» sin ejemplo ni fila (¿el lugar copiado o el inicializador?). | Las recetas Q de copia (`live_chain`) comparan los 20 campos restantes y omiten `primary_span`; los literales (X24–X26, O13 y recetas de literal/bucle) sí lo comparan. |
 | LF-25 C | Ocupación de trabajo, frames, celdas y observaciones en las recetas Q: K 8.3 pide registrar todas las cuotas, pero K no fija ticks (LF-06) ni cómo cuenta un rango `1..=N` las celdas de su iterador. | `charges.occupancy` registra las cuatro cuotas de texto y miembros; el resto se acota (las recetas no imprimen, no tienen frames anidados y sus ticks son órdenes de magnitud inferiores a 16.000.000). No se compara nada de eso. |
+
+## Revisión de O6: estado de cada laguna y decisiones que pide
+
+«Coordinador» = decisión de andamiaje (no cambia el significado de un programa); «Flujo A» = núcleo con más de una respuesta razonable: ejemplo válido e inválido en K antes de fijar un fixture (AGENTS.md, rigor proporcional). Ninguna laguna se rellena con valores observados del binario.
+
+| ID | Estado | Decisión que pide |
+|---|---|---|
+| LF-01 | abierta | Coordinador: fijar el primario de la barrera NX-E0006 para K03–K07, K09 y K10 antes del primer contraste de esas unidades. |
+| LF-02 | abierta | Coordinador: qué K se reporta (y cuántos diagnósticos) con ≥ 2 construcciones pendientes distintas; hasta entonces se excluyen de la clase B. |
+| LF-03 | abierta | **Flujo A**: K no dice qué ocurre con CR, LF o NUL crudos dentro de un literal (léxico). Ejemplo válido e inválido en K antes de fijar fixture; NUL ya se prueba por `console_read_line`. |
+| LF-04 | abierta | Ninguna por ahora (el oráculo exige un solo diagnóstico); Flujo A si el producto debe emitir varios de etapas distintas. |
+| LF-05 | abierta | Ninguna: se cierra al implementar K04 (la barrera K04 deja de preceder a NX-E1403). |
+| LF-06 | abierta por diseño | Ninguna: K no calibra ticks salvo tres oráculos de §8.2. |
+| LF-07 | abierta | Ninguna: P04 es API interna, NO EVALUADO por la CLI y verificado como par del modelo. |
+| LF-08 | abierta | Ninguna del coordinador: trabajo pendiente del oráculo (transcribir D15 §6.3 y §7.1 y habilitar la familia de escape inválido). |
+| LF-09 | abierta | Ninguna hasta que el parser F4 implemente expresiones en Holes; después, ejemplo en K (Flujo A) o transcripción del contexto ordinario. |
+| LF-10 | abierta | Coordinador, solo si el producto elige una forma JSON distinta de la asumida: se registrará como hallazgo de forma en el primer contraste. |
+| LF-11 | abierta | Ninguna: K difiere el primario del nominal recursivo por Array. |
+| LF-12 | abierta | Ninguna: solo se comparan eventos. |
+| LF-13 | abierta | Ninguna: solo se comparan código y eventos de A06 fallida. |
+| LF-14 | cerrada sin acción | La posición de `fn Fallar()` no cambia el resultado; el programa se prueba en el modelo. |
+| LF-15 | abierta | Ninguna: ampliar el reconocedor de Holes con `if`/`match` cuando se transcriba LF-09. |
+| LF-16 | resuelta en O5 por tolerancia | Ninguna: se aceptan `"error":"70"` y `"error":70`; si el producto usa una tercera forma se registrará como hallazgo de forma. |
+| LF-17 | abierta | Coordinador, junto con LF-01. |
+| LF-18 | abierta | Ninguna: las V que mezclan eventos y salida se descartan (K §6.1 solo ordena Println: evento y luego stdout, que la clase A y las filas de K §11 sí cubren). |
+| LF-19 | abierta | Coordinador: ratificar que un miembro desconocido de un String es K03 (K §9.1 asigna «resto de §3» a K03). |
+| LF-20 | abierta | Coordinador, solo si el producto exige o rechaza `--mock-env` en `check`: el primer contraste lo dirá. |
+| LF-21 | abierta | Ninguna: `fuzz` solo exige ausencia de pánico, `internal_error`, `InvalidIr` y timeout, más la igualdad debug/release. |
+| LF-22 | abierta (nueva, O5) | Ninguna: se compara `exit` y `outcome` del controlador. |
+| LF-23 | abierta (nueva, O5) | Ninguna: nada de lo no fijado se genera ni se compara (profundidad > 16, claves duplicadas, control crudo en JSON, frontera de 1 MiB, colas heredadas). |
+| LF-24 | abierta (nueva, O5) | **Flujo A**: primario de R0002 cuando falla la copia de un String («copiar-lugar completo»: ¿el lugar copiado o el inicializador?). Ejemplo en K antes de comparar `primary_span` en esas recetas. |
+| LF-25 | abierta (nueva, O5) | Ninguna: ocupación de trabajo, frames y celdas de las recetas Q solo acotada. |
+
+Resumen: piden decisión del coordinador LF-01, LF-02, LF-17, LF-19 y, solo ante un contraste adverso, LF-10 y LF-20; piden Flujo A LF-03 y LF-24; ninguna otra necesita decisión.
