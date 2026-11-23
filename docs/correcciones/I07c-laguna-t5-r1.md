@@ -40,7 +40,7 @@ Fuentes ASCII sin BOM ni LF final; offsets en bytes `[ini,fin)`; todos `rejected
 | `fn Main(){let a=[true,true+1];}` | único NX-E0102 `[22,26)` | NX-E0102 sobre `true+1`: V, presencia I |
 | `fn Main(){let c=true;let a=if c then true+1 else true;}` | único NX-E0102 `[37,41)` | NX-E1303 sobre el `true` final: V, presencia I |
 | `fn Main(){let x=true+1;let a=[x+1,true];}` | único NX-E0102 `[16,20)` | NX-E0102 en el `true` final `[34,38)`: V, presencia I |
-| `fn Main(){let a=[[true]<1,1];}` | único NX-E0102 `[24,25)` (`1`), `Bool`/`I64` | NX-E0102 en el 2.º `1` `[26,27)`: V, presencia I |
+| `fn Main(){let a=[[true]<1,1];}` | único NX-E0102 `[24,25)` (`1`), `expected_type=Array<Bool>`, `found_type=I64`; relaciones `expected_type=[17,23)`, `found_type=[24,25)` | NX-E0102 en el 2.º `1` `[26,27)`: V, presencia I |
 | `fn Main(){let c=true;let a=[if c then true+1 else 1,true];}` | único NX-E0102 `[38,42)`; el `true` final fija la referencia | NX-E0102 en el `true` final `[52,56)`: V, presencia I |
 | `fn Main(){let a=(if true then {value:true+1;} else true);}` (bloque con valor) | único NX-E0102 `[37,41)`; la hoja `true` final `[51,55)` no se compara | NX-E1303 en `[51,55)`: V, presencia I |
 
