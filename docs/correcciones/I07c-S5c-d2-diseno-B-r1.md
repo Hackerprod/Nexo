@@ -1,0 +1,28 @@
+# Validador B - diseno I07c-S5c-d2 (2f): FAIL
+
+Binario 2f compilado de git archive origin/i07c-s5c-explor (release; NEXO_XV por defecto = 2f). Arnes y corpus propios en C:\nexo-work\tmp\validador-b-d2 (h.py, sweep.py, reg.py, gen2.py, gen3.py, permgen.py).
+Corpus propios congelados antes de ejecutar: corpus-b.json (semilla 8800113, 4.000, SHA 83f9e726254d55802e275b2b18ba270f567513703b5fa10a091ff5cbe410af1f), perm.json (semilla 5150177, 260 grupos/4.044 programas, SHA 8997f93905ae1338fab3a1c921dceed8628516ab4ae8e862e24b6e021700cf72), corpus-t.json (gen3.py, 10.584 programas, SHA a1c740bd6aafe417e0a0205fc2759fabd63a6d96507551652b96d971bffce2c5).
+
+## Resultados
+- Reproduce el INFORME en el corpus congelado (SHA e78702d1...): core A0/B2587/C274/D48; full A6/B2667. PASA.
+- Fuera de muestra (corpus-b, 3.959 modelados): core main 3066 aciertos, 2f 3582; A = 2 regresiones de core. FALLA la hipotesis de 0 fuera de muestra.
+- Permutaciones (4.044): core A=0; 101/3.822 difieren del oraculo (iguales a main; C). Corpus dirigido a contrastes absorbidos (10.584): core A0 C0 D0.
+- Ablaciones (core A en congelado / corpus-b): sin R2: 0 / 2 (firma completa identica a 2f en 28.000 + 10.584 programas); sin R3 (arrx): 1 / 3; sin R2 ni R3: 1 / 3; sin atomic0: 1 / 1.
+
+## Defectos (nucleo, reproducibles)
+1. R-A, regresion de codigo y primario frente a main=oraculo (tipo inventado, ADR l.301: no se emite NX-E1303 con un tipo inventado). Perfil f0-0002-b-v2, cuerpo tras el prefijo `fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];`:
+   `let a0=(if p then (if p then [r] else (if p then ar else [[q]])) else r[0]);}`
+   Esperado (oraculo = main): solo NX-E0103 [67,69). Obtenido 2f: NX-E1303 [128,130), expected Array<Array<Array<I64>>>, found Array<I64>. Persiste con NEXO_XV vacio: viene de la pieza 1 (ALT-2). Variante con corchetes: corpus-b idx 2711.
+2. R-B (pieza 4b atomic0): tras el prefijo, `var s=[];let a0=(if p then (if p then r else (if p then 1 else q)) else (if p then s else 2));q=r;r=[true];}`. Esperado (oraculo=main; ADR l.353 dos uniones incompatibles producen dos NX-E1303): E1303 [135,136) y E1303 [169,170). 2f: NX-E0103 [85,87) y solo E1303 [135,136). Sin atomic0 da el esperado.
+3. Regresion de match como expresion (hallazgo de X) reproducida con 2f, perfil f0-0003-b-v1, tras `fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];`: `q=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then 1 else s) else r);},None=>{value: [q];}};}` main: E0103 [102,104), E0103 [111,113), E1303 [212,215); 2f: solo los dos E0103. Coherente con la hipotesis (retorno temprano anchor_pending/anchor_absorbed de if_finish_join con failed=true, candidato-2.diff). El ADR (l.361/363) dice que una union discrepante no ofrece tipo unico a su consumidor salvo otra union, pero no dice si un brazo de match es consumidor distinto: decision abierta que el diseno debe cerrar por Flujo A (ejemplo valido/invalido) o 2f debe igualar a main. Los 293 C / 54 D de matchexpr no son adjudicables porque el ADR (4.1.2, l.353) solo trata hojas de if, bloques value y elementos de array: el oraculo analogo es suposicion.
+
+## Decisiones abiertas e incoherencias
+4. R2 (pieza 5) sin justificar: su repro del diseno (tras el prefijo, `let a0=(if p then (if p then r[0] else r[0]) else (if p then q else 1));r=[3];`) da el esperado con 2f sin v6rej; sin R2 las cifras son identicas. Exhibir programa que la exija o retirarla (arrastra el limite de veredicto por binding, contrario a l.301). Los A/B de d2-5 son del punto intermedio, no de la composicion final.
+5. Se admite que 2f deja unos 99 E1303 perdidos que R1 exige, pero los 7 commits son exactamente 2f: no hay mecanismo ni commit para ellos. Mi particion de los 322 (corpus congelado): 98 E1303 perdida pura, 16 perdida mas otras, 85 E0103 en nombre solo, 123 otros (27 E0103 extra sobre literales, 24 E1303 con otro primario, 21 E0102 perdida, mixtas). No reproduce 105/99/118; las E1303 reubicadas son del ambito R1. El paso 0 debe hacerse antes de aprobar.
+6. R3 (arrx) y E0103 con primario en un nombre (S5c-d3) son la misma regla (E0103 solo sobre constructor fuente con elemento variable sin constructor, l.301). Tras el prefijo, `let a0=(if p then r[0] else r);` da en main y 2f un tercer E0103 en la hoja [107,108) (oraculo: dos). No es R1; debe unificarse con R3.
+7. El criterio de 0 diferencias de core frente al oraculo en permutaciones (diseno 4) es incumplible con los 322 previos (medido 101/3.822): debe ser 0 regresiones frente a main y diferencias clasificadas.
+8. Laguna de procedencia: laguna real (l.301 primera igualdad que determina su tipo apoya B; l.371 operando de la primera continuacion y origen concreto apoyan A). Textos y spans por bytes comprobados: valido y control coinciden en main y oraculo; el invalido da en main/oraculo expected_type [77,82) y en 2f [101,104). El texto debe reconocer la tension con la frase literal de l.301 y declarar que es de clase I.
+9. Pila: INCONCLUSO por mi parte (no compile el perfil de test); INFORME-2 de X reporta 60.616 B y f5-stack65 5/5. Terminacion: no medida por mi. Plan de 7 commits coherente con la cadena medida salvo R2.
+
+## Veredicto: FAIL
+Motivos: (1) R-A; (2) R-B; (3) match como expresion; (4) R2 injustificada; (5) E1303 perdidos sin plan; (6) unificar R3 con d3; (7) criterio de permutaciones; (8) texto de laguna. Condiciones para pasar a plan: corpus nuevo con SHA (incluir corpus-b y corpus-t), 0 regresiones core en run/debug/release y los tres perfiles, diferencial completo clasificado, mutacion por pieza, pila por commit (aborto > 2.500 B), D/D distintos.
