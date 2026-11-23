@@ -271,6 +271,12 @@ fn inherited_loop_forms_need_no_new_capability() {
         );
         assert!(output.contains("\"diagnostics\":[]"), "{output}");
     }
+    // The inherited loop is not the capability: the barrier of a later `*` (F5-H01 form,
+    // span of `1*2`) stays on `*` even though the loop comes first in the source.
+    for (status, output) in both("fn Main(){while true{break;}let x=1*2;}", F5) {
+        assert_eq!(status, 1, "{output}");
+        assert_eq!(output, l08(34, 37));
+    }
     let (status, output) = invoke("run", "fn Main(){while true{break;}}", F5);
     assert_eq!(status, 0, "{output}");
     assert!(
