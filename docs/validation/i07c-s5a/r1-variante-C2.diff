@@ -1,0 +1,8 @@
+3397c3397
+<             if witnessed {
+---
+>             if witnessed || !self.graph.rejected_assignments.contains(&site) {
+8616c8616
+<             && (failed || before.is_some_and(|before| self.pending_join_count() > before))
+---
+>             && before.is_some_and(|before| self.pending_join_count() > before)
