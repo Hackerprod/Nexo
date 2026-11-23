@@ -1,0 +1,1 @@
+fn Inc(x:edit I64){x=x+1;} fn Main(){{}{}{}var n=0;while true{Inc(edit n);}}

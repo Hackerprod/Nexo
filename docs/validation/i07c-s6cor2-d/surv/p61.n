@@ -1,0 +1,1 @@
+fn Main(){let a=Some(1);let f=fn (){};match true{true if (if true then {(if true then {Drop(a);value:f;} else {value:f;})();value:true;} else {value:false;}) =>{},_=>{}}}

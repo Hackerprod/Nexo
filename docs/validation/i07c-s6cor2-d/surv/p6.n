@@ -1,0 +1,1 @@
+fn Main(){var a=[1,2,3];while true{a;}}

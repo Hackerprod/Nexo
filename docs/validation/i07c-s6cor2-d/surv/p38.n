@@ -1,0 +1,1 @@
+fn G()->I64{let a=Some(1);match true{true if (if true then {return if true then {Drop(a);value:1;} else {value:2;};} else {value:false;}) =>{},_=>{}} return 0;}fn Main(){G();}

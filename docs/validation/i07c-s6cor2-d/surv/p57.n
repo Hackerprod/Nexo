@@ -1,0 +1,1 @@
+fn Main()->Result<(),I64>{let a=Some(1);match true{true if (if true then {Drop(a);value:true;} else {value:false;}) =>{},_=>{}}return Ok(());}
