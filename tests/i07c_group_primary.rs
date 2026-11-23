@@ -3189,3 +3189,32 @@ fn expression_statement_tick_reports_the_inner_unit() {
 fn expression_statement_tick_reports_the_inner_array() {
     quota_sweep(&s1_form("[1]"));
 }
+
+// S2: the extra tick of a loop condition has the condition expression as origin (F0-0002 section
+// 11, "Origen de los ticks"); under groups it is the inner condition.
+const S2_CONDITION: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while @E{}}",
+    positive: "fn Main(){@Pvar n=0;while @E{n=n+1;}}",
+    inner: "n<3",
+    pad: 3,
+};
+
+#[test]
+fn while_condition_tick_reports_the_inner_condition() {
+    quota_sweep(&S2_CONDITION);
+}
+
+#[test]
+fn while_condition_tick_reports_the_inner_comparison_of_a_large_bound() {
+    // The witness of the quota: the loop never reaches its bound before the work quota.
+    quota_row(
+        &QuotaSite {
+            template: "fn Main(){@Pvar n=0;while @E{}}",
+            positive: "",
+            inner: "n<9999999",
+            pad: 3,
+        },
+        3,
+        true,
+    );
+}

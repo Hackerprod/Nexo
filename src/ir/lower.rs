@@ -9628,7 +9628,7 @@ impl Lower<'_> {
                         if entry_emission == EmissionMode::Live {
                             self.pending_charges.push(WorkPlanner::charge(
                                 WorkEvent::WhileCondition,
-                                condition.span().clone(),
+                                parse::expression_primary_span(condition),
                             ));
                         }
                         tasks.push(Task::WhileAfterCondition(Box::new(WhileConditionState {
