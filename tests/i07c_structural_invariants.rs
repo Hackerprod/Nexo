@@ -156,6 +156,7 @@ fn grouped_operands_keep_one_causal_primary() {
             && text.contains("names.rs reviewed: 5/5")
             && text.contains("effects.rs reviewed: 1/1")
             && text.contains("reviewed: 20/20")
+            && text.contains("lowering span baseline: PASS")
             && !text.contains("pendiente_decision"),
         "{text}"
     );

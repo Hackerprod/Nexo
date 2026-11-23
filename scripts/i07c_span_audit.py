@@ -55,6 +55,86 @@ REVIEWED = {
     14811: ("&Self::primary_span(target)", "argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
 }
 
+# S6-COR-2: lowering (`lower.rs`, `lower_match.rs`) has ~100 raw `.span()` uses, most of them IR,
+# identity or relation spans that keep the whole group, so it is not reviewed line by line. The
+# baseline is frozen by (file, site anchor, expression) -> expected count, where the site anchor is
+# the enclosing function and the innermost enclosing match arm (no line numbers). A new expression,
+# a larger or a smaller count fails: the change reconciles the baseline with a reason. Each solution
+# of the cut removes its own accesses from the baseline and adds its positive anchor in the same
+# commit (GROUP_SITES): the site must call `expression_primary_span`/`expression_primary`.
+LOWER = SOURCE.parents[1] / "ir/lower.rs"
+LOWER_MATCH = SOURCE.parents[1] / "ir/lower_match.rs"
+RAW_SPAN = re.compile(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\.span\(\)(?:\.(?:clone\(\)|start|end|file))*")
+LOWERING_BASELINE = {
+    "lower.rs": {
+        (('first_f5_capability', 'Statement::Assign { => {'), 'place.span().start'): (2, 'identity: key or search bound, not a primary'),
+        (('resolved_expr', '-'), 'expr.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('resolved_expr', '-'), 'expr.span().end'): (1, 'identity: key or search bound, not a primary'),
+        (('finish_if_expression', '-'), 'expr.span()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('begin_for_range', '-'), 'iterable.span()'): (4, 'for: unreachable today (NX-E0006/NX-E0002 first), debt in Pending.md'),
+        (('begin_for_range', '-'), 'iterable.span().clone()'): (5, 'for: unreachable today (NX-E0006/NX-E0002 first), debt in Pending.md'),
+        (('begin_for_array', '-'), 'iterable.span().clone()'): (15, 'for: unreachable today (NX-E0006/NX-E0002 first), debt in Pending.md'),
+        (('begin_for_array', '-'), 'iterable.span().start'): (2, 'identity: key or search bound, not a primary'),
+        (('begin_for_array', '-'), 'iterable.span()'): (2, 'for: unreachable today (NX-E0006/NX-E0002 first), debt in Pending.md'),
+        (('begin_for_after_iterable', '-'), 'iterable.span().clone()'): (1, 'for: unreachable today (NX-E0006/NX-E0002 first), debt in Pending.md'),
+        (('check_place_access', '-'), 'root.span().clone()'): (2, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('named_closure_receiver', '-'), 'target.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('named_closure_receiver', '-'), 'target.span().clone()'): (5, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Some(Task::WhileAfterCondition(_)) => {'), 'state.condition.span().clone()'): (3, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Some(Task::AssignAfterValue(_)) => {'), 'state.place.span().clone()'): (4, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Some(Task::AssignAfterValue(_)) => {'), 'state.root.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Some(Task::AssignAfterValue(_)) => {'), 'state.place.span().file.clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Some(Task::AssignAfterValue(_)) => {'), 'state.place.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Some(Task::AssignAfterValue(_)) => {'), 'state.value.span().end'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Ok(left_type) => {'), 'state.left.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Ok(left_type) => {'), 'state.left.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Ok(()) => {'), 'state.expr.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'place.span().clone()'): (1, 'S3: assignment destination tick origin (to be replaced by the group-removal helper)'),
+        (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'root.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'root.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'root.span().end'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Task::AssignNextSelector(mut state) => {'), 'state.place.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Task::AssignNextSelector(mut state) => {'), 'state.place.span().clone()'): (5, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Task::ArgumentEnter { => {'), 'root.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Task::ArgumentEnter { => {'), 'root.span().end'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Task::ArgumentEnter { => {'), 'root.span().clone()'): (2, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Task::ArgumentPlaceNext(mut state) => {'), 'state.arg.value.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Statement::Let { => {'), 'value.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Statement::Expr { value, .. } => {'), 'value.span().clone()'): (1, 'S1: expression statement tick origin (to be replaced by the group-removal helper)'),
+        (('run_lower_tasks', 'Ok(inferred) => {'), 'target.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Ok(inferred) => {'), 'target.span().end'): (1, 'identity: key or search bound, not a primary'),
+        (('run_lower_tasks', 'Ok(local) => {'), 'root.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Task::OtherCallEnter { => {'), 'target.span().clone()'): (2, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Err(error) => {'), 'target.span()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', 'Task::WhileEnter { => {'), 'condition.span().clone()'): (1, 'S2: while condition tick origin (to be replaced by the group-removal helper)'),
+        (('run_lower_tasks', 'Task::IfElse { => {'), 'expr.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
+        (('run_lower_tasks', '-'), 'value_tail.value.span().clone()'): (1, 'S4: branch operand tick origin (to be replaced by the group-removal helper)'),
+        (('statement_leaf', 'Statement::Value { => {'), 'value.span().clone()'): (1, 'S4 mirror: statement_leaf, precedes InvalidIr (to be replaced by the group-removal helper)'),
+        (('prepare_expr', 'Expr::Call { target, span, .. } => {'), 'target.span().clone()'): (1, 'S5: call target name tick (to be replaced by the group-removal helper)'),
+        (('prepare_expr', 'Expr::Unary { => {'), 'value.span().end'): (1, 'identity: key or search bound, not a primary'),
+    },
+    "lower_match.rs": {
+        (('guard_violations', 'parse::Statement::Assign { place, value, .. } => {'), 'place.span().clone()'): (1, 'S6: guard_mutation primary (to be replaced by the group-removal helper)'),
+        (('guard_violations', 'parse::Expr::Unary { mode, value, span } => {'), 'value.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('guard_violations', 'parse::Expr::Unary { mode, value, span } => {'), 'value.span().end'): (1, 'identity: key or search bound, not a primary'),
+        (('guard_violations', 'parse::Expr::Call { target, args, .. } => {'), 'target.span().clone()'): (1, 'S7: guard_transfer primary (to be replaced by the group-removal helper)'),
+        (('begin_match_selection', 'Some(Mode::Consume) => {'), 'selection.scrutinee.span().clone()'): (1, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('begin_match_selection', 'Some(Mode::Inout) => {'), 'selection.scrutinee.span().clone()'): (3, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('begin_match_selection_after_selected', '-'), 'selection.scrutinee.span().clone()'): (5, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('begin_match_arm', '-'), 'arm.pattern.span().clone()'): (1, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('begin_match_arm', '-'), 'guard.span().clone()'): (1, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('finish_match_guard', '-'), 'guard.span().clone()'): (1, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('match_condition', '-'), 'pattern.span().clone()'): (2, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('match_tests', 'Pattern::Constructor { name, args, .. } => {'), 'current_pattern.span().clone()'): (1, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('match_tests', '-'), 'current_pattern.span().clone()'): (1, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+        (('pattern_permission_error', '-'), 'selection.scrutinee.span().start'): (1, 'identity: key or search bound, not a primary'),
+        (('pattern_permission_error', '-'), 'selection.scrutinee.span().clone()'): (2, 'match IR/relation/frontier span, already covered or keeps the whole construct'),
+    },
+}
+# id -> (file, regex with a named group `site` holding the call, raw access the site would revert to)
+GROUP_SITES = {
+}
+
 
 def check_helper(source_lines: list[str]) -> None:
     """`primary_span` must only delegate, and parse.rs must own the single removal loop."""
@@ -193,6 +273,86 @@ def audit_plain(path: Path, reviewed: dict) -> int:
     return len(seen)
 
 
+def _indent(line: str) -> int:
+    return len(line) - len(line.lstrip())
+
+
+def site_anchor(lines: list[str], index: int) -> tuple[str, str]:
+    """(enclosing function, innermost enclosing match arm) of the line at `index`, by indentation."""
+    need = _indent(lines[index])
+    function = arm = "-"
+    for j in range(index - 1, -1, -1):
+        text = lines[j].strip()
+        if not text or _indent(lines[j]) >= need:
+            continue
+        need = _indent(lines[j])
+        head = text
+        if text.startswith(")") or text.startswith("}"):
+            k = j - 1
+            while k >= 0 and (_indent(lines[k]) != need or not lines[k].strip()):
+                k -= 1
+            head = lines[k].strip() if k >= 0 else text
+            if text.startswith("}") and text.endswith("{") and arm == "-" and "=>" in text:
+                arm = head + " => {"
+        found = re.match(r"(?:pub(?:\([a-z]+\))?\s+)?fn (\w+)", head)
+        if found:
+            function = found.group(1)
+            break
+        if arm == "-" and "=>" in text and text.endswith("{") and not text.startswith("}"):
+            arm = text
+        if need == 0:
+            break
+    return function, arm
+
+
+def lowering_sites(text: str) -> dict:
+    """Raw `.span()` accesses of product code by ((function, arm), expression) -> count."""
+    lines = text.splitlines()
+    tests_zone = test_lines(text)
+    sites: dict = {}
+    for number, line in enumerate(lines, 1):
+        if ".span()" not in line or number in tests_zone:
+            continue
+        found = RAW_SPAN.findall(line)
+        if len(found) != line.count(".span()"):
+            raise SystemExit(f"unparsed raw span at line {number}: {line.strip()}")
+        anchor = site_anchor(lines, number - 1)
+        for expression in found:
+            sites[(anchor, expression)] = sites.get((anchor, expression), 0) + 1
+    return sites
+
+
+def check_baseline(name: str, text: str, baseline: dict) -> int:
+    sites = lowering_sites(text)
+    for key, count in sites.items():
+        if key not in baseline:
+            raise SystemExit(f"unreviewed raw span (new expression) in {name}: {key[1]} at {key[0]}")
+        if count > baseline[key][0]:
+            raise SystemExit(f"unreviewed raw span (larger count) in {name}: {key[1]} at {key[0]}: {count} > {baseline[key][0]}")
+    for key, (count, _reason) in baseline.items():
+        if sites.get(key, 0) != count:
+            raise SystemExit(f"stale span baseline in {name}: {key[1]} at {key[0]}: {sites.get(key, 0)} != {count}")
+    return sum(sites.values())
+
+
+def check_group_sites(texts: dict, sites: dict) -> None:
+    for ident, (name, pattern, _raw) in sites.items():
+        if not re.search(pattern, texts[name]):
+            raise SystemExit(f"group site {ident} in {name} does not use the group-removal helper")
+
+
+def audit_lowering() -> None:
+    texts = {path.name: path.read_text(encoding="utf-8") for path in (LOWER, LOWER_MATCH)}
+    total = 0
+    for name, text in texts.items():
+        count = check_baseline(name, text, LOWERING_BASELINE[name])
+        total += count
+        print(f"{name} baseline: {count}/{count} raw spans")
+    check_group_sites(texts, GROUP_SITES)
+    print(f"group sites: {len(GROUP_SITES)}/{len(GROUP_SITES)}")
+    print("lowering span baseline: PASS")
+
+
 def audit() -> None:
     source_lines = SOURCE.read_text(encoding="utf-8").splitlines()
     check_helper(source_lines)
@@ -238,6 +398,7 @@ def audit() -> None:
     others = audit_plain(NAMES, REVIEWED_NAMES) + audit_plain(EFFECTS, REVIEWED_EFFECTS)
     total = len(seen) + others
     print(f"reviewed: {total}/{len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)}")
+    audit_lowering()
     print("NO EVALUADO solo la rama NX-E1111 de prepare_closure_call (sin borrador de closure); "
           "las demas rutas de primario agrupado las ejercita tests/i07c_group_primary.rs")
     print(f"total: {sum(map(len, classes.values()))}")
@@ -254,16 +415,23 @@ def self_test() -> None:
         helper = root / "src/frontend/parse.rs"
         names = root / "src/check/names.rs"
         effects = root / "src/ir/effects.rs"
+        lower = root / "src/ir/lower.rs"
+        lower_match = root / "src/ir/lower_match.rs"
+        original_lower = LOWER.read_text(encoding="utf-8")
+        original_lower_match = LOWER_MATCH.read_text(encoding="utf-8")
         original_names = NAMES.read_text(encoding="utf-8")
         original_effects = EFFECTS.read_text(encoding="utf-8")
-        for path in (script, source, helper, names, effects):
+        for path in (script, source, helper, names, effects, lower, lower_match):
             path.parent.mkdir(parents=True, exist_ok=True)
         script.write_bytes(Path(__file__).read_bytes())
         original = SOURCE.read_text(encoding="utf-8")
         original_helper = HELPER.read_text(encoding="utf-8")
 
         def write(types_text: str, parse_text: str, names_text: str = original_names,
-                  effects_text: str = original_effects) -> None:
+                  effects_text: str = original_effects, lower_text: str = original_lower,
+                  match_text: str = original_lower_match) -> None:
+            lower.write_text(lower_text, encoding="utf-8", newline="\n")
+            lower_match.write_text(match_text, encoding="utf-8", newline="\n")
             source.write_text(types_text, encoding="utf-8", newline="\n")
             helper.write_text(parse_text, encoding="utf-8", newline="\n")
             names.write_text(names_text, encoding="utf-8", newline="\n")
@@ -337,6 +505,42 @@ def self_test() -> None:
             result = run(script)
             assert result.returncode == 0, (label, result.stdout, result.stderr)
         reverts = reverts + extra
+        # Lowering baseline (S6-COR-2): a new expression, a larger count and a smaller count are
+        # rejected (the baseline is reconciled with a reason), and a raw span in a real test module
+        # is accepted. The helper `group_site` below exercises the positive-anchor mechanism itself.
+        duplicate = "\n            .get(&(expr.span().start, expr.span().end))"
+        assert original_lower.count(duplicate) == 1, "resolved_expr line"
+        lowering = [
+            ("new raw expression in lower.rs", dict(lower_text=before(original_lower, "fn resolved_expr(")), "unreviewed raw span (new expression)"),
+            ("larger count in lower.rs", dict(lower_text=original_lower.replace(duplicate, duplicate + duplicate, 1)), "unreviewed raw span (larger count)"),
+            ("smaller count in lower.rs", dict(lower_text=original_lower.replace(duplicate, "", 1)), "stale span baseline"),
+            ("new raw expression in lower_match.rs", dict(match_text=before(original_lower_match, "fn guard_violations(")), "unreviewed raw span (new expression)"),
+        ]
+        for label, texts, message in lowering:
+            write(original, original_helper, **texts)
+            result = run(script)
+            assert result.returncode == 1 and message in result.stderr, (label, result.stdout, result.stderr)
+        write(original, original_helper, lower_text=original_lower.replace("mod tests {\n", "mod tests {\n" + fresh, 1))
+        result = run(script)
+        assert result.returncode == 0, ("raw span in lower.rs tests", result.stdout, result.stderr)
+        sample = {"x.rs": "call(parse::expression_primary_span(v), 1)"}
+        spec = {"T": ("x.rs", r"call\((?P<site>parse::expression_primary_span\(v\)), 1\)", "v.span().clone()")}
+        check_group_sites(sample, spec)
+        try:
+            check_group_sites({"x.rs": sample["x.rs"].replace("parse::expression_primary_span(v)", "v.span().clone()")}, spec)
+            raise AssertionError("a reverted site must be rejected")
+        except SystemExit as error:
+            assert "group site T" in str(error), error
+        # Each solution's positive anchor: reverting its site to the raw access fails the auditor.
+        for ident, (name, pattern, raw) in GROUP_SITES.items():
+            text = original_lower if name == "lower.rs" else original_lower_match
+            found = re.search(pattern, text)
+            assert found, (ident, "anchor not found")
+            reverted = text[:found.start("site")] + raw + text[found.end("site"):]
+            write(original, original_helper, **{("lower_text" if name == "lower.rs" else "match_text"): reverted})
+            result = run(script)
+            assert result.returncode == 1 and (f"group site {ident}" in result.stderr or "unreviewed raw span" in result.stderr), (ident, result.stdout, result.stderr)
+        reverts = reverts + lowering + [(ident, None, None, None) for ident in GROUP_SITES]
     print(f"span auditor self-test: PASS ({len(REVIEWED) + len(REVIEWED_NAMES) + len(REVIEWED_EFFECTS)} "
           f"reviewed in 3 files; novel raw use and {len(reverts)} site reversions rejected)")
 
