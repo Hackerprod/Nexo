@@ -124,15 +124,27 @@ def cmd_run():
         exe, xv = exe.split('|', 1)
     C, c2 = corpora(only)
     out = {}
+    # --idx FILE --basetag TAG: solo se ejecutan los indices de FILE ({clave: [indices]}); el resto copia la salida de TAG (main)
+    idx = json.load(open(sys.argv[sys.argv.index('--idx') + 1])) if '--idx' in sys.argv else None
+    base = json.load(open(os.path.join(RES, sys.argv[sys.argv.index('--basetag') + 1] + '.json'))) if '--basetag' in sys.argv else None
+
+    def runlist(key, srcs, fn):
+        if idx is None:
+            return list(ex.map(fn, srcs))
+        res = list(base[key])
+        sel = idx.get(key, [])
+        for i, r in zip(sel, ex.map(fn, [srcs[i] for i in sel])):
+            res[i] = r
+        return res
     for name, (srcs, orc, profs) in C.items():
         for prof in profs:
             with ThreadPoolExecutor(6) as ex:
-                out['%s|%s' % (name, prof)] = list(ex.map(lambda s: run_bin(exe, s, prof, xv), srcs))
+                out['%s|%s' % (name, prof)] = runlist('%s|%s' % (name, prof), srcs, lambda s: run_bin(exe, s, prof, xv))
             print(tag, name, prof, flush=True)
     if c2 is not None:
         for prof in prof2:
             with ThreadPoolExecutor(6) as ex:
-                out['c2|%s' % prof] = list(ex.map(lambda e: run_bin(exe, e['wrapped'], prof, xv), c2))
+                out['c2|%s' % prof] = runlist('c2|%s' % prof, c2, lambda e: run_bin(exe, e['wrapped'], prof, xv)) if idx is None else runlist('c2|%s' % prof, [e['wrapped'] for e in c2], lambda s: run_bin(exe, s, prof, xv))
             print(tag, 'c2', prof, flush=True)
     json.dump(out, open(os.path.join(RES, tag + '.json'), 'w'))
 
