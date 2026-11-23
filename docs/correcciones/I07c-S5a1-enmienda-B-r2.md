@@ -1,0 +1,23 @@
+# Validador B: revalidacion dirigida de la enmienda r2 (S5a.1)
+
+VEREDICTO: FAIL (1 motivo bloqueante de documentacion/limite con repro; la mecanica de r2 en si PASA).
+
+Metodo: binarios release de main (types.rs 54c9dfed), del candidato, y de una implementacion literal de r2 hecha por mi en copia desechable (a/b/c, ~30 lineas; ademas variantes: sin failed, y uniforme b-en-todos). Perfil f0-0002-b-v2. Copias y targets borrados.
+
+1. Causa raiz de w1/w3: PASA. intrinsic_assignment_type (types.rs ~3065-3135) solo trata enteros, bool, unit, grupos, arrays y nombres concretos; un Binary (1<2, x+1) cae en `_ => None`. En w1/w3 la unica entrada intrinseca de q es q=ar (rechazada). Reproducido: la variante r1 (clave por RHS) = candidato en w1/w3.
+2. Mecanismo: PASA. r2 literal: P1 [93,101), P2 [119,124), P3 [88,94), w1 [93,100) (sin E0102 [87,88) de main), w3 [119,126); positivos pareados (sin q=ar; sin r=[[3]];) = main. check y run: exit 1. Diferencial de 3.674 fuentes x 3 perfiles x check/run, r2 vs candidato: solo generated:1411 y 1681, como dice A. Sin failed (mi mutante) muere con w1 (reaparece E0102 [87,88)) y w3 (E0103/E0102 espurios), P1/P2/P3 no lo matan: el control de failed es w1/w3, no P4. Es una regla con tres fuentes del tipo (a,b,c) y un solo veredicto por (sitio, RHS): defendible; b y c no son paralelos arbitrarios, difieren solo en si el sitio tiene entrada del plan. Alternativa mas simple «condicionar solo por la asignacion rechazada no es la que alimenta el plan»: NO resuelve w1/w3, porque en ellos la que alimenta el plan ES la rechazada (q=ar) y la aceptada no es intrinseca (es la variante r1: = candidato en w1/w3); hace falta una fuente alternativa, o sea la regla (b). La unificacion b-en-todos (sin c) arregla w1/w3/P1 pero cambia P2 y w3: E1303 primario [108,114) -> [101,102) (el r recursivo frente a [r,q]; por el addendum D-REF podria ser lo correcto) y relacion de [133,134) a [78,79): coincide con lo que dice A y no esta derivado; (c) como residuo para S5a.5 con ese repro es aceptable.
+3. Regresiones: PASA. P1, P2, P3, w1, w3 con relaciones derivadas (los cinco reproducidos) y sus positivos bastan; el barrido metamorfico de A no lo repetí.
+4. Terminacion e independencia de orden: PASA. Misma estructura que r1 (veredicto solo en planning, read_plan solo en la pasada final, seed_cap decrece). 49 permutaciones de asignaciones sobre w1/P1 y variantes (dos fuentes aceptadas, q=[3], q=[[true]], doble q=ar): la relacion es siempre la primera asignacion aceptada que fija q ([93,100), [98,105) si r=[] va antes, [17,20) si q=ar va primero), sin dependencia del orden de las demas.
+5. Limites: FALLA en dos puntos (motivo 1); el resto honesto y asignable.
+
+## Motivo del FAIL
+
+1. El limite (i) de A es inexacto y oculta una regresion reproducible frente a main y al candidato. A dice «con esta variante P4 coincide con main». Con r2 literal (la misma que da solo 1411/1681 de diferencia en el diferencial), P4 (175 B, enmienda r1 §1) emite ademas un NX-E0102 espurio [166,167) (el q de r=[q], expected Array<Array<Array<Array<I64>>>>/found Array<Array<I64>>, relacion [102,107)), que ni main ni el candidato emiten; la E0102 de ar queda con [102,107) (main) en vez de [165,168). Repro:
+   fn n(){let x=1;let p=true;let ar=[1];let aa=[[]];var r=[];var q=[];let a=[(if[]then[]else 1),(if[]then[[r]]else(if[]then(if()then r else(true))else[[2]]))];q=[ar];r=[q];r=ar;}
+   Esperado (ADR l.301): sin E0102 en r=[q] (acepta), y el unico E0102 de ar con expected_type=[165,168). Es el mismo defecto previo de «el positivo de P4» ([166,167) en main sin r=ar), ahora tambien con r=ar presente. Accion: corregir el texto del limite (i) con este repro y la salida exacta, y decidir expresamente (coordinador) que se acepta como residuo con fecha para S5a.5; o ajustar r2 para no emitirlo (mi mutante sin failed no lo emite en P4, asi que failed participa).
+   Registro obligatorio adicional (no es motivo nuevo si se registra): capas >= 3 (limite iii) es regresion de procedencia frente a main con repro derivable: fn Main(){let ar=[1];var r=[];var q=[];let a=((if true then true else q)==ar);Print([r,q]);q=[[ar]];r=[];q=ar;} (c3.nx): esperado E0102 [107,109) con expected_type=[93,99) (q=[[ar]]); main lo da; candidato y r2 dan [85,86). Registrar con fecha y repro, no solo la descripcion.
+
+## No bloqueante
+- Reserva de pila al cierre del bloque; regenerar i07c_span_audit.py y el diferencial.
+- El E0103 [27,29) de P1 y el primario [108,114) de P2 pueden ser defectos previos de main (el addendum sugiere [101,102) para P2); mantenerlos como limite con fecha.
+- Apoyo: C:\nexo-work\tmp\validador-b-s5a1-enmienda\ (c3.nx, w1.nx, w3.nx, p4.nx, p4pos.nx).
