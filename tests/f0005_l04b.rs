@@ -359,6 +359,53 @@ fn loop_control_after_a_guarded_match_arm_is_not_a_guard_control() {
 }
 
 #[test]
+fn loop_control_after_a_for_with_a_rejected_iterable_is_outside_the_loop() {
+    // F0-0003 §8.2 / F5-C03, F5-C04: the loop of a `for` ends with its body, also when the
+    // iterable was rejected (`1+true`, NX-E0102 on `true` [22,26) by F0-0002 §4.1). The
+    // `break`/`continue` that follows has no loop: NX-E1326 on the token (`break` [29,34),
+    // `continue` [29,37)). Inside an outer `while` the same shape reports only NX-E0102.
+    for profile in [J, F5] {
+        for (source, subcause, end) in [
+            (
+                "fn Main(){for x in [1+true]{}break;}",
+                "break_outside_loop",
+                34,
+            ),
+            (
+                "fn Main(){for x in [1+true]{}continue;}",
+                "continue_outside_loop",
+                37,
+            ),
+        ] {
+            for (status, output) in both(source, profile) {
+                assert_eq!(status, 1, "{profile} {source}: {output}");
+                assert_eq!(output.matches("\"code\":").count(), 2, "{source}: {output}");
+                assert!(
+                    output.contains("\"code\":\"NX-E0102\"")
+                        && output.contains(
+                            "\"primary_span\":{\"file\":\"case.n\",\"start\":22,\"end\":26}"
+                        ),
+                    "{profile} {source}: {output}"
+                );
+                assert!(
+                    output.contains("\"code\":\"NX-E1326\"")
+                        && output.contains(&format!("\"subcause\":\"{subcause}\""))
+                        && output.contains(&format!(
+                            "\"primary_span\":{{\"file\":\"case.n\",\"start\":29,\"end\":{end}}}"
+                        )),
+                    "{profile} {source}: {output}"
+                );
+            }
+        }
+        for (status, output) in both("fn Main(){while true{for x in [1+true]{}break;}}", profile) {
+            assert_eq!(status, 1, "{profile}: {output}");
+            assert_eq!(output.matches("\"code\":").count(), 1, "{output}");
+            assert!(output.contains("\"code\":\"NX-E0102\""), "{output}");
+        }
+    }
+}
+
+#[test]
 fn historical_profiles_keep_the_false_edge() {
     // F0-0005 §12.1: the new rule belongs to `f0-0005-b-v1` only. A2 and J keep NX-E1317 at
     // the closing brace of F5-C02's shape (`}` [33,34) for this source) for the same bytes.
