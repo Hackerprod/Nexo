@@ -7697,7 +7697,7 @@ impl Lower<'_> {
                         if self.emission == EmissionMode::Live {
                             self.pending_charges.push(WorkPlanner::charge(
                                 WorkEvent::Assignment,
-                                place.span().clone(),
+                                parse::expression_primary_span(place),
                             ));
                         }
                         let prepared = (|| -> Result<AssignState<'_>, CompileError> {

@@ -89,7 +89,6 @@ LOWERING_BASELINE = {
         (('run_lower_tasks', 'Ok(left_type) => {'), 'state.left.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
         (('run_lower_tasks', 'Ok(left_type) => {'), 'state.left.span().start'): (1, 'identity: key or search bound, not a primary'),
         (('run_lower_tasks', 'Ok(()) => {'), 'state.expr.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
-        (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'place.span().clone()'): (1, 'S3: assignment destination tick origin (to be replaced by the group-removal helper)'),
         (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'root.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
         (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'root.span().start'): (1, 'identity: key or search bound, not a primary'),
         (('run_lower_tasks', 'Task::AssignEnter(statement) => {'), 'root.span().end'): (1, 'identity: key or search bound, not a primary'),
@@ -133,6 +132,7 @@ LOWERING_BASELINE = {
 GROUP_SITES = {
     "S1": ("lower.rs", r"WorkEvent::ExpressionStatement,\s*(?P<site>parse::expression_primary_span\(value\)),", "value.span().clone()"),
     "S2": ("lower.rs", r"WorkEvent::WhileCondition,\s*(?P<site>parse::expression_primary_span\(condition\)),", "condition.span().clone()"),
+    "S3": ("lower.rs", r"WorkEvent::Assignment,\s*(?P<site>parse::expression_primary_span\(place\)),", "place.span().clone()"),
 }
 
 

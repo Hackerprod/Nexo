@@ -3218,3 +3218,17 @@ fn while_condition_tick_reports_the_inner_comparison_of_a_large_bound() {
         true,
     );
 }
+
+// S3: the tick of an assignment has the whole destination place as origin (F0-0002 section 11,
+// "Origen de los ticks"); under groups it is the inner place.
+const S3_PLACE: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{@E=1;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{@E=n+1;}}",
+    inner: "n",
+    pad: 2,
+};
+
+#[test]
+fn assignment_tick_reports_the_inner_place() {
+    quota_sweep(&S3_PLACE);
+}
