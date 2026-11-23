@@ -100,7 +100,6 @@ LOWERING_BASELINE = {
         (('run_lower_tasks', 'Task::ArgumentEnter { => {'), 'root.span().clone()'): (2, 'IR, relation or frontier span: the addendum keeps the whole group'),
         (('run_lower_tasks', 'Task::ArgumentPlaceNext(mut state) => {'), 'state.arg.value.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
         (('run_lower_tasks', 'Statement::Let { => {'), 'value.span().start'): (1, 'identity: key or search bound, not a primary'),
-        (('run_lower_tasks', 'Statement::Expr { value, .. } => {'), 'value.span().clone()'): (1, 'S1: expression statement tick origin (to be replaced by the group-removal helper)'),
         (('run_lower_tasks', 'Ok(inferred) => {'), 'target.span().start'): (1, 'identity: key or search bound, not a primary'),
         (('run_lower_tasks', 'Ok(inferred) => {'), 'target.span().end'): (1, 'identity: key or search bound, not a primary'),
         (('run_lower_tasks', 'Ok(local) => {'), 'root.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
@@ -133,6 +132,7 @@ LOWERING_BASELINE = {
 }
 # id -> (file, regex with a named group `site` holding the call, raw access the site would revert to)
 GROUP_SITES = {
+    "S1": ("lower.rs", r"WorkEvent::ExpressionStatement,\s*(?P<site>parse::expression_primary_span\(value\)),", "value.span().clone()"),
 }
 
 

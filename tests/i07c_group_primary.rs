@@ -3141,3 +3141,51 @@ fn quota_sweep(site: &QuotaSite) {
 fn let_initializer_tick_keeps_the_inner_primary_under_groups() {
     quota_sweep(&LET_INITIALIZER);
 }
+
+// S1: the tick of an expression statement has the whole expression (without terminator) as origin
+// (F0-0002 section 11, "Origen de los ticks"); under groups it is the inner expression.
+const S1_STATEMENT: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{@E;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;@E;}}",
+    inner: "n+1",
+    pad: 2,
+};
+
+fn s1_form(inner: &'static str) -> QuotaSite {
+    QuotaSite {
+        template: "fn Id(x:view I64)->I64{return x;}fn Main(){@Pvar n=0;while true{@E;}}",
+        positive: "fn Id(x:view I64)->I64{return x;}fn Main(){@Pvar n=0;while n<3{n=n+1;@E;}}",
+        inner,
+        pad: 0,
+    }
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_expression() {
+    quota_sweep(&S1_STATEMENT);
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_call() {
+    quota_sweep(&s1_form("Id(n)"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_assert_call() {
+    quota_sweep(&s1_form("AssertEq(1,1)"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_closure() {
+    quota_sweep(&s1_form("fn (){}"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_unit() {
+    quota_sweep(&s1_form("()"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_array() {
+    quota_sweep(&s1_form("[1]"));
+}

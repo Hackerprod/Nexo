@@ -8154,7 +8154,7 @@ impl Lower<'_> {
                             if self.emission == EmissionMode::Live {
                                 self.pending_charges.push(WorkPlanner::charge(
                                     WorkEvent::ExpressionStatement,
-                                    value.span().clone(),
+                                    parse::expression_primary_span(value),
                                 ));
                             }
                             tasks.push(Task::StatementExprAfter(Box::new(
