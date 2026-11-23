@@ -96,6 +96,10 @@ def corpora(only):
         s = json.load(open(os.path.join(REF, 'corpus-b.json'))); C['b'] = (s, None, [P1])
     if 'perm' in only:
         s = json.load(open(os.path.join(REF, 'perm.json')))['progs']; C['perm'] = (s, None, [P1])
+    for sd in ('7021993', '4417061', '9908255'):
+        if 's5' in only:
+            d = json.load(open(os.path.join(REF, '..', '..', '..', '..', 'b-d4', 'corp5-%s.json' % sd)))
+            C['s' + sd] = ([e['w'] for e in d], None, ['f0-0003-b-v1'])
     if 't' in only:
         s = json.load(open(os.path.join(REF, 'corpus-t.json'))); C['t'] = (s, None, [P1])
     return C, c2
@@ -113,7 +117,7 @@ def oracles(name, srcs):
 
 def cmd_run():
     tag, exe = sys.argv[2], sys.argv[3]
-    only = (sys.argv[sys.argv.index('--only') + 1] if '--only' in sys.argv else 'c1,c2,b,perm,t').split(',')
+    only = (sys.argv[sys.argv.index('--only') + 1] if '--only' in sys.argv else 'c1,c2,b,perm,t,s5').split(',')
     prof2 = (sys.argv[sys.argv.index('--prof2') + 1] if '--prof2' in sys.argv else P1).split(',')
     xv = None
     if '|' in exe:
@@ -155,12 +159,22 @@ def cmd_table():
                 json.dump(O, open(cache, 'w'))
             srcs = [e['wrapped'] for e in c2]
             kinds = [e['form'] for e in c2]
+        elif name.startswith('s'):
+            d = json.load(open(os.path.join(REF, '..', '..', '..', '..', 'b-d4', 'corp5-%s.json' % name[1:])))
+            srcs = [e['w'] for e in d]
+            cache = os.path.join(RES, 'orc-%s.json' % name)
+            if os.path.exists(cache):
+                O = [None if x is None else [tuple(t) for t in x] for x in json.load(open(cache))]
+            else:
+                O = [oracle_flat(e['flat']) if e['form'] in ('flat', 'blockstyle') else None for e in d]
+                json.dump(O, open(cache, 'w'))
+            kinds = [e['form'] for e in d]
         else:
             fn = {'b': lambda: json.load(open(os.path.join(REF, 'corpus-b.json'))), 'perm': lambda: json.load(open(os.path.join(REF, 'perm.json')))['progs'], 't': lambda: json.load(open(os.path.join(REF, 'corpus-t.json')))}[name]
             srcs = fn(); O = oracles(name, srcs); kinds = ['all'] * len(srcs)
         groups = collections.defaultdict(list)
         for i in range(len(srcs)):
-            groups[kinds[i] if name == 'c2' else 'all'].append(i)
+            groups[kinds[i] if (name == 'c2' or name.startswith('s')) else 'all'].append(i)
         for g, idx in sorted(groups.items()):
             for lvl in ('core', 'full'):
                 A = Bn = Cn = Dn = ok = nm = 0

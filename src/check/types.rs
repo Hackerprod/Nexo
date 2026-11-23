@@ -2195,6 +2195,10 @@ struct InferenceGraph {
     // first valid continuation, F0-0002 §4.1.2.4): `true` once the union has
     // denounced its first incompatible continuation. Cleared per function.
     union_denounced: HashMap<(u64, u64), bool>,
+    // Unions whose discrepancy is still pending (no diagnostic of their own yet).
+    pending_unions: HashSet<(u64, u64)>,
+    // Simulation of the consumer flags `main` reports per union: (failed, join_failed, has_type).
+    main_flags: HashMap<(u64, u64), (bool, bool, bool)>,
     // Layer index of each unconsumed seed: (binding site, depth).
     preseeded_layer: HashMap<u64, (u64, usize)>,
     // Deepest seeded layer count a binding may keep after retraction.
@@ -2729,7 +2733,7 @@ fn xv(flag: &str) -> bool {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     V.get_or_init(|| {
         std::env::var("NEXO_XV").unwrap_or_else(|_| {
-            "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,matchpartial".to_string()
+            "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr".to_string()
         })
     })
         .split(',')
@@ -7496,6 +7500,8 @@ impl Checker<'_> {
         self.graph.assignment_join_marks.clear();
         self.graph.projected_bases.clear();
         self.graph.union_denounced.clear();
+        self.graph.pending_unions.clear();
+        self.graph.main_flags.clear();
         self.graph.projection_items.clear();
         self.graph.assigned_bases.clear();
         self.graph.nested_assignment_sites.clear();
@@ -13774,7 +13780,10 @@ impl Checker<'_> {
         let join = if anchor_error.is_none()
             && !anchor_pending
             && !anchor_absorbed
-            && !(xv("nojoin") && progress.anchor.is_some())
+            && !(xv("nojoin")
+                && progress.anchor.as_ref().is_some_and(|(_, origin)| {
+                    !xv("nojoinr") || self.graph.union_denounced.contains_key(&span_key(origin))
+                }))
             && !skip_failed_context_join
             && (expected.is_none() || needs_deferred_join)
             && let (Some(left), Some(right)) = (first_join, second_join)
@@ -13815,6 +13824,66 @@ impl Checker<'_> {
         // are finalized. Reordering this check after join? changes only the
         // inferred table once a quota has already exhausted analysis; that
         // table is not consumed when NX-E0003 prevents executable IR.
+        // The consumer-facing failure flag `main` would report for this
+        // union (its tail logic): a union whose join was not failed for its
+        // consumer keeps offering its witness to a `match` arm.
+        {
+            let unwrap = |expr: Option<&Expr>| {
+                expr.and_then(|e| {
+                    let mut inner = e;
+                    while let Expr::Group(next, _) = inner {
+                        inner = next;
+                    }
+                    self.graph.main_flags.get(&span_key(inner.span())).copied()
+                })
+            };
+            let second_expr = match otherwise {
+                Some(Else::Block(b)) => branch_value_expr(b),
+                Some(Else::If(e)) => Some(e.as_ref()),
+                None => None,
+            };
+            let (fm_f, fm_a) = match unwrap(branch_value_expr(then_block)) {
+                Some((_, mt, has)) => (mt, mt && !has),
+                None => (first_failed, first_anchored),
+            };
+            let (sm_f, sm_a) = match unwrap(second_expr) {
+                Some((_, mt, has)) => (mt, mt && !has),
+                None => (second_failed, second_anchored),
+            };
+            let conflict = anchor_error.is_some() || anchor_pending || anchor_absorbed;
+            let (mf, mt) = if fm_f || sm_f {
+                (true, fm_a && fm_f || sm_a && sm_f)
+            } else {
+                (false, conflict)
+            };
+            let has_type = first_for_anchor.is_some() || first.is_some() || second.is_some();
+            let mut key_expr = progress.expr;
+            while let Expr::Group(next, _) = key_expr {
+                key_expr = next;
+            }
+            self.graph
+                .main_flags
+                .insert(span_key(key_expr.span()), (mf, mt, has_type));
+        }
+        let main_join_failed = if first_failed || second_failed {
+            first_anchored && first_failed || second_anchored && second_failed
+        } else {
+            true
+        };
+        if (xv("rmm3e")
+            && anchor_error.is_none()
+            && anchor_pending
+            && !anchor_absorbed
+            && (!xv("rmm3f") || branch_value_expr(then_block).is_some_and(Self::is_value_if)))
+            || (!xv("rmm3e")
+                && (anchor_error.is_some() || anchor_pending || anchor_absorbed)
+                && !main_join_failed)
+            && (!xv("rmm3d") || branch_value_expr(then_block).is_some_and(Self::is_value_if))
+        {
+            self.graph
+                .pending_unions
+                .insert(span_key(progress.expr.span()));
+        }
         if let Some(error) = anchor_error {
             // §13.9: visit the later branch before reporting the first
             // incompatible continuation. Its independent child errors must
@@ -14646,18 +14715,66 @@ impl Checker<'_> {
                 }
                 BranchAction::Done(value, failed, _) => {
                     if xv("dbg") && !self.planning {
-                        eprintln!("MATCHARM idx={} failed={} value={:?}", progress.arm_index, failed, value);
+                        eprintln!(
+                            "MATCHARM pu={:?} sp={:?} idx={} failed={} value={:?} errs={:?} partial={}",
+                            self.graph.pending_unions,
+                            branch_value_expr(&arm.body).map(|e| (e.span().start, e.span().end)),
+                            progress.arm_index,
+                            failed,
+                            value,
+                            self.errors
+                                .iter()
+                                .map(|e| (e.code.to_string(), e.primary_span.as_ref().map(|p| (p.start, p.end))))
+                                .collect::<Vec<_>>(),
+                            branch_value_expr(&arm.body).is_some_and(|expr| self
+                                .graph
+                                .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal))
+                        );
                     }
                     let value = value.or_else(|| {
                         branch_value_expr(&arm.body)
                             .and_then(|expr| self.expression_variable(expr))
                             .map(Type::Deferred)
                     });
-                    let arm_partial = xv("matchpartial")
+                    let arm_partial = (xv("matchpartial")
                         && branch_value_expr(&arm.body).is_some_and(|expr| {
                             self.graph
                                 .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)
-                        });
+                        }))
+                        || (xv("rmm3c")
+                            && failed
+                            && branch_value_expr(&arm.body).is_some_and(|expr| {
+                                let mut inner = expr;
+                                while let Expr::Group(next, _) = inner {
+                                    inner = next;
+                                }
+                                self.graph
+                                    .main_flags
+                                    .get(&span_key(inner.span()))
+                                    .is_some_and(|(_, mt, _)| !*mt)
+                            }))
+                        || (xv("rmm3b")
+                            && failed
+                            && branch_value_expr(&arm.body).is_some_and(|expr| {
+                                let mut inner = expr;
+                                while let Expr::Group(next, _) = inner {
+                                    inner = next;
+                                }
+                                self.graph.pending_unions.contains(&span_key(inner.span()))
+                            }))
+                        || (xv("rmm3")
+                            && failed
+                            && branch_value_expr(&arm.body).is_some_and(|expr| {
+                                let span = expr.span();
+                                self.graph
+                                    .has(&span_key(span), OccurrenceFlag::PartialNormal)
+                                    && !self.errors.iter().any(|error| {
+                                        error.code == "NX-E1303"
+                                            && error.primary_span.as_ref().is_some_and(|p| {
+                                                span.start <= p.start && p.end <= span.end
+                                            })
+                                    })
+                            }));
                     if (!failed || arm_partial) && let Some(value) = value {
                         let origin =
                             branch_value_span(&arm.body).unwrap_or_else(|| arm.body.span.clone());
@@ -15598,6 +15715,8 @@ pub(crate) fn check_with_partial_limit(
             pre_assignment_snapshot: HashMap::new(),
             projected_bases: HashSet::new(),
             union_denounced: HashMap::new(),
+            pending_unions: HashSet::new(),
+            main_flags: HashMap::new(),
             projection_items: HashSet::new(),
             assigned_bases: HashSet::new(),
             assignment_starts: HashMap::new(),
@@ -17204,6 +17323,8 @@ mod quota_tests {
                 pre_assignment_snapshot: HashMap::new(),
                 projected_bases: HashSet::new(),
                 union_denounced: HashMap::new(),
+                pending_unions: HashSet::new(),
+                main_flags: HashMap::new(),
                 projection_items: HashSet::new(),
                 assigned_bases: HashSet::new(),
                 assignment_starts: HashMap::new(),
