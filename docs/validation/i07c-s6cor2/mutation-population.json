@@ -1,0 +1,733 @@
+{
+ "regions": {
+  "src/ir/lower.rs": [
+   [
+    10237,
+    10297
+   ],
+   [
+    8141,
+    8171
+   ],
+   [
+    7684,
+    7714
+   ],
+   [
+    9615,
+    9645
+   ],
+   [
+    9820,
+    9850
+   ],
+   [
+    10019,
+    10049
+   ]
+  ],
+  "src/ir/lower_match.rs": [
+   [
+    92,
+    279
+   ]
+  ]
+ },
+ "blob_sha256": {
+  "src/ir/lower.rs": "f8fcbfde7a219c61a7554515e893a2c288394e7439ca2626b1b7a6cdfa2f74a5",
+  "src/ir/lower_match.rs": "609641cea276fc4d71f52b7fb6a633f5ccdf1e4cfdd88123bcebe604817d2f26"
+ },
+ "count": 69,
+ "mutations": [
+  {
+   "file": "src/ir/lower.rs",
+   "line": 7697,
+   "column": 42,
+   "operator": "eq",
+   "literal": "                        };\n                        if self.emission == EmissionMode::Live {\n                            self.pending_charges.push(WorkPlanner::charge(",
+   "replacement": "                        };\n                        if self.emission != EmissionMode::Live {\n                            self.pending_charges.push(WorkPlanner::charge(",
+   "site_count": 1,
+   "id": "M00001"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 7703,
+   "column": 41,
+   "operator": "or",
+   "literal": "                        let prepared = (|| -> Result<AssignState<'_>, CompileError> {",
+   "replacement": "                        let prepared = (&& -> Result<AssignState<'_>, CompileError> {",
+   "site_count": 1,
+   "id": "M00002"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 7709,
+   "column": 68,
+   "operator": "eq",
+   "literal": "                            if self.locals[local.0].parameter_mode == Some(ParameterMode::Read) {",
+   "replacement": "                            if self.locals[local.0].parameter_mode != Some(ParameterMode::Read) {",
+   "site_count": 1,
+   "id": "M00003"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 8148,
+   "column": 49,
+   "operator": "false",
+   "literal": "                                        depth: 0,\n                                        borrow: false,\n                                    });",
+   "replacement": "                                        depth: 0,\n                                        borrow: true,\n                                    });",
+   "site_count": 1,
+   "id": "M00004"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 8154,
+   "column": 46,
+   "operator": "eq",
+   "literal": "                        Statement::Expr { value, .. } => {\n                            if self.emission == EmissionMode::Live {\n                                self.pending_charges.push(WorkPlanner::charge(",
+   "replacement": "                        Statement::Expr { value, .. } => {\n                            if self.emission != EmissionMode::Live {\n                                self.pending_charges.push(WorkPlanner::charge(",
+   "site_count": 1,
+   "id": "M00005"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 8167,
+   "column": 41,
+   "operator": "false",
+   "literal": "                                expected: None,\n                                depth: 0,\n                                borrow: false,\n                            });\n                        }",
+   "replacement": "                                expected: None,\n                                depth: 0,\n                                borrow: true,\n                            });\n                        }",
+   "site_count": 1,
+   "id": "M00006"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9627,
+   "column": 41,
+   "operator": "increment",
+   "literal": "                        let temp_checkpoint = self.temp_undo.len();\n                        self.dead_depth += 1;\n                        if entry_emission == EmissionMode::Live {",
+   "replacement": "                        let temp_checkpoint = self.temp_undo.len();\n                        self.dead_depth -= 1;\n                        if entry_emission == EmissionMode::Live {",
+   "site_count": 1,
+   "id": "M00007"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9628,
+   "column": 43,
+   "operator": "eq",
+   "literal": "                        if entry_emission == EmissionMode::Live {",
+   "replacement": "                        if entry_emission != EmissionMode::Live {",
+   "site_count": 1,
+   "id": "M00008"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9824,
+   "column": 28,
+   "operator": "eq",
+   "literal": "            if frame.index == frame.statements.len() {",
+   "replacement": "            if frame.index != frame.statements.len() {",
+   "site_count": 1,
+   "id": "M00009"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9827,
+   "column": 1,
+   "operator": "drop_assignment",
+   "literal": "                        value_tail.started = true;",
+   "replacement": "",
+   "site_count": 1,
+   "id": "M00010"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9827,
+   "column": 46,
+   "operator": "true",
+   "literal": "                        value_tail.started = true;",
+   "replacement": "                        value_tail.started = false;",
+   "site_count": 1,
+   "id": "M00011"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9828,
+   "column": 1,
+   "operator": "drop_assignment",
+   "literal": "                        value_tail.saved_termination = self.terminated.take();",
+   "replacement": "",
+   "site_count": 1,
+   "id": "M00012"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9829,
+   "column": 1,
+   "operator": "drop_assignment",
+   "literal": "                        value_tail.saved_emission = self.emission;",
+   "replacement": "",
+   "site_count": 1,
+   "id": "M00013"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9831,
+   "column": 1,
+   "operator": "drop_assignment",
+   "literal": "                        if value_tail.saved_termination.is_some() {\n                            self.emission = EmissionMode::Analyze;\n                        }",
+   "replacement": "                        if value_tail.saved_termination.is_some() {\n\n                        }",
+   "site_count": 1,
+   "id": "M00014"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9833,
+   "column": 42,
+   "operator": "eq",
+   "literal": "                        }\n                        if self.emission == EmissionMode::Live {\n                            self.pending_charges.push(WorkPlanner::charge(",
+   "replacement": "                        }\n                        if self.emission != EmissionMode::Live {\n                            self.pending_charges.push(WorkPlanner::charge(",
+   "site_count": 1,
+   "id": "M00015"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9836,
+   "column": 75,
+   "operator": "or",
+   "literal": "                                value_tail.marker.cloned().unwrap_or_else(|| {",
+   "replacement": "                                value_tail.marker.cloned().unwrap_or_else(&& {",
+   "site_count": 1,
+   "id": "M00016"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9847,
+   "column": 37,
+   "operator": "false",
+   "literal": "                            depth: 0,\n                            borrow: false,\n                        });",
+   "replacement": "                            depth: 0,\n                            borrow: true,\n                        });",
+   "site_count": 1,
+   "id": "M00017"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 9849,
+   "column": 25,
+   "operator": "continue",
+   "literal": "                        });\n                        continue;\n                    }",
+   "replacement": "                        });\n                        break;\n                    }",
+   "site_count": 1,
+   "id": "M00018"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10020,
+   "column": 30,
+   "operator": "ne",
+   "literal": "                    .ok_or(CompileError::InvalidIr(\"return value flow\"))?;\n                if flow.ty() != Some(&self.result) && self.dead_depth == 0 {\n                    return Err(CompileError::InvalidIr(\"return type passed checker\"));",
+   "replacement": "                    .ok_or(CompileError::InvalidIr(\"return value flow\"))?;\n                if flow.ty() == Some(&self.result) && self.dead_depth == 0 {\n                    return Err(CompileError::InvalidIr(\"return type passed checker\"));",
+   "site_count": 1,
+   "id": "M00019"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10020,
+   "column": 52,
+   "operator": "and",
+   "literal": "                    .ok_or(CompileError::InvalidIr(\"return value flow\"))?;\n                if flow.ty() != Some(&self.result) && self.dead_depth == 0 {\n                    return Err(CompileError::InvalidIr(\"return type passed checker\"));",
+   "replacement": "                    .ok_or(CompileError::InvalidIr(\"return value flow\"))?;\n                if flow.ty() != Some(&self.result) || self.dead_depth == 0 {\n                    return Err(CompileError::InvalidIr(\"return type passed checker\"));",
+   "site_count": 1,
+   "id": "M00020"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10020,
+   "column": 71,
+   "operator": "eq",
+   "literal": "                    .ok_or(CompileError::InvalidIr(\"return value flow\"))?;\n                if flow.ty() != Some(&self.result) && self.dead_depth == 0 {\n                    return Err(CompileError::InvalidIr(\"return type passed checker\"));",
+   "replacement": "                    .ok_or(CompileError::InvalidIr(\"return value flow\"))?;\n                if flow.ty() != Some(&self.result) && self.dead_depth != 0 {\n                    return Err(CompileError::InvalidIr(\"return type passed checker\"));",
+   "site_count": 1,
+   "id": "M00021"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10023,
+   "column": 1,
+   "operator": "drop_assignment",
+   "literal": "                }\n                self.terminated = Some(Termination::Return(temp));\n                Ok(())",
+   "replacement": "                }\n\n                Ok(())",
+   "site_count": 1,
+   "id": "M00022"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10031,
+   "column": 34,
+   "operator": "eq",
+   "literal": "            } => {\n                if self.emission == EmissionMode::Live {\n                    if let Some(value) = value {",
+   "replacement": "            } => {\n                if self.emission != EmissionMode::Live {\n                    if let Some(value) = value {",
+   "site_count": 1,
+   "id": "M00023"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10037,
+   "column": 49,
+   "operator": "or",
+   "literal": "                                .unwrap_or_else(|| parse::expression_primary_span(value)),",
+   "replacement": "                                .unwrap_or_else(&& parse::expression_primary_span(value)),",
+   "site_count": 1,
+   "id": "M00024"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10049,
+   "column": 26,
+   "operator": "false",
+   "literal": "                token_span,\n                guarded: false,\n                ..",
+   "replacement": "                token_span,\n                guarded: true,\n                ..",
+   "site_count": 1,
+   "id": "M00025"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10238,
+   "column": 26,
+   "operator": "eq",
+   "literal": "    fn prepare_expr(&mut self, e: &Expr) -> Result<Ty, CompileError> {\n        if self.emission == EmissionMode::Live {\n            let mut own = Vec::new();",
+   "replacement": "    fn prepare_expr(&mut self, e: &Expr) -> Result<Ty, CompileError> {\n        if self.emission != EmissionMode::Live {\n            let mut own = Vec::new();",
+   "site_count": 1,
+   "id": "M00026"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10250,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                Expr::Call { target, span, .. } => {\n                    own.push(span.clone());\n                    let callee = parse::expression_primary(target);",
+   "replacement": "                Expr::Call { target, span, .. } => {\n                    \n                    let callee = parse::expression_primary(target);",
+   "site_count": 1,
+   "id": "M00027"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10253,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        own.push(callee.span().clone());",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00028"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10264,
+   "column": 56,
+   "operator": "eq",
+   "literal": "                        .find(|token| token.span.start == span.start)",
+   "replacement": "                        .find(|token| token.span.start != span.start)",
+   "site_count": 1,
+   "id": "M00029"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10265,
+   "column": 38,
+   "operator": "or",
+   "literal": "                        .map_or_else(|| span.clone(), |token| token.span.clone());",
+   "replacement": "                        .map_or_else(&& span.clone(), |token| token.span.clone());",
+   "site_count": 1,
+   "id": "M00030"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10266,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    own.push(token);",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00031"
+  },
+  {
+   "file": "src/ir/lower.rs",
+   "line": 10274,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        own.push(span.clone());",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00032"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 105,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Statement(statement));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00033"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 110,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                parse::Statement::Let { value, .. } | parse::Statement::Expr { value, .. } => {\n                    frames.push(Frame::Expr(value));\n                }",
+   "replacement": "                parse::Statement::Let { value, .. } | parse::Statement::Expr { value, .. } => {\n                    \n                }",
+   "site_count": 1,
+   "id": "M00034"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 113,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    found.push((\"guard_mutation\", parse::expression_primary_span(place)));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00035"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 114,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    found.push((\"guard_mutation\", parse::expression_primary_span(place)));\n                    frames.push(Frame::Expr(value));\n                    frames.push(Frame::Expr(place));",
+   "replacement": "                    found.push((\"guard_mutation\", parse::expression_primary_span(place)));\n                    \n                    frames.push(Frame::Expr(place));",
+   "site_count": 1,
+   "id": "M00036"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 115,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Expr(place));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00037"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 127,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                    ));\n                    if let Some(value) = value {\n                        frames.push(Frame::Expr(value));\n                    }\n                }",
+   "replacement": "                    ));\n                    if let Some(value) = value {\n                        \n                    }\n                }",
+   "site_count": 1,
+   "id": "M00038"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 133,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    found.push((\"guard_control\", token_span.clone()));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00039"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 135,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                    found.push((\"guard_control\", token_span.clone()));\n                    if let Some(value) = value {\n                        frames.push(Frame::Expr(value));\n                    }\n                }",
+   "replacement": "                    found.push((\"guard_control\", token_span.clone()));\n                    if let Some(value) = value {\n                        \n                    }\n                }",
+   "site_count": 1,
+   "id": "M00040"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 140,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                parse::Statement::Value { value, .. } => {\n                    if let Some(value) = value {\n                        frames.push(Frame::Expr(value));\n                    }\n                }",
+   "replacement": "                parse::Statement::Value { value, .. } => {\n                    if let Some(value) = value {\n                        \n                    }\n                }",
+   "site_count": 1,
+   "id": "M00041"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 150,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        frames.push(Frame::Statement(other));",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00042"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 152,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                        frames.push(Frame::Statement(other));\n                    }\n                    frames.push(Frame::Block(then_block));\n                    frames.push(Frame::Expr(condition));\n                }",
+   "replacement": "                        frames.push(Frame::Statement(other));\n                    }\n                    \n                    frames.push(Frame::Expr(condition));\n                }",
+   "site_count": 1,
+   "id": "M00043"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 153,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    }\n                    frames.push(Frame::Block(then_block));\n                    frames.push(Frame::Expr(condition));\n                }\n                parse::Statement::While {",
+   "replacement": "                    }\n                    frames.push(Frame::Block(then_block));\n                    \n                }\n                parse::Statement::While {",
+   "site_count": 1,
+   "id": "M00044"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 158,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                } => {\n                    frames.push(Frame::Block(body));\n                    frames.push(Frame::Expr(condition));",
+   "replacement": "                } => {\n                    \n                    frames.push(Frame::Expr(condition));",
+   "site_count": 1,
+   "id": "M00045"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 159,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Block(body));\n                    frames.push(Frame::Expr(condition));\n                }",
+   "replacement": "                    frames.push(Frame::Block(body));\n                    \n                }",
+   "site_count": 1,
+   "id": "M00046"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 162,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                parse::Statement::For { iterable, body, .. } => {\n                    frames.push(Frame::Block(body));\n                    frames.push(Frame::Expr(iterable));",
+   "replacement": "                parse::Statement::For { iterable, body, .. } => {\n                    \n                    frames.push(Frame::Expr(iterable));",
+   "site_count": 1,
+   "id": "M00047"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 163,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Expr(iterable));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00048"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 171,
+   "column": 43,
+   "operator": "eq",
+   "literal": "                        if selection.mode == Some(Mode::Consume) {",
+   "replacement": "                        if selection.mode != Some(Mode::Consume) {",
+   "site_count": 1,
+   "id": "M00049"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 180,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Block(&arm.body));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00050"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 182,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        frames.push(Frame::Expr(guard));",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00051"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 185,
+   "column": 17,
+   "operator": "drop_state",
+   "literal": "                frames.push(Frame::Expr(&selection.scrutinee));",
+   "replacement": "                ",
+   "site_count": 1,
+   "id": "M00052"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 193,
+   "column": 43,
+   "operator": "eq",
+   "literal": "                            if span.start == value.span().start && span.end > value.span().end =>",
+   "replacement": "                            if span.start != value.span().start && span.end > value.span().end =>",
+   "site_count": 1,
+   "id": "M00053"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 193,
+   "column": 65,
+   "operator": "and",
+   "literal": "                            if span.start == value.span().start && span.end > value.span().end =>",
+   "replacement": "                            if span.start == value.span().start || span.end > value.span().end =>",
+   "site_count": 1,
+   "id": "M00054"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 200,
+   "column": 46,
+   "operator": "eq",
+   "literal": "                        let token = if cause == \"guard_control\" {",
+   "replacement": "                        let token = if cause != \"guard_control\" {",
+   "site_count": 1,
+   "id": "M00055"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 213,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        found.push((cause, token));",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00056"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 215,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    }\n                    frames.push(Frame::Expr(value));\n                }",
+   "replacement": "                    }\n                    \n                }",
+   "site_count": 1,
+   "id": "M00057"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 219,
+   "column": 76,
+   "operator": "eq",
+   "literal": "                    if matches!(callee, parse::Expr::Name(name, _) if name == \"Drop\") {",
+   "replacement": "                    if matches!(callee, parse::Expr::Name(name, _) if name != \"Drop\") {",
+   "site_count": 1,
+   "id": "M00058"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 220,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        found.push((\"guard_transfer\", callee.span().clone()));",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00059"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 223,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        frames.push(Frame::Expr(&arg.value));",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00060"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 225,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    }\n                    frames.push(Frame::Expr(target));\n                }",
+   "replacement": "                    }\n                    \n                }",
+   "site_count": 1,
+   "id": "M00061"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 229,
+   "column": 25,
+   "operator": "drop_state",
+   "literal": "                        frames.push(Frame::Expr(item));",
+   "replacement": "                        ",
+   "site_count": 1,
+   "id": "M00062"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 236,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Expr(right));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00063"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 237,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Expr(left));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00064"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 240,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Expr(index));",
+   "replacement": "                    ",
+   "site_count": 1,
+   "id": "M00065"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 241,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    frames.push(Frame::Expr(index));\n                    frames.push(Frame::Expr(target));\n                }",
+   "replacement": "                    frames.push(Frame::Expr(index));\n                    \n                }",
+   "site_count": 1,
+   "id": "M00066"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 255,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                        }\n                    }\n                    frames.push(Frame::Block(then_block));\n                    frames.push(Frame::Expr(condition));\n                }",
+   "replacement": "                        }\n                    }\n                    \n                    frames.push(Frame::Expr(condition));\n                }",
+   "site_count": 1,
+   "id": "M00067"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 256,
+   "column": 21,
+   "operator": "drop_state",
+   "literal": "                    }\n                    frames.push(Frame::Block(then_block));\n                    frames.push(Frame::Expr(condition));\n                }\n                parse::Expr::Match(selection) => frames.push(Frame::Selection(selection)),",
+   "replacement": "                    }\n                    frames.push(Frame::Block(then_block));\n                    \n                }\n                parse::Expr::Match(selection) => frames.push(Frame::Selection(selection)),",
+   "site_count": 1,
+   "id": "M00068"
+  },
+  {
+   "file": "src/ir/lower_match.rs",
+   "line": 277,
+   "column": 55,
+   "operator": "eq",
+   "literal": "    found.dedup_by(|(_, left), (_, right)| left.start == right.start);",
+   "replacement": "    found.dedup_by(|(_, left), (_, right)| left.start != right.start);",
+   "site_count": 1,
+   "id": "M00069"
+  }
+ ]
+}
