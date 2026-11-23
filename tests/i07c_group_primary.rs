@@ -2964,6 +2964,8 @@ const WRAPS: [(&str, &str); 4] = [("", ""), ("(", ")"), ("((", "))"), ("( ", " )
 struct QuotaSite {
     /// `@P` is the pad of `{}` blocks and `@E` the wrapped expression.
     template: &'static str,
+    /// The same program with a bounded loop: it is accepted whatever the wrapper.
+    positive: &'static str,
     inner: &'static str,
     /// Pad for which the rejected tick of the control is the tick of this site.
     pad: usize,
@@ -2972,17 +2974,22 @@ struct QuotaSite {
 /// A site whose group-free tick origin was already the inner expression before the group removal.
 const LET_INITIALIZER: QuotaSite = QuotaSite {
     template: "fn Main(){@Pvar n=0;while true{let y=@E;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=@E;}}",
     inner: "n",
     pad: 0,
 };
 
 /// The source with `pad` empty blocks before the loop, and the start of the inner expression.
 fn quota_source(site: &QuotaSite, pad: usize, wrap: (&str, &str)) -> (String, usize) {
-    let padded = site.template.replace("@P", &"{}".repeat(pad));
+    quota_template(site.template, site.inner, pad, wrap)
+}
+
+fn quota_template(template: &str, inner: &str, pad: usize, wrap: (&str, &str)) -> (String, usize) {
+    let padded = template.replace("@P", &"{}".repeat(pad));
     let at = padded
         .find("@E")
         .expect("the template places an expression");
-    let source = padded.replacen("@E", &format!("{}{}{}", wrap.0, site.inner, wrap.1), 1);
+    let source = padded.replacen("@E", &format!("{}{}{}", wrap.0, inner, wrap.1), 1);
     (source, at + wrap.0.len())
 }
 
@@ -3039,6 +3046,7 @@ fn moved_span(
 fn quota_span_helpers_move_spans_across_the_wrapper() {
     let site = QuotaSite {
         template: "ab@P@Ecd",
+        positive: "",
         inner: "xy",
         pad: 0,
     };
@@ -3064,7 +3072,8 @@ fn quota_span_helpers_move_spans_across_the_wrapper() {
 /// One pad of one site: the control and the wrapped variants give the same R0001 (`run`), with the
 /// primary of the control moved across the wrapper; `fixed` also requires, for the pad whose
 /// rejected tick is the tick of the site, that the control primary is the inner expression.
-fn quota_row(site: &QuotaSite, pad: usize, fixed: bool) {
+/// Returns whether the rejected tick of the control is the tick of the site.
+fn quota_row(site: &QuotaSite, pad: usize, fixed: bool) -> bool {
     let (bare, bare_at) = quota_source(site, pad, WRAPS[0]);
     let (exit, control, stderr) = invoke("run", &bare, J);
     assert!(stderr.is_empty(), "{bare}: {stderr}");
@@ -3108,11 +3117,23 @@ fn quota_row(site: &QuotaSite, pad: usize, fixed: bool) {
             "{source}: {checked}"
         );
     }
+    control_primary == interior
 }
 
+/// Every pad (each tick of the iteration is rejected in turn), the site tick among them, and the
+/// bounded program accepted under every wrapper.
 fn quota_sweep(site: &QuotaSite) {
+    let mut at_the_site = 0;
     for pad in 0..=11 {
-        quota_row(site, pad, pad == site.pad);
+        at_the_site += usize::from(quota_row(site, pad, pad == site.pad));
+    }
+    assert!(
+        at_the_site > 0,
+        "no pad rejects the tick of {}",
+        site.template
+    );
+    for wrap in WRAPS {
+        accepted(&quota_template(site.positive, site.inner, 0, wrap).0, J);
     }
 }
 
