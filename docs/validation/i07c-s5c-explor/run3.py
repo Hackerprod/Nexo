@@ -19,7 +19,7 @@ def go(name, exe, xv):
     with ThreadPoolExecutor(6) as ex:
         return list(ex.map(lambda a: run(exe, a[0], a[1], 'run', xv)[:2], progs))
 res = {'main_rel': go('m', B + 'main.exe', None), 'main_dbg': go('md', B + 'main-dbg.exe', None),
-       'hf_rel': go('h', B + 'g4.exe', FL), 'hf_dbg': go('hd', B + 'g4-dbg.exe', FL)}
+       'hf_rel': go('h', B + 'g5.exe', FL), 'hf_dbg': go('hd', B + 'g5-dbg.exe', FL)}
 n = len(progs)
 dm = [i for i in range(n) if res['main_rel'][i] != res['main_dbg'][i]]
 dh = [i for i in range(n) if res['hf_rel'][i] != res['hf_dbg'][i]]
@@ -29,12 +29,12 @@ def chk(exe, s, prof, xv): return run(exe, s, prof, 'check', xv)[0]
 unexpl = []
 with ThreadPoolExecutor(6) as ex:
     cm = list(ex.map(lambda i: chk(B + 'main.exe', progs[i][0], progs[i][1], None), dmh))
-    ch = list(ex.map(lambda i: chk(B + 'g4.exe', progs[i][0], progs[i][1], FL), dmh))
+    ch = list(ex.map(lambda i: chk(B + 'g5.exe', progs[i][0], progs[i][1], FL), dmh))
 unexpl = [i for k, i in enumerate(dmh) if cm[k] == ch[k]]
 print('programas run:', n, '| main debug!=release:', len(dm), '| HF debug!=release:', len(dh), '| main!=HF (run rel):', len(dmh), '| sin explicar por check:', len(unexpl), unexpl[:5])
 # pasadas
 def passes(s, prof):
-    return [int(l.split()[1]) for l in run(B + 'g4.exe', s, prof, 'check', FL + ',passes')[2].splitlines() if l.startswith('PASSES')]
+    return [int(l.split()[1]) for l in run(B + 'g5.exe', s, prof, 'check', FL + ',passes')[2].splitlines() if l.startswith('PASSES')]
 with ThreadPoolExecutor(6) as ex:
     ps = list(ex.map(lambda a: max(passes(a[0], a[1]) or [0]), progs))
 print('pasadas maximas (muestra):', max(ps), sorted(collections.Counter(ps).items()))

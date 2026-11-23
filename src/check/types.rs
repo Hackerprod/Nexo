@@ -2729,7 +2729,7 @@ fn xv(flag: &str) -> bool {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     V.get_or_init(|| {
         std::env::var("NEXO_XV").unwrap_or_else(|_| {
-            "pendfa,retfa,retract,anchw,nojoin,atomic0,e0103rule,retfail,matchpartial".to_string()
+            "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,matchpartial".to_string()
         })
     })
         .split(',')

@@ -1,0 +1,32 @@
+pendfa c1 19
+   let a0=(if p then (if p then r else true) else r[0]);
+   oraculo=main: [('NX-E0103', None, 67, 69, None, None), ('NX-E0103', None, 76, 78, None, None)]
+   sin pieza  : [('NX-E0103', None, 67, 69, None, None), ('NX-E1303', None, 115, 119, 'Array<Bool>', 'Bool')]
+retfa c1 52
+   var s=[];let a0=(if p then (if p then [q,r] else r) else s);r=[ar];
+   oraculo=main: [('NX-E1303', None, 128, 129, 'Array<Array<Array<I64>>>', 'Array<Array<I64>>')]
+   sin pieza  : [('NX-E0103', None, 85, 87, None, None), ('NX-E1303', None, 128, 129, 'Array<Array<Array<I64>>>', 'Array<Array<I64>>')]
+retract c1 3012
+   let a0=(if p then (if p then 1 else r[0]) else (if p then r else q));r=q;
+   oraculo=main: [('NX-E1303', None, 137, 138, 'I64', 'Array<I64>')]
+   sin pieza  : [('NX-E0103', None, 67, 69, None, None), ('NX-E0103', None, 76, 78, None, None)]
+nojoin c1 20376
+   var s=[];let a0=(if p then [q,r] else (if p then (if p then r else 1) else (if p then ar else [q,r])));
+   oraculo=main: [('NX-E0103', None, 67, 69, None, None), ('NX-E0103', None, 76, 78, None, None), ('NX-E0103', None, 85, 87, None, None)]
+   sin pieza  : [('NX-E0103', None, 85, 87, None, None), ('NX-E1303', None, 139, 140, 'Array<Array<I64>>', 'Array<I64>')]
+atomic0 c1 2159
+   let a0=(if p then r[0] else (if p then q else 1));r=[3];
+   oraculo=main: [('NX-E0103', None, 67, 69, None, None)]
+   sin pieza  : [('NX-E0103', None, 67, 69, None, None), ('NX-E0103', None, 76, 78, None, None)]
+arrx c1 21899
+   let a0=(if p then [q] else (if p then 2 else r[0]))==ar;r=ar;
+   oraculo=main: [('NX-E0103', None, 67, 69, None, None)]
+   sin pieza  : [('NX-E0103', None, 67, 69, None, None), ('NX-E0103', None, 76, 78, None, None)]
+retfail b 2586
+   var s=[];let a0=[(if p then (if p then r else (if p then 1 else q)) else s)];q=r;r=[true];
+   oraculo=main: [('NX-E1303', None, 136, 137, 'Array<Bool>', 'I64')]
+   sin pieza  : [('NX-E0103', None, 85, 87, None, None), ('NX-E1303', None, 136, 137, 'Array<Bool>', 'I64')]
+retfail b 2711
+   let a0=[(if p then (if p then [r] else (if p then ar else [[q]])) else r[0])];
+   oraculo=main: [('NX-E0103', None, 67, 69, None, None)]
+   sin pieza  : [('NX-E1303', None, 129, 131, 'Array<Array<Array<I64>>>', 'Array<I64>')]
