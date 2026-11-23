@@ -179,6 +179,16 @@ fn barrier_anchors_the_loop_that_needs_the_proof() {
             assert_eq!(output, l08(41, 46), "{source}");
         }
     }
+    // §8.2 names the first source node of the capability and §2.2 gives `while false` no
+    // special treatment: it is not a literal loop, so it never anchors the barrier even when
+    // it precedes the `while true` in the same rejected function.
+    for (status, output) in both(
+        "fn F()->I64{while false{}while true{return 1;}}fn Main(){}",
+        F5,
+    ) {
+        assert_eq!(status, 1, "{output}");
+        assert_eq!(output, l08(25, 30));
+    }
     // Two functions: the lower offset wins (§8.2).
     for (status, output) in both(
         "fn A()->I64{while true{return 1;}}fn B()->I64{while true{return 2;}}fn Main(){}",
