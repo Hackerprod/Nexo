@@ -1,0 +1,1 @@
+fn Main(){let x=1;let p=true;let ar=[1];let aar=[[1]];var r=[];var q=[];var s=[];let a=((if p then (if x then (if p then [q] else r) else (if false[x] then q else [true])) else (if (x<1) then aar else [[r]]))==ar);q=[q];q=[[3]];q=[[true]];}
