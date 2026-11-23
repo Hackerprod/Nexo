@@ -110,7 +110,7 @@ fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
                     frames.push(Frame::Expr(value));
                 }
                 parse::Statement::Assign { place, value, .. } => {
-                    found.push(("guard_mutation", place.span().clone()));
+                    found.push(("guard_mutation", parse::expression_primary_span(place)));
                     frames.push(Frame::Expr(value));
                     frames.push(Frame::Expr(place));
                 }

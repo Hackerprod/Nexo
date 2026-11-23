@@ -109,7 +109,6 @@ LOWERING_BASELINE = {
         (('prepare_expr', 'Expr::Unary { => {'), 'value.span().end'): (1, 'identity: key or search bound, not a primary'),
     },
     "lower_match.rs": {
-        (('guard_violations', 'parse::Statement::Assign { place, value, .. } => {'), 'place.span().clone()'): (1, 'S6: guard_mutation primary (to be replaced by the group-removal helper)'),
         (('guard_violations', 'parse::Expr::Unary { mode, value, span } => {'), 'value.span().start'): (1, 'identity: key or search bound, not a primary'),
         (('guard_violations', 'parse::Expr::Unary { mode, value, span } => {'), 'value.span().end'): (1, 'identity: key or search bound, not a primary'),
         (('guard_violations', 'parse::Expr::Call { target, args, .. } => {'), 'target.span().clone()'): (1, 'S7: guard_transfer primary (to be replaced by the group-removal helper)'),
@@ -133,6 +132,7 @@ GROUP_SITES = {
     "S3": ("lower.rs", r"WorkEvent::Assignment,\s*(?P<site>parse::expression_primary_span\(place\)),", "place.span().clone()"),
     "S4": ("lower.rs", r"WorkEvent::ValueStatement,\s*value_tail\.marker\.cloned\(\)\.unwrap_or_else\(\|\| \{\s*(?P<site>parse::expression_primary_span\(value_tail\.value\))\s*\}\)", "value_tail.value.span().clone()"),
     "S4 mirror": ("lower.rs", r"WorkEvent::ValueStatement,\s*marker\s*\.clone\(\)\s*\.unwrap_or_else\(\|\| (?P<site>parse::expression_primary_span\(value\))\)", "value.span().clone()"),
+    "S6": ("lower_match.rs", r'"guard_mutation",\s*(?P<site>parse::expression_primary_span\(place\))\)', "place.span().clone()"),
 }
 
 

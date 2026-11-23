@@ -2672,6 +2672,64 @@ const CASES: &[Case] = &[
         control_primary: (10, 12),
         repair: "",
     },
+    // S6
+    Case {
+        family: "guard_mutation",
+        name: "guard_mutation_single_group",
+        profile: J,
+        source: "fn Main(){var x=1;match true{true if (if true then {(x)=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_mutation"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (53, 54),
+        token: "x",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var x=1;match true{true if (if true then {x=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (52, 53),
+        repair: "fn Main(){var x=1;match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_mutation",
+        name: "guard_mutation_double_group",
+        profile: J,
+        source: "fn Main(){var x=1;match true{true if (if true then {((x))=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_mutation"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (54, 55),
+        token: "x",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var x=1;match true{true if (if true then {x=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (52, 53),
+        repair: "fn Main(){var x=1;match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_mutation",
+        name: "guard_mutation_group_with_trivia",
+        profile: J,
+        source: "fn Main(){var x=1;match true{true if (if true then {( x )=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_mutation"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (54, 55),
+        token: "x",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var x=1;match true{true if (if true then {x=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (52, 53),
+        repair: "fn Main(){var x=1;match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
 ];
 
 fn number_after(text: &str, key: &str) -> usize {
@@ -3280,4 +3338,11 @@ fn else_operand_tick_reports_the_inner_operand() {
 #[test]
 fn branch_operand_tick_reports_the_inner_expression() {
     quota_sweep(&S4_EXPRESSION);
+}
+
+// S6: the place assigned inside a guard is reported without the outer groups (F0-0003 section 3.3,
+// F0-0002 lagunas "Ticks, cuotas y guardas bajo agrupaciones").
+#[test]
+fn guard_mutation_reports_the_inner_place() {
+    run_family("guard_mutation");
 }
