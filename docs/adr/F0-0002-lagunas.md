@@ -93,3 +93,24 @@ Ejemplos (perfil `f0-0003-b-v1`; el primer paso de `cause_chain` coincide con el
 **Relleno de laguna, revertible.** En la sección «Primario de una expresión bajo agrupaciones», «una cuota en un sitio distinto» significa una cuota cuyo sitio **no es la expresión agrupada** (la `}` de la unidad final, el token `let`/`while`/`return`, la llamada rechazada de `call_frames`). Un tick de trabajo cuyo origen es una expresión (condición de bucle, sentencia de expresión, lugar destino de una asignación, operando de rama sin `value:`) tiene por sitio esa expresión: su primario `R0001` es el de la expresión interior, sin las agrupaciones exteriores, con independencia del perfil y de debug/release. Los paréntesis de agrupación no crean nodos cobrables (F0-0002 §11): `(Id)(1)` cobra exactamente los ticks de `Id(1)`, incluido el de «Nombre del destino de una llamada directa», y lo mismo `(f)()` para un closure; el total de trabajo, el orden y los eventos no dependen de las agrupaciones. En una guarda de `match`, el destino `Drop` de una llamada y el lugar de una asignación se reconocen y se señalan sin las agrupaciones exteriores (F0-0003 §3.3).
 
 Ejemplos, ASCII, sin BOM ni LF final, perfil `f0-0003-b-v1`. Inválido: `fn Main(){{}{}{}var n=0;while (n<9999999){}}`; `run`: `outcome.kind=simulator_fault`, único `R0001`, `runtime/runtime.limit`, `data={"limit":1000000,"observed":1000001,"work_consumed":1000000}`, primario `[31,40)` (`n<9999999`), no `[30,41)`; con `((n<9999999))` `[32,41)`; con `( n<9999999 )` `[32,41)`; el control `while n<9999999{}` da `[30,39)`; `check` sale 0 (`checked`, sin diagnósticos). Válido: `fn Main(){var n=0;while (n<3){n=n+1;}}` (`run`: `unit`, salida 0). `fn Id(x:view I64)->I64{return x;}fn Main(){var n=0;while n<N{n=n+1;(Id)(1);}}` agota `R0001` con el mismo `N` que la fuente con `Id(1)` (con `N=43477` termina y con `N=43478` da `R0001`, para `Id(1)`, `(Id)(1)`, `((Id))(1)` y `( Id )(1)`). Inválido en guarda: `fn Main(){let a=Some(1);match true{true if (if true then {(Drop)(a);value:true;} else {value:false;}) =>{},_=>{}}}` (114 bytes): único `NX-E1305`, `subcause=guard_transfer`, `ownership/ownership.check`, `data={}`, sin relaciones, primario `[59,63)` (`Drop`), en `check` y `run`, igual que con `Drop(a)`; la fuente `fn Main(){var x=1;match true{true if (if true then {(x)=2;value:true;} else {value:false;}) =>{},_=>{}}}` (104 bytes) da `NX-E1305/guard_mutation` `[53,54)` (`x`), no `(x)`, igual que el control `x=2`. Válido: la misma guarda con `{value:true;}` (`checked`).
+
+<!-- Adopción 2026-11-22 (coordinador): ACLARACIÓN DERIVADA (no relleno) sobre el resultado de una operación con un operando fallido o
+     contaminado (T5). Origen: docs/correcciones/I07c-laguna-t5-r1.md (B PASS en 3 rondas; ~70 programas derivados a mano coinciden con
+     main; 152 RD sin cambio). Solo deja por escrito lo que §4.1.1 y las cláusulas 4 y 5 de §4.1.2 ya fijan. -->
+
+## Resultado de una operación con un operando fallido o contaminado (aclaración derivada de §4.1.1 y de las cláusulas 4 y 5 de §4.1.2)
+
+El
+resultado de `+`, `-`, `<`, `==`, `AssertEq`, de un acceso o de una llamada con un operando que ha fallado una obligación de la operación, o
+que está contaminado, está contaminado: carece de tipo nominal y de evidencia válida para cualquier consumidor, también si el consumidor es un
+elemento de array, una hoja de `if` o de bloque con valor, un argumento, un selector, un `return` o un contexto externo. Un elemento o una
+continuación así no establece la referencia de homogeneidad ni la de la unión, no es incompatible con ella y no recibe NX-E1303 ni
+NX-E0102 por ese resultado; sus errores internos independientes y los de los demás elementos se conservan. La indecisión de un dominio no es
+fallo: el nominal solo se ofrece cuando ni la operación ni un operando necesario han fallado (cierre de dominio indeciso). Un constructor Array
+independiente irresuelto conserva su NX-E0103 (`var r=[];r=[true+1];`: `[16,18)` y NX-E0102 `[22,26)`), y una `if` con condición fallida es una
+unidad contaminada que no establece referencia (`[(if 0 then 1 else 2),true,1]`: `[21,22)` y `[43,44)`).
+
+Válido (`checked`, sin diagnósticos): `fn Main(){let a=[1+2,3];}` y `fn Main(){var q=[];let a=[q[0]<1,true];q=[1];}`. Contraste por indecisión
+(el nominal sí se ofrece): `fn Main(){var q=[];let a=[q[0]<1,1];q=[1];}` da único NX-E0102 `[33,34)` (`1`), `Bool`/`I64`. Inválido: `fn Main(){let a=[true+1,true];}` → único NX-E0102/type_mismatch `[17,21)`, `expected_type=I64`,
+`found_type=Bool`, relación `found_type=[17,21)`, sin relación `expected_type`, sin diagnóstico en `[24,28)` (el segundo `true`).
+Corregido (`1+1`): `fn Main(){let a=[1+1,true];}` falla por homogeneidad con su propio primario (`true` `[21,25)`, `I64`/`Bool`): control sin operación fallida.
