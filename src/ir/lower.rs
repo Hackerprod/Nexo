@@ -9833,10 +9833,9 @@ impl Lower<'_> {
                         if self.emission == EmissionMode::Live {
                             self.pending_charges.push(WorkPlanner::charge(
                                 WorkEvent::ValueStatement,
-                                value_tail
-                                    .marker
-                                    .cloned()
-                                    .unwrap_or_else(|| value_tail.value.span().clone()),
+                                value_tail.marker.cloned().unwrap_or_else(|| {
+                                    parse::expression_primary_span(value_tail.value)
+                                }),
                             ));
                         }
                         let value = value_tail.value;
@@ -10033,7 +10032,9 @@ impl Lower<'_> {
                     if let Some(value) = value {
                         self.pending_charges.push(WorkPlanner::charge(
                             WorkEvent::ValueStatement,
-                            marker.clone().unwrap_or_else(|| value.span().clone()),
+                            marker
+                                .clone()
+                                .unwrap_or_else(|| parse::expression_primary_span(value)),
                         ));
                     } else {
                         self.pending_charges

@@ -3018,13 +3018,21 @@ fn without_spans(json: &str) -> String {
     out
 }
 
-/// Moves a span of the bare control to the same program with the wrapper around `interior`.
+/// Moves a span of the bare control to the same program with the wrapper around `interior`: the
+/// interior itself moves inside the wrapper, a span that contains it keeps its start and grows by
+/// the wrapper, and any other span moves by the wrapper characters that precede each end.
 fn moved_span(
     span: (usize, usize),
     interior: (usize, usize),
     wrap: (&str, &str),
 ) -> (usize, usize) {
     let (open, close) = (wrap.0.len(), wrap.1.len());
+    if span == interior {
+        return (span.0 + open, span.1 + open);
+    }
+    if span.0 <= interior.0 && span.1 >= interior.1 {
+        return (span.0, span.1 + open + close);
+    }
     let start = if span.0 < interior.0 {
         span.0
     } else if span.0 < interior.1 {
@@ -3060,6 +3068,8 @@ fn quota_span_helpers_move_spans_across_the_wrapper() {
         ((4, 6), WRAPS[1], (5, 7)),
         ((3, 7), WRAPS[3], (3, 11)),
         ((6, 8), WRAPS[2], (10, 12)),
+        ((4, 9), WRAPS[1], (4, 11)),
+        ((2, 6), WRAPS[1], (2, 8)),
     ] {
         assert_eq!(moved_span(span, interior, wrap), moved);
     }
@@ -3231,4 +3241,43 @@ const S3_PLACE: QuotaSite = QuotaSite {
 #[test]
 fn assignment_tick_reports_the_inner_place() {
     quota_sweep(&S3_PLACE);
+}
+
+// S4: the tick of a branch operand without `value:` has the operand expression as origin (F0-0002
+// section 11, "Origen de los ticks"); under groups it is the inner operand. The marker `value:`
+// stays a token.
+const S4_THEN: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=if true then @E else 2;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=if true then @E else 2;}}",
+    inner: "n",
+    pad: 8,
+};
+
+const S4_ELSE: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=if false then 2 else @E;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=if false then 2 else @E;}}",
+    inner: "n",
+    pad: 8,
+};
+
+const S4_EXPRESSION: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=if true then @E else 2;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=if true then @E else 2;}}",
+    inner: "n+1",
+    pad: 1,
+};
+
+#[test]
+fn then_operand_tick_reports_the_inner_operand() {
+    quota_sweep(&S4_THEN);
+}
+
+#[test]
+fn else_operand_tick_reports_the_inner_operand() {
+    quota_sweep(&S4_ELSE);
+}
+
+#[test]
+fn branch_operand_tick_reports_the_inner_expression() {
+    quota_sweep(&S4_EXPRESSION);
 }
