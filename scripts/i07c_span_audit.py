@@ -67,7 +67,7 @@ LOWER_MATCH = SOURCE.parents[1] / "ir/lower_match.rs"
 RAW_SPAN = re.compile(r"[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*\.span\(\)(?:\.(?:clone\(\)|start|end|file))*")
 LOWERING_BASELINE = {
     "lower.rs": {
-        (('first_f5_capability', 'Statement::Assign { => {'), 'place.span().start'): (2, 'identity: key or search bound, not a primary'),
+        (('f5_capabilities', 'Statement::Assign { => {'), 'place.span().start'): (2, 'identity: ordering key of the L08 anchor candidates; the reported span is parse::expression_primary_span(place)'),
         (('resolved_expr', '-'), 'expr.span().start'): (1, 'identity: key or search bound, not a primary'),
         (('resolved_expr', '-'), 'expr.span().end'): (1, 'identity: key or search bound, not a primary'),
         (('finish_if_expression', '-'), 'expr.span()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
