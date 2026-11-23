@@ -1,0 +1,1532 @@
+diff --git a/Pending.md b/Pending.md
+index ac1f1f5..6285c23 100644
+--- a/Pending.md
++++ b/Pending.md
+@@ -539,7 +539,6 @@ El Bloque 3 de J16 entra en main hasta `f904b58`: batería independiente (`tests
+ | Id | Observación | Repro / evidencia | Corte |
+ |---|---|---|---|
+ | J16-B3-CALLONCE-SPAN | Con `while`, el NX-E0202 por repetir `move f()` usa como primario el prefijo completo `[67,75)` y no el nombre `[72,73)`; ya ocurría en la base. §9.2 no fija ese span. | Informe D `b3prop-informe-2`. | J16 (decisión) |
+-| J16-B3-MUT-T0-GROUP | La inversión de `expression_shape_hint` para grupos sobrevive al testigo `mutation-grouped-array`; sin programa que difiera del ADR (1.361 programas probados). | Informes D y D'. | Endurecimiento |
+ | J16-B3-MUT-F-PRINT | Quitar el cierre de constructor en `print_pattern` sobrevive al test de corpus canónico; sin programa normativo discriminante. | Informes D y D'. | Endurecimiento |
+ | J16-B3-MUT-COPY | La inversión local de `copyable` en lowering sobrevive a C03 (la regla se rechaza antes en otra fase). | Informe D. | Endurecimiento |
+ | J16-B3-MUT-V3-MC | V3 (segundo chequeo de resume en `verify_cfg`) y `mc-code` sin programa discriminante; quitar `end_call_loans` en la rama Analyze parece redundante para el veredicto observable. | Informe D'. | Endurecimiento |
+diff --git a/scripts/i07c_span_audit.py b/scripts/i07c_span_audit.py
+index 5bae343..38cab45 100644
+--- a/scripts/i07c_span_audit.py
++++ b/scripts/i07c_span_audit.py
+@@ -39,20 +39,20 @@ REVIEWED_EFFECTS = {
+ # cut that edits types.rs must re-reconcile it. Both the expression and its surrounding call/block
+ # must remain recognisable; a reviewed line that loses its expression is rejected.
+ REVIEWED = {
+-    7078: ("crate::frontend::parse::expression_primary_span(e)", "delegated_primary", "fn primary_span(e: &Expr)", "Group removal is delegated to the parse.rs helper"),
+-    8279: ("Self::primary_span(iterable)", "expression_primary", "prepare_for_type", "for_iteration Array barrier reports the iterable without outer groups"),
+-    9061: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
+-    9062: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
+-    11300: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
+-    12248: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
+-    12484: ("Self::primary_span(target)", "expression_primary", "non_callable_target", "call target reported without outer groups; the declaration relation is unchanged"),
+-    13058: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
+-    13168: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
+-    13379: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
+-    13384: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
+-    13559: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
+-    14797: ("Self::primary_span(target)", "expression_primary", '"NX-E1111"', "closure target reported without outer groups; branch NO EVALUADO, see below"),
+-    14811: ("&Self::primary_span(target)", "argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
++    6957: ("crate::frontend::parse::expression_primary_span(e)", "delegated_primary", "fn primary_span(e: &Expr)", "Group removal is delegated to the parse.rs helper"),
++    8159: ("Self::primary_span(iterable)", "expression_primary", "prepare_for_type", "for_iteration Array barrier reports the iterable without outer groups"),
++    8941: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
++    8942: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
++    11180: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
++    12129: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
++    12365: ("Self::primary_span(target)", "expression_primary", "non_callable_target", "call target reported without outer groups; the declaration relation is unchanged"),
++    12939: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
++    13049: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
++    13260: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
++    13265: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
++    13440: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
++    14730: ("Self::primary_span(target)", "expression_primary", '"NX-E1111"', "closure target reported without outer groups; branch NO EVALUADO, see below"),
++    14744: ("&Self::primary_span(target)", "argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
+ }
+ 
+ 
+diff --git a/scripts/j16_mutations.py b/scripts/j16_mutations.py
+index 2069428..a8c846b 100644
+--- a/scripts/j16_mutations.py
++++ b/scripts/j16_mutations.py
+@@ -52,9 +52,6 @@ def fixtures() -> dict[str, dict]:
+         "fn Main(){let a=1;let f=fn [copy a](){let g=fn [copy a](){AssertEq(a,1);};g();};f();}",
+         "run", {"exit": 0, "diagnostics": [], "outcome": "unit", "events": [], "stdout": []},
+         "F0-0003 §§4.1,9.2")
+-    rows["mutation-grouped-array"] = literal("mutation-grouped-array",
+-        "fn Main(){let a=[1];let b=([1]);AssertEq(a,b);}", "check",
+-        {"exit": 0, "diagnostics": []}, "F0-0003 §§3.3,9.2")
+     rows["mutation-next-item"] = literal("mutation-next-item",
+         "gen fn G()->I64{yield 1;}fn Main(){var g=G();let a=Iterator.Next(edit g);AssertEq(a,Some(1));}",
+         "run", {"exit": 0, "diagnostics": [], "outcome": "unit", "events": [], "stdout": []},
+@@ -77,10 +74,6 @@ MUTATIONS = [
+      "mutation-pattern-binding", "F0-0003 §§3.3,9.2", None),
+     ("T1-pattern-arity", "src/check/types.rs", "if args.len() != arity {", "if args.len() == arity {", 0,
+      "F3-M04-negative", "F0-0003 §§3.3,9.1", None),
+-    ("T0-group-shape", "src/check/types.rs",
+-     "Expr::Group(inner, _) => frames.push(Frame::Enter(inner)),",
+-     "Expr::Group(_, _) => result = ShapeHint::Unknown,", 1,
+-     "mutation-grouped-array", "F0-0003 §§3.3,9.2", None),
+     ("L-nested-closure", "src/ir/lower.rs", "visits.push(Visit::Block(&closure.body));",
+      "let _ = &closure.body;", 0, "mutation-nested-closure", "F0-0003 §§4.1,9.2", None),
+     ("F-pattern-close", "src/frontend/print.rs",
+@@ -127,7 +120,6 @@ PAIRED_FIXTURES = {
+     "P-pattern-depth": "pattern-128 (same source with 127 nested groups; accepted)",
+     "N-pattern-binding": "F3-M01-negative",
+     "T1-pattern-arity": "F3-M04-positive",
+-    "T0-group-shape": "F3-M03-negative",
+     "L-nested-closure": "F3-C01-negative",
+     "F-pattern-close": "F3-M01-positive",
+     "Item-present-tag": "generator-yields-0",
+diff --git a/src/check/types.rs b/src/check/types.rs
+index e2e804c..1d37323 100644
+--- a/src/check/types.rs
++++ b/src/check/types.rs
+@@ -1142,13 +1142,6 @@ struct ReadPlan {
+     assignment_start: u64,
+ }
+ 
+-#[derive(Clone, PartialEq, Eq)]
+-enum ShapeHint {
+-    Unknown,
+-    Scalar(Type),
+-    Array(Box<ShapeHint>),
+-}
+-
+ #[derive(Clone)]
+ enum ObligationKind {
+     Constructor { child: u64, array: u64, span: Span },
+@@ -1924,6 +1917,19 @@ enum MatchAction<'a> {
+     Done(Result<Type, Box<Diagnostic>>),
+ }
+ 
++/// Result of contrasting one leaf with the union anchor (F0-0002 §4.1.2.4).
++enum AnchorOutcome {
++    /// The equality holds; it stays accumulated in the graph.
++    Compatible,
++    /// First incompatible continuation, rejected immediately: report it.
++    Reported(Box<Diagnostic>),
++    /// First incompatible continuation, deferred or omitted (§4.1.2.7): the
++    /// conflict counts as already denounced.
++    Pending,
++    /// The union already denounced; the conflict is dropped atomically.
++    Absorbed,
++}
++
+ struct IfProgress<'a> {
+     expr: &'a Expr,
+     condition: &'a Expr,
+@@ -1945,6 +1951,9 @@ struct IfProgress<'a> {
+     first_for_anchor: Option<Type>,
+     anchor_error: Option<Box<Diagnostic>>,
+     anchor_pending: bool,
++    // This `if` contrasted a leaf that is incompatible with an anchor its
++    // union already denounced (§4.1.2.4: only the first one is reported).
++    anchor_absorbed: bool,
+     anchor: Option<(Type, Span)>,
+ }
+ 
+@@ -2182,6 +2191,10 @@ struct InferenceGraph {
+     first_assignment_rhs_starts: HashMap<u64, u64>,
+     prefix_concrete: HashMap<u64, ConcreteEvidence>,
+     preseeded_children: HashSet<u64>,
++    // Union anchor registry, keyed by `span_key` of the anchor origin (the
++    // first valid continuation, F0-0002 §4.1.2.4): `true` once the union has
++    // denounced its first incompatible continuation. Cleared per function.
++    union_denounced: HashMap<(u64, u64), bool>,
+     result: Type,
+     result_span: Option<Span>,
+ }
+@@ -3624,140 +3637,6 @@ impl Checker<'_> {
+         }
+     }
+ 
+-    fn type_shape_hint(ty: &Type) -> ShapeHint {
+-        let mut current = ty;
+-        let mut depth = 0;
+-        while let Type::Array(child) = current {
+-            depth += 1;
+-            current = child;
+-        }
+-        let leaf = match current {
+-            Type::Deferred(_) | Type::Never | Type::Tainted => ShapeHint::Unknown,
+-            scalar => ShapeHint::Scalar(scalar.clone()),
+-        };
+-        (0..depth).fold(leaf, |shape, _| ShapeHint::Array(Box::new(shape)))
+-    }
+-
+-    fn variable_shape_hint(&mut self, id: u64) -> ShapeHint {
+-        let mut current = self.root(id);
+-        let mut depth = 0;
+-        let leaf = loop {
+-            let node = &self.graph.type_nodes[&current];
+-            if let Some((ty, _)) = &node.concrete {
+-                break Self::type_shape_hint(ty);
+-            }
+-            let Some(child) = node.array_child else {
+-                break ShapeHint::Unknown;
+-            };
+-            depth += 1;
+-            if depth > 128 {
+-                break ShapeHint::Unknown;
+-            }
+-            current = self.root(child);
+-        };
+-        (0..depth).fold(leaf, |shape, _| ShapeHint::Array(Box::new(shape)))
+-    }
+-
+-    fn expression_shape_hint(&mut self, value: &Expr) -> ShapeHint {
+-        enum Frame<'a> {
+-            Enter(&'a Expr),
+-            Array {
+-                items: &'a [Expr],
+-                next: usize,
+-                first: Option<ShapeHint>,
+-            },
+-            Index,
+-        }
+-        let mut frames = vec![Frame::Enter(value)];
+-        let mut result = ShapeHint::Unknown;
+-        while let Some(frame) = frames.pop() {
+-            match frame {
+-                Frame::Enter(value) => match value {
+-                    Expr::Array(items, _) => {
+-                        if items.is_empty() {
+-                            result = ShapeHint::Array(Box::new(ShapeHint::Unknown));
+-                        } else {
+-                            frames.push(Frame::Array {
+-                                items,
+-                                next: 0,
+-                                first: None,
+-                            });
+-                            frames.push(Frame::Enter(&items[0]));
+-                        }
+-                    }
+-                    Expr::Group(inner, _) => frames.push(Frame::Enter(inner)),
+-                    Expr::Name(_, span) => {
+-                        result = match self.resolved.uses.get(&span.start) {
+-                            Some(ResolvedUse::Local(local)) => {
+-                                let known = self.graph.locals.get(&local.name_span.start).cloned();
+-                                match known {
+-                                    Some(Known {
+-                                        variable: Some(id), ..
+-                                    }) => self.variable_shape_hint(id),
+-                                    Some(known) => Self::type_shape_hint(&known.ty),
+-                                    None => ShapeHint::Unknown,
+-                                }
+-                            }
+-                            _ => ShapeHint::Unknown,
+-                        };
+-                    }
+-                    Expr::Integer(..) => result = ShapeHint::Scalar(Type::I64),
+-                    Expr::Bool(..) => result = ShapeHint::Scalar(Type::Bool),
+-                    Expr::Unit(..) => result = ShapeHint::Scalar(Type::Unit),
+-                    Expr::Index { target, .. } => {
+-                        frames.push(Frame::Index);
+-                        frames.push(Frame::Enter(target));
+-                    }
+-                    _ => result = ShapeHint::Unknown,
+-                },
+-                Frame::Array { items, next, first } => {
+-                    let first = if let Some(first) = first {
+-                        if result != first {
+-                            result = ShapeHint::Unknown;
+-                            continue;
+-                        }
+-                        first
+-                    } else {
+-                        std::mem::replace(&mut result, ShapeHint::Unknown)
+-                    };
+-                    if next + 1 == items.len() {
+-                        result = ShapeHint::Array(Box::new(first));
+-                    } else {
+-                        frames.push(Frame::Array {
+-                            items,
+-                            next: next + 1,
+-                            first: Some(first),
+-                        });
+-                        frames.push(Frame::Enter(&items[next + 1]));
+-                    }
+-                }
+-                Frame::Index => {
+-                    result = match result {
+-                        ShapeHint::Array(child) => *child,
+-                        _ => ShapeHint::Unknown,
+-                    };
+-                }
+-            }
+-        }
+-        result
+-    }
+-
+-    fn shape_hints_conflict(left: &ShapeHint, right: &ShapeHint) -> bool {
+-        let (mut left, mut right) = (left, right);
+-        loop {
+-            match (left, right) {
+-                (ShapeHint::Array(a), ShapeHint::Array(b)) => {
+-                    left = a;
+-                    right = b;
+-                }
+-                (ShapeHint::Scalar(a), ShapeHint::Scalar(b)) => return a != b,
+-                (ShapeHint::Array(_), ShapeHint::Scalar(_))
+-                | (ShapeHint::Scalar(_), ShapeHint::Array(_)) => return true,
+-                _ => return false,
+-            }
+-        }
+-    }
+-
+     fn resolve_pending_projections(&mut self, finalize: bool) -> Result<(), Box<Diagnostic>> {
+         // A projection is conditional until its base has an Array root.
+         // Resolving one projection can determine another one's base, so
+@@ -7507,6 +7386,7 @@ impl Checker<'_> {
+         self.graph.eligible_shapes.clear();
+         self.graph.preseeded_children.clear();
+         self.graph.projected_bases.clear();
++        self.graph.union_denounced.clear();
+         self.graph.projection_items.clear();
+         self.graph.assigned_bases.clear();
+         self.graph.nested_assignment_sites.clear();
+@@ -11333,6 +11213,7 @@ impl Checker<'_> {
+                                 first_for_anchor: None,
+                                 anchor_error: None,
+                                 anchor_pending: false,
++                                anchor_absorbed: false,
+                                 anchor: None,
+                             })));
+                             inner = condition;
+@@ -13680,6 +13561,7 @@ impl Checker<'_> {
+         }
+     }
+ 
++    #[inline(never)]
+     fn if_finish_join(
+         &mut self,
+         progress: &mut IfProgress<'_>,
+@@ -13698,6 +13580,7 @@ impl Checker<'_> {
+         let first_for_anchor = progress.first_for_anchor.clone();
+         let anchor_error = progress.anchor_error.take();
+         let anchor_pending = progress.anchor_pending;
++        let anchor_absorbed = progress.anchor_absorbed;
+         let first_var = branch_value_expr(then_block).and_then(|e| self.expression_variable(e));
+         let second_var = match otherwise {
+             Some(Else::Block(b)) => branch_value_expr(b).and_then(|e| self.expression_variable(e)),
+@@ -13751,6 +13634,7 @@ impl Checker<'_> {
+         let pending_before_join = self.pending_join_count();
+         let join = if anchor_error.is_none()
+             && !anchor_pending
++            && !anchor_absorbed
+             && !skip_failed_context_join
+             && (expected.is_none() || needs_deferred_join)
+             && let (Some(left), Some(right)) = (first_join, second_join)
+@@ -13798,7 +13682,7 @@ impl Checker<'_> {
+             self.record_error(error);
+             return Ok((first.or(second), true, true));
+         }
+-        if anchor_pending {
++        if anchor_pending || anchor_absorbed {
+             return Ok((first.or(second), true, true));
+         }
+         if first_failed || second_failed {
+@@ -13978,7 +13862,7 @@ impl Checker<'_> {
+                                 });
+                                 progress.stage = IfStage::SecondBranch;
+                             } else if let Some(Else::If(other)) = progress.otherwise {
+-                                let context = self.if_else_context(progress, other);
++                                let context = self.if_else_context(progress);
+                                 progress.stage = IfStage::ElseIf;
+                                 return IfAction::Value(other, context);
+                             } else {
+@@ -14008,31 +13892,10 @@ impl Checker<'_> {
+                             return IfAction::Value(expr, context);
+                         }
+                         BranchAction::Done(second, failed, anchored) => {
+-                            if let Some(Else::Block(block)) = progress.otherwise
+-                                && progress.branch_context.expected.is_none()
+-                                && progress.anchor_error.is_none()
+-                                && !failed
+-                                && !anchored
+-                                && let (Some((base, base_span)), Some(found)) =
+-                                    (progress.anchor.as_ref(), second.as_ref())
++                            if let Err(error) =
++                                self.second_leaf_anchor(*visit, progress, &second, failed, anchored)
+                             {
+-                                let found_span =
+-                                    branch_value_span(block).unwrap_or_else(|| block.span.clone());
+-                                match self.unify(
+-                                    *visit,
+-                                    base.clone(),
+-                                    found.clone(),
+-                                    base_span.clone(),
+-                                    found_span.clone(),
+-                                    found_span,
+-                                    true,
+-                                ) {
+-                                    Err(error) if error.operation == Operation::AnalysisLimit => {
+-                                        return IfAction::Done(Err(error));
+-                                    }
+-                                    Err(error) => progress.anchor_error = Some(error),
+-                                    Ok(_) => {}
+-                                }
++                                return IfAction::Done(Err(error));
+                             }
+                             return IfAction::Done(
+                                 self.if_finish_join(progress, second, failed, anchored),
+@@ -14064,6 +13927,115 @@ impl Checker<'_> {
+         }
+     }
+ 
++    /// Registers the anchor of a union once its first continuation fixes it.
++    #[inline(never)]
++    fn anchor_open(&mut self, origin: &Span) {
++        self.graph
++            .union_denounced
++            .entry(span_key(origin))
++            .or_insert(false);
++    }
++
++    /// The single place where a leaf is equated with its union anchor
++    /// (F0-0002 §4.1.2.2 and §4.1.2.4). A compatible equality accumulates in
++    /// any state; the first incompatible one marks the union denounced; later
++    /// ones are rejected atomically without a diagnostic of their own.
++    #[inline(never)]
++    fn anchor_contrast(
++        &mut self,
++        visit: Option<FactId>,
++        base: &(Type, Span),
++        found: Type,
++        found_span: Span,
++    ) -> Result<AnchorOutcome, Box<Diagnostic>> {
++        let key = span_key(&base.1);
++        let state = self.graph.union_denounced.get(&key).copied();
++        let before = self.pending_join_count();
++        let outcome = match visit {
++            None => self.unify_independent(
++                base.0.clone(),
++                found,
++                base.1.clone(),
++                found_span.clone(),
++                found_span,
++                true,
++            ),
++            Some(visit) => self.unify(
++                visit,
++                base.0.clone(),
++                found,
++                base.1.clone(),
++                found_span.clone(),
++                found_span,
++                true,
++            ),
++        };
++        let error = match outcome {
++            Err(error) if error.operation == Operation::AnalysisLimit => return Err(error),
++            Err(error) => Some(error),
++            Ok(_) => None,
++        };
++        if error.is_none() && self.pending_join_count() <= before {
++            return Ok(AnchorOutcome::Compatible);
++        }
++        if state == Some(true) {
++            self.truncate_pending_joins(before);
++            return Ok(AnchorOutcome::Absorbed);
++        }
++        if state == Some(false) {
++            self.graph.union_denounced.insert(key, true);
++        }
++        Ok(match error {
++            Some(error) => AnchorOutcome::Reported(error),
++            None => AnchorOutcome::Pending,
++        })
++    }
++
++    /// Contrasts the value of an `else` block with the union anchor.
++    #[inline(never)]
++    fn second_leaf_anchor(
++        &mut self,
++        visit: FactId,
++        progress: &mut IfProgress<'_>,
++        second: &Option<Type>,
++        failed: bool,
++        anchored: bool,
++    ) -> Result<(), Box<Diagnostic>> {
++        let Some(Else::Block(block)) = progress.otherwise else {
++            return Ok(());
++        };
++        if progress.branch_context.expected.is_some() || failed || anchored {
++            return Ok(());
++        }
++        let Some(base) = progress.anchor.clone() else {
++            return Ok(());
++        };
++        let registered = self.graph.union_denounced.contains_key(&span_key(&base.1));
++        // A pending variable is a valid continuation (D-REF): once the union
++        // is registered it is contrasted too, like the first continuation.
++        let found = second.clone().or_else(|| {
++            branch_value_expr(block)
++                .filter(|_| registered)
++                .and_then(|expr| self.expression_variable(expr))
++                .map(Type::Deferred)
++        });
++        let Some(found) = found else {
++            return Ok(());
++        };
++        if !registered && progress.anchor_error.is_some() {
++            return Ok(());
++        }
++        let found_span = branch_value_span(block).unwrap_or_else(|| block.span.clone());
++        match self.anchor_contrast(Some(visit), &base, found, found_span)? {
++            AnchorOutcome::Compatible => {}
++            AnchorOutcome::Reported(error) => progress.anchor_error = Some(error),
++            AnchorOutcome::Pending => progress.anchor_pending |= registered,
++            AnchorOutcome::Absorbed => progress.anchor_absorbed = true,
++        }
++        Ok(())
++    }
++
++    #[inline(never)]
+     fn if_after_first(&mut self, progress: &mut IfProgress<'_>) -> Result<(), Box<Diagnostic>> {
+         let then_block = progress.then_block;
+         progress.first_anchored |= branch_value_expr(then_block).is_some_and(|expr| {
+@@ -14091,24 +14063,17 @@ impl Checker<'_> {
+                 progress.first_for_anchor.as_ref(),
+             )
+         {
+-            let pending_before_anchor = self.pending_join_count();
+             let found_span = progress
+                 .first_span
+                 .clone()
+                 .unwrap_or_else(|| then_block.span.clone());
+-            match self.unify_independent(
+-                base.clone(),
+-                found.clone(),
+-                base_span.clone(),
+-                found_span.clone(),
+-                found_span,
+-                true,
+-            ) {
+-                Err(error) if error.operation == Operation::AnalysisLimit => return Err(error),
+-                Err(error) => progress.anchor_error = Some(error),
+-                Ok(_) => {}
++            let base = (base.clone(), base_span.clone());
++            match self.anchor_contrast(None, &base, found.clone(), found_span)? {
++                AnchorOutcome::Compatible => {}
++                AnchorOutcome::Reported(error) => progress.anchor_error = Some(error),
++                AnchorOutcome::Pending => progress.anchor_pending = true,
++                AnchorOutcome::Absorbed => progress.anchor_absorbed = true,
+             }
+-            progress.anchor_pending = self.pending_join_count() > pending_before_anchor;
+         }
+         progress.anchor = progress.branch_context.anchor.clone().or_else(|| {
+             ((!progress.first_failed || progress.first_partial) && !progress.first_anchored)
+@@ -14121,44 +14086,23 @@ impl Checker<'_> {
+                 })
+                 .flatten()
+         });
++        if progress.branch_context.anchor.is_none()
++            && let Some((_, origin)) = progress.anchor.as_ref()
++        {
++            self.anchor_open(origin);
++        }
+         Ok(())
+     }
+ 
+-    fn if_else_context(&mut self, progress: &IfProgress<'_>, other: &Expr) -> OwnedCheckContext {
+-        let inner_shape_conflict = if let Expr::If {
+-            then_block,
+-            otherwise: Some(inner_other),
+-            ..
+-        } = other
+-        {
+-            let first = branch_value_expr(then_block);
+-            let second = match inner_other.as_ref() {
+-                Else::Block(block) => branch_value_expr(block),
+-                Else::If(_) => None,
+-            };
+-            first.zip(second).is_some_and(|(first, second)| {
+-                let first = self.expression_shape_hint(first);
+-                let second = self.expression_shape_hint(second);
+-                Self::shape_hints_conflict(&first, &second)
+-            })
+-        } else {
+-            false
+-        };
+-        let anchor = if inner_shape_conflict
+-            && progress
+-                .anchor
+-                .as_ref()
+-                .is_some_and(|(ty, _)| self.resolved_join_side(ty.clone()).is_none())
+-        {
+-            None
+-        } else {
+-            progress.anchor.clone()
+-        };
++    #[inline(never)]
++    fn if_else_context(&self, progress: &IfProgress<'_>) -> OwnedCheckContext {
++        // The anchor always reaches the later continuations of the union
++        // (F0-0002 §4.1.2.4): a nested `if` never discards it.
+         OwnedCheckContext {
+             expected: progress.branch_context.expected.clone(),
+             expected_span: progress.branch_context.expected_span.clone(),
+             check_here: true,
+-            anchor,
++            anchor: progress.anchor.clone(),
+             outer_compare: false,
+             related_expected: progress.branch_context.related_expected,
+             deferred_element: progress.branch_context.deferred_element,
+@@ -15393,6 +15337,7 @@ pub(crate) fn check_with_partial_limit(
+             nested_assignment_sites: HashSet::new(),
+             pre_assignment_snapshot: HashMap::new(),
+             projected_bases: HashSet::new(),
++            union_denounced: HashMap::new(),
+             projection_items: HashSet::new(),
+             assigned_bases: HashSet::new(),
+             assignment_starts: HashMap::new(),
+@@ -16985,6 +16930,7 @@ mod quota_tests {
+                 nested_assignment_sites: HashSet::new(),
+                 pre_assignment_snapshot: HashMap::new(),
+                 projected_bases: HashSet::new(),
++                union_denounced: HashMap::new(),
+                 projection_items: HashSet::new(),
+                 assigned_bases: HashSet::new(),
+                 assignment_starts: HashMap::new(),
+@@ -19139,19 +19085,6 @@ mod quota_tests {
+         );
+     }
+ 
+-    #[test]
+-    fn i07c_survivor2_nested_shape_hints_reach_the_leaf() {
+-        let array = Type::Array(Arc::new(Type::I64));
+-        assert!(
+-            Checker::type_shape_hint(&array)
+-                == ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::I64)))
+-        );
+-        let left = ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::I64)));
+-        let right = ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::Bool)));
+-        assert!(Checker::shape_hints_conflict(&left, &right));
+-        assert!(!Checker::shape_hints_conflict(&left, &left));
+-    }
+-
+     #[test]
+     fn i07c_survivor2_pending_operation_types_match_their_sites() {
+         let resolved = Resolved {
+diff --git a/tests/i07c_s5c_anchor.rs b/tests/i07c_s5c_anchor.rs
+index 6bf3dab..e22ae30 100644
+--- a/tests/i07c_s5c_anchor.rs
++++ b/tests/i07c_s5c_anchor.rs
+@@ -117,17 +117,15 @@ fn matrix_guard_r1_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/R1.n");
+     rows(
+         "R1",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (91, 92),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((73, 74)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -136,17 +134,15 @@ fn matrix_guard_r1twin_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/R1twin.n");
+     rows(
+         "R1twin",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (95, 96),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((77, 78)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -155,17 +151,15 @@ fn matrix_guard_r2_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/R2.n");
+     rows(
+         "R2",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (93, 94),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((68, 69)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -174,17 +168,15 @@ fn matrix_guard_r2b_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/R2b.n");
+     rows(
+         "R2b",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (98, 99),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((73, 74)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -193,17 +185,15 @@ fn matrix_guard_r3_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/R3.n");
+     rows(
+         "R3",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (99, 104),
+             token: "[q,r]",
+             types: Some(("I64", "Array<Array<Array<Array<I64>>>>")),
+             rel: Some((81, 82)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -212,17 +202,15 @@ fn matrix_guard_r3b_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/R3b.n");
+     rows(
+         "R3b",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (77, 78),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((59, 60)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -231,17 +219,15 @@ fn matrix_guard_r3c_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/R3c.n");
+     rows(
+         "R3c",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (82, 83),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((64, 65)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -250,17 +236,15 @@ fn matrix_guard_x_mix3_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/X_mix3.n");
+     rows(
+         "X_mix3",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (104, 105),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((68, 69)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -269,17 +253,15 @@ fn matrix_guard_x_r4asg_r_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/X_R4asg_r.n");
+     rows(
+         "X_R4asg_r",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (86, 87),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((68, 69)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -288,17 +270,15 @@ fn matrix_guard_x_r1pre_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/X_R1pre.n");
+     rows(
+         "X_R1pre",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (100, 101),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((82, 83)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -307,24 +287,24 @@ fn matrix_guard_x_r2na_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/X_R2na.n");
+     rows(
+         "X_R2na",
+-        &source,
++        source,
+         &[
+-        D {
+-            code: "NX-E0103",
+-            sub: None,
+-            span: (38, 40),
+-            token: "[]",
+-            types: None,
+-            rel: None,
+-        },
+-        D {
+-            code: "NX-E0103",
+-            sub: None,
+-            span: (47, 49),
+-            token: "[]",
+-            types: None,
+-            rel: None,
+-        },
++            D {
++                code: "NX-E0103",
++                sub: None,
++                span: (38, 40),
++                token: "[]",
++                types: None,
++                rel: None,
++            },
++            D {
++                code: "NX-E0103",
++                sub: None,
++                span: (47, 49),
++                token: "[]",
++                types: None,
++                rel: None,
++            },
+         ],
+     );
+ }
+@@ -334,24 +314,24 @@ fn matrix_guard_x_r4na_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/X_R4na.n");
+     rows(
+         "X_R4na",
+-        &source,
++        source,
+         &[
+-        D {
+-            code: "NX-E0103",
+-            sub: None,
+-            span: (38, 40),
+-            token: "[]",
+-            types: None,
+-            rel: None,
+-        },
+-        D {
+-            code: "NX-E0103",
+-            sub: None,
+-            span: (47, 49),
+-            token: "[]",
+-            types: None,
+-            rel: None,
+-        },
++            D {
++                code: "NX-E0103",
++                sub: None,
++                span: (38, 40),
++                token: "[]",
++                types: None,
++                rel: None,
++            },
++            D {
++                code: "NX-E0103",
++                sub: None,
++                span: (47, 49),
++                token: "[]",
++                types: None,
++                rel: None,
++            },
+         ],
+     );
+ }
+@@ -361,24 +341,24 @@ fn matrix_guard_x_nest_first_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/X_nest_first.n");
+     rows(
+         "X_nest_first",
+-        &source,
++        source,
+         &[
+-        D {
+-            code: "NX-E1303",
+-            sub: None,
+-            span: (77, 78),
+-            token: "1",
+-            types: Some(("Array<Array<Array<I64>>>", "I64")),
+-            rel: Some((70, 71)),
+-        },
+-        D {
+-            code: "NX-E1303",
+-            sub: None,
+-            span: (85, 86),
+-            token: "2",
+-            types: Some(("Array<Array<Array<I64>>>", "I64")),
+-            rel: Some((60, 78)),
+-        },
++            D {
++                code: "NX-E1303",
++                sub: None,
++                span: (77, 78),
++                token: "1",
++                types: Some(("Array<Array<Array<I64>>>", "I64")),
++                rel: Some((70, 71)),
++            },
++            D {
++                code: "NX-E1303",
++                sub: None,
++                span: (85, 86),
++                token: "2",
++                types: Some(("Array<Array<Array<I64>>>", "I64")),
++                rel: Some((60, 78)),
++            },
+         ],
+     );
+ }
+@@ -388,17 +368,15 @@ fn matrix_guard_y_conc_if_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/Y_conc_if.n");
+     rows(
+         "Y_conc_if",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (67, 68),
+             token: "1",
+             types: Some(("Array<I64>", "I64")),
+             rel: Some((49, 50)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -407,24 +385,22 @@ fn matrix_guard_y_pend_if_asg_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/Y_pend_if_asg.n");
+     rows(
+         "Y_pend_if_asg",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (66, 67),
+             token: "1",
+             types: Some(("Array<I64>", "I64")),
+             rel: Some((48, 49)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+ #[test]
+ fn matrix_guard_w0nounion_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/W0nounion.n");
+-    rows("W0nounion", &source, &[]);
++    rows("W0nounion", source, &[]);
+ }
+ 
+ #[test]
+@@ -432,17 +408,15 @@ fn matrix_guard_a_ctrl_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/A_ctrl.n");
+     rows(
+         "A_ctrl",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (83, 86),
+             token: "[r]",
+             types: Some(("Array<Array<I64>>", "Array<Array<Array<I64>>>")),
+             rel: Some((53, 54)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -451,24 +425,24 @@ fn matrix_guard_b_rq_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/B_rq.n");
+     rows(
+         "B_rq",
+-        &source,
++        source,
+         &[
+-        D {
+-            code: "NX-E1303",
+-            sub: None,
+-            span: (63, 64),
+-            token: "q",
+-            types: Some(("Bool", "Array<Array<I64>>")),
+-            rel: Some((56, 57)),
+-        },
+-        D {
+-            code: "NX-E0102",
+-            sub: Some("type_mismatch"),
+-            span: (89, 90),
+-            token: "3",
+-            types: Some(("Array<I64>", "I64")),
+-            rel: Some((76, 77)),
+-        },
++            D {
++                code: "NX-E1303",
++                sub: None,
++                span: (63, 64),
++                token: "q",
++                types: Some(("Bool", "Array<Array<I64>>")),
++                rel: Some((56, 57)),
++            },
++            D {
++                code: "NX-E0102",
++                sub: Some("type_mismatch"),
++                span: (89, 90),
++                token: "3",
++                types: Some(("Array<I64>", "I64")),
++                rel: Some((76, 77)),
++            },
+         ],
+     );
+ }
+@@ -478,17 +452,15 @@ fn matrix_guard_m2_noasg_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/M2_noasg.n");
+     rows(
+         "M2_noasg",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (77, 78),
+             token: "r",
+             types: Some(("Array<Array<I64>>", "Array<Array<Array<I64>>>")),
+             rel: Some((53, 57)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -497,24 +469,22 @@ fn matrix_guard_m2_ctrl_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/M2_ctrl.n");
+     rows(
+         "M2_ctrl",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (77, 78),
+             token: "r",
+             types: Some(("Array<Array<I64>>", "Array<Array<Array<I64>>>")),
+             rel: Some((53, 57)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+ #[test]
+ fn matrix_guard_dref_valid_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/DREF_valid.n");
+-    rows("DREF_valid", &source, &[]);
++    rows("DREF_valid", source, &[]);
+ }
+ 
+ #[test]
+@@ -522,24 +492,24 @@ fn matrix_guard_x_two_unions_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/X_two_unions.n");
+     rows(
+         "X_two_unions",
+-        &source,
++        source,
+         &[
+-        D {
+-            code: "NX-E1303",
+-            sub: None,
+-            span: (86, 87),
+-            token: "1",
+-            types: Some(("Array<Array<Array<I64>>>", "I64")),
+-            rel: Some((68, 69)),
+-        },
+-        D {
+-            code: "NX-E1303",
+-            sub: None,
+-            span: (133, 137),
+-            token: "true",
+-            types: Some(("Array<Array<Array<I64>>>", "Bool")),
+-            rel: Some((115, 116)),
+-        },
++            D {
++                code: "NX-E1303",
++                sub: None,
++                span: (86, 87),
++                token: "1",
++                types: Some(("Array<Array<Array<I64>>>", "I64")),
++                rel: Some((68, 69)),
++            },
++            D {
++                code: "NX-E1303",
++                sub: None,
++                span: (133, 137),
++                token: "true",
++                types: Some(("Array<Array<Array<I64>>>", "Bool")),
++                rel: Some((115, 116)),
++            },
+         ],
+     );
+ }
+@@ -549,17 +519,15 @@ fn matrix_guard_p12_matches_adr_derivation() {
+     let source = include_str!("../docs/validation/i07c-s5c/matriz/P12.n");
+     rows(
+         "P12",
+-        &source,
+-        &[
+-        D {
++        source,
++        &[D {
+             code: "NX-E1303",
+             sub: None,
+             span: (106, 107),
+             token: "1",
+             types: Some(("Array<Array<Array<I64>>>", "I64")),
+             rel: Some((81, 82)),
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -569,16 +537,14 @@ fn matrix_guard_last_leaf_after_pending_matches_adr_derivation() {
+     rows(
+         "last_leaf_after_pending",
+         &source,
+-        &[
+-        D {
++        &[D {
+             code: "NX-E0103",
+             sub: None,
+             span: (38, 40),
+             token: "[]",
+             types: None,
+             rel: None,
+-        },
+-        ],
++        }],
+     );
+ }
+ 
+@@ -587,3 +553,314 @@ fn matrix_guard_valid_all_pending_then_assign_matches_adr_derivation() {
+     let source = format!("{PF}var r=[];let a0=(if p then r else (if p then r else r));r=[2];}}");
+     rows("valid_all_pending_then_assign", &source, &[]);
+ }
++
++#[test]
++fn matrix_negative_r4_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/R4.n");
++    rows(
++        "R4",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (94, 95),
++            token: "1",
++            types: Some(("Array<Array<Array<I64>>>", "I64")),
++            rel: Some((76, 77)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_x_flat3_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/X_flat3.n");
++    rows(
++        "X_flat3",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (77, 78),
++            token: "1",
++            types: Some(("Array<Array<Array<I64>>>", "I64")),
++            rel: Some((59, 60)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_y_pend_if_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/Y_pend_if.n");
++    rows(
++        "Y_pend_if",
++        source,
++        &[D {
++            code: "NX-E0103",
++            sub: None,
++            span: (38, 40),
++            token: "[]",
++            types: None,
++            rel: None,
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_y_pend_if2_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/Y_pend_if2.n");
++    rows(
++        "Y_pend_if2",
++        source,
++        &[D {
++            code: "NX-E0103",
++            sub: None,
++            span: (38, 40),
++            token: "[]",
++            types: None,
++            rel: None,
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_x_r1na_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/X_R1na.n");
++    rows(
++        "X_R1na",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (91, 92),
++            token: "1",
++            types: Some(("Array<Array<Array<I64>>>", "I64")),
++            rel: Some((73, 74)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_x_r1ord_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/X_R1ord.n");
++    rows(
++        "X_R1ord",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (98, 99),
++            token: "1",
++            types: Some(("Array<Array<Array<I64>>>", "I64")),
++            rel: Some((73, 74)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_x_r1inc_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/X_R1inc.n");
++    rows(
++        "X_R1inc",
++        source,
++        &[
++            D {
++                code: "NX-E1303",
++                sub: None,
++                span: (91, 92),
++                token: "1",
++                types: Some(("Array<Array<Array<I64>>>", "I64")),
++                rel: Some((73, 74)),
++            },
++            D {
++                code: "NX-E0102",
++                sub: Some("type_mismatch"),
++                span: (105, 106),
++                token: "3",
++                types: Some(("Array<Array<I64>>", "I64")),
++                rel: Some((98, 99)),
++            },
++        ],
++    );
++}
++
++#[test]
++fn matrix_negative_x_join_local_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/X_join_local.n");
++    rows(
++        "X_join_local",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (77, 78),
++            token: "1",
++            types: Some(("Array<Array<Array<I64>>>", "I64")),
++            rel: Some((59, 60)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_x_compat_then_absorbed_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/X_compat_then_absorbed.n");
++    rows(
++        "X_compat_then_absorbed",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (77, 78),
++            token: "1",
++            types: Some(("Array<Array<Array<I64>>>", "I64")),
++            rel: Some((59, 60)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_x_pend_second_leaf_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/X_pend_second_leaf.n");
++    rows(
++        "X_pend_second_leaf",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (95, 96),
++            token: "1",
++            types: Some(("Array<I64>", "I64")),
++            rel: Some((59, 60)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_x_pend_second_leaf_noasg_matches_adr_derivation() {
++    let source = format!(
++        "{PF}var r=[];let a0=(if p then r else (if p then (if p then r else 1) else true));}}"
++    );
++    rows(
++        "X_pend_second_leaf_noasg",
++        &source,
++        &[D {
++            code: "NX-E0103",
++            sub: None,
++            span: (38, 40),
++            token: "[]",
++            types: None,
++            rel: None,
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_p03_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/P03.n");
++    rows(
++        "P03",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (98, 99),
++            token: "1",
++            types: Some(("Array<I64>", "I64")),
++            rel: Some((72, 73)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_p04_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/P04.n");
++    rows(
++        "P04",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (90, 91),
++            token: "1",
++            types: Some(("Array<I64>", "I64")),
++            rel: Some((72, 73)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_p05_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/P05.n");
++    rows(
++        "P05",
++        source,
++        &[D {
++            code: "NX-E0103",
++            sub: None,
++            span: (52, 54),
++            token: "[]",
++            types: None,
++            rel: None,
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_p15_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/P15.n");
++    rows(
++        "P15",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (91, 94),
++            token: "aar",
++            types: Some(("Array<I64>", "Array<Array<I64>>")),
++            rel: Some((72, 74)),
++        }],
++    );
++}
++
++#[test]
++fn matrix_negative_p16_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/P16.n");
++    rows(
++        "P16",
++        source,
++        &[
++            D {
++                code: "NX-E1303",
++                sub: None,
++                span: (91, 94),
++                token: "aar",
++                types: Some(("Array<I64>", "Array<Array<I64>>")),
++                rel: Some((72, 74)),
++            },
++            D {
++                code: "NX-E0102",
++                sub: Some("type_mismatch"),
++                span: (107, 111),
++                token: "true",
++                types: Some(("I64", "Bool")),
++                rel: Some((72, 74)),
++            },
++        ],
++    );
++}
++
++#[test]
++fn matrix_negative_p17_matches_adr_derivation() {
++    let source = include_str!("../docs/validation/i07c-s5c/matriz/P17.n");
++    rows(
++        "P17",
++        source,
++        &[D {
++            code: "NX-E1303",
++            sub: None,
++            span: (98, 101),
++            token: "aar",
++            types: Some(("Array<I64>", "Array<Array<I64>>")),
++            rel: Some((72, 73)),
++        }],
++    );
++}
+diff --git a/tests/i07c_structural_invariants.rs b/tests/i07c_structural_invariants.rs
+index 6f9cc7d..13f44f2 100644
+--- a/tests/i07c_structural_invariants.rs
++++ b/tests/i07c_structural_invariants.rs
+@@ -149,9 +149,9 @@ fn grouped_operands_keep_one_causal_primary() {
+     // The three grouped primaries (for_iteration, non-callable target, closure
+     // target) now call the single group-removal helper; none is pending.
+     assert!(
+-        text.contains("expression_primary: 3 lines=8279,12484,14797")
+-            && text.contains("delegated_primary: 1 lines=7078")
+-            && text.contains("argument_target_primary: 1 lines=14811")
++        text.contains("expression_primary: 3 lines=8159,12365,14730")
++            && text.contains("delegated_primary: 1 lines=6957")
++            && text.contains("argument_target_primary: 1 lines=14744")
+             && text.contains("types.rs reviewed: 14/14")
+             && text.contains("names.rs reviewed: 5/5")
+             && text.contains("effects.rs reviewed: 1/1")
