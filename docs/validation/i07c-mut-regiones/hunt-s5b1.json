@@ -1,0 +1,11 @@
+{
+ "M00067": "DEFECTO DE COBERTURA con programa `fn Main(){for x in [1+true]{}break;}` (falta NX-E1326 en `break`); regresion 08237c4",
+ "M00348": "SIN PROGRAMA tras la caza (1.285+500 fuentes, 860+600 dirigidas); argumento de invariante: `child` nace de `new_variable` en la misma rama (types.rs ~12135), `concrete` es None y `variant_children` None, y `data_only` solo se consulta en esos dos casos (`require_copyable`, types.rs 4423-4460)",
+ "M00388": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
+ "M00256": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
+ "M00122": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
+ "M00036": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
+ "M00270": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
+ "M00026": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
+ "M00081": "SIN PROGRAMA tras la caza (1.285+500 fuentes release, 860+168+600 dirigidas)"
+}
