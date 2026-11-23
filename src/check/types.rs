@@ -2195,6 +2195,14 @@ struct InferenceGraph {
     // first valid continuation, F0-0002 §4.1.2.4): `true` once the union has
     // denounced its first incompatible continuation. Cleared per function.
     union_denounced: HashMap<(u64, u64), bool>,
+    // Layer index of each unconsumed seed: (binding site, depth).
+    preseeded_layer: HashMap<u64, (u64, usize)>,
+    // Deepest seeded layer count a binding may keep after retraction.
+    seed_cap: HashMap<u64, usize>,
+    // Bindings whose later assignment this pass rejected or deferred as a conflict.
+    rejected_assignments: HashSet<u64>,
+    // Pending-join count when each named assignment began (keyed by place).
+    assignment_join_marks: HashMap<u64, usize>,
     result: Type,
     result_span: Option<Span>,
 }
@@ -3268,6 +3276,8 @@ impl Checker<'_> {
                 && !has_conditional_projection
                 && has_deferred_join
                 && !conflicts_prefix
+                && !self.graph.rejected_assignments.contains(&site)
+                && !self.graph.seed_cap.contains_key(&site)
                 && let Some(ty) = read_type
                 && let Some(&assignment_start) = self.graph.assignment_starts.get(&site)
             {
@@ -3378,6 +3388,39 @@ impl Checker<'_> {
         changed
     }
 
+    /// Retracts the seeded layers that no real equality of the pass justifies.
+    fn retract_unconsumed_seeds(&mut self) -> bool {
+        let nodes: Vec<u64> = self.graph.type_nodes.keys().copied().collect();
+        let mut witnessed_roots: HashSet<u64> = HashSet::new();
+        for id in nodes {
+            if !self.graph.preseeded_layer.contains_key(&id) {
+                witnessed_roots.insert(self.root(id));
+            }
+        }
+        let seeded: Vec<(u64, (u64, usize))> = self
+            .graph
+            .preseeded_layer
+            .iter()
+            .map(|(&child, &layer)| (child, layer))
+            .collect();
+        let mut changed = false;
+        for (child, (site, index)) in seeded {
+            let root = self.root(child);
+            let witnessed = witnessed_roots.contains(&root)
+                || self.graph.type_nodes[&root].concrete.is_some()
+                || !self.graph.preseeded_children.contains(&child);
+            if witnessed {
+                continue;
+            }
+            let cap = self.graph.seed_cap.entry(site).or_insert(usize::MAX);
+            if index < *cap {
+                *cap = index;
+                changed = true;
+            }
+        }
+        changed
+    }
+
     fn seed_planned_shape(&mut self, site: u64, id: u64) {
         let Some(origins) = self.graph.shape_plan.get(&site).cloned() else {
             return;
@@ -3385,8 +3428,15 @@ impl Checker<'_> {
         if xv("noshape") {
             return;
         }
+        let cap = self
+            .graph
+            .seed_cap
+            .get(&site)
+            .copied()
+            .unwrap_or(usize::MAX);
+        let retracted = cap < origins.len();
         let mut current = id;
-        for origin in origins {
+        for (layer_index, origin) in origins.into_iter().take(cap).enumerate() {
             current = self.root(current);
             if let Some(child) = self.graph.type_nodes[&current].array_child {
                 current = child;
@@ -3422,14 +3472,19 @@ impl Checker<'_> {
                 .unwrap()
                 .array_origin = Some(origin);
             self.graph.preseeded_children.insert(child);
+            self.graph
+                .preseeded_layer
+                .insert(child, (site, layer_index));
             current = child;
         }
         if !self.planning
+            && (!retracted || xv("v6ev"))
             && !xv("noseed")
             && let Some(evidence) = self.graph.concrete_plan.get(&site).cloned()
         {
             let mut ty = evidence.ty;
-            for _ in 0..=128 {
+            let strip = if retracted { cap } else { 129 };
+            for _ in 0..strip {
                 let Type::Array(child) = ty else {
                     break;
                 };
@@ -7432,6 +7487,9 @@ impl Checker<'_> {
         self.graph.locals.clear();
         self.graph.eligible_shapes.clear();
         self.graph.preseeded_children.clear();
+        self.graph.preseeded_layer.clear();
+        self.graph.rejected_assignments.clear();
+        self.graph.assignment_join_marks.clear();
         self.graph.projected_bases.clear();
         self.graph.union_denounced.clear();
         self.graph.projection_items.clear();
@@ -8241,6 +8299,8 @@ impl Checker<'_> {
             && let Expr::Name(_, span) = place
             && let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&span.start)
         {
+            let joins = self.pending_join_count();
+            self.graph.assignment_join_marks.insert(span.start, joins);
             if self.graph.eligible_shapes.contains(&local.name_span.start)
                 && !self
                     .graph
@@ -8398,7 +8458,8 @@ impl Checker<'_> {
         progress: AssignmentProgress<'_>,
         result: Result<Type, Box<Diagnostic>>,
     ) -> Result<(), Box<Diagnostic>> {
-        (|| {
+        let assigned_place = progress.place;
+        let outcome = (|| {
             let Some(local) = progress.local else {
                 result?;
                 return Ok(());
@@ -8453,7 +8514,31 @@ impl Checker<'_> {
                 self.retain_assignment_origin(local, &right_origin);
             }
             Ok(())
-        })()
+        })();
+        self.note_assignment_verdict(assigned_place, outcome.is_err());
+        outcome
+    }
+
+    /// Records, in planning, that the pass rejected an assignment or kept its
+    /// conflict as a pending join: that assignment's type cannot retype the
+    /// reads before it (§4.1.2.2). Out of line to keep the driver frames.
+    #[inline(never)]
+    fn note_assignment_verdict(&mut self, place: &Expr, failed: bool) {
+        if !self.planning {
+            return;
+        }
+        let Expr::Name(_, span) = place else {
+            return;
+        };
+        let before = self.graph.assignment_join_marks.remove(&span.start);
+        if let Some(ResolvedUse::Local(binding)) = self.resolved.uses.get(&span.start)
+            && (xv("v6") || xv("v6rej"))
+            && (failed || before.is_some_and(|before| self.pending_join_count() > before))
+        {
+            self.graph
+                .rejected_assignments
+                .insert(binding.name_span.start);
+        }
     }
 
     fn prepare_let(
@@ -13682,6 +13767,7 @@ impl Checker<'_> {
         let join = if anchor_error.is_none()
             && !anchor_pending
             && !anchor_absorbed
+            && !(xv("nojoin") && progress.anchor.is_some())
             && !skip_failed_context_join
             && (expected.is_none() || needs_deferred_join)
             && let (Some(left), Some(right)) = (first_join, second_join)
@@ -14007,6 +14093,9 @@ impl Checker<'_> {
     ) -> Result<AnchorOutcome, Box<Diagnostic>> {
         let key = span_key(&base.1);
         let state = self.graph.union_denounced.get(&key).copied();
+        let found_span_dbg = found_span.clone();
+        let snapshot = (xv("atomic") && state == Some(true))
+            .then(|| (self.graph.type_nodes.clone(), self.graph.obligations.clone()));
         let before = self.pending_join_count();
         let outcome = match visit {
             None => self.unify_independent(
@@ -14032,10 +14121,26 @@ impl Checker<'_> {
             Err(error) => Some(error),
             Ok(_) => None,
         };
+        if xv("dbg") {
+            eprintln!(
+                "CONTRAST pl={} base={:?} found={:?} state={:?} err={} newjoins={}",
+                self.planning,
+                (base.1.start, base.1.end),
+                (found_span_dbg.start, found_span_dbg.end),
+                state,
+                error.is_some(),
+                self.pending_join_count() > before
+            );
+        }
         if error.is_none() && self.pending_join_count() <= before {
             return Ok(AnchorOutcome::Compatible);
         }
         if state == Some(true) {
+            if let Some((nodes, obligations)) = snapshot {
+                self.graph.type_nodes = nodes;
+                self.graph.obligations = obligations;
+                return Ok(AnchorOutcome::Absorbed);
+            }
             if xv("retract") {
                 self.retract_pending_joins(before);
             } else {
@@ -14136,9 +14241,9 @@ impl Checker<'_> {
                 AnchorOutcome::Absorbed => progress.anchor_absorbed = true,
             }
         }
-        let nested_witness = xv("anchw")
-            && progress.first_failed
+        let nested_witness = (xv("anchw") && progress.first_failed || xv("anchw2"))
             && progress.first_anchored
+            && progress.first_for_anchor.is_some()
             && branch_value_expr(then_block).is_some_and(Self::is_value_if);
         progress.anchor = progress.branch_context.anchor.clone().or_else(|| {
             (((!progress.first_failed || progress.first_partial) && !progress.first_anchored)
@@ -14152,6 +14257,19 @@ impl Checker<'_> {
                 })
                 .flatten()
         });
+        if xv("dbg") {
+            eprintln!(
+                "IF1 pl={} first_span={:?} ctx_anchor={:?} anchor={:?} failed={} anchored={} partial={} fa={}",
+                self.planning,
+                progress.first_span.as_ref().map(|s| (s.start, s.end)),
+                progress.branch_context.anchor.as_ref().map(|a| (a.1.start, a.1.end)),
+                progress.anchor.as_ref().map(|a| (a.1.start, a.1.end)),
+                progress.first_failed,
+                progress.first_anchored,
+                progress.first_partial,
+                progress.first_for_anchor.is_some()
+            );
+        }
         if progress.branch_context.anchor.is_none()
             && let Some((_, origin)) = progress.anchor.as_ref()
         {
@@ -15410,6 +15528,10 @@ pub(crate) fn check_with_partial_limit(
             first_assignment_rhs_starts: HashMap::new(),
             prefix_concrete: HashMap::new(),
             preseeded_children: HashSet::new(),
+            preseeded_layer: HashMap::new(),
+            seed_cap: HashMap::new(),
+            rejected_assignments: HashSet::new(),
+            assignment_join_marks: HashMap::new(),
             result: Type::Unit,
             result_span: None,
         },
@@ -15421,11 +15543,15 @@ pub(crate) fn check_with_partial_limit(
             break;
         }
         checker.planning = true;
+        // `seed_cap` only decreases and planning never applies `read_plan`, so
+        // retraction and the verdicts it feeds cannot make the plan oscillate.
+        checker.graph.seed_cap.clear();
         for _ in 0..=128 {
             checker.analysis_exhausted = false;
             checker.quota_error = None;
             let _ = checker.function(function);
-            if !checker.collect_planned_shapes() {
+            let retracted = (xv("v6") || xv("v6cap")) && checker.retract_unconsumed_seeds();
+            if !checker.collect_planned_shapes() && !retracted {
                 break;
             }
         }
@@ -17003,6 +17129,10 @@ mod quota_tests {
                 first_assignment_rhs_starts: HashMap::new(),
                 prefix_concrete: HashMap::new(),
                 preseeded_children: HashSet::new(),
+                preseeded_layer: HashMap::new(),
+                seed_cap: HashMap::new(),
+                rejected_assignments: HashSet::new(),
+                assignment_join_marks: HashMap::new(),
                 result: Type::Unit,
                 result_span: None,
                 nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
