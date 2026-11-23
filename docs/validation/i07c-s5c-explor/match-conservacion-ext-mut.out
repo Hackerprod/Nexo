@@ -1,0 +1,8 @@
+control (sin mutar)                exit=0 filas 82 diferencias: ninguna
+1 fila de menos                    exit=1 filas 81 diferencias: ['numero de filas: programas=82 tabla=81 campo=82 (esperadas 82)', "ids distintos: solo en tabla []; solo en programas ['dif-s99
+2 fila de mas                      exit=1 filas 83 diferencias: ['numero de filas: programas=82 tabla=83 campo=82 (esperadas 82)', "ids distintos: solo en tabla ['fila-de-mas']; solo en progra
+3 outcome alterado                 exit=1 filas 82 diferencias: ['rejilla1-union-propia-denunciada: difiere outcome/diagnosticos (conservacion)']
+4 diagnostico anadido              exit=1 filas 82 diferencias: ['rejilla1-union-propia-pendiente-else: difiere outcome/diagnosticos (conservacion)']
+5 perfil cambiado                  exit=1 filas 82 diferencias: ['rejilla1-union-propia-pendiente-then: difiere fuente/perfil/grupo/bytes']
+6 fila declarada alterada          exit=1 filas 82 diferencias: ['dif-s7021993-78-anadido: difiere outcome/diagnosticos (diferencias_declaradas)']
+RESULTADO: las 6 mutaciones fallan con exit 1 y el control pasa

@@ -2199,6 +2199,8 @@ struct InferenceGraph {
     pending_unions: HashSet<(u64, u64)>,
     // Simulation of the consumer flags `main` reports per union: (failed, join_failed, has_type).
     main_flags: HashMap<(u64, u64), (bool, bool, bool)>,
+    // NX-E0103 diagnostics omitted by the finalization rule; emitted if nothing else rejects the program.
+    skipped_e0103: Vec<Box<Diagnostic>>,
     // Layer index of each unconsumed seed: (binding site, depth).
     preseeded_layer: HashMap<u64, (u64, usize)>,
     // Deepest seeded layer count a binding may keep after retraction.
@@ -2733,7 +2735,7 @@ fn xv(flag: &str) -> bool {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     V.get_or_init(|| {
         std::env::var("NEXO_XV").unwrap_or_else(|_| {
-            "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr".to_string()
+            "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3".to_string()
         })
     })
         .split(',')
@@ -7502,6 +7504,7 @@ impl Checker<'_> {
         self.graph.union_denounced.clear();
         self.graph.pending_unions.clear();
         self.graph.main_flags.clear();
+        self.graph.skipped_e0103.clear();
         self.graph.projection_items.clear();
         self.graph.assigned_bases.clear();
         self.graph.nested_assignment_sites.clear();
@@ -7772,7 +7775,18 @@ impl Checker<'_> {
                 {
                     continue;
                 }
-                if (xv("e0103skip") || xv("e0103rule")) && self.graph.type_nodes[&constructor].array_origin.is_none() {
+                if (xv("e0103skip") || xv("e0103rule"))
+                    && self.graph.type_nodes[&constructor].array_origin.is_none()
+                    && (!xv("skipv2") || join.branch)
+                    && (!xv("skipv1")
+                        || self.pending_constructors().into_iter().any(|(child, array, _)| {
+                            self.root(array) == constructor || self.root(child) == constructor
+                        }))
+                {
+                    if xv("skipv3") {
+                        let skipped = self.unresolved_constructor_diagnostic(constructor, join.found.clone());
+                        self.graph.skipped_e0103.push(skipped);
+                    }
                     continue;
                 }
                 self.unresolved_constructor_diagnostic(constructor, join.found)
@@ -7868,6 +7882,12 @@ impl Checker<'_> {
                     .insert("unresolved_components".into(), DataValue::Array(paths));
                 self.record_error(diagnostic);
             }
+        }
+        if xv("skipv3")
+            && self.errors.is_empty()
+            && let Some(first) = self.graph.skipped_e0103.first().cloned()
+        {
+            self.record_error(first);
         }
         for domain in self.take_pending_kind(|entry| match entry {
             ObligationKind::Domain(domain) => Ok(domain),
@@ -15717,6 +15737,7 @@ pub(crate) fn check_with_partial_limit(
             union_denounced: HashMap::new(),
             pending_unions: HashSet::new(),
             main_flags: HashMap::new(),
+            skipped_e0103: Vec::new(),
             projection_items: HashSet::new(),
             assigned_bases: HashSet::new(),
             assignment_starts: HashMap::new(),
@@ -17325,6 +17346,7 @@ mod quota_tests {
                 union_denounced: HashMap::new(),
                 pending_unions: HashSet::new(),
                 main_flags: HashMap::new(),
+                skipped_e0103: Vec::new(),
                 projection_items: HashSet::new(),
                 assigned_bases: HashSet::new(),
                 assignment_starts: HashMap::new(),
