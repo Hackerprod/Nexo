@@ -3,7 +3,7 @@
 //! are removed; the group node keeps its own span in the AST. Expected spans are transcribed from
 //! the adopted rule and its addendum (byte offsets over the ASCII sources below); each row pairs
 //! the grouped source with the bare control and a valid repair.
-use super::i07c_normative_literals::invoke;
+use super::i07c_normative_literals::{accepted, invoke};
 
 const J: &str = "f0-0003-b-v1";
 const F5: &str = "f0-0005-b-v1";
