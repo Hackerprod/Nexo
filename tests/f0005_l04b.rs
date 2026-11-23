@@ -323,6 +323,42 @@ fn loop_control_outside_a_loop_is_unchanged() {
 }
 
 #[test]
+fn loop_control_after_a_guarded_match_arm_is_not_a_guard_control() {
+    // F0-0003 §8.2 / F5-C03, F5-C04: a `break`/`continue` outside a guard is judged only by
+    // the enclosing loop; a guarded arm that has already ended leaves no guard context behind.
+    // Outside a loop: NX-E1326 on the token (`break` [38,43), `continue` [38,46)). Inside a
+    // loop the same statements are accepted.
+    for (source, subcause, end) in [
+        (
+            "fn Main(){match 1{1 if true=>{},_=>{}}break;}",
+            "break_outside_loop",
+            43,
+        ),
+        (
+            "fn Main(){match 1{1 if true=>{},_=>{}}continue;}",
+            "continue_outside_loop",
+            46,
+        ),
+    ] {
+        for (status, output) in both(source, F5) {
+            assert_eq!(status, 1, "{source}: {output}");
+            assert_single(&output, "NX-E1326", "types", 38, end, source);
+            assert!(
+                output.contains(&format!("\"subcause\":\"{subcause}\"")),
+                "{output}"
+            );
+        }
+    }
+    for source in [
+        "fn Main(){while true{match 1{1 if true=>{},_=>{}}break;}}",
+        "fn Main(){while false{match 1{1 if true=>{},_=>{}}continue;}}",
+    ] {
+        let (status, output) = invoke("check", source, F5);
+        assert_eq!(status, 0, "{source}: {output}");
+    }
+}
+
+#[test]
 fn historical_profiles_keep_the_false_edge() {
     // F0-0005 §12.1: the new rule belongs to `f0-0005-b-v1` only. A2 and J keep NX-E1317 at
     // the closing brace of F5-C02's shape (`}` [33,34) for this source) for the same bytes.
