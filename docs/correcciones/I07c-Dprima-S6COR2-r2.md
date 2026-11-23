@@ -1,0 +1,6 @@
+# D prima, confirmacion acotada S10 (8e6f777d108249895967c4839d8885a6a5bca498)
+Veredicto: PASS.
+1. Diff c75e704..8e6f777: solo tests/i07c_group_primary.rs (+19, test S10) e informe de C; sin cambios en src/ ni scripts/.
+2. Test consume_prefix_tick_reports_the_move_token: esperado = at(source,"move") (posicion en la fuente), no la salida; mas control acotado aceptado. Candidato: PASA. Mutante M00029 (lower.rs sha f8fcbfde7a219c61 -> f4bccbc57a309260, restaurado f8fcbfde7a219c61): FALLA (primario (0,2) = fn frente a (49,53) = move). Con la correccion revertida el test no pasa.
+3. gate.sh 8e6f777 --verify GREEN (arbol 8734e228...): 2194 debug y 2196 release pasados (= 2193/2195 + 1 test), RD 152/152, objetivo 15/29; selection exit 0 en el registro; validate.sh SHA = origin/main (7a1c7a19...).
+4. 69 mutantes de la poblacion: 51 muertos (36 + 15 por S8), 5 invalidos, 13 supervivientes registrados en la tabla de C; ids completos, sin huecos. M00029 queda muerto por S10; restantes sin programa M00013, M00021, M00023, M00051, M00054 (y M00047/M00048 for inalcanzable) y los 5 de S9 ya muertos. 40aba0b no compila las pruebas solas; 937f246 anade el use accepted que falta; el HEAD compila (puerta GREEN).
