@@ -1,0 +1,4 @@
+programs=100000 seed=10495373245766874321 depth=3 flagged=1
+raw first-diff classes: {"missing_in_deferred NX-E0102 type_mismatch": 1}
+distinct reduced signatures=1
+#1 idx=18584 var r=[];var q=[];if ((x == r) == (if ar then r[0] else (if p then q else r))) {}r=[3];q=[3];}  || ext[U]E0103@o:[] mis[A]E0102/type_mismatch@n:100.0.0.1. mis[A]E1303@n:100.0.1.2.1.

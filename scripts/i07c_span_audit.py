@@ -32,27 +32,27 @@ REVIEWED_NAMES = {
 REVIEWED_EFFECTS = {
     1223: ("guard.span().clone()", "identity", "Frame::Guard(guard)", "match guard region used to contain witnesses, not a primary"),
 }
-# This inventory is tied to the types.rs of the I07c-S6-COR cut (derived from the S5b.1 inventory,
+# This inventory is tied to the types.rs of the I07c-S5a.1 cut (relocated by expression and context from the S6-COR inventory,
 # I07c-S6 plan section 3.3). Classes: the sites that report an expression call the group-removal
 # helper (`delegated_primary`, `expression_primary`, `argument_target_primary`); the rest keep a raw
 # span for identity, an operator token, a deferred result, a Pattern or a budget charge. The next
 # cut that edits types.rs must re-reconcile it. Both the expression and its surrounding call/block
 # must remain recognisable; a reviewed line that loses its expression is rejected.
 REVIEWED = {
-    7078: ("crate::frontend::parse::expression_primary_span(e)", "delegated_primary", "fn primary_span(e: &Expr)", "Group removal is delegated to the parse.rs helper"),
-    8279: ("Self::primary_span(iterable)", "expression_primary", "prepare_for_type", "for_iteration Array barrier reports the iterable without outer groups"),
-    9061: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
-    9062: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
-    11300: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
-    12248: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
-    12484: ("Self::primary_span(target)", "expression_primary", "non_callable_target", "call target reported without outer groups; the declaration relation is unchanged"),
-    13058: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
-    13168: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
-    13379: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
-    13384: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
-    13559: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
-    14797: ("Self::primary_span(target)", "expression_primary", '"NX-E1111"', "closure target reported without outer groups; branch NO EVALUADO, see below"),
-    14811: ("&Self::primary_span(target)", "argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
+    7141: ("crate::frontend::parse::expression_primary_span(e)", "delegated_primary", "fn primary_span(e: &Expr)", "Group removal is delegated to the parse.rs helper"),
+    8345: ("Self::primary_span(iterable)", "expression_primary", "prepare_for_type", "for_iteration Array barrier reports the iterable without outer groups"),
+    9153: ("left.span(),", "operator", "checker.operator_span(", "range-outside-for primary is the operator token located between operands; operands only bound the search"),
+    9154: ("right.span(),", "operator", "checker.operator_span(", "same operator_span call, right operand bound"),
+    11392: ("inner.span().clone()", "identity", "active_if_span.replace", "scope of the current If, not a primary"),
+    12340: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "arithmetic nominal result; possible deferred primary"),
+    12576: ("Self::primary_span(target)", "expression_primary", "non_callable_target", "call target reported without outer groups; the declaration relation is unchanged"),
+    13150: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "right pending arithmetic nominal result; possible deferred primary"),
+    13260: ("e.span()", "deferred_result", "self.defer_nominal_domain(", "Bool nominal result; possible deferred primary"),
+    13471: ("arm.pattern.span().clone()", "pattern_primary", "unreachable_arm", "NX-E1304 Pattern primary, no Expr::Group"),
+    13476: ("pattern.span().clone()", "pattern_relation", "RelatedRole::Context", "preceding Pattern relation, no Expr::Group"),
+    13651: ("pattern.span()", "quota_charge", "charge_solver(", "Pattern budget charge, possible NX-E0003 primary"),
+    14889: ("Self::primary_span(target)", "expression_primary", '"NX-E1111"', "closure target reported without outer groups; branch NO EVALUADO, see below"),
+    14903: ("&Self::primary_span(target)", "argument_target_primary", "names::bind_arguments", "signature target for argument binding is the normalized target"),
 }
 
 
@@ -287,15 +287,15 @@ def self_test() -> None:
         assert loop in original_helper
         reverts = [
             ("primary_span without delegation",
-             revert(7078, "crate::frontend::parse::expression_primary_span(e)", "e.span().clone()"),
+             revert(7141, "crate::frontend::parse::expression_primary_span(e)", "e.span().clone()"),
              original_helper, "must only delegate"),
             ("helper without its removal loop", original, original_helper.replace(loop, "", 1),
              "helper changed or missing"),
         ]
-        for number, old, new in ((8279, "Self::primary_span(iterable)", "iterable.span().clone()"),
-                                 (12484, "Self::primary_span(target)", "target.span().clone()"),
-                                 (14797, "Self::primary_span(target)", "target.span().clone()"),
-                                 (14811, "&Self::primary_span(target)", "target.span()")):
+        for number, old, new in ((8345, "Self::primary_span(iterable)", "iterable.span().clone()"),
+                                 (12576, "Self::primary_span(target)", "target.span().clone()"),
+                                 (14889, "Self::primary_span(target)", "target.span().clone()"),
+                                 (14903, "&Self::primary_span(target)", "target.span()")):
             reverts.append((f"site {number} back to a raw span", revert(number, old, new),
                             original_helper, "reviewed span changed"))
         for label, types_text, parse_text, message in reverts:

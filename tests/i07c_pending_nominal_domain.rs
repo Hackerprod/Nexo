@@ -800,29 +800,109 @@ fn independent_selector_constraints_precede_later_assignment_order() {
     }
 }
 
+/// Code, subcause, primary byte span and the two type fields of every error.
+type TypedError = (String, Option<String>, (u64, u64), String, String);
+
+fn typed_errors(source: &str) -> Vec<TypedError> {
+    use nexo::diagnostic::DataValue;
+
+    let text = |error: &nexo::diagnostic::Diagnostic, key: &str| match error.data.get(key) {
+        Some(DataValue::String(value)) => value.clone(),
+        other => panic!("{source}: {key}: {other:?}"),
+    };
+    check_proposed("pending_nominal.n", source, false)
+        .err()
+        .unwrap_or_default()
+        .iter()
+        .map(|error| {
+            error.validate("pending_nominal.n", source).unwrap();
+            let span = error.primary_span.as_ref().unwrap();
+            (
+                error.code.clone(),
+                error.subcause.clone(),
+                (span.start, span.end),
+                text(error, "expected_type"),
+                text(error, "found_type"),
+            )
+        })
+        .collect()
+}
+
+fn type_mismatch(span: (u64, u64), expected: &str, found: &str) -> TypedError {
+    (
+        "NX-E0102".to_owned(),
+        Some("type_mismatch".to_owned()),
+        span,
+        expected.to_owned(),
+        found.to_owned(),
+    )
+}
+
 #[test]
 fn incompatible_prefix_with_unresolved_arrays_is_not_a_concrete_twin() {
-    // ADR §§4.1.2.2, 4.1.2.7: [[r],q] requires a deeper q than q=[3]
-    // supplies. Moving both assignments to initializers changes that
-    // prefix, so the deferred constructors may retain inference causes
-    // where the concrete source has a branch mismatch.
+    // ADR §§4.1.2.2, 4.1.2.7: [[r],q] is accepted with q still pending, so
+    // the later q=[3] is the incompatible equality (reported on its `3`) and
+    // r=[3] fixes r's element. No constructor stays unresolved at the close,
+    // so there is no NX-E0103. Moving both assignments to initializers
+    // changes that prefix: the concrete twin is not the oracle.
     let deferred = "fn Main(){let x=1;let p=true;var r=[];var q=[];while [[r],q] {}q=[3];let a=(1<(if x then p else q));r=[3];}";
     let concrete = "fn Main(){let x=1;let p=true;let r=[3];let q=[3];while [[r],q] {}let a=(1<(if x then p else q));}";
-    let mismatch = |text: &str| ("NX-E0102".into(), Some("type_mismatch".into()), text.into());
+    assert_eq!(&deferred[53..60], "[[r],q]");
+    assert_eq!(&deferred[66..67], "3");
+    assert_eq!(&deferred[82..83], "x");
+    assert_eq!(&deferred[96..97], "q");
+    let condition = type_mismatch((53, 60), "Bool", "Array<Array<Array<I64>>>");
+    let assignment = type_mismatch((66, 67), "Array<I64>", "I64");
+    let selector = type_mismatch((82, 83), "Bool", "I64");
+    let union = (
+        "NX-E1303".to_owned(),
+        None,
+        (96, 97),
+        "Bool".to_owned(),
+        "Array<Array<I64>>".to_owned(),
+    );
     assert_eq!(
-        causes(deferred),
+        typed_errors(deferred),
         vec![
-            ("NX-E0103".into(), None, "[]".into()),
-            ("NX-E0103".into(), None, "[]".into()),
-            mismatch("q"),
-            mismatch("x")
+            condition.clone(),
+            assignment.clone(),
+            selector.clone(),
+            union.clone()
+        ]
+    );
+    // Each conflict removed on its own leaves the other three.
+    let without_selector_error = deferred.replacen("if x then", "if p then", 1);
+    assert_eq!(
+        typed_errors(&without_selector_error),
+        vec![condition.clone(), assignment.clone(), union.clone()]
+    );
+    let without_union_error = deferred.replacen("then p else q", "then p else p", 1);
+    assert_eq!(
+        typed_errors(&without_union_error),
+        vec![condition.clone(), assignment.clone(), selector.clone()]
+    );
+    let compatible_assignment = deferred.replacen("q=[3]", "q=[[3]]", 1);
+    // `q=[[3]]` is compatible with [[r],q]: the `3` conflict is gone and the
+    // later spans move two bytes; the other three conflicts remain.
+    assert_eq!(
+        typed_errors(&compatible_assignment),
+        vec![
+            condition.clone(),
+            type_mismatch((84, 85), "Bool", "I64"),
+            (
+                "NX-E1303".to_owned(),
+                None,
+                (98, 99),
+                "Bool".to_owned(),
+                "Array<Array<I64>>".to_owned()
+            )
         ]
     );
     assert_eq!(
         causes(concrete),
         vec![
-            mismatch("q"),
-            mismatch("x"),
+            ("NX-E0102".into(), Some("type_mismatch".into()), "q".into()),
+            ("NX-E0102".into(), Some("type_mismatch".into()), "x".into()),
             ("NX-E1303".into(), None, "q".into())
         ]
     );
@@ -893,17 +973,23 @@ fn failed_nested_union_does_not_anchor_an_outer_pending_array() {
 
 #[test]
 fn outer_index_context_makes_later_flat_array_an_ineligible_twin() {
-    // ADR §§4.1.2.2, 4.1.2.7, 4.7: the annotated result of the Index
-    // supplies Array<Array<I64>> to the explicit array's elements. That
-    // accepted prefix is deeper than the later r=[3]. Moving [3] to r's
-    // initializer changes the available context and does not preserve C.
+    // ADR §§4.1.2.2, 4.1.2.3, 4.1.2.7, 4.7: the annotated result of the
+    // Index fixes the element of [r[1],r] (conditional projection), so `r`
+    // is Array<Array<I64>> and the leaf `r` of the explicit array must have
+    // that type: it is the incompatible equality (E0102 on `r`). The later
+    // r=[3] cannot give `r` the element I64 it already refused: its `3` is the
+    // incompatible leaf. The element of `r` is resolved, so no NX-E0103.
+    // Moving [3] to r's initializer changes the available context: the
+    // concrete twin is not the oracle.
     let deferred = "fn Main(){let x=1;var r=[];var s:Array<Array<I64>>=[[0]];s=[r[1],r][x];r=[3];}";
     let concrete = "fn Main(){let x=1;let r=[3];var s:Array<Array<I64>>=[[0]];s=[r[1],r][x];}";
+    assert_eq!(&deferred[65..66], "r");
+    assert_eq!(&deferred[74..75], "3");
     assert_eq!(
-        causes(deferred),
+        typed_errors(deferred),
         vec![
-            ("NX-E0103".into(), None, "[]".into()),
-            ("NX-E0103".into(), None, "[r[1],r][x]".into())
+            type_mismatch((65, 66), "Array<Array<I64>>", "Array<Array<Array<I64>>>"),
+            type_mismatch((74, 75), "Array<Array<I64>>", "I64"),
         ]
     );
     assert_eq!(

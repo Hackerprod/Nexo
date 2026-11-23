@@ -67,6 +67,8 @@ mod i07c_pending_nominal_domain;
 mod i07c_rd_conformidad;
 #[path = "i07c_s4_context_regressions.rs"]
 mod i07c_s4_context_regressions;
+#[path = "i07c_s5_seed_consistency.rs"]
+mod i07c_s5_seed_consistency;
 #[path = "i07c_s5b_selector.rs"]
 mod i07c_s5b_selector;
 #[path = "i07c_solver_depth.rs"]

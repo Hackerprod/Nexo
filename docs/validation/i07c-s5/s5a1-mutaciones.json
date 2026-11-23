@@ -1,0 +1,136 @@
+{
+ "results": [
+  {
+   "mutant": "M1-retraction-off",
+   "region": "retract_unconsumed_seeds",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "5a0306244ebb399dc57269aeedf33dc0bb90c9f05a90d29181ad62618f47a2ea",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_pending_nominal_domain::outer_index_context_makes_later_flat_array_an_ineligible_twin",
+    "i07c_s5_seed_consistency::compatible_later_assignment_leaves_only_the_union_conflict",
+    "i07c_s5_seed_consistency::d_ref_valid_and_invalid_programs",
+    "i07c_s5_seed_consistency::deferred_union_after_invalid_condition_and_unindexable_leaf_o01",
+    "i07c_s5_seed_consistency::deferred_union_with_assignment_inside_array_and_condition_o03",
+    "i07c_s5_seed_consistency::deferred_union_with_four_independent_conditions_o08",
+    "i07c_s5_seed_consistency::deferred_union_with_numeric_comparison_and_assignment_o07",
+    "i07c_s5_seed_consistency::pending_anchor_with_later_incompatible_assignment_reports_both_independent_conflicts",
+    "i07c_s5_seed_consistency::pending_projection_anchor_with_later_assignment_matches_d_ref",
+    "i07c_s5_seed_consistency::retracted_seed_site_keeps_its_element_fixed_by_a_later_compatible_leaf",
+    "i07c_s5_seed_consistency::twin_corpus_assignment_permutations_keep_constructors_resolved",
+    "i07c_s5_seed_consistency::twin_corpus_has_no_spurious_unresolved_constructor",
+    "i07c_s5_seed_consistency::union_leaf_order_decides_which_leaf_is_reported"
+   ]
+  },
+  {
+   "mutant": "M1b-everything-witnessed",
+   "region": "retract_unconsumed_seeds",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "567e5dafb35859c306a940bb03648c52410a2ed3c46c8fde2399ba0c05179b29",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_pending_nominal_domain::outer_index_context_makes_later_flat_array_an_ineligible_twin",
+    "i07c_s5_seed_consistency::compatible_later_assignment_leaves_only_the_union_conflict",
+    "i07c_s5_seed_consistency::d_ref_valid_and_invalid_programs",
+    "i07c_s5_seed_consistency::deferred_union_after_invalid_condition_and_unindexable_leaf_o01",
+    "i07c_s5_seed_consistency::deferred_union_with_assignment_inside_array_and_condition_o03",
+    "i07c_s5_seed_consistency::deferred_union_with_four_independent_conditions_o08",
+    "i07c_s5_seed_consistency::deferred_union_with_numeric_comparison_and_assignment_o07",
+    "i07c_s5_seed_consistency::pending_anchor_with_later_incompatible_assignment_reports_both_independent_conflicts",
+    "i07c_s5_seed_consistency::pending_projection_anchor_with_later_assignment_matches_d_ref",
+    "i07c_s5_seed_consistency::retracted_seed_site_keeps_its_element_fixed_by_a_later_compatible_leaf",
+    "i07c_s5_seed_consistency::twin_corpus_assignment_permutations_keep_constructors_resolved",
+    "i07c_s5_seed_consistency::twin_corpus_has_no_spurious_unresolved_constructor",
+    "i07c_s5_seed_consistency::union_leaf_order_decides_which_leaf_is_reported"
+   ]
+  },
+  {
+   "mutant": "M1c-nothing-witnessed-by-component",
+   "region": "retract_unconsumed_seeds",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "cd21c7111fe335c36bcabeac52d9381e194ddfb5d5d3878298beca7392557430",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_s5_seed_consistency::twin_corpus_has_no_spurious_unresolved_constructor"
+   ]
+  },
+  {
+   "mutant": "M2a-read-plan-ignores-verdict",
+   "region": "collect_planned_shapes",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "6395b3b194eab5862aaa20023612123e26e44437b29da95f8f0f70bd468a0db0",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_pending_nominal_domain::incompatible_prefix_with_unresolved_arrays_is_not_a_concrete_twin",
+    "i07c_s5_seed_consistency::assignment_order_does_not_change_the_reported_conflicts",
+    "i07c_s5_seed_consistency::twin_corpus_assignment_permutations_keep_constructors_resolved",
+    "i07c_s5_seed_consistency::twin_corpus_has_no_spurious_unresolved_constructor"
+   ]
+  },
+  {
+   "mutant": "M2b-read-plan-ignores-retraction",
+   "region": "collect_planned_shapes",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "b9adb6bc80161c1be0e0167bece413e9ce9128d25f652264ea62598d295244c5",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_s5_seed_consistency::retracted_seed_site_keeps_its_element_fixed_by_a_later_compatible_leaf"
+   ]
+  },
+  {
+   "mutant": "M2c-verdict-only-on-error",
+   "region": "note_assignment_verdict",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "fd24596eb46ac456f86438c3139017c0ca426c1495b21dab318e5a837a30474d",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_pending_nominal_domain::incompatible_prefix_with_unresolved_arrays_is_not_a_concrete_twin",
+    "i07c_s5_seed_consistency::assignment_order_does_not_change_the_reported_conflicts",
+    "i07c_s5_seed_consistency::twin_corpus_assignment_permutations_keep_constructors_resolved",
+    "i07c_s5_seed_consistency::twin_corpus_has_no_spurious_unresolved_constructor"
+   ]
+  },
+  {
+   "mutant": "M2d-verdict-never-on-error",
+   "region": "note_assignment_verdict",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "91aad30ad565ed128dbf94bc36242f4ea894f37917b08d41c87f9c6fe284b654",
+   "verdict": "SURVIVES",
+   "failing_tests": []
+  },
+  {
+   "mutant": "M3-concrete-plan-after-retraction",
+   "region": "seed_planned_shape",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "3ffb57e53be201351f01c827a8e5a3b6635df06f049c742d5ca5efaffcdb7fda",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_s5_seed_consistency::deferred_union_with_assignment_inside_array_and_condition_o03",
+    "i07c_s5_seed_consistency::deferred_union_with_numeric_comparison_and_assignment_o07",
+    "i07c_s5_seed_consistency::pending_anchor_with_later_incompatible_assignment_reports_both_independent_conflicts"
+   ]
+  },
+  {
+   "mutant": "M4-cap-ignored-when-seeding",
+   "region": "seed_planned_shape",
+   "sha256_initial": "07959d3ff9ec01bb18bf04e8ff353cc062bd1b51323ffc7d314e859728e8778a",
+   "sha256_mutated": "0c9f2f0d83f3656116b2b91f2e508654f0a0288a18617cbf4fabc71444edd931",
+   "verdict": "DEAD",
+   "failing_tests": [
+    "i07c_pending_nominal_domain::outer_index_context_makes_later_flat_array_an_ineligible_twin",
+    "i07c_s5_seed_consistency::compatible_later_assignment_leaves_only_the_union_conflict",
+    "i07c_s5_seed_consistency::d_ref_valid_and_invalid_programs",
+    "i07c_s5_seed_consistency::deferred_union_after_invalid_condition_and_unindexable_leaf_o01",
+    "i07c_s5_seed_consistency::deferred_union_with_assignment_inside_array_and_condition_o03",
+    "i07c_s5_seed_consistency::deferred_union_with_four_independent_conditions_o08",
+    "i07c_s5_seed_consistency::deferred_union_with_numeric_comparison_and_assignment_o07",
+    "i07c_s5_seed_consistency::pending_anchor_with_later_incompatible_assignment_reports_both_independent_conflicts",
+    "i07c_s5_seed_consistency::pending_projection_anchor_with_later_assignment_matches_d_ref",
+    "i07c_s5_seed_consistency::retracted_seed_site_keeps_its_element_fixed_by_a_later_compatible_leaf",
+    "i07c_s5_seed_consistency::twin_corpus_assignment_permutations_keep_constructors_resolved",
+    "i07c_s5_seed_consistency::twin_corpus_has_no_spurious_unresolved_constructor",
+    "i07c_s5_seed_consistency::union_leaf_order_decides_which_leaf_is_reported"
+   ]
+  }
+ ]
+}

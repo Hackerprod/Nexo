@@ -149,9 +149,9 @@ fn grouped_operands_keep_one_causal_primary() {
     // The three grouped primaries (for_iteration, non-callable target, closure
     // target) now call the single group-removal helper; none is pending.
     assert!(
-        text.contains("expression_primary: 3 lines=8279,12484,14797")
-            && text.contains("delegated_primary: 1 lines=7078")
-            && text.contains("argument_target_primary: 1 lines=14811")
+        text.contains("expression_primary: 3 lines=8345,12576,14889")
+            && text.contains("delegated_primary: 1 lines=7141")
+            && text.contains("argument_target_primary: 1 lines=14903")
             && text.contains("types.rs reviewed: 14/14")
             && text.contains("names.rs reviewed: 5/5")
             && text.contains("effects.rs reviewed: 1/1")

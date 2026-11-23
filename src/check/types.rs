@@ -2182,6 +2182,15 @@ struct InferenceGraph {
     first_assignment_rhs_starts: HashMap<u64, u64>,
     prefix_concrete: HashMap<u64, ConcreteEvidence>,
     preseeded_children: HashSet<u64>,
+    // Layer index of each unconsumed seed: (binding site, depth).
+    preseeded_layer: HashMap<u64, (u64, usize)>,
+    // Deepest seeded layer count a binding may keep after retraction.
+    seed_cap: HashMap<u64, usize>,
+    // Bindings whose later assignment this pass rejected or deferred as a
+    // conflict (§4.1.2.2: a rejected assignment never retypes earlier reads).
+    rejected_assignments: HashSet<u64>,
+    // Pending-join count when each named assignment began (keyed by place).
+    assignment_join_marks: HashMap<u64, usize>,
     result: Type,
     result_span: Option<Span>,
 }
@@ -3246,6 +3255,8 @@ impl Checker<'_> {
                 && !has_conditional_projection
                 && has_deferred_join
                 && !conflicts_prefix
+                && !self.graph.rejected_assignments.contains(&site)
+                && !self.graph.seed_cap.contains_key(&site)
                 && let Some(ty) = read_type
                 && let Some(&assignment_start) = self.graph.assignment_starts.get(&site)
             {
@@ -3356,12 +3367,60 @@ impl Checker<'_> {
         changed
     }
 
+    /// Retracts the seeded layers that no real equality of the pass justifies
+    /// (the equality that planned them was rejected under the semantics of the
+    /// pass that used the seed). A layer is witnessed when its component holds
+    /// an unseeded node or a concrete type, or when `require_array` consumed
+    /// it; two seeded nodes merged with each other witness nothing. A site's
+    /// cap only decreases, so retraction ends after at most the number of
+    /// planned layers.
+    fn retract_unconsumed_seeds(&mut self) -> bool {
+        let nodes: Vec<u64> = self.graph.type_nodes.keys().copied().collect();
+        let mut witnessed_roots: HashSet<u64> = HashSet::new();
+        for id in nodes {
+            if !self.graph.preseeded_layer.contains_key(&id) {
+                witnessed_roots.insert(self.root(id));
+            }
+        }
+        let seeded: Vec<(u64, (u64, usize))> = self
+            .graph
+            .preseeded_layer
+            .iter()
+            .map(|(&child, &layer)| (child, layer))
+            .collect();
+        let mut changed = false;
+        for (child, (site, index)) in seeded {
+            let root = self.root(child);
+            let witnessed = witnessed_roots.contains(&root)
+                || self.graph.type_nodes[&root].concrete.is_some()
+                || !self.graph.preseeded_children.contains(&child);
+            if witnessed {
+                continue;
+            }
+            let cap = self.graph.seed_cap.entry(site).or_insert(usize::MAX);
+            if index < *cap {
+                *cap = index;
+                changed = true;
+            }
+        }
+        changed
+    }
+
     fn seed_planned_shape(&mut self, site: u64, id: u64) {
         let Some(origins) = self.graph.shape_plan.get(&site).cloned() else {
             return;
         };
+        let cap = self
+            .graph
+            .seed_cap
+            .get(&site)
+            .copied()
+            .unwrap_or(usize::MAX);
+        // A retracted plan has lost layers the concrete evidence was derived
+        // from; seed neither the layers nor the evidence that depended on them.
+        let retracted = cap < origins.len();
         let mut current = id;
-        for origin in origins {
+        for (layer_index, origin) in origins.into_iter().take(cap).enumerate() {
             current = self.root(current);
             if let Some(child) = self.graph.type_nodes[&current].array_child {
                 current = child;
@@ -3397,9 +3456,13 @@ impl Checker<'_> {
                 .unwrap()
                 .array_origin = Some(origin);
             self.graph.preseeded_children.insert(child);
+            self.graph
+                .preseeded_layer
+                .insert(child, (site, layer_index));
             current = child;
         }
         if !self.planning
+            && !retracted
             && let Some(evidence) = self.graph.concrete_plan.get(&site).cloned()
         {
             let mut ty = evidence.ty;
@@ -7506,6 +7569,9 @@ impl Checker<'_> {
         self.graph.locals.clear();
         self.graph.eligible_shapes.clear();
         self.graph.preseeded_children.clear();
+        self.graph.preseeded_layer.clear();
+        self.graph.rejected_assignments.clear();
+        self.graph.assignment_join_marks.clear();
         self.graph.projected_bases.clear();
         self.graph.projection_items.clear();
         self.graph.assigned_bases.clear();
@@ -8314,6 +8380,8 @@ impl Checker<'_> {
             && let Expr::Name(_, span) = place
             && let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&span.start)
         {
+            let joins = self.pending_join_count();
+            self.graph.assignment_join_marks.insert(span.start, joins);
             if self.graph.eligible_shapes.contains(&local.name_span.start)
                 && !self
                     .graph
@@ -8471,7 +8539,8 @@ impl Checker<'_> {
         progress: AssignmentProgress<'_>,
         result: Result<Type, Box<Diagnostic>>,
     ) -> Result<(), Box<Diagnostic>> {
-        (|| {
+        let assigned_place = progress.place;
+        let outcome = (|| {
             let Some(local) = progress.local else {
                 result?;
                 return Ok(());
@@ -8526,7 +8595,30 @@ impl Checker<'_> {
                 self.retain_assignment_origin(local, &right_origin);
             }
             Ok(())
-        })()
+        })();
+        self.note_assignment_verdict(assigned_place, outcome.is_err());
+        outcome
+    }
+
+    /// Records, in planning, that the pass rejected an assignment or kept its
+    /// conflict as a pending join: that assignment's type cannot retype the
+    /// reads before it (§4.1.2.2). Out of line to keep the driver frames.
+    #[inline(never)]
+    fn note_assignment_verdict(&mut self, place: &Expr, failed: bool) {
+        if !self.planning {
+            return;
+        }
+        let Expr::Name(_, span) = place else {
+            return;
+        };
+        let before = self.graph.assignment_join_marks.remove(&span.start);
+        if let Some(ResolvedUse::Local(binding)) = self.resolved.uses.get(&span.start)
+            && (failed || before.is_some_and(|before| self.pending_join_count() > before))
+        {
+            self.graph
+                .rejected_assignments
+                .insert(binding.name_span.start);
+        }
     }
 
     fn prepare_let(
@@ -15399,6 +15491,10 @@ pub(crate) fn check_with_partial_limit(
             first_assignment_rhs_starts: HashMap::new(),
             prefix_concrete: HashMap::new(),
             preseeded_children: HashSet::new(),
+            preseeded_layer: HashMap::new(),
+            seed_cap: HashMap::new(),
+            rejected_assignments: HashSet::new(),
+            assignment_join_marks: HashMap::new(),
             result: Type::Unit,
             result_span: None,
         },
@@ -15410,11 +15506,15 @@ pub(crate) fn check_with_partial_limit(
             break;
         }
         checker.planning = true;
+        // `seed_cap` only decreases and planning never applies `read_plan`, so
+        // retraction and the verdicts it feeds cannot make the plan oscillate.
+        checker.graph.seed_cap.clear();
         for _ in 0..=128 {
             checker.analysis_exhausted = false;
             checker.quota_error = None;
             let _ = checker.function(function);
-            if !checker.collect_planned_shapes() {
+            let retracted = checker.retract_unconsumed_seeds();
+            if !checker.collect_planned_shapes() && !retracted {
                 break;
             }
         }
@@ -16991,6 +17091,10 @@ mod quota_tests {
                 first_assignment_rhs_starts: HashMap::new(),
                 prefix_concrete: HashMap::new(),
                 preseeded_children: HashSet::new(),
+                preseeded_layer: HashMap::new(),
+                seed_cap: HashMap::new(),
+                rejected_assignments: HashSet::new(),
+                assignment_join_marks: HashMap::new(),
                 result: Type::Unit,
                 result_span: None,
                 nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
