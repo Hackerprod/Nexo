@@ -30,7 +30,7 @@ REVIEWED_NAMES = {
     1193: ("occupied[slot]", "relation", "label_span(a)", "occupied slot span, Context relation of a later duplicate"),
 }
 REVIEWED_EFFECTS = {
-    1223: ("guard.span().clone()", "identity", "Frame::Guard(guard)", "match guard region used to contain witnesses, not a primary"),
+    1232: ("guard.span().clone()", "identity", "Frame::Guard(guard)", "match guard region used to contain witnesses, not a primary"),
 }
 # This inventory is tied to the types.rs of the I07c-S6-COR cut (derived from the S5b.1 inventory,
 # I07c-S6 plan section 3.3). Classes: the sites that report an expression call the group-removal

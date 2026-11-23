@@ -814,3 +814,75 @@ fn pure_closure_call_in_guard_is_accepted() {
         unit_events(source, &[]);
     }
 }
+
+#[test]
+fn guard_inside_a_closure_body_is_checked() {
+    use CauseOperation::{ClosureCall, FunctionCall, IntrinsicCall};
+    // F0-0003 3.3: the guard rule is general; a guard in a closure body is a guard. A direct
+    // unknown effect reports the intrinsic site, as the same guard in a `fn` body does.
+    let error = guard_error(
+        "fn Main(){let f=fn (){match true{true if MockUnknown()==()=>{},_=>{}}};}",
+        "guard_effect",
+        Stage::Effects,
+        Operation::EffectsCheck,
+        span(41, 52),
+    );
+    assert_eq!(
+        error.data.get("required_effect"),
+        Some(&DataValue::String("alloc".into()))
+    );
+    assert_eq!(
+        error.data.get("effect_evidence"),
+        Some(&DataValue::String("unknown_effect".into()))
+    );
+    assert_eq!(error.cause_chain.len(), 1);
+    assert_eq!(error.cause_chain[0].operation, IntrinsicCall);
+    assert_eq!(error.cause_chain[0].span, Some(span(41, 52)));
+    // The `fn` twin (paridad).
+    let twin = guard_error(
+        "fn Main(){match true{true if MockUnknown()==()=>{},_=>{}}}",
+        "guard_effect",
+        Stage::Effects,
+        Operation::EffectsCheck,
+        span(29, 40),
+    );
+    assert_eq!(twin.data, error.data);
+    guard_effect_chain(
+        "fn G()->Bool{Print(1);return true;}fn Main(){let f=fn (){match true{true if G()=>{},_=>{}}};}",
+        (76, 77),
+        "io",
+        "known_effect",
+        &[(FunctionCall, 76, 77), (IntrinsicCall, 13, 18)],
+        3,
+    );
+    // A closure called from a guard that lives inside another closure (requires both mechanisms).
+    guard_effect_chain(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};let f=fn (){match true{true if g()=>{},_=>{}}};}",
+        (82, 83),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 82, 83), (IntrinsicCall, 28, 33)],
+        16,
+    );
+    guard_effect_chain(
+        "fn Main(){let f=fn (){let g=fn ()->Bool{Print(1);return true;};match true{true if g()=>{},_=>{}}};}",
+        (82, 83),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 82, 83), (IntrinsicCall, 40, 45)],
+        28,
+    );
+    guard_effect_chain(
+        "fn Main(){}gen fn S()->I64{let g=fn ()->Bool{Print(1);return true;};match true{true if g()=>{},_=>{}}yield 1;}",
+        (87, 88),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 87, 88), (IntrinsicCall, 45, 50)],
+        33,
+    );
+    // Positives: a pure guard in a closure body is accepted.
+    unit_events(
+        "fn Main(){let f=fn (){match true{true if true=>{},_=>{}}};}",
+        &[],
+    );
+}

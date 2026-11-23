@@ -116,9 +116,11 @@ struct CallSites(HashMap<Span, Site>, HashMap<String, HashMap<u64, u64>>);
 
 impl CallSites {
     /// Indexes the call sites of every function and closure body and returns
-    /// each function's own match guards, in `ast.functions` order. Closure
-    /// bodies are separate scopes: their guards are not their parent's.
-    fn from_ast(ast: &Ast) -> (Self, Vec<Vec<Span>>) {
+    /// each function's own match guards, in `ast.functions` order, and each
+    /// closure's own match guards keyed by the offset of its `fn` token (the
+    /// `site` of `$closure:<site>`). Closure bodies are separate scopes: their
+    /// guards are not their parent's.
+    fn from_ast(ast: &Ast) -> (Self, Vec<Vec<Span>>, HashMap<u64, Vec<Span>>) {
         let mut calls = Vec::new();
         let guards = ast
             .functions
@@ -129,8 +131,11 @@ impl CallSites {
                 guards
             })
             .collect();
+        let mut closure_guards = HashMap::new();
         for closure in super::lower::collect_closures(ast) {
-            scope_sites(&closure.body, &mut Vec::new(), &mut calls);
+            let mut guards = Vec::new();
+            scope_sites(&closure.body, &mut guards, &mut calls);
+            closure_guards.insert(closure.fn_span.start, guards);
         }
         let mut starts: HashMap<String, HashMap<u64, u64>> = HashMap::new();
         for (call, site) in &calls {
@@ -142,7 +147,11 @@ impl CallSites {
                 .and_modify(|start| *start = (*start).min(call.start))
                 .or_insert(call.start);
         }
-        (Self(calls.into_iter().collect(), starts), guards)
+        (
+            Self(calls.into_iter().collect(), starts),
+            guards,
+            closure_guards,
+        )
     }
 
     /// Offset used to order a cause step: the start of the written call whose
@@ -1418,7 +1427,7 @@ pub(super) fn analyze(
         .enumerate()
         .map(|(index, source)| (source.name.as_str(), index))
         .collect();
-    let (call_sites, function_guards) = CallSites::from_ast(ast);
+    let (call_sites, function_guards, closure_guards) = CallSites::from_ast(ast);
     let mut local = Vec::new();
     for f in program.functions.functions() {
         let mut witnesses = function_intrinsic_effect_with_context(
@@ -1786,13 +1795,20 @@ pub(super) fn analyze(
     }
     let mut reported_guard_sites = HashSet::new();
     for (index, f) in program.functions.functions().iter().enumerate() {
-        let Some(source_function) = source_functions.get(f.name.as_str()).copied() else {
-            continue;
-        };
-        for guard in function_guards[source_ranks[f.name.as_str()]]
-            .iter()
-            .cloned()
+        // The guards of the invocable: those of a source `fn`, or of a closure body by the `site`
+        // in its `$closure:<site>` name; the same rule below applies to both.
+        let own_guards: &[Span] = if let Some(&rank) = source_ranks.get(f.name.as_str()) {
+            &function_guards[rank]
+        } else if let Some(site) = f
+            .name
+            .strip_prefix("$closure:")
+            .and_then(|site| site.parse::<u64>().ok())
         {
+            closure_guards.get(&site).map_or(&[], Vec::as_slice)
+        } else {
+            &[]
+        };
+        for guard in own_guards.iter().cloned() {
             let in_guard = |span: &Span| guard.start <= span.start && span.end <= guard.end;
             let mut candidates: Vec<(u64, usize, u8, Witness)> = Vec::new();
             for witness in &local[index] {
@@ -1901,6 +1917,10 @@ pub(super) fn analyze(
                 errors.push(*d);
             }
         }
+        // The `with` restrictions exist only for source functions; a closure has none.
+        let Some(source_function) = source_functions.get(f.name.as_str()).copied() else {
+            continue;
+        };
         let restrictions: Vec<_> = match source_function.with_clause.as_ref() {
             Some(WithClause::Simple(items)) => items.iter().collect(),
             Some(WithClause::Operations(ops)) => ops
