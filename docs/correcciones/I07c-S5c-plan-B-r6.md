@@ -1,5 +1,7 @@
 # Validación B, confirmación final dirigida del plan I07c-S5c (140 líneas, commit 783415e): **PASS**
 
+> Nota posterior: T5 se resolvió (no es laguna; la fija el ADR, aclaración derivada en `F0-0002-lagunas.md`); la clase T5 del plan se retiró. Lo que sigue es histórico.
+
 Solo lectura del plan; sin compilar, sin procesos.
 
 ## Motivo 1 (cifra 21): resuelto

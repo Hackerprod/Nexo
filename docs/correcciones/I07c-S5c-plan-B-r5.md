@@ -1,5 +1,7 @@
 # Validación B dirigida del plan I07c-S5c actualizado (140 líneas, commit 3f1e6e1) y de la matriz corregida: **FAIL por dos precisiones menores**
 
+> Nota posterior: T5 se resolvió (no es laguna; la fija el ADR, aclaración derivada en `F0-0002-lagunas.md`); la clase T5 del plan se retiró. Lo que sigue es histórico.
+
 Alcance: mis seis condiciones del informe del oráculo, coherencia de cifras, matriz corregida y decisiones abiertas. Ejecuté `--matrix` (45/45) y `--self-test` (15/15), reobtuve P2 y W0 del oráculo y comparé con mi derivación. Sin compilar, sin procesos.
 
 ## Condiciones del informe del oráculo
