@@ -2727,7 +2727,11 @@ fn record_solver_bind_entry(
 /// EXPLORACION: interruptores de variantes por entorno (NEXO_XV=a,b,c). No integrable.
 fn xv(flag: &str) -> bool {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
-    V.get_or_init(|| std::env::var("NEXO_XV").unwrap_or_default())
+    V.get_or_init(|| {
+        std::env::var("NEXO_XV").unwrap_or_else(|_| {
+            "pendfa,retfa,retract,anchw,nojoin,v6rej,atomic0,arrx".to_string()
+        })
+    })
         .split(',')
         .any(|f| f == flag)
 }
@@ -14094,6 +14098,7 @@ impl Checker<'_> {
         let key = span_key(&base.1);
         let state = self.graph.union_denounced.get(&key).copied();
         let found_span_dbg = found_span.clone();
+        let found_ty_dbg = found.clone();
         let snapshot = (xv("atomic") && state == Some(true))
             .then(|| (self.graph.type_nodes.clone(), self.graph.obligations.clone()));
         let snapshot0 = (xv("atomic0") && state == Some(false))
@@ -14135,6 +14140,14 @@ impl Checker<'_> {
             );
         }
         if error.is_none() && self.pending_join_count() <= before {
+            if xv("defmark") {
+                for ty in [&base.0, &found_ty_dbg] {
+                    if let Type::Deferred(id) = ty {
+                        let root = self.root(*id);
+                        self.graph.type_nodes.get_mut(&root).unwrap().deferred_join = true;
+                    }
+                }
+            }
             return Ok(AnchorOutcome::Compatible);
         }
         if state == Some(true) {
@@ -15553,7 +15566,9 @@ pub(crate) fn check_with_partial_limit(
         // `seed_cap` only decreases and planning never applies `read_plan`, so
         // retraction and the verdicts it feeds cannot make the plan oscillate.
         checker.graph.seed_cap.clear();
+        let mut passes = 0usize;
         for _ in 0..=128 {
+            passes += 1;
             checker.analysis_exhausted = false;
             checker.quota_error = None;
             let _ = checker.function(function);
@@ -15561,6 +15576,9 @@ pub(crate) fn check_with_partial_limit(
             if !checker.collect_planned_shapes() && !retracted {
                 break;
             }
+        }
+        if xv("passes") {
+            eprintln!("PASSES {passes}");
         }
         checker.planning = false;
         checker.analysis_exhausted = false;
