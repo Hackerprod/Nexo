@@ -2947,3 +2947,176 @@ fn generator_resume_anchors_ignore_the_group_around_the_target() {
         }
     }
 }
+
+// ---------------------------------------------------------------------------------------------
+// Quota ticks under groups (F0-0002 lagunas, "Ticks, cuotas y guardas bajo agrupaciones"): the
+// R0001 primary of a tick whose origin is an expression is the inner expression, never the group.
+// A quota failure is a run-time fact: `check` accepts every source below. Expected spans are
+// derived from the source (the position of the expression inside its template) and from the
+// control without a group, never from the binary under test: the grouped source must give the
+// control diagnostic with its spans moved by the wrapper characters.
+// ---------------------------------------------------------------------------------------------
+
+/// Outer wrappers around the expression under test: none (the control), one group, two groups and
+/// trivia inside one group.
+const WRAPS: [(&str, &str); 4] = [("", ""), ("(", ")"), ("((", "))"), ("( ", " )")];
+
+struct QuotaSite {
+    /// `@P` is the pad of `{}` blocks and `@E` the wrapped expression.
+    template: &'static str,
+    inner: &'static str,
+    /// Pad for which the rejected tick of the control is the tick of this site.
+    pad: usize,
+}
+
+/// A site whose group-free tick origin was already the inner expression before the group removal.
+const LET_INITIALIZER: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=@E;}}",
+    inner: "n",
+    pad: 0,
+};
+
+/// The source with `pad` empty blocks before the loop, and the start of the inner expression.
+fn quota_source(site: &QuotaSite, pad: usize, wrap: (&str, &str)) -> (String, usize) {
+    let padded = site.template.replace("@P", &"{}".repeat(pad));
+    let at = padded
+        .find("@E")
+        .expect("the template places an expression");
+    let source = padded.replacen("@E", &format!("{}{}{}", wrap.0, site.inner, wrap.1), 1);
+    (source, at + wrap.0.len())
+}
+
+/// The diagnostic without the numbers of its spans and without the file name.
+fn without_spans(json: &str) -> String {
+    let mut out = String::new();
+    let mut rest = json;
+    while let Some((at, key)) = ["\"start\":", "\"end\":", "\"file\":\""]
+        .iter()
+        .filter_map(|key| rest.find(key).map(|at| (at, *key)))
+        .min()
+    {
+        let after = at + key.len();
+        out.push_str(&rest[..after]);
+        let skip = if key.ends_with('"') {
+            rest[after..].find('"').unwrap()
+        } else {
+            rest[after..]
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(rest.len() - after)
+        };
+        out.push('#');
+        rest = &rest[after + skip..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Moves a span of the bare control to the same program with the wrapper around `interior`.
+fn moved_span(
+    span: (usize, usize),
+    interior: (usize, usize),
+    wrap: (&str, &str),
+) -> (usize, usize) {
+    let (open, close) = (wrap.0.len(), wrap.1.len());
+    let start = if span.0 < interior.0 {
+        span.0
+    } else if span.0 < interior.1 {
+        span.0 + open
+    } else {
+        span.0 + open + close
+    };
+    let end = if span.1 <= interior.0 {
+        span.1
+    } else if span.1 <= interior.1 {
+        span.1 + open
+    } else {
+        span.1 + open + close
+    };
+    (start, end)
+}
+
+#[test]
+fn quota_span_helpers_move_spans_across_the_wrapper() {
+    let site = QuotaSite {
+        template: "ab@P@Ecd",
+        inner: "xy",
+        pad: 0,
+    };
+    let (bare, bare_at) = quota_source(&site, 1, WRAPS[0]);
+    assert_eq!((bare.as_str(), bare_at), ("ab{}xycd", 4));
+    let (grouped, at) = quota_source(&site, 1, WRAPS[2]);
+    assert_eq!((grouped.as_str(), at), ("ab{}((xy))cd", 6));
+    let interior = (4, 6);
+    for (span, wrap, moved) in [
+        ((0, 2), WRAPS[2], (0, 2)),
+        ((4, 6), WRAPS[1], (5, 7)),
+        ((3, 7), WRAPS[3], (3, 11)),
+        ((6, 8), WRAPS[2], (10, 12)),
+    ] {
+        assert_eq!(moved_span(span, interior, wrap), moved);
+    }
+    assert_eq!(
+        without_spans("{\"file\":\"a.n\",\"start\":12,\"end\":7,\"k\":3}"),
+        "{\"file\":\"#\",\"start\":#,\"end\":#,\"k\":3}"
+    );
+}
+
+/// One pad of one site: the control and the wrapped variants give the same R0001 (`run`), with the
+/// primary of the control moved across the wrapper; `fixed` also requires, for the pad whose
+/// rejected tick is the tick of the site, that the control primary is the inner expression.
+fn quota_row(site: &QuotaSite, pad: usize, fixed: bool) {
+    let (bare, bare_at) = quota_source(site, pad, WRAPS[0]);
+    let (exit, control, stderr) = invoke("run", &bare, J);
+    assert!(stderr.is_empty(), "{bare}: {stderr}");
+    assert_eq!(exit, 1, "{bare}: {control}");
+    for fragment in [
+        "\"outcome\":{\"kind\":\"simulator_fault\"}",
+        "\"code\":\"R0001\"",
+        "\"operation\":\"runtime.limit\"",
+    ] {
+        assert!(control.contains(fragment), "{bare}: {control}");
+    }
+    assert_eq!(control.matches("\"code\":").count(), 1, "{bare}: {control}");
+    let control_primary = primary(&control);
+    let interior = (bare_at, bare_at + site.inner.len());
+    if fixed {
+        assert_eq!(
+            control_primary, interior,
+            "{bare}: the site tick is rejected"
+        );
+    }
+    for wrap in &WRAPS[1..] {
+        let (source, at) = quota_source(site, pad, *wrap);
+        let (exit_g, json, stderr_g) = invoke("run", &source, J);
+        assert!(stderr_g.is_empty(), "{source}: {stderr_g}");
+        assert_eq!(exit_g, exit, "{source}: {json}");
+        assert_eq!(without_spans(&json), without_spans(&control), "{source}");
+        assert_eq!(
+            primary(&json),
+            moved_span(control_primary, interior, *wrap),
+            "{source}: {json}"
+        );
+        if fixed {
+            assert_eq!(primary(&json), (at, at + site.inner.len()), "{source}");
+        }
+        let (exit_c, checked, stderr_c) = invoke("check", &source, J);
+        assert!(stderr_c.is_empty(), "{source}: {stderr_c}");
+        assert_eq!(exit_c, 0, "{source}: {checked}");
+        assert!(
+            checked.contains("\"outcome\":{\"kind\":\"checked\"}")
+                && checked.contains("\"diagnostics\":[]"),
+            "{source}: {checked}"
+        );
+    }
+}
+
+fn quota_sweep(site: &QuotaSite) {
+    for pad in 0..=11 {
+        quota_row(site, pad, pad == site.pad);
+    }
+}
+
+#[test]
+fn let_initializer_tick_keeps_the_inner_primary_under_groups() {
+    quota_sweep(&LET_INITIALIZER);
+}
