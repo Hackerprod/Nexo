@@ -35,13 +35,13 @@ def sig_orc(r):
     return sorted(out, key=lambda x: tuple('' if v is None else v for v in x[:4]) + (str(x[4:]),))
 
 
-def run_bin(exe, src, k):
+def run_bin(exe, src, k, xv=None):
     if not hasattr(tl, 'n'):
         tl.n = threading.get_ident()
     f = os.path.join(WORK, 'f%d.n' % tl.n)
     with open(f, 'w', newline='') as fh:
         fh.write(src)
-    p = subprocess.run([exe, 'check', '--format', 'json', '--profile', 'f0-0002-b-v2', f], capture_output=True, text=True, timeout=60)
+    p = subprocess.run([exe, 'check', '--format', 'json', '--profile', 'f0-0002-b-v2', f], capture_output=True, text=True, timeout=60, env=dict(os.environ, NEXO_XV=xv) if xv is not None else None)
     try:
         j = json.loads(p.stdout)
     except Exception:
@@ -73,8 +73,11 @@ def main():
     bins = [a.split('=', 1) for a in sys.argv[4:]]
     res = {}
     for name, exe in bins:
+        xv = None
+        if '|' in exe:
+            exe, xv = exe.split('|', 1)
         with ThreadPoolExecutor(6) as ex:
-            res[name] = list(ex.map(lambda s: run_bin(exe, s, 0), corpus))
+            res[name] = list(ex.map(lambda s: run_bin(exe, s, 0, xv), corpus))
         print(name, 'ok', flush=True)
     json.dump(res, open(out, 'w'))
 
