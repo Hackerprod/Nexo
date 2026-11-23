@@ -1,0 +1,1 @@
+fn Main(){let x=1;let p=true;let ar=[1];let aar=[[1]];let br=[true];var r=[];var q=[];var s=[];let a0=[(if 1 then (if br[x] then [[],[q]] else (if true then aar else s)) else (if br[x] then (s<q) else (if 1 then [[r]] else 1))),1];while (if false[x] then 1 else (([r,s]==ar)==aar)) {}r=3;q=ar;}
