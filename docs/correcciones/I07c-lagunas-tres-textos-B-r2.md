@@ -1,0 +1,21 @@
+# Validación B de los tres textos de aclaración — ronda 2 (commit `36bde46`): P3 PASS; P1 (`match`) y P2 (procedencia) FAIL
+
+**Bien en las tres:** cifras y spans de todos los ejemplos por bytes exactos; citas correctas en el texto normativo, sin números de línea ni alusiones a implementaciones (las referencias a l.NNN, 2g' y d2 quedan solo en los fundamentos, que no se pegan); clasificación correcta (P1 y P2 relleno de laguna revertible; P3: 1.1 aclaración derivada, 1.2 relleno); ninguna salida protegida cambia (152 RD coinciden con `main` en N e I; 217 `.n` de `corpus/` y `tests/fixtures/`: 0 pánicos; ninguna fila RD usa `match`); sin colisión entre las tres ni con T5, RD94/95/21/65/110/123, `+`/`-` ni el primario con agrupaciones.
+
+## P1 `match` (regla «discrepancia interna frente a propia»): FAIL (~45 programas propios)
+Coinciden con la regla: discrepancia propia (pendiente o denunciada), la interna con exterior compatible, la interna denunciada con exterior incompatible, el `match` anidado válido y el discrepante, el brazo con literal erróneo y la guarda. Defectos reproducibles:
+1. **Contraejemplo de la regla.** Brazo1 = `(if p then (if p then 1 else s) else q)` y brazo2 = `true` (178 B): `fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then 1 else s) else q);},None=>{value: true;}};}`. Texto: la continuación externa `q` es incompatible con el testigo I64 (discrepancia propia pendiente, tratada igual que la denunciada): no ofrece tipo: no debería haber NX-E1303 en `true`. `main`: NX-E1303 en `[169,173)`. Con externa `2` o `ar` texto y `main` coinciden.
+2. **Un `match` anidado con un brazo erróneo sí ofrece tipo en `main`.** Brazo1 = `match move o{Some(m)=>{value: 1;},None=>{value: true+1;}}` y brazo2 = `true` (196 B, con `var r=[];` en el preámbulo): texto: no ofrece tipo ni testigo (solo una NX-E0102); `main` añade NX-E1303 en `[187,191)`. Si el brazo interior erróneo es el literal `[1,true]`, `main` no la emite: no es uniforme.
+3. **Caso sin decidir.** Brazo1 = `(if p then true+1 else 1)` y brazo2 = `true` (164 B): el texto define «defecto interno» solo como unión anidada en la primera continuación y no cubre una continuación errónea; `main` ofrece el testigo y emite NX-E1303 en `[155,159)`.
+4. **«Una sola NX-E1303» es inexacta.** `fn Main(){let p=true;let b=match 1{1=>{value: 1;},2=>{value: (if p then 2 else true);},_=>{value: [1];}};}` (106 B) da dos, en `[79,83)` y `[98,101)`; con `_=>{value: 3;}` da una; con `true` en el brazo 2 y `[1]` en el 3 también una.
+
+## P2 procedencia de `expected_type` (regla de 6 cláusulas): FAIL (17 programas propios)
+Coinciden con la regla, y con el oráculo donde lo modela, el resto de anotación, firma, intrínseco, alias, unión, retorno de función y escalar por dos `var`; las tres diferencias declaradas con `main` y las cifras del fundamento se reproducen exactamente.
+1. **La cláusula (4) es ambigua.** `fn Main(){var a=[[]];a=[[]];a=[[1]];a=[true];}` (46 B): `main` y el oráculo dan la relación `[30,35)`; al pie de la letra de (4), la primera igualdad posterior que da el constructor es `a=[[]]`, en `[24,28)`: hay que precisar la cláusula.
+No bloqueante: `fn Main(){var v=[];var w=[v];v=[1];w=[[true]];}` da `[31,34)` según la regla y el oráculo, y `[25,28)` en `main`: cuarta diferencia de la misma familia (cambio de `main` en S5a.5).
+
+## P3 literal de array con elemento erróneo: PASS
+22 programas propios en la ronda 1 y 17 nuevos coinciden con N (heterogéneo, defecto interno, contaminado, unión RD123, nombre sin resolver, literal anidado, literal erróneo en distintas posiciones, `q` pendiente resuelto después, tres brazos de `match`). Los tres defectos de `main` con constructor envolvente se reproducen con las cifras del texto (91, 97, 89, 90 y 197 B; gemelos de 79, 77 y 72 B) y están separados de la regla (d2/R1). `Ok` sin anotación da NX-E0113. No bloqueante: con contexto escalar `main` tampoco emite sobre el literal y el texto solo dice «sin NX-E1303».
+
+## Qué puede adoptarse
+Solo P3 (1.1 y 1.2). La 1.2 remite por título a la sección de `match`: adoptarla después de ella o a la vez, o la remisión queda colgante. El defecto 2 de P1 es el mismo mecanismo que el defecto 3 de P3 (`match` anidado con brazo erróneo): conviene resolverlos juntos en d2/R1.
