@@ -1,6 +1,6 @@
 # I07c-S6COR-GUARDA-CLOSURE — efecto de una llamada a closure en la guarda de `match`
 
-**Estado: plan de A (contexto limpio), primera versión, pendiente de B; NO autoriza implementación.** Corte de **núcleo** (aceptación de guardas y diagnóstico `NX-E1305/guard_effect`); andamiaje: corpus y script diferencial, fuzz, texto de documentos. Base: `origin/main` = `e7b1813` (`src/` idéntico a `68e0d2b`, la medida del defecto). Binario base medido: `git archive origin/main` compilado en debug (rustc 1.99.1) en `C:\nexo-work\val\a-guarda-closure-base`. Candidato de comprobación (no confirmado, se borra): la misma copia con los dos cambios de §5 en `src/ir/effects.rs` (el diff es el de §5; sin tocar tests ni ADR).
+**Estado: plan de A (contexto limpio), versión 2 (corrige las 4 omisiones documentales del FAIL de B r1), pendiente de B; NO autoriza implementación.** Corte de **núcleo** (aceptación de guardas y diagnóstico `NX-E1305/guard_effect`); andamiaje: corpus y script diferencial, fuzz, texto de documentos. Base: `origin/main` = `e7b1813` (`src/` idéntico a `68e0d2b`, la medida del defecto). Binario base medido: `git archive origin/main` compilado en debug (rustc 1.99.1) en `C:\nexo-work\val\a-guarda-closure-base`. Candidato de comprobación (no confirmado, se borra): la misma copia con los dos cambios de §5 en `src/ir/effects.rs` (el diff es el de §5; sin tocar tests ni ADR).
 
 ## 0. Resumen y cuenta
 
@@ -8,7 +8,7 @@
 - **Defecto D2 (hermano, hallado al medir la familia, distinta causa).** Las guardas que viven **dentro del cuerpo de una closure** no se comprueban nunca: ni siquiera `MockUnknown()` o `G()` directos se rechazan (`fn Main(){let f=fn (){match true{true if MockUnknown()==()=>{},_=>{}}};}` → `checked`). Causa: `CallSites::from_ast` descarta las guardas de las closures (`&mut Vec::new()`, l.133) y el bucle de guardas salta toda función sin declaración fuente (l.1789). D2 no es una familia de D1 (otro mecanismo) pero es la misma regla de aceptación y comparte la regresión de «closure llamada dentro de guarda dentro de closure».
 - **Soluciones: 2 commits de producto, ambos en `src/ir/effects.rs`:** **S1** (D1) y **S2** (D2); mecanismo de cada una en §5. Se añade **C0** (andamiaje: corpus y script diferencial, sin tocar producto). La cadena de §8.
 - **Efecto observable de S1 sobre tests existentes (medido):** con S1+S2 aplicadas la suite completa en debug (`cargo nextest run --profile default`, 2.205 tests) da 2.203 pasan y **2 fallan**, ambos por consecuencias previstas: (a) `i07c_group_primary::effect_diagnostics_report_the_target_name_of_a_grouped_call`, porque las 12 filas `head_*_guard` encodan el defecto (su fuente da ahora **dos** diagnósticos y su reparación se rechaza), y (b) `i07c_structural_invariants::grouped_operands_keep_one_causal_primary`, porque el auditor de spans fija `effects.rs` por número de línea y S2 desplaza una línea (§6). Ninguna otra salida protegida cambia.
-- **Lagunas abiertas (las decide el coordinador, no el plan): L1 (identidad `Entity` del paso `closure.call`), L2 (alcance: incluir S2), L3 (documentos que contradicen §3.3 de F0-0003: fila «guarda de `match`» del addendum de lagunas).** §10.
+- **Lagunas decididas por el coordinador (sin condiciones pendientes):** L1 = lectura A (`Entity` `function:<offset de fn>`); L2 = lectura 1 (S2 entra como commit propio, revertible, con puerta y mutación por separado); L3 = se adopta el texto de reemplazo de §10, que el coordinador incorpora al addendum antes de implementar. §10.
 
 ### 0.1 Clasificación núcleo / andamiaje (AGENTS.md «Rigor proporcional»)
 
@@ -17,7 +17,7 @@
 | Aceptar/rechazar una guarda según el efecto de la closure llamada (S1, S2): código `NX-E1305`, subcausa `guard_effect`, etapa `effects`, primario, `data` (`effect_evidence`, `required_effect`, `effect_model`) | **NÚCLEO** |
 | Número y orden de diagnósticos (p. ej. `NX-E0415` + `NX-E1305` en el mismo sitio; dos llamadas en una guarda → dos diagnósticos); precedencia con `guard_control`/`guard_transfer`/`guard_mutation`; programas sin efecto siguen aceptados | **NÚCLEO** |
 | Divergencia `check`/`run`, debug/release; pánico/`internal_error`/`InvalidIr`/cuelgue | **NÚCLEO** (bloquea) |
-| `cause_chain` (operaciones y spans de los pasos), `Entity` de cada paso, `related_spans = []` | **ANDAMIAJE** (pruebas de ejemplo; sin campañas; `Entity` condicionada a L1) |
+| `cause_chain` (operaciones y spans de los pasos), `Entity` de cada paso, `related_spans = []` | **ANDAMIAJE** (pruebas de ejemplo; sin campañas; `Entity` según L1 = A, incondicional) |
 | Corpus congelado, script diferencial, fuzz, texto de `Pending.md`/defectos abiertos | **ANDAMIAJE** |
 
 ## 1. Alcance y autoridad (esperado derivado del ADR)
@@ -147,12 +147,12 @@ Por qué es el único mecanismo: la regla se evalúa por instrucción de la guar
 
 ### S2 — las guardas de cada closure se enumeran y se comprueban (D2)
 
-- `CallSites::from_ast` (l.121–137): devolver además un mapa `closure_guards: HashMap<u64, Vec<Span>>` con las guardas de cada cuerpo de closure, clave `closure.fn_span.start` (igual a `site`, dato `inferred.closures[fn_span.start].site` y sufijo de `$closure:<site>`): sustituir `scope_sites(&closure.body, &mut Vec::new(), &mut calls)` por un `Vec` propio que se inserta en el mapa. El único llamador de producción es `analyze` (l.1421); el llamador de pruebas (`l.4404`, `CallSites::from_ast(ast).0`) ya usa solo el primer campo.
+- `CallSites::from_ast` (l.121–137): devolver además un mapa `closure_guards: HashMap<u64, Vec<Span>>` con las guardas de cada cuerpo de closure, clave `closure.fn_span.start` (igual a `site`, dato `inferred.closures[fn_span.start].site` y sufijo de `$closure:<site>`): sustituir `scope_sites(&closure.body, &mut Vec::new(), &mut calls)` por un `Vec` propio que se inserta en el mapa. El único llamador de producción es `analyze` (l.1421); el llamador de pruebas (`l.4405`, `CallSites::from_ast(ast).0`) ya usa solo el primer campo.
 - Bucle de guardas (l.1788–1792): obtener `own_guards` de `function_guards[source_ranks[name]]` si `f.name` es una `fn` fuente, o de `closure_guards` por el sufijo numérico de `$closure:<site>` si es una closure; en cualquier otro caso, vacío. La obtención de `source_function` (necesaria solo para las restricciones `with`, l.1860 y siguientes) pasa **después** del bucle de guardas, conservando su `continue` para funciones sin declaración fuente.
 
 Por qué es el único mecanismo: recolecta las guardas de cada invocable (que ya existían en `scope_sites`) y las pasa por el **mismo** bucle de S1; no se escribe una segunda comprobación para closures.
 
-**Efectos laterales (S2):** (i) el bucle recorre las instrucciones de la closure solo si tiene guardas (cuerpo de coste nulo en el resto); (ii) dedupe por `(index, start, end)` con `index` de la función de closure: sin colisión con la `fn` envolvente; (iii) **desplazamiento de línea** en `effects.rs`: el auditor `scripts/i07c_span_audit.py` fija `REVIEWED_EFFECTS` por número de línea (hoy `1223: guard.span().clone()`); S2 inserta líneas antes de ella y C debe actualizar esa clave a la línea real tras el commit (medido con el candidato de A: 1226; C **recalcula**); (iv) ningún otro cambio de comportamiento (no se emiten diagnósticos nuevos fuera de guardas de closure).
+**Efectos laterales (S2):** (i) el bucle recorre las instrucciones de la closure solo si tiene guardas (cuerpo de coste nulo en el resto); (ii) dedupe por `(index, start, end)` con `index` de la función de closure: sin colisión con la `fn` envolvente; (iii) **desplazamiento de línea** en `effects.rs`: el auditor `scripts/i07c_span_audit.py` es **por número de línea** (todas sus entradas lo son; no tiene modo función+expresión) y fija `REVIEWED_EFFECTS` en `1223: guard.span().clone()`. S2 solo cambia **esa clave de línea**, conservando intacta la expresión, la clase (`identity`) y el contexto (`Frame::Guard(guard)`): la comprobación de vecindad del auditor (l.264) sigue exigiendo expresión y contexto, así que no se debilita. S1 no desplaza la línea (solo toca l.1810 en adelante). Pasar el auditor a clave función+expresión es **un corte aparte**, fuera de este plan; S2 inserta líneas antes de ella y C debe actualizar esa clave a la línea real tras el commit (medido con el candidato de A: 1226; C **recalcula**); (iv) ningún otro cambio de comportamiento (no se emiten diagnósticos nuevos fuera de guardas de closure).
 
 ## 6. Efectos laterales globales y salidas protegidas
 
@@ -162,7 +162,7 @@ Por qué es el único mecanismo: recolecta las guardas de cada invocable (que ya
 - Lista de **protegidos sin cambio de salida** (esperado actual = nuevo): `tests/j05_match_guards.rs` completo (incluye `transitive_guard_effect_uses_callee_summary_and_call_site`, `q01_*`, `independent_guard_effect_sites_*`), `tests/f0005_b1b.rs` l.624, `tests/j16_integrated.rs` l.661, `src/diagnostic.rs` l.2547, las filas `guard_intrinsic_call`, `guard_function_call` y `guard_{mutation,transfer}_*` de `i07c_group_primary.rs`, el corpus `corpus/` y `corpus/objetivo/` (ninguna fuente llama a una closure en una guarda: medido por `git grep` y por el diferencial de §8), las 152 filas RD y la batería de la puerta completa. El diferencial de §8 mide 840 fuentes con 0 cambios fuera de las clases esperadas.
 - **PARAR y consultar** si, tras S1/S2, cambia algún otro test, fila RD, programa de `corpus/`/`corpus/objetivo/` o fixture (no ajustar esperados), o si el medidor de objetivos baja.
 - **Pila:** no se toca `src/check/types.rs`; `scripts/f5-stack65.py` y el medidor F5 forman parte de `validate.sh` sin cambio esperado.
-- **Documentos:** los ADR no se tocan (L3: lo decide el coordinador). Al cerrar el corte C actualiza `Pending.md` (filas `S6COR-GUARDA-MATCH-AGRUPADA`/`S6COR-PENDIENTES`) y `docs/validation/F0-0002-I07c-defectos-abiertos.md` fila 33 (a «cerrada» con evidencia por ejecución), sin reescribir y sin afirmar PASS antes de tiempo.
+- **Documentos:** C no toca ningún ADR; el texto de L3 (§10) lo adopta el coordinador en el addendum antes de implementar. Al cerrar el corte C actualiza `Pending.md` (filas `S6COR-GUARDA-MATCH-AGRUPADA`/`S6COR-PENDIENTES`) y `docs/validation/F0-0002-I07c-defectos-abiertos.md` fila 33 (a «cerrada» con evidencia por ejecución), sin reescribir y sin afirmar PASS antes de tiempo.
 
 ## 7. Pruebas
 
@@ -201,6 +201,8 @@ Cada fila produce **2 diagnósticos con el mismo primario**, ordenados por códi
 | `head_no_suspend_if_1_guard` | `[93,95)` `if` |
 | `head_no_suspend_if_2_guard` | `[94,96)` `if` |
 
+**Exigencias adicionales (medidas con el candidato; B r1 las reprodujo):** (i) el `control` de las filas con `control` no vacío (las 8 filas `name` y `literal`; las 4 `if_*` no tienen `control`) también produce **DOS** diagnósticos: el del contrato y `NX-E1305/guard_effect`, ambos con primario igual al `control_primary` de la fila (`[82,83)` `f` en `head_no_io_name_*`, `[40,42)` `fn` en `head_no_io_literal_*`, `[92,93)` `f` y `[45,47)` `fn` en las `no_suspend`), con el mismo reparto de campos que el `source`; (ii) el test nuevo `guard_calls_report_the_contract_and_the_guard_effect_at_one_site` **no reutiliza `one_diagnostic`** (que exige exactamente un diagnóstico, `i07c_group_primary.rs` l.2862–2867): usa un ayudante propio que exige **exactamente dos**, en orden de código, con el mismo primario, y comprueba cada uno por separado; (iii) `check` y `run` dan lo mismo en las tres fuentes de cada fila.
+
 (Los primarios de `control` y la cadena siguen siendo los de la fila actual desplazados como hoy; C transcribe los del archivo y comprueba cada uno contra la salida del binario base **antes** de S1, que es el esperado «sin cambio» del 1.º diagnóstico, y contra §2.4 para el 2.º.)
 
 ### 7.3 Corpus congelado, diferencial y fuzz (ANDAMIAJE)
@@ -208,8 +210,10 @@ Cada fila produce **2 diagnósticos con el mismo primario**, ordenados por códi
 - **C0** crea `scripts/i07c_guarda_closure_diff.py` (§8, Apéndice A). Genera **840 fuentes** deterministas (sin azar; orden fijo de listas) y exige que el SHA-256 del JSON generado sea **`b82fa323f5d4c8ab0f0101017e02206b08857066aeeff1d06310e3a5ea97b860`** (calculado por A con `json.dumps(out, indent=0)`, sin LF final, UTF-8; si C obtiene otro valor, el generador del plan no se reprodujo y no se continúa).
 - **Binario base** = caché de `origin/main` (`gate.sh <commit> --cached-bin debug|release` si el commit tiene registro verde; si no, `git archive` + build). Se ejecutan `check` **y** `run`, en `f0-0003-b-v1` y `f0-0005-b-v1`, debug y release.
 - **Resultado medido por A (debug, prototipo S1+S2 frente a base, 840 fuentes × `check,run` × 2 perfiles):** cambian **exactamente** las clases `closure_guard_eff` (360), `literal_guard_eff` (24), `closure_param/transitive/chain/capture_read/capture_move/pattern_bound/two_calls_eff` (12 c/u), `guard_in_closure_{fn,cl,direct}_eff` (12 c/u); **0 diferencias** en las demás: `closure_guard_pure` (120), `fn_guard_{eff,pure}` (360+120), `contract_{cl,fn}_{eff,pure}`, `closure_outside_guard` (480), las `*_pure` y `ownership_or_other` (16). Los 180 pares `closure_guard_eff`/`fn_guard_eff` coinciden por paridad (0 discrepancias).
-- **Criterio del script (falla si):** (a) una fuente de una clase «sin cambio» difiere entre base y candidato en `check` o en `run` (código de salida, `outcome.kind` o `diagnostics`); (b) una fuente de una clase «cambia» no queda en rechazo con el conjunto esperado (paridad con su par `fn`); (c) cualquier salida con `internal_error`, `InvalidIr`, pánico (código ≠ 0/1 o `stderr` no vacío) o tiempo > 60 s.
-- **Fuzz sin pánicos:** el mismo script con `--fuzz N` (N=3.000) compone al azar con semilla fija 20261123 (`random.Random(20261123)`; elegir cuerpo, forma de llamada, contexto, nivel de agrupación 0–3, envolturas `if`/bloque, guardas dentro de closures, 1–3 llamadas por guarda) y exige solo (c) más que `check` y `run` coincidan en aceptación. Las fuentes generadas no se congelan; la semilla basta.
+- **Criterio del script (falla si):** (a) una fuente de una clase «sin cambio» difiere entre base y candidato en `check` o en `run` (código de salida, `outcome.kind` o `diagnostics`); (b) una fuente de una clase «cambia» no queda en rechazo con el conjunto esperado (paridad con su par `fn`); (c) cualquier salida con `internal_error`, `InvalidIr`, pánico (código ≠ 0/1 o `stderr` no vacío) o tiempo > 60 s (salvo la nota de escalado); (a) se aplica también a las fuentes de `--gen2`.
+- **Diferencial `fn+match` con las semillas del corte S5c (B r1 las ejecutó: 4.500 fuentes × `check`/`run`, base vs candidato y debug vs release, 0 diferencias, 0 pánicos).** Generador `gen2.py` = blob `11ac8537bda405ae60b97a444dea112d2e41a5dc` de `origin/i07c-estructural-r2:docs/validation/i07c-s5c/b-d2/gen2.py` (SHA-256 del contenido `11f10ff1cc3dab3bcbc7f8964951de23634b39549bdff1f8b9f23f477b357b90`; C lo extrae con `git show origin/i07c-estructural-r2:docs/validation/i07c-s5c/b-d2/gen2.py` y comprueba ambos hashes; no se copia al repositorio). Comando por semilla: `python gen2.py SEMILLA 1500 out.json`; SHA-256 del `out.json`: **6112023 = `48f6e809e10f701ae6b746ff21a523bf06c9cd8e9e1177da75b4b43b688213c4`; 1357911 = `9e4c4d9f96dbbe469d30f6aeb163bb69576b0cba3a8bb07b41674bb373ffe513`; 424242 = `f9952957f7093440140c2e831551fdb1e3ce11996bceb0fed57bc32eb96bab3e`**. El script de C0 acepta `--gen2 <semilla>` (ejecuta el generador, verifica el hash y corre las 1.500 fuentes). **Criterio:** 0 cambios de aceptación (aceptada/rechazada), de código, de subcausa ni de primario entre base y candidato, en `check` y `run`, **fuera de las clases con efecto** (closure llamada en guarda y guarda en closure con efecto); estas fuentes (`fn`+`match` sin closures) deben dar 0 cambios en todas.
+- **Fuzz sin pánicos (generador congelado, Apéndice C):** `python fuzzgen.py 3000 fuzz.json` (semilla fija 20261123; `random.Random(20261123)`), SHA-256 del JSON generado **`a797ef463114cde39105012fd6f85e210ae7ab9b027ac5211ee87be092c90e01`** (calculado por A; 3.000 fuentes, 2.573 distintas). Se ejecuta en `check` y `run`, `f0-0003-b-v1` y `f0-0005-b-v1`, base y candidato, debug y release. Exige solo (c), que `check` y `run` coincidan en aceptación, que debug y release coincidan, y que **ninguna fuente rechazada por la base pase a aceptada** en el candidato (los rechazos solo pueden aumentar). B r1 ejecutó un generador propio equivalente (3.000 fuentes, 12.000 ejecuciones): 0 anomalías.
+- **Nota de escalado (preexistente, no bloqueante):** el informe de `guard_effect` escala de forma superlineal con (guardas × llamadas × cadena). Medido por B r1 en debug: 400 guardas × 8 llamadas con cadena de 40 closures: base 14,7 s (acepta), candidato 39,7 s (3.200 diagnósticos); la `fn` equivalente en la **base** tarda 53 s (3.200 diagnósticos); 200×20 supera 60 s en el candidato (base 22,7 s). S1 no introduce el escalado (la `fn` ya lo tiene). **El criterio (c) de 60 s no se aplica a esos tamaños**; se registra en `Pending.md` (fila nueva, con fecha) y el corpus del plan no excede 2 guardas y 3 llamadas por programa.
 - **Diferencial debug/release:** el mismo script con el binario release; las salidas deben ser idénticas a las de debug.
 
 ### 7.4 Mutación inversa por solución (núcleo)
@@ -220,7 +224,7 @@ Restauración por SHA-256 del archivo; suite completa, perfil `default`, debug y
 |---|---|---|
 | M1 (S1) | volver a `let Op::CallDirect { function, .. } = &instruction.op else { continue; }` | `closure_call_in_guard_reports_guard_effect_at_the_callee_name` y `closure_calls_in_guards_report_guard_effect_in_every_profile` |
 | M2 (S1) | el paso antepuesto vuelve a `CauseOperation::FunctionCall` | `…at_the_callee_name` (cadena `[ClosureCall, …]`) |
-| M3 (S1) | `declaración` ignorada (entidad `function:0`) | la fila CLI de entidad (condicionada a L1: si el coordinador adopta la lectura B, el mutante se redefine) |
+| M3 (S1) | `declaración` ignorada (entidad `function:0`, como hace la base cuando el destino no es una `fn` fuente) | la fila CLI de entidad (`function:<offset de fn>`, L1 = A; firme e incondicional) |
 | M4 (S2) | volver a `scope_sites(&closure.body, &mut Vec::new(), …)` | `guard_inside_a_closure_body_is_checked` (U01/U02) |
 | M5 (S2) | el salto `else { continue; }` antes del bucle de guardas (vuelve a omitir closures) | ídem |
 
@@ -250,23 +254,27 @@ Ningún otro archivo cambia. `tests/suite.rs` no cambia (ninguna prueba nueva en
 - **Rechazar toda llamada a closure en guarda:** F0-0003 §3.3 rechaza por **efecto**, no por forma (P01–P05 deben seguir aceptadas).
 - **Cambiar los tests `head_*_guard` para que dejen de llamar a una closure efectiva:** el contrato `with no_*` solo se incumple con un efecto, que la guarda prohíbe a su vez; no existe fuente con una sola de las dos infracciones. Se conserva el escenario y se corrige la expectativa (§7.2).
 
-## 10. Lagunas para el coordinador (el plan NO las decide)
+## 10. Decisiones del coordinador sobre las lagunas (firmes; sin condiciones)
 
-- **L1 — `Entity` del paso `closure.call` de `guard_effect`.** F0-0003 §8.1 dice solo «Entity se escribe completa» y fija `Cause.operation = closure.call`; no dice qué `Entity` lleva ese paso. **Lectura A:** `{kind: function, id: function:<offset del token fn del literal>}` — es lo que ya emiten hoy `NX-E0412..NX-E0415` para el mismo paso (`function:27` en `B01`; coherente con `function:7` del `gen` en la fixture F04) y lo que produce S1. **Lectura B:** la `Entity` del **enlace** que contiene la closure (`binding:<offset del nombre>`), análoga a otros pasos de drop/copy (`binding:14`), que daría `binding:14` para `g` en T01 y no sería definible para un literal llamado en el sitio (T10). Impacto: solo `cause_chain[0].entity.id` (andamiaje); no cambia código, subcausa, primario ni `data`. Mientras no se decida, C implementa A (idéntico a los contratos), y las pruebas de `Entity` quedan marcadas como condicionadas.
-- **L2 — alcance: ¿se incluye S2 (guardas dentro de closures) en este corte?** Lectura 1 (la del plan): F0-0003 §3.3 prohíbe efectos en **toda** guarda y no exceptúa cuerpos de invocables anidados («tienen su propio contexto»: significa que su análisis es independiente, no que estén exentos). Lectura 2: «propio contexto» sólo habla de control (`guard_control`) y el ADR no fija el efecto de las guardas en closures, por lo que quedarían fuera de alcance de este corte. La directriz del propietario (2026-11-21, robustez sin diferir deuda) respalda 1; el plan trae S2 como commit separable y revertible, por si el coordinador adopta 2 (se descartan S2, U01–U05 y la clave del auditor).
-- **L3 — documentos que contradicen §3.3 y los tests del corte previo S6-COR.** (a) En `docs/adr/F0-0002-lagunas.md`, tabla «Sitio de la llamada con destino agrupado…», fila «guarda de `match`»: dice «NX-E0415 …» como único diagnóstico y «válido: la misma fuente sin `with no_io`»; con S1, el programa «válido» se rechaza por `guard_effect` y la fuente inválida emite **dos** diagnósticos. (b) Las 12 filas `head_*_guard` de `tests/i07c_group_primary.rs` encodan lo mismo. Propuesta de texto para la fila (a), revertible y que decide el coordinador: «inválido: `fn Main() with no_io{match true{true if (fn ()->Bool{Print(1);return true;})()=>{},_=>{}}}`; diagnóstico esperado: `NX-E0415`, `closure.call`, `[41,43)` y `NX-E1305/guard_effect` en el mismo `[41,43)` (F0-0003 §3.3); válido: la misma fuente sin `with no_io` **y con el cuerpo `return true;`**». Hasta que el coordinador lo adopte, el plan no modifica ningún ADR.
+- **L1 — `Entity` del paso `closure.call` de `guard_effect`: lectura A.** `{kind: function, id: function:<offset del token fn del literal>}`, igual que ya emiten `NX-E0412..NX-E0415` y coherente con `function:7` de la fixture F04 (F0-0003 §8.1 solo dice «Entity se escribe completa»). Las filas de `Entity` de §2 y §7.1 son incondicionales; M3 es mutante firme.
+- **L2 — alcance: lectura 1.** F0-0003 §3.3 prohíbe efectos en toda guarda y «propio contexto» de los invocables anidados no los exime. S2 entra en el corte como **commit propio, revertible**, con su puerta mecánica y su mutación por separado (§8, §7.4).
+- **L3 — se adopta el texto de reemplazo** de la fila «guarda de `match`» de `docs/adr/F0-0002-lagunas.md` (relleno de laguna revertible, verificado por B r1 con `main` y con S1+S2); **lo incorpora el coordinador antes de implementar**; C no toca ningún ADR. Texto (fila de la tabla «Sitio de la llamada con destino agrupado que no es un nombre»):
+
+| guarda de `match` | inválido: `fn Main() with no_io{match true{true if (fn ()->Bool{Print(1);return true;})()=>{},_=>{}}}` (90 bytes) | dos diagnósticos del mismo sitio, orden por código: `NX-E0415`, `closure.call`, `[41,43)` (`fn`), `contract_origin [15,20)`, pasos `[41,43)` e `intrinsic.call [53,58)`; y `NX-E1305/guard_effect` (effects/effects.check) `[41,43)`, `required_effect=io`, `effect_evidence=known_effect`, mismos pasos, sin relaciones (F0-0003 §3.3: la guarda prohíbe io; el contrato `no_io` es una regla independiente) | válido: `fn Main() with no_io{match true{true if (fn ()->Bool{return true;})()=>{},_=>{}}}` (81 bytes; `check` checked, `run` unit). Sin `with no_io` y con `Print(1)` sigue inválido: solo `NX-E1305/guard_effect` `[30,32)` (79 bytes). |
+
+(Medido en `main` `e7b1813`: la fuente inválida da solo `NX-E0415` y la que no lleva `with` se acepta; con S1 dan lo anterior.) Las 12 filas `head_*_guard` de `tests/i07c_group_primary.rs` se corrigen en S1 (§7.2).
 
 ## 11. Riesgos y puntos que B debe vigilar
 
 1. **Esperados.** Todas las cifras de §2 salen de ejecutar el binario base y el candidato de A; la **derivación** (cláusulas de §1) es independiente de esa ejecución: primario = nombre/cabeza del destino (F0-0002 §8.2 y lagunas), `req` = primer efecto prohibido por orden alloc/block/suspend/io (§8.1 Q01), cadena = testigo más corto. B debe contrastar al menos T01, T10, T14, O04 y U01 contra el ADR, no contra la ejecución.
 2. **Doble diagnóstico con contrato (O04, §7.2).** Es la consecuencia de que la `fn` ya los emite ambos (`B10f`); B debe confirmar que el ADR no pide supresión causal entre `NX-E0415` y `NX-E1305` (F0-0003 §3.3 «no borra sitios independientes»; son el mismo sitio con dos reglas distintas, un contrato y la guarda).
-3. **L1, L2, L3** abiertas: el plan no puede darse por cerrado hasta que el coordinador las decida; B no debe «resolver» una laguna con la lectura que prefiera.
+3. **L1, L2, L3 decididas (§10).** B verifica que el plan no deja ninguna condición pendiente y que el texto de L3 coincide con lo medido (90/81/79 bytes y offsets).
 4. **Filas reubicadas (12).** B debe comprobar que ninguna se pierde y que el 1.º diagnóstico de cada una conserva literalmente los campos actuales; la reubicación no debe rebajar el requisito (cada fila sigue comprobando primario, `data`, relación y cadena del contrato).
 5. **Auditor por línea.** S2 desplaza una línea de `effects.rs`; C debe recalcular la clave y no cambiar la clasificación del sitio (`identity`, `guard.span().clone()`). Si la implementación de S2 inserta más o menos líneas que el candidato de A, la clave cambia: no es un defecto del plan.
-6. **Rendimiento.** `find_witness` se invoca ahora por cada llamada a closure en guarda (como ya ocurre por llamada a `fn`); no cobra cuota. Un programa con muchas guardas y muchas llamadas puede tardar más: medir con el corpus de 3.000 fuentes del fuzz (criterio de 60 s) y registrar si aparece un cuelgue (defecto bloqueante de andamiaje).
+6. **Rendimiento.** `find_witness` se invoca ahora por cada llamada a closure en guarda (como ya ocurre por llamada a `fn`); no cobra cuota. Un programa con muchas guardas y muchas llamadas puede tardar más: medir con el fuzz de 3.000 fuentes (criterio de 60 s, salvo la nota de escalado de §7.3) y registrar un cuelgue en tamaños pequeños como defecto bloqueante de andamiaje.
 7. **Perfiles.** `f0-0005-b-v1` coincide con `f0-0003-b-v1` salvo `effect_model`; `f0-0002-b-v2` no admite closures ni `match`. B debe rechazar un plan de pruebas que solo cubra un perfil.
 8. **Precedencia ownership.** O01–O03 dependen de que ownership falle antes que effects (F0-0003 matriz de barreras). Un cambio en S1 no debe alterar esa barrera; O01–O03 son los testigos.
-9. **Atribución de la mutación M3** depende de L1; si el coordinador elige la lectura B el plan debe volver a A para redefinir M3 y las filas de entidad.
+9. **Mutante M3 firme** (L1 = A): debe morir por la fila de `Entity` `function:<offset de fn>`; si sobrevive, la fila de entidad no se ejecuta y es defecto del plan.
 10. **Inalcanzable hoy:** cualquier otra forma de invocar una closure (campo, argumento, retorno, array) no existe en el perfil; si un corte posterior la habilita deberá revisar este mecanismo (`Op::CallClosure` es la única operación de llamada a closure en el IR).
 
 ## Apéndice A — generador del corpus congelado (sin azar)
@@ -348,3 +356,72 @@ Resultado de A: `840 b82fa323f5d4c8ab0f0101017e02206b08857066aeeff1d06310e3a5ea9
 ## Apéndice B — reproducción de las medidas de §2
 
 `nexo check <fuente> --profile f0-0003-b-v1 --format json` sobre el binario base (`origin/main`) y sobre el candidato; la columna «Estado base» de §2 sale de la primera, «Esperado» de §1 y de la paridad con la `fn` equivalente. Tabla del número de diagnósticos de §2.1 transcrita del JSON de cada fuente (`diagnostics[*].{code,subcause,primary_span,data,cause_chain}`).
+
+## Apéndice C — generador del fuzz congelado
+
+```python
+"""Fuzz congelado de S6COR-GUARDA-CLOSURE: python fuzzgen.py 3000 salida.json (semilla fija 20261123)."""
+import hashlib
+import json
+import random
+import sys
+
+BODIES = ["return true;", "return 1==1;", "Print(1);return true;", "MockUnknown();return true;",
+          "let r=MockOpen(1);return true;", "let a=[1];return true;", "let q=MockRequest();return true;",
+          "let r=MockBlockingOpen(1);return true;"]
+CTX = ["match true{true if %s=>{},_=>{}}", "match Some(1){Some(v) if %s=>{},_=>{}}",
+       "let x=match true{true if %s=>{value:1;},_=>{value:2;}};", "if true{match true{true if %s=>{},_=>{}}}",
+       "match true{true=>{match true{true if %s=>{},_=>{}}},_=>{}}"]
+
+
+def group(rng, text):
+    for _ in range(rng.randint(0, 3)):
+        text = "(" + text + ")"
+    return text
+
+
+def call(rng, names):
+    n = rng.choice(names)
+    if n.startswith("fn "):
+        return "(%s)()" % n[3:]
+    return group(rng, n) + "()" if rng.random() < 0.3 else n + "()"
+
+
+def guard(rng, names):
+    parts = [call(rng, names) for _ in range(rng.randint(1, 3))]
+    g = "==".join(parts)
+    if len(parts) > 1 or rng.random() < 0.4:
+        g = "(if true then %s else false)" % parts[0] if len(parts) == 1 else g
+    return g
+
+
+def make(rng):
+    defs, names = "", []
+    for i in range(rng.randint(0, 3)):
+        body = rng.choice(BODIES)
+        if rng.random() < 0.35 and names:
+            body = "return %s();" % rng.choice(names)
+        if rng.random() < 0.8:
+            defs += "let g%d=fn ()->Bool{%s};" % (i, body)
+            names.append("g%d" % i)
+    lit = "fn ()->Bool{%s}" % rng.choice(BODIES)
+    names.append("fn (%s)" % lit)
+    ctx = rng.choice(CTX) % guard(rng, names)
+    if rng.random() < 0.3:
+        ctx = "let f=fn (){%s};" % ctx
+    pre = ""
+    if rng.random() < 0.3:
+        pre = "fn G()->Bool{%s}" % rng.choice(BODIES)
+        ctx = ctx.replace("g0()", "G()") if rng.random() < 0.5 else ctx
+    return "%sfn Main(){%s%s}" % (pre, defs, ctx)
+
+
+n, out = int(sys.argv[1]), sys.argv[2]
+rng = random.Random(20261123)
+progs = [make(rng) for _ in range(n)]
+text = json.dumps(progs, indent=0)
+open(out, "w", newline="").write(text)
+print(len(progs), hashlib.sha256(text.encode()).hexdigest())
+```
+
+Resultado de A: `3000 a797ef463114cde39105012fd6f85e210ae7ab9b027ac5211ee87be092c90e01` (`python fuzzgen.py 3000 fuzz.json`, `json.dumps(progs, indent=0)`, sin LF final). Si C obtiene otro hash, no se reprodujo y no se continúa.
