@@ -1,0 +1,1 @@
+fn Main(){let x=true+1;let a=x+1;}

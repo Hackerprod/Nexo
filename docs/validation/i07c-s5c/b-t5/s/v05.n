@@ -1,0 +1,1 @@
+fn Main(){var q=[];let b=[Len(q),true,1];q=[1];}

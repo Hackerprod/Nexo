@@ -1,0 +1,1 @@
+fn G(p:view Bool)->I64{return 1;}fn Main(){let a=[G(true+1),true,1];}

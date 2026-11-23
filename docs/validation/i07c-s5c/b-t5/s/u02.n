@@ -1,0 +1,1 @@
+fn Main(){let x=1;let a=[(if 0 then [1] else [2]),x];}

@@ -1,0 +1,1 @@
+fn Main(){let e=[];let a=[e,true+1];}
