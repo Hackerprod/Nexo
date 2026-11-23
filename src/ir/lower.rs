@@ -465,6 +465,7 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
         },
         ReducedProfile::F5Normal => AnalysisLimits {
             profile_id: "f0-0005-b-v1",
+            literal_true_loops: true,
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::F5ControlInternal => AnalysisLimits {
@@ -722,7 +723,7 @@ fn compile_scalar_with_analysis_limits_unchecked(
         }
         return Err(CompileError::Rejected(checked.errors));
     }
-    let program = lowered?;
+    let program = literal_true_barrier(file, source, limits, &ast, lowered)?;
     if run_entry {
         let resolved = checked
             .resolved
@@ -732,6 +733,83 @@ fn compile_scalar_with_analysis_limits_unchecked(
             .map_err(|error| CompileError::Rejected(vec![error]))?;
     }
     Ok(program)
+}
+
+/// F0-0005 §2.2 and §8.2: a literal-`true` loop is a new capability, so it meets the L08
+/// barrier, exactly when its missing false edge changes the verdict. The verdict is the same
+/// lowering run once more with the historical edge; there is no second analysis. The anchor is
+/// the first such loop in a function where the historical rule reports an error, and it competes
+/// with the other capabilities by source offset.
+fn literal_true_barrier(
+    file: &str,
+    source: &str,
+    limits: AnalysisLimits,
+    ast: &Ast,
+    lowered: Result<Program, CompileError>,
+) -> Result<Program, CompileError> {
+    if !ast.f5_operators || !limits.literal_true_loops {
+        return lowered;
+    }
+    let barrier_only = match &lowered {
+        Ok(_) => true,
+        Err(CompileError::Rejected(errors)) => errors.iter().all(|d| is_l08_barrier(d)),
+        Err(_) => false,
+    };
+    if !barrier_only {
+        return lowered;
+    }
+    let loops = f5_capabilities(ast).literal_true_loops;
+    if loops.is_empty() {
+        return lowered;
+    }
+    let historical = compile_scalar_with_analysis_limits_unchecked(
+        file,
+        source,
+        false,
+        AnalysisLimits {
+            literal_true_loops: false,
+            ..limits
+        },
+    );
+    let errors = match historical {
+        Err(CompileError::Rejected(errors)) => errors,
+        Err(other) => return Err(other),
+        Ok(_) => return lowered,
+    };
+    let rejected_at: Vec<u64> = errors
+        .iter()
+        .filter(|d| !is_l08_barrier(d))
+        .filter_map(|d| d.primary_span.as_ref().map(|span| span.start))
+        .collect();
+    if rejected_at.is_empty() {
+        return lowered;
+    }
+    let in_rejected_function = |span: &Span| {
+        ast.functions.iter().any(|function| {
+            function.body.span.start <= span.start
+                && span.start < function.body.span.end
+                && rejected_at
+                    .iter()
+                    .any(|at| function.span.start <= *at && *at < function.span.end)
+        })
+    };
+    let anchor = loops
+        .into_iter()
+        .filter(|span| in_rejected_function(span))
+        .min_by_key(|span| span.start);
+    let Some(anchor) = anchor else {
+        return lowered;
+    };
+    if let Err(CompileError::Rejected(existing)) = &lowered
+        && existing.iter().any(|d| {
+            d.primary_span
+                .as_ref()
+                .is_some_and(|s| s.start <= anchor.start)
+        })
+    {
+        return lowered;
+    }
+    Err(CompileError::Rejected(vec![l08_barrier(anchor)]))
 }
 
 #[cfg(test)]
@@ -1447,27 +1525,47 @@ fn compile_ast_with_flow_limit<'a>(
         super::verify::verify_program(&program).map_err(CompileError::InvalidIr)?;
     }
     if ast.f5_operators
-        && let Some(span) = first_f5_capability(ast)
+        && let Some(span) = f5_capabilities(ast).first.map(|(_, span)| span)
     {
-        let mut diagnostic = crate::check::names::diagnostic(
-            "NX-E0006",
-            None,
-            diagnostic::Stage::Lower,
-            diagnostic::Operation::IrLower,
-            span,
-        );
-        diagnostic.feature_id = Some("implementation_limit".into());
-        diagnostic.message = "Capacidad pendiente de implementación en L08.".into();
-        diagnostic.data.insert(
-            "pending_scope".into(),
-            diagnostic::DataValue::String("L08".into()),
-        );
-        return Err(CompileError::Rejected(vec![diagnostic]));
+        return Err(CompileError::Rejected(vec![l08_barrier(span)]));
     }
     Ok(program)
 }
 
-fn first_f5_capability(ast: &Ast) -> Option<Span> {
+/// The public L08 barrier of F0-0005 §8.2 on the first node of a new capability.
+fn l08_barrier(span: Span) -> Box<Diagnostic> {
+    let mut diagnostic = crate::check::names::diagnostic(
+        "NX-E0006",
+        None,
+        diagnostic::Stage::Lower,
+        diagnostic::Operation::IrLower,
+        span,
+    );
+    diagnostic.feature_id = Some("implementation_limit".into());
+    diagnostic.message = "Capacidad pendiente de implementación en L08.".into();
+    diagnostic.data.insert(
+        "pending_scope".into(),
+        diagnostic::DataValue::String("L08".into()),
+    );
+    diagnostic
+}
+
+fn is_l08_barrier(diagnostic: &Diagnostic) -> bool {
+    diagnostic.code == "NX-E0006"
+        && diagnostic.stage == diagnostic::Stage::Lower
+        && diagnostic.data.get("pending_scope")
+            == Some(&diagnostic::DataValue::String("L08".into()))
+}
+
+/// Source nodes that the F5 profile admits only behind the L08 barrier.
+struct F5Capabilities {
+    /// Raw start and primary span of the first operator-like capability.
+    first: Option<(u64, Span)>,
+    /// `while` keywords whose condition is a literal `true` (groups allowed).
+    literal_true_loops: Vec<Span>,
+}
+
+fn f5_capabilities(ast: &Ast) -> F5Capabilities {
     enum Node<'a> {
         Expr(&'a Expr),
         Statement(&'a Statement),
@@ -1477,6 +1575,7 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
     let mut pending: Vec<_> = ast.functions.iter().map(|f| Node::Block(&f.body)).collect();
     // The raw start orders candidates; the span is what a diagnostic reports.
     let mut first: Option<(u64, Span)> = None;
+    let mut literal_true_loops = Vec::new();
     while let Some(node) = pending.pop() {
         match node {
             Node::Block(block) => pending.extend(block.statements.iter().map(Node::Statement)),
@@ -1517,8 +1616,21 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
                     }
                 }
                 Statement::While {
-                    condition, body, ..
+                    condition,
+                    body,
+                    span,
                 } => {
+                    let mut ungrouped = condition;
+                    while let Expr::Group(inner, _) = ungrouped {
+                        ungrouped = inner;
+                    }
+                    if matches!(ungrouped, Expr::Bool(true, _)) {
+                        literal_true_loops.push(Span {
+                            file: span.file.clone(),
+                            start: span.start,
+                            end: span.start + "while".len() as u64,
+                        });
+                    }
                     pending.push(Node::Expr(condition));
                     pending.push(Node::Block(body));
                 }
@@ -1592,7 +1704,10 @@ fn first_f5_capability(ast: &Ast) -> Option<Span> {
             },
         }
     }
-    first.map(|(_, span)| span)
+    F5Capabilities {
+        first,
+        literal_true_loops,
+    }
 }
 
 fn ir_operand_count(op: &Op) -> u64 {
