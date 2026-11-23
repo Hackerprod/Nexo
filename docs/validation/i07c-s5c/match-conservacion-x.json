@@ -1,0 +1,30 @@
+[
+ [
+  "X-matchexpr-1727",
+  "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];r=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then q else 2) else 1);},None=>{value: [q,r];}};}"
+ ],
+ [
+  "X-matchexpr-3516",
+  "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then true else [q,r]) else (if p then r else q)) else s);},None=>{value: aar;}};r=[[ar]];q=[[ar]];}"
+ ],
+ [
+  "X-matchexpr-6257",
+  "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];q=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then 1 else ar) else r);},None=>{value: [q];}};q=[3];}"
+ ],
+ [
+  "X-matchexpr-7266",
+  "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];q=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then 1 else 2) else s) else r);},None=>{value: [q];}};}"
+ ],
+ [
+  "X-matchexpr-8614",
+  "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];r=ar;let a0=match move o{Some(n)=>{value: (if p then (if p then true else [q]) else q);},None=>{value: aar;}};}"
+ ],
+ [
+  "X-matchexpr-11187",
+  "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else 1) else 1);},None=>{value: aar;}};}"
+ ],
+ [
+  "X-matchexpr-14160",
+  "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then 2 else [q]) else r);},None=>{value: aar;}};}"
+ ]
+]
