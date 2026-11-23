@@ -7766,6 +7766,9 @@ impl Checker<'_> {
                 {
                     continue;
                 }
+                if xv("e0103skip") && self.graph.type_nodes[&constructor].array_origin.is_none() {
+                    continue;
+                }
                 self.unresolved_constructor_diagnostic(constructor, join.found)
             };
             if error.code == "NX-E0102"
