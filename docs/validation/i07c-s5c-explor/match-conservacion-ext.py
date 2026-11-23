@@ -126,6 +126,12 @@ if True:
 
 DF = os.path.join(HERE, 'match-conservacion-ext-decl.json')
 DECL = json.load(open(DF, encoding='utf-8'))          # 28 del segundo brazo
+DF21 = os.path.join(HERE, 'match-conservacion-ext-decl21.json')
+DECL21 = json.load(open(DF21, encoding='utf-8'))      # 21 anadidos de RM-M3 fuera del segundo brazo
+DFNA = os.path.join(HERE, 'match-conservacion-ext-noadj.json')
+NOADJ = json.load(open(DFNA, encoding='utf-8'))       # 8 no adjudicables: listados aparte con ambas salidas, fuera de las 103
+NOADJ_OUT = os.path.join(HERE, 'match-conservacion-ext-noadj-salidas.json')
+GRUPO21 = 'diferencias_declaradas_rmm3_fuera_2o_brazo'
 DECL_54 = {  # filas de las 54 originales cuyo valor del candidato difiere del de main (adjudicadas contra el oraculo)
     'rejilla1-anidada-else-denunciada': ('mejora_con_cita', 'ADR F0-0002 4.1.2.4 l.353 (una sola NX-E1303 por union, sobre la primera continuacion incompatible; las demas sin NX-E1303 propia) y l.367 (un conflicto pendiente de serializacion cuenta como ya denunciado): `s` pendiente incompatible con `1` ya denuncia; `true` no recibe E1303'),
     'B-161-anidada-else-pendiente-denunciada': ('mejora_con_cita', 'idem: l.353 y l.367'),
@@ -159,18 +165,20 @@ def run(exe, src, perfil):
 
 
 def todos():
-    """(id, grupo, perfil, fuente) de las 82 filas: 51 de conservacion + 3 declaradas de las 54 + 28 declaradas."""
+    """(id, grupo, perfil, fuente) de las 103 filas: 51 de conservacion + 3 declaradas de las 54 + 28 declaradas + 21 declaradas de RM-M3."""
     filas = []
     for pid, grupo, perfil, src in PROGRAMAS:
         filas.append((pid, 'diferencias_declaradas_de_las_54' if pid in DECL_54 else 'conservacion', perfil, src))
     for d in DECL:
         filas.append((d['id'], 'diferencias_declaradas', d['perfil'], d['fuente']))
+    for d in DECL21:
+        filas.append((d['id'], GRUPO21, d['perfil'], d['fuente']))
     return filas
 
 
 def regenerar(exe_main, exe_cand):
     seen, filas = set(), []
-    decl = {d['id']: d for d in DECL}
+    decl = {d['id']: d for d in DECL + DECL21}
     for pid, grupo, perfil, src in todos():
         assert pid not in seen, pid
         seen.add(pid)
@@ -180,7 +188,7 @@ def regenerar(exe_main, exe_cand):
             assert m == c, 'conservacion rota en %s' % pid
             fila.update(outcome=m['outcome'], diagnosticos=m['diagnosticos'], marca=NOTA)
         else:
-            if grupo == 'diferencias_declaradas':
+            if grupo in ('diferencias_declaradas', GRUPO21):
                 clase, cita = decl[pid]['clase'], decl[pid]['cita']
             else:
                 clase, cita = DECL_54[pid]
@@ -191,6 +199,12 @@ def regenerar(exe_main, exe_cand):
                         main=m, candidato=c,
                         mismo_resultado_en_f0003_y_f0005=(otro_m[0] == otro_m[1] and otro_c[0] == otro_c[1]))
         filas.append(fila)
+    na = []
+    for d in NOADJ:
+        m, c = run(exe_main, d['fuente'], d['perfil']), run(exe_cand, d['fuente'], d['perfil'])
+        na.append({'id': d['id'], 'perfil': d['perfil'], 'fuente': d['fuente'], 'motivo': d['motivo'], 'main': m, 'candidato': c, 'difieren': m != c})
+    texto_na = json.dumps({'marca': 'no adjudicables: ni mejora ni regresion; fuera de las 103 filas', 'filas': na}, indent=1, ensure_ascii=True, sort_keys=True) + '\n'
+    open(NOADJ_OUT, 'w', encoding='utf-8', newline='\n').write(texto_na)
     return {'marca': NOTA + ' / ' + NOTA_D, 'binario_main_sha256': hashlib.sha256(open(exe_main, 'rb').read()).hexdigest(),
             'binario_candidato_sha256': hashlib.sha256(open(exe_cand, 'rb').read()).hexdigest(), 'programas': len(filas), 'filas': filas}
 
@@ -204,15 +218,15 @@ def comprobar(exe, tabla_path, sha_path, es_main):
     viejo = json.loads(texto)
     progs = todos()
     n_prog, n_tabla = len(progs), len(viejo['filas'])
-    if not (n_prog == n_tabla == viejo.get('programas') == 82):
-        errores.append('numero de filas: programas=%d tabla=%d campo=%s (esperadas 82)' % (n_prog, n_tabla, viejo.get('programas')))
+    if not (n_prog == n_tabla == viejo.get('programas') == 103):
+        errores.append('numero de filas: programas=%d tabla=%d campo=%s (esperadas 103)' % (n_prog, n_tabla, viejo.get('programas')))
     ids_p, ids_t = [p[0] for p in progs], [f['id'] for f in viejo['filas']]
     if ids_p != ids_t:
         errores.append('ids distintos: solo en tabla %s; solo en programas %s' % (sorted(set(ids_t) - set(ids_p)), sorted(set(ids_p) - set(ids_t))))
     grupos = {}
     for f in viejo['filas']:
         grupos[f['grupo']] = grupos.get(f['grupo'], 0) + 1
-    if grupos != {'conservacion': 51, 'diferencias_declaradas_de_las_54': 3, 'diferencias_declaradas': 28}:
+    if grupos != {'conservacion': 51, 'diferencias_declaradas_de_las_54': 3, 'diferencias_declaradas': 28, GRUPO21: 21}:
         errores.append('grupos: %s' % grupos)
     por_id = {f['id']: f for f in viejo['filas']}
     for pid, grupo, perfil, src in progs:
@@ -231,6 +245,16 @@ def comprobar(exe, tabla_path, sha_path, es_main):
             errores.append('%s: difiere outcome/diagnosticos (%s)' % (pid, grupo))
         if grupo != 'conservacion' and not f.get('clase'):
             errores.append('%s: fila declarada sin clase' % pid)
+    if os.path.exists(NOADJ_OUT):
+        na = json.load(open(NOADJ_OUT, encoding='utf-8'))['filas']
+        if [f['id'] for f in na] != [d['id'] for d in NOADJ]:
+            errores.append('no adjudicables: ids distintos')
+        for f in na:
+            r = run(exe, f['fuente'], f['perfil'])
+            if r != (f['main'] if es_main else f['candidato']):
+                errores.append('%s: no adjudicable difiere' % f['id'])
+    else:
+        errores.append('falta el fichero de las 8 no adjudicables')
     return errores, viejo
 
 

@@ -1,6 +1,6 @@
 {
- "binario_candidato_sha256": "6b1fb823c205bcb89879c83f4dd894b104ae2ac6f3032b0fdf8ecd330ac864d6",
- "binario_main_sha256": "bc46facdf2ff211bedda3d038a049b4437f732bddeb42167c9d6383571699969",
+ "binario_candidato_sha256": "6b249792057e660cfaf8358643adbf3e547c609723105f3af5ee531f8a7931af",
+ "binario_main_sha256": "d51b56453c96d23716da23be1e29eaddd2779a9e594496d882daa0066962e9f1",
  "filas": [
   {
    "bytes": 160,
@@ -9025,8 +9025,3429 @@
    "mismo_resultado_en_f0003_y_f0005": true,
    "outcome": "rejected",
    "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 206,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      93,
+      95
+     ],
+     "relations": [],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else r) else 2);},None=>{value: [q];}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-c2-10405",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 233,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       207,
+       208
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         200
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         207,
+         208
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      93,
+      95
+     ],
+     "relations": [],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<I64>",
+     "found_type": "I64",
+     "primary": [
+      207,
+      208
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        200
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        207,
+        208
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then r else r) else s) else 1);},None=>{value: ar;}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-c2-6523",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 233,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       184,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         175,
+         178
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         184,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       193,
+       197
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         165,
+         186
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         193,
+         197
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       204,
+       208
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         197
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         204,
+         208
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      102,
+      104
+     ],
+     "relations": [],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Array<I64>",
+     "primary": [
+      184,
+      186
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        175,
+        178
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        184,
+        186
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Bool",
+     "primary": [
+      193,
+      197
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        165,
+        186
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        193,
+        197
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Bool",
+     "primary": [
+      204,
+      208
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        154,
+        197
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        204,
+        208
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then [q] else ar) else true) else true);},None=>{value: r3;}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s4417061-2128",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 267,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<Array<Array<I64>>>>",
+      "primary": [
+       199,
+       204
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         181,
+         182
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         199,
+         204
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       238,
+       242
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         171,
+         231
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         238,
+         242
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Array<Array<Array<Array<I64>>>>",
+     "primary": [
+      199,
+      204
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        181,
+        182
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        199,
+        204
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Array<Array<I64>>",
+     "primary": [
+      238,
+      242
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        171,
+        231
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        238,
+        242
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=q;r=q;let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then [q,r] else (if p then q else r))) else q[0]);},None=>{value: r3;}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s4417061-135",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 246,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "I64",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       191,
+       195
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         184,
+         185
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         191,
+         195
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<I64>",
+      "primary": [
+       240,
+       243
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         152,
+         211
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         240,
+         243
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      102,
+      104
+     ],
+     "relations": [],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      111,
+      113
+     ],
+     "relations": [],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "I64",
+     "found_type": "Array<Array<I64>>",
+     "primary": [
+      191,
+      195
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        184,
+        185
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        191,
+        195
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "I64",
+     "found_type": "Array<I64>",
+     "primary": [
+      240,
+      243
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        152,
+        211
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        240,
+        243
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then 1 else [ar]) else 1) else s);},None=>{value: q[0];}};q=[[3]];}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s4417061-1107",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "I64",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       191,
+       195
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         184,
+         185
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         191,
+         195
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 226,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      93,
+      95
+     ],
+     "relations": [],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then 2 else q) else q) else q);},None=>{value: r[0];}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s7021993-1103",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 231,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<Array<Array<I64>>>",
+      "primary": [
+       198,
+       201
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         191
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         198,
+         201
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Array<Array<Array<I64>>>",
+     "primary": [
+      198,
+      201
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        154,
+        191
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        198,
+        201
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then q else r)) else [q]);},None=>{value: aar;}};q=r;}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s7021993-682",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 228,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<Array<Array<I64>>>",
+      "primary": [
+       188,
+       193
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         181
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         188,
+         193
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<I64>",
+      "primary": [
+       222,
+       224
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         211,
+         214
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         222,
+         224
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Array<Array<Array<I64>>>",
+     "primary": [
+      188,
+      193
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        181
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        188,
+        193
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "I64",
+     "found_type": "Array<I64>",
+     "primary": [
+      222,
+      224
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        211,
+        214
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        222,
+        224
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else r) else [s,q]);},None=>{value: aar;}};r=[[ar]];}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s7021993-77",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<Array<Array<I64>>>>",
+      "primary": [
+       188,
+       193
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         181
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         188,
+         193
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 228,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       188,
+       189
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         181
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         188,
+         189
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       216,
+       220
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         207,
+         209
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         216,
+         220
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<I64>",
+     "found_type": "I64",
+     "primary": [
+      188,
+      189
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        181
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        188,
+        189
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "I64",
+     "found_type": "Array<Array<I64>>",
+     "primary": [
+      216,
+      220
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        207,
+        209
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        216,
+        220
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then s else q) else 1);},None=>{value: ar;}};s=[[ar]];r=ar;}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-c2-14100",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "I64",
+      "primary": [
+       188,
+       189
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         181
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         188,
+         189
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 253,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       207,
+       212
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         200
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         207,
+         212
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       243,
+       245
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         230,
+         232
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         243,
+         245
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       249,
+       251
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         230,
+         232
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         249,
+         251
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      111,
+      113
+     ],
+     "relations": [],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Bool",
+     "primary": [
+      207,
+      212
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        200
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        207,
+        212
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Array<I64>",
+     "primary": [
+      243,
+      245
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        230,
+        232
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        243,
+        245
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Array<I64>",
+     "primary": [
+      249,
+      251
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        230,
+        232
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        249,
+        251
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else r) else r) else false);},None=>{value: r3;}};r=q;q=[ar];r=ar;}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s7021993-1306",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       207,
+       212
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         200
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         207,
+         212
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       249,
+       251
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         184,
+         185
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         249,
+         251
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 219,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<Array<Array<I64>>>>",
+      "primary": [
+       183,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         158,
+         176
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         183,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       214,
+       215
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         204,
+         206
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         214,
+         215
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Array<Array<Array<Array<I64>>>>",
+     "primary": [
+      183,
+      186
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        158,
+        176
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        183,
+        186
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<I64>",
+     "found_type": "I64",
+     "primary": [
+      214,
+      215
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        204,
+        206
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        214,
+        215
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=match move o{Some(n)=>{value: (if p then (if p then r else q) else [r]);},None=>{value: r3;}};r=[[3]];}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s9908255-3083",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<Array<Array<I64>>>",
+      "primary": [
+       183,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         158,
+         176
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         183,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 218,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "I64",
+      "primary": [
+       192,
+       193
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         185
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         192,
+         193
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "I64",
+     "primary": [
+      192,
+      193
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        185
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        192,
+        193
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then [q,r] else s) else 1);},None=>{value: r3;}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-c2-3289",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 241,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       207,
+       208
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         200
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         207,
+         208
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<I64>",
+      "primary": [
+       235,
+       238
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         226,
+         228
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         235,
+         238
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0103",
+     "expected_type": null,
+     "found_type": null,
+     "primary": [
+      111,
+      113
+     ],
+     "relations": [],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<I64>",
+     "found_type": "I64",
+     "primary": [
+      207,
+      208
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        200
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        207,
+        208
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "I64",
+     "found_type": "Array<I64>",
+     "primary": [
+      235,
+      238
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        226,
+        228
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        235,
+        238
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else (if p then q else r)) else 2);},None=>{value: ar;}};q=[[3]];}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s9908255-3098",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "I64",
+      "primary": [
+       207,
+       208
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         200
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         207,
+         208
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 249,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       191,
+       195
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         184,
+         185
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         191,
+         195
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       202,
+       206
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         174,
+         195
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         202,
+         206
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "I64",
+      "primary": [
+       213,
+       214
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         206
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         213,
+         214
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Bool",
+     "primary": [
+      191,
+      195
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        184,
+        185
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        191,
+        195
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Bool",
+     "primary": [
+      202,
+      206
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        174,
+        195
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        202,
+        206
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "I64",
+     "primary": [
+      213,
+      214
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        206
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        213,
+        214
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then r else true) else true) else 1);},None=>{value: r3;}};q=aar;s=q;}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s4417061-93",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 264,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<I64>",
+      "found_type": "Array<Array<Array<I64>>>",
+      "primary": [
+       209,
+       210
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         207,
+         208
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         209,
+         210
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       218,
+       222
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         211
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         218,
+         222
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       251,
+       252
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         240,
+         243
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         251,
+         252
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<I64>",
+      "primary": [
+       258,
+       261
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         240,
+         243
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         258,
+         261
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<I64>",
+     "found_type": "Array<Array<Array<I64>>>",
+     "primary": [
+      209,
+      210
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        207,
+        208
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        209,
+        210
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Bool",
+     "primary": [
+      218,
+      222
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        211
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        218,
+        222
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<I64>",
+     "found_type": "I64",
+     "primary": [
+      251,
+      252
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        240,
+        243
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        251,
+        252
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "I64",
+     "found_type": "Array<I64>",
+     "primary": [
+      258,
+      261
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        240,
+        243
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        258,
+        261
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then r[0] else [s,q]) else [q,r]) else true);},None=>{value: aar;}};r=[[3]];q=[[3]];}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s7021993-3794",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<Array<Array<Array<I64>>>>",
+      "primary": [
+       209,
+       210
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         207,
+         208
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         209,
+         210
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       218,
+       222
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         211
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         218,
+         222
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "I64",
+      "primary": [
+       251,
+       252
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         197,
+         198
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         251,
+         252
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 246,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       182,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         164,
+         165
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         182,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Array<Array<I64>>",
+     "primary": [
+      182,
+      186
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        164,
+        165
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        182,
+        186
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then r[0] else r)) else (if p then r else r3));},None=>{value: q;}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-c2-15426",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       182,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         164,
+         165
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         182,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 219,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<Array<Array<I64>>>",
+      "primary": [
+       188,
+       193
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         181
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         188,
+         193
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Array<Array<Array<I64>>>",
+     "primary": [
+      188,
+      193
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        163,
+        181
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        188,
+        193
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else r) else [s,q]);},None=>{value: aar;}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s9908255-2027",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 244,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "I64",
+      "primary": [
+       182,
+       183
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         175,
+         176
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         182,
+         183
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       201,
+       205
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         194
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         201,
+         205
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       233,
+       235
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         223,
+         225
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         233,
+         235
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       240,
+       242
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         223,
+         225
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         240,
+         242
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "I64",
+     "primary": [
+      182,
+      183
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        175,
+        176
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        182,
+        183
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Bool",
+     "primary": [
+      201,
+      205
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        154,
+        194
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        201,
+        205
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Array<I64>",
+     "primary": [
+      233,
+      235
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        223,
+        225
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        233,
+        235
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<Array<Array<I64>>>",
+     "found_type": "Array<I64>",
+     "primary": [
+      240,
+      242
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        223,
+        225
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        240,
+        242
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else 1) else r[0]) else true);},None=>{value: r3;}};r=[[ar]];q=ar;}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s7021993-2840",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "I64",
+      "primary": [
+       182,
+       183
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         175,
+         176
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         182,
+         183
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       201,
+       205
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         194
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         201,
+         205
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       240,
+       242
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         190,
+         194
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         240,
+         242
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 231,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       192,
+       196
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         167,
+         185
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         192,
+         196
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<I64>",
+      "primary": [
+       225,
+       227
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         214,
+         217
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         225,
+         227
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Bool",
+     "primary": [
+      192,
+      196
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        167,
+        185
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        192,
+        196
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "I64",
+     "found_type": "Array<I64>",
+     "primary": [
+      225,
+      227
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        214,
+        217
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        225,
+        227
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=q;let a0=match move o{Some(n)=>{value: (if p then (if p then r else s) else true);},None=>{value: aar;}};q=[[ar]];}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s7021993-41",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       192,
+       196
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         167,
+         185
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         192,
+         196
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 212,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "I64",
+      "primary": [
+       185,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         178
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         185,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "I64",
+     "primary": [
+      185,
+      186
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        154,
+        178
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        185,
+        186
+       ]
+      }
+     ],
+     "subcause": null
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then [q,r] else [q]) else 2);},None=>{value: aar;}};}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-c2-7454",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "bytes": 221,
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       173,
+       177
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         153,
+         156
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         173,
+         177
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<I64>",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       216,
+       219
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         208,
+         209
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         216,
+         219
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora",
+   "clase": "anadido_rmm3_fuera_2o_brazo",
+   "diagnosticos": [
+    {
+     "code": "NX-E1303",
+     "expected_type": "Array<Array<I64>>",
+     "found_type": "Bool",
+     "primary": [
+      173,
+      177
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        153,
+        156
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        173,
+        177
+       ]
+      }
+     ],
+     "subcause": null
+    },
+    {
+     "code": "NX-E0102",
+     "expected_type": "Array<I64>",
+     "found_type": "Array<Array<I64>>",
+     "primary": [
+      216,
+      219
+     ],
+     "relations": [
+      {
+       "role": "expected_type",
+       "span": [
+        208,
+        209
+       ]
+      },
+      {
+       "role": "found_type",
+       "span": [
+        216,
+        219
+       ]
+      }
+     ],
+     "subcause": "type_mismatch"
+    }
+   ],
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then aar else (if p then true else [r]));},None=>{value: [q,r];}};q=aar;}",
+   "grupo": "diferencias_declaradas_rmm3_fuera_2o_brazo",
+   "id": "rmm3fuera-s4417061-3751",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       173,
+       177
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         153,
+         156
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         173,
+         177
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "marca": "diferencia declarada, no normativo",
+   "mismo_resultado_en_f0003_y_f0005": true,
+   "outcome": "rejected",
+   "perfil": "f0-0003-b-v1"
   }
  ],
  "marca": "conservacion, no normativo / diferencia declarada, no normativo",
- "programas": 82
+ "programas": 103
 }
