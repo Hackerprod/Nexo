@@ -2729,7 +2729,7 @@ fn xv(flag: &str) -> bool {
     static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
     V.get_or_init(|| {
         std::env::var("NEXO_XV").unwrap_or_else(|_| {
-            "pendfa,retfa,retract,anchw,nojoin,v6rej,atomic0,arrx".to_string()
+            "pendfa,retfa,retract,anchw,nojoin,atomic0,e0103rule,retfail,matchpartial".to_string()
         })
     })
         .split(',')
@@ -7766,7 +7766,7 @@ impl Checker<'_> {
                 {
                     continue;
                 }
-                if xv("e0103skip") && self.graph.type_nodes[&constructor].array_origin.is_none() {
+                if (xv("e0103skip") || xv("e0103rule")) && self.graph.type_nodes[&constructor].array_origin.is_none() {
                     continue;
                 }
                 self.unresolved_constructor_diagnostic(constructor, join.found)
@@ -7798,7 +7798,7 @@ impl Checker<'_> {
                         .array_origin
                         .as_ref()
                         .is_some_and(|span| causal_inference_sites.contains(&span_key(span)));
-                ((has_cause || xv("arrx")) && self.concrete(child).is_none()).then_some(root)
+                ((has_cause || xv("arrx") || xv("e0103rule")) && self.concrete(child).is_none()).then_some(root)
             })
             .collect();
         let shared_inference_roots: HashSet<u64> = self
@@ -13833,7 +13833,13 @@ impl Checker<'_> {
             } else {
                 first.or(second)
             };
-            return Ok((carried, true, !(xv("unanch") && first_for_anchor.is_some())));
+            let failed_flag = !(xv("pendnf") && !anchor_absorbed);
+            let soft = xv("pendsoft") && !anchor_absorbed;
+            return Ok((
+                carried,
+                failed_flag && !soft,
+                !soft && !(xv("unanch") && first_for_anchor.is_some()),
+            ));
         }
         if first_failed || second_failed {
             if first_anchored && first_failed || second_anchored && second_failed {
@@ -13866,6 +13872,8 @@ impl Checker<'_> {
                                 .flatten()
                         })
                         .or(first)
+                } else if xv("retfail") {
+                    first_for_anchor.clone().or(first).or(second)
                 } else {
                     first.or(second)
                 },
@@ -14142,6 +14150,18 @@ impl Checker<'_> {
                 self.pending_join_count() > before
             );
         }
+        if xv("dbg") && self.pending_join_count() > before {
+            for join in self.pending_joins().skip(before) {
+                eprintln!(
+                    "NEWJOIN pl={} left={:?} right={:?} ctor={} branch={}",
+                    self.planning,
+                    join.left,
+                    join.right,
+                    join.constructor,
+                    join.branch
+                );
+            }
+        }
         if error.is_none() && self.pending_join_count() <= before {
             if xv("defmark") {
                 for ty in [&base.0, &found_ty_dbg] {
@@ -14167,7 +14187,9 @@ impl Checker<'_> {
             return Ok(AnchorOutcome::Absorbed);
         }
         if state == Some(false) {
-            if let Some(nodes) = snapshot0 {
+            let restore0 = (!xv("atomic0e") || error.is_some())
+                && (!xv("atomic0p") || error.is_some() || self.planning);
+            if let Some(nodes) = snapshot0.filter(|_| restore0) {
                 for (id, node) in nodes {
                     self.graph.type_nodes.insert(id, node);
                 }
@@ -14193,7 +14215,20 @@ impl Checker<'_> {
         let Some(Else::Block(block)) = progress.otherwise else {
             return Ok(());
         };
-        if progress.branch_context.expected.is_some() || failed || anchored {
+        if xv("dbg") && !self.planning {
+            eprintln!(
+                "SECONDLEAF expected={} failed={} anchored={} second={:?} anchor={}",
+                progress.branch_context.expected.is_some(),
+                failed,
+                anchored,
+                second,
+                progress.anchor.is_some()
+            );
+        }
+        if progress.branch_context.expected.is_some()
+            || (failed && !(xv("failleaf") && second.is_some()))
+            || anchored
+        {
             return Ok(());
         }
         let Some(base) = progress.anchor.clone() else {
@@ -14206,7 +14241,16 @@ impl Checker<'_> {
             branch_value_expr(block)
                 .filter(|_| registered)
                 .and_then(|expr| self.expression_variable(expr))
+                .filter(|id| !(xv("noprojB") && self.graph.projection_items.contains(id)))
                 .map(Type::Deferred)
+        });
+        let found = found.or_else(|| {
+            if !xv("failleaf") {
+                return None;
+            }
+            branch_value_expr(block)
+                .and_then(|expr| self.graph.expression_types.get(&span_key(expr.span())).cloned())
+                .filter(|ty| internal_state(ty).is_none())
         });
         let Some(found) = found else {
             return Ok(());
@@ -14242,6 +14286,7 @@ impl Checker<'_> {
         progress.first_for_anchor = progress.first.clone().or_else(|| {
             branch_value_expr(then_block)
                 .and_then(|expr| self.expression_variable(expr))
+                .filter(|id| !(xv("noprojA") && self.graph.projection_items.contains(id)))
                 .map(Type::Deferred)
         });
         if progress.branch_context.expected.is_none()
@@ -14600,12 +14645,20 @@ impl Checker<'_> {
                     return MatchAction::Value(expr, context);
                 }
                 BranchAction::Done(value, failed, _) => {
+                    if xv("dbg") && !self.planning {
+                        eprintln!("MATCHARM idx={} failed={} value={:?}", progress.arm_index, failed, value);
+                    }
                     let value = value.or_else(|| {
                         branch_value_expr(&arm.body)
                             .and_then(|expr| self.expression_variable(expr))
                             .map(Type::Deferred)
                     });
-                    if !failed && let Some(value) = value {
+                    let arm_partial = xv("matchpartial")
+                        && branch_value_expr(&arm.body).is_some_and(|expr| {
+                            self.graph
+                                .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)
+                        });
+                    if (!failed || arm_partial) && let Some(value) = value {
                         let origin =
                             branch_value_span(&arm.body).unwrap_or_else(|| arm.body.span.clone());
                         if let Some((first, first_origin)) = &progress.joined {
