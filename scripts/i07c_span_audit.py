@@ -105,7 +105,7 @@ LOWERING_BASELINE = {
         (('run_lower_tasks', 'Task::OtherCallEnter { => {'), 'target.span().clone()'): (2, 'IR, relation or frontier span: the addendum keeps the whole group'),
         (('run_lower_tasks', 'Err(error) => {'), 'target.span()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
         (('run_lower_tasks', 'Task::IfElse { => {'), 'expr.span().clone()'): (1, 'IR, relation or frontier span: the addendum keeps the whole group'),
-        (('prepare_expr', 'Expr::Call { target, span, .. } => {'), 'target.span().clone()'): (1, 'S5: call target name tick (to be replaced by the group-removal helper)'),
+        (('prepare_expr', 'Expr::Call { target, span, .. } => {'), 'callee.span().clone()'): (1, 'S5: the callee is already the group-free primary of the call target'),
         (('prepare_expr', 'Expr::Unary { => {'), 'value.span().end'): (1, 'identity: key or search bound, not a primary'),
     },
     "lower_match.rs": {
@@ -133,6 +133,7 @@ GROUP_SITES = {
     "S4": ("lower.rs", r"WorkEvent::ValueStatement,\s*value_tail\.marker\.cloned\(\)\.unwrap_or_else\(\|\| \{\s*(?P<site>parse::expression_primary_span\(value_tail\.value\))\s*\}\)", "value_tail.value.span().clone()"),
     "S4 mirror": ("lower.rs", r"WorkEvent::ValueStatement,\s*marker\s*\.clone\(\)\s*\.unwrap_or_else\(\|\| (?P<site>parse::expression_primary_span\(value\))\)", "value.span().clone()"),
     "S6": ("lower_match.rs", r'"guard_mutation",\s*(?P<site>parse::expression_primary_span\(place\))\)', "place.span().clone()"),
+    "S5": ("lower.rs", r"let callee = (?P<site>parse::expression_primary\(target\));\s*if matches!\(callee, Expr::Name\(\.\.\)\)", "target"),
 }
 
 

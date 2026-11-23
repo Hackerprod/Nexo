@@ -10248,8 +10248,9 @@ impl Lower<'_> {
                 | Expr::If { span, .. } => own.push(span.clone()),
                 Expr::Call { target, span, .. } => {
                     own.push(span.clone());
-                    if matches!(target.as_ref(), Expr::Name(..)) {
-                        own.push(target.span().clone());
+                    let callee = parse::expression_primary(target);
+                    if matches!(callee, Expr::Name(..)) {
+                        own.push(callee.span().clone());
                     }
                 }
                 Expr::Unary {

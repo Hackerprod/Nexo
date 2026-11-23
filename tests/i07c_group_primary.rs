@@ -3346,3 +3346,89 @@ fn branch_operand_tick_reports_the_inner_expression() {
 fn guard_mutation_reports_the_inner_place() {
     run_family("guard_mutation");
 }
+
+// S5: grouping does not add or remove chargeable nodes (F0-0002 section 11: "Los parentesis de
+// agrupacion no crean nodos cobrables"; "Nombre del destino de una llamada directa": 1), so a call
+// through a grouped target charges the ticks of the bare call. The relation is checked on the
+// quota boundary of a loop: the largest bound the control completes is the one the grouped source
+// completes, and one more fails with the same R0001 diagnostic. `@N` is the loop bound and `@E`
+// the (wrapped) call target of the template.
+fn count_source(template: &str, inner: &str, bound: usize, wrap: (&str, &str)) -> (String, usize) {
+    quota_template(&template.replace("@N", &bound.to_string()), inner, 0, wrap)
+}
+
+/// The R0001 diagnostic when the source exceeds the work quota, `None` when it completes.
+fn quota_outcome(template: &str, inner: &str, bound: usize, wrap: (&str, &str)) -> Option<String> {
+    let (source, _) = count_source(template, inner, bound, wrap);
+    let (exit, json, stderr) = invoke("run", &source, J);
+    assert!(stderr.is_empty(), "{source}: {stderr}");
+    if exit == 0 {
+        assert!(json.contains("\"outcome\":{\"kind\":\"unit\"}"), "{source}");
+        return None;
+    }
+    assert!(
+        exit == 1
+            && json.contains("\"code\":\"R0001\"")
+            && json.contains("\"outcome\":{\"kind\":\"simulator_fault\"}"),
+        "{source}: {json}"
+    );
+    Some(json)
+}
+
+/// The largest loop bound the control completes without exceeding the work quota.
+fn quota_boundary(template: &str, inner: &str) -> usize {
+    let (mut pass, mut fail) = (1, 2);
+    while quota_outcome(template, inner, fail, WRAPS[0]).is_none() {
+        (pass, fail) = (fail, fail * 2);
+        assert!(fail < 100_000_000, "the quota is never exceeded");
+    }
+    while fail - pass > 1 {
+        let middle = pass + (fail - pass) / 2;
+        if quota_outcome(template, inner, middle, WRAPS[0]).is_none() {
+            pass = middle;
+        } else {
+            fail = middle;
+        }
+    }
+    pass
+}
+
+fn quota_count_row(template: &str, inner: &str) {
+    let bound = quota_boundary(template, inner);
+    assert!(bound > 1, "{template}: the control must iterate");
+    let control = quota_outcome(template, inner, bound + 1, WRAPS[0])
+        .unwrap_or_else(|| panic!("{template}: the control fails one iteration later"));
+    let at = count_source(template, inner, bound + 1, WRAPS[0]).1;
+    let interior = (at, at + inner.len());
+    for wrap in &WRAPS[1..] {
+        assert_eq!(
+            quota_outcome(template, inner, bound, *wrap),
+            None,
+            "{template}: the bound {bound} completes under {wrap:?}"
+        );
+        let json = quota_outcome(template, inner, bound + 1, *wrap)
+            .unwrap_or_else(|| panic!("{template}: {} must fail under {wrap:?}", bound + 1));
+        assert_eq!(without_spans(&json), without_spans(&control), "{wrap:?}");
+        assert_eq!(
+            primary(&json),
+            moved_span(primary(&control), interior, *wrap),
+            "{template}: {wrap:?}"
+        );
+    }
+}
+
+#[test]
+fn grouped_call_target_charges_the_ticks_of_the_bare_call() {
+    quota_count_row(
+        "fn Id(x:view I64)->I64{return x;}fn Main(){var n=0;while n<@N{n=n+1;@E(1);}}",
+        "Id",
+    );
+}
+
+#[test]
+fn grouped_closure_call_charges_the_ticks_of_the_bare_call() {
+    quota_count_row(
+        "fn Main(){var n=0;let f=fn (){};while n<@N{n=n+1;@E();}}",
+        "f",
+    );
+}
