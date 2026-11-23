@@ -786,9 +786,6 @@ fn literal_true_barrier(
         .filter(|d| !is_l08_barrier(d))
         .filter_map(|d| d.primary_span.as_ref().map(|span| span.start))
         .collect();
-    if rejected_at.is_empty() {
-        return lowered;
-    }
     let in_rejected_function = |span: &Span| {
         ast.functions.iter().any(|function| {
             function.body.span.start <= span.start
