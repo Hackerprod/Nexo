@@ -53,12 +53,12 @@ Defecto previo adicional, **sin cubrir por ALT-2 salvo que (b) lo arregle**: `W0
 | F06, M2, O01, O03, O07, O08 | tablas de `I07c-laguna-esperado-diferido-r1.md` (2, 2, 4, 3, 2, 6) | NO | OK | OK |
 | M2 control, M2 sin asig., D-REF válido | (1, 1, 0) | OK | OK | OK |
 | P1, c3, w1 | sin E0103 (`W0`); E1303 + E0102 de `ar` rel. `q=[[…]]` | NO (E0103; w1 además E0102 `[87,88)`) | NO (E0103; rel. `[85,86)`) | NO (E0103) |
-| P2 | E1303 + 2 E0102; rel. de `ar` `[119,124)` | OK | NO(I) | OK |
+| P2 | única E1303 sobre `r` `[101,102)` `A³`/`A²` rel. `[75,80)`; E0102 de `q=ar` `[127,129)` `A²`/`A¹` rel. `[119,124)`; E0102 de `r=[r]` `[133,134)` `A¹`/`A²` rel. `[119,124)` (3; adjudicado: derivación del oráculo, B `I07c-S5c-oraculo-B-r1.md` §2b) | NO (E1303 en `[true]` `[108,114)`; E0102 `[133,134)` `A²`/`A³`; la relación de `q=ar` `[119,124)` acierta) | NO (lo mismo, y relación de `q=ar` `[76,77)`: regresión propia de V6) | NO (= main) |
 | P3 | E0102 `[99,100)` rel. `[88,94)` | NO(I) | OK | NO(I) |
-| w3 | E1303 `[108,114)`, E0102 `[129,131)` rel. `[119,126)`, E0102 `[135,136)` | NO (espurios N) | NO(I) | NO (= main) |
+| w3 | única E1303 sobre `r` `[101,102)` `A³`/`A²` rel. `[75,80)`; E0102 `[129,131)` `A²`/`A¹` rel. `[119,126)`; E0102 `[135,136)` `A¹`/`A²` rel. `[119,126)` (adjudicado como P2) | NO (espurios N) | NO (E1303 en `[108,114)`, relación `[76,77)`, E0102 `[135,136)` `A²`/`A³`) | NO (= main) |
 | R5, P4, P4pos, generated1411/1681 | NO DERIVABLE (derivación no cerrada; P4pos defecto previo); no entran en el recuento | — | — | — |
 
-Recuento por fila (45): `main` NO en A, A sin asig., A reord., B q→r, F06, M2, O01, O03, O07, O08, P1, P3(I), R4, W0, X_R1inc, X_R1na, X_R1ord, X_flat3, Y_pend_if, Y_pend_if2, c3, w1, w3 = 23, **OK 22**. V6 NO en P1, P2(I), R1, R2, R2b(I), R3, R3b, R4, W0, X_R1inc, X_R1na, X_R1ord, X_R4asg_r, X_flat3, X_mix3, Y_pend_if, Y_pend_if2, c3, w1, w3(I) = 20, **OK 25**. C2 NO en A sin asig., P1, P3(I), R4, W0, X_R1inc, X_R1na, X_R1ord, X_flat3, Y_pend_if, Y_pend_if2, c3, w1, w3 = 14, **OK 31**. Contando `NO(I)` como correctos en N: 23 / 28 / 32. w1 en V6 es defecto N (E0103 espurio), no solo I. Las dos regresiones residuales de C2 (`g02426`, `g03010`) no se reproducen aquí.
+Recuento por fila (45): `main` NO en A, A sin asig., A reord., B q→r, F06, M2, O01, O03, O07, O08, P1, P2, P3(I), R4, W0, X_R1inc, X_R1na, X_R1ord, X_flat3, Y_pend_if, Y_pend_if2, c3, w1, w3 = 24, **OK 21** (P2 deja de ser OK tras la adjudicación de B). V6 NO en P1, P2, R1, R2, R2b(I), R3, R3b, R4, W0, X_R1inc, X_R1na, X_R1ord, X_R4asg_r, X_flat3, X_mix3, Y_pend_if, Y_pend_if2, c3, w1, w3 = 20, **OK 25** (P2 y w3 pasan de NO(I) a NO de núcleo). C2 NO en A sin asig., P1, P2, P3(I), R4, W0, X_R1inc, X_R1na, X_R1ord, X_flat3, Y_pend_if, Y_pend_if2, c3, w1, w3 = 15, **OK 30**. Contando `NO(I)` como correctos en N: 22 / 26 / 31. w1 en V6 es defecto N (E0103 espurio), no solo I. Las dos regresiones residuales de C2 (`g02426`, `g03010`) no se reproducen aquí.
 
 ## 4. Alternativas
 
@@ -78,7 +78,7 @@ Recuento por fila (45): `main` NO en A, A sin asig., A reord., B q→r, F06, M2,
 
 ## 5. Plan por bloques, riesgos y verificación
 
-- **B1 — ALT-2 sobre `main` sin V6.** Debe conservar los 22 OK de `main` y arreglar R4, X_R1na, X_R1ord, X_flat3, Y_pend_if, Y_pend_if2 (X_mix3 ya es OK en main y debe seguirlo); prueba de independencia de la siembra.
+- **B1 — ALT-2 sobre `main` sin V6.** Debe conservar los 21 OK de `main` y arreglar R4, X_R1na, X_R1ord, X_flat3, Y_pend_if, Y_pend_if2 (X_mix3 ya es OK en main y debe seguirlo); prueba de independencia de la siembra.
 - **B2 — retracción de V6 encima de B1.** Debe dejar OK R1–R3b, X_R4asg_r, X_mix3 y A…O08 como V6, sin las regresiones de §3.
 - Riesgos: (1) la cláusula de descarte pudo existir por un caso protegido: las 152 filas RD y los 13 RD con `if` y `[]` no la ejercen (inspeccionado); TD/DG, `tests/` y las 27 fuentes twin sí podrían; se exige la puerta completa. (2) `Y_pend_if*` quitan una E1303 de `main` por l.353 + l.367, no por azar; cada diferencia queda listada y derivada. (3) W0 puede requerir un camino distinto (elemento de array con variable ya denunciada); si es así, se separa.
 

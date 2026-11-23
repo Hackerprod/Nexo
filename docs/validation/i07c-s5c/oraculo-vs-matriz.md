@@ -130,3 +130,8 @@ Esperado transcrito del plan (primario y relacion; los tipos los deriva el oracu
 - P4pos: error de sintaxis del subconjunto: sintaxis fuera del subconjunto: primario inesperado ')' @124
 - generated1411: `E0103 [78,80) | `; `E0102/type [103,104) Bool|I64 `; `E0102/not_ [142,147) domain:array|Bool `; `E1303 [156,157) A<A<I64>>|A<I64> exp=[111,131)`; `E1303 [201,206) A<A<I64>>|A<A<A<A<I64>>>> exp=[100,170)`; `E0102/type [217,218) I64|A<I64> exp=[192,195)`; `E0102/type [223,226) I64|A<I64> exp=[192,195)`; `E0102/type [231,237) I64|A<Bool> exp=[192,195)`
 - generated1681: `E0102/type [73,74) Bool|I64 `; `E1303 [103,105) A<A<I64>>|A<I64> exp=[94,97)`; `E0102/type [116,122) Bool|A<I64> `; `E1303 [128,132) A<A<I64>>|I64 exp=[81,105)`; `E0102/type [145,146) I64|A<I64> exp=[150,152)`
+
+## Adjudicación de B (2026-11-22, `docs/correcciones/I07c-S5c-oraculo-B-r1.md`)
+
+W0, P2 y w3 se adjudican **a favor del oráculo**. La matriz tenía un error de bytes en W0 (`[59,63)`, no `[60,64)`) y se contradecía en P2 y w3 (su E1303 exige `tipo(r)=A²` y su E0102 de `r=[r]` exige `A³`). `matriz-esperados.json` y `rec_all.py` se corrigen **solo en esas tres filas**: W0 `exp=[59,63)`; P2 y w3: única E1303 sobre `r` `[101,102)` (`A³`/`A²`, rel. `[75,80)`), E0102 de `q=ar` (P2 `[127,129)`, w3 `[129,131)`; `A²`/`A¹`; rel. `[119,124)` y `[119,126)`) y E0102 de `r=[r]` (`[133,134)` y `[135,136)`; `A¹`/`A²`, misma relación). Con ello `--matrix` da 45/45. Los números de la tabla de arriba son los previos a la adjudicación.
+

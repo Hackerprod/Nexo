@@ -95,11 +95,11 @@ put('O08','E0102/type [93,94) Bool|%s '%A3,'E0102/type [100,101) Bool|%s '%A3,'E
 put('P1','E1303 [70,71) Bool|A<A<Bool>> exp=[60,64)','E0102/type [109,111) A<A<Bool>>|A<I64> exp=[93,101)')
 put('w1','E1303 [70,71) Bool|A<A<Bool>> exp=[60,64)','E0102/type [108,110) A<A<Bool>>|A<I64> exp=[93,100)')
 put('c3','E1303 [70,71) Bool|%s exp=[60,64)'%A3,'E0102/type [107,109) %s|A<I64> exp=[93,99)'%A3)
-put('W0','E1303 [69,70) Bool|A<A<Bool>> exp=[60,64)')
+put('W0','E1303 [69,70) Bool|A<A<Bool>> exp=[59,63)')
 put('W0nounion')
-put('P2','E1303 [108,114) %s|A<Bool> exp=[75,80)'%A3,'E0102/type [127,129) %s|A<I64> exp=[119,124)'%A2,'E0102/type [133,134) A<A<I64>>|%s exp=[75,80)'%A3)
+put('P2','E1303 [101,102) %s|A<A<I64>> exp=[75,80)'%A3,'E0102/type [127,129) %s|A<I64> exp=[119,124)'%A2,'E0102/type [133,134) A<I64>|A<A<I64>> exp=[119,124)')
 put('P3','E0102/type [81,82) A<A<I64>>|%s exp=[57,58)'%A4,'E0102/type [99,100) A<A<I64>>|I64 exp=[88,94)')
-put('w3','E1303 [108,114) %s|A<Bool> exp=[75,80)'%A3,'E0102/type [129,131) A<A<I64>>|A<I64> exp=[119,126)','E0102/type [135,136) A<A<I64>>|%s exp=[75,80)'%A3)
+put('w3','E1303 [101,102) %s|A<A<I64>> exp=[75,80)'%A3,'E0102/type [129,131) A<A<I64>>|A<I64> exp=[119,126)','E0102/type [135,136) A<I64>|A<A<I64>> exp=[119,126)')
 tot={k:0 for k in bins}
 strip=lambda L:sorted(x.split(' exp=')[0] for x in L)
 for n in sorted(E):
