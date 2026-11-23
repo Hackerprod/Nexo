@@ -7791,7 +7791,7 @@ impl Checker<'_> {
                         .array_origin
                         .as_ref()
                         .is_some_and(|span| causal_inference_sites.contains(&span_key(span)));
-                (has_cause && self.concrete(child).is_none()).then_some(root)
+                ((has_cause || xv("arrx")) && self.concrete(child).is_none()).then_some(root)
             })
             .collect();
         let shared_inference_roots: HashSet<u64> = self
@@ -14096,6 +14096,8 @@ impl Checker<'_> {
         let found_span_dbg = found_span.clone();
         let snapshot = (xv("atomic") && state == Some(true))
             .then(|| (self.graph.type_nodes.clone(), self.graph.obligations.clone()));
+        let snapshot0 = (xv("atomic0") && state == Some(false))
+            .then(|| self.graph.type_nodes.clone());
         let before = self.pending_join_count();
         let outcome = match visit {
             None => self.unify_independent(
@@ -14149,6 +14151,11 @@ impl Checker<'_> {
             return Ok(AnchorOutcome::Absorbed);
         }
         if state == Some(false) {
+            if let Some(nodes) = snapshot0 {
+                for (id, node) in nodes {
+                    self.graph.type_nodes.insert(id, node);
+                }
+            }
             self.graph.union_denounced.insert(key, true);
         }
         Ok(match error {
