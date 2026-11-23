@@ -3656,3 +3656,134 @@ fn guard_checks_reach_every_nested_edge() {
         }
     }
 }
+
+// S9: guard walker edges and one tick origin that the mutation pass of the touched regions
+// exhibited with a program. Expected spans are byte positions of tokens in the source (F0-0003
+// section 3.3: every transfer, mutation or control exit in a guard is reported at its own token;
+// F0-0002 section 11: the tick of an expression statement has the whole expression as origin);
+// each row is paired with the same program without the nested transfer, which has to report only
+// what remains (or be accepted).
+fn guard_diagnostics(verb: &str, source: &str) -> (i32, Vec<(String, usize, usize)>) {
+    let (exit, json, stderr) = invoke(verb, source, J);
+    assert!(stderr.is_empty(), "{verb}: {source}: {stderr}");
+    let found = json
+        .split("\"subcause\":\"")
+        .skip(1)
+        .map(|part| {
+            let cause = part[..part.find('"').unwrap()].to_owned();
+            let (start, end) = span_of(section(part, "\"primary_span\":{", "}"));
+            (cause, start, end)
+        })
+        .collect();
+    (exit, found)
+}
+
+fn at(source: &str, token: &str) -> usize {
+    source
+        .find(token)
+        .unwrap_or_else(|| panic!("{token} in {source}"))
+}
+
+#[test]
+fn guard_transfer_inside_the_callee_expression_of_a_call_is_reported() {
+    let with = "fn Main(){let a=Some(1);let f=fn (){};match true{true if (if true then {(if true then {Drop(a);value:f;} else {value:f;})();value:true;} else {value:false;}) =>{},_=>{}}}";
+    let without = with.replace("Drop(a);", "");
+    let drop = at(with, "Drop");
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [("guard_transfer".to_owned(), drop, drop + 4)],
+            "{verb}"
+        );
+    }
+    accepted(&without, J);
+}
+
+#[test]
+fn guard_transfer_inside_a_return_value_is_reported_after_the_control_exit() {
+    let with = "fn G()->I64{let a=Some(1);match true{true if (if true then {return if true then {Drop(a);value:1;} else {value:2;};} else {value:false;}) =>{},_=>{}} return 0;}fn Main(){G();}";
+    let without = with.replace("Drop(a);", "");
+    let (ret, drop) = (at(with, "return if"), at(with, "Drop"));
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [
+                ("guard_control".to_owned(), ret, ret + 6),
+                ("guard_transfer".to_owned(), drop, drop + 4)
+            ],
+            "{verb}"
+        );
+        let (exit, found) = guard_diagnostics(verb, &without);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [("guard_control".to_owned(), ret, ret + 6)],
+            "{verb}"
+        );
+    }
+}
+
+#[test]
+fn guard_transfer_inside_a_yield_value_is_reported_after_the_control_exit() {
+    let with = "fn Main(){let a=Some(1);match true{true if (if true then {yield if true then {Drop(a);value:1;} else {value:2;};} else {value:false;}) =>{},_=>{}}}";
+    let without = with.replace("Drop(a);", "");
+    let (token, drop) = (at(with, "yield"), at(with, "Drop"));
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [
+                ("guard_control".to_owned(), token, token + 5),
+                ("guard_transfer".to_owned(), drop, drop + 4)
+            ],
+            "{verb}"
+        );
+        let (exit, found) = guard_diagnostics(verb, &without);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [("guard_control".to_owned(), token, token + 5)],
+            "{verb}"
+        );
+    }
+}
+
+#[test]
+fn guard_transfer_inside_the_operand_of_a_postfix_try_is_reported() {
+    let with = "fn Main()->Result<(),I64>{let a=Some(1);match true{true if ((if true then {Drop(a);value:Ok(1);} else {value:Ok(2);})?)==1 =>{},_=>{}}return Ok(());}";
+    let without = with.replace("Drop(a);", "");
+    let (drop, question) = (at(with, "Drop"), at(with, "?"));
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [
+                ("guard_transfer".to_owned(), drop, drop + 4),
+                ("guard_control".to_owned(), question, question + 1)
+            ],
+            "{verb}"
+        );
+        let (exit, found) = guard_diagnostics(verb, &without);
+        assert_eq!(exit, 1, "{verb}");
+        let q = at(&without, "?");
+        assert_eq!(found, [("guard_control".to_owned(), q, q + 1)], "{verb}");
+    }
+}
+
+#[test]
+fn expression_statement_tick_of_an_index_read_is_the_whole_expression() {
+    let source = "fn Main(){var a=[1,2,3];while true{a[0];}}";
+    let (exit, json, stderr) = invoke("run", source, J);
+    assert!(stderr.is_empty(), "{stderr}");
+    assert_eq!(exit, 1, "{json}");
+    assert!(json.contains("\"code\":\"R0001\""), "{json}");
+    let start = at(source, "a[0]");
+    assert_eq!(primary(&json), (start, start + 4), "{json}");
+    accepted("fn Main(){var a=[1,2,3];var n=0;while n<3{n=n+1;a[0];}}", J);
+}

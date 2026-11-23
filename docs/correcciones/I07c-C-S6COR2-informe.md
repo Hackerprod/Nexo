@@ -11,7 +11,7 @@ Implementado por un agente Sonnet de la sesion del coordinador por **desvio por 
 | Commit | Contenido |
 |---|---|
 | S0 `9cc5407` | andamiaje del auditor `scripts/i07c_span_audit.py`: baseline congelado por (archivo, ancla del sitio = funcion + brazo envolvente, expresion) -> recuento para `lower.rs` (85) y `lower_match.rs` (23); registro `GROUP_SITES` de anclas positivas; extension de `--self-test`; una linea en `tests/i07c_structural_invariants.rs` (`lowering span baseline: PASS`) |
-| S0 pruebas `4c734da`, `40aba0b`, `937f246` | infraestructura de regresion de cuotas en `tests/i07c_group_primary.rs` (plantilla con pad y envolturas, esperados derivados de la fuente y del control sin grupo, barrido de pad 0..=11) y su consumidor sobre un sitio ya correcto (inicializador de `let`). `937f246` solo anade el `use accepted` que faltaba al commit `4c734da` (error mio: ese commit intermedio no compila; el arbol de `937f246` en adelante si) |
+| S0 pruebas `4c734da`, `40aba0b`, `937f246` | infraestructura de regresion de cuotas en `tests/i07c_group_primary.rs` (plantilla con pad y envolturas, esperados derivados de la fuente y del control sin grupo, barrido de pad 0..=11) y su consumidor sobre un sitio ya correcto (inicializador de `let`). `937f246` solo anade el `use accepted` que faltaba al commit `40aba0b` (error mio: `40aba0b` no compila solo; `4c734da` compila y pasa; el arbol de `937f246` en adelante compila) |
 | S1 `049b48f` | `ExpressionStatement`: `parse::expression_primary_span(value)` |
 | S2 `c07b8f0` | `WhileCondition`: `parse::expression_primary_span(condition)` |
 | S3 `2d47cc2` | `Assignment`: `parse::expression_primary_span(place)` |
@@ -52,7 +52,7 @@ Adaptacion respecto del plan (no es cambio de produccion): los casos de cuota so
 
 ## Suite, fmt y clippy
 
-`cargo nextest run --profile default --offline --no-fail-fast` en tres tandas (`--partition count:k/3`): debug 730+729+729 = 2.188 pasan, 0 fallos, 0 timeouts; release 731+730+729 pasan. `cargo fmt --check` y `cargo clippy --offline --all-targets -- -D warnings` limpios. `python -B scripts/i07c_span_audit.py --self-test`: PASS (25 reversiones de sitio rechazadas). La puerta completa (`validate.sh`/`gate.sh`) la lanza el coordinador; no la ejecute.
+`cargo nextest run --profile default --offline --no-fail-fast` en tres tandas (`--partition count:k/3`): tras S8: debug 730+729+729 = 2.188 pasan; tras S9: debug 732+731+730 = 2.193 y release 733+732+730 = 2.195 pasan (los 5 tests de S9 incluidos), 0 fallos, 0 timeouts. `cargo fmt --check` y `cargo clippy --offline --all-targets -- -D warnings` limpios. `python -B scripts/i07c_span_audit.py --self-test`: PASS (25 reversiones de sitio rechazadas). La puerta completa (`validate.sh`/`gate.sh`) la lanza el coordinador; no la ejecute.
 
 ## Diferencial base `a24a1a1` frente al candidato (produccion = `33046c4`; `b288681` solo anade una prueba)
 
@@ -91,10 +91,22 @@ El espejo de S4 queda exento (solo ancla positiva; su reversion la rechaza `--se
 
 Poblacion: **69 mutantes** (`docs/validation/i07c-s6cor2/mutation-population.json`, SHA-256 `f20d98ca816f2c3aaedf4ef8143e69be1377e536a47d5b7487092c8297046b8b`, congelada antes de ejecutar; operadores de `scripts/i07c_mutaciones.py` sobre `prepare_expr` y `guard_violations` completas y +-15 lineas alrededor de los cuatro sitios de tick de `lower.rs`). Veredicto MUERTO por primer fallo, SUPERVIVIENTE con la suite completa en debug y release (default, retries 0). Primera pasada: **36 muertos, 5 invalidos (no compilan), 28 supervivientes**. Los supervivientes de `guard_violations` eran supresiones de descenso; anadi la regresion S8 (`guard_checks_reach_every_nested_edge`: 25 filas con un `Drop(a)` o un modo de seleccion tras cada arista alcanzable, esperados = posicion del token en la fuente) y relance los 23 supervivientes de `lower_match.rs` contra ella (y M00041 tras anadir la fila `value:`): **15 pasan a MUERTO** (solo debug, test dirigido: el mutante muere con la nueva regresion).
 
-**13 supervivientes registrados (deuda con fecha 2026-11-23, para `Pending.md`; revisar en la siguiente campana de mutacion sobre el codigo vigente), sin programa aportado que exhiba comportamiento erroneo:**
+**Supervivientes tras S8 y S9.** De los 13 registrados tras S8, D encontro programa para 5 (M00061, M00038, M00040, M00057, M00006): el commit S9 (`tests/i07c_group_primary.rs`) les anade una regresion cada uno (programas de D; esperados = posiciones de los tokens en la fuente segun F0-0003 3.3 y F0-0002 11, con pareja sin la transferencia o con bucle acotado), que fallan con su mutante (`mut_one.py`, SHA-256 y restauracion verificados) y pasan con el candidato: ver la tabla S9 mas abajo. Quedan **8 sin matar**:
 
-- `lower_match.rs`: M00038 (descenso al valor de `return` en una guarda: `return` da `NX-E0006` antes), M00047/M00048 (descenso en cuerpo e iterable de `for` en guarda: `NX-E0006`/`NX-E0002` antes del lowering), M00061 (descenso al destino de una llamada con expresion: `NX-E0006` antes), M00040 (descenso al valor de un `GuardControl`), M00051 (descenso a la guarda de un `match` anidado: ese `match` ya se rechaza por su propia guarda), M00054 (`&&`->`||` en la deteccion del `?` postfijo en guarda), M00057 (descenso al operando de `move`/`edit` en guarda). Codigo preexistente de `guard_violations` que S6/S7 no tocan.
-- `lower.rs`: M00006 (`borrow: false`->`true` en una rama del `let`), M00013 (supresion de `saved_emission` en el marcador de valor), M00021/M00023 (guardas de rutas que terminan en `InvalidIr`, no observables), M00029 (busqueda del token del `Unary` en `prepare_expr`: afecta al origen del tick del token de `move`/`edit`; no se aporto programa).
+- Sin programa (D no lo hallo; deuda con fecha 2026-11-23 para `Pending.md`, a revisar en la siguiente campana de mutacion): `lower_match.rs` M00051 (descenso a la guarda de un `match` anidado), M00054 (`&&`->`||` en la deteccion del `?` postfijo); `lower.rs` M00013 (supresion de `saved_emission`), M00021 y M00023 (rutas que terminan en `InvalidIr`, no observables), M00029 (busqueda del token del `Unary` en `prepare_expr`; sin diferencia en 40 programas con pad 0..7).
+- `for` en guarda, inalcanzable en lowering (`NX-E0006`/`NX-E0002` antes): M00047 (cuerpo) y M00048 (iterable).
+
+**S9 (commit de pruebas, EN VALIDACION).** Cinco regresiones nuevas en `tests/i07c_group_primary.rs` (`guard_transfer_inside_the_callee_expression_of_a_call_is_reported`, `..._a_return_value_...`, `..._a_yield_value_...`, `..._the_operand_of_a_postfix_try_...`, `expression_statement_tick_of_an_index_read_is_the_whole_expression`). Cada mutante, aplicado con `mut_one.py` (blob inicial -> mutado, restaurado = inicial), muere en debug con su regresion y esta pasa con el candidato:
+
+| mutante | veredicto | mata | SHA-256 (prefijo) |
+|---|---|---|---|
+| M00006 | MUERTO | `i07c_group_primary::expression_statement_tick_of_an_index_read_is_the_whole_expression` | `f8fcbfde` -> `48fd8cb0`, restaurado `f8fcbfde` |
+| M00038 | MUERTO | `i07c_group_primary::guard_transfer_inside_a_return_value_is_reported_after_the_control_exit` | `609641ce` -> `c36dda1e`, restaurado `609641ce` |
+| M00040 | MUERTO | `i07c_group_primary::guard_transfer_inside_a_yield_value_is_reported_after_the_control_exit` | `609641ce` -> `cf5da61a`, restaurado `609641ce` |
+| M00057 | MUERTO | `i07c_group_primary::guard_transfer_inside_the_operand_of_a_postfix_try_is_reported` | `609641ce` -> `becf28cb`, restaurado `609641ce` |
+| M00061 | MUERTO | `i07c_group_primary::guard_transfer_inside_the_callee_expression_of_a_call_is_reported` | `609641ce` -> `529bff54`, restaurado `609641ce` |
+
+En la tabla completa de abajo estos cinco figuran como "SUPERVIVIENTE (registrado)" de la pasada de S8; su estado vigente es el de esta tabla.
 
 Los 5 invalidos: M00002, M00016, M00018, M00024, M00030 (`||` de clausura mutado a `&&`, o `continue`->`break` fuera de bucle: no compilan).
 
