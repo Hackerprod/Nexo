@@ -2730,6 +2730,64 @@ const CASES: &[Case] = &[
         control_primary: (52, 53),
         repair: "fn Main(){var x=1;match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
     },
+    // S7
+    Case {
+        family: "guard_transfer",
+        name: "guard_transfer_single_group",
+        profile: J,
+        source: "fn Main(){let a=Some(1);match true{true if (if true then {(Drop)(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_transfer"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (59, 63),
+        token: "Drop",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){let a=Some(1);match true{true if (if true then {Drop(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (58, 62),
+        repair: "fn Main(){let a=Some(1);match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_transfer",
+        name: "guard_transfer_double_group",
+        profile: J,
+        source: "fn Main(){let a=Some(1);match true{true if (if true then {((Drop))(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_transfer"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (60, 64),
+        token: "Drop",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){let a=Some(1);match true{true if (if true then {Drop(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (58, 62),
+        repair: "fn Main(){let a=Some(1);match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_transfer",
+        name: "guard_transfer_group_with_trivia",
+        profile: J,
+        source: "fn Main(){let a=Some(1);match true{true if (if true then {( Drop )(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_transfer"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (60, 64),
+        token: "Drop",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){let a=Some(1);match true{true if (if true then {Drop(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (58, 62),
+        repair: "fn Main(){let a=Some(1);match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
 ];
 
 fn number_after(text: &str, key: &str) -> usize {
@@ -3431,4 +3489,24 @@ fn grouped_closure_call_charges_the_ticks_of_the_bare_call() {
         "fn Main(){var n=0;let f=fn (){};while n<@N{n=n+1;@E();}}",
         "f",
     );
+}
+
+// S7: the callee `Drop` inside a guard is recognised and reported without the outer groups
+// (F0-0003 section 3.3, F0-0002 lagunas "Ticks, cuotas y guardas bajo agrupaciones"): `(Drop)(a)`
+// is rejected like `Drop(a)`.
+#[test]
+fn guard_transfer_reports_the_inner_callee() {
+    run_family("guard_transfer");
+}
+
+#[test]
+fn grouped_callee_other_than_drop_is_accepted_in_a_guard() {
+    for (open, close) in WRAPS {
+        accepted(
+            &format!(
+                "fn F(x:view I64){{}}fn Main(){{match true{{true if (if true then {{{open}F{close}(1);value:true;}} else {{value:false;}}) =>{{}},_=>{{}}}}}}"
+            ),
+            J,
+        );
+    }
 }
