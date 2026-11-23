@@ -389,7 +389,10 @@ struct AnalysisLimits {
     ir_items: u64,
     profile_id: &'static str,
     force_sparse_ownership: bool,
+    /// `while true` without a false-condition edge (F0-0005 §2.2, F5-L04).
     literal_true_loops: bool,
+    /// For over Array in the lowering (F5-L06a); internal probe, not public before F5-L06b.
+    array_iteration: bool,
 }
 
 impl AnalysisLimits {
@@ -402,6 +405,7 @@ impl AnalysisLimits {
         profile_id: PROFILE_ID,
         force_sparse_ownership: false,
         literal_true_loops: false,
+        array_iteration: false,
     };
 }
 
@@ -471,6 +475,7 @@ fn analysis_limits(profile: ReducedProfile) -> AnalysisLimits {
         ReducedProfile::F5ControlInternal => AnalysisLimits {
             profile_id: "f0-0003-b-v1",
             literal_true_loops: true,
+            array_iteration: true,
             ..AnalysisLimits::NORMAL
         },
         ReducedProfile::Types32 => AnalysisLimits {
@@ -1131,6 +1136,7 @@ fn compile_ast_with_flow_limit<'a>(
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: limits.literal_true_loops,
+            array_iteration: limits.array_iteration,
             poisoned: HashSet::new(),
             tokens: Arc::clone(&tokens),
             defer_ownership: limits.force_sparse_ownership || {
@@ -1860,6 +1866,7 @@ struct Lower<'a> {
     dead_depth: usize,
     emission: EmissionMode,
     literal_true_loops: bool,
+    array_iteration: bool,
     poisoned: HashSet<LocalId>,
     tokens: Arc<Vec<lex::Token>>,
     defer_ownership: bool,
@@ -3420,7 +3427,7 @@ impl Lower<'_> {
         flow: Flow,
         surviving_temps: HashSet<TempId>,
     ) -> Result<ForState, CompileError> {
-        if self.literal_true_loops && matches!(flow.ty(), Some(Ty::Array(_))) {
+        if self.array_iteration && matches!(flow.ty(), Some(Ty::Array(_))) {
             return self.begin_for_array(statement, flow, surviving_temps);
         }
         let Statement::For {
@@ -12134,6 +12141,7 @@ mod tests {
             dead_depth: 1,
             emission: EmissionMode::Analyze,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("flow_contract.n", source).unwrap()),
             defer_ownership: false,
@@ -12327,6 +12335,7 @@ mod tests {
             dead_depth: 1,
             emission: EmissionMode::Analyze,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("bottom_flow.n", source).unwrap()),
             defer_ownership: false,
@@ -12405,6 +12414,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("orphan_call.n", source).unwrap()),
             defer_ownership: false,
@@ -12488,6 +12498,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("scope_error.n", source).unwrap()),
             defer_ownership: false,
@@ -12545,6 +12556,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("while_error_checkpoint.n", source).unwrap()),
             defer_ownership: false,
@@ -12667,6 +12679,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("branch_scope.n", source).unwrap()),
             defer_ownership: false,
@@ -12723,6 +12736,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("loan_write.n", source).unwrap()),
             defer_ownership: false,
@@ -12805,6 +12819,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("dead_state.n", source).unwrap()),
             defer_ownership: false,
@@ -12893,6 +12908,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,
@@ -12994,6 +13010,7 @@ mod tests {
             dead_depth: 0,
             emission: EmissionMode::Live,
             literal_true_loops: false,
+            array_iteration: false,
             poisoned: HashSet::new(),
             tokens: Arc::new(lex::lex("poison.n", source).unwrap()),
             defer_ownership: false,

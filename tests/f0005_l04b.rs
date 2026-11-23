@@ -348,3 +348,28 @@ fn historical_profiles_keep_the_false_edge() {
         assert_eq!(status, 0, "{source}: {output}");
     }
 }
+
+#[test]
+fn literal_true_activation_does_not_open_for_over_array() {
+    // §8.2 and F5-L06: `for` over an Array stays pending (public L06 in `types`) until F5-L06b,
+    // and no new source is accepted before L08. The literal-`true` CFG of F5-L04 is a different
+    // capability from the For-Array lowering of F5-L06a; activating the first must not accept
+    // the second. This source reaches `lower` with an Array iterand (an `internal_error` in the
+    // origin tree, outside L04b); it must never be accepted by `check` or `run`.
+    let source = "fn Main(){var v2=[];let n=Len(v2);for x in v2{}v2[0]=7;}";
+    for (_, output) in both(source, F5) {
+        assert!(
+            !output.contains("\"kind\":\"checked\"") && !output.contains("\"kind\":\"unit\""),
+            "{output}"
+        );
+    }
+    // The public L06 pending of F5-H06 is untouched.
+    for (status, output) in both("fn Main(){for x in [1]{}}", F5) {
+        assert_eq!(status, 1, "{output}");
+        assert_single(&output, "NX-E0006", "types", 10, 13, "F5-H06");
+        assert!(
+            output.contains("\"data\":{\"pending_scope\":\"L06\"}"),
+            "{output}"
+        );
+    }
+}
