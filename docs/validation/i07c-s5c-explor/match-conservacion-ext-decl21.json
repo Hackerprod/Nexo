@@ -1,0 +1,149 @@
+[
+ {
+  "id": "rmm3fuera-c2-10405",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else r) else 2);},None=>{value: [q];}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-c2-6523",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then r else r) else s) else 1);},None=>{value: ar;}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s4417061-2128",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then [q] else ar) else true) else true);},None=>{value: r3;}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s4417061-135",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=q;r=q;let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then [q,r] else (if p then q else r))) else q[0]);},None=>{value: r3;}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s4417061-1107",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then 1 else [ar]) else 1) else s);},None=>{value: q[0];}};q=[[3]];}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s7021993-1103",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then 2 else q) else q) else q);},None=>{value: r[0];}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s7021993-682",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then q else r)) else [q]);},None=>{value: aar;}};q=r;}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s7021993-77",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else r) else [s,q]);},None=>{value: aar;}};r=[[ar]];}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-c2-14100",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then s else q) else 1);},None=>{value: ar;}};s=[[ar]];r=ar;}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s7021993-1306",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else r) else r) else false);},None=>{value: r3;}};r=q;q=[ar];r=ar;}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s9908255-3083",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];q=r;let a0=match move o{Some(n)=>{value: (if p then (if p then r else q) else [r]);},None=>{value: r3;}};r=[[3]];}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-c2-3289",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then [q,r] else s) else 1);},None=>{value: r3;}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s9908255-3098",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else (if p then q else r)) else 2);},None=>{value: ar;}};q=[[3]];}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s4417061-93",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then r else true) else true) else 1);},None=>{value: r3;}};q=aar;s=q;}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s7021993-3794",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then r[0] else [s,q]) else [q,r]) else true);},None=>{value: aar;}};r=[[3]];q=[[3]];}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-c2-15426",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else (if p then r[0] else r)) else (if p then r else r3));},None=>{value: q;}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s9908255-2027",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then q else r) else [s,q]);},None=>{value: aar;}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s7021993-2840",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else 1) else r[0]) else true);},None=>{value: r3;}};r=[[ar]];q=ar;}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s7021993-41",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=q;let a0=match move o{Some(n)=>{value: (if p then (if p then r else s) else true);},None=>{value: aar;}};q=[[ar]];}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-c2-7454",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then [q,r] else [q]) else 2);},None=>{value: aar;}};}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ },
+ {
+  "id": "rmm3fuera-s4417061-3751",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then aar else (if p then true else [r]));},None=>{value: [q,r];}};q=aar;}",
+  "clase": "anadido_rmm3_fuera_2o_brazo",
+  "cita": "sin cita: main coincide con el oraculo en la union U del programa y el candidato (RM-M3) anade o quita un diagnostico fuera del segundo brazo; diferencia declarada, no mejora"
+ }
+]

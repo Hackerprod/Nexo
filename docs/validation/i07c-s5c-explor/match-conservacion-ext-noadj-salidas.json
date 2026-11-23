@@ -1,0 +1,1079 @@
+{
+ "filas": [
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "I64",
+      "primary": [
+       180,
+       181
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         162,
+         163
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         180,
+         181
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       229,
+       231
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         187,
+         189
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         229,
+         231
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then r else (if p then 1 else r3));},None=>{value: [s,q];}};q=[[ar]];r=[ar];}",
+   "id": "noadj-s4417061-2463",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "I64",
+      "primary": [
+       180,
+       181
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         162,
+         163
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         180,
+         181
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "I64",
+      "found_type": "Array<Array<Array<I64>>>",
+      "primary": [
+       183,
+       188
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         162,
+         166
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         183,
+         188
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then q[0] else (if p then [[q]] else (if p then 1 else [s,q])));},None=>{value: [q,r];}};}",
+   "id": "noadj-s4417061-4419",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       183,
+       188
+      ],
+      "relations": [],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       173,
+       175
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         164,
+         167
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         173,
+         175
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       193,
+       197
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         175
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         193,
+         197
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       235,
+       236
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         175
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         235,
+         236
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<I64>",
+      "primary": [
+       242,
+       244
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         175
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         242,
+         244
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then aar else ar) else (if p then true else q));},None=>{value: [q,r];}};q=[3];q=[[ar]];}",
+   "id": "noadj-c2-12028",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       173,
+       175
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         164,
+         167
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         173,
+         175
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       193,
+       197
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         154,
+         175
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         193,
+         197
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       241,
+       245
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         234,
+         237
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         241,
+         245
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Bool",
+      "primary": [
+       228,
+       233
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         174,
+         192
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         228,
+         233
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<Array<Array<I64>>>>",
+      "primary": [
+       252,
+       257
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         245
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         252,
+         257
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       285,
+       286
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         275,
+         277
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         285,
+         286
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "I64",
+      "primary": [
+       292,
+       293
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         275,
+         277
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         292,
+         293
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else r) else (if p then (if p then r else false) else q[0])) else [q,r]);},None=>{value: r3;}};r=[[3]];q=[3];}",
+   "id": "noadj-s7021993-1838",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Bool",
+      "primary": [
+       228,
+       233
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         174,
+         192
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         228,
+         233
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<I64>",
+      "primary": [
+       240,
+       244
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         174,
+         192
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         240,
+         244
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<I64>>",
+      "found_type": "Array<Array<Array<I64>>>",
+      "primary": [
+       252,
+       257
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         163,
+         245
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         252,
+         257
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "Array<I64>",
+      "found_type": "I64",
+      "primary": [
+       292,
+       293
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         191,
+         192
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         292,
+         293
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "I64",
+      "primary": [
+       202,
+       203
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         162,
+         166
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         202,
+         203
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then r[0] else (if p then r3 else (if p then 1 else (if p then [ar] else s))));},None=>{value: [s,q];}};}",
+   "id": "noadj-s4417061-931",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       111,
+       113
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "I64",
+      "primary": [
+       202,
+       203
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         162,
+         166
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         202,
+         203
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<Array<Array<I64>>>",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       220,
+       224
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         162,
+         166
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         220,
+         224
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<I64>",
+      "found_type": "Bool",
+      "primary": [
+       182,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         153,
+         157
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         182,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r[0] else (if p then ar else true));},None=>{value: [q,r];}};}",
+   "id": "noadj-c2-1330",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<I64>",
+      "found_type": "Bool",
+      "primary": [
+       182,
+       186
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         174,
+         176
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         182,
+         186
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Bool",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       185,
+       189
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         153,
+         157
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         185,
+         189
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then true else (if p then (if p then [ar] else ar) else (if p then ar else r)));},None=>{value: (if p then q else r);}};r=[3];}",
+   "id": "noadj-s7021993-2669",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E1303",
+      "expected_type": "Bool",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       185,
+       189
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         153,
+         157
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         185,
+         189
+        ]
+       }
+      ],
+      "subcause": null
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Bool",
+      "found_type": "Array<I64>",
+      "primary": [
+       215,
+       217
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         153,
+         157
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         215,
+         217
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  },
+  {
+   "candidato": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       123,
+       127
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         116,
+         119
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         123,
+         127
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<I64>",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       195,
+       198
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         177,
+         178
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         195,
+         198
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "difieren": true,
+   "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=[3];s=[[ar]];let a0=match move o{Some(n)=>{value: (if p then s else (if p then aar else q));},None=>{value: [q,r];}};}",
+   "id": "noadj-s9908255-2565",
+   "main": {
+    "diagnosticos": [
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       93,
+       95
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0103",
+      "expected_type": null,
+      "found_type": null,
+      "primary": [
+       102,
+       104
+      ],
+      "relations": [],
+      "subcause": null
+     },
+     {
+      "code": "NX-E0102",
+      "expected_type": "I64",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       123,
+       127
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         116,
+         119
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         123,
+         127
+        ]
+       }
+      ],
+      "subcause": "type_mismatch"
+     },
+     {
+      "code": "NX-E1303",
+      "expected_type": "Array<I64>",
+      "found_type": "Array<Array<I64>>",
+      "primary": [
+       195,
+       198
+      ],
+      "relations": [
+       {
+        "role": "expected_type",
+        "span": [
+         177,
+         178
+        ]
+       },
+       {
+        "role": "found_type",
+        "span": [
+         195,
+         198
+        ]
+       }
+      ],
+      "subcause": null
+     }
+    ],
+    "outcome": "rejected"
+   },
+   "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion",
+   "perfil": "f0-0003-b-v1"
+  }
+ ],
+ "marca": "no adjudicables: ni mejora ni regresion; fuera de las 103 filas"
+}

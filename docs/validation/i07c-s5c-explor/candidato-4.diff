@@ -1,0 +1,1093 @@
+diff --git a/src/check/types.rs b/src/check/types.rs
+index e2e804c..8ae8939 100644
+--- a/src/check/types.rs
++++ b/src/check/types.rs
+@@ -1142,13 +1142,6 @@ struct ReadPlan {
+     assignment_start: u64,
+ }
+ 
+-#[derive(Clone, PartialEq, Eq)]
+-enum ShapeHint {
+-    Unknown,
+-    Scalar(Type),
+-    Array(Box<ShapeHint>),
+-}
+-
+ #[derive(Clone)]
+ enum ObligationKind {
+     Constructor { child: u64, array: u64, span: Span },
+@@ -1924,6 +1917,19 @@ enum MatchAction<'a> {
+     Done(Result<Type, Box<Diagnostic>>),
+ }
+ 
++/// Result of contrasting one leaf with the union anchor (F0-0002 §4.1.2.4).
++enum AnchorOutcome {
++    /// The equality holds; it stays accumulated in the graph.
++    Compatible,
++    /// First incompatible continuation, rejected immediately: report it.
++    Reported(Box<Diagnostic>),
++    /// First incompatible continuation, deferred or omitted (§4.1.2.7): the
++    /// conflict counts as already denounced.
++    Pending,
++    /// The union already denounced; the conflict is dropped atomically.
++    Absorbed,
++}
++
+ struct IfProgress<'a> {
+     expr: &'a Expr,
+     condition: &'a Expr,
+@@ -1945,6 +1951,9 @@ struct IfProgress<'a> {
+     first_for_anchor: Option<Type>,
+     anchor_error: Option<Box<Diagnostic>>,
+     anchor_pending: bool,
++    // This `if` contrasted a leaf that is incompatible with an anchor its
++    // union already denounced (§4.1.2.4: only the first one is reported).
++    anchor_absorbed: bool,
+     anchor: Option<(Type, Span)>,
+ }
+ 
+@@ -2182,6 +2191,22 @@ struct InferenceGraph {
+     first_assignment_rhs_starts: HashMap<u64, u64>,
+     prefix_concrete: HashMap<u64, ConcreteEvidence>,
+     preseeded_children: HashSet<u64>,
++    // Union anchor registry, keyed by `span_key` of the anchor origin (the
++    // first valid continuation, F0-0002 §4.1.2.4): `true` once the union has
++    // denounced its first incompatible continuation. Cleared per function.
++    union_denounced: HashMap<(u64, u64), bool>,
++    // Unions whose discrepancy is still pending (no diagnostic of their own yet).
++    pending_unions: HashSet<(u64, u64)>,
++    // Simulation of the consumer flags `main` reports per union: (failed, join_failed, has_type).
++    main_flags: HashMap<(u64, u64), (bool, bool, bool)>,
++    // Layer index of each unconsumed seed: (binding site, depth).
++    preseeded_layer: HashMap<u64, (u64, usize)>,
++    // Deepest seeded layer count a binding may keep after retraction.
++    seed_cap: HashMap<u64, usize>,
++    // Bindings whose later assignment this pass rejected or deferred as a conflict.
++    rejected_assignments: HashSet<u64>,
++    // Pending-join count when each named assignment began (keyed by place).
++    assignment_join_marks: HashMap<u64, usize>,
+     result: Type,
+     result_span: Option<Span>,
+ }
+@@ -2702,6 +2727,19 @@ fn record_solver_bind_entry(
+     });
+ }
+ 
++
++/// EXPLORACION: interruptores de variantes por entorno (NEXO_XV=a,b,c). No integrable.
++fn xv(flag: &str) -> bool {
++    static V: std::sync::OnceLock<String> = std::sync::OnceLock::new();
++    V.get_or_init(|| {
++        std::env::var("NEXO_XV").unwrap_or_else(|_| {
++            "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr".to_string()
++        })
++    })
++        .split(',')
++        .any(|f| f == flag)
++}
++
+ impl Checker<'_> {
+     fn closure_capture_sites(
+         &self,
+@@ -3246,6 +3284,8 @@ impl Checker<'_> {
+                 && !has_conditional_projection
+                 && has_deferred_join
+                 && !conflicts_prefix
++                && !self.graph.rejected_assignments.contains(&site)
++                && !self.graph.seed_cap.contains_key(&site)
+                 && let Some(ty) = read_type
+                 && let Some(&assignment_start) = self.graph.assignment_starts.get(&site)
+             {
+@@ -3356,12 +3396,55 @@ impl Checker<'_> {
+         changed
+     }
+ 
++    /// Retracts the seeded layers that no real equality of the pass justifies.
++    fn retract_unconsumed_seeds(&mut self) -> bool {
++        let nodes: Vec<u64> = self.graph.type_nodes.keys().copied().collect();
++        let mut witnessed_roots: HashSet<u64> = HashSet::new();
++        for id in nodes {
++            if !self.graph.preseeded_layer.contains_key(&id) {
++                witnessed_roots.insert(self.root(id));
++            }
++        }
++        let seeded: Vec<(u64, (u64, usize))> = self
++            .graph
++            .preseeded_layer
++            .iter()
++            .map(|(&child, &layer)| (child, layer))
++            .collect();
++        let mut changed = false;
++        for (child, (site, index)) in seeded {
++            let root = self.root(child);
++            let witnessed = witnessed_roots.contains(&root)
++                || self.graph.type_nodes[&root].concrete.is_some()
++                || !self.graph.preseeded_children.contains(&child);
++            if witnessed {
++                continue;
++            }
++            let cap = self.graph.seed_cap.entry(site).or_insert(usize::MAX);
++            if index < *cap {
++                *cap = index;
++                changed = true;
++            }
++        }
++        changed
++    }
++
+     fn seed_planned_shape(&mut self, site: u64, id: u64) {
+         let Some(origins) = self.graph.shape_plan.get(&site).cloned() else {
+             return;
+         };
++        if xv("noshape") {
++            return;
++        }
++        let cap = self
++            .graph
++            .seed_cap
++            .get(&site)
++            .copied()
++            .unwrap_or(usize::MAX);
++        let retracted = cap < origins.len();
+         let mut current = id;
+-        for origin in origins {
++        for (layer_index, origin) in origins.into_iter().take(cap).enumerate() {
+             current = self.root(current);
+             if let Some(child) = self.graph.type_nodes[&current].array_child {
+                 current = child;
+@@ -3397,13 +3480,19 @@ impl Checker<'_> {
+                 .unwrap()
+                 .array_origin = Some(origin);
+             self.graph.preseeded_children.insert(child);
++            self.graph
++                .preseeded_layer
++                .insert(child, (site, layer_index));
+             current = child;
+         }
+         if !self.planning
++            && (!retracted || xv("v6ev"))
++            && !xv("noseed")
+             && let Some(evidence) = self.graph.concrete_plan.get(&site).cloned()
+         {
+             let mut ty = evidence.ty;
+-            for _ in 0..=128 {
++            let strip = if retracted { cap } else { 129 };
++            for _ in 0..strip {
+                 let Type::Array(child) = ty else {
+                     break;
+                 };
+@@ -3507,6 +3596,40 @@ impl Checker<'_> {
+         });
+     }
+ 
++    /// Removes the pending joins registered after `length` together with the
++    /// per-node marks they left, so a rejected equality leaves no trace
++    /// (F0-0002 4.1.2.2: the rejection is atomic).
++    fn retract_pending_joins(&mut self, length: usize) {
++        let mut seen = 0;
++        let mut removed: Vec<(u64, bool)> = Vec::new();
++        self.graph.obligations.retain(|entry| match entry {
++            ObligationKind::Join(join) => {
++                seen += 1;
++                if seen > length {
++                    removed.push((join.constructor, join.branch));
++                    false
++                } else {
++                    true
++                }
++            }
++            _ => true,
++        });
++        for (constructor, branch) in removed.into_iter().rev() {
++            let root = self.root(constructor);
++            let remaining = self
++                .pending_joins()
++                .any(|join| join.constructor == constructor);
++            let node = self.graph.type_nodes.get_mut(&root).unwrap();
++            if branch {
++                node.branch_join_scopes.pop();
++            }
++            if !remaining {
++                node.deferred_join = false;
++                node.recursive_join = false;
++            }
++        }
++    }
++
+     fn pending_domain_count(&self) -> usize {
+         self.graph
+             .obligations
+@@ -3624,140 +3747,6 @@ impl Checker<'_> {
+         }
+     }
+ 
+-    fn type_shape_hint(ty: &Type) -> ShapeHint {
+-        let mut current = ty;
+-        let mut depth = 0;
+-        while let Type::Array(child) = current {
+-            depth += 1;
+-            current = child;
+-        }
+-        let leaf = match current {
+-            Type::Deferred(_) | Type::Never | Type::Tainted => ShapeHint::Unknown,
+-            scalar => ShapeHint::Scalar(scalar.clone()),
+-        };
+-        (0..depth).fold(leaf, |shape, _| ShapeHint::Array(Box::new(shape)))
+-    }
+-
+-    fn variable_shape_hint(&mut self, id: u64) -> ShapeHint {
+-        let mut current = self.root(id);
+-        let mut depth = 0;
+-        let leaf = loop {
+-            let node = &self.graph.type_nodes[&current];
+-            if let Some((ty, _)) = &node.concrete {
+-                break Self::type_shape_hint(ty);
+-            }
+-            let Some(child) = node.array_child else {
+-                break ShapeHint::Unknown;
+-            };
+-            depth += 1;
+-            if depth > 128 {
+-                break ShapeHint::Unknown;
+-            }
+-            current = self.root(child);
+-        };
+-        (0..depth).fold(leaf, |shape, _| ShapeHint::Array(Box::new(shape)))
+-    }
+-
+-    fn expression_shape_hint(&mut self, value: &Expr) -> ShapeHint {
+-        enum Frame<'a> {
+-            Enter(&'a Expr),
+-            Array {
+-                items: &'a [Expr],
+-                next: usize,
+-                first: Option<ShapeHint>,
+-            },
+-            Index,
+-        }
+-        let mut frames = vec![Frame::Enter(value)];
+-        let mut result = ShapeHint::Unknown;
+-        while let Some(frame) = frames.pop() {
+-            match frame {
+-                Frame::Enter(value) => match value {
+-                    Expr::Array(items, _) => {
+-                        if items.is_empty() {
+-                            result = ShapeHint::Array(Box::new(ShapeHint::Unknown));
+-                        } else {
+-                            frames.push(Frame::Array {
+-                                items,
+-                                next: 0,
+-                                first: None,
+-                            });
+-                            frames.push(Frame::Enter(&items[0]));
+-                        }
+-                    }
+-                    Expr::Group(inner, _) => frames.push(Frame::Enter(inner)),
+-                    Expr::Name(_, span) => {
+-                        result = match self.resolved.uses.get(&span.start) {
+-                            Some(ResolvedUse::Local(local)) => {
+-                                let known = self.graph.locals.get(&local.name_span.start).cloned();
+-                                match known {
+-                                    Some(Known {
+-                                        variable: Some(id), ..
+-                                    }) => self.variable_shape_hint(id),
+-                                    Some(known) => Self::type_shape_hint(&known.ty),
+-                                    None => ShapeHint::Unknown,
+-                                }
+-                            }
+-                            _ => ShapeHint::Unknown,
+-                        };
+-                    }
+-                    Expr::Integer(..) => result = ShapeHint::Scalar(Type::I64),
+-                    Expr::Bool(..) => result = ShapeHint::Scalar(Type::Bool),
+-                    Expr::Unit(..) => result = ShapeHint::Scalar(Type::Unit),
+-                    Expr::Index { target, .. } => {
+-                        frames.push(Frame::Index);
+-                        frames.push(Frame::Enter(target));
+-                    }
+-                    _ => result = ShapeHint::Unknown,
+-                },
+-                Frame::Array { items, next, first } => {
+-                    let first = if let Some(first) = first {
+-                        if result != first {
+-                            result = ShapeHint::Unknown;
+-                            continue;
+-                        }
+-                        first
+-                    } else {
+-                        std::mem::replace(&mut result, ShapeHint::Unknown)
+-                    };
+-                    if next + 1 == items.len() {
+-                        result = ShapeHint::Array(Box::new(first));
+-                    } else {
+-                        frames.push(Frame::Array {
+-                            items,
+-                            next: next + 1,
+-                            first: Some(first),
+-                        });
+-                        frames.push(Frame::Enter(&items[next + 1]));
+-                    }
+-                }
+-                Frame::Index => {
+-                    result = match result {
+-                        ShapeHint::Array(child) => *child,
+-                        _ => ShapeHint::Unknown,
+-                    };
+-                }
+-            }
+-        }
+-        result
+-    }
+-
+-    fn shape_hints_conflict(left: &ShapeHint, right: &ShapeHint) -> bool {
+-        let (mut left, mut right) = (left, right);
+-        loop {
+-            match (left, right) {
+-                (ShapeHint::Array(a), ShapeHint::Array(b)) => {
+-                    left = a;
+-                    right = b;
+-                }
+-                (ShapeHint::Scalar(a), ShapeHint::Scalar(b)) => return a != b,
+-                (ShapeHint::Array(_), ShapeHint::Scalar(_))
+-                | (ShapeHint::Scalar(_), ShapeHint::Array(_)) => return true,
+-                _ => return false,
+-            }
+-        }
+-    }
+-
+     fn resolve_pending_projections(&mut self, finalize: bool) -> Result<(), Box<Diagnostic>> {
+         // A projection is conditional until its base has an Array root.
+         // Resolving one projection can determine another one's base, so
+@@ -7506,7 +7495,13 @@ impl Checker<'_> {
+         self.graph.locals.clear();
+         self.graph.eligible_shapes.clear();
+         self.graph.preseeded_children.clear();
++        self.graph.preseeded_layer.clear();
++        self.graph.rejected_assignments.clear();
++        self.graph.assignment_join_marks.clear();
+         self.graph.projected_bases.clear();
++        self.graph.union_denounced.clear();
++        self.graph.pending_unions.clear();
++        self.graph.main_flags.clear();
+         self.graph.projection_items.clear();
+         self.graph.assigned_bases.clear();
+         self.graph.nested_assignment_sites.clear();
+@@ -7777,6 +7772,9 @@ impl Checker<'_> {
+                 {
+                     continue;
+                 }
++                if (xv("e0103skip") || xv("e0103rule")) && self.graph.type_nodes[&constructor].array_origin.is_none() {
++                    continue;
++                }
+                 self.unresolved_constructor_diagnostic(constructor, join.found)
+             };
+             if error.code == "NX-E0102"
+@@ -7806,7 +7804,7 @@ impl Checker<'_> {
+                         .array_origin
+                         .as_ref()
+                         .is_some_and(|span| causal_inference_sites.contains(&span_key(span)));
+-                (has_cause && self.concrete(child).is_none()).then_some(root)
++                ((has_cause || xv("arrx") || xv("e0103rule")) && self.concrete(child).is_none()).then_some(root)
+             })
+             .collect();
+         let shared_inference_roots: HashSet<u64> = self
+@@ -8314,6 +8312,8 @@ impl Checker<'_> {
+             && let Expr::Name(_, span) = place
+             && let Some(ResolvedUse::Local(local)) = self.resolved.uses.get(&span.start)
+         {
++            let joins = self.pending_join_count();
++            self.graph.assignment_join_marks.insert(span.start, joins);
+             if self.graph.eligible_shapes.contains(&local.name_span.start)
+                 && !self
+                     .graph
+@@ -8471,7 +8471,8 @@ impl Checker<'_> {
+         progress: AssignmentProgress<'_>,
+         result: Result<Type, Box<Diagnostic>>,
+     ) -> Result<(), Box<Diagnostic>> {
+-        (|| {
++        let assigned_place = progress.place;
++        let outcome = (|| {
+             let Some(local) = progress.local else {
+                 result?;
+                 return Ok(());
+@@ -8526,7 +8527,31 @@ impl Checker<'_> {
+                 self.retain_assignment_origin(local, &right_origin);
+             }
+             Ok(())
+-        })()
++        })();
++        self.note_assignment_verdict(assigned_place, outcome.is_err());
++        outcome
++    }
++
++    /// Records, in planning, that the pass rejected an assignment or kept its
++    /// conflict as a pending join: that assignment's type cannot retype the
++    /// reads before it (§4.1.2.2). Out of line to keep the driver frames.
++    #[inline(never)]
++    fn note_assignment_verdict(&mut self, place: &Expr, failed: bool) {
++        if !self.planning {
++            return;
++        }
++        let Expr::Name(_, span) = place else {
++            return;
++        };
++        let before = self.graph.assignment_join_marks.remove(&span.start);
++        if let Some(ResolvedUse::Local(binding)) = self.resolved.uses.get(&span.start)
++            && (xv("v6") || xv("v6rej"))
++            && (failed || before.is_some_and(|before| self.pending_join_count() > before))
++        {
++            self.graph
++                .rejected_assignments
++                .insert(binding.name_span.start);
++        }
+     }
+ 
+     fn prepare_let(
+@@ -11333,6 +11358,7 @@ impl Checker<'_> {
+                                 first_for_anchor: None,
+                                 anchor_error: None,
+                                 anchor_pending: false,
++                                anchor_absorbed: false,
+                                 anchor: None,
+                             })));
+                             inner = condition;
+@@ -13680,6 +13706,7 @@ impl Checker<'_> {
+         }
+     }
+ 
++    #[inline(never)]
+     fn if_finish_join(
+         &mut self,
+         progress: &mut IfProgress<'_>,
+@@ -13698,6 +13725,7 @@ impl Checker<'_> {
+         let first_for_anchor = progress.first_for_anchor.clone();
+         let anchor_error = progress.anchor_error.take();
+         let anchor_pending = progress.anchor_pending;
++        let anchor_absorbed = progress.anchor_absorbed;
+         let first_var = branch_value_expr(then_block).and_then(|e| self.expression_variable(e));
+         let second_var = match otherwise {
+             Some(Else::Block(b)) => branch_value_expr(b).and_then(|e| self.expression_variable(e)),
+@@ -13751,6 +13779,11 @@ impl Checker<'_> {
+         let pending_before_join = self.pending_join_count();
+         let join = if anchor_error.is_none()
+             && !anchor_pending
++            && !anchor_absorbed
++            && !(xv("nojoin")
++                && progress.anchor.as_ref().is_some_and(|(_, origin)| {
++                    !xv("nojoinr") || self.graph.union_denounced.contains_key(&span_key(origin))
++                }))
+             && !skip_failed_context_join
+             && (expected.is_none() || needs_deferred_join)
+             && let (Some(left), Some(right)) = (first_join, second_join)
+@@ -13791,15 +13824,91 @@ impl Checker<'_> {
+         // are finalized. Reordering this check after join? changes only the
+         // inferred table once a quota has already exhausted analysis; that
+         // table is not consumed when NX-E0003 prevents executable IR.
++        // The consumer-facing failure flag `main` would report for this
++        // union (its tail logic): a union whose join was not failed for its
++        // consumer keeps offering its witness to a `match` arm.
++        {
++            let unwrap = |expr: Option<&Expr>| {
++                expr.and_then(|e| {
++                    let mut inner = e;
++                    while let Expr::Group(next, _) = inner {
++                        inner = next;
++                    }
++                    self.graph.main_flags.get(&span_key(inner.span())).copied()
++                })
++            };
++            let second_expr = match otherwise {
++                Some(Else::Block(b)) => branch_value_expr(b),
++                Some(Else::If(e)) => Some(e.as_ref()),
++                None => None,
++            };
++            let (fm_f, fm_a) = match unwrap(branch_value_expr(then_block)) {
++                Some((_, mt, has)) => (mt, mt && !has),
++                None => (first_failed, first_anchored),
++            };
++            let (sm_f, sm_a) = match unwrap(second_expr) {
++                Some((_, mt, has)) => (mt, mt && !has),
++                None => (second_failed, second_anchored),
++            };
++            let conflict = anchor_error.is_some() || anchor_pending || anchor_absorbed;
++            let (mf, mt) = if fm_f || sm_f {
++                (true, fm_a && fm_f || sm_a && sm_f)
++            } else {
++                (false, conflict)
++            };
++            let has_type = first_for_anchor.is_some() || first.is_some() || second.is_some();
++            let mut key_expr = progress.expr;
++            while let Expr::Group(next, _) = key_expr {
++                key_expr = next;
++            }
++            self.graph
++                .main_flags
++                .insert(span_key(key_expr.span()), (mf, mt, has_type));
++        }
++        let main_join_failed = if first_failed || second_failed {
++            first_anchored && first_failed || second_anchored && second_failed
++        } else {
++            true
++        };
++        if (xv("rmm3e")
++            && anchor_error.is_none()
++            && anchor_pending
++            && !anchor_absorbed
++            && (!xv("rmm3f") || branch_value_expr(then_block).is_some_and(Self::is_value_if)))
++            || (!xv("rmm3e")
++                && (anchor_error.is_some() || anchor_pending || anchor_absorbed)
++                && !main_join_failed)
++            && (!xv("rmm3d") || branch_value_expr(then_block).is_some_and(Self::is_value_if))
++        {
++            self.graph
++                .pending_unions
++                .insert(span_key(progress.expr.span()));
++        }
+         if let Some(error) = anchor_error {
+             // §13.9: visit the later branch before reporting the first
+             // incompatible continuation. Its independent child errors must
+             // survive even though this join has already failed.
+             self.record_error(error);
+-            return Ok((first.or(second), true, true));
++            let carried = if xv("retfa") {
++                first_for_anchor.clone().or(first).or(second)
++            } else {
++                first.or(second)
++            };
++            return Ok((carried, true, !(xv("unanch") && first_for_anchor.is_some())));
+         }
+-        if anchor_pending {
+-            return Ok((first.or(second), true, true));
++        if anchor_pending || anchor_absorbed {
++            let carried = if xv("pendfa") {
++                first_for_anchor.clone().or(first).or(second)
++            } else {
++                first.or(second)
++            };
++            let failed_flag = !(xv("pendnf") && !anchor_absorbed);
++            let soft = xv("pendsoft") && !anchor_absorbed;
++            return Ok((
++                carried,
++                failed_flag && !soft,
++                !soft && !(xv("unanch") && first_for_anchor.is_some()),
++            ));
+         }
+         if first_failed || second_failed {
+             if first_anchored && first_failed || second_anchored && second_failed {
+@@ -13832,6 +13941,8 @@ impl Checker<'_> {
+                                 .flatten()
+                         })
+                         .or(first)
++                } else if xv("retfail") {
++                    first_for_anchor.clone().or(first).or(second)
+                 } else {
+                     first.or(second)
+                 },
+@@ -13978,7 +14089,7 @@ impl Checker<'_> {
+                                 });
+                                 progress.stage = IfStage::SecondBranch;
+                             } else if let Some(Else::If(other)) = progress.otherwise {
+-                                let context = self.if_else_context(progress, other);
++                                let context = self.if_else_context(progress);
+                                 progress.stage = IfStage::ElseIf;
+                                 return IfAction::Value(other, context);
+                             } else {
+@@ -14008,31 +14119,10 @@ impl Checker<'_> {
+                             return IfAction::Value(expr, context);
+                         }
+                         BranchAction::Done(second, failed, anchored) => {
+-                            if let Some(Else::Block(block)) = progress.otherwise
+-                                && progress.branch_context.expected.is_none()
+-                                && progress.anchor_error.is_none()
+-                                && !failed
+-                                && !anchored
+-                                && let (Some((base, base_span)), Some(found)) =
+-                                    (progress.anchor.as_ref(), second.as_ref())
++                            if let Err(error) =
++                                self.second_leaf_anchor(*visit, progress, &second, failed, anchored)
+                             {
+-                                let found_span =
+-                                    branch_value_span(block).unwrap_or_else(|| block.span.clone());
+-                                match self.unify(
+-                                    *visit,
+-                                    base.clone(),
+-                                    found.clone(),
+-                                    base_span.clone(),
+-                                    found_span.clone(),
+-                                    found_span,
+-                                    true,
+-                                ) {
+-                                    Err(error) if error.operation == Operation::AnalysisLimit => {
+-                                        return IfAction::Done(Err(error));
+-                                    }
+-                                    Err(error) => progress.anchor_error = Some(error),
+-                                    Ok(_) => {}
+-                                }
++                                return IfAction::Done(Err(error));
+                             }
+                             return IfAction::Done(
+                                 self.if_finish_join(progress, second, failed, anchored),
+@@ -14064,6 +14154,190 @@ impl Checker<'_> {
+         }
+     }
+ 
++    /// Registers the anchor of a union once its first continuation fixes it.
++    #[inline(never)]
++    fn anchor_open(&mut self, origin: &Span) {
++        self.graph
++            .union_denounced
++            .entry(span_key(origin))
++            .or_insert(false);
++    }
++
++    /// The single place where a leaf is equated with its union anchor
++    /// (F0-0002 §4.1.2.2 and §4.1.2.4). A compatible equality accumulates in
++    /// any state; the first incompatible one marks the union denounced; later
++    /// ones are rejected atomically without a diagnostic of their own.
++    #[inline(never)]
++    fn anchor_contrast(
++        &mut self,
++        visit: Option<FactId>,
++        base: &(Type, Span),
++        found: Type,
++        found_span: Span,
++    ) -> Result<AnchorOutcome, Box<Diagnostic>> {
++        let key = span_key(&base.1);
++        let state = self.graph.union_denounced.get(&key).copied();
++        let found_span_dbg = found_span.clone();
++        let found_ty_dbg = found.clone();
++        let snapshot = (xv("atomic") && state == Some(true))
++            .then(|| (self.graph.type_nodes.clone(), self.graph.obligations.clone()));
++        let snapshot0 = (xv("atomic0") && state == Some(false))
++            .then(|| self.graph.type_nodes.clone());
++        let before = self.pending_join_count();
++        let outcome = match visit {
++            None => self.unify_independent(
++                base.0.clone(),
++                found,
++                base.1.clone(),
++                found_span.clone(),
++                found_span,
++                true,
++            ),
++            Some(visit) => self.unify(
++                visit,
++                base.0.clone(),
++                found,
++                base.1.clone(),
++                found_span.clone(),
++                found_span,
++                true,
++            ),
++        };
++        let error = match outcome {
++            Err(error) if error.operation == Operation::AnalysisLimit => return Err(error),
++            Err(error) => Some(error),
++            Ok(_) => None,
++        };
++        if xv("dbg") {
++            eprintln!(
++                "CONTRAST pl={} base={:?} found={:?} state={:?} err={} newjoins={}",
++                self.planning,
++                (base.1.start, base.1.end),
++                (found_span_dbg.start, found_span_dbg.end),
++                state,
++                error.is_some(),
++                self.pending_join_count() > before
++            );
++        }
++        if xv("dbg") && self.pending_join_count() > before {
++            for join in self.pending_joins().skip(before) {
++                eprintln!(
++                    "NEWJOIN pl={} left={:?} right={:?} ctor={} branch={}",
++                    self.planning,
++                    join.left,
++                    join.right,
++                    join.constructor,
++                    join.branch
++                );
++            }
++        }
++        if error.is_none() && self.pending_join_count() <= before {
++            if xv("defmark") {
++                for ty in [&base.0, &found_ty_dbg] {
++                    if let Type::Deferred(id) = ty {
++                        let root = self.root(*id);
++                        self.graph.type_nodes.get_mut(&root).unwrap().deferred_join = true;
++                    }
++                }
++            }
++            return Ok(AnchorOutcome::Compatible);
++        }
++        if state == Some(true) {
++            if let Some((nodes, obligations)) = snapshot {
++                self.graph.type_nodes = nodes;
++                self.graph.obligations = obligations;
++                return Ok(AnchorOutcome::Absorbed);
++            }
++            if xv("retract") {
++                self.retract_pending_joins(before);
++            } else {
++                self.truncate_pending_joins(before);
++            }
++            return Ok(AnchorOutcome::Absorbed);
++        }
++        if state == Some(false) {
++            let restore0 = (!xv("atomic0e") || error.is_some())
++                && (!xv("atomic0p") || error.is_some() || self.planning);
++            if let Some(nodes) = snapshot0.filter(|_| restore0) {
++                for (id, node) in nodes {
++                    self.graph.type_nodes.insert(id, node);
++                }
++            }
++            self.graph.union_denounced.insert(key, true);
++        }
++        Ok(match error {
++            Some(error) => AnchorOutcome::Reported(error),
++            None => AnchorOutcome::Pending,
++        })
++    }
++
++    /// Contrasts the value of an `else` block with the union anchor.
++    #[inline(never)]
++    fn second_leaf_anchor(
++        &mut self,
++        visit: FactId,
++        progress: &mut IfProgress<'_>,
++        second: &Option<Type>,
++        failed: bool,
++        anchored: bool,
++    ) -> Result<(), Box<Diagnostic>> {
++        let Some(Else::Block(block)) = progress.otherwise else {
++            return Ok(());
++        };
++        if xv("dbg") && !self.planning {
++            eprintln!(
++                "SECONDLEAF expected={} failed={} anchored={} second={:?} anchor={}",
++                progress.branch_context.expected.is_some(),
++                failed,
++                anchored,
++                second,
++                progress.anchor.is_some()
++            );
++        }
++        if progress.branch_context.expected.is_some()
++            || (failed && !(xv("failleaf") && second.is_some()))
++            || anchored
++        {
++            return Ok(());
++        }
++        let Some(base) = progress.anchor.clone() else {
++            return Ok(());
++        };
++        let registered = self.graph.union_denounced.contains_key(&span_key(&base.1));
++        // A pending variable is a valid continuation (D-REF): once the union
++        // is registered it is contrasted too, like the first continuation.
++        let found = second.clone().or_else(|| {
++            branch_value_expr(block)
++                .filter(|_| registered)
++                .and_then(|expr| self.expression_variable(expr))
++                .filter(|id| !(xv("noprojB") && self.graph.projection_items.contains(id)))
++                .map(Type::Deferred)
++        });
++        let found = found.or_else(|| {
++            if !xv("failleaf") {
++                return None;
++            }
++            branch_value_expr(block)
++                .and_then(|expr| self.graph.expression_types.get(&span_key(expr.span())).cloned())
++                .filter(|ty| internal_state(ty).is_none())
++        });
++        let Some(found) = found else {
++            return Ok(());
++        };
++        if !registered && progress.anchor_error.is_some() {
++            return Ok(());
++        }
++        let found_span = branch_value_span(block).unwrap_or_else(|| block.span.clone());
++        match self.anchor_contrast(Some(visit), &base, found, found_span)? {
++            AnchorOutcome::Compatible => {}
++            AnchorOutcome::Reported(error) => progress.anchor_error = Some(error),
++            AnchorOutcome::Pending => progress.anchor_pending |= registered,
++            AnchorOutcome::Absorbed => progress.anchor_absorbed = true,
++        }
++        Ok(())
++    }
++
++    #[inline(never)]
+     fn if_after_first(&mut self, progress: &mut IfProgress<'_>) -> Result<(), Box<Diagnostic>> {
+         let then_block = progress.then_block;
+         progress.first_anchored |= branch_value_expr(then_block).is_some_and(|expr| {
+@@ -14081,6 +14355,7 @@ impl Checker<'_> {
+         progress.first_for_anchor = progress.first.clone().or_else(|| {
+             branch_value_expr(then_block)
+                 .and_then(|expr| self.expression_variable(expr))
++                .filter(|id| !(xv("noprojA") && self.graph.projection_items.contains(id)))
+                 .map(Type::Deferred)
+         });
+         if progress.branch_context.expected.is_none()
+@@ -14091,27 +14366,25 @@ impl Checker<'_> {
+                 progress.first_for_anchor.as_ref(),
+             )
+         {
+-            let pending_before_anchor = self.pending_join_count();
+             let found_span = progress
+                 .first_span
+                 .clone()
+                 .unwrap_or_else(|| then_block.span.clone());
+-            match self.unify_independent(
+-                base.clone(),
+-                found.clone(),
+-                base_span.clone(),
+-                found_span.clone(),
+-                found_span,
+-                true,
+-            ) {
+-                Err(error) if error.operation == Operation::AnalysisLimit => return Err(error),
+-                Err(error) => progress.anchor_error = Some(error),
+-                Ok(_) => {}
+-            }
+-            progress.anchor_pending = self.pending_join_count() > pending_before_anchor;
+-        }
++            let base = (base.clone(), base_span.clone());
++            match self.anchor_contrast(None, &base, found.clone(), found_span)? {
++                AnchorOutcome::Compatible => {}
++                AnchorOutcome::Reported(error) => progress.anchor_error = Some(error),
++                AnchorOutcome::Pending => progress.anchor_pending = true,
++                AnchorOutcome::Absorbed => progress.anchor_absorbed = true,
++            }
++        }
++        let nested_witness = (xv("anchw") && progress.first_failed || xv("anchw2"))
++            && progress.first_anchored
++            && progress.first_for_anchor.is_some()
++            && branch_value_expr(then_block).is_some_and(Self::is_value_if);
+         progress.anchor = progress.branch_context.anchor.clone().or_else(|| {
+-            ((!progress.first_failed || progress.first_partial) && !progress.first_anchored)
++            (((!progress.first_failed || progress.first_partial) && !progress.first_anchored)
++                || nested_witness)
+                 .then(|| {
+                     progress
+                         .first_for_anchor
+@@ -14121,44 +14394,36 @@ impl Checker<'_> {
+                 })
+                 .flatten()
+         });
++        if xv("dbg") {
++            eprintln!(
++                "IF1 pl={} first_span={:?} ctx_anchor={:?} anchor={:?} failed={} anchored={} partial={} fa={}",
++                self.planning,
++                progress.first_span.as_ref().map(|s| (s.start, s.end)),
++                progress.branch_context.anchor.as_ref().map(|a| (a.1.start, a.1.end)),
++                progress.anchor.as_ref().map(|a| (a.1.start, a.1.end)),
++                progress.first_failed,
++                progress.first_anchored,
++                progress.first_partial,
++                progress.first_for_anchor.is_some()
++            );
++        }
++        if progress.branch_context.anchor.is_none()
++            && let Some((_, origin)) = progress.anchor.as_ref()
++        {
++            self.anchor_open(origin);
++        }
+         Ok(())
+     }
+ 
+-    fn if_else_context(&mut self, progress: &IfProgress<'_>, other: &Expr) -> OwnedCheckContext {
+-        let inner_shape_conflict = if let Expr::If {
+-            then_block,
+-            otherwise: Some(inner_other),
+-            ..
+-        } = other
+-        {
+-            let first = branch_value_expr(then_block);
+-            let second = match inner_other.as_ref() {
+-                Else::Block(block) => branch_value_expr(block),
+-                Else::If(_) => None,
+-            };
+-            first.zip(second).is_some_and(|(first, second)| {
+-                let first = self.expression_shape_hint(first);
+-                let second = self.expression_shape_hint(second);
+-                Self::shape_hints_conflict(&first, &second)
+-            })
+-        } else {
+-            false
+-        };
+-        let anchor = if inner_shape_conflict
+-            && progress
+-                .anchor
+-                .as_ref()
+-                .is_some_and(|(ty, _)| self.resolved_join_side(ty.clone()).is_none())
+-        {
+-            None
+-        } else {
+-            progress.anchor.clone()
+-        };
++    #[inline(never)]
++    fn if_else_context(&self, progress: &IfProgress<'_>) -> OwnedCheckContext {
++        // The anchor always reaches the later continuations of the union
++        // (F0-0002 §4.1.2.4): a nested `if` never discards it.
+         OwnedCheckContext {
+             expected: progress.branch_context.expected.clone(),
+             expected_span: progress.branch_context.expected_span.clone(),
+             check_here: true,
+-            anchor,
++            anchor: progress.anchor.clone(),
+             outer_compare: false,
+             related_expected: progress.branch_context.related_expected,
+             deferred_element: progress.branch_context.deferred_element,
+@@ -14449,12 +14714,68 @@ impl Checker<'_> {
+                     return MatchAction::Value(expr, context);
+                 }
+                 BranchAction::Done(value, failed, _) => {
++                    if xv("dbg") && !self.planning {
++                        eprintln!(
++                            "MATCHARM pu={:?} sp={:?} idx={} failed={} value={:?} errs={:?} partial={}",
++                            self.graph.pending_unions,
++                            branch_value_expr(&arm.body).map(|e| (e.span().start, e.span().end)),
++                            progress.arm_index,
++                            failed,
++                            value,
++                            self.errors
++                                .iter()
++                                .map(|e| (e.code.to_string(), e.primary_span.as_ref().map(|p| (p.start, p.end))))
++                                .collect::<Vec<_>>(),
++                            branch_value_expr(&arm.body).is_some_and(|expr| self
++                                .graph
++                                .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal))
++                        );
++                    }
+                     let value = value.or_else(|| {
+                         branch_value_expr(&arm.body)
+                             .and_then(|expr| self.expression_variable(expr))
+                             .map(Type::Deferred)
+                     });
+-                    if !failed && let Some(value) = value {
++                    let arm_partial = (xv("matchpartial")
++                        && branch_value_expr(&arm.body).is_some_and(|expr| {
++                            self.graph
++                                .has(&span_key(expr.span()), OccurrenceFlag::PartialNormal)
++                        }))
++                        || (xv("rmm3c")
++                            && failed
++                            && branch_value_expr(&arm.body).is_some_and(|expr| {
++                                let mut inner = expr;
++                                while let Expr::Group(next, _) = inner {
++                                    inner = next;
++                                }
++                                self.graph
++                                    .main_flags
++                                    .get(&span_key(inner.span()))
++                                    .is_some_and(|(_, mt, _)| !*mt)
++                            }))
++                        || (xv("rmm3b")
++                            && failed
++                            && branch_value_expr(&arm.body).is_some_and(|expr| {
++                                let mut inner = expr;
++                                while let Expr::Group(next, _) = inner {
++                                    inner = next;
++                                }
++                                self.graph.pending_unions.contains(&span_key(inner.span()))
++                            }))
++                        || (xv("rmm3")
++                            && failed
++                            && branch_value_expr(&arm.body).is_some_and(|expr| {
++                                let span = expr.span();
++                                self.graph
++                                    .has(&span_key(span), OccurrenceFlag::PartialNormal)
++                                    && !self.errors.iter().any(|error| {
++                                        error.code == "NX-E1303"
++                                            && error.primary_span.as_ref().is_some_and(|p| {
++                                                span.start <= p.start && p.end <= span.end
++                                            })
++                                    })
++                            }));
++                    if (!failed || arm_partial) && let Some(value) = value {
+                         let origin =
+                             branch_value_span(&arm.body).unwrap_or_else(|| arm.body.span.clone());
+                         if let Some((first, first_origin)) = &progress.joined {
+@@ -15393,12 +15714,19 @@ pub(crate) fn check_with_partial_limit(
+             nested_assignment_sites: HashSet::new(),
+             pre_assignment_snapshot: HashMap::new(),
+             projected_bases: HashSet::new(),
++            union_denounced: HashMap::new(),
++            pending_unions: HashSet::new(),
++            main_flags: HashMap::new(),
+             projection_items: HashSet::new(),
+             assigned_bases: HashSet::new(),
+             assignment_starts: HashMap::new(),
+             first_assignment_rhs_starts: HashMap::new(),
+             prefix_concrete: HashMap::new(),
+             preseeded_children: HashSet::new(),
++            preseeded_layer: HashMap::new(),
++            seed_cap: HashMap::new(),
++            rejected_assignments: HashSet::new(),
++            assignment_join_marks: HashMap::new(),
+             result: Type::Unit,
+             result_span: None,
+         },
+@@ -15410,14 +15738,23 @@ pub(crate) fn check_with_partial_limit(
+             break;
+         }
+         checker.planning = true;
++        // `seed_cap` only decreases and planning never applies `read_plan`, so
++        // retraction and the verdicts it feeds cannot make the plan oscillate.
++        checker.graph.seed_cap.clear();
++        let mut passes = 0usize;
+         for _ in 0..=128 {
++            passes += 1;
+             checker.analysis_exhausted = false;
+             checker.quota_error = None;
+             let _ = checker.function(function);
+-            if !checker.collect_planned_shapes() {
++            let retracted = (xv("v6") || xv("v6cap")) && checker.retract_unconsumed_seeds();
++            if !checker.collect_planned_shapes() && !retracted {
+                 break;
+             }
+         }
++        if xv("passes") {
++            eprintln!("PASSES {passes}");
++        }
+         checker.planning = false;
+         checker.analysis_exhausted = false;
+         checker.quota_error = None;
+@@ -16985,12 +17322,19 @@ mod quota_tests {
+                 nested_assignment_sites: HashSet::new(),
+                 pre_assignment_snapshot: HashMap::new(),
+                 projected_bases: HashSet::new(),
++                union_denounced: HashMap::new(),
++                pending_unions: HashSet::new(),
++                main_flags: HashMap::new(),
+                 projection_items: HashSet::new(),
+                 assigned_bases: HashSet::new(),
+                 assignment_starts: HashMap::new(),
+                 first_assignment_rhs_starts: HashMap::new(),
+                 prefix_concrete: HashMap::new(),
+                 preseeded_children: HashSet::new(),
++                preseeded_layer: HashMap::new(),
++                seed_cap: HashMap::new(),
++                rejected_assignments: HashSet::new(),
++                assignment_join_marks: HashMap::new(),
+                 result: Type::Unit,
+                 result_span: None,
+                 nominal_depth_memo: std::cell::RefCell::new(HashMap::new()),
+@@ -19139,19 +19483,6 @@ mod quota_tests {
+         );
+     }
+ 
+-    #[test]
+-    fn i07c_survivor2_nested_shape_hints_reach_the_leaf() {
+-        let array = Type::Array(Arc::new(Type::I64));
+-        assert!(
+-            Checker::type_shape_hint(&array)
+-                == ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::I64)))
+-        );
+-        let left = ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::I64)));
+-        let right = ShapeHint::Array(Box::new(ShapeHint::Scalar(Type::Bool)));
+-        assert!(Checker::shape_hints_conflict(&left, &right));
+-        assert!(!Checker::shape_hints_conflict(&left, &left));
+-    }
+-
+     #[test]
+     fn i07c_survivor2_pending_operation_types_match_their_sites() {
+         let resolved = Resolved {

@@ -1,0 +1,1882 @@
+[
+ {
+  "corpus": "s4417061",
+  "idx": 1961,
+  "veredicto": "mejora",
+  "U": "(if p then r[0] else (if p then [ar] else [[q]]))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 1276,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then q else (if p then ar else 1)) else [[q]])",
+  "main_fuera": [
+   [
+    "NX-E0102",
+    230,
+    234
+   ],
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E1303",
+    190,
+    191
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    190,
+    191
+   ],
+   [
+    "NX-E1303",
+    199,
+    204
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    190,
+    191
+   ],
+   [
+    "NX-E1303",
+    199,
+    204
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 4320,
+  "veredicto": "neutra (sin diferencia fuera del 2.o brazo)",
+  "U": "(if p then (if p then (if p then r else q[0]) else (if p then r else 1)) else (if p then (if p then r else r) else [s,q]))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    206,
+    210
+   ],
+   [
+    "NX-E1303",
+    235,
+    236
+   ],
+   [
+    "NX-E1303",
+    281,
+    286
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    206,
+    210
+   ],
+   [
+    "NX-E1303",
+    235,
+    236
+   ],
+   [
+    "NX-E1303",
+    281,
+    286
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    206,
+    210
+   ],
+   [
+    "NX-E1303",
+    235,
+    236
+   ],
+   [
+    "NX-E1303",
+    281,
+    286
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "c2",
+  "idx": 2702,
+  "veredicto": "mejora",
+  "U": "(if p then q else (if p then true else r))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    171,
+    175
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0102",
+    214,
+    218
+   ],
+   [
+    "NX-E1303",
+    171,
+    175
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0102",
+    214,
+    218
+   ],
+   [
+    "NX-E1303",
+    171,
+    175
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s9908255",
+  "idx": 4047,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then ar else [q,r]) else (if p then aar else q))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    195,
+    198
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    172,
+    177
+   ],
+   [
+    "NX-E1303",
+    195,
+    198
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    172,
+    177
+   ],
+   [
+    "NX-E1303",
+    195,
+    198
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 3934,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then [q,r] else ar) else [q,r])",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    175,
+    177
+   ],
+   [
+    "NX-E1303",
+    184,
+    189
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    175,
+    177
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    175,
+    177
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": [
+   [
+    "NX-E1303",
+    207,
+    211
+   ]
+  ]
+ },
+ {
+  "corpus": "c2",
+  "idx": 931,
+  "veredicto": "mejora",
+  "U": "(if p then r[0] else r)",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    163,
+    164
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s7021993",
+  "idx": 3437,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then (if p then [q] else [s,q]) else (if p then q else r[0])) else (if p then ar else [q,r]))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "c2",
+  "idx": 10405,
+  "veredicto": "regresion",
+  "U": "(if p then (if p then r else r) else 2)",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "c2",
+  "idx": 6523,
+  "veredicto": "regresion",
+  "U": "(if p then (if p then (if p then r else r) else s) else 1)",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E1303",
+    207,
+    208
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s7021993",
+  "idx": 3070,
+  "veredicto": "mejora",
+  "U": "(if p then [q] else (if p then true else [ar]))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    191,
+    195
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    181,
+    185
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    181,
+    185
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 1399,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then q else s) else (if p then 1 else [ar]))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    199,
+    200
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0102",
+    238,
+    239
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    199,
+    200
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0102",
+    238,
+    239
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    199,
+    200
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 3255,
+  "veredicto": "neutra (sin diferencia fuera del 2.o brazo)",
+  "U": "(if p then (if p then (if p then [s,q] else ar) else (if p then 1 else 2)) else (if p then true else q))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    195,
+    197
+   ],
+   [
+    "NX-E1303",
+    215,
+    216
+   ],
+   [
+    "NX-E1303",
+    242,
+    246
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    195,
+    197
+   ],
+   [
+    "NX-E1303",
+    215,
+    216
+   ],
+   [
+    "NX-E1303",
+    242,
+    246
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    195,
+    197
+   ],
+   [
+    "NX-E1303",
+    215,
+    216
+   ],
+   [
+    "NX-E1303",
+    242,
+    246
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 4206,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then (if p then 2 else [q,r]) else true) else (if p then r else r))",
+  "main_fuera": [
+   [
+    "NX-E0102",
+    262,
+    264
+   ],
+   [
+    "NX-E1303",
+    182,
+    187
+   ],
+   [
+    "NX-E1303",
+    216,
+    217
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0102",
+    262,
+    264
+   ],
+   [
+    "NX-E1303",
+    182,
+    187
+   ],
+   [
+    "NX-E1303",
+    194,
+    198
+   ],
+   [
+    "NX-E1303",
+    216,
+    217
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0102",
+    262,
+    264
+   ],
+   [
+    "NX-E1303",
+    182,
+    187
+   ],
+   [
+    "NX-E1303",
+    194,
+    198
+   ],
+   [
+    "NX-E1303",
+    216,
+    217
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s7021993",
+  "idx": 3076,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then q[0] else [q]) else (if p then r else (if p then 1 else q)))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    174,
+    177
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 4002,
+  "veredicto": "neutra (difiere solo el 2.o brazo)",
+  "U": "(if p then (if p then (if p then 1 else [r]) else 1) else [q])",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": [
+   [
+    "NX-E1303",
+    221,
+    225
+   ]
+  ]
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 3845,
+  "veredicto": "mejora",
+  "U": "(if p then [r] else (if p then (if p then (if p then false else q) else 1) else (if p then ar else true)))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    212,
+    217
+   ],
+   [
+    "NX-E1303",
+    231,
+    232
+   ],
+   [
+    "NX-E1303",
+    250,
+    252
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    212,
+    217
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    212,
+    217
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "c2",
+  "idx": 3656,
+  "veredicto": "mejora",
+  "U": "(if p then r[0] else (if p then r else true))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    182,
+    183
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    182,
+    183
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 2128,
+  "veredicto": "regresion",
+  "U": "(if p then (if p then (if p then [q] else ar) else true) else true)",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    184,
+    186
+   ],
+   [
+    "NX-E1303",
+    193,
+    197
+   ],
+   [
+    "NX-E1303",
+    204,
+    208
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 4147,
+  "veredicto": "neutra (sin diferencia fuera del 2.o brazo)",
+  "U": "(if p then (if p then [q,r] else true) else (if p then q else q))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    175,
+    179
+   ],
+   [
+    "NX-E1303",
+    197,
+    198
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    175,
+    179
+   ],
+   [
+    "NX-E1303",
+    197,
+    198
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    175,
+    179
+   ],
+   [
+    "NX-E1303",
+    197,
+    198
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 139,
+  "veredicto": "neutra (sin diferencia fuera del 2.o brazo)",
+  "U": "(if p then (if p then [q,r] else r) else (if p then true else [q,r]))",
+  "main_fuera": [
+   [
+    "NX-E0102",
+    255,
+    257
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ],
+   [
+    "NX-E1303",
+    184,
+    185
+   ],
+   [
+    "NX-E1303",
+    203,
+    207
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0102",
+    255,
+    257
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ],
+   [
+    "NX-E1303",
+    184,
+    185
+   ],
+   [
+    "NX-E1303",
+    203,
+    207
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0102",
+    255,
+    257
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ],
+   [
+    "NX-E1303",
+    184,
+    185
+   ],
+   [
+    "NX-E1303",
+    203,
+    207
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s7021993",
+  "idx": 238,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then 1 else [q,r]) else (if p then r3 else q))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    171,
+    176
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    171,
+    176
+   ],
+   [
+    "NX-E1303",
+    194,
+    196
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    171,
+    176
+   ],
+   [
+    "NX-E1303",
+    194,
+    196
+   ]
+  ],
+  "arm2_main": [
+   [
+    "NX-E1303",
+    222,
+    225
+   ]
+  ],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 2805,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then r3 else (if p then ar else q)) else (if p then (if p then q[0] else r3) else (if p then r else [q,r])))",
+  "main_fuera": [
+   [
+    "NX-E0102",
+    262,
+    263
+   ],
+   [
+    "NX-E1303",
+    183,
+    185
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    183,
+    185
+   ],
+   [
+    "NX-E1303",
+    222,
+    226
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    183,
+    185
+   ],
+   [
+    "NX-E1303",
+    222,
+    226
+   ]
+  ],
+  "arm2_main": [
+   [
+    "NX-E1303",
+    284,
+    286
+   ]
+  ],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s7021993",
+  "idx": 1002,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then [[q]] else r) else (if p then 1 else false))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ],
+   [
+    "NX-E0103",
+    173,
+    178
+   ],
+   [
+    "NX-E1303",
+    210,
+    215
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s9908255",
+  "idx": 3599,
+  "veredicto": "mejora",
+  "U": "(if p then q[0] else r)",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    176,
+    177
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s9908255",
+  "idx": 259,
+  "veredicto": "mejora",
+  "U": "(if p then r[0] else (if p then [r] else [q,r]))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    181,
+    184
+   ],
+   [
+    "NX-E1303",
+    190,
+    195
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    181,
+    184
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    181,
+    184
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 3200,
+  "veredicto": "mejora",
+  "U": "(if p then r[0] else r)",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    163,
+    164
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s9908255",
+  "idx": 149,
+  "veredicto": "mejora",
+  "U": "(if p then r[0] else (if p then r else (if p then true else [[q]])))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    174,
+    175
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E1303",
+    174,
+    175
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E1303",
+    174,
+    175
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "c2",
+  "idx": 13681,
+  "veredicto": "mejora",
+  "U": "(if p then [q,r] else (if p then 1 else true))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    182,
+    186
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s9908255",
+  "idx": 1891,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then r[0] else (if p then q else [ar])) else aar)",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    198,
+    202
+   ],
+   [
+    "NX-E1303",
+    210,
+    213
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    198,
+    202
+   ],
+   [
+    "NX-E1303",
+    210,
+    213
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    198,
+    202
+   ],
+   [
+    "NX-E1303",
+    210,
+    213
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 2644,
+  "veredicto": "neutra (sin diferencia fuera del 2.o brazo)",
+  "U": "(if p then ar else (if p then r[0] else [q,r]))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    182,
+    187
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    182,
+    187
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    182,
+    187
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s9908255",
+  "idx": 2364,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then [q,r] else (if p then r3 else aar)) else (if p then (if p then 1 else [ar]) else 1))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    194,
+    197
+   ],
+   [
+    "NX-E1303",
+    227,
+    228
+   ],
+   [
+    "NX-E1303",
+    245,
+    246
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    194,
+    197
+   ],
+   [
+    "NX-E1303",
+    227,
+    228
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    194,
+    197
+   ],
+   [
+    "NX-E1303",
+    227,
+    228
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 2374,
+  "veredicto": "mejora",
+  "U": "(if p then [r] else (if p then aar else q))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    182,
+    185
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0102",
+    222,
+    225
+   ],
+   [
+    "NX-E1303",
+    182,
+    185
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0102",
+    222,
+    225
+   ],
+   [
+    "NX-E1303",
+    182,
+    185
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 135,
+  "veredicto": "regresion",
+  "U": "(if p then (if p then r else (if p then [q,r] else (if p then q else r))) else q[0])",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    199,
+    204
+   ],
+   [
+    "NX-E1303",
+    238,
+    242
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    111,
+    113
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s4417061",
+  "idx": 2050,
+  "veredicto": "mejora",
+  "U": "(if p then r[0] else [r])",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E0103",
+    163,
+    166
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    93,
+    95
+   ],
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "c2",
+  "idx": 13519,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then [q,r] else q) else r)",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    175,
+    176
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    175,
+    176
+   ],
+   [
+    "NX-E1303",
+    183,
+    184
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    175,
+    176
+   ],
+   [
+    "NX-E1303",
+    183,
+    184
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s7021993",
+  "idx": 3267,
+  "veredicto": "mejora",
+  "U": "(if p then q else (if p then (if p then true else 1) else (if p then [ar] else r)))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    182,
+    186
+   ],
+   [
+    "NX-E1303",
+    192,
+    193
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    182,
+    186
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    182,
+    186
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "c2",
+  "idx": 13452,
+  "veredicto": "mejora",
+  "U": "(if p then q else (if p then (if p then 1 else r) else aar))",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ],
+   [
+    "NX-E1303",
+    182,
+    183
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    182,
+    183
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    182,
+    183
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s9908255",
+  "idx": 2021,
+  "veredicto": "mejora",
+  "U": "(if p then (if p then r else (if p then q else r[0])) else (if p then (if p then 1 else aar) else (if p then r[0] else [q,r])))",
+  "main_fuera": [
+   [
+    "NX-E1303",
+    189,
+    193
+   ],
+   [
+    "NX-E1303",
+    230,
+    233
+   ],
+   [
+    "NX-E1303",
+    261,
+    266
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E1303",
+    189,
+    193
+   ],
+   [
+    "NX-E1303",
+    223,
+    224
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E1303",
+    189,
+    193
+   ],
+   [
+    "NX-E1303",
+    223,
+    224
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": []
+ },
+ {
+  "corpus": "s7021993",
+  "idx": 1937,
+  "veredicto": "neutra (difiere solo el 2.o brazo)",
+  "U": "(if p then (if p then ar else q) else [r])",
+  "main_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "cand_fuera": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "oraculo_U": [
+   [
+    "NX-E0103",
+    102,
+    104
+   ]
+  ],
+  "arm2_main": [],
+  "arm2_cand": [
+   [
+    "NX-E1303",
+    201,
+    206
+   ]
+  ]
+ }
+]

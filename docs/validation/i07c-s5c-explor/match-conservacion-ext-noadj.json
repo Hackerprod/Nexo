@@ -1,0 +1,50 @@
+[
+ {
+  "id": "noadj-s4417061-2463",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then r else (if p then 1 else r3));},None=>{value: [s,q];}};q=[[ar]];r=[ar];}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ },
+ {
+  "id": "noadj-s4417061-4419",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then q[0] else (if p then [[q]] else (if p then 1 else [s,q])));},None=>{value: [q,r];}};}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ },
+ {
+  "id": "noadj-c2-12028",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then aar else ar) else (if p then true else q));},None=>{value: [q,r];}};q=[3];q=[[ar]];}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ },
+ {
+  "id": "noadj-s7021993-1838",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then (if p then (if p then q else r) else (if p then (if p then r else false) else q[0])) else [q,r]);},None=>{value: r3;}};r=[[3]];q=[3];}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ },
+ {
+  "id": "noadj-s4417061-931",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=match move o{Some(n)=>{value: (if p then r[0] else (if p then r3 else (if p then 1 else (if p then [ar] else s))));},None=>{value: [s,q];}};}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ },
+ {
+  "id": "noadj-c2-1330",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then r[0] else (if p then ar else true));},None=>{value: [q,r];}};}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ },
+ {
+  "id": "noadj-s7021993-2669",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then true else (if p then (if p then [ar] else ar) else (if p then ar else r)));},None=>{value: (if p then q else r);}};r=[3];}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ },
+ {
+  "id": "noadj-s9908255-2565",
+  "perfil": "f0-0003-b-v1",
+  "fuente": "fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];s=[3];s=[[ar]];let a0=match move o{Some(n)=>{value: (if p then s else (if p then aar else q));},None=>{value: [q,r];}};}",
+  "motivo": "el oraculo no modela el programa o no decide la union U; ni mejora ni regresion"
+ }
+]
