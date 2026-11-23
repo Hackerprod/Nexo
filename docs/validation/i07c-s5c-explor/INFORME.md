@@ -109,3 +109,8 @@ Fallos de (C)/(D) que NO son regresion (el candidato no los introduce): 322 prog
 2. Antes de llevarlo a plan, A/B deben decidir la regla de procedencia de `expected_type` (6 residuales) y resolverla en el ADR con ejemplo valido e invalido (laguna de nucleo con mas de una lectura razonable: va por Flujo A); sin esa regla 0 en (A) con relacion no es alcanzable con ALT-2 solo.
 3. No usar la retraccion de capas de V6 ni la eliminacion de la siembra (candidato 3): ambas empeoran.
 4. Los defectos de `main` que 2f deja intactos (E0103 con primario en un nombre; perdida de E1303 en uniones profundas) conviene tratarlos aparte (322 programas).
+
+## Pie (cierre de la ronda 1)
+
+- `scripts/f5-stack65.py` sobre 2f: `option_match126` y `result_match126` a 65 KiB, 5/5 cada uno (exit 0).
+- Fin de la ronda 1: 2026-11-22 21:46 (reloj de la maquina). La ronda 2 (formas nuevas) esta en `INFORME-2.md`.
