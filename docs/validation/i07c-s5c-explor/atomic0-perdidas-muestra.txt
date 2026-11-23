@@ -1,0 +1,24 @@
+c1 2159 fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then r[0] else r[0]) else (if p then q else 1));r=[3];}
+  main   [('0103', 67, 69)]
+  cand5  [('0103', 67, 69)]
+  sin atomic0 [('0103', 67, 69), ('0103', 76, 78)]
+c1 5498 fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then [q] else (if p then r[0] else r)) else (if p then true else [q]));r=[ar];}
+  main   [('0103', 67, 69)]
+  cand5  [('0103', 67, 69)]
+  sin atomic0 [('0103', 67, 69), ('0103', 76, 78), ('1303', 128, 132), ('1303', 158, 162)]
+c1 10272 fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=[(if p then r else (if p then [q] else (if p then s else 1)))];r=ar;q=[[3]];}
+  main   [('1303', 152, 153), ('0102', 160, 162)]
+  cand5  [('1303', 152, 153), ('0102', 160, 162)]
+  sin atomic0 [('0103', 76, 78), ('0103', 85, 87), ('1303', 125, 128)]
+c1 19152 fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then (if p then [q,r] else 1) else (if p then [q] else q)) else (if p then ar else r));r=q;q=[[ar]];}
+  main   [('1303', 130, 131), ('1303', 158, 159), ('1303', 178, 180)]
+  cand5  [('1303', 130, 131), ('1303', 158, 159), ('1303', 178, 180)]
+  sin atomic0 [('1303', 130, 131), ('1303', 158, 159), ('1303', 178, 180), ('0102', 192, 193)]
+B 7021993 745 fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then { value: (if p then (if p then { value: r; } else [[q]]) else { value: ar; }); } else (if p then { value: (if p then q else { value: s; }); } else (if p then [q] else [ar])))==ar;s=[3];q=r;}
+  main   [('0103', 67, 69)]
+  cand5  [('0103', 67, 69)]
+  sin atomic0 [('0103', 67, 69), ('0103', 85, 87), ('0103', 157, 160)]
+B 9908255 3976 fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];Print((if p then (if p then (if p then (if p then r else q[0]) else (if p then 1 else 1)) else [s,q]) else q));s=[3];}
+  main   [('0103', 76, 78)]
+  cand5  [('0103', 76, 78)]
+  sin atomic0 [('0103', 76, 78), ('0103', 85, 87)]
