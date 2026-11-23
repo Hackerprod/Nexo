@@ -1,0 +1,105 @@
+pendfa {'arreglos_perdidos': 316, 'regresiones_sin_la_pieza': 868, 'ejemplos': [('c1|f0-0002-b-v2', 4896), ('c1|f0-0002-b-v2', 18227)]}
+  ## c1|f0-0002-b-v2 4896 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then [q,r] else r) else r3)==ar;r=ar;}
+   main    [['NX-E0102', 'type_mismatch', 137, 139], ['NX-E1303', None, 119, 120], ['NX-E1303', None, 127, 129]]
+   oraculo [('NX-E0102', 'type_mismatch', 137, 139), ('NX-E1303', None, 119, 120)]
+   sin_pendfa [['NX-E1303', None, 119, 120], ['NX-E1303', None, 127, 129]]
+   completo [['NX-E0102', 'type_mismatch', 137, 139], ['NX-E1303', None, 119, 120]]
+  ## c1|f0-0002-b-v2 18227 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then (if p then r[0] else r) else [q]));r=[true];}
+   main    [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78]]
+   oraculo [('NX-E0103', None, 67, 69)]
+   sin_pendfa [['NX-E0103', None, 67, 69], ['NX-E1303', None, 117, 118]]
+   completo [['NX-E0103', None, 67, 69]]
+retfa {'arreglos_perdidos': 142, 'regresiones_sin_la_pieza': 26, 'ejemplos': [('c1|f0-0002-b-v2', 6347), ('c1|f0-0002-b-v2', 15495)]}
+  ## c1|f0-0002-b-v2 6347 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then r else [q,r]) else r);q=[[ar]];}
+   main    [['NX-E1303', None, 115, 120], ['NX-E1303', None, 127, 128]]
+   oraculo [('NX-E1303', None, 115, 120)]
+   sin_retfa [['NX-E1303', None, 115, 120], ['NX-E1303', None, 127, 128]]
+   completo [['NX-E1303', None, 115, 120]]
+  ## c1|f0-0002-b-v2 15495 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then q else [q,r]) else 1);r=[true];}
+   main    [['NX-E1303', None, 115, 120]]
+   oraculo [('NX-E1303', None, 115, 120), ('NX-E1303', None, 127, 128)]
+   sin_retfa [['NX-E1303', None, 115, 120]]
+   completo [['NX-E1303', None, 115, 120], ['NX-E1303', None, 127, 128]]
+retract {'arreglos_perdidos': 49, 'regresiones_sin_la_pieza': 3, 'ejemplos': [('c1|f0-0002-b-v2', 4929), ('t|f0-0002-b-v2', 3793)]}
+  ## c1|f0-0002-b-v2 4929 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then r else (if p then true else (if p then 1 else ar)));r=q;q=[[3]];}
+   main    [['NX-E1303', None, 115, 119], ['NX-E1303', None, 136, 137]]
+   oraculo [('NX-E0102', 'type_mismatch', 156, 159), ('NX-E1303', None, 115, 119)]
+   sin_retract [['NX-E1303', None, 115, 119]]
+   completo [['NX-E0102', 'type_mismatch', 156, 159], ['NX-E1303', None, 115, 119]]
+  ## t|f0-0002-b-v2 3793 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then 1 else (if p then ar else r)));q=r;r=[[ar]];}
+   main    [['NX-E0103', None, 85, 87], ['NX-E1303', None, 126, 127], ['NX-E1303', None, 144, 146]]
+   oraculo [('NX-E0102', 'type_mismatch', 159, 160), ('NX-E0103', None, 85, 87), ('NX-E1303', None, 126, 127)]
+   sin_retract [['NX-E0103', None, 85, 87], ['NX-E1303', None, 126, 127]]
+   completo [['NX-E0102', 'type_mismatch', 159, 160], ['NX-E0103', None, 85, 87], ['NX-E1303', None, 126, 127]]
+nojoin {'arreglos_perdidos': 178, 'regresiones_sin_la_pieza': 1, 'ejemplos': [('c2|f0-0003-b-v1', 6392), ('c2|f0-0003-b-v1', 5892)]}
+  ## c2|f0-0003-b-v1 6392 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0:Array<Array<I64>>=(if p then q else (if p then ar else ar));}
+   main    [['NX-E0102', 'type_mismatch', 123, 143], ['NX-E0102', 'type_mismatch', 133, 135], ['NX-E0102', 'type_mismatch', 141, 143], ['NX-E0103', None, 76, 78]]
+   oraculo [('NX-E0102', 'type_mismatch', 133, 135), ('NX-E0102', 'type_mismatch', 141, 143), ('NX-E0103', None, 76, 78)]
+   sin_nojoin [['NX-E0102', 'type_mismatch', 123, 143], ['NX-E0102', 'type_mismatch', 133, 135], ['NX-E0102', 'type_mismatch', 141, 143], ['NX-E0103', None, 76, 78]]
+   completo [['NX-E0102', 'type_mismatch', 133, 135], ['NX-E0102', 'type_mismatch', 141, 143], ['NX-E0103', None, 76, 78]]
+  ## c2|f0-0003-b-v1 5892 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0:Array<Array<I64>>=(if p then q else (if p then true else ar));}
+   main    [['NX-E0102', 'type_mismatch', 123, 145], ['NX-E0102', 'type_mismatch', 133, 137], ['NX-E0102', 'type_mismatch', 143, 145], ['NX-E0103', None, 76, 78]]
+   oraculo [('NX-E0102', 'type_mismatch', 133, 137), ('NX-E0102', 'type_mismatch', 143, 145), ('NX-E0103', None, 76, 78)]
+   sin_nojoin [['NX-E0102', 'type_mismatch', 123, 145], ['NX-E0102', 'type_mismatch', 133, 137], ['NX-E0102', 'type_mismatch', 143, 145], ['NX-E0103', None, 76, 78]]
+   completo [['NX-E0102', 'type_mismatch', 133, 137], ['NX-E0102', 'type_mismatch', 143, 145], ['NX-E0103', None, 76, 78]]
+atomic0 {'arreglos_perdidos': 247, 'regresiones_sin_la_pieza': 56, 'ejemplos': [('c2|f0-0003-b-v1', 2321), ('c1|f0-0002-b-v2', 9440)]}
+  ## c2|f0-0003-b-v1 2321 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then q else (if p then 1 else ar)));q=r;}
+   main    [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 121, 123]]
+   oraculo [('NX-E1303', None, 114, 115)]
+   sin_atomic0 [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 114, 115]]
+   completo [['NX-E1303', None, 114, 115]]
+  ## c1|f0-0002-b-v2 9440 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then q else (if p then 1 else aar)));q=r;}
+   main    [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 121, 124]]
+   oraculo [('NX-E1303', None, 114, 115)]
+   sin_atomic0 [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 114, 115]]
+   completo [['NX-E1303', None, 114, 115]]
+e0103rule {'arreglos_perdidos': 290, 'regresiones_sin_la_pieza': 11, 'ejemplos': [('b|f0-0002-b-v2', 80), ('b|f0-0002-b-v2', 264)]}
+  ## b|f0-0002-b-v2 80 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];Print((if p then r[0] else r));}
+   main    [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E0103', None, 106, 107]]
+   oraculo [('NX-E0103', None, 67, 69), ('NX-E0103', None, 76, 78)]
+   sin_e0103rule [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E0103', None, 106, 107]]
+   completo [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78]]
+  ## b|f0-0002-b-v2 264 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then q[0] else q);}
+   main    [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E0103', None, 107, 108]]
+   oraculo [('NX-E0103', None, 67, 69), ('NX-E0103', None, 76, 78)]
+   sin_e0103rule [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E0103', None, 107, 108]]
+   completo [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78]]
+retfail {'arreglos_perdidos': 207, 'regresiones_sin_la_pieza': 12, 'ejemplos': [('c1|f0-0002-b-v2', 14436), ('c1|f0-0002-b-v2', 1910)]}
+  ## c1|f0-0002-b-v2 14436 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then r else (if p then 1 else r)) else ar);}
+   main    [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 142, 144]]
+   oraculo [('NX-E0103', None, 67, 69), ('NX-E1303', None, 126, 127)]
+   sin_retfail [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 142, 144]]
+   completo [['NX-E0103', None, 67, 69], ['NX-E1303', None, 126, 127]]
+  ## c1|f0-0002-b-v2 1910 
+   fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=(if p then (if p then q else (if p then 1 else r)) else true);}
+   main    [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 142, 146]]
+   oraculo [('NX-E0103', None, 67, 69), ('NX-E0103', None, 76, 78)]
+   sin_retfail [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78], ['NX-E1303', None, 142, 146]]
+   completo [['NX-E0103', None, 67, 69], ['NX-E0103', None, 76, 78]]
+rmm3 {'arreglos_perdidos': 7, 'regresiones_sin_la_pieza': 7, 'ejemplos': [('c2|f0-0003-b-v1', 10405), ('c2|f0-0003-b-v1', 7454)]}
+  ## c2|f0-0003-b-v1 10405 
+   fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then r else r) else 2);},None=>{value: [q];}};}
+   main    [['NX-E0103', None, 93, 95], ['NX-E0103', None, 102, 104]]
+   oraculo [('NX-E0103', None, 93, 95)]
+   sin_rmm3 [['NX-E0103', None, 93, 95], ['NX-E0103', None, 102, 104]]
+   completo [['NX-E0103', None, 93, 95]]
+  ## c2|f0-0003-b-v1 7454 
+   fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];let a0=match move o{Some(n)=>{value: (if p then (if p then [q,r] else [q]) else 2);},None=>{value: aar;}};}
+   main    [['NX-E0103', None, 93, 95], ['NX-E0103', None, 102, 104]]
+   oraculo [('NX-E1303', None, 185, 186)]
+   sin_rmm3 [['NX-E0103', None, 93, 95], ['NX-E0103', None, 102, 104]]
+   completo [['NX-E1303', None, 185, 186]]
+skipv3 {'arreglos_perdidos': 0, 'regresiones_sin_la_pieza': 0, 'ejemplos': []}

@@ -1,0 +1,30 @@
+## t 2192 f0-0002-b-v2
+fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then q else (if p then 1 else [r]));s=q;q=[true];}
+ main   [('0103', 76, 78)]
+ oraculo [('0103', 76, 78)]
+ base(todo off) [('0103', 67, 69), ('0103', 76, 78), ('0103', 85, 87), ('1303', 124, 125)]
+ sin atomic0 [('0103', 67, 69), ('0103', 76, 78), ('0103', 85, 87), ('1303', 124, 125)]
+## t 3584 f0-0002-b-v2
+fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then ar else q));r=q;q=[[ar]];}
+ main   [('0103', 85, 87), ('1303', 126, 128)]
+ oraculo [('0103', 85, 87), ('1303', 126, 128)]
+ base(todo off) [('0102', 146, 148), ('0103', 85, 87), ('1303', 126, 128)]
+ sin atomic0 [('0102', 146, 148), ('0103', 85, 87), ('1303', 126, 128)]
+## t 3594 f0-0002-b-v2
+fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then ar else q));q=r;r=[[ar]];}
+ main   [('0103', 85, 87), ('1303', 126, 128)]
+ oraculo [('0103', 85, 87), ('1303', 126, 128)]
+ base(todo off) [('0102', 140, 141), ('0103', 85, 87), ('1303', 126, 128)]
+ sin atomic0 [('0102', 140, 141), ('0103', 85, 87), ('1303', 126, 128)]
+## t 3596 f0-0002-b-v2
+fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then ar else q));s=q;q=[true];}
+ main   [('0103', 76, 78), ('1303', 126, 128)]
+ oraculo [('0103', 76, 78), ('1303', 126, 128)]
+ base(todo off) [('0102', 145, 149), ('0103', 76, 78), ('1303', 126, 128)]
+ sin atomic0 [('0102', 145, 149), ('0103', 76, 78), ('1303', 126, 128)]
+## t 7094 f0-0002-b-v2
+fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [r] else (if p then ar else r));r=q;q=[[ar]];}
+ main   [('0103', 85, 87), ('1303', 126, 128)]
+ oraculo [('0103', 85, 87), ('1303', 126, 128)]
+ base(todo off) [('0102', 140, 141), ('0103', 85, 87), ('1303', 126, 128)]
+ sin atomic0 [('0102', 140, 141), ('0103', 85, 87), ('1303', 126, 128)]

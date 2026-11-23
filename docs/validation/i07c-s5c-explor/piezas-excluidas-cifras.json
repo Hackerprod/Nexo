@@ -1,0 +1,119 @@
+{
+ "pendfa": {
+  "arreglos_perdidos": 316,
+  "regresiones_sin_la_pieza": 868,
+  "ejemplos": [
+   [
+    "c1|f0-0002-b-v2",
+    4896
+   ],
+   [
+    "c1|f0-0002-b-v2",
+    18227
+   ]
+  ]
+ },
+ "retfa": {
+  "arreglos_perdidos": 142,
+  "regresiones_sin_la_pieza": 26,
+  "ejemplos": [
+   [
+    "c1|f0-0002-b-v2",
+    6347
+   ],
+   [
+    "c1|f0-0002-b-v2",
+    15495
+   ]
+  ]
+ },
+ "retract": {
+  "arreglos_perdidos": 49,
+  "regresiones_sin_la_pieza": 3,
+  "ejemplos": [
+   [
+    "c1|f0-0002-b-v2",
+    4929
+   ],
+   [
+    "t|f0-0002-b-v2",
+    3793
+   ]
+  ]
+ },
+ "nojoin": {
+  "arreglos_perdidos": 178,
+  "regresiones_sin_la_pieza": 1,
+  "ejemplos": [
+   [
+    "c2|f0-0003-b-v1",
+    6392
+   ],
+   [
+    "c2|f0-0003-b-v1",
+    5892
+   ]
+  ]
+ },
+ "atomic0": {
+  "arreglos_perdidos": 247,
+  "regresiones_sin_la_pieza": 56,
+  "ejemplos": [
+   [
+    "c2|f0-0003-b-v1",
+    2321
+   ],
+   [
+    "c1|f0-0002-b-v2",
+    9440
+   ]
+  ]
+ },
+ "e0103rule": {
+  "arreglos_perdidos": 290,
+  "regresiones_sin_la_pieza": 11,
+  "ejemplos": [
+   [
+    "b|f0-0002-b-v2",
+    80
+   ],
+   [
+    "b|f0-0002-b-v2",
+    264
+   ]
+  ]
+ },
+ "retfail": {
+  "arreglos_perdidos": 207,
+  "regresiones_sin_la_pieza": 12,
+  "ejemplos": [
+   [
+    "c1|f0-0002-b-v2",
+    14436
+   ],
+   [
+    "c1|f0-0002-b-v2",
+    1910
+   ]
+  ]
+ },
+ "rmm3": {
+  "arreglos_perdidos": 7,
+  "regresiones_sin_la_pieza": 7,
+  "ejemplos": [
+   [
+    "c2|f0-0003-b-v1",
+    10405
+   ],
+   [
+    "c2|f0-0003-b-v1",
+    7454
+   ]
+  ]
+ },
+ "skipv3": {
+  "arreglos_perdidos": 0,
+  "regresiones_sin_la_pieza": 0,
+  "ejemplos": []
+ }
+}
