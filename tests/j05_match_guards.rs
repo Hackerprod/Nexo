@@ -886,3 +886,43 @@ fn guard_inside_a_closure_body_is_checked() {
         &[],
     );
 }
+
+#[test]
+fn direct_intrinsic_effect_in_guard_reports_its_own_required_effect() {
+    // F0-0003 3.3 / 8.1 Q01: the guard forbids io; a direct `Print` is a known effect whose
+    // required effect is `io` (not the `alloc` default of an unknown one), same in a `fn` and
+    // in a closure body.
+    for (source, at) in [
+        (
+            "fn Main(){match true{true if Print(1)==()=>{},_=>{}}}",
+            (29, 34),
+        ),
+        (
+            "fn Main(){let f=fn (){match true{true if Print(1)==()=>{},_=>{}}};}",
+            (41, 46),
+        ),
+    ] {
+        let error = guard_error(
+            source,
+            "guard_effect",
+            Stage::Effects,
+            Operation::EffectsCheck,
+            span(at.0, at.1),
+        );
+        assert_eq!(
+            error.data.get("required_effect"),
+            Some(&DataValue::String("io".into())),
+            "{source}"
+        );
+        assert_eq!(
+            error.data.get("effect_evidence"),
+            Some(&DataValue::String("known_effect".into())),
+            "{source}"
+        );
+        assert_eq!(error.cause_chain.len(), 1, "{source}");
+        assert_eq!(
+            error.cause_chain[0].operation,
+            CauseOperation::IntrinsicCall
+        );
+    }
+}
