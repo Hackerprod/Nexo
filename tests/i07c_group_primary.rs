@@ -3510,3 +3510,149 @@ fn grouped_callee_other_than_drop_is_accepted_in_a_guard() {
         );
     }
 }
+
+// S6/S7 guard walker: every edge of the structure reached by the guard check is descended into, so a
+// transfer or a mutation nested in any sub-expression, branch, loop, arm, argument or operand of a
+// guard is reported once, at its own token (F0-0003 section 3.3). Each row places one `Drop(a)` (a
+// transfer at the callee name) or one selection mode token behind a different edge; the expected
+// primaries are the positions of the tokens in the source.
+#[test]
+fn guard_checks_reach_every_nested_edge() {
+    // (body of the guard block, extra diagnostics: (subcause, anchor text, primary text))
+    type Extra = (&'static str, &'static str, &'static str);
+    const ROWS: &[(&str, &[Extra])] = &[
+        ("let z=Drop(a);", &[]),
+        ("var u=();u=Drop(a);", &[("guard_mutation", "u=Drop", "u")]),
+        (
+            "v[if true then {Drop(a);value:0;} else {value:1;}]=1;",
+            &[(
+                "guard_mutation",
+                "v[if",
+                "v[if true then {Drop(a);value:0;} else {value:1;}]",
+            )],
+        ),
+        ("if true {Drop(a);}", &[]),
+        (
+            "if (if true then {Drop(a);value:true;} else {value:false;}) {}",
+            &[],
+        ),
+        ("if false {} else {Drop(a);}", &[]),
+        (
+            "while (if true then {Drop(a);value:false;} else {value:false;}) {}",
+            &[],
+        ),
+        ("while false {Drop(a);}", &[]),
+        (
+            "match (if true then {Drop(a);value:true;} else {value:false;}){true=>{},_=>{}}",
+            &[],
+        ),
+        ("match true{true=>{Drop(a);},_=>{}}", &[]),
+        (
+            "match true{true if (if true then {Drop(a);value:true;} else {value:false;})=>{},_=>{}}",
+            &[],
+        ),
+        ("{Drop(a);}", &[]),
+        (
+            "let q=[if true then {Drop(a);value:1;} else {value:2;}];",
+            &[],
+        ),
+        (
+            "let q=(if true then {Drop(a);value:1;} else {value:2;})+1;",
+            &[],
+        ),
+        (
+            "let q=1+(if true then {Drop(a);value:1;} else {value:2;});",
+            &[],
+        ),
+        (
+            "let q=0-(if true then {Drop(a);value:1;} else {value:2;});",
+            &[],
+        ),
+        (
+            "let q=(if true then {Drop(a);value:v;} else {value:v;})[0];",
+            &[],
+        ),
+        (
+            "let q=v[if true then {Drop(a);value:0;} else {value:1;}];",
+            &[],
+        ),
+        ("let q=if true then 1 else {Drop(a);value:2;};", &[]),
+        (
+            "let q=if false then 1 else (if true then {Drop(a);value:2;} else {value:3;});",
+            &[],
+        ),
+        (
+            "let q=if (if true then {Drop(a);value:true;} else {value:false;}) then 1 else 2;",
+            &[],
+        ),
+        (
+            "Id((if true then {Drop(a);value:1;} else {value:2;}));",
+            &[],
+        ),
+        (
+            "let q=match true{true=>{Drop(a);value:1;},_=>{value:2;}};",
+            &[],
+        ),
+    ];
+    for (body, extra) in ROWS {
+        let source = format!(
+            "fn Id(x:view I64)->I64{{return x;}}fn Main(){{let a=Some(1);var x=1;var v=[1,2];match true{{true if (if true then {{{body} value:true;}} else {{value:false;}}) =>{{}},_=>{{}}}}}}"
+        );
+        let drop = source.find("Drop(a)").unwrap();
+        let mut expected = vec![("guard_transfer", drop, drop + 4)];
+        for (cause, anchor, primary_text) in *extra {
+            let at = source.find(anchor).unwrap();
+            assert!(source[at..].starts_with(primary_text), "{source}");
+            expected.push((cause, at, at + primary_text.len()));
+        }
+        expected.sort_by_key(|row| row.1);
+        for verb in ["check", "run"] {
+            let (exit, json, stderr) = invoke(verb, &source, J);
+            assert_eq!(exit, 1, "{verb}: {source}: {json}");
+            assert!(stderr.is_empty(), "{source}: {stderr}");
+            let found: Vec<(String, usize, usize)> = json
+                .split("\"subcause\":\"")
+                .skip(1)
+                .map(|part| {
+                    let cause = part[..part.find('"').unwrap()].to_owned();
+                    let (start, end) = span_of(section(part, "\"primary_span\":{", "}"));
+                    (cause, start, end)
+                })
+                .collect();
+            let wanted: Vec<(String, usize, usize)> = expected
+                .iter()
+                .map(|(cause, a, b)| (cause.to_string(), *a, *b))
+                .collect();
+            assert_eq!(found, wanted, "{verb}: {source}");
+        }
+    }
+    // The value of a `value:` statement is part of the guard as well.
+    let source = "fn Main(){let a=Some(1);match true{true if (if true then {value:(if true then {Drop(a);value:true;} else {value:false;});} else {value:false;}) =>{},_=>{}}}";
+    let drop = source.find("Drop").unwrap();
+    for verb in ["check", "run"] {
+        let json = one_diagnostic(verb, source, J);
+        assert!(
+            json.contains("\"subcause\":\"guard_transfer\""),
+            "{source}: {json}"
+        );
+        assert_eq!(primary(&json), (drop, drop + 4), "{verb}: {source}");
+    }
+    // A selection that consumes or mutates a place inside a guard is reported at its mode token.
+    for (body, cause) in [
+        ("match move a{Some(q)=>{},_=>{}}", "guard_transfer"),
+        ("match edit x{_=>{}}", "guard_mutation"),
+    ] {
+        let source = format!(
+            "fn Main(){{let a=Some(1);var x=1;match true{{true if (if true then {{{body} value:true;}} else {{value:false;}}) =>{{}},_=>{{}}}}}}"
+        );
+        let token = source.find(&body[6..10]).unwrap();
+        for verb in ["check", "run"] {
+            let json = one_diagnostic(verb, &source, J);
+            assert!(
+                json.contains(&format!("\"subcause\":\"{cause}\"")),
+                "{source}: {json}"
+            );
+            assert_eq!(primary(&json), (token, token + 4), "{verb}: {source}");
+        }
+    }
+}
