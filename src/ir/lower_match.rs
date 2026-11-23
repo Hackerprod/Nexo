@@ -110,7 +110,7 @@ fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
                     frames.push(Frame::Expr(value));
                 }
                 parse::Statement::Assign { place, value, .. } => {
-                    found.push(("guard_mutation", place.span().clone()));
+                    found.push(("guard_mutation", parse::expression_primary_span(place)));
                     frames.push(Frame::Expr(value));
                     frames.push(Frame::Expr(place));
                 }
@@ -215,8 +215,9 @@ fn guard_violations(expr: &parse::Expr) -> Vec<(&'static str, Span)> {
                     frames.push(Frame::Expr(value));
                 }
                 parse::Expr::Call { target, args, .. } => {
-                    if matches!(target.as_ref(), parse::Expr::Name(name, _) if name == "Drop") {
-                        found.push(("guard_transfer", target.span().clone()));
+                    let callee = parse::expression_primary(target);
+                    if matches!(callee, parse::Expr::Name(name, _) if name == "Drop") {
+                        found.push(("guard_transfer", callee.span().clone()));
                     }
                     for arg in args.iter().rev() {
                         frames.push(Frame::Expr(&arg.value));

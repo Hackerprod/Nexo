@@ -3,7 +3,7 @@
 //! are removed; the group node keeps its own span in the AST. Expected spans are transcribed from
 //! the adopted rule and its addendum (byte offsets over the ASCII sources below); each row pairs
 //! the grouped source with the bare control and a valid repair.
-use super::i07c_normative_literals::invoke;
+use super::i07c_normative_literals::{accepted, invoke};
 
 const J: &str = "f0-0003-b-v1";
 const F5: &str = "f0-0005-b-v1";
@@ -2672,6 +2672,122 @@ const CASES: &[Case] = &[
         control_primary: (10, 12),
         repair: "",
     },
+    // S6
+    Case {
+        family: "guard_mutation",
+        name: "guard_mutation_single_group",
+        profile: J,
+        source: "fn Main(){var x=1;match true{true if (if true then {(x)=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_mutation"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (53, 54),
+        token: "x",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var x=1;match true{true if (if true then {x=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (52, 53),
+        repair: "fn Main(){var x=1;match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_mutation",
+        name: "guard_mutation_double_group",
+        profile: J,
+        source: "fn Main(){var x=1;match true{true if (if true then {((x))=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_mutation"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (54, 55),
+        token: "x",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var x=1;match true{true if (if true then {x=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (52, 53),
+        repair: "fn Main(){var x=1;match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_mutation",
+        name: "guard_mutation_group_with_trivia",
+        profile: J,
+        source: "fn Main(){var x=1;match true{true if (if true then {( x )=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_mutation"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (54, 55),
+        token: "x",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){var x=1;match true{true if (if true then {x=2;value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (52, 53),
+        repair: "fn Main(){var x=1;match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    // S7
+    Case {
+        family: "guard_transfer",
+        name: "guard_transfer_single_group",
+        profile: J,
+        source: "fn Main(){let a=Some(1);match true{true if (if true then {(Drop)(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_transfer"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (59, 63),
+        token: "Drop",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){let a=Some(1);match true{true if (if true then {Drop(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (58, 62),
+        repair: "fn Main(){let a=Some(1);match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_transfer",
+        name: "guard_transfer_double_group",
+        profile: J,
+        source: "fn Main(){let a=Some(1);match true{true if (if true then {((Drop))(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_transfer"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (60, 64),
+        token: "Drop",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){let a=Some(1);match true{true if (if true then {Drop(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (58, 62),
+        repair: "fn Main(){let a=Some(1);match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
+    Case {
+        family: "guard_transfer",
+        name: "guard_transfer_group_with_trivia",
+        profile: J,
+        source: "fn Main(){let a=Some(1);match true{true if (if true then {( Drop )(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        code: "NX-E1305",
+        subcause: Some("guard_transfer"),
+        stage: "ownership",
+        operation: "ownership.check",
+        feature: None,
+        data: &[],
+        primary: (60, 64),
+        token: "Drop",
+        related: &[],
+        cause: &[],
+        control: "fn Main(){let a=Some(1);match true{true if (if true then {Drop(a);value:true;} else {value:false;}) =>{},_=>{}}}",
+        control_primary: (58, 62),
+        repair: "fn Main(){let a=Some(1);match true{true if (if true then {value:true;} else {value:false;}) =>{},_=>{}}}",
+    },
 ];
 
 fn number_after(text: &str, key: &str) -> usize {
@@ -2946,4 +3062,747 @@ fn generator_resume_anchors_ignore_the_group_around_the_target() {
             );
         }
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// Quota ticks under groups (F0-0002 lagunas, "Ticks, cuotas y guardas bajo agrupaciones"): the
+// R0001 primary of a tick whose origin is an expression is the inner expression, never the group.
+// A quota failure is a run-time fact: `check` accepts every source below. Expected spans are
+// derived from the source (the position of the expression inside its template) and from the
+// control without a group, never from the binary under test: the grouped source must give the
+// control diagnostic with its spans moved by the wrapper characters.
+// ---------------------------------------------------------------------------------------------
+
+/// Outer wrappers around the expression under test: none (the control), one group, two groups and
+/// trivia inside one group.
+const WRAPS: [(&str, &str); 4] = [("", ""), ("(", ")"), ("((", "))"), ("( ", " )")];
+
+struct QuotaSite {
+    /// `@P` is the pad of `{}` blocks and `@E` the wrapped expression.
+    template: &'static str,
+    /// The same program with a bounded loop: it is accepted whatever the wrapper.
+    positive: &'static str,
+    inner: &'static str,
+    /// Pad for which the rejected tick of the control is the tick of this site.
+    pad: usize,
+}
+
+/// A site whose group-free tick origin was already the inner expression before the group removal.
+const LET_INITIALIZER: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=@E;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=@E;}}",
+    inner: "n",
+    pad: 0,
+};
+
+/// The source with `pad` empty blocks before the loop, and the start of the inner expression.
+fn quota_source(site: &QuotaSite, pad: usize, wrap: (&str, &str)) -> (String, usize) {
+    quota_template(site.template, site.inner, pad, wrap)
+}
+
+fn quota_template(template: &str, inner: &str, pad: usize, wrap: (&str, &str)) -> (String, usize) {
+    let padded = template.replace("@P", &"{}".repeat(pad));
+    let at = padded
+        .find("@E")
+        .expect("the template places an expression");
+    let source = padded.replacen("@E", &format!("{}{}{}", wrap.0, inner, wrap.1), 1);
+    (source, at + wrap.0.len())
+}
+
+/// The diagnostic without the numbers of its spans and without the file name.
+fn without_spans(json: &str) -> String {
+    let mut out = String::new();
+    let mut rest = json;
+    while let Some((at, key)) = ["\"start\":", "\"end\":", "\"file\":\""]
+        .iter()
+        .filter_map(|key| rest.find(key).map(|at| (at, *key)))
+        .min()
+    {
+        let after = at + key.len();
+        out.push_str(&rest[..after]);
+        let skip = if key.ends_with('"') {
+            rest[after..].find('"').unwrap()
+        } else {
+            rest[after..]
+                .find(|c: char| !c.is_ascii_digit())
+                .unwrap_or(rest.len() - after)
+        };
+        out.push('#');
+        rest = &rest[after + skip..];
+    }
+    out.push_str(rest);
+    out
+}
+
+/// Moves a span of the bare control to the same program with the wrapper around `interior`: the
+/// interior itself moves inside the wrapper, a span that contains it keeps its start and grows by
+/// the wrapper, and any other span moves by the wrapper characters that precede each end.
+fn moved_span(
+    span: (usize, usize),
+    interior: (usize, usize),
+    wrap: (&str, &str),
+) -> (usize, usize) {
+    let (open, close) = (wrap.0.len(), wrap.1.len());
+    if span == interior {
+        return (span.0 + open, span.1 + open);
+    }
+    if span.0 <= interior.0 && span.1 >= interior.1 {
+        return (span.0, span.1 + open + close);
+    }
+    let start = if span.0 < interior.0 {
+        span.0
+    } else if span.0 < interior.1 {
+        span.0 + open
+    } else {
+        span.0 + open + close
+    };
+    let end = if span.1 <= interior.0 {
+        span.1
+    } else if span.1 <= interior.1 {
+        span.1 + open
+    } else {
+        span.1 + open + close
+    };
+    (start, end)
+}
+
+#[test]
+fn quota_span_helpers_move_spans_across_the_wrapper() {
+    let site = QuotaSite {
+        template: "ab@P@Ecd",
+        positive: "",
+        inner: "xy",
+        pad: 0,
+    };
+    let (bare, bare_at) = quota_source(&site, 1, WRAPS[0]);
+    assert_eq!((bare.as_str(), bare_at), ("ab{}xycd", 4));
+    let (grouped, at) = quota_source(&site, 1, WRAPS[2]);
+    assert_eq!((grouped.as_str(), at), ("ab{}((xy))cd", 6));
+    let interior = (4, 6);
+    for (span, wrap, moved) in [
+        ((0, 2), WRAPS[2], (0, 2)),
+        ((4, 6), WRAPS[1], (5, 7)),
+        ((3, 7), WRAPS[3], (3, 11)),
+        ((6, 8), WRAPS[2], (10, 12)),
+        ((4, 9), WRAPS[1], (4, 11)),
+        ((2, 6), WRAPS[1], (2, 8)),
+    ] {
+        assert_eq!(moved_span(span, interior, wrap), moved);
+    }
+    assert_eq!(
+        without_spans("{\"file\":\"a.n\",\"start\":12,\"end\":7,\"k\":3}"),
+        "{\"file\":\"#\",\"start\":#,\"end\":#,\"k\":3}"
+    );
+}
+
+/// One pad of one site: the control and the wrapped variants give the same R0001 (`run`), with the
+/// primary of the control moved across the wrapper; `fixed` also requires, for the pad whose
+/// rejected tick is the tick of the site, that the control primary is the inner expression.
+/// Returns whether the rejected tick of the control is the tick of the site.
+fn quota_row(site: &QuotaSite, pad: usize, fixed: bool) -> bool {
+    let (bare, bare_at) = quota_source(site, pad, WRAPS[0]);
+    let (exit, control, stderr) = invoke("run", &bare, J);
+    assert!(stderr.is_empty(), "{bare}: {stderr}");
+    assert_eq!(exit, 1, "{bare}: {control}");
+    for fragment in [
+        "\"outcome\":{\"kind\":\"simulator_fault\"}",
+        "\"code\":\"R0001\"",
+        "\"operation\":\"runtime.limit\"",
+    ] {
+        assert!(control.contains(fragment), "{bare}: {control}");
+    }
+    assert_eq!(control.matches("\"code\":").count(), 1, "{bare}: {control}");
+    let control_primary = primary(&control);
+    let interior = (bare_at, bare_at + site.inner.len());
+    if fixed {
+        assert_eq!(
+            control_primary, interior,
+            "{bare}: the site tick is rejected"
+        );
+    }
+    for wrap in &WRAPS[1..] {
+        let (source, at) = quota_source(site, pad, *wrap);
+        let (exit_g, json, stderr_g) = invoke("run", &source, J);
+        assert!(stderr_g.is_empty(), "{source}: {stderr_g}");
+        assert_eq!(exit_g, exit, "{source}: {json}");
+        assert_eq!(without_spans(&json), without_spans(&control), "{source}");
+        assert_eq!(
+            primary(&json),
+            moved_span(control_primary, interior, *wrap),
+            "{source}: {json}"
+        );
+        if fixed {
+            assert_eq!(primary(&json), (at, at + site.inner.len()), "{source}");
+        }
+        let (exit_c, checked, stderr_c) = invoke("check", &source, J);
+        assert!(stderr_c.is_empty(), "{source}: {stderr_c}");
+        assert_eq!(exit_c, 0, "{source}: {checked}");
+        assert!(
+            checked.contains("\"outcome\":{\"kind\":\"checked\"}")
+                && checked.contains("\"diagnostics\":[]"),
+            "{source}: {checked}"
+        );
+    }
+    control_primary == interior
+}
+
+/// Every pad (each tick of the iteration is rejected in turn), the site tick among them, and the
+/// bounded program accepted under every wrapper.
+fn quota_sweep(site: &QuotaSite) {
+    let mut at_the_site = 0;
+    for pad in 0..=11 {
+        at_the_site += usize::from(quota_row(site, pad, pad == site.pad));
+    }
+    assert!(
+        at_the_site > 0,
+        "no pad rejects the tick of {}",
+        site.template
+    );
+    for wrap in WRAPS {
+        accepted(&quota_template(site.positive, site.inner, 0, wrap).0, J);
+    }
+}
+
+#[test]
+fn let_initializer_tick_keeps_the_inner_primary_under_groups() {
+    quota_sweep(&LET_INITIALIZER);
+}
+
+// S1: the tick of an expression statement has the whole expression (without terminator) as origin
+// (F0-0002 section 11, "Origen de los ticks"); under groups it is the inner expression.
+const S1_STATEMENT: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{@E;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;@E;}}",
+    inner: "n+1",
+    pad: 2,
+};
+
+fn s1_form(inner: &'static str) -> QuotaSite {
+    QuotaSite {
+        template: "fn Id(x:view I64)->I64{return x;}fn Main(){@Pvar n=0;while true{@E;}}",
+        positive: "fn Id(x:view I64)->I64{return x;}fn Main(){@Pvar n=0;while n<3{n=n+1;@E;}}",
+        inner,
+        pad: 0,
+    }
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_expression() {
+    quota_sweep(&S1_STATEMENT);
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_call() {
+    quota_sweep(&s1_form("Id(n)"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_assert_call() {
+    quota_sweep(&s1_form("AssertEq(1,1)"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_closure() {
+    quota_sweep(&s1_form("fn (){}"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_unit() {
+    quota_sweep(&s1_form("()"));
+}
+
+#[test]
+fn expression_statement_tick_reports_the_inner_array() {
+    quota_sweep(&s1_form("[1]"));
+}
+
+// S2: the extra tick of a loop condition has the condition expression as origin (F0-0002 section
+// 11, "Origen de los ticks"); under groups it is the inner condition.
+const S2_CONDITION: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while @E{}}",
+    positive: "fn Main(){@Pvar n=0;while @E{n=n+1;}}",
+    inner: "n<3",
+    pad: 3,
+};
+
+#[test]
+fn while_condition_tick_reports_the_inner_condition() {
+    quota_sweep(&S2_CONDITION);
+}
+
+#[test]
+fn while_condition_tick_reports_the_inner_comparison_of_a_large_bound() {
+    // The witness of the quota: the loop never reaches its bound before the work quota.
+    quota_row(
+        &QuotaSite {
+            template: "fn Main(){@Pvar n=0;while @E{}}",
+            positive: "",
+            inner: "n<9999999",
+            pad: 3,
+        },
+        3,
+        true,
+    );
+}
+
+// S3: the tick of an assignment has the whole destination place as origin (F0-0002 section 11,
+// "Origen de los ticks"); under groups it is the inner place.
+const S3_PLACE: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{@E=1;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{@E=n+1;}}",
+    inner: "n",
+    pad: 2,
+};
+
+#[test]
+fn assignment_tick_reports_the_inner_place() {
+    quota_sweep(&S3_PLACE);
+}
+
+// S4: the tick of a branch operand without `value:` has the operand expression as origin (F0-0002
+// section 11, "Origen de los ticks"); under groups it is the inner operand. The marker `value:`
+// stays a token.
+const S4_THEN: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=if true then @E else 2;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=if true then @E else 2;}}",
+    inner: "n",
+    pad: 8,
+};
+
+const S4_ELSE: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=if false then 2 else @E;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=if false then 2 else @E;}}",
+    inner: "n",
+    pad: 8,
+};
+
+const S4_EXPRESSION: QuotaSite = QuotaSite {
+    template: "fn Main(){@Pvar n=0;while true{let y=if true then @E else 2;}}",
+    positive: "fn Main(){@Pvar n=0;while n<3{n=n+1;let y=if true then @E else 2;}}",
+    inner: "n+1",
+    pad: 1,
+};
+
+#[test]
+fn then_operand_tick_reports_the_inner_operand() {
+    quota_sweep(&S4_THEN);
+}
+
+#[test]
+fn else_operand_tick_reports_the_inner_operand() {
+    quota_sweep(&S4_ELSE);
+}
+
+#[test]
+fn branch_operand_tick_reports_the_inner_expression() {
+    quota_sweep(&S4_EXPRESSION);
+}
+
+// S6: the place assigned inside a guard is reported without the outer groups (F0-0003 section 3.3,
+// F0-0002 lagunas "Ticks, cuotas y guardas bajo agrupaciones").
+#[test]
+fn guard_mutation_reports_the_inner_place() {
+    run_family("guard_mutation");
+}
+
+// S5: grouping does not add or remove chargeable nodes (F0-0002 section 11: "Los parentesis de
+// agrupacion no crean nodos cobrables"; "Nombre del destino de una llamada directa": 1), so a call
+// through a grouped target charges the ticks of the bare call. The relation is checked on the
+// quota boundary of a loop: the largest bound the control completes is the one the grouped source
+// completes, and one more fails with the same R0001 diagnostic. `@N` is the loop bound and `@E`
+// the (wrapped) call target of the template.
+fn count_source(template: &str, inner: &str, bound: usize, wrap: (&str, &str)) -> (String, usize) {
+    quota_template(&template.replace("@N", &bound.to_string()), inner, 0, wrap)
+}
+
+/// The R0001 diagnostic when the source exceeds the work quota, `None` when it completes.
+fn quota_outcome(template: &str, inner: &str, bound: usize, wrap: (&str, &str)) -> Option<String> {
+    let (source, _) = count_source(template, inner, bound, wrap);
+    let (exit, json, stderr) = invoke("run", &source, J);
+    assert!(stderr.is_empty(), "{source}: {stderr}");
+    if exit == 0 {
+        assert!(json.contains("\"outcome\":{\"kind\":\"unit\"}"), "{source}");
+        return None;
+    }
+    assert!(
+        exit == 1
+            && json.contains("\"code\":\"R0001\"")
+            && json.contains("\"outcome\":{\"kind\":\"simulator_fault\"}"),
+        "{source}: {json}"
+    );
+    Some(json)
+}
+
+/// The largest loop bound the control completes without exceeding the work quota.
+fn quota_boundary(template: &str, inner: &str) -> usize {
+    let (mut pass, mut fail) = (1, 2);
+    while quota_outcome(template, inner, fail, WRAPS[0]).is_none() {
+        (pass, fail) = (fail, fail * 2);
+        assert!(fail < 100_000_000, "the quota is never exceeded");
+    }
+    while fail - pass > 1 {
+        let middle = pass + (fail - pass) / 2;
+        if quota_outcome(template, inner, middle, WRAPS[0]).is_none() {
+            pass = middle;
+        } else {
+            fail = middle;
+        }
+    }
+    pass
+}
+
+fn quota_count_row(template: &str, inner: &str) {
+    let bound = quota_boundary(template, inner);
+    assert!(bound > 1, "{template}: the control must iterate");
+    let control = quota_outcome(template, inner, bound + 1, WRAPS[0])
+        .unwrap_or_else(|| panic!("{template}: the control fails one iteration later"));
+    let at = count_source(template, inner, bound + 1, WRAPS[0]).1;
+    let interior = (at, at + inner.len());
+    for wrap in &WRAPS[1..] {
+        assert_eq!(
+            quota_outcome(template, inner, bound, *wrap),
+            None,
+            "{template}: the bound {bound} completes under {wrap:?}"
+        );
+        let json = quota_outcome(template, inner, bound + 1, *wrap)
+            .unwrap_or_else(|| panic!("{template}: {} must fail under {wrap:?}", bound + 1));
+        assert_eq!(without_spans(&json), without_spans(&control), "{wrap:?}");
+        assert_eq!(
+            primary(&json),
+            moved_span(primary(&control), interior, *wrap),
+            "{template}: {wrap:?}"
+        );
+    }
+}
+
+#[test]
+fn grouped_call_target_charges_the_ticks_of_the_bare_call() {
+    quota_count_row(
+        "fn Id(x:view I64)->I64{return x;}fn Main(){var n=0;while n<@N{n=n+1;@E(1);}}",
+        "Id",
+    );
+}
+
+#[test]
+fn grouped_closure_call_charges_the_ticks_of_the_bare_call() {
+    quota_count_row(
+        "fn Main(){var n=0;let f=fn (){};while n<@N{n=n+1;@E();}}",
+        "f",
+    );
+}
+
+// S7: the callee `Drop` inside a guard is recognised and reported without the outer groups
+// (F0-0003 section 3.3, F0-0002 lagunas "Ticks, cuotas y guardas bajo agrupaciones"): `(Drop)(a)`
+// is rejected like `Drop(a)`.
+#[test]
+fn guard_transfer_reports_the_inner_callee() {
+    run_family("guard_transfer");
+}
+
+#[test]
+fn grouped_callee_other_than_drop_is_accepted_in_a_guard() {
+    for (open, close) in WRAPS {
+        accepted(
+            &format!(
+                "fn F(x:view I64){{}}fn Main(){{match true{{true if (if true then {{{open}F{close}(1);value:true;}} else {{value:false;}}) =>{{}},_=>{{}}}}}}"
+            ),
+            J,
+        );
+    }
+}
+
+// S6/S7 guard walker: every edge of the structure reached by the guard check is descended into, so a
+// transfer or a mutation nested in any sub-expression, branch, loop, arm, argument or operand of a
+// guard is reported once, at its own token (F0-0003 section 3.3). Each row places one `Drop(a)` (a
+// transfer at the callee name) or one selection mode token behind a different edge; the expected
+// primaries are the positions of the tokens in the source.
+#[test]
+fn guard_checks_reach_every_nested_edge() {
+    // (body of the guard block, extra diagnostics: (subcause, anchor text, primary text))
+    type Extra = (&'static str, &'static str, &'static str);
+    const ROWS: &[(&str, &[Extra])] = &[
+        ("let z=Drop(a);", &[]),
+        ("var u=();u=Drop(a);", &[("guard_mutation", "u=Drop", "u")]),
+        (
+            "v[if true then {Drop(a);value:0;} else {value:1;}]=1;",
+            &[(
+                "guard_mutation",
+                "v[if",
+                "v[if true then {Drop(a);value:0;} else {value:1;}]",
+            )],
+        ),
+        ("if true {Drop(a);}", &[]),
+        (
+            "if (if true then {Drop(a);value:true;} else {value:false;}) {}",
+            &[],
+        ),
+        ("if false {} else {Drop(a);}", &[]),
+        (
+            "while (if true then {Drop(a);value:false;} else {value:false;}) {}",
+            &[],
+        ),
+        ("while false {Drop(a);}", &[]),
+        (
+            "match (if true then {Drop(a);value:true;} else {value:false;}){true=>{},_=>{}}",
+            &[],
+        ),
+        ("match true{true=>{Drop(a);},_=>{}}", &[]),
+        (
+            "match true{true if (if true then {Drop(a);value:true;} else {value:false;})=>{},_=>{}}",
+            &[],
+        ),
+        ("{Drop(a);}", &[]),
+        (
+            "let q=[if true then {Drop(a);value:1;} else {value:2;}];",
+            &[],
+        ),
+        (
+            "let q=(if true then {Drop(a);value:1;} else {value:2;})+1;",
+            &[],
+        ),
+        (
+            "let q=1+(if true then {Drop(a);value:1;} else {value:2;});",
+            &[],
+        ),
+        (
+            "let q=0-(if true then {Drop(a);value:1;} else {value:2;});",
+            &[],
+        ),
+        (
+            "let q=(if true then {Drop(a);value:v;} else {value:v;})[0];",
+            &[],
+        ),
+        (
+            "let q=v[if true then {Drop(a);value:0;} else {value:1;}];",
+            &[],
+        ),
+        ("let q=if true then 1 else {Drop(a);value:2;};", &[]),
+        (
+            "let q=if false then 1 else (if true then {Drop(a);value:2;} else {value:3;});",
+            &[],
+        ),
+        (
+            "let q=if (if true then {Drop(a);value:true;} else {value:false;}) then 1 else 2;",
+            &[],
+        ),
+        (
+            "Id((if true then {Drop(a);value:1;} else {value:2;}));",
+            &[],
+        ),
+        (
+            "let q=match true{true=>{Drop(a);value:1;},_=>{value:2;}};",
+            &[],
+        ),
+    ];
+    for (body, extra) in ROWS {
+        let source = format!(
+            "fn Id(x:view I64)->I64{{return x;}}fn Main(){{let a=Some(1);var x=1;var v=[1,2];match true{{true if (if true then {{{body} value:true;}} else {{value:false;}}) =>{{}},_=>{{}}}}}}"
+        );
+        let drop = source.find("Drop(a)").unwrap();
+        let mut expected = vec![("guard_transfer", drop, drop + 4)];
+        for (cause, anchor, primary_text) in *extra {
+            let at = source.find(anchor).unwrap();
+            assert!(source[at..].starts_with(primary_text), "{source}");
+            expected.push((cause, at, at + primary_text.len()));
+        }
+        expected.sort_by_key(|row| row.1);
+        for verb in ["check", "run"] {
+            let (exit, json, stderr) = invoke(verb, &source, J);
+            assert_eq!(exit, 1, "{verb}: {source}: {json}");
+            assert!(stderr.is_empty(), "{source}: {stderr}");
+            let found: Vec<(String, usize, usize)> = json
+                .split("\"subcause\":\"")
+                .skip(1)
+                .map(|part| {
+                    let cause = part[..part.find('"').unwrap()].to_owned();
+                    let (start, end) = span_of(section(part, "\"primary_span\":{", "}"));
+                    (cause, start, end)
+                })
+                .collect();
+            let wanted: Vec<(String, usize, usize)> = expected
+                .iter()
+                .map(|(cause, a, b)| (cause.to_string(), *a, *b))
+                .collect();
+            assert_eq!(found, wanted, "{verb}: {source}");
+        }
+    }
+    // The value of a `value:` statement is part of the guard as well.
+    let source = "fn Main(){let a=Some(1);match true{true if (if true then {value:(if true then {Drop(a);value:true;} else {value:false;});} else {value:false;}) =>{},_=>{}}}";
+    let drop = source.find("Drop").unwrap();
+    for verb in ["check", "run"] {
+        let json = one_diagnostic(verb, source, J);
+        assert!(
+            json.contains("\"subcause\":\"guard_transfer\""),
+            "{source}: {json}"
+        );
+        assert_eq!(primary(&json), (drop, drop + 4), "{verb}: {source}");
+    }
+    // A selection that consumes or mutates a place inside a guard is reported at its mode token.
+    for (body, cause) in [
+        ("match move a{Some(q)=>{},_=>{}}", "guard_transfer"),
+        ("match edit x{_=>{}}", "guard_mutation"),
+    ] {
+        let source = format!(
+            "fn Main(){{let a=Some(1);var x=1;match true{{true if (if true then {{{body} value:true;}} else {{value:false;}}) =>{{}},_=>{{}}}}}}"
+        );
+        let token = source.find(&body[6..10]).unwrap();
+        for verb in ["check", "run"] {
+            let json = one_diagnostic(verb, &source, J);
+            assert!(
+                json.contains(&format!("\"subcause\":\"{cause}\"")),
+                "{source}: {json}"
+            );
+            assert_eq!(primary(&json), (token, token + 4), "{verb}: {source}");
+        }
+    }
+}
+
+// S9: guard walker edges and one tick origin that the mutation pass of the touched regions
+// exhibited with a program. Expected spans are byte positions of tokens in the source (F0-0003
+// section 3.3: every transfer, mutation or control exit in a guard is reported at its own token;
+// F0-0002 section 11: the tick of an expression statement has the whole expression as origin);
+// each row is paired with the same program without the nested transfer, which has to report only
+// what remains (or be accepted).
+fn guard_diagnostics(verb: &str, source: &str) -> (i32, Vec<(String, usize, usize)>) {
+    let (exit, json, stderr) = invoke(verb, source, J);
+    assert!(stderr.is_empty(), "{verb}: {source}: {stderr}");
+    let found = json
+        .split("\"subcause\":\"")
+        .skip(1)
+        .map(|part| {
+            let cause = part[..part.find('"').unwrap()].to_owned();
+            let (start, end) = span_of(section(part, "\"primary_span\":{", "}"));
+            (cause, start, end)
+        })
+        .collect();
+    (exit, found)
+}
+
+fn at(source: &str, token: &str) -> usize {
+    source
+        .find(token)
+        .unwrap_or_else(|| panic!("{token} in {source}"))
+}
+
+#[test]
+fn guard_transfer_inside_the_callee_expression_of_a_call_is_reported() {
+    let with = "fn Main(){let a=Some(1);let f=fn (){};match true{true if (if true then {(if true then {Drop(a);value:f;} else {value:f;})();value:true;} else {value:false;}) =>{},_=>{}}}";
+    let without = with.replace("Drop(a);", "");
+    let drop = at(with, "Drop");
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [("guard_transfer".to_owned(), drop, drop + 4)],
+            "{verb}"
+        );
+    }
+    accepted(&without, J);
+}
+
+#[test]
+fn guard_transfer_inside_a_return_value_is_reported_after_the_control_exit() {
+    let with = "fn G()->I64{let a=Some(1);match true{true if (if true then {return if true then {Drop(a);value:1;} else {value:2;};} else {value:false;}) =>{},_=>{}} return 0;}fn Main(){G();}";
+    let without = with.replace("Drop(a);", "");
+    let (ret, drop) = (at(with, "return if"), at(with, "Drop"));
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [
+                ("guard_control".to_owned(), ret, ret + 6),
+                ("guard_transfer".to_owned(), drop, drop + 4)
+            ],
+            "{verb}"
+        );
+        let (exit, found) = guard_diagnostics(verb, &without);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [("guard_control".to_owned(), ret, ret + 6)],
+            "{verb}"
+        );
+    }
+}
+
+#[test]
+fn guard_transfer_inside_a_yield_value_is_reported_after_the_control_exit() {
+    let with = "fn Main(){let a=Some(1);match true{true if (if true then {yield if true then {Drop(a);value:1;} else {value:2;};} else {value:false;}) =>{},_=>{}}}";
+    let without = with.replace("Drop(a);", "");
+    let (token, drop) = (at(with, "yield"), at(with, "Drop"));
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [
+                ("guard_control".to_owned(), token, token + 5),
+                ("guard_transfer".to_owned(), drop, drop + 4)
+            ],
+            "{verb}"
+        );
+        let (exit, found) = guard_diagnostics(verb, &without);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [("guard_control".to_owned(), token, token + 5)],
+            "{verb}"
+        );
+    }
+}
+
+#[test]
+fn guard_transfer_inside_the_operand_of_a_postfix_try_is_reported() {
+    let with = "fn Main()->Result<(),I64>{let a=Some(1);match true{true if ((if true then {Drop(a);value:Ok(1);} else {value:Ok(2);})?)==1 =>{},_=>{}}return Ok(());}";
+    let without = with.replace("Drop(a);", "");
+    let (drop, question) = (at(with, "Drop"), at(with, "?"));
+    for verb in ["check", "run"] {
+        let (exit, found) = guard_diagnostics(verb, with);
+        assert_eq!(exit, 1, "{verb}");
+        assert_eq!(
+            found,
+            [
+                ("guard_transfer".to_owned(), drop, drop + 4),
+                ("guard_control".to_owned(), question, question + 1)
+            ],
+            "{verb}"
+        );
+        let (exit, found) = guard_diagnostics(verb, &without);
+        assert_eq!(exit, 1, "{verb}");
+        let q = at(&without, "?");
+        assert_eq!(found, [("guard_control".to_owned(), q, q + 1)], "{verb}");
+    }
+}
+
+#[test]
+fn expression_statement_tick_of_an_index_read_is_the_whole_expression() {
+    let source = "fn Main(){var a=[1,2,3];while true{a[0];}}";
+    let (exit, json, stderr) = invoke("run", source, J);
+    assert!(stderr.is_empty(), "{stderr}");
+    assert_eq!(exit, 1, "{json}");
+    assert!(json.contains("\"code\":\"R0001\""), "{json}");
+    let start = at(source, "a[0]");
+    assert_eq!(primary(&json), (start, start + 4), "{json}");
+    accepted("fn Main(){var a=[1,2,3];var n=0;while n<3{n=n+1;a[0];}}", J);
+}
+
+// S10: the tick of a `move` or `edit` prefix has that token as origin (F0-0002 section 11, "Origen
+// de los ticks"): the quota failure that lands on it reports the token, found by position in the
+// source. Found by the mutation pass of `prepare_expr` (the token search of the prefix tick).
+#[test]
+fn consume_prefix_tick_reports_the_move_token() {
+    let source = "fn Main(){{}{}{}{}{}{}{}while true{let a=1;let y=move a;}}";
+    let (exit, json, stderr) = invoke("run", source, J);
+    assert!(stderr.is_empty(), "{stderr}");
+    assert_eq!(exit, 1, "{json}");
+    assert!(json.contains("\"code\":\"R0001\""), "{json}");
+    let token = at(source, "move");
+    assert_eq!(primary(&json), (token, token + 4), "{json}");
+    // The same program with a bounded loop completes.
+    accepted(
+        "fn Main(){{}{}{}{}{}{}{}var n=0;while n<3{n=n+1;let a=1;let y=move a;}}",
+        J,
+    );
 }

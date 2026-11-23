@@ -7697,7 +7697,7 @@ impl Lower<'_> {
                         if self.emission == EmissionMode::Live {
                             self.pending_charges.push(WorkPlanner::charge(
                                 WorkEvent::Assignment,
-                                place.span().clone(),
+                                parse::expression_primary_span(place),
                             ));
                         }
                         let prepared = (|| -> Result<AssignState<'_>, CompileError> {
@@ -8154,7 +8154,7 @@ impl Lower<'_> {
                             if self.emission == EmissionMode::Live {
                                 self.pending_charges.push(WorkPlanner::charge(
                                     WorkEvent::ExpressionStatement,
-                                    value.span().clone(),
+                                    parse::expression_primary_span(value),
                                 ));
                             }
                             tasks.push(Task::StatementExprAfter(Box::new(
@@ -9628,7 +9628,7 @@ impl Lower<'_> {
                         if entry_emission == EmissionMode::Live {
                             self.pending_charges.push(WorkPlanner::charge(
                                 WorkEvent::WhileCondition,
-                                condition.span().clone(),
+                                parse::expression_primary_span(condition),
                             ));
                         }
                         tasks.push(Task::WhileAfterCondition(Box::new(WhileConditionState {
@@ -9833,10 +9833,9 @@ impl Lower<'_> {
                         if self.emission == EmissionMode::Live {
                             self.pending_charges.push(WorkPlanner::charge(
                                 WorkEvent::ValueStatement,
-                                value_tail
-                                    .marker
-                                    .cloned()
-                                    .unwrap_or_else(|| value_tail.value.span().clone()),
+                                value_tail.marker.cloned().unwrap_or_else(|| {
+                                    parse::expression_primary_span(value_tail.value)
+                                }),
                             ));
                         }
                         let value = value_tail.value;
@@ -10033,7 +10032,9 @@ impl Lower<'_> {
                     if let Some(value) = value {
                         self.pending_charges.push(WorkPlanner::charge(
                             WorkEvent::ValueStatement,
-                            marker.clone().unwrap_or_else(|| value.span().clone()),
+                            marker
+                                .clone()
+                                .unwrap_or_else(|| parse::expression_primary_span(value)),
                         ));
                     } else {
                         self.pending_charges
@@ -10247,8 +10248,9 @@ impl Lower<'_> {
                 | Expr::If { span, .. } => own.push(span.clone()),
                 Expr::Call { target, span, .. } => {
                     own.push(span.clone());
-                    if matches!(target.as_ref(), Expr::Name(..)) {
-                        own.push(target.span().clone());
+                    let callee = parse::expression_primary(target);
+                    if matches!(callee, Expr::Name(..)) {
+                        own.push(callee.span().clone());
                     }
                 }
                 Expr::Unary {
