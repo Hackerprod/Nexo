@@ -3787,3 +3787,22 @@ fn expression_statement_tick_of_an_index_read_is_the_whole_expression() {
     assert_eq!(primary(&json), (start, start + 4), "{json}");
     accepted("fn Main(){var a=[1,2,3];var n=0;while n<3{n=n+1;a[0];}}", J);
 }
+
+// S10: the tick of a `move` or `edit` prefix has that token as origin (F0-0002 section 11, "Origen
+// de los ticks"): the quota failure that lands on it reports the token, found by position in the
+// source. Found by the mutation pass of `prepare_expr` (the token search of the prefix tick).
+#[test]
+fn consume_prefix_tick_reports_the_move_token() {
+    let source = "fn Main(){{}{}{}{}{}{}{}while true{let a=1;let y=move a;}}";
+    let (exit, json, stderr) = invoke("run", source, J);
+    assert!(stderr.is_empty(), "{stderr}");
+    assert_eq!(exit, 1, "{json}");
+    assert!(json.contains("\"code\":\"R0001\""), "{json}");
+    let token = at(source, "move");
+    assert_eq!(primary(&json), (token, token + 4), "{json}");
+    // The same program with a bounded loop completes.
+    accepted(
+        "fn Main(){{}{}{}{}{}{}{}var n=0;while n<3{n=n+1;let a=1;let y=move a;}}",
+        J,
+    );
+}
