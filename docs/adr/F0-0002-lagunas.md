@@ -93,3 +93,95 @@ Ejemplos (perfil `f0-0003-b-v1`; el primer paso de `cause_chain` coincide con el
 **Relleno de laguna, revertible.** En la sección «Primario de una expresión bajo agrupaciones», «una cuota en un sitio distinto» significa una cuota cuyo sitio **no es la expresión agrupada** (la `}` de la unidad final, el token `let`/`while`/`return`, la llamada rechazada de `call_frames`). Un tick de trabajo cuyo origen es una expresión (condición de bucle, sentencia de expresión, lugar destino de una asignación, operando de rama sin `value:`) tiene por sitio esa expresión: su primario `R0001` es el de la expresión interior, sin las agrupaciones exteriores, con independencia del perfil y de debug/release. Los paréntesis de agrupación no crean nodos cobrables (F0-0002 §11): `(Id)(1)` cobra exactamente los ticks de `Id(1)`, incluido el de «Nombre del destino de una llamada directa», y lo mismo `(f)()` para un closure; el total de trabajo, el orden y los eventos no dependen de las agrupaciones. En una guarda de `match`, el destino `Drop` de una llamada y el lugar de una asignación se reconocen y se señalan sin las agrupaciones exteriores (F0-0003 §3.3).
 
 Ejemplos, ASCII, sin BOM ni LF final, perfil `f0-0003-b-v1`. Inválido: `fn Main(){{}{}{}var n=0;while (n<9999999){}}`; `run`: `outcome.kind=simulator_fault`, único `R0001`, `runtime/runtime.limit`, `data={"limit":1000000,"observed":1000001,"work_consumed":1000000}`, primario `[31,40)` (`n<9999999`), no `[30,41)`; con `((n<9999999))` `[32,41)`; con `( n<9999999 )` `[32,41)`; el control `while n<9999999{}` da `[30,39)`; `check` sale 0 (`checked`, sin diagnósticos). Válido: `fn Main(){var n=0;while (n<3){n=n+1;}}` (`run`: `unit`, salida 0). `fn Id(x:view I64)->I64{return x;}fn Main(){var n=0;while n<N{n=n+1;(Id)(1);}}` agota `R0001` con el mismo `N` que la fuente con `Id(1)` (con `N=43477` termina y con `N=43478` da `R0001`, para `Id(1)`, `(Id)(1)`, `((Id))(1)` y `( Id )(1)`). Inválido en guarda: `fn Main(){let a=Some(1);match true{true if (if true then {(Drop)(a);value:true;} else {value:false;}) =>{},_=>{}}}` (114 bytes): único `NX-E1305`, `subcause=guard_transfer`, `ownership/ownership.check`, `data={}`, sin relaciones, primario `[59,63)` (`Drop`), en `check` y `run`, igual que con `Drop(a)`; la fuente `fn Main(){var x=1;match true{true if (if true then {(x)=2;value:true;} else {value:false;}) =>{},_=>{}}}` (104 bytes) da `NX-E1305/guard_mutation` `[53,54)` (`x`), no `(x)`, igual que el control `x=2`. Válido: la misma guarda con `{value:true;}` (`checked`).
+
+<!-- Adopción 2026-11-22 (coordinador): ACLARACIÓN DERIVADA (no relleno) sobre el resultado de una operación con un operando fallido o
+     contaminado (T5). Origen: docs/correcciones/I07c-laguna-t5-r1.md (B PASS en 3 rondas; ~70 programas derivados a mano coinciden con
+     main; 152 RD sin cambio). Solo deja por escrito lo que §4.1.1 y las cláusulas 4 y 5 de §4.1.2 ya fijan. -->
+
+## Resultado de una operación con un operando fallido o contaminado (aclaración derivada de §4.1.1 y de las cláusulas 4 y 5 de §4.1.2)
+
+El
+resultado de `+`, `-`, `<`, `==`, `AssertEq`, de un acceso o de una llamada con un operando que ha fallado una obligación de la operación, o
+que está contaminado, está contaminado: carece de tipo nominal y de evidencia válida para cualquier consumidor, también si el consumidor es un
+elemento de array, una hoja de `if` o de bloque con valor, un argumento, un selector, un `return` o un contexto externo. Un elemento o una
+continuación así no establece la referencia de homogeneidad ni la de la unión, no es incompatible con ella y no recibe NX-E1303 ni
+NX-E0102 por ese resultado; sus errores internos independientes y los de los demás elementos se conservan. La indecisión de un dominio no es
+fallo: el nominal solo se ofrece cuando ni la operación ni un operando necesario han fallado (cierre de dominio indeciso). Un constructor Array
+independiente irresuelto conserva su NX-E0103 (`var r=[];r=[true+1];`: `[16,18)` y NX-E0102 `[22,26)`), y una `if` con condición fallida es una
+unidad contaminada que no establece referencia (`[(if 0 then 1 else 2),true,1]`: `[21,22)` y `[43,44)`).
+
+Válido (`checked`, sin diagnósticos): `fn Main(){let a=[1+2,3];}` y `fn Main(){var q=[];let a=[q[0]<1,true];q=[1];}`. Contraste por indecisión
+(el nominal sí se ofrece): `fn Main(){var q=[];let a=[q[0]<1,1];q=[1];}` da único NX-E0102 `[33,34)` (`1`), `Bool`/`I64`. Inválido: `fn Main(){let a=[true+1,true];}` → único NX-E0102/type_mismatch `[17,21)`, `expected_type=I64`,
+`found_type=Bool`, relación `found_type=[17,21)`, sin relación `expected_type`, sin diagnóstico en `[24,28)` (el segundo `true`).
+Corregido (`1+1`): `fn Main(){let a=[1+1,true];}` falla por homogeneidad con su propio primario (`true` `[21,25)`, `I64`/`Bool`): control sin operación fallida.
+
+<!-- Adopción (coordinador, ESTADO REVERSIBLE): `match` como expresión con uniones. Origen: docs/correcciones/I07c-laguna-match-expresion-r1.md. Declara una laguna; no fija ninguna regla. -->
+
+## `match` con valor y uniones: estado (laguna abierta; sin regla)
+
+El ADR **no fija** la unión de los brazos de un `match` usado como expresión cuando algún brazo contiene una unión `if` o una expresión con discrepancia o defecto interno. En particular no fija: (a) qué tipo o testigo parcial ofrece ese brazo al brazo siguiente; (b) cuántas NX-E1303 se emiten entre los brazos y sus uniones; (c) qué ocurre cuando un brazo es a su vez un `match` con un brazo erróneo; salvo el literal de array con un elemento erróneo, que fija la sección del literal de array. Los programas siguientes solo ilustran **qué queda sin fijar**; ningún resultado listado es normativo.
+
+Ejemplos (`--profile f0-0003-b-v1`, `check`, ASCII sin BOM ni LF final). Σ = `fn Main(){let o:Option<I64>=Some(1);let p=true;let ar=[1];var q=[];` y cuerpo `let a0=match move o{Some(n)=>{value: BRAZO1;},None=>{value: BRAZO2;}};}`. (a) BRAZO1 = `(if p then (if p then 1 else q) else 2)`, BRAZO2 = `true`: el ADR no dice si BRAZO1 ofrece a BRAZO2 un testigo parcial. (b) BRAZO1 = `(if p then ar else 1)`: el ADR no dice si, además de la discrepancia interna del brazo, hay otra NX-E1303 sobre BRAZO2. (c) BRAZO1 = `match move o{Some(m)=>{value: 1;},None=>{value: true+1;}}`: el ADR no dice si un `match` anidado con un brazo erróneo ofrece tipo o testigo al brazo siguiente.
+
+La implementación de referencia vigente se **conserva** sin garantía normativa: sus resultados para estos programas están registrados como datos de conservación (`docs/validation/i07c-s5c/match-conservacion.json`) y no definen el lenguaje. **Cualquier cambio de ese comportamiento exige el Flujo A** (decisión de diseño con validación) y no puede introducirse como corrección de un defecto, salvo que se demuestre con una cláusula del ADR que un resultado concreto es erróneo. No se admite añadir ni retirar diagnósticos de estos programas por una pieza de implementación ajena.
+
+<!-- Adopción (coordinador): ACLARACIÓN DERIVADA (no relleno) sobre el resultado de un literal de array heterogéneo. Origen:
+     docs/correcciones/I07c-laguna-literal-array-error-r1.md. Solo deja por escrito lo que §4.1.1 y las cláusulas 4 y 5 de §4.1.2 fijan. -->
+
+## Resultado de un literal de array heterogéneo (aclaración derivada de §4.1.1 y de las cláusulas 4 y 5 de §4.1.2)
+
+Un literal de array sin contexto externo Array en el que un elemento posterior incumple la referencia de homogeneidad no ofrece un
+tipo único a ningún consumidor, tampoco a una unión `if`: no ofrece testigo parcial, no establece la referencia de la unión, no es
+incompatible con ella y no recibe NX-E1303. Su primer elemento válido sigue fijando la referencia del propio literal y cada elemento
+incompatible conserva su NX-E0102 (§4.1.2.4); sus errores internos y los de las demás continuaciones se conservan, y estas se
+contrastan entre sí como si el literal no estuviera. El testigo parcial de §4.1.2.5 procede solo de uniones y solo lo compara otra
+unión.
+
+Ejemplos. **Ejemplo con una sola NX-E1303** (literal sin defecto, se contrasta): Π+`let a0=(if p then 1 else [ar,ar]);}` → NX-E1303 `[71,78)`, `expected_type=I64`, `found_type=Array<Array<I64>>`. **Inválido:** Π+`let a0=(if p then 1 else [ar,aar]);}` → único NX-E0102/type_mismatch `[75,78)` (`aar`), `Array<I64>`/`Array<Array<I64>>`, relaciones `expected_type=[72,74)` y `found_type=[75,78)`; sin NX-E1303 sobre `[71,79)`. **Contraste** (literal en la primera continuación): Π+`let a0=(if p then [ar,aar] else 1);}` → único NX-E0102 `[68,71)`; `1` no recibe NX-E1303. **Discriminador:** Π+`let a0=(if p then [ar,aar] else (if p then 1 else true));}` → NX-E0102 `[68,71)` y una sola NX-E1303 `[96,100)` (`true`, `I64`/`Bool`, origen esperado `1`).
+
+<!-- Adopción (coordinador, relleno de laguna REVERSIBLE): literal de array con defecto interno, con lectura contaminada o con un
+     elemento unión errónea como hoja de una unión. Origen: docs/correcciones/I07c-laguna-literal-array-error-r1.md. Fija el
+     comportamiento de `main`; no es una consecuencia directa de una cláusula. -->
+
+## Literal de array con un elemento erróneo como continuación de una unión (relleno de laguna, revertible)
+
+La regla de «Resultado de un literal de array heterogéneo» rige también cuando el literal es homogéneo pero algún elemento tiene un
+defecto interno, es una lectura contaminada (§4.1.1) o es una unión con una continuación errónea: el literal no ofrece tipo ni
+testigo parcial a una unión `if`, no es incompatible con su referencia y no recibe NX-E1303; sus errores internos se conservan. Rige
+igual para el valor de un brazo de `match` con valor que es un literal de array con un elemento erróneo (vale esta sección); cómo un
+`match`, o un brazo que es otro `match`, ofrece su testigo a otra unión, y los demás defectos internos de un brazo, los regula la
+sección «`match` con valor y uniones: estado (laguna abierta; sin regla)». Un literal sin defecto se contrasta.
+
+| Caso | Con una sola NX-E1303 (literal sin defecto) | Inválido (sin NX-E1303 sobre el literal) | Discriminador |
+|---|---|---|---|
+| Defecto interno | Σ+`let a0=(if p then 1 else [true,true]);}` → `[46,57)`, `I64`/`Array<Bool>` | Σ+`let a0=(if p then 1 else [true+1,true]);}` → único NX-E0102 `[47,51)`, `I64`/`Bool` | Σ+`let a0=(if p then [true+1,true] else (if p then 1 else true));}` → NX-E0102 `[40,44)` y NX-E1303 `[76,80)` |
+| Lectura contaminada | Σ+`let x=1+1;let a0=(if p then 1 else [x,x]);}` → `[56,61)`, `I64`/`Array<I64>` | Σ+`let x=true+1;let a0=(if p then 1 else [x,true]);}` → único NX-E0102 `[27,31)` | Σ+`let x=true+1;let a0=(if p then [x,true] else (if p then 1 else true));}` → NX-E0102 `[27,31)` y NX-E1303 `[84,88)` |
+
+Nota de la tercera fila (fuentes completas): con una sola NX-E1303: Σ+`let a0=(if p then 1 else [(if p then [1] else [2]),[1]]);}` → `[46,76)`, `I64`/`Array<Array<I64>>`. Inválido: Σ+`let a0=(if p then 1 else [(if p then 1 else true),[1]]);}` → único NX-E1303 `[65,69)` (la de la unión interior), ninguna sobre el literal. Discriminador: Σ+`let a0=(if p then [(if p then 1 else true),[1]] else (if p then 1 else true));}` → NX-E1303 `[58,62)` y `[92,96)`, `I64`/`Bool`.
+
+**`match`** (Σ′, `f0-0003-b-v1`). Brazo literal erróneo: Σ′+`let a0=match move o{Some(n)=>{value: [1,true];},None=>{value: 2;}};}` (115 B) → solo NX-E0102 `[87,91)`; el literal sin defecto se contrasta y fija la referencia: Σ′+`let a0=match move o{Some(n)=>{value: [1,2];},None=>{value: 2;}};}` (112 B) → NX-E1303 `[106,107)` (`2`, `Array<I64>`/`I64`).
+
+<!-- Adopción (coordinador, relleno de laguna REVERSIBLE): procedencia de la relación `expected_type` de NX-E0102 de asignación. Origen: docs/correcciones/I07c-laguna-procedencia-expected-type-r1.md. Clase I. Se implementa en S5a.5. -->
+
+## Origen de la relación `expected_type` en la NX-E0102 de una asignación (relleno de laguna, revertible; clase I)
+
+Sea T el tipo del que se toma `expected_type` (el del destino o el de su componente). El origen de la relación se elige así, por este orden: (1) si T lo impone una anotación o la firma de una función, ese texto; (2) si T procede solo de un requisito intrínseco de una operación, no hay relación `expected_type` (un requisito intrínseco no adquiere origen fuente); (3) en otro caso, si T es una incógnita ya ligada (un tipo compuesto que, al final de la comprobación, solo tiene estructura por haber sido ligado a una incógnita por una igualdad cuenta como incógnita ligada, p. ej. el elemento de `s` ligado por `[q,r]` en el ejemplo «Inválido»), el operando de la **primera igualdad compatible**, en el orden de comprobación, que la ligó a una estructura (un constructor o un escalar); una igualdad posterior que solo completa componentes de esa estructura no cambia el origen; (4) si T es un tipo compuesto, su operando propio —anotación, firma, o inicializador o RHS cuyo tipo es **completamente concreto**—; un inicializador o RHS con componentes pendientes (p. ej. `[[]]`) no es operando propio de su tipo, y entonces se desciende al tipo de su elemento y se aplica (3) o (4) a este; así, un literal posterior que repite la forma sin completarla (otro `[[]]`) no cuenta, y cuenta el primero que completa el componente pendiente; (5) si ese operando es la lectura de otro binding, se siguen los alias hasta el inicializador de ese binding o la restricción posterior que lo fijó, por esta misma regla; (6) si el constructor lo aporta una continuación de una unión, el origen es el operando de esa continuación (la primera que establece la referencia, o la que la completa), y si lo aporta una asignación posterior, su RHS completo. Para la relación, esta regla **se aparta de la lectura literal** de la cláusula «fijación y conflicto» de §4.1.2.2 («primera igualdad compatible que, junto con las precedentes, determina su tipo»): no cambia qué igualdad fija el componente a efectos de aceptación, de `data.expected_type` ni de la emisión. La relación es de clase I: no cambia aceptación, código, subcausa, primario ni cardinalidad.
+
+Ejemplos, `f0-0002-b-v2`, `check`, ASCII sin BOM ni LF final. **Inválido** (115 B): `fn Main(){let p=true;var q=[];var r=[];var s=[];let a0=(if p then (if p then [q,r] else s) else r);q=[3];s=[true];}` → `NX-E1303` `[96,97)` (`r`), `Array<Array<I64>>`/`Array<I64>`, `expected_type=[67,89)`; `NX-E0102/type_mismatch` `[108,112)` (`true`), `Array<I64>`/`Bool`, relación `expected_type=[77,82)` (`[q,r]`, que dio el constructor `Array` a `s`), no `[101,104)` (`[3]`, que solo completa el componente). **Contraste** (87 B): `fn Main(){let p=true;var q=[];var s=[];let a0=(if p then [q] else s);q=[3];s=[[true]];}` → único `NX-E0102` `[79,83)` (`true`), `I64`/`Bool`, relación `[71,74)` (`[3]`, que da el escalar). **Válido** (84 B): igual con `s=[[4]];` → aceptado, sin diagnósticos. **Inicializador no concreto** (39 B): `fn Main(){var a=[[]];a=[[1]];a=[true];}` → `NX-E0102` `[32,36)`, `expected_type=Array<I64>`, relación `[23,28)` (`[[1]]`), no el inicializador `[16,20)`. **Literal repetido** (46 B): `fn Main(){var a=[[]];a=[[]];a=[[1]];a=[true];}` → `NX-E0102` `[39,43)`, `expected_type=Array<I64>`, relación `[30,35)` (`[[1]]`, el que completa), no `[24,28)` (`[[]]`). **Anotación** (40 B): `fn Main(){var v:Array<I64>=[];v=[true];}` → `NX-E0102` `[33,37)`, `expected_type=I64`, relación `[16,26)` (la anotación). **Firma** (59 B): `fn F(a:view Array<I64>){}fn Main(){var q=[];F(q);q=[true];}` → `NX-E0102` `[52,56)`, relación `[12,22)` (la firma). **Intrínseco** (44 B): `fn Main(){var q=[];let t=(1+q[0]);q=[true];}` → `NX-E0102` `[37,41)`, `expected_type=I64`, **sin** relación `expected_type`. **Alias** (43 B): `fn Main(){let c=[1];var v=[];v=c;v=[true];}` → `NX-E0102` `[36,40)`, relación `[16,19)` (el inicializador de `c`).
+
+<!-- Adopción 2026-11-23 (coordinador, relleno de laguna REVERSIBLE): continuación posterior con constructor pendiente en una unión. Origen:
+     docs/correcciones/I07c-S5c-tests-B-r1.md (B: lectura B fijada por l.353+l.301+l.367; ejemplos con spans comprobados). Implica el test
+     pending_inner_constructor_preserves_outer_branch_comparison. -->
+
+## Continuacion posterior con constructor pendiente en una union (relleno de laguna, revertible)
+Un literal de array cuyo unico defecto abierto es un constructor irresuelto (`[[]]`, `[q]` con `q` sin resolver) no es un
+literal con defecto interno de la seccion anterior: se contrasta con la referencia de la union como un literal sin defecto.
+Si es incompatible por su raiz (escalar frente a Array) es la primera continuacion posterior incompatible y consume la unica
+NX-E1303 de la union (4.1.2.4), aunque su `found_type` siga pendiente: ese conflicto se omite mientras el componente
+pendiente emita NX-E0103 (4.1.2.2) y cuenta como ya denunciado (4.1.2.5). Las hojas posteriores incompatibles con la misma
+referencia no reciben NX-E1303. Si una igualdad posterior completa el componente, la NX-E1303 se emite sobre ese mismo literal
+y no sobre otra hoja. `f0-0002-b-v2`, `check`, ASCII sin BOM ni LF final. Invalido (103 B):
+`fn Main(){let ar=[1];let c=true;var m1=(if true then {value:ar[0];} else (if c then [[]] else false));}` -> unico NX-E0103
+`[85,87)`; sin NX-E1303 sobre `[[]]` ni sobre `false` `[94,99)`. Completado despues (117 B):
+`fn Main(){let ar=[1];let c=true;var q=[];var m1=(if true then {value:ar[0];} else (if c then [q] else false));q=[1];}` ->
+unico NX-E1303 `[93,96)` (`[q]`, `I64`/`Array<Array<I64>>`). Valido (96 B): el primero con `(if c then 2 else 3)` -> `checked`.
