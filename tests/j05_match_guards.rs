@@ -540,3 +540,277 @@ fn guard_runtime_fault_cleans_unextracted_owner_once() {
     assert_eq!(execution.diagnostics[0].code, "R0101");
     assert_eq!(execution.observations.events(), ["open:0:1", "close:0:1"]);
 }
+
+fn all_errors(source: &str) -> Vec<Box<Diagnostic>> {
+    let mut previous: Option<Vec<String>> = None;
+    for execute in [false, true] {
+        let Err(CompileError::Rejected(errors)) =
+            compile_scalar_with_profile(FILE, source, ReducedProfile::JNormal, execute)
+        else {
+            panic!("expected source diagnostics: {source}");
+        };
+        let json: Vec<_> = errors
+            .iter()
+            .map(|d| {
+                d.validate(FILE, source).unwrap();
+                d.to_json(FILE, source).unwrap()
+            })
+            .collect();
+        if let Some(previous) = &previous {
+            assert_eq!(previous, &json, "check/run mismatch: {source}");
+        }
+        previous = Some(json);
+        if execute {
+            return errors;
+        }
+    }
+    unreachable!()
+}
+
+/// One `NX-E1305/guard_effect` whose first causal step is the call of a closure declared at
+/// `declaration` (the offset of its `fn` token, entity `function:<offset>`).
+fn guard_effect_chain(
+    source: &str,
+    primary: (u64, u64),
+    required: &str,
+    evidence: &str,
+    chain: &[(CauseOperation, u64, u64)],
+    declaration: u64,
+) {
+    let error = guard_error(
+        source,
+        "guard_effect",
+        Stage::Effects,
+        Operation::EffectsCheck,
+        span(primary.0, primary.1),
+    );
+    assert_eq!(
+        error.data,
+        BTreeMap::from([
+            (
+                "effect_model".into(),
+                DataValue::String("f0-0003-sim-v1".into())
+            ),
+            ("effect_evidence".into(), DataValue::String(evidence.into())),
+            ("required_effect".into(), DataValue::String(required.into())),
+        ]),
+        "{source}"
+    );
+    let actual: Vec<_> = error
+        .cause_chain
+        .iter()
+        .map(|cause| {
+            let at = cause.span.as_ref().unwrap();
+            (cause.operation, at.start, at.end)
+        })
+        .collect();
+    assert_eq!(actual, chain, "{source}");
+    let first = &error.cause_chain[0];
+    assert_eq!(
+        (first.kind, first.evidence),
+        (CauseKind::Call, Evidence::Verified)
+    );
+    assert_eq!(
+        first
+            .entity
+            .as_ref()
+            .map(|entity| (entity.kind, entity.id.clone())),
+        Some((EntityKind::Function, format!("function:{declaration}"))),
+        "{source}"
+    );
+}
+
+#[test]
+fn closure_call_in_guard_reports_guard_effect_at_the_callee_name() {
+    use CauseOperation::{ClosureCall, IntrinsicCall};
+    // Named closure (F0-0003 3.3: effects of nested callables are subject to guard_effect;
+    // F0-0002 8.2: the primary is the callee name).
+    guard_effect_chain(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true if g()=>{},_=>{}}}",
+        (70, 71),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 70, 71), (IntrinsicCall, 28, 33)],
+        16,
+    );
+    guard_effect_chain(
+        "fn Main(){let g=fn ()->Bool{MockUnknown();return true;};match true{true if g()=>{},_=>{}}}",
+        (75, 76),
+        "alloc",
+        "unknown_effect",
+        &[(ClosureCall, 75, 76), (IntrinsicCall, 28, 39)],
+        16,
+    );
+    // A grouped name keeps the name (F0-0002 lagunas, grouped target).
+    guard_effect_chain(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true if (g)()=>{},_=>{}}}",
+        (71, 72),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 71, 72), (IntrinsicCall, 28, 33)],
+        16,
+    );
+    guard_effect_chain(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true if ((g))()=>{},_=>{}}}",
+        (72, 73),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 72, 73), (IntrinsicCall, 28, 33)],
+        16,
+    );
+    // A grouped literal reports its head token `fn`.
+    guard_effect_chain(
+        "fn Main(){match true{true if (fn ()->Bool{Print(1);return true;})()=>{},_=>{}}}",
+        (30, 32),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 30, 32), (IntrinsicCall, 42, 47)],
+        30,
+    );
+    // The call argument list is not part of the site.
+    guard_effect_chain(
+        "fn Main(){let g=fn (x:view I64)->Bool{Print(x);return true;};match true{true if g(1)=>{},_=>{}}}",
+        (80, 81),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 80, 81), (IntrinsicCall, 38, 43)],
+        16,
+    );
+    // The call inside an operand keeps the same site.
+    guard_effect_chain(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true if g()==true=>{},_=>{}}}",
+        (70, 71),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 70, 71), (IntrinsicCall, 28, 33)],
+        16,
+    );
+    // The closure bound by a pattern is called by its binding name.
+    guard_effect_chain(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match Some(g){Some(h) if h()=>{},_=>{}}}",
+        (76, 77),
+        "io",
+        "known_effect",
+        &[(ClosureCall, 76, 77), (IntrinsicCall, 28, 33)],
+        16,
+    );
+}
+
+#[test]
+fn closure_call_in_guard_uses_transitive_and_independent_sites() {
+    use CauseOperation::{ClosureCall, FunctionCall, IntrinsicCall};
+    guard_effect_chain(
+        "fn G()->Bool{Print(1);return true;}fn Main(){let g=fn ()->Bool{return G();};match true{true if g()=>{},_=>{}}}",
+        (95, 96),
+        "io",
+        "known_effect",
+        &[
+            (ClosureCall, 95, 96),
+            (FunctionCall, 70, 71),
+            (IntrinsicCall, 13, 18),
+        ],
+        51,
+    );
+    guard_effect_chain(
+        "fn Main(){let h=fn ()->Bool{Print(1);return true;};let g=fn ()->Bool{return h();};match true{true if g()=>{},_=>{}}}",
+        (101, 102),
+        "io",
+        "known_effect",
+        &[
+            (ClosureCall, 101, 102),
+            (ClosureCall, 76, 77),
+            (IntrinsicCall, 28, 33),
+        ],
+        57,
+    );
+    // Two independent sites report each its own diagnostic (F0-0003 3.3: the precedence does
+    // not erase independent sites), ordered by primary.
+    let two_closures = "fn Main(){let g=fn ()->Bool{Print(1);return true;};let k=fn ()->Bool{MockUnknown();return true;};match true{true if g()==k()=>{},_=>{}}}";
+    rejected_sites(
+        two_closures,
+        &[
+            ("NX-E1305", Some("guard_effect"), 116),
+            ("NX-E1305", Some("guard_effect"), 121),
+        ],
+    );
+    let effects: Vec<_> = all_errors(two_closures)
+        .iter()
+        .map(|d| {
+            (
+                d.data.get("required_effect").cloned(),
+                d.data.get("effect_evidence").cloned(),
+            )
+        })
+        .collect();
+    assert_eq!(
+        effects,
+        vec![
+            (
+                Some(DataValue::String("io".into())),
+                Some(DataValue::String("known_effect".into()))
+            ),
+            (
+                Some(DataValue::String("alloc".into())),
+                Some(DataValue::String("unknown_effect".into()))
+            ),
+        ]
+    );
+    // A function call and a closure call in the same guard: the function site is unchanged.
+    rejected_sites(
+        "fn G()->Bool{Print(1);return true;}fn Main(){let k=fn ()->Bool{MockUnknown();return true;};match true{true if G()==k()=>{},_=>{}}}",
+        &[
+            ("NX-E1305", Some("guard_effect"), 110),
+            ("NX-E1305", Some("guard_effect"), 115),
+        ],
+    );
+    rejected_sites(
+        "fn Main(){match true{true if (fn ()->Bool{Print(1);return true;})()==(fn ()->Bool{Print(2);return true;})()=>{},_=>{}}}",
+        &[
+            ("NX-E1305", Some("guard_effect"), 30),
+            ("NX-E1305", Some("guard_effect"), 70),
+        ],
+    );
+}
+
+#[test]
+fn closure_call_in_guard_keeps_ownership_precedence() {
+    // Effects is reached only if ownership does not fail (F0-0003 3.3 barrier matrix).
+    let transfer = rejected(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true if move g()=>{},_=>{}}}",
+    );
+    assert_eq!(
+        (transfer.code.as_str(), transfer.subcause.as_deref()),
+        ("NX-E1305", Some("guard_transfer"))
+    );
+    assert_eq!(transfer.primary_span, Some(span(70, 74)));
+    let mutation = rejected(
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true if edit g()=>{},_=>{}}}",
+    );
+    assert_eq!(
+        (mutation.code.as_str(), mutation.subcause.as_deref()),
+        ("NX-E1305", Some("guard_mutation"))
+    );
+    assert_eq!(mutation.primary_span, Some(span(70, 74)));
+    let capture = rejected(
+        "fn Main(){var x=1;let g=fn [edit x]()->Bool{x=2;Print(x);return true;};match true{true if g()=>{},_=>{}}}",
+    );
+    assert_eq!(capture.code, "NX-E1107");
+    assert_eq!(capture.primary_span, Some(span(90, 91)));
+}
+
+#[test]
+fn pure_closure_call_in_guard_is_accepted() {
+    // Each program is the negative source with the effect removed from the closure body.
+    for source in [
+        "fn Main(){let g=fn ()->Bool{return true;};match true{true if g()=>{},_=>{}}}",
+        "fn Main(){let x=1;let g=fn ()->Bool{return x==1;};match true{true if g()=>{},_=>{}}}",
+        "fn Main(){let a=[1];let g=fn [move a]()->Bool{return true;};match true{true if g()=>{},_=>{}}}",
+        "fn Main(){match true{true if (fn ()->Bool{return true;})()=>{},_=>{}}}",
+        "fn Main(){let a=[1];match true{true if (fn [move a]()->Bool{return true;})()=>{},_=>{}}}",
+        // The effect is in the scrutinee or in the arm body, not in the guard.
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match g(){true if true=>{},_=>{}}}",
+        "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true=>{g();},_=>{}}}",
+    ] {
+        unit_events(source, &[]);
+    }
+}

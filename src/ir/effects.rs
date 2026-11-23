@@ -1807,13 +1807,23 @@ pub(super) fn analyze(
             }
             for block in std::iter::once(&f.block).chain(&f.blocks) {
                 for instruction in &block.instructions {
-                    let Op::CallDirect { function, .. } = &instruction.op else {
-                        continue;
+                    // The call edge is the one `find_witness` builds for its callers: the
+                    // callee, the cause operation and, for a closure, its declaration site.
+                    let (callee, operation, declaration) = match &instruction.op {
+                        Op::CallDirect { function, .. } => {
+                            (function.clone(), CauseOperation::FunctionCall, None)
+                        }
+                        Op::CallClosure { site, .. } => (
+                            super::model::FunctionId(format!("$closure:{site}")),
+                            CauseOperation::ClosureCall,
+                            Some(*site),
+                        ),
+                        _ => continue,
                     };
                     if !in_guard(&instruction.span) {
                         continue;
                     }
-                    let Some(&target) = indices.get(function) else {
+                    let Some(&target) = indices.get(&callee) else {
                         continue;
                     };
                     let Some((rank, (bit, _, _))) =
@@ -1834,15 +1844,15 @@ pub(super) fn analyze(
                         0,
                         Cause {
                             kind: CauseKind::Call,
-                            operation: CauseOperation::FunctionCall,
+                            operation,
                             span: Some(primary.clone()),
                             entity: Some(Entity {
                                 kind: EntityKind::Function,
                                 id: format!(
                                     "function:{}",
-                                    source_functions
+                                    declaration.unwrap_or_else(|| source_functions
                                         .get(program.functions.functions()[target].name.as_str())
-                                        .map_or(0, |function| function.name_span.start)
+                                        .map_or(0, |function| function.name_span.start))
                                 ),
                             }),
                             evidence: Evidence::Verified,

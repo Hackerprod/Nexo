@@ -1282,29 +1282,6 @@ const CASES: &[Case] = &[
     },
     Case {
         family: "effects",
-        name: "head_no_io_name_1_guard",
-        profile: J,
-        source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if (f)()=>{},_=>{}}}",
-        code: "NX-E0415",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"known_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"io\"",
-        ],
-        primary: (83, 84),
-        token: "f",
-        related: &[("contract", 15, 20)],
-        cause: &[("closure.call", 83, 84), ("intrinsic.call", 39, 44)],
-        control: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if f()=>{},_=>{}}}",
-        control_primary: (82, 83),
-        repair: "fn Main(){let f=fn ()->Bool{Print(1); return true;};match true{true if (f)()=>{},_=>{}}}",
-    },
-    Case {
-        family: "effects",
         name: "head_no_io_name_2_stmt",
         profile: J,
         source: "fn Main() with no_io{let f=fn (){Print(1);};((f))();}",
@@ -1325,29 +1302,6 @@ const CASES: &[Case] = &[
         control: "fn Main() with no_io{let f=fn (){Print(1);};f();}",
         control_primary: (44, 45),
         repair: "fn Main(){let f=fn (){Print(1);};((f))();}",
-    },
-    Case {
-        family: "effects",
-        name: "head_no_io_name_2_guard",
-        profile: J,
-        source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if ((f))()=>{},_=>{}}}",
-        code: "NX-E0415",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"known_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"io\"",
-        ],
-        primary: (84, 85),
-        token: "f",
-        related: &[("contract", 15, 20)],
-        cause: &[("closure.call", 84, 85), ("intrinsic.call", 39, 44)],
-        control: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if f()=>{},_=>{}}}",
-        control_primary: (82, 83),
-        repair: "fn Main(){let f=fn ()->Bool{Print(1); return true;};match true{true if ((f))()=>{},_=>{}}}",
     },
     Case {
         family: "effects",
@@ -1374,29 +1328,6 @@ const CASES: &[Case] = &[
     },
     Case {
         family: "effects",
-        name: "head_no_io_literal_1_guard",
-        profile: J,
-        source: "fn Main() with no_io{match true{true if (fn ()->Bool{Print(1); return true;})()=>{},_=>{}}}",
-        code: "NX-E0415",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"known_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"io\"",
-        ],
-        primary: (41, 43),
-        token: "fn",
-        related: &[("contract", 15, 20)],
-        cause: &[("closure.call", 41, 43), ("intrinsic.call", 53, 58)],
-        control: "fn Main() with no_io{match true{true if fn ()->Bool{Print(1); return true;}()=>{},_=>{}}}",
-        control_primary: (40, 42),
-        repair: "fn Main(){match true{true if (fn ()->Bool{Print(1); return true;})()=>{},_=>{}}}",
-    },
-    Case {
-        family: "effects",
         name: "head_no_io_literal_2_stmt",
         profile: J,
         source: "fn Main() with no_io{((fn (){Print(1);}))();}",
@@ -1417,29 +1348,6 @@ const CASES: &[Case] = &[
         control: "fn Main() with no_io{fn (){Print(1);}();}",
         control_primary: (21, 23),
         repair: "fn Main(){((fn (){Print(1);}))();}",
-    },
-    Case {
-        family: "effects",
-        name: "head_no_io_literal_2_guard",
-        profile: J,
-        source: "fn Main() with no_io{match true{true if ((fn ()->Bool{Print(1); return true;}))()=>{},_=>{}}}",
-        code: "NX-E0415",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"known_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"io\"",
-        ],
-        primary: (42, 44),
-        token: "fn",
-        related: &[("contract", 15, 20)],
-        cause: &[("closure.call", 42, 44), ("intrinsic.call", 54, 59)],
-        control: "fn Main() with no_io{match true{true if fn ()->Bool{Print(1); return true;}()=>{},_=>{}}}",
-        control_primary: (40, 42),
-        repair: "fn Main(){match true{true if ((fn ()->Bool{Print(1); return true;}))()=>{},_=>{}}}",
     },
     Case {
         family: "effects",
@@ -1466,29 +1374,6 @@ const CASES: &[Case] = &[
     },
     Case {
         family: "effects",
-        name: "head_no_io_if_1_guard",
-        profile: J,
-        source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
-        code: "NX-E0415",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"known_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"io\"",
-        ],
-        primary: (83, 85),
-        token: "if",
-        related: &[("contract", 15, 20)],
-        cause: &[("closure.call", 83, 85), ("intrinsic.call", 39, 44)],
-        control: "",
-        control_primary: (0, 0),
-        repair: "fn Main(){let f=fn ()->Bool{Print(1); return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
-    },
-    Case {
-        family: "effects",
         name: "head_no_io_if_2_stmt",
         profile: J,
         source: "fn Main() with no_io{let f=fn (){Print(1);};((if true then f else f))();}",
@@ -1509,29 +1394,6 @@ const CASES: &[Case] = &[
         control: "",
         control_primary: (0, 0),
         repair: "fn Main(){let f=fn (){Print(1);};((if true then f else f))();}",
-    },
-    Case {
-        family: "effects",
-        name: "head_no_io_if_2_guard",
-        profile: J,
-        source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
-        code: "NX-E0415",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"known_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"io\"",
-        ],
-        primary: (84, 86),
-        token: "if",
-        related: &[("contract", 15, 20)],
-        cause: &[("closure.call", 84, 86), ("intrinsic.call", 39, 44)],
-        control: "",
-        control_primary: (0, 0),
-        repair: "fn Main(){let f=fn ()->Bool{Print(1); return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
     },
     Case {
         family: "effects",
@@ -2004,29 +1866,6 @@ const CASES: &[Case] = &[
     },
     Case {
         family: "effects",
-        name: "head_no_suspend_name_1_guard",
-        profile: J,
-        source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if (f)()=>{},_=>{}}}",
-        code: "NX-E0414",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"unknown_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"suspend\"",
-        ],
-        primary: (93, 94),
-        token: "f",
-        related: &[("contract", 15, 25)],
-        cause: &[("closure.call", 93, 94), ("intrinsic.call", 44, 55)],
-        control: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if f()=>{},_=>{}}}",
-        control_primary: (92, 93),
-        repair: "fn Main(){let f=fn ()->Bool{MockUnknown(); return true;};match true{true if (f)()=>{},_=>{}}}",
-    },
-    Case {
-        family: "effects",
         name: "head_no_suspend_name_2_stmt",
         profile: J,
         source: "fn Main() with no_suspend{let f=fn (){MockUnknown();};((f))();}",
@@ -2047,29 +1886,6 @@ const CASES: &[Case] = &[
         control: "fn Main() with no_suspend{let f=fn (){MockUnknown();};f();}",
         control_primary: (54, 55),
         repair: "fn Main(){let f=fn (){MockUnknown();};((f))();}",
-    },
-    Case {
-        family: "effects",
-        name: "head_no_suspend_name_2_guard",
-        profile: J,
-        source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if ((f))()=>{},_=>{}}}",
-        code: "NX-E0414",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"unknown_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"suspend\"",
-        ],
-        primary: (94, 95),
-        token: "f",
-        related: &[("contract", 15, 25)],
-        cause: &[("closure.call", 94, 95), ("intrinsic.call", 44, 55)],
-        control: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if f()=>{},_=>{}}}",
-        control_primary: (92, 93),
-        repair: "fn Main(){let f=fn ()->Bool{MockUnknown(); return true;};match true{true if ((f))()=>{},_=>{}}}",
     },
     Case {
         family: "effects",
@@ -2096,29 +1912,6 @@ const CASES: &[Case] = &[
     },
     Case {
         family: "effects",
-        name: "head_no_suspend_literal_1_guard",
-        profile: J,
-        source: "fn Main() with no_suspend{match true{true if (fn ()->Bool{MockUnknown(); return true;})()=>{},_=>{}}}",
-        code: "NX-E0414",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"unknown_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"suspend\"",
-        ],
-        primary: (46, 48),
-        token: "fn",
-        related: &[("contract", 15, 25)],
-        cause: &[("closure.call", 46, 48), ("intrinsic.call", 58, 69)],
-        control: "fn Main() with no_suspend{match true{true if fn ()->Bool{MockUnknown(); return true;}()=>{},_=>{}}}",
-        control_primary: (45, 47),
-        repair: "fn Main(){match true{true if (fn ()->Bool{MockUnknown(); return true;})()=>{},_=>{}}}",
-    },
-    Case {
-        family: "effects",
         name: "head_no_suspend_literal_2_stmt",
         profile: J,
         source: "fn Main() with no_suspend{((fn (){MockUnknown();}))();}",
@@ -2139,29 +1932,6 @@ const CASES: &[Case] = &[
         control: "fn Main() with no_suspend{fn (){MockUnknown();}();}",
         control_primary: (26, 28),
         repair: "fn Main(){((fn (){MockUnknown();}))();}",
-    },
-    Case {
-        family: "effects",
-        name: "head_no_suspend_literal_2_guard",
-        profile: J,
-        source: "fn Main() with no_suspend{match true{true if ((fn ()->Bool{MockUnknown(); return true;}))()=>{},_=>{}}}",
-        code: "NX-E0414",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"unknown_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"suspend\"",
-        ],
-        primary: (47, 49),
-        token: "fn",
-        related: &[("contract", 15, 25)],
-        cause: &[("closure.call", 47, 49), ("intrinsic.call", 59, 70)],
-        control: "fn Main() with no_suspend{match true{true if fn ()->Bool{MockUnknown(); return true;}()=>{},_=>{}}}",
-        control_primary: (45, 47),
-        repair: "fn Main(){match true{true if ((fn ()->Bool{MockUnknown(); return true;}))()=>{},_=>{}}}",
     },
     Case {
         family: "effects",
@@ -2188,29 +1958,6 @@ const CASES: &[Case] = &[
     },
     Case {
         family: "effects",
-        name: "head_no_suspend_if_1_guard",
-        profile: J,
-        source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
-        code: "NX-E0414",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"unknown_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"suspend\"",
-        ],
-        primary: (93, 95),
-        token: "if",
-        related: &[("contract", 15, 25)],
-        cause: &[("closure.call", 93, 95), ("intrinsic.call", 44, 55)],
-        control: "",
-        control_primary: (0, 0),
-        repair: "fn Main(){let f=fn ()->Bool{MockUnknown(); return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
-    },
-    Case {
-        family: "effects",
         name: "head_no_suspend_if_2_stmt",
         profile: J,
         source: "fn Main() with no_suspend{let f=fn (){MockUnknown();};((if true then f else f))();}",
@@ -2231,29 +1978,6 @@ const CASES: &[Case] = &[
         control: "",
         control_primary: (0, 0),
         repair: "fn Main(){let f=fn (){MockUnknown();};((if true then f else f))();}",
-    },
-    Case {
-        family: "effects",
-        name: "head_no_suspend_if_2_guard",
-        profile: J,
-        source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
-        code: "NX-E0414",
-        subcause: None,
-        stage: "effects",
-        operation: "closure.call",
-        feature: None,
-        data: &[
-            "\"effect_evidence\":\"unknown_effect\"",
-            "\"effect_model\":\"f0-0003-sim-v1\"",
-            "\"required_effect\":\"suspend\"",
-        ],
-        primary: (94, 96),
-        token: "if",
-        related: &[("contract", 15, 25)],
-        cause: &[("closure.call", 94, 96), ("intrinsic.call", 44, 55)],
-        control: "",
-        control_primary: (0, 0),
-        repair: "fn Main(){let f=fn ()->Bool{MockUnknown(); return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
     },
     Case {
         family: "effects",
@@ -2916,6 +2640,334 @@ fn rule_fragments(json: &str, case: &Case, with_data: bool) {
     }
 }
 
+/// A closure call in a `match` guard whose body has an effect and whose function has a `with no_*`
+/// contract breaks two independent rules at one site (F0-0003 3.3: the guard forbids io, alloc,
+/// block, suspend and unknown effects; the contract is its own rule): the contract diagnostic
+/// (`NX-E0414`/`NX-E0415`, fields unchanged) and `NX-E1305/guard_effect`, in code order. Primaries
+/// are transcribed from the plan (derivation in the cut report): the callee name (`f`), the head
+/// `fn` of a grouped literal or the head `if` of a grouped `if`, each without the outer groups.
+/// `required_effect` is the first applicable of alloc, block, suspend, io (F0-0003 8.1 Q01):
+/// `io` for `Print`, `alloc` for `MockUnknown` (its evidence is `unknown_effect`).
+struct GuardContractCase {
+    case: Case,
+    required_effect: &'static str,
+}
+
+const GUARD_CONTRACT_CASES: &[GuardContractCase] = &[
+    GuardContractCase {
+        required_effect: "io",
+        case: Case {
+            family: "effects",
+            name: "head_no_io_name_1_guard",
+            profile: J,
+            source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if (f)()=>{},_=>{}}}",
+            code: "NX-E0415",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"known_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"io\"",
+            ],
+            primary: (83, 84),
+            token: "f",
+            related: &[("contract", 15, 20)],
+            cause: &[("closure.call", 83, 84), ("intrinsic.call", 39, 44)],
+            control: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if f()=>{},_=>{}}}",
+            control_primary: (82, 83),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if (f)()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "io",
+        case: Case {
+            family: "effects",
+            name: "head_no_io_name_2_guard",
+            profile: J,
+            source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if ((f))()=>{},_=>{}}}",
+            code: "NX-E0415",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"known_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"io\"",
+            ],
+            primary: (84, 85),
+            token: "f",
+            related: &[("contract", 15, 20)],
+            cause: &[("closure.call", 84, 85), ("intrinsic.call", 39, 44)],
+            control: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if f()=>{},_=>{}}}",
+            control_primary: (82, 83),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if ((f))()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "io",
+        case: Case {
+            family: "effects",
+            name: "head_no_io_literal_1_guard",
+            profile: J,
+            source: "fn Main() with no_io{match true{true if (fn ()->Bool{Print(1); return true;})()=>{},_=>{}}}",
+            code: "NX-E0415",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"known_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"io\"",
+            ],
+            primary: (41, 43),
+            token: "fn",
+            related: &[("contract", 15, 20)],
+            cause: &[("closure.call", 41, 43), ("intrinsic.call", 53, 58)],
+            control: "fn Main() with no_io{match true{true if fn ()->Bool{Print(1); return true;}()=>{},_=>{}}}",
+            control_primary: (40, 42),
+            repair: "fn Main(){match true{true if (fn ()->Bool{return true;})()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "io",
+        case: Case {
+            family: "effects",
+            name: "head_no_io_literal_2_guard",
+            profile: J,
+            source: "fn Main() with no_io{match true{true if ((fn ()->Bool{Print(1); return true;}))()=>{},_=>{}}}",
+            code: "NX-E0415",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"known_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"io\"",
+            ],
+            primary: (42, 44),
+            token: "fn",
+            related: &[("contract", 15, 20)],
+            cause: &[("closure.call", 42, 44), ("intrinsic.call", 54, 59)],
+            control: "fn Main() with no_io{match true{true if fn ()->Bool{Print(1); return true;}()=>{},_=>{}}}",
+            control_primary: (40, 42),
+            repair: "fn Main(){match true{true if ((fn ()->Bool{return true;}))()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "io",
+        case: Case {
+            family: "effects",
+            name: "head_no_io_if_1_guard",
+            profile: J,
+            source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
+            code: "NX-E0415",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"known_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"io\"",
+            ],
+            primary: (83, 85),
+            token: "if",
+            related: &[("contract", 15, 20)],
+            cause: &[("closure.call", 83, 85), ("intrinsic.call", 39, 44)],
+            control: "",
+            control_primary: (0, 0),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "io",
+        case: Case {
+            family: "effects",
+            name: "head_no_io_if_2_guard",
+            profile: J,
+            source: "fn Main() with no_io{let f=fn ()->Bool{Print(1); return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
+            code: "NX-E0415",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"known_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"io\"",
+            ],
+            primary: (84, 86),
+            token: "if",
+            related: &[("contract", 15, 20)],
+            cause: &[("closure.call", 84, 86), ("intrinsic.call", 39, 44)],
+            control: "",
+            control_primary: (0, 0),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "alloc",
+        case: Case {
+            family: "effects",
+            name: "head_no_suspend_name_1_guard",
+            profile: J,
+            source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if (f)()=>{},_=>{}}}",
+            code: "NX-E0414",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"unknown_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"suspend\"",
+            ],
+            primary: (93, 94),
+            token: "f",
+            related: &[("contract", 15, 25)],
+            cause: &[("closure.call", 93, 94), ("intrinsic.call", 44, 55)],
+            control: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if f()=>{},_=>{}}}",
+            control_primary: (92, 93),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if (f)()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "alloc",
+        case: Case {
+            family: "effects",
+            name: "head_no_suspend_name_2_guard",
+            profile: J,
+            source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if ((f))()=>{},_=>{}}}",
+            code: "NX-E0414",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"unknown_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"suspend\"",
+            ],
+            primary: (94, 95),
+            token: "f",
+            related: &[("contract", 15, 25)],
+            cause: &[("closure.call", 94, 95), ("intrinsic.call", 44, 55)],
+            control: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if f()=>{},_=>{}}}",
+            control_primary: (92, 93),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if ((f))()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "alloc",
+        case: Case {
+            family: "effects",
+            name: "head_no_suspend_literal_1_guard",
+            profile: J,
+            source: "fn Main() with no_suspend{match true{true if (fn ()->Bool{MockUnknown(); return true;})()=>{},_=>{}}}",
+            code: "NX-E0414",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"unknown_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"suspend\"",
+            ],
+            primary: (46, 48),
+            token: "fn",
+            related: &[("contract", 15, 25)],
+            cause: &[("closure.call", 46, 48), ("intrinsic.call", 58, 69)],
+            control: "fn Main() with no_suspend{match true{true if fn ()->Bool{MockUnknown(); return true;}()=>{},_=>{}}}",
+            control_primary: (45, 47),
+            repair: "fn Main(){match true{true if (fn ()->Bool{return true;})()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "alloc",
+        case: Case {
+            family: "effects",
+            name: "head_no_suspend_literal_2_guard",
+            profile: J,
+            source: "fn Main() with no_suspend{match true{true if ((fn ()->Bool{MockUnknown(); return true;}))()=>{},_=>{}}}",
+            code: "NX-E0414",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"unknown_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"suspend\"",
+            ],
+            primary: (47, 49),
+            token: "fn",
+            related: &[("contract", 15, 25)],
+            cause: &[("closure.call", 47, 49), ("intrinsic.call", 59, 70)],
+            control: "fn Main() with no_suspend{match true{true if fn ()->Bool{MockUnknown(); return true;}()=>{},_=>{}}}",
+            control_primary: (45, 47),
+            repair: "fn Main(){match true{true if ((fn ()->Bool{return true;}))()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "alloc",
+        case: Case {
+            family: "effects",
+            name: "head_no_suspend_if_1_guard",
+            profile: J,
+            source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
+            code: "NX-E0414",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"unknown_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"suspend\"",
+            ],
+            primary: (93, 95),
+            token: "if",
+            related: &[("contract", 15, 25)],
+            cause: &[("closure.call", 93, 95), ("intrinsic.call", 44, 55)],
+            control: "",
+            control_primary: (0, 0),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if (if true then f else f)()=>{},_=>{}}}",
+        },
+    },
+    GuardContractCase {
+        required_effect: "alloc",
+        case: Case {
+            family: "effects",
+            name: "head_no_suspend_if_2_guard",
+            profile: J,
+            source: "fn Main() with no_suspend{let f=fn ()->Bool{MockUnknown(); return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
+            code: "NX-E0414",
+            subcause: None,
+            stage: "effects",
+            operation: "closure.call",
+            feature: None,
+            data: &[
+                "\"effect_evidence\":\"unknown_effect\"",
+                "\"effect_model\":\"f0-0003-sim-v1\"",
+                "\"required_effect\":\"suspend\"",
+            ],
+            primary: (94, 96),
+            token: "if",
+            related: &[("contract", 15, 25)],
+            cause: &[("closure.call", 94, 96), ("intrinsic.call", 44, 55)],
+            control: "",
+            control_primary: (0, 0),
+            repair: "fn Main(){let f=fn ()->Bool{return true;};match true{true if ((if true then f else f))()=>{},_=>{}}}",
+        },
+    },
+];
+
 fn run_family(family: &str) {
     let mut seen = 0;
     for case in CASES.iter().filter(|case| case.family == family) {
@@ -3024,6 +3076,475 @@ fn lowering_capability_barrier_reports_the_inner_place() {
 #[test]
 fn effect_diagnostics_report_the_target_name_of_a_grouped_call() {
     run_family("effects");
+}
+
+const DIAGNOSTIC_START: &str = "{\"schema_version\":1,\"diagnostic_namespace\"";
+
+/// Exactly two diagnostics, in emission order (the contract code sorts before `NX-E1305`); each
+/// element starts at its own diagnostic and also carries what follows it in the document.
+fn exactly_two_diagnostics(verb: &str, source: &str, profile: &str) -> [String; 2] {
+    let (exit, json, stderr) = invoke(verb, source, profile);
+    assert_eq!(exit, 1, "{verb}: {source}: {json}: {stderr}");
+    assert!(stderr.is_empty(), "{verb}: {source}: {stderr}");
+    for fragment in [
+        "\"outcome\":{\"kind\":\"rejected\"}",
+        "\"stdout\":[]",
+        "\"events\":[]",
+        "\"observations\":[]",
+    ] {
+        assert!(json.contains(fragment), "{verb}: {source}: {json}");
+    }
+    assert_eq!(
+        json.matches(DIAGNOSTIC_START).count(),
+        2,
+        "{verb}: {source}: {json}"
+    );
+    let mut parts = json.split(DIAGNOSTIC_START).skip(1);
+    [
+        parts.next().unwrap().to_owned(),
+        parts.next().unwrap().to_owned(),
+    ]
+}
+
+/// The second diagnostic of a guard-contract row: every field is compared for equality.
+fn check_guard_effect_diagnostic(
+    second: &str,
+    first: &str,
+    row: &GuardContractCase,
+    primary_span: (usize, usize),
+    label: &str,
+) {
+    let case = &row.case;
+    for fragment in [
+        "\"code\":\"NX-E1305\"",
+        "\"subcause\":\"guard_effect\"",
+        "\"rule\":\"NX-E1305/guard_effect\"",
+        "\"explanation_id\":\"NX-E1305/guard_effect\"",
+        "\"stage\":\"effects\"",
+        "\"operation\":\"effects.check\"",
+        "\"feature_id\":null",
+    ] {
+        assert!(second.contains(fragment), "{label}: {fragment}: {second}");
+    }
+    assert_eq!(primary(second), primary_span, "{label}: {second}");
+    assert_eq!(
+        section(second, "\"related_spans\":[", "],\"cause_chain\""),
+        "",
+        "{label}: guard_effect carries no relations"
+    );
+    // Same evidence as the contract diagnostic, the effect the guard rule requires, the model.
+    let evidence = case
+        .data
+        .iter()
+        .find(|fragment| fragment.starts_with("\"effect_evidence\""))
+        .unwrap();
+    let model = case
+        .data
+        .iter()
+        .find(|fragment| fragment.starts_with("\"effect_model\""))
+        .unwrap();
+    let expected_data = format!(
+        "{{{evidence},{model},\"required_effect\":\"{}\"}}",
+        row.required_effect
+    );
+    assert_eq!(
+        section(second, "\"data\":", "}").to_owned() + "}",
+        expected_data,
+        "{label}: data"
+    );
+    // The same causal steps as the contract diagnostic (operations, spans and entities).
+    assert_eq!(
+        section(second, "\"cause_chain\":[", "],\"feature_id\""),
+        section(first, "\"cause_chain\":[", "],\"feature_id\""),
+        "{label}: steps"
+    );
+}
+
+#[test]
+fn guard_calls_report_the_contract_and_the_guard_effect_at_one_site() {
+    assert_eq!(GUARD_CONTRACT_CASES.len(), 12);
+    for row in GUARD_CONTRACT_CASES {
+        let case = &row.case;
+        assert!(case.source.is_ascii() && case.control.is_ascii() && case.repair.is_ascii());
+        assert_eq!(
+            &case.source[case.primary.0..case.primary.1],
+            case.token,
+            "{}: the expected span must slice the stated token",
+            case.name
+        );
+        assert!(
+            !case.repair.contains("with ")
+                && !case.repair.contains("Print")
+                && !case.repair.contains("MockUnknown"),
+            "{}: the repair has neither contract nor effect",
+            case.name
+        );
+        for verb in ["check", "run"] {
+            let label = format!("{}: {verb}", case.name);
+            let [first, second] = exactly_two_diagnostics(verb, case.source, case.profile);
+            rule_fragments(&first, case, true);
+            assert_eq!(primary(&first), case.primary, "{label}: {first}");
+            let expected_related: Vec<_> = case
+                .related
+                .iter()
+                .map(|(role, a, b)| (role.to_string(), *a, *b))
+                .collect();
+            assert_eq!(related(&first), expected_related, "{label}");
+            let expected_cause: Vec<_> = case
+                .cause
+                .iter()
+                .map(|(operation, a, b)| (operation.to_string(), *a, *b))
+                .collect();
+            assert_eq!(cause(&first), expected_cause, "{label}");
+            check_guard_effect_diagnostic(&second, &first, row, case.primary, &label);
+            assert_eq!(cause(&second), expected_cause, "{label}");
+
+            if !case.control.is_empty() {
+                let label = format!("{}: control {verb}", case.name);
+                let [first, second] = exactly_two_diagnostics(verb, case.control, case.profile);
+                rule_fragments(&first, case, false);
+                assert_eq!(primary(&first), case.control_primary, "{label}: {first}");
+                check_guard_effect_diagnostic(&second, &first, row, case.control_primary, &label);
+            }
+
+            // The repair is the same program without the contract and with a pure closure body:
+            // a real positive control in both verbs.
+            let (exit, json, stderr) = invoke(verb, case.repair, case.profile);
+            assert_eq!(exit, 0, "{label}: repair: {json}: {stderr}");
+            assert!(json.contains("\"diagnostics\":[]"), "{label}: {json}");
+            assert!(
+                json.contains(if verb == "check" {
+                    "\"outcome\":{\"kind\":\"checked\"}"
+                } else {
+                    "\"outcome\":{\"kind\":\"unit\"}"
+                }),
+                "{label}: {json}"
+            );
+        }
+    }
+}
+
+/// One expected diagnostic of a closure call in a guard. `chain` is (operation, start, end); a step
+/// without a span (a resource drop) is (0, 0).
+struct GuardSite {
+    code: &'static str,
+    subcause: Option<&'static str>,
+    operation: &'static str,
+    primary: (usize, usize),
+    token: &'static str,
+    related: &'static [(&'static str, usize, usize)],
+    /// Only for `guard_effect`: (`required_effect`, `effect_evidence`).
+    effect: Option<(&'static str, &'static str)>,
+    chain: &'static [(&'static str, usize, usize)],
+    /// Offset of the `fn` token of the called closure: entity `function:<offset>` of step one.
+    entity: usize,
+}
+
+struct GuardClosureCase {
+    name: &'static str,
+    source: &'static str,
+    sites: &'static [GuardSite],
+}
+
+const fn guard_effect(
+    primary: (usize, usize),
+    token: &'static str,
+    required: &'static str,
+    evidence: &'static str,
+    chain: &'static [(&'static str, usize, usize)],
+    entity: usize,
+) -> GuardSite {
+    GuardSite {
+        code: "NX-E1305",
+        subcause: Some("guard_effect"),
+        operation: "effects.check",
+        primary,
+        token,
+        related: &[],
+        effect: Some((required, evidence)),
+        chain,
+        entity,
+    }
+}
+
+/// Esperados transcritos del plan (casos T01..T19 y O04): primary = callee name or head token
+/// (F0-0002 8.2 and lagunas, grouped target), `required_effect` = first of alloc, block, suspend,
+/// io (F0-0003 8.1 Q01), chain = shortest witness (closure.call, then the callee witness).
+const GUARD_CLOSURE_CASES: &[GuardClosureCase] = &[
+    GuardClosureCase {
+        name: "t01_print",
+        source: "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true if g()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (70, 71),
+            "g",
+            "io",
+            "known_effect",
+            &[("closure.call", 70, 71), ("intrinsic.call", 28, 33)],
+            16,
+        )],
+    },
+    GuardClosureCase {
+        name: "t02_unknown",
+        source: "fn Main(){let g=fn ()->Bool{MockUnknown();return true;};match true{true if g()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (75, 76),
+            "g",
+            "alloc",
+            "unknown_effect",
+            &[("closure.call", 75, 76), ("intrinsic.call", 28, 39)],
+            16,
+        )],
+    },
+    GuardClosureCase {
+        name: "t03_transitive_function",
+        source: "fn G()->Bool{Print(1);return true;}fn Main(){let g=fn ()->Bool{return G();};match true{true if g()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (95, 96),
+            "g",
+            "io",
+            "known_effect",
+            &[
+                ("closure.call", 95, 96),
+                ("function.call", 70, 71),
+                ("intrinsic.call", 13, 18),
+            ],
+            51,
+        )],
+    },
+    GuardClosureCase {
+        name: "t10_grouped_literal",
+        source: "fn Main(){match true{true if (fn ()->Bool{Print(1);return true;})()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (30, 32),
+            "fn",
+            "io",
+            "known_effect",
+            &[("closure.call", 30, 32), ("intrinsic.call", 42, 47)],
+            30,
+        )],
+    },
+    GuardClosureCase {
+        name: "t11_pattern_bound",
+        source: "fn Main(){let g=fn ()->Bool{Print(1);return true;};match Some(g){Some(h) if h()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (76, 77),
+            "h",
+            "io",
+            "known_effect",
+            &[("closure.call", 76, 77), ("intrinsic.call", 28, 33)],
+            16,
+        )],
+    },
+    GuardClosureCase {
+        name: "t14_two_closures",
+        source: "fn Main(){let g=fn ()->Bool{Print(1);return true;};let k=fn ()->Bool{MockUnknown();return true;};match true{true if g()==k()=>{},_=>{}}}",
+        sites: &[
+            guard_effect(
+                (116, 117),
+                "g",
+                "io",
+                "known_effect",
+                &[("closure.call", 116, 117), ("intrinsic.call", 28, 33)],
+                16,
+            ),
+            guard_effect(
+                (121, 122),
+                "k",
+                "alloc",
+                "unknown_effect",
+                &[("closure.call", 121, 122), ("intrinsic.call", 69, 80)],
+                57,
+            ),
+        ],
+    },
+    GuardClosureCase {
+        name: "t16_open",
+        source: "fn Main(){let g=fn ()->Bool{let r=MockOpen(1);return true;};match true{true if g()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (79, 80),
+            "g",
+            "io",
+            "known_effect",
+            &[("closure.call", 79, 80), ("intrinsic.call", 34, 42)],
+            16,
+        )],
+    },
+    GuardClosureCase {
+        name: "t17_blocking_open",
+        source: "fn Main(){let g=fn ()->Bool{let r=MockBlockingOpen(1);return true;};match true{true if g()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (87, 88),
+            "g",
+            "block",
+            "known_effect",
+            &[
+                ("closure.call", 87, 88),
+                ("value.drop", 32, 33),
+                ("resource.drop", 0, 0),
+            ],
+            16,
+        )],
+    },
+    GuardClosureCase {
+        name: "t18_array_copy",
+        source: "fn Main(){let g=fn ()->Bool{let a=[1];let b=a;return true;};match true{true if g()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (79, 80),
+            "g",
+            "alloc",
+            "known_effect",
+            &[("closure.call", 79, 80), ("value.build_array", 34, 37)],
+            16,
+        )],
+    },
+    GuardClosureCase {
+        name: "t19_generator_next",
+        source: "gen fn S()->I64{yield 1;}fn Main(){let g=fn ()->Bool{var s=S();let n=Iterator.Next(edit s);return true;};match true{true if g()=>{},_=>{}}}",
+        sites: &[guard_effect(
+            (124, 125),
+            "g",
+            "suspend",
+            "known_effect",
+            &[
+                ("closure.call", 124, 125),
+                ("generator.next", 78, 82),
+                ("generator.yield", 16, 21),
+            ],
+            41,
+        )],
+    },
+    // The contract and the guard are independent rules at one site (plan 2.4, O04): the contract
+    // diagnostic is unchanged and `guard_effect` is added, as for a named function.
+    GuardClosureCase {
+        name: "o04_contract_and_guard",
+        source: "fn Main() with no_io{let g=fn ()->Bool{Print(1);return true;};match true{true if g()=>{},_=>{}}}",
+        sites: &[
+            GuardSite {
+                code: "NX-E0415",
+                subcause: None,
+                operation: "closure.call",
+                primary: (81, 82),
+                token: "g",
+                related: &[("contract", 15, 20)],
+                effect: None,
+                chain: &[("closure.call", 81, 82), ("intrinsic.call", 39, 44)],
+                entity: 27,
+            },
+            guard_effect(
+                (81, 82),
+                "g",
+                "io",
+                "known_effect",
+                &[("closure.call", 81, 82), ("intrinsic.call", 39, 44)],
+                27,
+            ),
+        ],
+    },
+];
+
+/// Pure closure bodies in guards stay accepted (plan 2.3).
+const GUARD_CLOSURE_POSITIVES: &[&str] = &[
+    "fn Main(){let g=fn ()->Bool{return true;};match true{true if g()=>{},_=>{}}}",
+    "fn Main(){let x=1;let g=fn ()->Bool{return x==1;};match true{true if g()=>{},_=>{}}}",
+    "fn Main(){let a=[1];let g=fn [move a]()->Bool{return true;};match true{true if g()=>{},_=>{}}}",
+    "fn Main(){match true{true if (fn ()->Bool{return true;})()=>{},_=>{}}}",
+    "fn Main(){let a=[1];match true{true if (fn [move a]()->Bool{return true;})()=>{},_=>{}}}",
+];
+
+/// The effect is in the scrutinee or in the arm body, not in the guard: accepted, and the
+/// program prints.
+const EFFECT_OUTSIDE_THE_GUARD: &[&str] = &[
+    "fn Main(){let g=fn ()->Bool{Print(1);return true;};match g(){true if true=>{},_=>{}}}",
+    "fn Main(){let g=fn ()->Bool{Print(1);return true;};match true{true=>{g();},_=>{}}}",
+];
+
+#[test]
+fn closure_calls_in_guards_report_guard_effect_in_every_profile() {
+    for (profile, model) in [(J, "f0-0003-sim-v1"), (F5, "f0-0005-sim-v1")] {
+        for case in GUARD_CLOSURE_CASES {
+            assert!(case.source.is_ascii());
+            for verb in ["check", "run"] {
+                let label = format!("{profile}: {}: {verb}", case.name);
+                let (exit, json, stderr) = invoke(verb, case.source, profile);
+                assert_eq!(exit, 1, "{label}: {json}: {stderr}");
+                assert!(stderr.is_empty(), "{label}: {stderr}");
+                assert_eq!(
+                    json.matches(DIAGNOSTIC_START).count(),
+                    case.sites.len(),
+                    "{label}: {json}"
+                );
+                for (site, piece) in case.sites.iter().zip(json.split(DIAGNOSTIC_START).skip(1)) {
+                    assert_eq!(&case.source[site.primary.0..site.primary.1], site.token);
+                    let subcause = site
+                        .subcause
+                        .map(|s| format!("\"subcause\":\"{s}\""))
+                        .unwrap_or_else(|| "\"subcause\":null".into());
+                    for fragment in [
+                        format!("\"code\":\"{}\"", site.code),
+                        subcause,
+                        "\"stage\":\"effects\"".to_owned(),
+                        format!("\"operation\":\"{}\"", site.operation),
+                    ] {
+                        assert!(piece.contains(&fragment), "{label}: {fragment}: {piece}");
+                    }
+                    assert_eq!(primary(piece), site.primary, "{label}: {piece}");
+                    let expected_related: Vec<_> = site
+                        .related
+                        .iter()
+                        .map(|(role, a, b)| (role.to_string(), *a, *b))
+                        .collect();
+                    assert_eq!(related(piece), expected_related, "{label}");
+                    let expected_cause: Vec<_> = site
+                        .chain
+                        .iter()
+                        .map(|(operation, a, b)| (operation.to_string(), *a, *b))
+                        .collect();
+                    assert_eq!(cause(piece), expected_cause, "{label}: {piece}");
+                    assert!(
+                        section(piece, "\"cause_chain\":[", "\"evidence\"").contains(&format!(
+                            "\"entity\":{{\"kind\":\"function\",\"id\":\"function:{}\"}}",
+                            site.entity
+                        )),
+                        "{label}: entity of the closure call: {piece}"
+                    );
+                    if let Some((required, evidence)) = site.effect {
+                        let expected = format!(
+                            "{{\"effect_evidence\":\"{evidence}\",\"effect_model\":\"{model}\",\"required_effect\":\"{required}\"}}"
+                        );
+                        assert_eq!(
+                            format!("{}}}", section(piece, "\"data\":", "}")),
+                            expected,
+                            "{label}: data"
+                        );
+                    }
+                }
+            }
+        }
+        for source in GUARD_CLOSURE_POSITIVES {
+            accepted(source, profile);
+        }
+        for source in EFFECT_OUTSIDE_THE_GUARD {
+            for verb in ["check", "run"] {
+                let (exit, json, stderr) = invoke(verb, source, profile);
+                assert_eq!(exit, 0, "{verb}: {source}: {json}: {stderr}");
+                assert!(json.contains("\"diagnostics\":[]"), "{source}: {json}");
+                assert!(stderr.is_empty(), "{source}: {stderr}");
+            }
+        }
+    }
+    // Control of profile: f0-0002-b-v2 admits neither closures nor `match` (unchanged).
+    for verb in ["check", "run"] {
+        let (exit, json, stderr) = invoke(verb, GUARD_CLOSURE_CASES[0].source, "f0-0002-b-v2");
+        assert_eq!(exit, 1, "{verb}: {json}: {stderr}");
+        assert_eq!(json.matches(DIAGNOSTIC_START).count(), 1, "{json}");
+        for fragment in [
+            "\"code\":\"NX-E0006\"",
+            "\"feature_id\":\"closure\"",
+            "\"pending_scope\":\"F0-0003\"",
+        ] {
+            assert!(json.contains(fragment), "{verb}: {fragment}: {json}");
+        }
+    }
 }
 
 // Anchors that are not the call target expression keep their own site: the
