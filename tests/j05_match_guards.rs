@@ -541,7 +541,7 @@ fn guard_runtime_fault_cleans_unextracted_owner_once() {
     assert_eq!(execution.observations.events(), ["open:0:1", "close:0:1"]);
 }
 
-fn all_errors(source: &str) -> Vec<Box<Diagnostic>> {
+fn all_errors(source: &str) -> Vec<Diagnostic> {
     let mut previous: Option<Vec<String>> = None;
     for execute in [false, true] {
         let Err(CompileError::Rejected(errors)) =
@@ -561,7 +561,7 @@ fn all_errors(source: &str) -> Vec<Box<Diagnostic>> {
         }
         previous = Some(json);
         if execute {
-            return errors;
+            return errors.into_iter().map(|error| *error).collect();
         }
     }
     unreachable!()
