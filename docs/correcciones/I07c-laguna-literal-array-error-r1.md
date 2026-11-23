@@ -34,8 +34,9 @@ Ejemplos (se añaden a la sección). **Ejemplo con una sola NX-E1303** (literal 
 La regla de «Resultado de un literal de array heterogéneo» rige también cuando el literal es homogéneo pero algún elemento tiene un
 defecto interno, es una lectura contaminada (§4.1.1) o es una unión con una continuación errónea: el literal no ofrece tipo ni
 testigo parcial a una unión `if`, no es incompatible con su referencia y no recibe NX-E1303; sus errores internos se conservan. Rige
-igual para el valor de un brazo de `match` con valor; cómo un `match`, o un brazo que es otro `match`, ofrece su testigo a otra unión
-lo fija la sección «`match` con valor: unión de los valores de sus brazos y testigo parcial». Un literal sin defecto se contrasta.
+igual para el valor de un brazo de `match` con valor que es un literal de array con un elemento erróneo (vale esta sección); cómo un
+`match`, o un brazo que es otro `match`, ofrece su testigo a otra unión, y los demás defectos internos de un brazo, los regula la
+sección «`match` con valor y uniones: estado (laguna abierta; sin regla)». Un literal sin defecto se contrasta.
 ```
 
 | Caso | Con una sola NX-E1303 (literal sin defecto) | Inválido (sin NX-E1303 sobre el literal) | Discriminador |
@@ -58,7 +59,7 @@ Nota de la tercera fila (fuentes completas): con una sola NX-E1303: Σ+`let a0=(
 - **Defectos de `main` con constructor envolvente y unión anidada, distintos de la regla N** (barrido aproximado mío: 84 pares `Some`/sin `Some` de uniones anidadas, sin E0103/E0113, comparando los textos de los primarios de NX-E1303: **20 difieren, 6 de 36 sin hoja errónea y 14 de 48 con ella**; el gemelo sin `Some` da la hoja correcta). Corte: **d2/R1** (testigo parcial/ancla con constructor), no d3:
   1. *Primario en toda la unión anidada:* 91 B `fn Main(){let p=true;let a0=(if p then Some(2) else (if p then [1,true] else Some(true)));}` → `main` NX-E1303 `[53,87)` (`Option<I64>`/`Option<Bool>`); la regla da la hoja `[77,87)`; gemelo sin `Some`, 79 B, da `[71,75)`; con `Some([1,true])` (97 B) `[53,93)`.
   2. *NX-E1303 de menos:* 89 B `…(if p then Some(2) else (if p then true+1 else Some(true)));}` → solo NX-E0102 `[63,67)`; falta NX-E1303 sobre `Some(true)` `[75,85)` (gemelo sin `Some`, 77 B: `[69,73)`). Y 90 B `…(if p then (if p then Some(true) else Some(3)) else Some(2));}` → una NX-E1303 `[66,73)`; dos uniones incompatibles exigen dos (gemelo, 72 B: `[60,61)` y `[68,69)`).
-  3. *`match` anidado con brazo literal erróneo:* Σ′+`let o2:Option<I64>=Some(2);let a0=match move o{Some(n)=>{value: 2;},None=>{value: match move o2{Some(m)=>{value: [1,true];},None=>{value: true;}};}};}` (197 B) → solo NX-E0102 `[163,167)`; sin el literal (`value: 3`) `main` da NX-E1303 `[178,182)` sobre `true`. Qué testigo ofrece el `match` anidado lo decide la laguna de `match` (M3; pieza d2-9): **no adjudicado aquí**.
+  3. *`match` anidado con brazo literal erróneo:* Σ′+`let o2:Option<I64>=Some(2);let a0=match move o{Some(n)=>{value: 2;},None=>{value: match move o2{Some(m)=>{value: [1,true];},None=>{value: true;}};}};}` (197 B) → solo NX-E0102 `[163,167)`; sin el literal (`value: 3`) `main` da NX-E1303 `[178,182)` sobre `true`. Qué testigo ofrece el `match` anidado lo regula la sección «`match` con valor y uniones: estado (laguna abierta; sin regla)»: **no adjudicado aquí**.
 - Los dos defectos previos de B (dos NX-E1303 en una misma unión; NX-E1303 de menos con `[w,aar]` pendiente) siguen asignados a d2/R1 con su repro como test.
 
 ## 4. Adopción

@@ -167,9 +167,25 @@ def main():
     texto = json.dumps(tabla, indent=1, ensure_ascii=True, sort_keys=True) + '\n'
     if '--check' in sys.argv:
         viejo = json.load(open(OUT, encoding='utf-8'))
-        dif = [(a['id']) for a, b in zip(viejo['filas'], tabla['filas']) if a['diagnosticos'] != b['diagnosticos'] or a['fuente'] != b['fuente']]
-        print('programas', tabla['programas'], 'diferencias de diagnosticos:', dif or 'ninguna')
-        sys.exit(1 if dif else 0)
+        errores = []
+        n_prog, n_tabla, n_nueva = len(PROGRAMAS), len(viejo['filas']), len(tabla['filas'])
+        if not (n_prog == n_tabla == n_nueva == viejo.get('programas')):
+            errores.append('numero de filas: programas=%d tabla=%d ejecutadas=%d campo=%s' % (n_prog, n_tabla, n_nueva, viejo.get('programas')))
+        ids_v, ids_n = [f['id'] for f in viejo['filas']], [f['id'] for f in tabla['filas']]
+        if ids_v != ids_n:
+            errores.append('ids distintos: solo en tabla %s; solo en programas %s' % (sorted(set(ids_v) - set(ids_n)), sorted(set(ids_n) - set(ids_v))))
+        nuevo = {f['id']: f for f in tabla['filas']}
+        for a_ in viejo['filas']:
+            b_ = nuevo.get(a_['id'])
+            if b_ is None:
+                continue
+            for campo in ('fuente', 'perfil', 'bytes', 'outcome', 'diagnosticos'):
+                if a_.get(campo) != b_.get(campo):
+                    errores.append('%s: difiere %s' % (a_['id'], campo))
+        if viejo.get('binario_sha256') != tabla['binario_sha256']:
+            print('aviso: SHA-256 del binario distinto del registrado (%s)' % tabla['binario_sha256'])
+        print('programas', n_prog, 'filas', n_tabla, 'diferencias:', errores or 'ninguna')
+        sys.exit(1 if errores else 0)
     with open(OUT, 'w', encoding='utf-8', newline='\n') as f:
         f.write(texto)
     with open(SHA, 'w', encoding='ascii', newline='\n') as f:
