@@ -1,0 +1,7 @@
+{
+ "M00029": "SIN PROGRAMA tras la caza (1.285 fuentes release x3 perfiles x check/run + 860 + 168 + 600 dirigidas)",
+ "M00383": "SIN PROGRAMA tras la caza (5.685 fuentes release x3 x check/run + 860 dirigidas); atajo de comparacion de `compare_paths` (comentario del codigo: evita recorrer el sufijo); no se afirma equivalencia",
+ "M00388": "SIN PROGRAMA: `count_cfg_work` es `cfg(test)` y no-op fuera de pruebas (`src/ir/mod.rs` 95 y 122); solo observable con `measure_cfg_thread_work` (andamiaje de pruebas); 860 dirigidas sin diferencia",
+ "M00158": "DEFECTO DE COBERTURA con programa `fn Main(){match 1{1 if true 2=>{},_=>{}}}` (recognized_prefix [18,28) vs [19,28)); regresion 7f543ba",
+ "M00156": "DEFECTO DE COBERTURA con programa `fn Main(){match 1{1 if true=>{},_=>{}}break;}` (NX-E1326 vs NX-E1305/guard_control; `while true{...break;}` rechazado); regresion 71409cd"
+}

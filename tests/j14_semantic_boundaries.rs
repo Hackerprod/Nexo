@@ -323,6 +323,27 @@ fn match_arm_after_comma_eof_includes_sign() {
     checked("fn Main(){match 1{1=>{},_=>{}}}");
 }
 
+#[test]
+fn match_arm_missing_arrow_after_guard_recognizes_prefix_from_the_pattern() {
+    // D15 §6.2: `recognized_prefix` goes from the first committed token of the
+    // innermost committed production (the arm, whose first token is its
+    // pattern at offset 18) to the start of the unexpected token (offset 28).
+    let source = "fn Main(){match 1{1 if true 2=>{},_=>{}}}";
+    let report = rejected(source, "NX-E0002");
+    assert!(
+        report.contains("\"parser_context\":\"grammar.Arm\"")
+            && report.contains("\"kind\":\"integer\",\"text\":\"2\",\"span\":{\"file\":")
+            && report.contains("\"start\":28,\"end\":29"),
+        "{source}: {report}"
+    );
+    let position = report.find("\"recognized_prefix\":").unwrap();
+    assert!(
+        report[position..].contains("\"start\":18,\"end\":28"),
+        "{source}: {report}"
+    );
+    checked("fn Main(){match 1{1 if true=>{},_=>{}}}");
+}
+
 macro_rules! syntax_fixture {
     ($name:ident, $source:literal, $token:literal, $start:expr, $context:literal, $first:ident, $prefix:expr) => {
         #[test]
