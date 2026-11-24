@@ -3388,7 +3388,9 @@ impl Checker<'_> {
                         }
                         self.graph.concrete_plan.insert(site, planned_source);
                     }
-                } else if !has_deferred_join && let Some(concrete) = resolved {
+                } else if (!has_deferred_join || xv("txmarksallowconcrete"))
+                    && let Some(concrete) = resolved
+                {
                     self.graph.concrete_plan.insert(site, concrete);
                 }
             }
@@ -14295,11 +14297,23 @@ impl Checker<'_> {
                 // tentative node links. Rebuild its planning marks from the
                 // obligation rather than retaining unrelated node writes.
                 let has_projection_items = !self.graph.projection_items.is_empty();
+                let has_statement_projection = self.graph.expr_vars.iter().any(|(span, id)| {
+                    self.graph.projection_items.contains(id)
+                        && span.0 >= self.top_statement_start
+                        && span.1 <= self.top_statement_end
+                });
+                let has_prior_statement_projection = self.graph.expr_vars.iter().any(|(span, id)| {
+                    self.graph.projection_items.contains(id)
+                        && span.0 >= self.top_statement_start
+                        && span.1 <= found_span_dbg.start
+                });
                 let pending_constructors: Vec<u64> = if xv("txmarks") {
                     self.pending_joins()
                         .skip(before)
                         .filter(|join| join.branch)
                         .filter(|_| !xv("txmarksproj") || has_projection_items)
+                        .filter(|_| !xv("txmarksprojstatement") || has_statement_projection)
+                        .filter(|_| !xv("txmarksprojbefore") || has_prior_statement_projection)
                         .filter(|join| {
                             (!xv("txmarksright") || matches!(&join.right, Type::Deferred(_)))
                                 && (!xv("txmarksleft") || matches!(&join.left, Type::Deferred(_)))
