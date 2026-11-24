@@ -14294,11 +14294,12 @@ impl Checker<'_> {
                 // A pending equality remains an obligation after restoring
                 // tentative node links. Rebuild its planning marks from the
                 // obligation rather than retaining unrelated node writes.
+                let has_projection_items = !self.graph.projection_items.is_empty();
                 let pending_constructors: Vec<u64> = if xv("txmarks") {
                     self.pending_joins()
                         .skip(before)
                         .filter(|join| join.branch)
-                        .filter(|_| !xv("txmarksproj") || !self.graph.projection_items.is_empty())
+                        .filter(|_| !xv("txmarksproj") || has_projection_items)
                         .filter(|join| {
                             (!xv("txmarksright") || matches!(&join.right, Type::Deferred(_)))
                                 && (!xv("txmarksleft") || matches!(&join.left, Type::Deferred(_)))
