@@ -1,0 +1,37 @@
+{
+  "corpus": "c1-nueva",
+  "rows": 8000,
+  "binary_sha256": {
+    "base": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+    "prototype": "57f9db1da0d28375e7cfc82965158c9063c81bb0e39d4e5766f4983973dfe3ff"
+  },
+  "variants": {
+    "projection": {
+      "corpus": "c1-nueva",
+      "n": 8000,
+      "unmodeled": 0,
+      "core": {
+        "A": 2,
+        "B": 819,
+        "C": 0,
+        "D": 3
+      },
+      "full": {
+        "A": 1,
+        "B": 434,
+        "C": 4499,
+        "D": 462
+      },
+      "ok": {
+        "core": 7176,
+        "full": 2604
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": [
+        4223,
+        7417
+      ]
+    }
+  }
+}
