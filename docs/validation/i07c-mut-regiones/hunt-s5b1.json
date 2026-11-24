@@ -7,5 +7,18 @@
  "M00036": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
  "M00270": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
  "M00026": "SIN PROGRAMA tras la caza (1.285+500 fuentes release x3 x check/run, 860 dirigidas release y 600 dirigidas debug); no se afirma equivalencia",
- "M00081": "SIN PROGRAMA tras la caza (1.285+500 fuentes release, 860+168+600 dirigidas)"
+ "M00081": "SIN PROGRAMA tras la caza (1.285+500 fuentes release, 860+168+600 dirigidas)",
+ "M00156": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00043": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00380": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00216": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00044": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00143": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00022": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia; solo cambia el camino `stage == 2 && result.is_err()` de un brazo con guarda (error duro del bloque, p. ej. AnalysisLimit)",
+ "M00273": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00170": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00134": "SIN PROGRAMA tras la caza (860 dirigidas + 600 combinatorias + 192 de profundidad + 210 de selectores (debug, 3 perfiles, check) + 1.285 del corpus (debug)); no se afirma equivalencia",
+ "M00062": "EQUIVALENTE por argumento de invariante: `Frame::StatementWhile(_, stage)` solo se compara con `stage == 0` (types.rs 9484-9505; construcciones en 9501 y 10799), asi que 1 y 2 son indistinguibles",
+ "M00168": "NO TERMINA: dos ejecuciones en debug sin otras cargas del propio carril, 1.500 s cada una (timeout), la suite correcta termina; detectado por no terminacion, sin test que lo nombre",
+ "M00275": "NO TERMINA: dos ejecuciones en debug (la segunda sin otras cargas del propio carril), 1.500 s cada una (timeout); la suite correcta termina; detectado por no terminacion, sin test que lo nombre"
 }
