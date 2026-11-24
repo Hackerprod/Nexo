@@ -78,7 +78,23 @@ Los nueve índices de A de `txmarksproj` son 1976, 2159, 4798, 6749, 12397, 1359
 
 En `f0-0002-b-v2`, `txmarksproj` da core A/B/C/D = **3/641/7685/72** y full A/B/C/D = **1/359/10804/392**; 7.408 core y 4.253 full son aciertos comunes. Hay 191 programas sin oráculo: 178 coinciden con `main` y 13 difieren; esas 13 diferencias no se clasifican como A o B. Los tres A de núcleo (índices 2739, 4319, 13512) contienen la misma familia de proyección de un binding pendiente dentro de una unión: en 2739 (función `Helper`) el `NX-E1303` pasa de `r[0]` `[126,130)` a `r` `[154,155)` y aparece un `NX-E0102` posterior; en 4319 y 13512 se añade `NX-E0103` de `r` `[76,78)`. El resumen por SHA está publicado en la rama desechable; falta el segundo perfil de c2.
 
-Los 13 cambios sin oráculo son exclusivamente de la forma `takeempty` (índices 3254, 4551, 4836, 6747, 7822, 8711, 8853, 10674, 11188, 13127, 13557, 14009, 15312): incluyen `Take([])` con firma concreta, una unión posterior y, en varios, proyección `r[0]`. Hay omisiones o cambios de primario, y 13557 solo cambia la relación `expected_type`; **siguen inconclusos** hasta derivar C/D/V y los campos N/I para cada diferencia. No se clasifican por semejanza con `main` ni se cierran como deuda sin programa.
+Los 13 cambios sin oráculo de c2 son exclusivamente de la forma `takeempty`. Quedaron **adjudicados como salida admisible del prototipo** por la derivación reproducible `scripts/i07c_rd_takeempty_adjudication.py` y su tabla por fila `docs/validation/i07c-rediseno/adjudicacion-takeempty.json` en la rama desechable. En cada programa, `q` ya tiene su asignación antes de `Take([]);Take(q);`: `Take([])` recibe el tipo concreto de la firma, y la igualdad de `Take(q)` es independiente; si falla, su rechazo atómico no cambia `q` ni la unión posterior (§4.1.2.1–2). Se retiran las dos llamadas solo para derivar con el oráculo T5/N las obligaciones de la unión, se restituyen sus offsets por bytes y se cotejan aparte los diagnósticos de las llamadas (idénticos en `main` y prototipo). Las 13 salidas del prototipo conservan **todos los C, tipos y relaciones** de la derivación y las llamadas comunes; ninguno queda sin programa o sin esperado. La validación independiente de esta reducción corresponde a B y todavía no constituye PASS.
+
+| índice | diferencia de `main` frente a la derivación; el prototipo coincide |
+|---:|---|
+| 3254 | `NX-E0103` extra `[126,128)`; la unión conserva `NX-E1303` `[218,222)`. |
+| 4551 | `NX-E0103` extra `[126,128)`; la unión conserva dos `NX-E1303`. |
+| 4836 | `NX-E1303` extra `[195,197)`; quedan dos `NX-E0103` causales. |
+| 6747 | `NX-E1303` extra `[255,259)`; queda el de `[229,230)`. |
+| 7822 | `NX-E0103` extra `[128,130)` y relación de unión distinta; el origen derivado es `[173,174)`. |
+| 8711 | `NX-E1303` extra `[194,195)` y `[212,213)`; queda el de `[171,176)`. |
+| 8853 | `NX-E1303` extra `[217,219)`; queda el de `[199,200)`. |
+| 10674 | `NX-E0103` extra `[181,182)`; queda el constructor `[126,128)`. |
+| 11188 | `NX-E1303` extra `[257,261)`; quedan los tres sitios causales previos. |
+| 13127 | `NX-E1303` extra `[217,218)`; queda el de `[202,203)`. |
+| 13557 | Solo cambia la relación `expected_type`: origen derivado `[152,155)`, no `[172,175)`. |
+| 14009 | `NX-E1303` extra `[228,229)`; queda el de `[205,210)`. |
+| 15312 | `NX-E0103` extra `[126,128)`; queda `NX-E1303` `[193,195)`. |
 
 `scripts/i07c_rd_accept.py` (rama desechable) quedó preparado para comparar aceptación de `check`/`run` en los tres perfiles con cuatro hijos y watchdog propio de 6 GB/20 min; una muestra de dos programas de c1 y un positivo de control verificaron el formato. La muestra no fundamenta aceptación global. El arnés de firmas A/B/C/D registra diagnósticos de `check`; los resultados de ejecución e `internal_error` se medirán por separado. La consulta `python -B scripts/f5-stack65.py --help` ejecutó accidentalmente las sondas de pila porque el script no implementa `--help`; quedó registrada como incidente operativo y **no** se usa como evidencia de pila ni PASS, pues no pasó por el cerrojo compartido.
 
