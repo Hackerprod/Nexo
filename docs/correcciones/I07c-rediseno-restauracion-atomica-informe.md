@@ -122,6 +122,10 @@ Sobre los 1.138 modelados, `txmarksproj` da core A/B/C/D = **1/221/0/3** y full 
 
 Sobre los 1.108 modelados, `txmarksproj` da core A/B/C/D = **0/177/0/2** y full A/B/C/D = **1/98/559/93**; 929 core y 357 full son aciertos comunes. El A full 2065 conserva los códigos y primarios, pero cambia la relación `expected_type` del `NX-E0102` `[173,174)` de `[163,169)` a `[117,118)`. La fuente no contiene proyección; es una pérdida de procedencia de la base candidata, no una activación de `txmarksproj`, y sigue pendiente por S5a.5 y la procedencia A del brief §§1 y 4. De los 3.392 sin oráculo, 539 cambian sin adjudicar. `summary-s9908255.json` quedó publicado sin error de arnés.
 
+### dirigido5 completo (6.000 programas; release, `check`)
+
+El generador de casos con inicializador divergente, `return`, `break` y `while` no tiene oráculo por fila: A/B/C/D no son clasificables. Hay 5.877 salidas idénticas a `main` y 123 distintas. El resultado se publicó en `summary-dirigido5.json` con SHA y sin errores de arnés. Las 123 diferencias requieren esperado individual antes de calificar el tramo; no se cuentan como arreglos.
+
 `scripts/i07c_rd_accept.py` (rama desechable) quedó preparado para comparar aceptación de `check`/`run` en los tres perfiles con cuatro hijos y watchdog propio de 6 GB/20 min; una muestra de dos programas de c1 y un positivo de control verificaron el formato. La muestra no fundamenta aceptación global. El arnés de firmas A/B/C/D registra diagnósticos de `check`; los resultados de ejecución e `internal_error` se medirán por separado. La consulta `python -B scripts/f5-stack65.py --help` ejecutó accidentalmente las sondas de pila porque el script no implementa `--help`; quedó registrada como incidente operativo y **no** se usa como evidencia de pila ni PASS, pues no pasó por el cerrojo compartido.
 
 ## Evidencia directa disponible de la primera exploración
