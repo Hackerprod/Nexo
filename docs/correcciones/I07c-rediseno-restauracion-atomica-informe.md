@@ -41,6 +41,10 @@ Un segundo mínimo de 78 bytes aísla la pérdida de arreglo: `fn Main(){var r=[
 
 La comprobación dirigida de las 103 filas de `match-conservacion-ext.py --check` con binarios release conserva las **51 filas de conservación** en las ocho variantes con A=0; `candidate5` reproduce la tabla completa. Las diferencias restantes son solo de filas declaradas: `txmarksconcrete` 0; `txmarksright` 2; `txmarksstatement` 2; `txmarksoccurrence` 3; `txmarksstatement,txmarksright` 1; `txmarksoccurrence,txmarksright` 1; `txmarksoccurrence,txunify` 3; `txmarksproj` 1 (`dif-s9908255-3958-anadido`). Los identificadores y salidas textuales están en `.scratch/match-*.txt` del worktree desechable. Estas diferencias requieren adjudicación por cláusula; la conservación de 51 no prueba las otras puertas de §3.3.
 
+### Contraejemplo nuevo de `txmarksproj` antes del barrido completo
+
+El mínimo de 115 bytes `fn Main(){var s=[];let b=s[0];var q=[];var r=[];(if true then [q] else (if true then [1] else q));r=q;q=[1];s=[1];}` fue ejecutado con `check --format json --profile f0-0002-b-v2` en los binarios release de `main` (SHA-256 `44bef37452e4…`) y del prototipo (`57f9db1da0d2…`). `main` y candidato 5 dan solo `NX-E1303` `[85,88)`; `txmarksproj` añade `NX-E0102/type_mismatch` `[105,106)`. Al quitar la proyección independiente de `s`, los tres dan solo el `NX-E1303` `[65,68)`. Es regresión de núcleo dirigida: el criterio `has_projection_items` mira toda la función y reconstruye la marca de una obligación de `q` que no depende de `s[0]`. El barrido de corpus sigue siendo necesario para medir A/B/C/D y buscar otras causas; el ejemplo ya impide llamar PASS a la variante global.
+
 ## Evidencia directa disponible de la primera exploración
 
 Compilé el prototipo de candidato 5 con una sonda `txunify` que hace atómica la llamada completa al solucionador mediante una copia de `Checker`. Es una prueba de arquitectura, no una representación de producción. Con `check --format json --profile f0-0002-b-v2` sobre fuentes ASCII sin BOM ni LF final:
