@@ -14,6 +14,7 @@ MINIMA = {
     "t2192": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then q else (if p then 1 else [r]));s=q;q=[true];}",
     "t3584": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then ar else q));r=q;q=[[ar]];}",
     "t3584_min": "fn Main(){var q=[];var r=[];(if true then [q] else (if true then [1] else q));r=q;q=[1];}",
+    "w0_min": "fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}",
     "t3594": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then ar else q));q=r;r=[[ar]];}",
     "t3596": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then ar else q));s=q;q=[true];}",
     "t7094": "fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [r] else (if p then ar else r));r=q;q=[[ar]];}",
@@ -28,6 +29,7 @@ EXPECTED = {
     "t2192": [("NX-E0103", 76, 78)],
     "t3584": [("NX-E0103", 85, 87), ("NX-E1303", 126, 128)],
     "t3584_min": [("NX-E1303", 65, 68)],
+    "w0_min": [("NX-E1303", 52, 53)],
     "t3594": [("NX-E0103", 85, 87), ("NX-E1303", 126, 128)],
     "t3596": [("NX-E0103", 76, 78), ("NX-E1303", 126, 128)],
     "t7094": [("NX-E0103", 85, 87), ("NX-E1303", 126, 128)],
@@ -43,8 +45,8 @@ def run(exe, src, flags, name):
                            env=env, text=True, capture_output=True, timeout=60)
         try:
             data = json.loads(p.stdout)
-            return sorted([(d["code"], d.get("subcause"), d["primary_span"]["start"], d["primary_span"]["end"])
-                           for d in data.get("diagnostics", [])])
+            return [(d["code"], d.get("subcause"), d["primary_span"]["start"], d["primary_span"]["end"])
+                    for d in data.get("diagnostics", [])]
         except (ValueError, KeyError, TypeError):
             return [(-1, p.returncode, p.stdout[-200:], p.stderr[-200:])]
 
@@ -53,7 +55,7 @@ def main():
     result = {"flags": flags, "probes": {}, "matrix": {}}
     for name, src in MINIMA.items():
         got = run(exe, src, flags, name)
-        simple = sorted((d[0], d[2], d[3]) for d in got)
+        simple = [(d[0], d[2], d[3]) for d in got]
         expected = EXPECTED.get(name)
         if name in ("planned", "planned_full"):
             at = src.index("true else q") + len("true else ")
@@ -72,8 +74,8 @@ def main():
     for name in oracle.ROWS:
         src = sources[name]
         model = oracle.derive(src)
-        expected = sorted((d["code"], d.get("subcause"), d["primary"][0], d["primary"][1])
-                          for d in model["diagnostics"])
+        expected = [(d["code"], d.get("subcause"), d["primary"][0], d["primary"][1])
+                    for d in model["diagnostics"]]
         got = run(exe, src, flags, name)
         result["matrix"][name] = {"ok": got == expected, "actual": got, "expected": expected} if got != expected else {"ok": True}
     result["summary"] = {"probes_ok": sum(v["ok"] for v in result["probes"].values()),

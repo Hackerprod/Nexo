@@ -14258,6 +14258,11 @@ impl Checker<'_> {
                 );
             }
         }
+        if xv("dbg") {
+            let items: Vec<_> = self.graph.projection_items.iter().copied().collect();
+            let roots: Vec<_> = items.iter().map(|id| self.root(*id)).collect();
+            eprintln!("PROJECTION_ITEMS {:?} roots {:?}", items, roots);
+        }
         if error.is_none() && self.pending_join_count() <= before {
             if xv("defmark") {
                 for ty in [&base.0, &found_ty_dbg] {
@@ -14293,6 +14298,7 @@ impl Checker<'_> {
                     self.pending_joins()
                         .skip(before)
                         .filter(|join| join.branch)
+                        .filter(|_| !xv("txmarksproj") || !self.graph.projection_items.is_empty())
                         .filter(|join| {
                             (!xv("txmarksright") || matches!(&join.right, Type::Deferred(_)))
                                 && (!xv("txmarksleft") || matches!(&join.left, Type::Deferred(_)))
