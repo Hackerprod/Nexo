@@ -1,0 +1,39 @@
+{
+  "corpus": "perm",
+  "rows": 4044,
+  "binary_sha256": {
+    "base": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+    "prototype": "57f9db1da0d28375e7cfc82965158c9063c81bb0e39d4e5766f4983973dfe3ff"
+  },
+  "variants": {
+    "projection": {
+      "corpus": "perm",
+      "n": 4044,
+      "unmodeled": 222,
+      "core": {
+        "A": 4,
+        "B": 340,
+        "C": 4,
+        "D": 0
+      },
+      "full": {
+        "A": 9,
+        "B": 261,
+        "C": 1173,
+        "D": 125
+      },
+      "ok": {
+        "core": 3474,
+        "full": 2254
+      },
+      "same_unmodeled": 222,
+      "changed_unmodeled": 0,
+      "regressions": [
+        3084,
+        3087,
+        3088,
+        3955
+      ]
+    }
+  }
+}
