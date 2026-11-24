@@ -27,8 +27,9 @@ repo = here.parents[2]
 cut, count, workers = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 root = Path(sys.argv[sys.argv.index("--root") + 1]) if "--root" in sys.argv else Path("C:/nexo-work/tmp")
 max_seconds = sys.argv[sys.argv.index("--max-seconds") + 1] if "--max-seconds" in sys.argv else "2400"
-STALL = int(os.environ.get("RUN_PAR_STALL_SECONDS", "2400"))
-MEM_LIMIT = int(os.environ.get("RUN_PAR_MEM_GB", "10")) * 2**30
+STALL = int(os.environ.get("RUN_PAR_STALL_SECONDS", "1200"))
+MEM_LIMIT = int(os.environ.get("RUN_PAR_MEM_GB", "6")) * 2**30  # per process (working set)
+MIN_FREE_VIRTUAL_GB = 25  # Windows commit limit: wait while FreeVirtualMemory is below this
 pop_path = here / f"population-{cut}.json"
 results = here / f"results-{cut}.jsonl"
 incon = here / f"results-{cut}-inconclusos.jsonl"
@@ -46,9 +47,23 @@ todo = [m["id"] for m in sorted(pop["mutations"], key=lambda m: m["order"]) if m
 if not todo:
     print("nothing pending")
     sys.exit(0)
+def free_virtual_gb():
+    out = subprocess.run(["powershell", "-NoProfile", "-Command", "(Get-CimInstance Win32_OperatingSystem).FreeVirtualMemory"],
+                         capture_output=True, text=True).stdout.strip()
+    return int(out) / 2**20 if out.isdigit() else 0.0
+
+
+waited = 0
+while free_virtual_gb() < MIN_FREE_VIRTUAL_GB:
+    print("FreeVirtualMemory < 25 GB: esperando 150 s", flush=True)
+    time.sleep(150)
+    waited += 1
+    if waited > 8:
+        print("memoria virtual insuficiente tras 20 min: no se lanza la tanda", flush=True)
+        sys.exit(3)
 free_gb = shutil.disk_usage("C:/").free / 2**30
 print(f"{cut}: {len(todo)} mutants, {workers} workers, free {free_gb:.1f} GB", flush=True)
-assert free_gb >= 10 + 3 * workers, "not enough free disk"
+assert free_gb >= 12 + 2 * workers, "not enough free disk"
 procs = []
 for k in range(workers):
     ids = todo[k::workers]
@@ -65,8 +80,8 @@ for k in range(workers):
     for f, h in pop["blob_sha256"].items():
         assert hashlib.sha256((tree / f).read_bytes()).hexdigest() == h, f"blob mismatch {f}"
     shard = wroot / "results.jsonl"
-    env = dict(os.environ, CARGO_TARGET_DIR=str(target).replace("\\", "/"), CARGO_BUILD_JOBS="2",
-               NEXTEST_TEST_THREADS=str(max(2, min(6, (os.cpu_count() or 24) // workers))),
+    env = dict(os.environ, CARGO_TARGET_DIR=str(target).replace("\\", "/"), CARGO_BUILD_JOBS="4",
+               NEXTEST_TEST_THREADS="4",
                TEMP=str(wroot / "tmp"), TMP=str(wroot / "tmp"))
     cmd = [sys.executable, "-B", str(here / "run_mut.py"), str(tree), str(pop_path), str(shard),
            "--max-seconds", max_seconds, "--ids", ",".join(ids)]
@@ -83,22 +98,25 @@ def process_table():
         return []
 
 
-def tree_ws(root_pid, table):
+def max_proc_ws(root_pid, table):
+    """Largest working set of any single process of the worker tree."""
     kids = {}
     for r in table:
         kids.setdefault(r["ParentProcessId"], []).append(r["ProcessId"])
     ws = {r["ProcessId"]: r["WorkingSetSize"] or 0 for r in table}
-    total, stack = 0, [root_pid]
+    biggest, stack = 0, [root_pid]
     while stack:
         pid = stack.pop()
-        total += ws.get(pid, 0)
+        biggest = max(biggest, ws.get(pid, 0))
         stack += kids.get(pid, [])
-    return total
+    return biggest
 
 
 def last_activity(k):
     best = 0.0
-    for q in (root / f"mut{k}" / "out.log", root / f"mut{k}" / "results.jsonl", root / f"mut{k}" / "tmp"):
+    for q in (root / f"mut{k}" / "out.log", root / f"mut{k}" / "results.jsonl", root / f"mut{k}" / "tmp",
+              root / f"mut{k}" / "target" / "debug", root / f"mut{k}" / "target" / "release",
+              root / f"mut{k}" / "target" / "debug" / "deps", root / f"mut{k}" / "target" / "release" / "deps"):
         try:
             best = max(best, q.stat().st_mtime)
         except OSError:
@@ -115,7 +133,7 @@ while any(p.poll() is None for *_, p in procs):
         if p.poll() is not None or k in aborted:
             continue
         reason = None
-        if tree_ws(p.pid, table) > MEM_LIMIT:
+        if max_proc_ws(p.pid, table) > MEM_LIMIT:
             reason = "memoria"
         elif time.time() - max(last_activity(k), started) > STALL:
             reason = "sin progreso"
