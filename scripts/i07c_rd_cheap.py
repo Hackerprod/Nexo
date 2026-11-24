@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 """Disposable, exact core probes before a full I07c corpus scan."""
-import importlib.util
 import json
 import os
 from pathlib import Path
@@ -8,10 +7,7 @@ import subprocess
 import sys
 import tempfile
 
-ROOT = Path("C:/projects/Nexo-i07c")
-spec = importlib.util.spec_from_file_location("oracle", ROOT / "scripts/i07c_s5c_oraculo.py")
-oracle = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(oracle)
+import i07c_rd_oracle as oracle
 sources = oracle.load_sources()
 
 MINIMA = {

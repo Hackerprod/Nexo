@@ -89,8 +89,9 @@ def load(tag, name):
     return values
 
 def oracle_module():
-    spec = importlib.util.spec_from_file_location("oracle", EXP.parents[2] / "scripts/i07c_s5c_oraculo.py")
+    spec = importlib.util.spec_from_file_location("i07c_s5c_oraculo", Path(__file__).with_name("i07c_rd_oracle.py"))
     module = importlib.util.module_from_spec(spec)
+    sys.modules["i07c_s5c_oraculo"] = module
     spec.loader.exec_module(module)
     return module
 
@@ -131,9 +132,7 @@ def expected(name, rows):
     name = name.split("@", 1)[0]
     cache = OUT / ("oracle-" + name + ".json")
     if cache.exists(): return json.loads(cache.read_text(encoding="utf-8"))
-    if name == "c1":
-        result = json.loads((EXP / "oraculo-res.json").read_text(encoding="utf-8"))
-    elif name in ("t", "dirigido5"):
+    if name in ("t", "dirigido5"):
         result = [None] * len(rows)
     else:
         model = oracle_module()
