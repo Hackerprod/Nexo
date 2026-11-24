@@ -1,0 +1,34 @@
+{
+  "corpus": "dirigido5",
+  "rows": 6000,
+  "binary_sha256": {
+    "base": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+    "prototype": "57f9db1da0d28375e7cfc82965158c9063c81bb0e39d4e5766f4983973dfe3ff"
+  },
+  "variants": {
+    "projection": {
+      "corpus": "dirigido5",
+      "n": 6000,
+      "unmodeled": 6000,
+      "core": {
+        "A": 0,
+        "B": 0,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 0,
+        "C": 0,
+        "D": 0
+      },
+      "ok": {
+        "core": 0,
+        "full": 0
+      },
+      "same_unmodeled": 5877,
+      "changed_unmodeled": 123,
+      "regressions": []
+    }
+  }
+}
