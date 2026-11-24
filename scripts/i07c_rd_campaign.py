@@ -19,7 +19,7 @@ VARIANTS = {
     "occurrence_unify": "txmarks,txmarksoccurrence,txunify",
     "projection": "txmarks,txmarksproj",
 }
-QUALIFIED = tuple(name for name in VARIANTS if name != "projection")
+QUALIFIED = tuple(VARIANTS)
 
 
 def run(tag, corpus, exe, flags, count):
