@@ -16,7 +16,27 @@ Se ejecutaron las 45 filas del oráculo histórico y doce sondas dirigidas con e
 
 El oráculo desechable publicado en `i07c-rediseno-proto` incorpora ahora T5 y la regla N del literal: conserva las obligaciones internas de las ramas, pero una `if` con condición fallida y un literal con elemento erróneo no ofrecen resultado al consumidor. Pasan los 17 ejemplos normativos y controles del propio oráculo, incluidos los dos nuevos transcritos del ADR. En las 45 filas, O08 cambia por T5/N: se retiran el `NX-E1303` `[137,138)` y el `NX-E0102` derivado `[155,158)` del esperado anterior. Frente a esta lectura corregida, `candidate5`/`txunify` dan **44/45** y `candidate7`/`txmarks`/`txmarks+txunify` **39/45**. Esta derivación de O08 requiere revisión independiente antes de ser oráculo de cierre; se conserva el esperado previo para auditoría.
 
-Las nuevas variantes direccionales y de alcance (`txmarksright`, `txmarksleft`, `txmarksstatement`, `txmarksoccurrence` y combinaciones) están en la rama de prototipo, **pendientes de compilar y medir** bajo el cerrojo de la máquina compartida. El arnés versionado `scripts/i07c_rd_cheap.py` reproduce las sondas; `scripts/i07c_rd_sweep.py` conserva resultados por lotes para el barrido. No hay todavía una variante que supere la puerta barata.
+Las variantes direccionales y de alcance (`txmarksright`, `txmarksleft`, `txmarksstatement`, `txmarksoccurrence` y combinaciones) se publicaron primero pendientes de compilar bajo el cerrojo de la máquina compartida; sus resultados aparecen a continuación. El arnés versionado `scripts/i07c_rd_cheap.py` reproduce las sondas; `scripts/i07c_rd_sweep.py` conserva resultados por lotes para el barrido.
+
+### Resultado posterior de las variantes de alcance (release, sondas baratas)
+
+La compilación terminó bajo `heavy-lock`. La tabla usa el oráculo T5/N corregido y las doce sondas anteriores. La columna A compara solo donde el binario histórico `main` `eeb3c9c` coincidía con el esperado; el blob de `src/check/types.rs` de esa base es idéntico al de `origin/main` actual, pero aún falta compilar el `origin/main` íntegro para ratificar A. Las filas W0, B_qr, P1, c3 y w1 ya fallan en ese `main`: restaurar su salida es **pérdida de arreglos**, no regresión A. O08 falla en `main` y en todas las variantes bajo la lectura T5/N.
+
+| variante añadida a candidato 5 | matriz T5/N | sondas | A matriz / sondas frente a `eeb3c9c` | causa observada |
+|---|---:|---:|---:|---|
+| ninguna (`atomic0`) | 44/45 | 10/12 | 0 / 2 | `planned_projection` sigue dando `NX-E0102` por siembra temprana. |
+| `txunify` | 44/45 | 10/12 | 0 / 2 | Snapshot de `Err` no cambia una obligación suspendida. |
+| `txmarks` | 39/45 | 5/12 | 0 / 6 | Reconstruir todas las marcas deja `read_plan` prematuro en los seis mínimos t y pierde los cinco arreglos W0/P1. |
+| `txmarksright` | 39/45 | 11/12 | 0 / 0 | Quita el error de t, pero la marca de `q` impide la concreción de `r` en W0 y análogos. |
+| `txmarksleft` | 44/45 | 4/12 | 0 / 8 | No restaura la marca del operando pendiente derecho de `planned_projection`; conserva los errores t. |
+| `txmarksconcrete` | 39/45 | 11/12 | 0 / 0 | Misma pérdida W0/P1 que `txmarksright`; exigir lado izquierdo concreto no decide el alcance de siembra. |
+| `txmarksstatement` | 39/45 | 11/12 | 0 / 0 | Ampliar el alcance elimina el error t, pero la marca global sigue suprimiendo el plan concreto de `r`. |
+| `txmarksoccurrence` | 39/45 | 11/12 | 0 / 0 | Mismo efecto: el alcance evita retipado de la lectura anterior, pero no separa evidencia de cierre y contexto. |
+| `txmarksstatement,txmarksright` | 39/45 | 11/12 | 0 / 0 | Combina dos filtros que dejan idéntico el fallo W0/P1. |
+| `txmarksoccurrence,txmarksright` | 39/45 | 11/12 | 0 / 0 | Igual que la fila anterior. |
+| `txmarksoccurrence,txunify` | 39/45 | 11/12 | 0 / 0 | El snapshot de `Err` no resuelve las obligaciones suspendidas. |
+
+Un segundo mínimo de 78 bytes aísla la pérdida de arreglo: `fn Main(){var r=[];var q=[];(if true then true else q);[r,q];q=[[true]];r=[];}`. Oráculo y candidato 5: solo `NX-E1303` `[52,53)`; `txmarksright` añade `NX-E0103` `[16,18)`, igual que `main`. En W0, el plan de candidato 5 tiene `concrete_plan` para `r` y `q` y ningún `read_plan`; `txmarksright` invierte esos dos conjuntos. El contraste final pasa de incompatible inmediatamente a obligación pendiente y el `[]` inicial de `r` no se resuelve. La causa común de estas variantes es que `deferred_join` se usa simultáneamente para decidir la disponibilidad de contexto de una lectura anterior y para impedir completar constructores al cierre; la regla del ADR exige conservar las igualdades compatibles de `[r,q]` y `q=[[true]]` aunque la unión `true/q` falle (§4.1.2.2 y 4.1.2.4). Las variantes con A=0 en estas sondas pasan al barrido completo, aun cuando todavía no cumplan 45/45.
 
 ## Evidencia directa disponible de la primera exploración
 
