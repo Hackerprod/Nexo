@@ -10,7 +10,7 @@ rules: full default suite, first failure = MUERTO, debug and release green = SUP
 
 Watchdog (added after a tanda hung with a MemoryError in a worker): every 30 s the process tree of
 each worker is measured; a worker whose tree exceeds RUN_PAR_MEM_GB (default 10) of working set, or
-whose copy shows no activity (out.log, shard, tmp dir) for RUN_PAR_STALL_SECONDS (default 1200), is
+whose copy shows no activity (out.log, shard, tmp dir) for RUN_PAR_STALL_SECONDS (default 2400: one survivor needs up to two 1500 s suites), is
 aborted with `taskkill /PID <its own pid> /T /F` and the mutant it was running is recorded
 INCONCLUSO (reason `watchdog`). A first INCONCLUSO of an id goes to results-<cut>-inconclusos.jsonl and
 the id stays pending (it is repeated in a later tanda); a second one is kept in results-<cut>.jsonl.
@@ -27,7 +27,7 @@ repo = here.parents[2]
 cut, count, workers = sys.argv[1], int(sys.argv[2]), int(sys.argv[3])
 root = Path(sys.argv[sys.argv.index("--root") + 1]) if "--root" in sys.argv else Path("C:/nexo-work/tmp")
 max_seconds = sys.argv[sys.argv.index("--max-seconds") + 1] if "--max-seconds" in sys.argv else "2400"
-STALL = int(os.environ.get("RUN_PAR_STALL_SECONDS", "1200"))
+STALL = int(os.environ.get("RUN_PAR_STALL_SECONDS", "2400"))
 MEM_LIMIT = int(os.environ.get("RUN_PAR_MEM_GB", "10")) * 2**30
 pop_path = here / f"population-{cut}.json"
 results = here / f"results-{cut}.jsonl"
