@@ -19,6 +19,7 @@ VARIANTS = {
     "occurrence_unify": "txmarks,txmarksoccurrence,txunify",
     "projection": "txmarks,txmarksproj",
 }
+QUALIFIED = tuple(name for name in VARIANTS if name != "projection")
 
 
 def run(tag, corpus, exe, flags, count):
@@ -38,7 +39,7 @@ def main():
     parser.add_argument("corpus")
     parser.add_argument("base_exe")
     parser.add_argument("proto_exe")
-    parser.add_argument("--variants", default=",".join(VARIANTS))
+    parser.add_argument("--variants", default=",".join(QUALIFIED))
     args = parser.parse_args()
     selected = args.variants.split(",")
     if any(name not in VARIANTS for name in selected):
