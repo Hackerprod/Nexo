@@ -1,6 +1,6 @@
 # I07c — Informe de exploración del rediseño
 
-Estado: **exploración reabierta; sin PASS; ningún plan de Flujo B**. Base de código: `origin/main` `6e22181` para `src/check/types.rs`; los corpus históricos y el oráculo se leen del blob de `origin/i07c-estructural-r2`. El prototipo desechable está en `i07c-rediseno-proto` (`e97cce1`); sus cambios de `src/` no son entregables de integración. La parada anterior tras una regresión en t3584 fue prematura. Esta continuación analiza ese defecto, mide sondas adicionales y prepara el barrido por lotes.
+Estado: **exploración reabierta; sin PASS; ningún plan de Flujo B**. Base de código: `origin/main` `6e22181` para `src/check/types.rs`; los corpus históricos y el oráculo se leen del blob de `origin/i07c-estructural-r2`. El prototipo desechable y los resúmenes publicados están en `i07c-rediseno-proto`; sus cambios de `src/` no son entregables de integración. La parada anterior tras una regresión en t3584 fue prematura. Esta continuación analiza ese defecto y ejecuta el barrido por lotes.
 
 ## Continuación: mínimo, causa y sondas baratas
 
@@ -133,7 +133,7 @@ python -B scripts/i07c_rd_probe.py C:/nexo-work/target-rd/release/nexo.exe --fla
 
 Para reproducir `txmarks`, añadir `,txmarks` a la lista de `--flags` anterior. Para la combinación con `txunify`, añadir además `,txunify`. La compilación de ambas sondas pasó con rustc 1.99.1 bajo `scripts/heavy-lock.py`; el cerrojo estuvo ocupado por la campaña `i07c-mut-regiones-c` y se reintentó con pausas de 60 segundos, sin tocar el archivo ni procesos ajenos.
 
-## Resultado por corpus y criterio de parada
+## Registro histórico de `txmarks` inicial (antes de `txmarksproj`)
 
 | conjunto del brief §3.1 | regresiones de core de `txmarks` frente a `main` | observación |
 |---|---:|---|
@@ -150,7 +150,7 @@ Para reproducir `txmarks`, añadir `,txmarks` a la lista de `--flags` anterior. 
 | c2-nueva (8.000) | **NO EVALUADO** | Congelado con SHA antes de medir `txmarks`. |
 | mínimo t3584 (una fuente histórica de corpus-t) | **1 programa con regresión de core** | `main` y oráculo: `NX-E0103` `[85,87)` + `NX-E1303` `[126,128)`; `txmarks` añade `NX-E0102/type_mismatch` `[146,148)`. |
 
-El fallo dirigido falsó `txmarks`; la continuación mide otras variantes. No se ha lanzado aún el barrido masivo ni hay tabla A/B/C/D por corpus, ni afirmación de 0 global. Los ceros del candidato 5 y las 56/1.007 de variantes históricas son datos de INFORME-1..8, no resultados propios de `txmarks`.
+El fallo dirigido falsó `txmarks` inicial. Los `NO EVALUADO` de esta tabla describen únicamente aquella variante descartada; los barridos medidos después para `txmarksproj` y otras siete variantes están arriba y en los resúmenes versionados de la rama desechable. Los ceros del candidato 5 y las 56/1.007 de variantes históricas son datos de INFORME-1..8, no resultados propios de `txmarks`.
 
 ## Puertas del brief §7
 
@@ -158,7 +158,7 @@ El fallo dirigido falsó `txmarks`; la continuación mide otras variantes. No se
 |---|---|
 | Regla única, ejemplos, citas | **Hipótesis entregada** en `I07c-rediseno-restauracion-atomica-diseno.md`; falta demostración. El negativo T5 se derivó de `F0-0002-lagunas.md` en `2dfcf22`. |
 | Prototipo desechable y comandos | **Entregado y falsado** en `i07c-rediseno-proto`; `txmarks` corrige `planned_projection` pero regresa en t3584, y `txunify` no cambia la decisión. |
-| Barrido A/B/C/D de todos los corpus; matriz 45; tablas de `match`; aceptación y debug/release | **NO EVALUADO aún para `txmarks`**; el barrido por lotes está preparado para las siete variantes con A=0 en sondas baratas. No se importan como propios los ceros del candidato 5: ese candidato falla `planned_projection`. |
+| Barrido A/B/C/D de todos los corpus; matriz 45; tablas de `match`; aceptación y debug/release | **En curso para `txmarksproj`**: c1 y c2 en dos perfiles completos, 9/3/5 regresiones A de core. Quedan los demás corpus, aceptación global y debug/release. No se importan como propios los ceros del candidato 5: ese candidato falla `planned_projection`. |
 | 152 RD, objetivo, 3.674, twin, fuzz, pila, pasadas, tiempo | **NO EVALUADO aún para `txmarks`**. La compilación release de la sonda sí pasó; no equivale a puerta completa. |
 | 17 tests de §3.6 y cada fila abierta de la lista de defectos | **NO EVALUADO para `txmarks`**; siguen nominalmente abiertos hasta un nuevo diseño y derivación individual. No se editó ningún test. |
 
