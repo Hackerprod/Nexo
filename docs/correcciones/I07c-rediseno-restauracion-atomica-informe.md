@@ -98,6 +98,10 @@ Los 13 cambios sin oráculo de c2 son exclusivamente de la forma `takeempty`. Qu
 | 14009 | `NX-E1303` extra `[228,229)`; queda el de `[205,210)`. |
 | 15312 | `NX-E0103` extra `[126,128)`; queda `NX-E1303` `[193,195)`. |
 
+### corpus-b completo (4.000 programas; release, `check`)
+
+`txmarksproj` da core A/B/C/D = **1/546/309/3** y full A/B/C/D = **1/307/2218/280**; 3.100 core y 1.153 full son aciertos comunes. Las 41 fuentes sin oráculo coinciden con `main`. El único A es el índice 3799: `main` y oráculo denuncian los constructores `[76,78)` y `[85,87)`; `txmarksproj` añade `NX-E0103` `[67,69)`. La fuente contiene `q[0]` dentro de una unión anidada y otra unión con `[s,q]`; la marca de proyección reconstruida cambia el cierre de un constructor anterior. Es la misma familia estructural observada en c1 y c2. El resumen íntegro por SHA se publicó en `i07c-rediseno-proto` (`summary-b.json`), sin error de arnés.
+
 `scripts/i07c_rd_accept.py` (rama desechable) quedó preparado para comparar aceptación de `check`/`run` en los tres perfiles con cuatro hijos y watchdog propio de 6 GB/20 min; una muestra de dos programas de c1 y un positivo de control verificaron el formato. La muestra no fundamenta aceptación global. El arnés de firmas A/B/C/D registra diagnósticos de `check`; los resultados de ejecución e `internal_error` se medirán por separado. La consulta `python -B scripts/f5-stack65.py --help` ejecutó accidentalmente las sondas de pila porque el script no implementa `--help`; quedó registrada como incidente operativo y **no** se usa como evidencia de pila ni PASS, pues no pasó por el cerrojo compartido.
 
 ## Evidencia directa disponible de la primera exploración
