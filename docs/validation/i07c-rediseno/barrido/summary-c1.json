@@ -8,23 +8,195 @@
   "variants": {
     "projection": {
       "corpus": "c1",
-      "n": 500,
+      "n": 2000,
       "unmodeled": 0,
       "core": {
-        "A": 0,
-        "B": 46,
+        "A": 1,
+        "B": 199,
         "C": 0,
         "D": 0
       },
       "full": {
         "A": 0,
-        "B": 17,
-        "C": 304,
-        "D": 30
+        "B": 96,
+        "C": 1195,
+        "D": 115
       },
       "ok": {
-        "core": 454,
-        "full": 149
+        "core": 1800,
+        "full": 594
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": [
+        1976
+      ]
+    },
+    "right": {
+      "corpus": "c1",
+      "n": 2000,
+      "unmodeled": 0,
+      "core": {
+        "A": 1,
+        "B": 199,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 96,
+        "C": 1195,
+        "D": 115
+      },
+      "ok": {
+        "core": 1800,
+        "full": 594
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": [
+        1976
+      ]
+    },
+    "concrete": {
+      "corpus": "c1",
+      "n": 2000,
+      "unmodeled": 0,
+      "core": {
+        "A": 0,
+        "B": 199,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 97,
+        "C": 1195,
+        "D": 114
+      },
+      "ok": {
+        "core": 1801,
+        "full": 594
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": []
+    },
+    "statement": {
+      "corpus": "c1",
+      "n": 2000,
+      "unmodeled": 0,
+      "core": {
+        "A": 0,
+        "B": 199,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 94,
+        "C": 1197,
+        "D": 115
+      },
+      "ok": {
+        "core": 1801,
+        "full": 594
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": []
+    },
+    "occurrence": {
+      "corpus": "c1",
+      "n": 2000,
+      "unmodeled": 0,
+      "core": {
+        "A": 0,
+        "B": 199,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 94,
+        "C": 1197,
+        "D": 115
+      },
+      "ok": {
+        "core": 1801,
+        "full": 594
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": []
+    },
+    "statement_right": {
+      "corpus": "c1",
+      "n": 2000,
+      "unmodeled": 0,
+      "core": {
+        "A": 0,
+        "B": 199,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 96,
+        "C": 1196,
+        "D": 114
+      },
+      "ok": {
+        "core": 1801,
+        "full": 594
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": []
+    },
+    "occurrence_right": {
+      "corpus": "c1",
+      "n": 2000,
+      "unmodeled": 0,
+      "core": {
+        "A": 0,
+        "B": 199,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 96,
+        "C": 1196,
+        "D": 114
+      },
+      "ok": {
+        "core": 1801,
+        "full": 594
+      },
+      "same_unmodeled": 0,
+      "changed_unmodeled": 0,
+      "regressions": []
+    },
+    "occurrence_unify": {
+      "corpus": "c1",
+      "n": 2000,
+      "unmodeled": 0,
+      "core": {
+        "A": 0,
+        "B": 199,
+        "C": 0,
+        "D": 0
+      },
+      "full": {
+        "A": 0,
+        "B": 94,
+        "C": 1197,
+        "D": 115
+      },
+      "ok": {
+        "core": 1801,
+        "full": 594
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
