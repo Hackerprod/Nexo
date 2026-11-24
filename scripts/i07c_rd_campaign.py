@@ -50,11 +50,15 @@ def main():
         with open(exe, "rb") as stream:
             hashes[role] = hashlib.file_digest(stream, "sha256").hexdigest()
     summary = {"corpus": args.corpus, "rows": count, "binary_sha256": hashes, "variants": {}}
-    run("main-6e22181", args.corpus, args.base_exe, None, count)
+    base_tag = "main-" + hashes["base"][:12]
+    proto_tag = "proto-" + hashes["prototype"][:12] + "-"
+    run(base_tag, args.corpus, args.base_exe, None, count)
     for name in selected:
-        run("proto-" + name, args.corpus, args.proto_exe,
+        run(proto_tag + name, args.corpus, args.proto_exe,
             BASE_FLAGS + "," + VARIANTS[name], count)
-        result = table("main-6e22181", "proto-" + name, args.corpus)
+        result = table(base_tag, proto_tag + name, args.corpus)
+        if result["n"] != count:
+            raise RuntimeError(f"incomplete corpus {args.corpus}: {result['n']}/{count}")
         summary["variants"][name] = result
         path = sweep.OUT / ("summary-" + args.corpus + ".json")
         path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
