@@ -57,6 +57,23 @@ El lote c1 0–7.999, publicado en `i07c-rediseno-proto`, da A core `txmarksproj
 
 En ambos mínimos de 115 y 97 bytes repetí `check` y `run` en release para `f0-0002-b-v2`, `f0-0003-b-v1` y `f0-0005-b-v1`: las doce comparaciones rechazan en ambos binarios con exit 1, pero la regresión diagnóstica indicada persiste idéntica en los tres perfiles y los dos comandos. Es una comprobación dirigida de aceptación; la campaña completa y debug/release siguen pendientes.
 
+### c1 completo (24.000 programas; release, `check`, `f0-0002-b-v2`)
+
+El resumen acumulado publicado en `i07c-rediseno-proto` llegó a 24.000/24.000 sin error ni resultado inconcluso del arnés. Cada celda es A/B/C/D; A es regresión frente a un acierto del oráculo, B arreglo, C igualdad de dos salidas erróneas y D dos salidas erróneas distintas. `OK` (ambos aciertan) se registra aparte en el JSON.
+
+| variante | core A/B/C/D | full A/B/C/D |
+|---|---:|---:|
+| `txmarksproj` | 9/2762/5/2 | 5/1461/12711/1534 |
+| `txmarksright` | 9/2761/4/4 | 4/1438/12726/1542 |
+| `txmarksconcrete` | 0/2766/1/2 | 5/1459/12709/1538 |
+| `txmarksstatement` | 0/2769/0/0 | 2/1435/12739/1532 |
+| `txmarksoccurrence` | 0/2760/5/4 | 2/1429/12745/1532 |
+| `txmarksstatement,txmarksright` | 0/2769/0/0 | 2/1446/12727/1533 |
+| `txmarksoccurrence,txmarksright` | 0/2764/2/3 | 2/1442/12729/1535 |
+| `txmarksoccurrence,txunify` | 0/2760/5/4 | 2/1429/12745/1532 |
+
+Los nueve índices de A de `txmarksproj` son 1976, 2159, 4798, 6749, 12397, 13590, 16314, 22342 y 22400. `txmarksright` comparte ocho y sustituye 2159 por 13601. La familia común implica proyecciones de binding pendiente en una unión: reconstruir su marca cambia `read_plan` y puede añadir `NX-E0103`, perder `NX-E1303` o trasladar la incompatibilidad a una asignación posterior. Los mínimos de 97 y 115 bytes separan respectivamente una proyección dentro de la unión y una ajena a ella; no se deduce de esta tabla que las seis variantes con A=0 cumplan el objetivo, porque todas fallan los arreglos dirigidos W0 e `incompatible_prefix` y la matriz T5/N.
+
 ## Evidencia directa disponible de la primera exploración
 
 Compilé el prototipo de candidato 5 con una sonda `txunify` que hace atómica la llamada completa al solucionador mediante una copia de `Checker`. Es una prueba de arquitectura, no una representación de producción. Con `check --format json --profile f0-0002-b-v2` sobre fuentes ASCII sin BOM ni LF final:
