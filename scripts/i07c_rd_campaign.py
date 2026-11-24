@@ -2,9 +2,9 @@
 """Run one frozen corpus across the transaction probes under one heavy lock."""
 import argparse
 import contextlib
+import hashlib
 import io
 import json
-from pathlib import Path
 
 import i07c_rd_sweep as sweep
 
@@ -45,12 +45,22 @@ def main():
         parser.error("unknown variant")
     count = len(sweep.data(args.corpus))
     print(f"corpus={args.corpus} rows={count} variants={selected}", flush=True)
+    hashes = {}
+    for role, exe in (("base", args.base_exe), ("prototype", args.proto_exe)):
+        with open(exe, "rb") as stream:
+            hashes[role] = hashlib.file_digest(stream, "sha256").hexdigest()
+    summary = {"corpus": args.corpus, "rows": count, "binary_sha256": hashes, "variants": {}}
     run("main-6e22181", args.corpus, args.base_exe, None, count)
     for name in selected:
         run("proto-" + name, args.corpus, args.proto_exe,
             BASE_FLAGS + "," + VARIANTS[name], count)
         result = table("main-6e22181", "proto-" + name, args.corpus)
-        print(json.dumps({"variant": name, **result}, ensure_ascii=False), flush=True)
+        summary["variants"][name] = result
+        path = sweep.OUT / ("summary-" + args.corpus + ".json")
+        path.write_text(json.dumps(summary, ensure_ascii=False, indent=2), encoding="utf-8")
+        compact = {k: v for k, v in result.items() if k != "regressions"}
+        compact["regressions_sample"] = result["regressions"][:10]
+        print(json.dumps({"variant": name, **compact}, ensure_ascii=False), flush=True)
     print(f"completed={args.corpus}", flush=True)
 
 
