@@ -1,0 +1,1 @@
+fn Main(){var q=[];var r=[];let a=(if true then r[0] else (if true then q else r));r=q;r=[true];}
