@@ -7,6 +7,7 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import threading
 
@@ -18,6 +19,7 @@ OUT.mkdir(parents=True, exist_ok=True)
 THREAD = threading.local()
 
 def data(name):
+    name = name.split("@", 1)[0]
     if name == "c1": return json.loads((EXP / "corpus-congelado.json").read_text(encoding="utf-8"))
     if name == "c2": return json.loads((EXP / "corpus2-congelado.json").read_text(encoding="utf-8"))
     if name == "b": return json.loads((BD2 / "corpus-b.json").read_text(encoding="utf-8"))
@@ -34,6 +36,7 @@ def source(row):
     return row if isinstance(row, str) else row.get("wrapped", row.get("w"))
 
 def profile(name):
+    if "@" in name: return name.split("@", 1)[1]
     return "f0-0003-b-v1" if name.startswith("s") and name[1:].isdigit() else "f0-0002-b-v2"
 
 def signature(diag):
@@ -96,7 +99,36 @@ def oracle_sig(result):
     return [[d["code"], d.get("subcause"), *d["primary"], d.get("expected_type"),
              d.get("found_type"), d.get("rel_expected")] for d in result["diagnostics"]]
 
+def oracle_wrapped(model, row):
+    if row["group"] != "W":
+        sys.path.insert(0, str(EXP))
+        sys.path.insert(0, str(EXP.parents[2] / "scripts"))
+        import analyze2d
+        try:
+            analog = analyze2d.analog(row)
+            return [list(d) + [None] if len(d) == 6 else list(d) for d in analog] if analog is not None else None
+        except Exception:
+            return None
+    try:
+        original = oracle_sig(model.derive(row["flat"]))
+    except Exception:
+        return None
+    if original is None: return None
+    def mapped(pos):
+        for first, end, wrapped in row["segs"]:
+            if first <= pos < end or pos == end and first < end:
+                return pos - first + wrapped
+        return None
+    result = []
+    for diag in original:
+        a, b = mapped(diag[2]), mapped(diag[3])
+        rel = [mapped(diag[6][0]), mapped(diag[6][1])] if diag[6] else None
+        if a is None or b is None or rel is not None and None in rel: return None
+        result.append([diag[0], diag[1], a, b, diag[4], diag[5], rel])
+    return result
+
 def expected(name, rows):
+    name = name.split("@", 1)[0]
     cache = OUT / ("oracle-" + name + ".json")
     if cache.exists(): return json.loads(cache.read_text(encoding="utf-8"))
     if name == "c1":
@@ -105,8 +137,16 @@ def expected(name, rows):
         result = [None] * len(rows)
     else:
         model = oracle_module()
-        result = [oracle_sig(model.derive(r["flat"] if isinstance(r, dict) and r.get("form") in ("flat", "blockstyle")
-                                          else source(r))) for r in rows]
+        if name in ("c2", "c2-nueva"):
+            result = [oracle_wrapped(model, r) for r in rows]
+        else:
+            result = []
+            for r in rows:
+                try:
+                    result.append(oracle_sig(model.derive(r["flat"] if isinstance(r, dict) and r.get("form") in ("flat", "blockstyle")
+                                                          else source(r))))
+                except Exception:
+                    result.append(None)
     cache.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
     return result
 
@@ -127,7 +167,10 @@ def table(args):
             result["same_unmodeled" if b == c else "changed_unmodeled"] += 1
             continue
         for level in ("core", "full"):
-            select = (lambda x: [d[:4] for d in x]) if level == "core" else (lambda x: x)
+            short_full = args.corpus.split("@", 1)[0] in ("c2", "c2-nueva") and isinstance(rows[i], dict) and rows[i].get("form") in (
+                "annot", "arg", "ret", "option", "result", "takeempty", "matchexpr")
+            select = (lambda x: [d[:4] for d in x]) if level == "core" else (
+                (lambda x: [d[:6] for d in x]) if short_full else (lambda x: x))
             bb, cc, oo = select(b), select(c), select(o)
             category = "A" if bb == oo and cc != oo else "B" if bb != oo and cc == oo else "C" if bb == cc else "D"
             result[level][category] += 1

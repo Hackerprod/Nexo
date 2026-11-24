@@ -14308,10 +14308,21 @@ impl Checker<'_> {
                     self.graph.type_nodes.insert(id, node);
                 }
                 if xv("txmarks") {
-                    let scope = self.active_if_span.as_ref().map_or(
-                        (self.top_statement_start, self.top_statement_end),
-                        |span| (span.start, span.end),
-                    );
+                    let scope = if xv("txmarksstatement") {
+                        (self.top_statement_start, self.top_statement_end)
+                    } else if xv("txmarksoccurrence") {
+                        (
+                            base.1.start.min(found_span_dbg.start),
+                            self.active_if_span
+                                .as_ref()
+                                .map_or(found_span_dbg.end, |span| span.end.max(found_span_dbg.end)),
+                        )
+                    } else {
+                        self.active_if_span.as_ref().map_or(
+                            (self.top_statement_start, self.top_statement_end),
+                            |span| (span.start, span.end),
+                        )
+                    };
                     for constructor in pending_constructors {
                         let root = self.root(constructor);
                         let node = self.graph.type_nodes.get_mut(&root).unwrap();
