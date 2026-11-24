@@ -156,7 +156,8 @@ def table(args):
     keys = sorted(set(base) & set(cand))
     if not keys: raise ValueError("no overlapping lots")
     result = {"corpus": args.corpus, "n": len(keys), "unmodeled": 0,
-              "core": {k: 0 for k in "ABCD"}, "full": {k: 0 for k in "ABCD"}, "same_unmodeled": 0,
+              "core": {k: 0 for k in "ABCD"}, "full": {k: 0 for k in "ABCD"},
+              "ok": {"core": 0, "full": 0}, "same_unmodeled": 0,
               "changed_unmodeled": 0, "regressions": []}
     for i in keys:
         b, c, o = base[i], cand[i], model[i]
@@ -171,9 +172,12 @@ def table(args):
             select = (lambda x: [d[:4] for d in x]) if level == "core" else (
                 (lambda x: [d[:6] for d in x]) if short_full else (lambda x: x))
             bb, cc, oo = select(b), select(c), select(o)
-            category = "A" if bb == oo and cc != oo else "B" if bb != oo and cc == oo else "C" if bb == cc else "D"
-            result[level][category] += 1
-            if category == "A" and level == "core": result["regressions"].append(i)
+            category = "A" if bb == oo and cc != oo else "B" if bb != oo and cc == oo else "OK" if bb == oo else "C" if bb == cc else "D"
+            if category == "OK":
+                result["ok"][level] += 1
+            else:
+                result[level][category] += 1
+                if category == "A" and level == "core": result["regressions"].append(i)
     print(json.dumps(result, ensure_ascii=False))
 
 def main():
