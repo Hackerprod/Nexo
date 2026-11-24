@@ -114,6 +114,10 @@ El corpus-t **no tiene oráculo propio**: A/B/C/D no se pueden calcular, y los c
 
 Sobre los 1.098 modelados, `txmarksproj` da core A/B/C/D = **1/206/0/1** y full A/B/C/D = **0/110/531/117**; 890 core y 340 full son aciertos comunes. El A 2755 contiene `r[0]` en ambas uniones interiores: `main` y oráculo coinciden en `NX-E0103` `[85,87)`, `NX-E1303` `[160,161)` y `NX-E0102` `[167,169)`; la variante añade `NX-E0103` `[76,78)` y `[128,131)`, traslada `NX-E1303` a `[127,132)` y pierde el `NX-E0102`. Es el mismo desvío de marca y fijación por ocurrencia. Los 3.402 sin oráculo incluyen 546 cambios frente a `main`; siguen sin calificar. `summary-s7021993.json` quedó publicado sin error de arnés.
 
+### Semilla B 4417061 completa (4.500 programas; release, `check`)
+
+Sobre los 1.138 modelados, `txmarksproj` da core A/B/C/D = **1/221/0/3** y full A/B/C/D = **0/125/557/114**; 913 core y 342 full son aciertos comunes. El A 1646 tiene `q[0]` en un `value` anidado posterior: `main` y oráculo dan solo `NX-E0103` `[67,69)` y `[85,87)`; la variante añade `NX-E0103` `[76,78)` y dos `NX-E1303` `[137,142)` y `[172,177)`. La marca activada por la proyección altera otras igualdades de la sentencia. Los 3.362 sin oráculo incluyen 546 cambios sin adjudicar. `summary-s4417061.json` quedó publicado sin error de arnés.
+
 `scripts/i07c_rd_accept.py` (rama desechable) quedó preparado para comparar aceptación de `check`/`run` en los tres perfiles con cuatro hijos y watchdog propio de 6 GB/20 min; una muestra de dos programas de c1 y un positivo de control verificaron el formato. La muestra no fundamenta aceptación global. El arnés de firmas A/B/C/D registra diagnósticos de `check`; los resultados de ejecución e `internal_error` se medirán por separado. La consulta `python -B scripts/f5-stack65.py --help` ejecutó accidentalmente las sondas de pila porque el script no implementa `--help`; quedó registrada como incidente operativo y **no** se usa como evidencia de pila ni PASS, pues no pasó por el cerrojo compartido.
 
 ## Evidencia directa disponible de la primera exploración
