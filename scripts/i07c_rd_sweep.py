@@ -23,6 +23,19 @@ OUT.mkdir(parents=True, exist_ok=True)
 THREAD = threading.local()
 MAX_WORKING_SET = 6 * 1024**3
 SILENCE_LIMIT = 20 * 60
+CORPUS_SHA256 = {
+    "c1": "e78702d1ee98178fd2a5809ccfc49c35dcbc3b7438b9664072c5c42742d7cfe9",
+    "c2": "514c929f76ef4f6fba3343647353bd420d9d931c03cf039051df5584427cd864",
+    "b": "83f9e726254d55802e275b2b18ba270f567513703b5fa10a091ff5cbe410af1f",
+    "perm": "8997f93905ae1338fab3a1c921dceed8628516ab4ae8e862e24b6e021700cf72",
+    "t": "a1c740bd6aafe417e0a0205fc2759fabd63a6d96507551652b96d971bffce2c5",
+    "dirigido5": "684d623488bd2e6ec882036a8bce8162177237ea38a72e4e6d57fb53f2dd5e09",
+    "s7021993": "611f34e21b71c06ba255a308a3e01f97cd0f3f0c9de7563ddb2f0961962c0f10",
+    "s4417061": "0976fb60d2f494ce5b3beca958da149210c416835c27bcb717e13f26c2cd3c48",
+    "s9908255": "d41babb25b6e6b55e5d9832f1ddcff2d2ae12cd31ba2b7100173940e524c586e",
+    "c1-nueva": "dba4c8fdd45b9651403463c36cd30626f4a31c8951ad43c80a11802a1090332d",
+    "c2-nueva": "ff3de38ed02ca9857d6f073406d1f7c01c3b26dbb6fdadf8d94ff769a7db49e7",
+}
 ctypes.windll.kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
 ctypes.windll.kernel32.OpenProcess.restype = wintypes.HANDLE
 ctypes.windll.kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
@@ -52,17 +65,24 @@ def working_set(pid):
 
 def data(name):
     name = name.split("@", 1)[0]
-    if name == "c1": return json.loads((EXP / "corpus-congelado.json").read_text(encoding="utf-8"))
-    if name == "c2": return json.loads((EXP / "corpus2-congelado.json").read_text(encoding="utf-8"))
-    if name == "b": return json.loads((BD2 / "corpus-b.json").read_text(encoding="utf-8"))
-    if name == "perm": return json.loads((BD2 / "perm.json").read_text(encoding="utf-8"))["progs"]
-    if name == "t": return json.loads((BD2 / "corpus-t.json").read_text(encoding="utf-8"))
-    if name == "dirigido5": return json.loads((EXP / "corpus-dirigido5.json").read_text(encoding="utf-8"))
-    if name.startswith("s") and name[1:] in ("7021993", "4417061", "9908255"):
-        return json.loads((NEW / ("b-" + name[1:] + ".json")).read_text(encoding="utf-8"))
-    if name in ("c1-nueva", "c2-nueva"):
-        return json.loads((NEW / (name + ".json")).read_text(encoding="utf-8"))
-    raise ValueError(name)
+    if name == "c1": path = EXP / "corpus-congelado.json"
+    elif name == "c2": path = EXP / "corpus2-congelado.json"
+    elif name == "b": path = BD2 / "corpus-b.json"
+    elif name == "perm": path = BD2 / "perm.json"
+    elif name == "t": path = BD2 / "corpus-t.json"
+    elif name == "dirigido5": path = EXP / "corpus-dirigido5.json"
+    elif name.startswith("s") and name[1:] in ("7021993", "4417061", "9908255"):
+        path = NEW / ("b-" + name[1:] + ".json")
+    elif name in ("c1-nueva", "c2-nueva"):
+        path = NEW / (name + ".json")
+    else:
+        raise ValueError(name)
+    content = path.read_bytes()
+    digest = hashlib.sha256(content).hexdigest()
+    if digest != CORPUS_SHA256[name]:
+        raise ValueError(f"corpus SHA-256 mismatch: {name} {digest} != {CORPUS_SHA256[name]}")
+    decoded = json.loads(content)
+    return decoded["progs"] if name == "perm" else decoded
 
 def source(row):
     return row if isinstance(row, str) else row.get("wrapped", row.get("w"))
