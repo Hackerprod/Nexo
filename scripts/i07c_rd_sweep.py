@@ -2,6 +2,7 @@
 """Disposable batched I07c differential, with durable per-lot results."""
 import argparse
 from concurrent.futures import ThreadPoolExecutor
+import hashlib
 import importlib.util
 import json
 import os
@@ -131,7 +132,16 @@ def oracle_wrapped(model, row):
 def expected(name, rows):
     name = name.split("@", 1)[0]
     cache = OUT / ("oracle-" + name + ".json")
-    if cache.exists(): return json.loads(cache.read_text(encoding="utf-8"))
+    evidence = hashlib.sha256()
+    evidence.update(Path(__file__).with_name("i07c_rd_oracle.py").read_bytes())
+    if name in ("c2", "c2-nueva"):
+        evidence.update((EXP / "analyze2d.py").read_bytes())
+    evidence.update(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode("utf-8"))
+    identity = evidence.hexdigest()
+    if cache.exists():
+        cached = json.loads(cache.read_text(encoding="utf-8"))
+        if isinstance(cached, dict) and cached.get("identity") == identity:
+            return cached["results"]
     if name in ("t", "dirigido5"):
         result = [None] * len(rows)
     else:
@@ -146,7 +156,7 @@ def expected(name, rows):
                                                           else source(r))))
                 except Exception:
                     result.append(None)
-    cache.write_text(json.dumps(result, ensure_ascii=False), encoding="utf-8")
+    cache.write_text(json.dumps({"identity": identity, "results": result}, ensure_ascii=False), encoding="utf-8")
     return result
 
 def table(args):
