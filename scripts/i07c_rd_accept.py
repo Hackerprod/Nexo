@@ -87,7 +87,10 @@ def main():
     destination = OUT / f"{args.corpus}-{args.mode}-{args.start:05d}-{end:05d}.json"
     if destination.exists():
         old = json.loads(destination.read_text(encoding="utf-8"))
-        if old.get("hashes") == hashes and old.get("flags") == args.flags and old.get("rows") == end - args.start:
+        complete = len(old.get("checks", {})) == len(PROFILES) * 2
+        clean = all(not check.get("inconclusive") for check in old.get("checks", {}).values())
+        if (old.get("hashes") == hashes and old.get("flags") == args.flags
+                and old.get("rows") == end - args.start and complete and clean):
             print(f"cached={destination}", flush=True)
             return
     result = {"corpus": args.corpus, "mode": args.mode, "start": args.start, "end": end,

@@ -27,7 +27,9 @@ def run(tag, corpus, exe, flags, start, end):
     dest = sweep.OUT / tag / f"{corpus}-{start:05d}-{end:05d}.json"
     if dest.exists():
         old = json.loads(dest.read_text(encoding="utf-8"))
-        if old.get("start") == start and old.get("end") == end and old.get("flags") == flags and len(old.get("results", [])) == end - start:
+        results = old.get("results", [])
+        if (old.get("start") == start and old.get("end") == end and old.get("flags") == flags
+                and len(results) == end - start and all(not isinstance(value, dict) for value in results)):
             print(f"cached={dest}", flush=True)
             return
     args = argparse.Namespace(tag=tag, corpus=corpus, exe=exe, flags=flags, start=start, end=end)
