@@ -1,8 +1,22 @@
 # I07c — Informe de exploración del rediseño
 
-Estado: **PARADA del brief §5; sin PASS; ningún plan de Flujo B**. Base de código: `origin/main` `6e22181` para `src/check/types.rs`; los corpus históricos y el oráculo se leen del blob de `origin/i07c-estructural-r2`. El prototipo desechable está en `i07c-rediseno-proto` (`13182cb`); sus cambios de `src/` no son entregables de integración. Se detuvo el barrido masivo al reproducir una regresión de núcleo en el mínimo t3584 con la única variante que corregía `planned_projection`; no se aplicaron más parches por pieza.
+Estado: **exploración reabierta; sin PASS; ningún plan de Flujo B**. Base de código: `origin/main` `6e22181` para `src/check/types.rs`; los corpus históricos y el oráculo se leen del blob de `origin/i07c-estructural-r2`. El prototipo desechable está en `i07c-rediseno-proto` (`e97cce1`); sus cambios de `src/` no son entregables de integración. La parada anterior tras una regresión en t3584 fue prematura. Esta continuación analiza ese defecto, mide sondas adicionales y prepara el barrido por lotes.
 
-## Evidencia directa disponible
+## Continuación: mínimo, causa y sondas baratas
+
+Se redujo t3584 a 89 bytes, ASCII sin BOM ni LF final, perfil `f0-0002-b-v2`:
+
+```nexo
+fn Main(){var q=[];var r=[];(if true then [q] else (if true then [1] else q));r=q;q=[1];}
+```
+
+El oráculo S5c y el candidato 5 dan solo `NX-E1303` `[65,68)`; `txmarks` añade `NX-E0102/type_mismatch` `[85,86)`. `r=q` es necesario para reproducirlo en esta reducción: al retirarlo, la sonda deja de añadir el error. El rastro de planning de `txmarks` muestra `read_plan` para `q` y `r`, y la primera igualdad de unión pasa de pendiente con `atomic0` a `Err` inmediato en la pasada final. La marca reconstruida conserva la obligación, pero su alcance de `if` interior no cubre la lectura `q` del ancla exterior. La hipótesis causal es que `read_plan` aplica prematuramente el tipo de `q=[1]` a esa lectura; está pendiente falsarla con variantes de alcance.
+
+Se ejecutaron las 45 filas del oráculo y doce sondas dirigidas con el mismo binario release anterior a las nuevas variantes (los cinco mínimos históricos, este mínimo reducido, las dos formas de `planned_projection`, `incompatible_prefix`, `anchored_first_branch`, el negativo recursivo y el positivo). `candidate5` y `candidate5+txunify` dan 45/45 y 10/12: fallan ambas proyecciones. `candidate7` (sin `atomic0`), `txmarks` y `txmarks+txunify` dan 40/45 y 5/12: las filas rojas son W0, B_qr, P1, c3 y w1; fallan los cinco mínimos históricos, el mínimo reducido e `incompatible_prefix`. Las dos formas de `planned_projection` sí pasan con estas tres variantes. La sonda de `anchored_first_branch` usa el esperado adjudicado por B, solo `NX-E0102` `[136,137)`. Este recuento es dirigido, no sustituye las tablas A/B/C/D del barrido.
+
+Las nuevas variantes direccionales y de alcance (`txmarksright`, `txmarksleft`, `txmarksstatement`, `txmarksoccurrence` y combinaciones) están en la rama de prototipo, **pendientes de compilar y medir** bajo el cerrojo de la máquina compartida. El arnés versionado `scripts/i07c_rd_cheap.py` reproduce las sondas; `scripts/i07c_rd_sweep.py` conserva resultados por lotes para el barrido. No hay todavía una variante que supere la puerta barata.
+
+## Evidencia directa disponible de la primera exploración
 
 Compilé el prototipo de candidato 5 con una sonda `txunify` que hace atómica la llamada completa al solucionador mediante una copia de `Checker`. Es una prueba de arquitectura, no una representación de producción. Con `check --format json --profile f0-0002-b-v2` sobre fuentes ASCII sin BOM ni LF final:
 
@@ -52,7 +66,7 @@ Para reproducir `txmarks`, añadir `,txmarks` a la lista de `--flags` anterior. 
 | c2-nueva (8.000) | **NO EVALUADO** | Congelado con SHA antes de medir `txmarks`. |
 | mínimo t3584 (una fuente histórica de corpus-t) | **1 programa con regresión de core** | `main` y oráculo: `NX-E0103` `[85,87)` + `NX-E1303` `[126,128)`; `txmarks` añade `NX-E0102/type_mismatch` `[146,148)`. |
 
-El fallo dirigido basta para falsar `txmarks` y activa la PARADA por prioridad de cero regresiones. No se lanzó el barrido masivo ni hay tabla A/B/C/D por corpus, ni afirmación de 0 global. Los ceros del candidato 5 y las 56/1.007 de variantes históricas son datos de INFORME-1..8, no resultados propios de `txmarks`. Un nuevo rediseño necesitará probar una representación única de obligación suspendida y sus efectos.
+El fallo dirigido falsó `txmarks`; la continuación mide otras variantes. No se ha lanzado aún el barrido masivo ni hay tabla A/B/C/D por corpus, ni afirmación de 0 global. Los ceros del candidato 5 y las 56/1.007 de variantes históricas son datos de INFORME-1..8, no resultados propios de `txmarks`.
 
 ## Puertas del brief §7
 
@@ -64,4 +78,4 @@ El fallo dirigido basta para falsar `txmarks` y activa la PARADA por prioridad d
 | 152 RD, objetivo, 3.674, twin, fuzz, pila, pasadas, tiempo | **NO EVALUADO para `txmarks`** por la misma PARADA. La compilación release de la sonda sí pasó; no equivale a puerta completa. |
 | 17 tests de §3.6 y cada fila abierta de la lista de defectos | **NO EVALUADO para `txmarks`**; siguen nominalmente abiertos hasta un nuevo diseño y derivación individual. No se editó ningún test. |
 
-El corpus base sigue limitado a una función `Main`, seis hojas y profundidad tres; el oráculo histórico no modela `match`, `while`, bloques `{}` ni `AssertEq`, y precede a T5. Ni el recuento de muestras ni un positivo dirigido prueban ausencia de regresiones. `txmarks` falló un mínimo con causa estructural; este informe se cierra con las cifras medidas y **no se escribe plan de implementación**. Quedan pendientes las lagunas y piezas S5a.2/S5a.3/S5a.5, `match`, los 17 tests y las 50 filas abiertas; no se reclasifican como deuda sin programa.
+El corpus base sigue limitado a una función `Main`, seis hojas y profundidad tres; el oráculo histórico no modela `match`, `while`, bloques `{}` ni `AssertEq`, y precede a T5. Ni el recuento de muestras ni un positivo dirigido prueban ausencia de regresiones. La exploración continúa y **no se escribe plan de implementación**. Quedan pendientes las lagunas y piezas S5a.2/S5a.3/S5a.5, `match`, los 17 tests y las 50 filas abiertas; no se reclasifican como deuda sin programa.
