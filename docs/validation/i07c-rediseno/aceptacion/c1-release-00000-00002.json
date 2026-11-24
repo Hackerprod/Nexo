@@ -1,0 +1,56 @@
+{
+  "corpus": "c1",
+  "mode": "release",
+  "start": 0,
+  "end": 2,
+  "rows": 2,
+  "hashes": {
+    "base": "44bef37452e47e9076b4a22db75df6f4a2f6386ab8d9baf39bb7f4f403a4a4a7",
+    "proto": "57f9db1da0d28375e7cfc82965158c9063c81bb0e39d4e5766f4983973dfe3ff"
+  },
+  "flags": "pendfa,retfa,retract,nojoin,atomic0,e0103rule,retfail,rmm3b,rmm3e,rmm3f,nojoinr,skipv3,txmarks,txmarksproj",
+  "checks": {
+    "f0-0002-b-v2/check": {
+      "acceptance_changes": [],
+      "internal": [],
+      "inconclusive": [],
+      "base_accepted": 0,
+      "proto_accepted": 0
+    },
+    "f0-0002-b-v2/run": {
+      "acceptance_changes": [],
+      "internal": [],
+      "inconclusive": [],
+      "base_accepted": 0,
+      "proto_accepted": 0
+    },
+    "f0-0003-b-v1/check": {
+      "acceptance_changes": [],
+      "internal": [],
+      "inconclusive": [],
+      "base_accepted": 0,
+      "proto_accepted": 0
+    },
+    "f0-0003-b-v1/run": {
+      "acceptance_changes": [],
+      "internal": [],
+      "inconclusive": [],
+      "base_accepted": 0,
+      "proto_accepted": 0
+    },
+    "f0-0005-b-v1/check": {
+      "acceptance_changes": [],
+      "internal": [],
+      "inconclusive": [],
+      "base_accepted": 0,
+      "proto_accepted": 0
+    },
+    "f0-0005-b-v1/run": {
+      "acceptance_changes": [],
+      "internal": [],
+      "inconclusive": [],
+      "base_accepted": 0,
+      "proto_accepted": 0
+    }
+  }
+}
