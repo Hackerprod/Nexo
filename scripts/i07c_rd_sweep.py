@@ -11,6 +11,9 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
+import ctypes
+from ctypes import wintypes
 
 EXP = Path("C:/projects/Nexo-i07c/docs/validation/i07c-s5c-explor")
 BD2 = Path("C:/projects/Nexo-i07c/docs/validation/i07c-s5c/b-d2")
@@ -18,6 +21,34 @@ NEW = Path("C:/projects/Nexo-i07c-rd/docs/validation/i07c-rediseno")
 OUT = Path("C:/projects/Nexo-i07c-rd-proto/.scratch/rd-scan")
 OUT.mkdir(parents=True, exist_ok=True)
 THREAD = threading.local()
+MAX_WORKING_SET = 6 * 1024**3
+SILENCE_LIMIT = 20 * 60
+ctypes.windll.kernel32.OpenProcess.argtypes = [wintypes.DWORD, wintypes.BOOL, wintypes.DWORD]
+ctypes.windll.kernel32.OpenProcess.restype = wintypes.HANDLE
+ctypes.windll.kernel32.CloseHandle.argtypes = [wintypes.HANDLE]
+ctypes.windll.psapi.GetProcessMemoryInfo.argtypes = [wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD]
+
+
+class PROCESS_MEMORY_COUNTERS(ctypes.Structure):
+    _fields_ = [("cb", wintypes.DWORD), ("PageFaultCount", wintypes.DWORD),
+                ("PeakWorkingSetSize", ctypes.c_size_t), ("WorkingSetSize", ctypes.c_size_t),
+                ("QuotaPeakPagedPoolUsage", ctypes.c_size_t), ("QuotaPagedPoolUsage", ctypes.c_size_t),
+                ("QuotaPeakNonPagedPoolUsage", ctypes.c_size_t), ("QuotaNonPagedPoolUsage", ctypes.c_size_t),
+                ("PagefileUsage", ctypes.c_size_t), ("PeakPagefileUsage", ctypes.c_size_t)]
+
+
+def working_set(pid):
+    handle = ctypes.windll.kernel32.OpenProcess(0x1000 | 0x0400, False, pid)
+    if not handle:
+        return 0
+    try:
+        counters = PROCESS_MEMORY_COUNTERS()
+        counters.cb = ctypes.sizeof(counters)
+        if ctypes.windll.psapi.GetProcessMemoryInfo(handle, ctypes.byref(counters), counters.cb):
+            return counters.WorkingSetSize
+        return 0
+    finally:
+        ctypes.windll.kernel32.CloseHandle(handle)
 
 def data(name):
     name = name.split("@", 1)[0]
@@ -55,20 +86,42 @@ def run_one(args):
     path.write_bytes(source(row).encode("utf-8"))
     env = os.environ.copy()
     if flags is not None: env["NEXO_XV"] = flags
-    proc = subprocess.run([exe, "check", "--format", "json", "--profile", prof, str(path)],
-                          capture_output=True, text=True, timeout=120, env=env)
+    with tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stdout, tempfile.TemporaryFile(mode="w+t", encoding="utf-8") as stderr:
+        proc = subprocess.Popen([exe, "check", "--format", "json", "--profile", prof, str(path)],
+                                stdout=stdout, stderr=stderr, env=env)
+        last_output = time.monotonic()
+        last_size = 0
+        reason = None
+        while proc.poll() is None:
+            size = os.fstat(stdout.fileno()).st_size + os.fstat(stderr.fileno()).st_size
+            if size != last_size:
+                last_output, last_size = time.monotonic(), size
+            if working_set(proc.pid) > MAX_WORKING_SET:
+                reason = "working_set_over_6gb"
+                break
+            if time.monotonic() - last_output > SILENCE_LIMIT:
+                reason = "silent_over_20min"
+                break
+            time.sleep(0.02)
+        if reason:
+            proc.kill()  # This PID was created by this run_one invocation.
+            proc.wait()
+            return {"inconclusive": reason, "pid": proc.pid}
+        stdout.seek(0)
+        stderr.seek(0)
+        output, error = stdout.read(), stderr.read()
     try:
-        result = json.loads(proc.stdout)
+        result = json.loads(output)
         return [signature(d) for d in result.get("diagnostics", [])]
     except (KeyError, ValueError, TypeError):
-        return {"error": proc.returncode, "out": proc.stdout[-300:], "err": proc.stderr[-300:]}
+        return {"error": proc.returncode, "out": output[-300:], "err": error[-300:]}
 
 def run(args):
     rows = data(args.corpus)
     end = min(args.end, len(rows))
     path = OUT / args.tag
     path.mkdir(exist_ok=True)
-    with ThreadPoolExecutor(max_workers=6) as pool:
+    with ThreadPoolExecutor(max_workers=4) as pool:
         results = list(pool.map(run_one, ((args.exe, args.flags, profile(args.corpus), r)
                                           for r in rows[args.start:end])))
     dest = path / f"{args.corpus}-{args.start:05d}-{end:05d}.json"
