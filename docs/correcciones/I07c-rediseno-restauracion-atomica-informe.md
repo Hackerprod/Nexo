@@ -126,6 +126,10 @@ Sobre los 1.108 modelados, `txmarksproj` da core A/B/C/D = **0/177/0/2** y full 
 
 El generador de casos con inicializador divergente, `return`, `break` y `while` no tiene oráculo por fila: A/B/C/D no son clasificables. Hay 5.877 salidas idénticas a `main` y 123 distintas. El resultado se publicó en `summary-dirigido5.json` con SHA y sin errores de arnés. Las 123 diferencias requieren esperado individual antes de calificar el tramo; no se cuentan como arreglos.
 
+### c1-nueva completa (8.000 programas congelados antes de `txmarksproj`; release, `check`)
+
+`txmarksproj` da core A/B/C/D = **2/819/0/3** y full A/B/C/D = **1/434/4499/462**; 7.176 core y 2.604 full son aciertos comunes, sin filas sin oráculo. Los A 4223 y 7417 son programas nuevos, no usados para ajustar la variante. En 4223 una unión anidada con `r[0]` pierde `NX-E1303` `[138,142)` y gana `NX-E0102` `[160,161)` tras `r=q`. En 7417, `r[0]` en el primer brazo y `[q,r]` en el otro hacen que la variante añada `NX-E0103` `[67,69)` y `[76,78)` a la única denuncia esperada `[85,87)`. Ambos confirman la causa estructural de marca y fijación de una ocurrencia pendiente. `summary-c1-nueva.json` quedó publicado con los SHA y sin error de arnés.
+
 `scripts/i07c_rd_accept.py` (rama desechable) quedó preparado para comparar aceptación de `check`/`run` en los tres perfiles con cuatro hijos y watchdog propio de 6 GB/20 min; una muestra de dos programas de c1 y un positivo de control verificaron el formato. La muestra no fundamenta aceptación global. El arnés de firmas A/B/C/D registra diagnósticos de `check`; los resultados de ejecución e `internal_error` se medirán por separado. La consulta `python -B scripts/f5-stack65.py --help` ejecutó accidentalmente las sondas de pila porque el script no implementa `--help`; quedó registrada como incidente operativo y **no** se usa como evidencia de pila ni PASS, pues no pasó por el cerrojo compartido.
 
 ## Evidencia directa disponible de la primera exploración
