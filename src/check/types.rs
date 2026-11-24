@@ -14293,6 +14293,12 @@ impl Checker<'_> {
                     self.pending_joins()
                         .skip(before)
                         .filter(|join| join.branch)
+                        .filter(|join| {
+                            (!xv("txmarksright") || matches!(join.right, Type::Deferred(_)))
+                                && (!xv("txmarksleft") || matches!(join.left, Type::Deferred(_)))
+                                && (!xv("txmarksconcrete")
+                                    || !matches!(join.left, Type::Deferred(_)))
+                        })
                         .map(|join| join.constructor)
                         .collect()
                 } else {
