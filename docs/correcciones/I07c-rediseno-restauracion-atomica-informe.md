@@ -106,6 +106,10 @@ Los 13 cambios sin oráculo de c2 son exclusivamente de la forma `takeempty`. Qu
 
 `txmarksproj` da core A/B/C/D = **4/340/4/0** y full A/B/C/D = **9/261/1173/125**; 3.474 core y 2.254 full son aciertos comunes. Las 222 fuentes sin oráculo coinciden con `main`. Los A 3084, 3087 y 3088 son tres órdenes de las mismas asignaciones alrededor de una unión anidada con `r[0]`; el 3955 también contiene `r[0]` y una lectura de `q` tras `r=q`. En 3084, la variante traslada `NX-E1303` de `[143,147)` a `[153,154)` y añade `NX-E0102` `[165,167)`: reconstruir la marca deja que la asignación posterior altere el contraste anterior. El resumen `summary-perm.json` está publicado sin resultados inconclusos.
 
+### corpus-t completo (10.584 programas; release, `check`)
+
+El corpus-t **no tiene oráculo propio**: A/B/C/D no se pueden calcular, y los ceros del JSON no significan ausencia de regresiones. `txmarksproj` coincide con `main` en 5.803 salidas y difiere en 4.781. El índice histórico 3584 tiene esperado del ADR y demuestra al menos una regresión de la variante `txmarks` inicial; la variante `txmarksproj` conserva ese mínimo en la sonda barata. Las otras diferencias no se declaran arreglos ni regresiones sin adjudicación; el tramo no está cerrado. El resumen `summary-t.json` conserva los conteos y SHA, sin error de arnés.
+
 `scripts/i07c_rd_accept.py` (rama desechable) quedó preparado para comparar aceptación de `check`/`run` en los tres perfiles con cuatro hijos y watchdog propio de 6 GB/20 min; una muestra de dos programas de c1 y un positivo de control verificaron el formato. La muestra no fundamenta aceptación global. El arnés de firmas A/B/C/D registra diagnósticos de `check`; los resultados de ejecución e `internal_error` se medirán por separado. La consulta `python -B scripts/f5-stack65.py --help` ejecutó accidentalmente las sondas de pila porque el script no implementa `--help`; quedó registrada como incidente operativo y **no** se usa como evidencia de pila ni PASS, pues no pasó por el cerrojo compartido.
 
 ## Evidencia directa disponible de la primera exploración
