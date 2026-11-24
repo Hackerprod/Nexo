@@ -1,0 +1,47 @@
+# I07c — Rediseño de restauración atómica y ancla de unión
+
+Estado: **hipótesis de Flujo A, sin PASS, sin plan de implementación**. Base: `origin/main` de 2026-11-24. El prototipo y el barrido exigidos por el brief aún no han demostrado esta regla; por la regla de oro del brief §5, este texto no autoriza Flujo B.
+
+## Regla candidata única: compromiso por ocurrencia
+
+Una igualdad de tipos pertenece a una **ocurrencia fuente** (§4.1.2.1). Su examen produce una propuesta de evidencia: enlaces de variables y constructores, obligaciones diferidas, marcas de unión, procedencias y cambios de planificación. La propuesta se hace visible al prefijo compatible solo si la igualdad es compatible. Si resulta incompatible, se rechaza como una unidad: ningún efecto de esa ocurrencia entra en el prefijo, salvo el hecho de la incompatibilidad y su diagnóstico causal en el sitio original. Si todavía falta un componente para decidir el conflicto, la propuesta queda suspendida con su identidad y orden de ocurrencia; al completarse por restricciones compatibles posteriores se decide **sobre el mismo prefijo anterior a ella**, sin convertir la evidencia de una igualdad incompatible en evidencia para las posteriores. Una incompatibilidad segura cuyo tipo no es serializable conserva su reserva de denuncia y el constructor pendiente conserva su `NX-E0103`/`NX-E0113` (§§4.1.2.2, 4.1.2.5).
+
+Esta regla aplica a la igualdad del ancla de una unión `if`, a las igualdades de homogeneidad de array, asignación, proyección, dominio y consumidor. En una unión sin contexto externo determinado, la primera continuación normal válida establece la referencia. Cada continuación posterior se compara una vez contra ella, en orden de comprobación. La primera igualdad incompatible reserva la única `NX-E1303` de esa unión; las compatibles siguen comprometiéndose. El estado «denunciada» es distinto del **testigo parcial** que la primera continuación válida ofrece exclusivamente a una unión exterior (§§4.1.2.4–5). Una unión errónea no ofrece tipo a otro consumidor; el literal heterogéneo tampoco ofrece testigo parcial (`F0-0002-lagunas.md`, «Resultado de un literal de array heterogéneo»). Las decisiones de disponibilidad de contexto se toman al entrar en cada nodo, con el prefijo comprometido en ese momento (§4.1.2.4), sin reemplazar retrospectivamente las variables por su última asignación (§4.1.2.7).
+
+La procedencia es parte de la evidencia comprometida, no se reconstruye a partir de la forma final del grafo. Una asignación rechazada no cambia el tipo de lecturas anteriores ni su origen; la relación `expected_type` se elige mediante la regla A de `F0-0002-lagunas.md`, «Procedencia de la relación `expected_type`» (§4.1.2.6, §13.15). El orden de emisión sigue §13.9 incluso si el conflicto se resuelve tarde.
+
+### Ejemplos que la regla debe explicar
+
+Los offsets son bytes `[inicio,fin)` y los perfiles son los indicados. Los esperados siguientes proceden del ADR y de la derivación del oráculo validada por B cuando se indica; **son condiciones de falsación, no resultados de este prototipo**.
+
+| papel | fuente / perfil | esperado |
+|---|---|---|
+| compatible posterior | `fn Main(){let x=1;let p=true;let ar=[1];var r=[];var q=[];let a0=(if p then q else (if p then 1 else r));q=[[ar]];}` / `f0-0002-b-v2` | Solo `NX-E1303` sobre `1` `[94,95)`; sin `NX-E0103` del constructor de `q` (oráculo S5c, R4). La igualdad incompatible no borra la fijación compatible posterior. |
+| incompatible y posterior | `fn Main(){let p=true;let ar=[1];let aar=[[1]];let r3=[[[1]]];var q=[];var r=[];var s=[];let a0=(if p then [q] else (if p then ar else q));r=q;q=[[ar]];}` / `f0-0002-b-v2` | `NX-E0103` `[85,87)` y `NX-E1303` `[126,128)`; **sin** `NX-E0102` `[146,148)` (INFORME-8, mínimo t 3584). Las ligaduras parciales de la igualdad rechazada no contaminan `r=q`. |
+| proyección pendiente | `fn Main(){let x=1;var q=[];var s=[];let a=[s[x],(if 0 then true else q),(if x then q else s)];q=[true];s=[[true]];}` / `f0-0002-b-v2` | `NX-E1303` en `q` `[69,70)` conforme al oráculo, no `NX-E0102` en ese sitio (INFORME-6 §3 y registro de defectos §6.2). Una igualdad suspendida conserva su obligación y su posición; la restauración no puede decidirla prematuramente. |
+| constructor genuinamente pendiente | `fn Main(){var v=(if true then {return;}else{return;});var a=[v];v=a;}` / `f0-0002-b-v2` | Rechazo con `NX-E0103` `[66,67)` (ADR §4.1.2.2; negativo que `skip` aceptaba). La falta de `array_origin` no autoriza suprimir la única obligación causal. |
+
+Positivo de control de la regla de unión: `fn Main(){let p=true;let ar=[1];var q=[];let a=(if p then q else ar);q=ar;}` debe aceptarse; las dos continuaciones y la asignación posterior son compatibles. Su aceptación y sus datos exactos deben verificarse con el prototipo antes de fijar el texto normativo definitivo.
+
+### Correspondencia entre mecanismos y cláusulas
+
+| efecto requerido | consecuencia de la regla | estado de la demostración |
+|---|---|---|
+| `atomic0` y `retract` | Una propuesta rechazada no altera nodos, obligaciones, marcas, planes ni procedencias. La restauración de solo `type_nodes` del candidato 5 es incompleta; la restauración prematura de una propuesta suspendida explica el contraejemplo `planned_projection`. | Hipótesis estructural; falta prototipo y prueba diferencial. |
+| `pendfa`, `retfa`, `retfail` | El estado de denuncia no cambia el testigo parcial que puede entregar la primera continuación válida a una unión exterior. | Respaldado por §4.1.2.5 y ablaciones de INFORME-3/8; falta regla de transferencia verificada en código nuevo. |
+| `nojoin` / `nojoinr` | Una unión registrada contrasta cada continuación con la misma referencia; no repite una igualdad local entre hojas. Un ancla heredada de otro consumidor no registra esa unión. | Respaldado por §4.1.2.4 y ablaciones; falta demostración para `match`. |
+| `e0103rule` y sustituto de `skipv3` | La obligación de resolver el elemento pertenece al constructor fuente y a cada constructor con obligación propia, incluso tras `Never`; su emisión se decide al cierre causal, sin condicionar al número global de errores. | §4.1.2.2 y §13.17; falta implementación que preserve el negativo recursivo. |
+| `read_plan` / siembra | Solo evidencia de igualdades comprometidas puede habilitar la planificación; una asignación rechazada o diferida no retipa lecturas previas. | §4.1.2.2 y §4.1.2.7; falta prueba de punto fijo y cota. |
+| RM-M3 | El ADR aún no define qué ofrece un brazo de `match` cuyo valor es una unión fallida. | **Laguna real**: no se hereda una regla de `if` sin texto normativo y barrido de las 103 filas. |
+
+La unidad de transacción debe incluir los nodos alcanzables por la igualdad a través de padres, `array_child`, `variant_children`, tipos `Deferred` contenidos en `concrete`, obligaciones y sus orígenes; además de los índices de planificación que leen esos nodos. Una copia de todo el `Checker` o de todos los `type_nodes` solo sirve al prototipo; la representación final tendría que registrar las escrituras y el cierre alcanzable. La regla no justifica clonar o restaurar estados ajenos a la ocurrencia. Los cargos de cuota y la reserva de `AnalysisLimit` no se restituyen (§11.8). Esta especificación de alcance sigue incompleta hasta probar que todas las escrituras del solucionador pasan por el registro.
+
+## Criterio de prueba y parada
+
+El prototipo desechable vive solo en `i07c-rediseno-proto`; ningún cambio de `src/` de esa rama es entregable de integración. La puerta del diseño es el brief §§3 y 5: 0 regresiones de core frente a `main` en **todos** los corpus, incluidas semillas nuevas congeladas previamente, matriz 45/45, 51 filas de conservación de `match` intactas y adjudicación de las otras 52, aceptación idéntica en `check` y `run` para los tres perfiles, debug/release, 152 RD, pila, pasadas y coste. Los resultados solo se anotarán tras ejecución. Un fallo reproducible detiene el paso a plan; no se oculta como fila sin adjudicar.
+
+La lectura de T5 literal, `pending_inner` B, literal heterogéneo N, procedencia A y conservación de `match` son restricciones de entrada (`F0-0002-lagunas.md` y registro §6). Los tests de §3.6 del brief no se editan sin aprobación expresa uno a uno; la prueba `i07c_survivor2_nested_shape_hints_reach_the_leaf` no se elimina. S5a.2 y S5a.3 requieren negativos propios de dominio y `InvalidIr`; no quedan demostrados por el contraste de ancla.
+
+## Riesgos y límites actuales
+
+Los corpus históricos concentran una función `Main`, hasta seis hojas y profundidad tres. El oráculo de S5c no modela `match`, `while`, bloques `{}` ni `AssertEq` y predice salidas previas a T5. Las cifras de INFORME-1..8 son datos de la exploración anterior, no mediciones de este diseño. La diferencia entre las bases de pila 60.616 B y 60.920 B exige medir el `origin/main` concreto con rustc 1.99.1. Tampoco están demostradas la cota de planificación ni la penalización de tiempo. **No se afirma cero regresiones.**
