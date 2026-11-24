@@ -118,6 +118,10 @@ Sobre los 1.098 modelados, `txmarksproj` da core A/B/C/D = **1/206/0/1** y full 
 
 Sobre los 1.138 modelados, `txmarksproj` da core A/B/C/D = **1/221/0/3** y full A/B/C/D = **0/125/557/114**; 913 core y 342 full son aciertos comunes. El A 1646 tiene `q[0]` en un `value` anidado posterior: `main` y oráculo dan solo `NX-E0103` `[67,69)` y `[85,87)`; la variante añade `NX-E0103` `[76,78)` y dos `NX-E1303` `[137,142)` y `[172,177)`. La marca activada por la proyección altera otras igualdades de la sentencia. Los 3.362 sin oráculo incluyen 546 cambios sin adjudicar. `summary-s4417061.json` quedó publicado sin error de arnés.
 
+### Semilla B 9908255 completa (4.500 programas; release, `check`)
+
+Sobre los 1.108 modelados, `txmarksproj` da core A/B/C/D = **0/177/0/2** y full A/B/C/D = **1/98/559/93**; 929 core y 357 full son aciertos comunes. El A full 2065 conserva los códigos y primarios, pero cambia la relación `expected_type` del `NX-E0102` `[173,174)` de `[163,169)` a `[117,118)`. La fuente no contiene proyección; es una pérdida de procedencia de la base candidata, no una activación de `txmarksproj`, y sigue siendo defecto de núcleo por el brief §3.1. De los 3.392 sin oráculo, 539 cambian sin adjudicar. `summary-s9908255.json` quedó publicado sin error de arnés.
+
 `scripts/i07c_rd_accept.py` (rama desechable) quedó preparado para comparar aceptación de `check`/`run` en los tres perfiles con cuatro hijos y watchdog propio de 6 GB/20 min; una muestra de dos programas de c1 y un positivo de control verificaron el formato. La muestra no fundamenta aceptación global. El arnés de firmas A/B/C/D registra diagnósticos de `check`; los resultados de ejecución e `internal_error` se medirán por separado. La consulta `python -B scripts/f5-stack65.py --help` ejecutó accidentalmente las sondas de pila porque el script no implementa `--help`; quedó registrada como incidente operativo y **no** se usa como evidencia de pila ni PASS, pues no pasó por el cerrojo compartido.
 
 ## Evidencia directa disponible de la primera exploración
