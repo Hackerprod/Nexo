@@ -1,1 +1,5 @@
 {"id": "M00160", "reason": "commit descontrolado (3 tests), PIDs terminados por el coordinador", "commit_gb": [26.9, 22.0, 6.4], "time": "2026-11-24 10:56:00"}
+{"id": "M00253", "pid": 16696, "reason": "commit del arbol 15.2 GB", "commit_gb": 4.3, "time": "2026-11-24 11:05:27"}
+{"id": "M00253", "pid": 9544, "reason": "commit de proceso 6.9 GB (nexo-ae65c584bd3eb2e6.exe)", "commit_gb": 6.9, "time": "2026-11-24 11:05:38"}
+{"id": "M00253", "pid": 9544, "reason": "commit del arbol 11.4 GB", "commit_gb": 6.9, "time": "2026-11-24 11:05:38"}
+{"id": "M00253", "pid": 12228, "reason": "commit de proceso 6.3 GB (nexo-ae65c584bd3eb2e6.exe)", "commit_gb": 6.3, "time": "2026-11-24 11:05:49"}
