@@ -2,6 +2,7 @@
 """Resume the disposable I07c sweep one published, locked lot at a time."""
 import argparse
 from datetime import datetime
+import hashlib
 import json
 from pathlib import Path
 import subprocess
@@ -9,6 +10,7 @@ import sys
 import time
 
 import i07c_rd_sweep as sweep
+import i07c_rd_campaign as campaign
 
 ROOT = Path(__file__).resolve().parent.parent
 STATE = Path("C:/projects/Nexo/.scratch/sol-rediseno-estado.md")
@@ -16,6 +18,29 @@ BASE = "C:/nexo-work/target-rd-main/release/nexo.exe"
 PROTO = str(ROOT / ".scratch/rd-bin/txmarksproj.exe")
 PROFILE = "i07c-rediseno"
 SUMMARY = Path("docs/validation/i07c-rediseno/barrido")
+
+
+def lot_complete(corpus, start, end, variants, base_tag, proto_tag):
+    filename = f"{corpus}-{start:05d}-{end:05d}.json"
+    checks = [(base_tag, None)] + [
+        (proto_tag + name, campaign.BASE_FLAGS + "," + campaign.VARIANTS[name])
+        for name in variants.split(",")
+    ]
+    for tag, flags in checks:
+        path = sweep.OUT / tag / filename
+        if not path.exists():
+            return False
+        doc = json.loads(path.read_text(encoding="utf-8"))
+        if doc.get("start") != start or doc.get("end") != end or doc.get("flags") != flags or len(doc.get("results", [])) != end - start:
+            return False
+        if any(isinstance(value, dict) for value in doc["results"]):
+            return False
+    summary_path = ROOT / SUMMARY / f"summary-{corpus}.json"
+    if not summary_path.exists():
+        return False
+    summary = json.loads(summary_path.read_text(encoding="utf-8"))
+    return all(summary.get("variants", {}).get(name, {}).get("n", 0) >= end
+               for name in variants.split(","))
 
 
 def free_virtual_kb():
@@ -81,18 +106,25 @@ def main():
     parser.add_argument("--batch", type=int, default=2000)
     parser.add_argument("--variants", default="right,concrete,statement,occurrence,statement_right,occurrence_right,occurrence_unify,projection")
     args = parser.parse_args()
+    with open(BASE, "rb") as stream:
+        base_tag = "main-" + hashlib.file_digest(stream, "sha256").hexdigest()[:12]
+    with open(PROTO, "rb") as stream:
+        proto_tag = "proto-" + hashlib.file_digest(stream, "sha256").hexdigest()[:12] + "-"
     for corpus in args.corpora:
         count = len(sweep.data(corpus))
         for start in range(0, count, args.batch):
             end = min(start + args.batch, count)
+            if lot_complete(corpus, start, end, args.variants, base_tag, proto_tag):
+                print(f"already_published={corpus} {start}:{end}", flush=True)
+                continue
             print(f"starting={corpus} {start}:{end}", flush=True)
             while True:
                 if not memory_ready():
                     return 2
                 code = run_locked(corpus, start, end, args.variants)
                 if code == 75:
-                    print("heavy_lock_busy: waiting 150 seconds", flush=True)
-                    time.sleep(150)
+                    print("heavy_lock_busy: retrying in 60 seconds", flush=True)
+                    time.sleep(60)
                     continue
                 if code != 0:
                     print(f"INCONCLUSIVE {corpus} {start}:{end} exit={code}", flush=True)
