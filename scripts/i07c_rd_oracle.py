@@ -679,8 +679,7 @@ class Checker:
         # continuaciones posteriores: aplanado recursivo (cl.4); no se sintetiza otra referencia dentro de ellas
         if g.k == "if":
             if self.cond(g.cond):
-                self.check(g.then, None)
-                self.check(g.els, None)
+                self.union(g, cond_done=True)  # Las obligaciones internas de las ramas sobreviven.
                 st["any_bad"] = True
                 return
             self.cont(g.then, st, False)
