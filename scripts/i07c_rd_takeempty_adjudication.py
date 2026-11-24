@@ -8,6 +8,7 @@ unchanged. Derive those constraints with the disposable T5/N oracle, restore byt
 offsets, and compare the saved sweep outputs; the call sites are compared apart.
 """
 import json
+import argparse
 from pathlib import Path
 
 import i07c_rd_oracle as oracle
@@ -20,8 +21,15 @@ OUT = Path("docs/validation/i07c-rediseno/adjudicacion-takeempty.json")
 
 
 def main():
-    rows = sweep.data("c2")  # Checks the frozen corpus SHA-256.
-    base, proto = sweep.load(BASE, "c2"), sweep.load(PROTO, "c2")
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--corpus", choices=("c2", "c2@f0-0003-b-v1"), default="c2")
+    args = parser.parse_args()
+    rows = sweep.data(args.corpus)  # Checks the frozen corpus SHA-256.
+    base, proto = sweep.load(BASE, args.corpus), sweep.load(PROTO, args.corpus)
+    modeled = sweep.expected(args.corpus, rows)
+    changed_unmodeled = {index for index in range(len(rows))
+                         if modeled[index] is None and base[index] != proto[index]}
+    assert changed_unmodeled == set(ROWS), (args.corpus, changed_unmodeled)
     result = []
     for index in ROWS:
         row = rows[index]
@@ -55,10 +63,13 @@ def main():
         result.append({"index": index, "expected_union": expected, "main_union": main_union,
                        "proto_union": proto_union, "common_calls": main_calls})
         print(f"{index}: C and fields match; calls unchanged", flush=True)
-    OUT.parent.mkdir(parents=True, exist_ok=True)
-    OUT.write_text(json.dumps({"corpus_sha256": sweep.CORPUS_SHA256["c2"], "rows": result},
+    output = OUT if args.corpus == "c2" else OUT.with_name("adjudicacion-takeempty-f0-0003-b-v1.json")
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps({"corpus_sha256": sweep.CORPUS_SHA256["c2"],
+                                 "profile": "f0-0002-b-v2" if args.corpus == "c2" else "f0-0003-b-v1",
+                                 "rows": result},
                               ensure_ascii=False, indent=2), encoding="utf-8")
-    print(f"adjudicated={len(result)} output={OUT}", flush=True)
+    print(f"adjudicated={len(result)} output={output}", flush=True)
 
 
 if __name__ == "__main__":
