@@ -8,23 +8,23 @@
   "variants": {
     "projection": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
-        "A": 4,
-        "B": 858,
-        "C": 1,
-        "D": 1
+        "A": 6,
+        "B": 1767,
+        "C": 4,
+        "D": 2
       },
       "full": {
-        "A": 1,
-        "B": 446,
-        "C": 4489,
-        "D": 482
+        "A": 4,
+        "B": 930,
+        "C": 8652,
+        "D": 990
       },
       "ok": {
-        "core": 7136,
-        "full": 2582
+        "core": 14221,
+        "full": 5424
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
@@ -32,56 +32,61 @@
         1976,
         2159,
         4798,
-        6749
+        6749,
+        12397,
+        13590
       ]
     },
     "right": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
-        "A": 3,
-        "B": 857,
-        "C": 2,
-        "D": 1
+        "A": 6,
+        "B": 1766,
+        "C": 4,
+        "D": 3
       },
       "full": {
-        "A": 1,
-        "B": 437,
-        "C": 4499,
-        "D": 481
+        "A": 3,
+        "B": 913,
+        "C": 8666,
+        "D": 993
       },
       "ok": {
-        "core": 7137,
-        "full": 2582
+        "core": 14221,
+        "full": 5425
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
       "regressions": [
         1976,
         4798,
-        6749
+        6749,
+        12397,
+        13590,
+        13601
       ]
     },
     "concrete": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
         "A": 0,
-        "B": 860,
-        "C": 0,
-        "D": 0
+        "B": 1770,
+        "C": 1,
+        "D": 2
       },
       "full": {
-        "A": 1,
-        "B": 446,
-        "C": 4491,
-        "D": 480
+        "A": 4,
+        "B": 929,
+        "C": 8654,
+        "D": 989
       },
       "ok": {
-        "core": 7140,
-        "full": 2582
+        "core": 14227,
+        "full": 5424
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
@@ -89,23 +94,23 @@
     },
     "statement": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
         "A": 0,
-        "B": 860,
+        "B": 1773,
         "C": 0,
         "D": 0
       },
       "full": {
-        "A": 0,
-        "B": 434,
-        "C": 4505,
-        "D": 478
+        "A": 2,
+        "B": 914,
+        "C": 8673,
+        "D": 985
       },
       "ok": {
-        "core": 7140,
-        "full": 2583
+        "core": 14227,
+        "full": 5426
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
@@ -113,23 +118,23 @@
     },
     "occurrence": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
         "A": 0,
-        "B": 857,
-        "C": 2,
-        "D": 1
+        "B": 1766,
+        "C": 4,
+        "D": 3
       },
       "full": {
-        "A": 0,
-        "B": 432,
-        "C": 4507,
-        "D": 478
+        "A": 2,
+        "B": 908,
+        "C": 8678,
+        "D": 986
       },
       "ok": {
-        "core": 7140,
-        "full": 2583
+        "core": 14227,
+        "full": 5426
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
@@ -137,23 +142,23 @@
     },
     "statement_right": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
         "A": 0,
-        "B": 860,
+        "B": 1773,
         "C": 0,
         "D": 0
       },
       "full": {
-        "A": 0,
-        "B": 439,
-        "C": 4499,
-        "D": 479
+        "A": 2,
+        "B": 920,
+        "C": 8666,
+        "D": 986
       },
       "ok": {
-        "core": 7140,
-        "full": 2583
+        "core": 14227,
+        "full": 5426
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
@@ -161,23 +166,23 @@
     },
     "occurrence_right": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
         "A": 0,
-        "B": 858,
-        "C": 1,
-        "D": 1
+        "B": 1768,
+        "C": 2,
+        "D": 3
       },
       "full": {
-        "A": 0,
-        "B": 438,
-        "C": 4500,
-        "D": 479
+        "A": 2,
+        "B": 916,
+        "C": 8668,
+        "D": 988
       },
       "ok": {
-        "core": 7140,
-        "full": 2583
+        "core": 14227,
+        "full": 5426
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
@@ -185,23 +190,23 @@
     },
     "occurrence_unify": {
       "corpus": "c1",
-      "n": 8000,
+      "n": 16000,
       "unmodeled": 0,
       "core": {
         "A": 0,
-        "B": 857,
-        "C": 2,
-        "D": 1
+        "B": 1766,
+        "C": 4,
+        "D": 3
       },
       "full": {
-        "A": 0,
-        "B": 432,
-        "C": 4507,
-        "D": 478
+        "A": 2,
+        "B": 908,
+        "C": 8678,
+        "D": 986
       },
       "ok": {
-        "core": 7140,
-        "full": 2583
+        "core": 14227,
+        "full": 5426
       },
       "same_unmodeled": 0,
       "changed_unmodeled": 0,
